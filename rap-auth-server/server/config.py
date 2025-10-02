@@ -3,13 +3,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent
 
-def _read_key_file(file_name: str) -> str:
-    """Helper to read key files."""
-    path = BASE_DIR / file_name
-    if not path.exists():
-        raise FileNotFoundError(f"Key file not found: {path}. Please run 'python generate_keys.py'.")
-    return path.read_text()
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -32,8 +25,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "RS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # JWT Keys loaded from files
-    JWT_PRIVATE_KEY: str = _read_key_file("jwt_private.pem")
-    JWT_PUBLIC_KEY: str = _read_key_file("jwt_public.pem")
+    # JWT Keys from environment
+    JWT_PRIVATE_KEY: str
+    JWT_PUBLIC_KEY: str
 
 settings = Settings()
