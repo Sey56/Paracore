@@ -1,0 +1,40 @@
+.sidebar-overlay {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+}
+.sidebar-overlay.visible {
+    transform: translateX(0);
+}
+.overlay-bg {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.overlay-bg.visible {
+    opacity: 0.5;
+    visibility: visible;
+}
+.inspector-mobile {
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+.inspector-mobile.visible {
+    transform: translateY(0);
+}
+.script-card:hover .card-actions {
+    opacity: 1;
+}
+@media (max-width: 767px) {
+    .card-actions {
+        opacity: 1 !important;
+    }
+}
+.fab {
+    transition: transform 0.2s ease;
+}
+.fab:hover {
+    transform: scale(1.1);
+}
+.script-card:active {
+    transform: scale(0.98);
+}

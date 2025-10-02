@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+python-multipart
+grpcio
+grpcio-tools
+SQLAlchemy
+pydantic[email]
+GitPython
+watchdog
+psutil
+argon2-cffi
+requests
+python-jose[cryptography]

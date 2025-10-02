@@ -1,0 +1,60 @@
+# General
+*.user
+*.suo
+*.db
+*.lock
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
+ehthumbs.db
+
+# C# / .NET
+.vs/
+[Bb]in/
+[Oo]bj/
+Properties/
+App.config
+packages/
+
+# Node.js
+node_modules/
+dist/
+dist-ssr/
+.env
+.env.*
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+/rscript-extension/*.vsix
+*.local
+
+# Python
+.venv/
+.python-version
+__pycache__/
+*.pyc
+
+# Tauri
+src-tauri/target/
+src-tauri/Cargo.lock
+
+# Logs
+logs
+*.log
+
+# Docker artifacts
+.dockerignore
+
+# Localtunnel cache (if any)
+.loca.lt/

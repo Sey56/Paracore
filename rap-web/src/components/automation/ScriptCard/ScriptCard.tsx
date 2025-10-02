@@ -1,0 +1,207 @@
+import React from 'react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faStar as fasStar,
+  faPlay,
+  faEllipsisH,
+  faSpinner,
+  faExclamationTriangle,
+  faCodeBranch,
+} from "@fortawesome/free-solid-svg-icons";
+import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
+import { useRevitStatus } from "@/hooks/useRevitStatus";
+import { Script } from "@/types/scriptModel";
+import { useScriptExecution } from "@/hooks/useScriptExecution";
+import { useScripts } from "@/hooks/useScripts";
+import { useUI } from "@/hooks/useUI";
+import styles from './ScriptCard.module.css';
+import { useAuth } from '@/hooks/useAuth';
+
+interface ScriptCardProps {
+  script: Script;
+  onSelect: () => void;
+  isFromActiveWorkspace: boolean;
+}
+
+export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFromActiveWorkspace }) => {
+  const { selectedScript, runningScriptPath, runScript, setSelectedScript, userEditedScriptParameters } = useScriptExecution();
+  const { toggleFavoriteScript } = useScripts();
+  const { setActiveInspectorTab } = useUI();
+  const { revitStatus } = useRevitStatus(); // Get Revit status
+  const { isAuthenticated } = useAuth();
+
+  const isSelected = selectedScript?.id === script.id;
+  const isRunning = runningScriptPath === script.id;
+
+  const isCompatibleWithDocument = React.useMemo(() => {
+    if (revitStatus.document === null) {
+      return false;
+    }
+
+    const scriptDocType = script.metadata.documentType?.trim().toLowerCase();
+    const revitDocType = revitStatus.documentType?.trim().toLowerCase();
+
+    // If script's documentType is not specified or is "Any", it's compatible with any open document.
+    if (!scriptDocType || scriptDocType === 'any') {
+      return true;
+    }
+
+    // If Revit document type is not available, but script requires a specific type, it's incompatible.
+    if (!revitDocType) {
+      return false;
+    }
+
+    // Otherwise, check for an exact match.
+    return scriptDocType === revitDocType;
+  }, [revitStatus.document, revitStatus.documentType, script.metadata.documentType]);
+
+  const isRunButtonDisabled = !isAuthenticated || isRunning || !isCompatibleWithDocument; // Disable if running, or incompatible
+
+  const getTooltipMessage = () => {
+    if (!isAuthenticated) {
+      return "You must sign in to use RAP";
+    }
+
+    if (isCompatibleWithDocument) {
+      return "";
+    }
+
+    const scriptDocType = script.metadata.documentType?.trim().toLowerCase();
+
+    if (revitStatus.document === null) {
+      return "No document opened in Revit";
+    }
+
+    if (scriptDocType && scriptDocType !== 'any') {
+      return `This script requires '${script.metadata.documentType}' document type, but the current is '${revitStatus.documentType || "None"}'`;
+    }
+
+    return ""; // Fallback, though should be covered by above conditions
+  };
+
+  const tooltipMessage = getTooltipMessage();
+
+  const handleRunClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isRunButtonDisabled) return; // Prevent execution if disabled
+    await setSelectedScript(script);
+    setActiveInspectorTab('console');
+    runScript(script, userEditedScriptParameters[script.id] || script.parameters);
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFavoriteScript(script.id);
+  };
+
+  const handleSelect = () => {
+    onSelect();
+  }
+
+  if (script.metadataError) {
+    return (
+      <div
+        className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col items-center justify-center min-h-[200px] ${isSelected ? "ring-2 ring-blue-500" : ""}`}
+        onClick={handleSelect}
+      >
+        <p className="mt-2 text-sm text-red-500 dark:text-red-400 text-center px-4">{script.metadata?.description || "Error loading metadata."}</p>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Click to retry</p>
+      </div>
+    );
+  }
+
+  if (!script.metadata) {
+    return (
+      <div
+        className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col items-center justify-center min-h-[200px] ${isSelected ? "ring-2 ring-blue-500" : ""}`}
+        onClick={handleSelect}
+      >
+        <FontAwesomeIcon icon={faSpinner} className="animate-spin text-2xl text-gray-500 dark:text-gray-400" />
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-2.0 cursor-pointer flex flex-col ${
+        isSelected ? "ring-2 ring-blue-500" : ""
+      } ${isRunning ? "opacity-70" : ""} ${!isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""} ${isFromActiveWorkspace ? "border-2 border-blue-500" : ""}`} // Removed background color
+      onClick={handleSelect}
+    >
+      <div className="p-4 flex-grow flex flex-col">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-medium text-lg text-gray-800 dark:text-gray-100">
+            {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
+            {isFromActiveWorkspace && (
+              <FontAwesomeIcon icon={faCodeBranch} className="ml-2 text-gray-400 dark:text-gray-500" title="From active workspace" />
+            )}
+          </h3>
+          <button
+            onClick={handleFavoriteClick}
+            className={`${
+              script.isFavorite
+                ? "text-yellow-400 hover:text-yellow-500"
+                : "text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300"
+            }`}
+          >
+            {script.isFavorite ? (
+              <FontAwesomeIcon icon={fasStar} />
+            ) : (
+              <FontAwesomeIcon icon={farStar} />
+            )}
+          </button>
+        </div>
+
+        {/* Categories */}
+        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            {script.metadata.categories?.join(', ')}
+        </div>
+
+        {/* Description */}
+        <p className={`${styles.description} text-gray-600 dark:text-gray-300 text-sm mb-4 flex-grow`}>
+          {script.metadata.description}
+        </p>
+        
+        {/* Author and DocumentType */}
+        <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+          <span>{script.metadata.author || 'Unknown Author'}</span>
+          <span>{script.metadata.documentType || 'Any'}</span>
+        </div>
+        {/* Dates */}
+        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {script.metadata.dateCreated && <span>Created: {new Date(script.metadata.dateCreated).toLocaleDateString()}</span>}
+          {script.metadata.dateModified && <span> | Modified: {new Date(script.metadata.dateModified).toLocaleDateString()}</span>}
+        </div>
+      </div>
+      <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center">
+        <div className="relative">
+          <button
+            className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm px-2 py-1 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleRunClick}
+            disabled={isRunButtonDisabled} // Use the new disabled state
+            title={tooltipMessage}
+          >
+            <FontAwesomeIcon
+              icon={isRunning ? faSpinner : faPlay}
+              className={`mr-1 ${isRunning ? "animate-spin" : ""}`}
+            />
+            {isRunning ? "Running..." : "Run"}
+          </button>
+        </div>
+
+        <div className="flex items-center">
+            {!isCompatibleWithDocument && (
+                <FontAwesomeIcon
+                icon={faExclamationTriangle}
+                className="text-yellow-500"
+                />
+            )}
+            <button className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white text-sm px-2 py-1 ml-2">
+                <FontAwesomeIcon icon={faEllipsisH} />
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};

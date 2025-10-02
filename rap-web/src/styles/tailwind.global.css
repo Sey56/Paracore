@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+.sidebar-overlay {
+  transition: transform 0.3s ease;
+}
+
+.overlay-bg {
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.inspector-mobile {
+  transition: transform 0.3s ease;
+}
+
+/* Ensure proper stacking context */
+.fixed {
+  z-index: 10;
+}
+.absolute {
+  z-index: 20;
+}
+.sticky {
+  z-index: 30;
+}

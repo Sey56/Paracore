@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>RServer</Name>
+    <Assembly>RServer/RServer.Addin.dll</Assembly>
+    <ClientId>7a9a3554-5761-403a-b607-409a0317492c</ClientId>
+    <FullClassName>RServer.Addin.App.RServerApp</FullClassName>
+    <VendorId>ADSK</VendorId>
+    <VendorDescription>Autodesk, www.autodesk.com</VendorDescription>
+  </AddIn>
+</RevitAddIns>

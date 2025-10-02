@@ -1,0 +1,106 @@
+import React from 'react';
+import { Rnd } from 'react-rnd';
+import { CodeViewer } from './CodeViewer';
+import type { Script } from '../../../types/scriptModel';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes, faEdit } from '@fortawesome/free-solid-svg-icons';
+import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+
+interface FloatingCodeViewerProps {
+  script: Script;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, isOpen, onClose }) => {
+  const { theme } = useTheme();
+  const { user } = useAuth(); // Get user from auth context
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const canEdit = !!user;
+
+  const onDragResizeStart = () => {
+    document.body.style.overflow = 'hidden';
+  };
+
+  const onDragResizeStop = () => {
+    document.body.style.overflow = 'auto';
+  };
+
+  const handleEditScript = async () => {
+    if (!script || !canEdit) return;
+
+    try {
+      const response = await fetch("http://localhost:8000/api/edit-script", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('rap_local_token')}`
+        },
+        body: JSON.stringify({ scriptPath: script.absolutePath, type: script.type }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(result.message);
+    } catch (error) {
+      console.error("Failed to open script for editing:", error);
+    }
+  };
+
+  return (
+    <Rnd
+      default={{
+        x: 100,
+        y: 100,
+        width: 600,
+        height: 400,
+      }}
+      minWidth={300}
+      minHeight={200}
+      bounds="window"
+      className={`
+        rounded-lg border shadow-2xl
+        ${theme === 'dark' ? 'dark bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}
+      `}
+      style={{ zIndex: 1000 }}
+      dragHandleClassName="handle"
+      onDragStart={onDragResizeStart}
+      onDragStop={onDragResizeStop}
+      onResizeStart={onDragResizeStart}
+      onResizeStop={onDragResizeStop}
+    >
+      <div
+        className="handle absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-3 cursor-move bg-gray-200 dark:bg-gray-700"
+      >
+        <span className="font-bold text-gray-800 dark:text-white">{script.name}</span>
+        <button onClick={onClose} className="bg-transparent border-none text-gray-800 dark:text-white cursor-pointer">
+          <FontAwesomeIcon icon={faTimes} />
+        </button>
+      </div>
+      <div className="absolute top-10 bottom-16 left-0 right-0 overflow-auto">
+        <CodeViewer script={script} />
+      </div>
+      <div className="absolute bottom-0 left-0 right-0 h-16 p-4 border-t border-gray-300 dark:border-gray-600 flex justify-end items-center bg-gray-200 dark:bg-gray-700">
+        <button
+          onClick={handleEditScript}
+          disabled={!canEdit}
+          className={`bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold flex items-center ${
+            !canEdit ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
+          }`}
+          title={!canEdit ? "You must be signed in to edit scripts" : "Edit Script"}
+        >
+          <FontAwesomeIcon icon={faEdit} className="mr-2" />
+          Edit Script
+        </button>
+      </div>
+    </Rnd>
+  );
+};

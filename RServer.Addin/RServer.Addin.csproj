@@ -1,0 +1,74 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWPF>true</UseWPF>
+
+    <AssemblyTitle>RServer.Addin</AssemblyTitle>
+    <AssemblyName>RServer.Addin</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <Company>Codarch</Company>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <ProjectCapability>Protobuf_Generator</ProjectCapability>
+    <ProtoRoot>$(MSBuildProjectDirectory)\..\protos</ProtoRoot>
+
+    <!-- Allow override via command line or environment -->
+    <RevitInstallPath Condition="'$(RevitInstallPath)' == ''">C:\Program Files\Autodesk\Revit 2025</RevitInstallPath>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <!-- Remove image from default build -->
+  <ItemGroup>
+    <None Remove="Images\na_icon.png" />
+    <None Remove="Images\RServer.png" />
+    <None Remove="Images\unknown_icon.png" />
+    <None Remove="Images\vscode_icon.png" />
+    <None Remove="Images\web_icon.png" />
+  </ItemGroup>
+
+  <!-- Revit API references -->
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitInstallPath)\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitInstallPath)\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RScript.Engine\RScript.Engine.csproj" />
+  </ItemGroup>
+
+  <!-- Embedded resources -->
+  <ItemGroup>
+    <Resource Include="Images\RServer.png" />
+    <Resource Include="Images\unknown_icon.png" />
+    <Resource Include="Images\vscode_icon.png" />
+    <Resource Include="Images\web_icon.png" />
+  </ItemGroup>
+
+  <!-- NuGet packages -->
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.71.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.71.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
+  </ItemGroup>
+
+  <!-- Proto file for gRPC service -->
+  <ItemGroup>
+    <Protobuf Include="$(ProtoRoot)\rscript.proto" GrpcServices="Server" Link="Protos\rscript.proto" />
+  </ItemGroup>
+
+</Project>

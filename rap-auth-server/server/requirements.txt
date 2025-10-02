@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic-settings
+python-jose[cryptography]
+google-api-python-client
+google-auth-oauthlib
+sqlalchemy
+psycopg2-binary
+httpx
+pydantic[email]
