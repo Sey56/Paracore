@@ -38,35 +38,5 @@ namespace RServer.Addin.Views
             Resources.MergedDictionaries.Add(themeDictionary);
         }
 
-        private void FilterTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            var view = CollectionViewSource.GetDefaultView(ExecutionHistoryGrid.ItemsSource);
-            if (view != null)
-            {
-                view.Refresh();
-            }
-        }
-
-        private bool Filter(object item)
-        {
-            if (string.IsNullOrEmpty(FilterTextBox.Text))
-            {
-                return true;
-            }
-            else
-            {
-                return ((ExecutionRecord)item).ScriptName.IndexOf(FilterTextBox.Text, System.StringComparison.OrdinalIgnoreCase) >= 0;
-            }
-        }
-
-        private void DashboardView_Loaded(object sender, RoutedEventArgs e)
-        {
-            DataContext = ServerViewModel.Instance;
-            var view = CollectionViewSource.GetDefaultView(ExecutionHistoryGrid.ItemsSource);
-            if (view != null)
-            {
-                view.Filter = Filter;
-            }
-        }
     }
 }

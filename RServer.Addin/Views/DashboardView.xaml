@@ -18,7 +18,7 @@
             <StackPanel Orientation="Vertical" Margin="0">
                 <!-- Header -->
                 <StackPanel Orientation="Horizontal" Margin="20,20,20,10" VerticalAlignment="Top">
-                    <TextBlock Text="RServer Dashboard" FontSize="20" FontWeight="Bold" Foreground="#F8F8F2"/>
+                    <TextBlock Text="RServer Dashboard" FontSize="16" FontWeight="Bold" Foreground="#F8F8F2"/>
                     <Ellipse x:Name="HeartbeatEllipse" Width="16" Height="16" Margin="16,0,0,0">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">
@@ -68,26 +68,23 @@
                     <Border Background="#282A36" CornerRadius="12" Padding="18" Margin="0,0,16,0" Width="120" Height="90">
                         <StackPanel>
                             <TextBlock Text="Executions" Foreground="#8BE9FD" FontWeight="Bold" FontSize="12"/>
-                            <TextBlock Text="{Binding TotalExecutions}" Foreground="#F8F8F2" FontSize="20" FontWeight="Bold"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Background="#282A36" CornerRadius="12" Padding="18" Margin="0,0,16,0" Width="120" Height="90">
-                        <StackPanel>
-                            <TextBlock Text="Active Clients" Foreground="#50FA7B" FontWeight="Bold" FontSize="12"/>
-                            <TextBlock Text="{Binding ActiveClients}" Foreground="#F8F8F2" FontSize="20" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding TotalExecutions}" Foreground="#F8F8F2" FontSize="18" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
                     <Border Background="#282A36" CornerRadius="12" Padding="18" Width="120" Height="90">
                         <StackPanel>
                             <TextBlock Text="Last Status" Foreground="#FFB86C" FontWeight="Bold" FontSize="12"/>
-                            <TextBlock Text="{Binding LastExecutionStatus}" Foreground="#F8F8F2" FontSize="20" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding LastExecutionStatus}" Foreground="#F8F8F2" FontSize="18" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
                 <!-- Execution Table -->
                 <Border Background="#282A36" CornerRadius="12" Padding="16" Margin="20,0,20,16">
                     <StackPanel>
-                        <TextBlock Text="Execution History" Foreground="#F8F8F2" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Execution History" Foreground="#F8F8F2" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                            <Button Content="Clear" Command="{Binding ClearHistoryCommand}" Margin="10,0,0,0" Padding="8,2" FontSize="10"/>
+                        </StackPanel>
                         <DataGrid x:Name="ExecutionHistoryGrid" ItemsSource="{Binding ExecutionHistory}" AutoGenerateColumns="False" HeadersVisibility="Column" Height="220" Background="#282A36" Foreground="#F8F8F2" BorderThickness="0" RowBackground="#23243A" AlternatingRowBackground="#22223A" GridLinesVisibility="None">
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
@@ -132,36 +129,6 @@
                                 </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
-                    </StackPanel>
-                </Border>
-                <!-- Parameter Snapshot -->
-                <Border Background="#282A36" CornerRadius="12" Padding="16" Margin="20,0,20,16">
-                    <StackPanel>
-                        <TextBlock Text="Parameter Snapshot" Foreground="#F8F8F2" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                        <TextBox x:Name="FilterTextBox" Text="{}" FontFamily="Consolas" FontSize="12" Background="#23243A" Foreground="#F8F8F2" BorderThickness="0" Height="60"/>
-                        <Button Content="Copy as JSON" Width="120" Margin="0,8,0,0" HorizontalAlignment="Left"/>
-                    </StackPanel>
-                </Border>
-                <!-- Diagnostics Panel -->
-                <Border Background="#282A36" CornerRadius="12" Padding="16" Margin="20,0,20,16">
-                    <StackPanel>
-                        <TextBlock Text="Diagnostics" Foreground="#F8F8F2" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                        <ComboBox Width="120" Margin="0,0,0,8">
-                            <ComboBoxItem Content="Info"/>
-                            <ComboBoxItem Content="Debug"/>
-                            <ComboBoxItem Content="Error"/>
-                        </ComboBox>
-                        <ScrollViewer Height="320" VerticalScrollBarVisibility="Auto">
-                            <StackPanel>
-                                <TextBlock Text="[Info] Server started." Foreground="#8BE9FD" FontFamily="Consolas" FontSize="12"/>
-                                <TextBlock Text="[Debug] Execution received." Foreground="#50FA7B" FontFamily="Consolas" FontSize="12"/>
-                                <TextBlock Text="[Error] Timeout occurred." Foreground="#FF5555" FontFamily="Consolas" FontSize="12"/>
-                            </StackPanel>
-                        </ScrollViewer>
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button Content="Restart" Width="80" Margin="0,0,8,0"/>
-                            <Button Content="Clear" Width="80"/>
-                        </StackPanel>
                     </StackPanel>
                 </Border>
             </StackPanel>

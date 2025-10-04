@@ -48,7 +48,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     console.log('AuthProvider: login function called with credentialResponse:', credentialResponse);
     try {
       if (credentialResponse.credential) {
-        const cloudAuthResponse = await axios.post('http://127.0.0.1:8001/auth/verify-google-token', { token: credentialResponse.credential });
+        const cloudAuthResponse = await axios.post('https://rap-auth-server-production.up.railway.app/auth/verify-google-token', { token: credentialResponse.credential });
         const { token: newCloudToken, user: cloudUserData }: { token: string; user: CloudUserResponse } = cloudAuthResponse.data;
 
         if (!newCloudToken || !cloudUserData) {

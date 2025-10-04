@@ -72,7 +72,7 @@ namespace RServer.Addin.App
             // Register dockable pane
             var dpid = new DockablePaneId(DashboardPaneId);
             var dp = new DashboardView();
-            application.RegisterDockablePane(dpid, "RScript Dashboard", dp);
+            application.RegisterDockablePane(dpid, "RServer Dashboard", dp);
 
             // Ensure the server is marked as not running on startup
             ServerViewModel.Instance.IsServerRunning = false;

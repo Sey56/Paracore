@@ -8,6 +8,8 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json; // Added for JSON parsing
 using System.Linq; // Added for LINQ
+using System.Windows.Input; // Added for ICommand
+using RServer.Addin.Helpers; // Added for RelayCommand
 
 namespace RServer.Addin.ViewModels
 {
@@ -51,17 +53,6 @@ namespace RServer.Addin.ViewModels
             }
         }
 
-        private int _activeClients;
-        public int ActiveClients
-        {
-            get => _activeClients;
-            set
-            {
-                _activeClients = value;
-                OnPropertyChanged(nameof(ActiveClients));
-            }
-        }
-
         private string _lastExecutionStatus = "N/A";
         public string LastExecutionStatus
         {
@@ -75,6 +66,9 @@ namespace RServer.Addin.ViewModels
 
         public string LastClientSource { get; set; } = string.Empty;
         public string LastExecutedScriptName { get; set; } = string.Empty;
+
+        private ICommand? _clearHistoryCommand;
+        public ICommand ClearHistoryCommand => _clearHistoryCommand ??= new RelayCommand(_ => ClearHistory());
 
         public event Action<ExecutionResult> OnExecutionComplete = delegate { };
         public bool IsInitialized => RScriptExecutionDispatcher.Instance.IsInitialized;
@@ -128,8 +122,6 @@ namespace RServer.Addin.ViewModels
 
                 TotalExecutions++;
                 LastExecutionStatus = result.IsSuccess ? "Success" : "Error";
-                // ActiveClients is not directly tracked here, assuming 1 for now per execution
-                ActiveClients = 1; // This needs a more robust solution for actual active clients
                 FileLogger.Log($"[ServerViewModel] TotalExecutions: {TotalExecutions}, LastExecutionStatus: {LastExecutionStatus}");
 
                 
@@ -152,6 +144,12 @@ namespace RServer.Addin.ViewModels
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void ClearHistory()
+        {
+            FileLogger.Log("[ServerViewModel] ClearHistory command executed.");
+            ExecutionHistory.Clear();
         }
     }
 
