@@ -26,7 +26,6 @@ async def lifespan(app: FastAPI):
     """
     # Note: In a production environment with Alembic, you might remove this.
     Base.metadata.create_all(bind=engine)
-    print("Database tables created (if not already existing).")
     yield
 
 app = FastAPI(lifespan=lifespan)

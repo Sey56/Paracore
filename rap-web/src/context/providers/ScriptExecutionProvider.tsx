@@ -5,6 +5,7 @@ import type { ExecutionResult, ParameterPreset } from '@/types/common';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScripts } from '@/hooks/useScripts';
 import { useAuth } from '@/hooks/useAuth';
+import { useUI } from '@/hooks/useUI';
 import api from '@/api/axios';
 
 
@@ -54,12 +55,20 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const { showNotification } = useNotifications();
   const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime } = useScripts();
   const { isAuthenticated } = useAuth();
+  const { activeScriptSource } = useUI();
 
   const [selectedScript, setSelectedScriptState] = useState<Script | null>(null);
   const [runningScriptPath, setRunningScriptPath] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [userEditedScriptParameters, setUserEditedScriptParameters] = useState<Record<string, ScriptParameter[]>>({});
   const [presets, setPresets] = useState<ParameterPreset[]>([]);
+
+  useEffect(() => {
+    setSelectedScriptState(null);
+    setCombinedScriptContent(null);
+    setPresets([]);
+    setExecutionResult(null);
+  }, [activeScriptSource]);
 
   const notifiedParamsScriptIdRef = useRef<string | null>(null);
   const notifiedPresetsScriptIdRef = useRef<string | null>(null);

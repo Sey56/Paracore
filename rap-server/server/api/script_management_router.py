@@ -73,11 +73,9 @@ Level? level = new FilteredElementCollector(Doc)
 
 if (level == null)
 {
-    Print($"❌ Level '{levelName}' not found.");
     return;
 }
 
-Print($"Preparing to create wall of {wallLengthMeters}m × {wallHeightMeters}m on '{levelName}'...");
 
 // Write operations inside a transaction
 Transact("Create Wall", () =>
@@ -85,7 +83,6 @@ Transact("Create Wall", () =>
     Wall wall = Wall.Create(Doc, wallLine, level.Id, false);
     wall.get_Parameter(BuiltInParameter.WALL_USER_HEIGHT_PARAM)?.Set(heightFt);
 });
-Print("✅ Wall created.");
 """
 
 # --- Pydantic Models for New Script Creation ---

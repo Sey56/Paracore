@@ -4,6 +4,7 @@ import { faStar as fasStar } from '@fortawesome/free-solid-svg-icons';
 import { faStar as farStar } from '@fortawesome/free-regular-svg-icons';
 import { Script } from '@/types/scriptModel';
 import { getScriptLog } from '@/api/workspaces';
+import { useUI } from '@/hooks/useUI';
 
 interface ScriptHeaderProps {
   script: Script;
@@ -12,10 +13,11 @@ interface ScriptHeaderProps {
 
 export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavorite }) => {
   const [gitLog, setGitLog] = useState<string | null>(null);
+  const { activeScriptSource } = useUI();
 
   useEffect(() => {
     const fetchGitLog = async () => {
-      if (script?.absolutePath) {
+      if (script?.absolutePath && activeScriptSource?.type === 'workspace') {
         try {
           const response = await getScriptLog(script.absolutePath);
           setGitLog(response.log);
@@ -26,7 +28,7 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
       }
     };
     fetchGitLog();
-  }, [script?.absolutePath]);
+  }, [script?.absolutePath, activeScriptSource]);
 
   const parseGitLog = (log: string) => {
     const authorMatch = log.match(/Author: (.+?) <.+>/);
