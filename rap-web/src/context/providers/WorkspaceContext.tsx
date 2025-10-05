@@ -5,13 +5,11 @@ import { CloneWorkspacePayload } from '@/api/workspaces';
 
 interface WorkspaceContextProps {
   workspaces: Workspace[];
-  publishedWorkspaces: Workspace[];
   activeWorkspace: Workspace | null;
   cloneAndAddWorkspace: (payload: CloneWorkspacePayload) => Promise<void>;
   removeWorkspace: (id: string) => void;
   setActiveWorkspaceId: (id: string | null) => void;
   clearActiveWorkspace: () => void;
-  publishWorkspace: (workspaceId: string) => Promise<void>;
 }
 
 export const WorkspaceContext = createContext<WorkspaceContextProps | undefined>(undefined);

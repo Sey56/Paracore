@@ -20,7 +20,7 @@ from ..grpc_client import (
     create_and_open_workspace
 )
 from ..utils import get_or_create_script, resolve_script_path
-''
+from ..auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
@@ -96,7 +96,7 @@ class NewScriptRequest(BaseModel):
     folder_name: str | None = Field(None, description="The name of the folder for multi-script projects.")
 
 @router.post("/api/scripts/new", tags=["Script Management"])
-async def create_new_script(request: NewScriptRequest):
+async def create_new_script(request: NewScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
     if not os.path.isabs(request.parent_folder) or not os.path.isdir(request.parent_folder):
         raise HTTPException(status_code=400, detail="Invalid parent folder path.")
 
@@ -148,50 +148,38 @@ import traceback
 
 @router.get("/api/scripts", tags=["Script Management"])
 async def get_scripts(folderPath: str):
-    print(f"[DEBUG] get_scripts called with folderPath: {folderPath}")
     if not folderPath or not os.path.isabs(folderPath) or not os.path.isdir(folderPath):
-        print("[ERROR] Invalid folder path")
         raise HTTPException(status_code=400, detail="A valid, absolute folder path is required.")
     
     scripts = []
     try:
         # Process single .cs files
         for file_path in glob.glob(os.path.join(folderPath, "*.cs")):
-            print(f"[DEBUG] Processing file: {file_path}")
             try:
                 resolved_file_path = resolve_script_path(file_path)
-                print(f"[DEBUG] Resolved file path: {resolved_file_path}")
 
                 content = ""
                 try:
                     with open(resolved_file_path, 'r', encoding='utf-8-sig') as f:
                         content = f.read()
-                    print(f"[DEBUG] Read file with utf-8-sig: {resolved_file_path}")
                 except UnicodeDecodeError:
-                    print(f"[WARN] UnicodeDecodeError for {resolved_file_path} with utf-8-sig")
                     try:
                         with open(resolved_file_path, 'r', encoding='utf-8') as f:
                             content = f.read()
-                        print(f"[DEBUG] Read file with utf-8: {resolved_file_path}")
                     except Exception as e:
-                        print(f"[ERROR] Could not read file {resolved_file_path} with any encoding: {e}")
                         continue
 
                 script_files = [{"file_name": os.path.basename(resolved_file_path), "content": content}]
-                print(f"[DEBUG] script_files: {script_files}")
 
                 metadata = {}
                 try:
                     metadata = get_script_metadata(script_files).get("metadata", {})
-                    print(f"[DEBUG] Metadata: {metadata}")
                 except grpc.RpcError as e:
-                    print(f"[ERROR] gRPC error for {resolved_file_path}: {e.details()}")
                     metadata = {"displayName": os.path.splitext(os.path.basename(resolved_file_path))[0], "description": f"Error: {e.details()}"}
 
                 file_stat = os.stat(resolved_file_path)
                 date_created = datetime.fromtimestamp(file_stat.st_ctime).isoformat()
                 date_modified = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
-                print(f"[DEBUG] File stats: created={date_created}, modified={date_modified}")
 
                 scripts.append({
                     "id": resolved_file_path.replace('\\', '/'),
@@ -205,9 +193,7 @@ async def get_scripts(folderPath: str):
                         "dateModified": date_modified
                     }
                 })
-                print(f"[DEBUG] Script appended for {resolved_file_path}")
             except Exception as e:
-                print(f"[ERROR] Error processing file {file_path}: {str(e)}")
                 traceback.print_exc()
                 continue
 
@@ -215,10 +201,8 @@ async def get_scripts(folderPath: str):
         for item in os.listdir(folderPath):
             item_path = os.path.join(folderPath, item)
             if os.path.isdir(item_path) and glob.glob(os.path.join(item_path, "*.cs")):
-                print(f"[DEBUG] Processing directory: {item_path}")
                 try:
                     resolved_item_path = resolve_script_path(item_path)
-                    print(f"[DEBUG] Resolved directory path: {resolved_item_path}")
                     
                     script_files = []
                     for fp in glob.glob(os.path.join(item_path, "*.cs")):
@@ -226,34 +210,26 @@ async def get_scripts(folderPath: str):
                         try:
                             with open(fp, 'r', encoding='utf-8-sig') as f:
                                 content = f.read()
-                            print(f"[DEBUG] Read file with utf-8-sig: {fp}")
                         except UnicodeDecodeError:
-                            print(f"[WARN] UnicodeDecodeError for {fp} with utf-8-sig")
                             try:
                                 with open(fp, 'r', encoding='utf-8') as f:
                                     content = f.read()
-                                print(f"[DEBUG] Read file with utf-8: {fp}")
                             except Exception as e:
-                                print(f"[ERROR] Could not read file {fp} with any encoding: {e}")
                                 continue
                         script_files.append({"file_name": os.path.basename(fp), "content": content})
 
                     if not script_files:
-                        print(f"[WARN] No script files found in directory: {item_path}")
                         continue
 
                     metadata = {}
                     try:
                         metadata = get_script_metadata(script_files).get("metadata", {})
-                        print(f"[DEBUG] Metadata for directory: {metadata}")
                     except grpc.RpcError as e:
-                        print(f"[ERROR] gRPC error for directory {resolved_item_path}: {e.details()}")
                         metadata = {"displayName": os.path.basename(resolved_item_path), "description": f"Error: {e.details()}"}
 
                     folder_stat = os.stat(resolved_item_path)
                     date_created = datetime.fromtimestamp(folder_stat.st_ctime).isoformat()
                     date_modified = datetime.fromtimestamp(folder_stat.st_mtime).isoformat()
-                    print(f"[DEBUG] Directory stats: created={date_created}, modified={date_modified}")
 
                     scripts.append({
                         "id": resolved_item_path.replace('\\', '/'),
@@ -267,16 +243,12 @@ async def get_scripts(folderPath: str):
                             "dateModified": date_modified
                         }
                     })
-                    print(f"[DEBUG] Script appended for directory {resolved_item_path}")
                 except Exception as e:
-                    print(f"[ERROR] Error processing directory {item_path}: {e}")
                     traceback.print_exc()
                     continue
                     
-        print(f"[DEBUG] Returning {len(scripts)} scripts")
         return JSONResponse(content=scripts)
     except Exception as e:
-        print(f"[ERROR] Exception in get_scripts: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to get scripts: {str(e)}")
 
@@ -391,7 +363,7 @@ async def get_script_content(scriptPath: str, type: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/edit-script", tags=["Script Management"])
-async def edit_script(request: Request):
+async def edit_script(request: Request, current_user: CurrentUser = Depends(get_current_user)):
     data = await request.json()
     script_path = data.get("scriptPath")
     script_type = data.get("type")
@@ -402,7 +374,7 @@ async def edit_script(request: Request):
     try:
         response = create_and_open_workspace(script_path, script_type)
         if response.get("error_message"):
-            raise HTTPException(status_code=500, detail=response.get("error_message"))
+            raise HTTPException(status_code=500, detail=response.get("error_message") )
         return JSONResponse(content={"message": f"Successfully created workspace at {response.get('workspace_path')}"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

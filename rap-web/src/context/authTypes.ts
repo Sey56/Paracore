@@ -13,6 +13,7 @@ export interface AuthContextType {
   user: User | null;
   cloudToken: string | null;
   localToken: string | null;
+  sessionStartTime: number | null;
   login: (credentialResponse: CredentialResponse) => void;
   logout: () => void;
 }

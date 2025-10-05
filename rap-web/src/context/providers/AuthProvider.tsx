@@ -16,20 +16,24 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [cloudToken, setCloudToken] = useState<string | null>(null);
   const [localToken, setLocalToken] = useState<string | null>(null); // Keep for compatibility, though might be unused
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
 
   const logout = useCallback(() => {
     localStorage.removeItem('rap_cloud_token');
     localStorage.removeItem('rap_local_token');
     localStorage.removeItem('rap_user');
+    localStorage.removeItem('rap_session_start_time');
     setCloudToken(null);
     setLocalToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    setSessionStartTime(null);
   }, []);
 
   useEffect(() => {
     const storedCloudToken = localStorage.getItem('rap_cloud_token');
     const storedUser = localStorage.getItem('rap_user');
+    const storedSessionStartTime = localStorage.getItem('rap_session_start_time');
 
     if (storedCloudToken && storedUser) {
       try {
@@ -37,6 +41,16 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         setCloudToken(storedCloudToken);
         setUser(parsedUser);
         setIsAuthenticated(true);
+
+        if (storedSessionStartTime) {
+          setSessionStartTime(Number(storedSessionStartTime));
+        } else {
+          // For users with existing sessions but no start time, set it to now.
+          const now = new Date().getTime();
+          localStorage.setItem('rap_session_start_time', String(now));
+          setSessionStartTime(now);
+        }
+
       } catch (error) {
         console.error('Failed to parse stored user data:', error);
         logout();
@@ -45,7 +59,6 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, [logout]);
 
   const login = async (credentialResponse: CredentialResponse) => {
-    console.log('AuthProvider: login function called with credentialResponse:', credentialResponse);
     try {
       if (credentialResponse.credential) {
         const cloudAuthResponse = await axios.post('https://rap-auth-server-production.up.railway.app/auth/verify-google-token', { token: credentialResponse.credential });
@@ -62,14 +75,15 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           picture_url: cloudUserData.picture_url,
         };
 
+        const now = new Date().getTime();
         localStorage.setItem('rap_cloud_token', newCloudToken);
         localStorage.setItem('rap_user', JSON.stringify(appUser));
+        localStorage.setItem('rap_session_start_time', String(now));
 
         setCloudToken(newCloudToken);
         setUser(appUser);
         setIsAuthenticated(true);
-
-        console.log('Login successful. User:', appUser);
+        setSessionStartTime(now);
 
       } else {
         throw new Error("Credential not found in response.");
@@ -82,7 +96,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, cloudToken, localToken, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, cloudToken, localToken, login, logout, sessionStartTime }}>
       {children}
     </AuthContext.Provider>
   );

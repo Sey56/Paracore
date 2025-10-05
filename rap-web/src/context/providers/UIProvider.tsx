@@ -61,7 +61,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Effect to save activeScriptSource to localStorage whenever it changes
   useEffect(() => {
-    console.log("[UIProvider] activeScriptSource changed:", activeScriptSource);
     if (activeScriptSource) {
       localStorage.setItem("activeScriptSource", JSON.stringify(activeScriptSource));
     } else {

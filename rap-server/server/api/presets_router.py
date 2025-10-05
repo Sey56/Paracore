@@ -6,7 +6,7 @@ import math
 from .. import models, schemas
 from ..database_config import get_db
 from ..utils import get_or_create_script, resolve_script_path
-''
+from ..auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
@@ -49,21 +49,24 @@ def are_parameters_equal_python(params1: List[Dict[str, Any]], params2: List[Dic
 @router.get("/api/presets", response_model=List[schemas.PresetResponse], tags=["presets"])
 def get_presets(
     scriptPath: str = Query(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     # Resolve and normalize scriptPath before using it with get_or_create_script
     resolved_script_path = resolve_script_path(scriptPath)
-    script = get_or_create_script(db, resolved_script_path, 1)  # Use default user id
-    return script.presets
+    script = db.query(models.Script).filter(models.Script.path == resolved_script_path).first()
+    if script:
+        return script.presets
+    return []
 
 @router.post("/api/presets", tags=["presets"])
 def save_presets(
     request_data: schemas.PresetRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     # Resolve and normalize scriptPath before using it with get_or_create_script
     resolved_script_path = resolve_script_path(request_data.scriptPath)
-    script = get_or_create_script(db, resolved_script_path, 1)  # Use default user id
+    script = get_or_create_script(db, resolved_script_path, current_user.id)
 
     # Perform uniqueness check based on parameter values within the incoming request_data.presets
     # This ensures that the set of presets being saved does not contain duplicates by value.

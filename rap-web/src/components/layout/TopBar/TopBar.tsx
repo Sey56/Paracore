@@ -49,6 +49,12 @@ export const TopBar: React.FC = () => {
           <FontAwesomeIcon icon={faBars} className="text-xl" />
         </button>
         <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">RAP</h1>
+        <button
+          onClick={toggleTheme}
+          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <FontAwesomeIcon icon={theme === 'dark' ? faSun : faMoon} />
+        </button>
       </div>
 
       {/* Connection Status - Hidden on mobile, shown on larger screens */}
@@ -67,12 +73,6 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
         <div className="flex items-center space-x-2 pl-2">
-          <button
-            onClick={toggleTheme}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            <FontAwesomeIcon icon={theme === 'dark' ? faSun : faMoon} />
-          </button>
           <UserMenu user={user} onLogin={login} onLogout={logout} />
         </div>
       </div>

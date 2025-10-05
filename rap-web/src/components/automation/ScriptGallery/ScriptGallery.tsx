@@ -30,6 +30,7 @@ const parseSearchTerm = (term: string) => {
     doctype: string[];
     created: string[];
     modified: string[];
+    categories: string[];
     general: string[];
   } = {
     tag: [],
@@ -39,6 +40,7 @@ const parseSearchTerm = (term: string) => {
     doctype: [],
     created: [],
     modified: [],
+    categories: [],
     general: [],
   };
 
@@ -68,6 +70,10 @@ const parseSearchTerm = (term: string) => {
       const value = part.substring(8);
       filters.doctype.push(value.toLowerCase());
       pillFilters.push({ type: 'doctype', value });
+    } else if (lowerPart.startsWith('categories:')) {
+      const value = part.substring(11);
+      filters.categories.push(value.toLowerCase());
+      pillFilters.push({ type: 'categories', value });
     } else if (lowerPart.startsWith('created:')) {
       const value = part.substring(8);
       filters.created.push(value);
@@ -178,7 +184,7 @@ export function ScriptGallery() {
     let searchedScripts = filteredBySidebarCategory;
 
     if (searchTerm) {
-      const { tag, author, param, desc, doctype, created, modified, general } = filters;
+      const { tag, author, param, desc, doctype, created, modified, general, categories } = filters;
 
       searchedScripts = filteredBySidebarCategory.filter((script: Script) => {
         const lowercasedName = script.name.toLowerCase();
@@ -197,6 +203,10 @@ export function ScriptGallery() {
         const matchesDocType = doctype.length === 0 || doctype.every(dt => scriptDocumentType.includes(dt));
         const matchesCreated = created.length === 0 || created.every(c => dateFilterHelper(script.metadata?.dateCreated, c));
         const matchesModified = modified.length === 0 || modified.every(m => dateFilterHelper(script.metadata?.dateModified, m));
+        const matchesCategories = categories.length === 0 || categories.every(c => {
+          const searchCategories = c.split(',').map(cat => cat.trim());
+          return searchCategories.some(sc => scriptCategories.includes(sc));
+        });
 
         const matchesGeneral = general.length === 0 || general.every(g =>
           lowercasedName.includes(g) ||
@@ -207,7 +217,7 @@ export function ScriptGallery() {
           scriptParameters.some(sp => sp.name.includes(g) || sp.description.includes(g))
         );
 
-        return matchesTag && matchesAuthor && matchesParam && matchesDesc && matchesDocType && matchesCreated && matchesModified && matchesGeneral;
+        return matchesTag && matchesAuthor && matchesParam && matchesDesc && matchesDocType && matchesCreated && matchesModified && matchesCategories && matchesGeneral;
       });
     }
 
@@ -276,7 +286,7 @@ export function ScriptGallery() {
   };
 
   return (
-    <div className={`p-4 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div className={`p-4`}>
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">
           {activeScriptSource?.type === 'workspace' ? 'Workspace' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'Script Gallery')}
@@ -357,44 +367,46 @@ export function ScriptGallery() {
          <div className="border-t border-gray-200 dark:border-gray-700 my-8"></div>
       )}
 
+      {selectedFolder && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm text-gray-400 dark:text-gray-500">
+                {selectedFolder && !searchAllFolders ? selectedFolder : 'All Scripts'}
+              </h2>
+            </div>
+            <div className="relative" title={!isAuthenticated ? "You must sign in to create scripts" : ""}>
+              <button 
+                onClick={handleOpenNewScriptModal} 
+                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!isAuthenticated}
+              >
+                New Script
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {otherScripts.length > 0 && (
-        <div>
-            <div className="mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm text-gray-400 dark:text-gray-500">
-                    {selectedFolder && !searchAllFolders ? selectedFolder : 'All Scripts'}
-                  </h2>
-                </div>
-                {selectedFolder && (
-                  <div className="relative" title={!isAuthenticated ? "You must sign in to create scripts" : ""}>
-                    <button 
-                      onClick={handleOpenNewScriptModal} 
-                      className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={!isAuthenticated}
-                    >
-                      New Script
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {otherScripts.filter(Boolean).map((script) => (
-                <ScriptCard
-                key={script.id}
-                script={script}
-                onSelect={() => handleScriptSelect(script)}
-                isFromActiveWorkspace={isFromActiveWorkspace(script)}
-                />
-            ))}
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {otherScripts.filter(Boolean).map((script) => (
+            <ScriptCard
+            key={script.id}
+            script={script}
+            onSelect={() => handleScriptSelect(script)}
+            isFromActiveWorkspace={isFromActiveWorkspace(script)}
+            />
+        ))}
         </div>
       )}
 
       {favoriteScripts.length === 0 && otherScripts.length === 0 && (
         <div className="text-gray-500 dark:text-gray-400 text-sm italic">
-          No scripts found. {selectedFolder ? `Select a different folder or clear the search term.` : 'Add a script folder in the sidebar to get started.'}
+          {selectedFolder 
+            ? 'No scripts found in this folder. Why not create one?' 
+            : 'Add a script folder in the sidebar to get started.'
+          }
         </div>
       )}
 

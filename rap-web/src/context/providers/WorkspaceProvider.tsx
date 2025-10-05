@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, ReactNode } from 'react';
-import axios from 'axios';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
-import { cloneWorkspace as cloneWorkspaceApi, CloneWorkspacePayload, getPublishedWorkspaces } from '@/api/workspaces';
+import { cloneWorkspace as cloneWorkspaceApi, CloneWorkspacePayload } from '@/api/workspaces';
 import { WorkspaceContext } from './WorkspaceContext';
 import { Workspace } from '@/types';
 
@@ -19,7 +18,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   });
 
-  const [publishedWorkspaces, setPublishedWorkspaces] = useState<Workspace[]>([]);
+
+
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => {
     const storedActiveId = localStorage.getItem('rap-active-workspace-id');
     if (storedActiveId && JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]').some((ws: Workspace) => ws.id === storedActiveId)) {
@@ -27,20 +27,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
     return null;
   });
-
-  const fetchPublishedWorkspaces = useCallback(async () => {
-    try {
-      const data = await getPublishedWorkspaces();
-      setPublishedWorkspaces(data);
-    } catch (error) {
-      console.error("Failed to fetch published workspaces:", error);
-      // Optionally show a notification
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPublishedWorkspaces();
-  }, [fetchPublishedWorkspaces]);
 
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workspaces));
@@ -55,12 +41,37 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [activeWorkspaceId]);
 
   const { showNotification } = useNotifications();
+  const { isAuthenticated } = useAuth();
 
   const cloneAndAddWorkspace = useCallback(async (payload: CloneWorkspacePayload) => {
+    const existingWorkspaceByUrl = workspaces.find(ws => ws.repoUrl === payload.repo_url);
+    if (existingWorkspaceByUrl) {
+      showNotification("Workspace exists, cloning skipped", "info");
+      return;
+    }
+
     try {
       showNotification("Cloning workspace...", "info");
       const response = await cloneWorkspaceApi(payload);
-      const { cloned_path, workspace_id } = response;
+      const { cloned_path, workspace_id, message } = response;
+
+      if (message && message === "workspace exists in path, loading it...") {
+        showNotification(message, "info");
+        const newWorkspace: Workspace = {
+            id: workspace_id.toString(),
+            name: payload.repo_url.split('/').pop()?.replace('.git', '') || 'New Workspace',
+            path: cloned_path,
+            repoUrl: payload.repo_url,
+        };
+        setWorkspaces((prev) => {
+            const updatedWorkspaces = [...prev, newWorkspace];
+            if (prev.length === 0) {
+                setActiveWorkspaceId(newWorkspace.id);
+            }
+            return updatedWorkspaces;
+        });
+        return;
+      }
 
       const newWorkspace: Workspace = {
         id: workspace_id.toString(),
@@ -82,7 +93,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       console.error("Failed to clone and add workspace:", error);
       showNotification("Failed to clone workspace.", "error");
     }
-  }, [showNotification]);
+  }, [workspaces, showNotification]);
 
   const removeWorkspace = useCallback((id: string) => {
     setWorkspaces((prev) => {
@@ -102,43 +113,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     ? workspaces.find(ws => ws.id === activeWorkspaceId) || null
     : null;
 
-  const { localToken } = useAuth();
-
-  const publishWorkspace = useCallback(async (workspaceId: string) => {
-    if (!localToken) {
-      showNotification("Authentication token not found.", "error");
-      return;
-    }
-    try {
-      showNotification("Publishing scripts...", "info");
-      const response = await axios.post(
-        `http://localhost:8000/api/workspaces/${workspaceId}/publish`,
-        {}, // Empty body
-        {
-          headers: {
-            Authorization: `Bearer ${localToken}`,
-          },
-        }
-      );
-      showNotification(`Successfully published ${response.data.length} scripts.`, "success");
-      fetchPublishedWorkspaces(); // Refetch published workspaces
-    } catch (err: unknown) {
-      console.error("Failed to publish workspace:", err);
-      const axiosError = err as { response?: { data?: { detail?: string } } };
-      const message = axiosError.response?.data?.detail || "An unknown error occurred during publishing.";
-      showNotification(message, "error");
-    }
-  }, [localToken, showNotification, fetchPublishedWorkspaces]);
-
   const contextValue = {
     workspaces,
-    publishedWorkspaces,
     activeWorkspace,
     cloneAndAddWorkspace,
     removeWorkspace,
     setActiveWorkspaceId,
     clearActiveWorkspace,
-    publishWorkspace,
   };
 
   return (

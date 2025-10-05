@@ -15,7 +15,7 @@ interface FloatingCodeViewerProps {
 
 export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, isOpen, onClose }) => {
   const { theme } = useTheme();
-  const { user } = useAuth(); // Get user from auth context
+  const { user, cloudToken } = useAuth(); // Get user and cloudToken from auth context
 
   if (!isOpen) {
     return null;
@@ -39,7 +39,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem('rap_local_token')}`
+          "Authorization": `Bearer ${cloudToken}`
         },
         body: JSON.stringify({ scriptPath: script.absolutePath, type: script.type }),
       });
@@ -49,7 +49,6 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
       }
 
       const result = await response.json();
-      console.log(result.message);
     } catch (error) {
       console.error("Failed to open script for editing:", error);
     }

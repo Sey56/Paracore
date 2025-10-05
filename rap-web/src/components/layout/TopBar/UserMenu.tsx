@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUserCircle, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import { SessionTimer } from './SessionTimer';
 
 interface User {
   name?: string;
@@ -62,22 +63,22 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogin, onLogout }) =
       ) : (
         <GoogleLogin
           onSuccess={(credentialResponse) => {
-            console.log(credentialResponse);
             onLogin(credentialResponse);
           }}
           onError={() => {
-            console.log('Login Failed');
           }}
         />
       )}
 
       {isOpen && user && (
-        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50">
+        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50">
           <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
             Signed in as <br />
             <span className="font-medium">{user.name || user.email}</span>
           </div>
-          <div className="border-t border-gray-200 dark:border-gray-700"></div>
+          <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+          <SessionTimer />
+          <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
           <button
             onClick={() => {
               onLogout();

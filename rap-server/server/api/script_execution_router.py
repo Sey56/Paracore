@@ -10,14 +10,15 @@ from .. import models, schemas
 from ..database_config import get_db
 from ..grpc_client import execute_script
 from ..utils import get_or_create_script, resolve_script_path
-''
+from ..auth import get_current_user, CurrentUser
+
 
 router = APIRouter()
 
 @router.post("/run-script", tags=["Script Execution"])
 async def run_script(
     request: Request,
-    # No user context
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     data = await request.json()
     path = data.get("path")
@@ -30,7 +31,7 @@ async def run_script(
     db: Session = next(get_db())
     # Resolve and normalize scriptPath before using it with get_or_create_script
     resolved_script_path = resolve_script_path(path)
-    script = get_or_create_script(db, resolved_script_path, 1)  # Default user_id
+    script = get_or_create_script(db, resolved_script_path, current_user.id)
 
     try:
         absolute_path = resolved_script_path # Use the already resolved path
@@ -60,7 +61,7 @@ async def run_script(
 
         script_run = models.ScriptRun(
             script_id=script.id,
-            user_id="1",
+            user_id=str(current_user.id),
             status=run_status,
             output=run_output,
             parameters=parameters
@@ -74,7 +75,7 @@ async def run_script(
         # Create a failure run log regardless of the error type
         script_run = models.ScriptRun(
             script_id=script.id,
-            user_id="1",
+            user_id=str(current_user.id),
             status="failure",
             output=str(e),
             parameters=parameters

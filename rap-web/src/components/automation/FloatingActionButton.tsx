@@ -10,7 +10,6 @@ export const FloatingActionButton: React.FC = () => {
 
   const handleClick = () => {
     // For now, just log to console
-    console.log('Create new script');
     toggleInspector();// TODO: Pass 'false' once toggleInspector supports boolean input
   };
 

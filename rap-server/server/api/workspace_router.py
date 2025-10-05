@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database_config import get_db
+from ..auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
@@ -27,15 +28,14 @@ class CommitRequest(BaseModel):
 @router.get("/api/workspaces/published", response_model=list[schemas.WorkspaceResponse], tags=["Workspaces"])
 def get_published_workspaces(db: Session = Depends(get_db)):
     """
-    Returns a list of workspaces that have at least one script published.
+    Returns a list of all workspaces.
     """
-    return db.query(models.Workspace).join(models.PublishedScript).distinct().all()
+    return db.query(models.Workspace).distinct().all()
 
 @router.post("/api/workspaces/clone", tags=["Workspaces"])
-async def clone_repo(req: CloneRequest, db: Session = Depends(get_db)):
+async def clone_repo(req: CloneRequest, db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
     """
     Clones a Git repository into the specified local parent directory, or updates it if it already exists.
-    Open access: no role required.
     """
     try:
         repo_name = req.repo_url.split('/')[-1].replace('.git', '')
@@ -52,16 +52,12 @@ async def clone_repo(req: CloneRequest, db: Session = Depends(get_db)):
 
         if os.path.exists(cloned_path):
             if os.path.isdir(cloned_path) and os.path.exists(os.path.join(cloned_path, '.git')):
-                message = f"Repository already exists at {cloned_path}. Pulling latest changes."
-                subprocess.run(
-                    ["git", "pull", "--rebase"],
-                    cwd=cloned_path,
-                    check=True,
-                    capture_output=True,
-                    text=True
-                )
+                message = "workspace exists in path, loading it..."
             else:
-                raise HTTPException(status_code=400, detail=f"Target path {cloned_path} exists and is not an empty directory or a Git repository.")
+                raise HTTPException(
+                    status_code=409, 
+                    detail=f"A folder named '{repo_name}' already exists here but isn't a Git repository. Please remove it or choose a different location."
+                )
         else:
             os.makedirs(req.local_path, exist_ok=True)
             subprocess.run(
@@ -78,8 +74,7 @@ async def clone_repo(req: CloneRequest, db: Session = Depends(get_db)):
         if not workspace:
             workspace = models.Workspace(
                 name=repo_name,
-                path=cloned_path,
-                team_id=None  # Default to open access, no user context
+                path=cloned_path
             )
             db.add(workspace)
             db.commit()
@@ -93,9 +88,9 @@ async def clone_repo(req: CloneRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {traceback.format_exc()}")
 
 @router.get("/api/workspaces/status", tags=["Workspaces"])
-async def get_workspace_status(workspace_path: str):
+async def get_workspace_status(workspace_path: str, db: Session = Depends(get_db)):
     """
-    Gets the Git status of a workspace. Requires authentication.
+    Gets the Git status of a workspace.
     """
     if not os.path.isdir(workspace_path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
@@ -126,15 +121,11 @@ async def get_workspace_status(workspace_path: str):
                     branch_info['behind'] = int(parts[3].replace('-', ''))
             else:
                 # Parse the porcelain v2 format for changed files
-                # Example: '1 .M N... 100644 100644 100644 16c53afb638511c9cc6700892121c9008215c538 16c53afb638511c9cc6700892121c9008215c538 HelloPrint/HelloPrint.cs'
-                # We want to extract 'HelloPrint/HelloPrint.cs'
                 parts = line.split(' ')
-                if len(parts) >= 9: # Ensure it's a well-formed line for changed files
-                    file_path = ' '.join(parts[8:]) # Join parts from index 8 onwards for the path
+                if len(parts) >= 9: 
+                    file_path = ' '.join(parts[8:])
                     changed_files.append(file_path)
                 else:
-                    # If it's not a recognized format, still add the raw line for now
-                    # or log a warning for unhandled status lines
                     changed_files.append(line)
 
         return {
@@ -150,7 +141,6 @@ async def get_workspace_status(workspace_path: str):
 async def get_workspace_scripts(workspace_path: str) -> List[str]:
     """
     Gets a list of all C# script files (.cs) within a given workspace path.
-    Requires authentication.
     """
     if not os.path.isdir(workspace_path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
@@ -164,9 +154,9 @@ async def get_workspace_scripts(workspace_path: str) -> List[str]:
     return script_files
 
 @router.post("/api/workspaces/commit", tags=["Workspaces"])
-async def commit_changes(req: CommitRequest):
+async def commit_changes(req: CommitRequest, current_user: CurrentUser = Depends(get_current_user)):
     """
-    Adds all changes and commits them with a message. Open access: no role required.
+    Adds all changes and commits them with a message.
     """
     if not os.path.isdir(req.workspace_path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
@@ -190,10 +180,9 @@ async def commit_changes(req: CommitRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/workspaces/pull", tags=["Workspaces"])
-async def pull_changes(workspace: Annotated[Workspace, Body(embed=True)]):
+async def pull_changes(workspace: Annotated[Workspace, Body(embed=True)], current_user: CurrentUser = Depends(get_current_user)):
     """
     Pulls changes from the remote repository. Uses --rebase to avoid merge commits.
-    Accessible to all authenticated users.
     """
     if not os.path.isdir(workspace.path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
@@ -212,9 +201,9 @@ async def pull_changes(workspace: Annotated[Workspace, Body(embed=True)]):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/workspaces/push", tags=["Workspaces"])
-async def push_changes(workspace: Annotated[Workspace, Body(embed=True)]):
+async def push_changes(workspace: Annotated[Workspace, Body(embed=True)], current_user: CurrentUser = Depends(get_current_user)):
     """
-    Pushes changes to the remote repository. Open access: no role required.
+    Pushes changes to the remote repository.
     """
     if not os.path.isdir(workspace.path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
@@ -234,15 +223,14 @@ async def push_changes(workspace: Annotated[Workspace, Body(embed=True)]):
 
 
 @router.post("/api/workspaces/sync", tags=["Workspaces"])
-async def sync_workspace(workspace: Annotated[Workspace, Body(embed=True)]):
+async def sync_workspace(workspace: Annotated[Workspace, Body(embed=True)], current_user: CurrentUser = Depends(get_current_user)):
     """
-    Syncs the workspace. For users, this only pulls. For developers/admins, it pulls and pushes.
+    Syncs the workspace by pulling and then pushing changes.
     """
     if not os.path.isdir(workspace.path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
     
     try:
-        # All roles can pull
         pull_result = subprocess.run(
             ["git", "pull", "--rebase"],
             cwd=workspace.path,
@@ -251,7 +239,6 @@ async def sync_workspace(workspace: Annotated[Workspace, Body(embed=True)]):
             text=True
         )
 
-        # Always pull, and always push (open access)
         push_result = subprocess.run(
             ["git", "push"],
             cwd=workspace.path,

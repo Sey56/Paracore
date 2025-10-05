@@ -15,7 +15,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const { activeWorkspace } = useWorkspaces();
   const { activeScriptSource } = useUI();
-  const { user } = useAuth(); // Get user from auth context
+  const { user, isAuthenticated } = useAuth(); // Get user and auth status from auth context
   const [scripts, setScripts] = useState<Script[]>([]);
   const [allScripts, setAllScripts] = useState<Script[]>([]);
   const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>("customScriptFolders", []);
@@ -60,8 +60,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Effect to manage currentDisplayPath based on activeScriptSource
   useEffect(() => {
-    console.log("[ScriptProvider] activeScriptSource changed:", activeScriptSource);
-    console.log("[ScriptProvider] activeWorkspace changed:", activeWorkspace);
     if (activeScriptSource) {
       if (activeScriptSource.type === 'local') {
         setCurrentDisplayPath(activeScriptSource.path);
@@ -71,7 +69,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       setCurrentDisplayPath(null);
     }
-    console.log("[ScriptProvider] currentDisplayPath updated based on activeScriptSource/activeWorkspace. New value will be reflected in subsequent renders.");
   }, [activeScriptSource, activeWorkspace]);
 
   // Main script loading effect
@@ -225,12 +222,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearScripts = useCallback(() => setScripts([]), []);
 
-  const fetchPublishedScriptMetadata = useCallback(async (scriptId: string) => {
-    console.log("fetchPublishedScriptMetadata not implemented yet", scriptId);
-    // In the future, this will fetch metadata for published scripts.
-    // For now, it does nothing.
-  }, []);
-
   const contextValue: ScriptContextProps = {
     scripts: scriptsWithFavorites,
     allScripts: allScripts, // allScripts is now less relevant for the role-based view
@@ -249,7 +240,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     clearFavoriteScripts,
     clearRecentScripts,
     fetchScriptMetadata,
-    fetchPublishedScriptMetadata,
     setScripts,
     setCombinedScriptContent,
     clearScriptsForWorkspace, // Add this line

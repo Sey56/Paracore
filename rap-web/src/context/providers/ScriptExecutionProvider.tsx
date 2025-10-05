@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ScriptExecutionContext } from './ScriptExecutionContext';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
 import type { ExecutionResult, ParameterPreset } from '@/types/common';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScripts } from '@/hooks/useScripts';
+import { useAuth } from '@/hooks/useAuth';
 import api from '@/api/axios';
 
 
@@ -53,6 +53,7 @@ const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter
 export const ScriptExecutionProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime } = useScripts();
+  const { isAuthenticated } = useAuth();
 
   const [selectedScript, setSelectedScriptState] = useState<Script | null>(null);
   const [runningScriptPath, setRunningScriptPath] = useState<string | null>(null);
@@ -118,8 +119,11 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         setPresets([]);
       }
     };
-    fetchPresets();
-  }, [selectedScript, showNotification]);
+
+    if (isAuthenticated) {
+      fetchPresets();
+    }
+  }, [selectedScript, showNotification, isAuthenticated]);
 
   const clearExecutionResult = useCallback(() => {
     setExecutionResult(null);

@@ -18,6 +18,9 @@ from .config import settings
 from .database import Base, engine, get_db
 from .models import User
 from .schemas import UserOut
+from .config import settings
+
+print(f"--- DATABASE_URL BEING USED: {settings.DATABASE_URL} ---")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -71,7 +74,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=settings.CORS_ALLOWED_ORIGINS.split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -7,7 +7,6 @@ from datetime import datetime
 class WorkspaceBase(BaseModel):
     name: str
     path: str
-    team_id: Optional[int] = None
 
 class WorkspaceCreate(WorkspaceBase):
     pass
@@ -15,24 +14,6 @@ class WorkspaceCreate(WorkspaceBase):
 class WorkspaceResponse(WorkspaceBase):
     id: int
     created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-# --- PublishedScript Schemas ---
-class PublishedScriptBase(BaseModel):
-    script_path: str
-    workspace_id: int
-    team_id: Optional[int] = None
-    commit_hash: str
-
-class PublishedScriptCreate(PublishedScriptBase):
-    pass
-
-class PublishedScriptResponse(PublishedScriptBase):
-    id: int
-    published_at: datetime
-    content: str
 
     class Config:
         from_attributes = True
@@ -111,8 +92,6 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: int
     is_active: bool
-    team_id: Optional[int] = None
-    role: Optional[str] = None
 
     class Config:
         from_attributes = True
