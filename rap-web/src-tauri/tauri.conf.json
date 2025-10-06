@@ -1,6 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
-  
+  "package": {
+    "productName": "RAP"
+  },
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
@@ -12,11 +14,13 @@
       "targets": "all",
       "identifier": "rap.tauri.dev",
       "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
+        "icons/rap-icon-16.png",
+        "icons/rap-icon-32.png",
+        "icons/rap-icon-64.png",
+        "icons/rap-icon-128.png",
+        "icons/rap-icon-256.png",
+        "icons/rap-icon-512.png",
+        "icons/rap-icon.ico"
       ]
     },
     "windows": [
@@ -38,7 +42,7 @@
         "open": true
       },
       "fs": {
-        "all": false,
+        "all": true,
         "scope": [
           "$APPDATA/*",
           "$APPDATA/com.tauri.dev/*"

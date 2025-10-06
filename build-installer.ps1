@@ -6,6 +6,7 @@ $ErrorActionPreference = 'Stop'
 
 # --- Configuration ---
 $ProjectRoot = Get-Location
+$webDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-web' # Moved definition here
 # Note: Update this path if Inno Setup is installed elsewhere.
 $InnoSetupCompiler = 'C:\ Program Files (x86)\Inno Setup 6\ISCC.exe'
 $InstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'RAP_Installer.iss'
@@ -57,16 +58,6 @@ if (-not $InnoSetupCompiler) {
 
 Write-Host "Found Inno Setup Compiler at: $InnoSetupCompiler" -ForegroundColor Green
 
-# --- 2. Build rap-web (Tauri) ---
-Write-Host "`n[2/5] Building rap-web..."
-$webDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-web'
-Push-Location $webDir
-npm install
-npm run build
-npx tauri build
-Pop-Location
-Write-Host 'rap-web build complete.' -ForegroundColor Green
-
 # --- 3. Build rap-server (PyInstaller) ---
 Write-Host "`n[3/5] Packaging rap-server..."
 $serverDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-server'
@@ -83,6 +74,29 @@ pyinstaller rap-server.spec
 
 Pop-Location
 Write-Host 'rap-server packaging complete.' -ForegroundColor Green
+
+# Copy rap-server.exe to Tauri's target/debug and target/release directories
+$rapServerExePath = Join-Path $serverDir "dist\rap-server\rap-server.exe"
+$tauriDebugTargetDir = Join-Path $webDir "src-tauri\target\debug"
+$tauriReleaseTargetDir = Join-Path $webDir "src-tauri\target\release"
+
+New-Item -ItemType Directory -Path $tauriDebugTargetDir -ErrorAction SilentlyContinue | Out-Null
+Copy-Item -Path $rapServerExePath -Destination (Join-Path $tauriDebugTargetDir "rap-server.exe") -Force
+Write-Host "rap-server.exe copied to Tauri's debug directory for development."
+
+New-Item -ItemType Directory -Path $tauriReleaseTargetDir -ErrorAction SilentlyContinue | Out-Null
+Copy-Item -Path $rapServerExePath -Destination (Join-Path $tauriReleaseTargetDir "rap-server.exe") -Force
+Write-Host "rap-server.exe copied to Tauri's release directory for bundling."
+
+# --- 2. Build rap-web (Tauri) ---
+Write-Host "`n[2/5] Building rap-web..."
+$webDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-web'
+Push-Location $webDir
+npm install
+npm run build
+npx tauri build
+Pop-Location
+Write-Host 'rap-web build complete.' -ForegroundColor Green
 
 # --- 4. Build RServer.Addin (.NET) ---
 Write-Host "`n[4/5] Building RServer.Addin..."
@@ -117,6 +131,12 @@ $rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'rserver_
 
 & $InnoSetupCompiler $rapServerInstallerScript
 & $InnoSetupCompiler $rserverAddinInstallerScript
+
+# Copy Tauri MSI to install folder
+$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\target\release\bundle\msi\RAP_0.1.0_x64_en-US.msi'
+$tauriMsiDestination = Join-Path -Path $ProjectRoot -ChildPath 'install\RAP_Installer.msi' # Renaming for consistency
+Copy-Item -Path $tauriMsiSource -Destination $tauriMsiDestination -Force
+Write-Host "Tauri MSI Installer created at: $tauriMsiDestination" -ForegroundColor Yellow
 
 Write-Host "`n=================================" -ForegroundColor Cyan
 Write-Host '   Build Complete!   '

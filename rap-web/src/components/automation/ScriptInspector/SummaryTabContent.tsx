@@ -4,6 +4,8 @@ import type { ScriptExecutionResult } from "@/types/scriptModel";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCopy, faFileCsv } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
+import { save } from '@tauri-apps/api/dialog'; // Import save from dialog
+import { writeTextFile } from '@tauri-apps/api/fs'; // Import writeTextFile from fs
 
 interface SummaryTabContentProps {
   executionResult: ScriptExecutionResult | null;
@@ -60,13 +62,26 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
           );
           const csvContent = [headers, ...rows].join('\n');
 
-          // Export not available in this build. Please copy the CSV manually.
-          showNotification('Export is not available in this build. Please copy the CSV manually.', 'warning');
+          // Use Tauri dialog to save the file
+          const filePath = await save({
+            filters: [{
+              name: 'CSV',
+              extensions: ['csv']
+            }],
+            defaultPath: `export_${new Date().toISOString().slice(0, 10)}.csv`
+          });
+
+          if (filePath) {
+            await writeTextFile(filePath, csvContent);
+            showNotification('CSV exported successfully!', 'success');
+          } else {
+            showNotification('CSV export cancelled.', 'info');
+          }
           return;
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        showNotification(`Failed to export CSV. Invalid table data: ${errorMessage}`, 'error');
+        showNotification(`Failed to export CSV. Invalid table data or file operation failed: ${errorMessage}`, 'error');
         return;
       }
     }
@@ -112,6 +127,3 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
     </div>
   );
 };
-
-
-

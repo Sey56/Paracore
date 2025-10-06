@@ -10,7 +10,7 @@ PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=.\install
 OutputBaseFilename=RAP_Server_Installer
-SetupIconFile=rap-web\src-tauri\icons\icon.ico
+SetupIconFile=rap-web\src-tauri\icons\rap-icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -19,9 +19,9 @@ WizardStyle=modern
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "rap-server\dist\rap-server.exe"; DestDir: "{app}\server"
+Source: "rap-server\dist\rap-server\*"; DestDir: "{app}"
 
 [Icons]
-Name: "{autoprograms}\RAP Server"; Filename: "{app}\server\rap-server.exe"; WorkingDir: "{autopf}\RAP"
+Name: "{autoprograms}\RAP Server"; Filename: "{app}\rap-server.exe"; WorkingDir: "{app}"
 Name: "{autoprograms}\Uninstall RAP Server"; Filename: "{uninstallexe}"
 Name: "{autoprograms}\Uninstall RAP Server"; Filename: "{uninstallexe}"
