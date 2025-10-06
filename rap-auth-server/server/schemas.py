@@ -21,6 +21,14 @@ class UserOut(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user: UserOut
 
 class TokenData(BaseModel):
-    email: str | None = None
+    email: EmailStr | None = None
+
+class GoogleToken(BaseModel):
+    token: str
+
+class GoogleAuthCodeRequest(BaseModel):
+    code: str
+    redirect_uri: str

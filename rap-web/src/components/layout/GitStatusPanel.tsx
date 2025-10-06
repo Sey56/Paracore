@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { getWorkspaceStatus, syncWorkspace } from '@/api/workspaces';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUpload, faDownload, faCodeBranch, faSyncAlt, faArrowDown } from '@fortawesome/free-solid-svg-icons';
+import { faUpload, faDownload, faCodeBranch, faSyncAlt, faArrowDown, faRedo } from '@fortawesome/free-solid-svg-icons';
 import { faGitAlt } from '@fortawesome/free-brands-svg-icons';
 import { CommitModal } from '@/components/common/CommitModal';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useUI } from '@/hooks/useUI';
-import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+import { useAuth } from '@/hooks/useAuth';
 
 interface GitStatus {
   branch_info: {
@@ -31,11 +31,12 @@ export const GitStatusPanel: React.FC = () => {
   const { activeScriptSource } = useUI();
   const { workspaces } = useWorkspaces();
   const { showNotification } = useNotifications();
-  const { user, isAuthenticated } = useAuth(); // Get user and isAuthenticated from auth context
+  const { user, isAuthenticated } = useAuth();
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isFetching = useRef(false);
 
   const currentWorkspace = activeScriptSource?.type === 'workspace'
     ? workspaces.find(ws => ws.id === activeScriptSource.id)
@@ -44,10 +45,10 @@ export const GitStatusPanel: React.FC = () => {
   const canCommitAndPush = isAuthenticated;
 
   const fetchStatus = useCallback(async () => {
-    if (!currentWorkspace) {
-      setStatus(null);
+    if (!currentWorkspace || !isAuthenticated || isFetching.current) {
       return;
     }
+    isFetching.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -63,8 +64,9 @@ export const GitStatusPanel: React.FC = () => {
       console.error("Error fetching Git status:", err);
     } finally {
       setLoading(false);
+      isFetching.current = false;
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, isAuthenticated]);
 
   const handleSync = async () => {
     if (!currentWorkspace) return;
@@ -92,14 +94,10 @@ export const GitStatusPanel: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setStatus(null); // Clear status if not authenticated
-      return;
-    }
     fetchStatus();
     const interval = setInterval(fetchStatus, 30000);
     return () => clearInterval(interval);
-  }, [currentWorkspace, fetchStatus, isAuthenticated]);
+  }, [fetchStatus]);
 
   if (activeScriptSource?.type !== 'workspace' || !currentWorkspace) {
     return null;
@@ -116,7 +114,7 @@ export const GitStatusPanel: React.FC = () => {
       />
       <div className="flex items-center space-x-3">
         <FontAwesomeIcon icon={faGitAlt} className="text-orange-500 text-lg" />
-        {loading ? (
+        {loading && !isFetching.current ? (
           <span className="text-gray-600 dark:text-gray-400">Loading status...</span>
         ) : error ? (
           <span className="text-red-500">Error: {error}</span>
@@ -152,6 +150,14 @@ export const GitStatusPanel: React.FC = () => {
         )}
       </div>
       <div className="flex items-center space-x-2">
+        <button
+          onClick={fetchStatus}
+          className="px-3 py-1 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          disabled={loading}
+          title="Refresh Status"
+        >
+          <FontAwesomeIcon icon={faRedo} />
+        </button>
         <div className="relative" title={!isAuthenticated ? "You must sign in to sync" : ""}>
           <button 
             onClick={handleSync}

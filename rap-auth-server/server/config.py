@@ -11,11 +11,12 @@ class Settings(BaseSettings):
 
     # 🌐 Frontend
     FRONTEND_URL: str = "tauri://localhost"
-    CORS_ALLOWED_ORIGINS: str = "http://localhost:5173"
     
     # 🔐 Google OAuth2
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_CLIENT_ID_WEB: str
+    GOOGLE_CLIENT_SECRET_WEB: str
+    GOOGLE_CLIENT_ID_DESKTOP: str
+    GOOGLE_CLIENT_SECRET_DESKTOP: str
     REDIRECT_URI: str = "http://127.0.0.1:8001/auth/callback"
 
     # 🗄️ Database

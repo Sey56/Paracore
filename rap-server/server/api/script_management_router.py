@@ -431,7 +431,8 @@ async def get_script_log(script_path: str):
             cwd=workspace_path,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW
         ).stdout.strip()
         return {"log": log_result}
     except subprocess.CalledProcessError as e:

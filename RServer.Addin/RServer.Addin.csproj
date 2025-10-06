@@ -71,4 +71,24 @@
     <Protobuf Include="$(ProtoRoot)\rscript.proto" GrpcServices="Server" Link="Protos\rscript.proto" />
   </ItemGroup>
 
+  <!-- Target to generate .addin file -->
+  <Target Name="GenerateAddinFile" AfterTargets="Publish">
+    <PropertyGroup>
+      <AddinContent>
+<![CDATA[<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>RServer.Addin</Name>
+    <Assembly>RServer\RServer.Addin.dll</Assembly>
+    <ClientId>12345678-1234-1234-1234-123456789012</ClientId> <!-- Replace with a unique GUID -->
+    <FullClassName>RServer.Addin.App.RServerApp</FullClassName>
+    <VendorId>RAP</VendorId>
+    <VendorDescription>RAP Community</VendorDescription>
+  </AddIn>
+</RevitAddIns>]]>
+      </AddinContent>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(PublishDir)RServer.Addin.addin" Lines="$(AddinContent)" Overwrite="true" Encoding="utf-8" />
+  </Target>
+
 </Project>

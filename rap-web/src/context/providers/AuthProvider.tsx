@@ -1,7 +1,7 @@
 import React, { useState, useEffect, ReactNode, useCallback } from 'react';
-import { GoogleOAuthProvider, CredentialResponse, TokenResponse, CodeResponse } from '@react-oauth/google';
 import axios from 'axios';
 import { AuthContext, User } from '../authTypes';
+import { invoke } from '@tauri-apps/api/tauri';
 
 // This interface is a subset of the UserOut schema from rap-auth-server
 interface CloudUserResponse {
@@ -58,36 +58,42 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, [logout]);
 
-  const login = async (credentialResponse: CredentialResponse) => {
+  const login = async () => {
     try {
-      if (credentialResponse.credential) {
-        const cloudAuthResponse = await axios.post('https://rap-auth-server-production.up.railway.app/auth/verify-google-token', { token: credentialResponse.credential });
-        const { token: newCloudToken, user: cloudUserData }: { token: string; user: CloudUserResponse } = cloudAuthResponse.data;
+      // Call the Tauri command to initiate the Google OAuth flow
+      // This command will open the system browser and return the authorization code and redirect URI
+      const [authorizationCode, redirectUri]: [string, string] = await invoke('google_oauth_login');
 
-        if (!newCloudToken || !cloudUserData) {
-          throw new Error('Cloud authentication failed: No token or user data returned.');
-        }
-
-        const appUser: User = {
-          id: String(cloudUserData.id),
-          email: cloudUserData.email,
-          name: cloudUserData.name,
-          picture_url: cloudUserData.picture_url,
-        };
-
-        const now = new Date().getTime();
-        localStorage.setItem('rap_cloud_token', newCloudToken);
-        localStorage.setItem('rap_user', JSON.stringify(appUser));
-        localStorage.setItem('rap_session_start_time', String(now));
-
-        setCloudToken(newCloudToken);
-        setUser(appUser);
-        setIsAuthenticated(true);
-        setSessionStartTime(now);
-
-      } else {
-        throw new Error("Credential not found in response.");
+      if (!authorizationCode) {
+        throw new Error('No authorization code received from Tauri.');
       }
+
+      const cloudAuthResponse = await axios.post('https://rap-auth-server-production.up.railway.app/auth/verify-google-code', {
+        code: authorizationCode,
+        redirect_uri: redirectUri,
+      });
+      const { access_token: newCloudToken, user: cloudUserData }: { access_token: string; user: CloudUserResponse } = cloudAuthResponse.data;
+
+      if (!newCloudToken || !cloudUserData) {
+        throw new Error('Cloud authentication failed: No token or user data returned.');
+      }
+
+      const appUser: User = {
+        id: String(cloudUserData.id),
+        email: cloudUserData.email,
+        name: cloudUserData.name,
+        picture_url: cloudUserData.picture_url,
+      };
+
+      const now = new Date().getTime();
+      localStorage.setItem('rap_cloud_token', newCloudToken);
+      localStorage.setItem('rap_user', JSON.stringify(appUser));
+      localStorage.setItem('rap_session_start_time', String(now));
+
+      setCloudToken(newCloudToken);
+      setUser(appUser);
+      setIsAuthenticated(true);
+      setSessionStartTime(now);
 
     } catch (error) {
       console.error('Authentication failed:', error);
@@ -103,7 +109,5 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <GoogleOAuthProvider clientId="30349329425-qtk3stin2ta0583f16t31s7ig9004q0u.apps.googleusercontent.com">
-    <InnerAuthProvider>{children}</InnerAuthProvider>
-  </GoogleOAuthProvider>
+  <InnerAuthProvider>{children}</InnerAuthProvider>
 );

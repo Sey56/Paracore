@@ -1,5 +1,4 @@
 import { createContext } from 'react';
-import { CredentialResponse } from '@react-oauth/google';
 
 export interface User {
   id: string;
@@ -14,7 +13,7 @@ export interface AuthContextType {
   cloudToken: string | null;
   localToken: string | null;
   sessionStartTime: number | null;
-  login: (credentialResponse: CredentialResponse) => void;
+  login: () => void;
   logout: () => void;
 }
 

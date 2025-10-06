@@ -11,6 +11,12 @@ from .. import models, schemas
 from ..database_config import get_db
 from ..auth import get_current_user, CurrentUser
 
+# Add CREATE_NO_WINDOW flag for Windows to prevent console pop-ups
+if os.name == 'nt':
+    CREATE_NO_WINDOW = 0x08000000
+else:
+    CREATE_NO_WINDOW = 0
+
 router = APIRouter()
 
 class Workspace(BaseModel):
@@ -65,7 +71,8 @@ async def clone_repo(req: CloneRequest, db: Session = Depends(get_db), current_u
                 cwd=req.local_path,
                 check=True,
                 capture_output=True,
-                text=True
+                text=True,
+                creationflags=CREATE_NO_WINDOW
             )
             message = f"Repository cloned successfully to {cloned_path}"
 
@@ -100,7 +107,8 @@ async def get_workspace_status(workspace_path: str, db: Session = Depends(get_db
             cwd=workspace_path,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            creationflags=CREATE_NO_WINDOW
         ).stdout.strip()
         
         lines = status_result.split('\n')
@@ -161,14 +169,15 @@ async def commit_changes(req: CommitRequest, current_user: CurrentUser = Depends
     if not os.path.isdir(req.workspace_path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
     try:
-        subprocess.run(["git", "add", "."], cwd=req.workspace_path, check=True)
+        subprocess.run(["git", "add", "."], cwd=req.workspace_path, check=True, creationflags=CREATE_NO_WINDOW)
         
         subprocess.run(
             ["git", "commit", "-m", req.message],
             cwd=req.workspace_path,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            creationflags=CREATE_NO_WINDOW
         )
         return {"message": "Commit successful."}
     except subprocess.CalledProcessError as e:
@@ -192,7 +201,8 @@ async def pull_changes(workspace: Annotated[Workspace, Body(embed=True)], curren
             cwd=workspace.path,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            creationflags=CREATE_NO_WINDOW
         )
         return {"message": "Pull successful.", "output": pull_result.stdout}
     except subprocess.CalledProcessError as e:
@@ -213,7 +223,8 @@ async def push_changes(workspace: Annotated[Workspace, Body(embed=True)], curren
             cwd=workspace.path,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            creationflags=CREATE_NO_WINDOW
         )
         return {"message": "Push successful.", "output": push_result.stdout}
     except subprocess.CalledProcessError as e:
@@ -236,7 +247,8 @@ async def sync_workspace(workspace: Annotated[Workspace, Body(embed=True)], curr
             cwd=workspace.path,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            creationflags=CREATE_NO_WINDOW
         )
 
         push_result = subprocess.run(
@@ -244,7 +256,8 @@ async def sync_workspace(workspace: Annotated[Workspace, Body(embed=True)], curr
             cwd=workspace.path,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            creationflags=CREATE_NO_WINDOW
         )
         return {
             "message": "Sync (pull and push) successful.",

@@ -29,6 +29,8 @@ namespace RServer.Addin.Services
             _logger.Log($"Server initialized: {DateTime.Now}", LogLevel.Debug); // Modified
         }
 
+        public ILogger GetLogger() => _logger; // Added
+
         public void Start()
         {
             if (_running) return;
@@ -75,12 +77,12 @@ namespace RServer.Addin.Services
             _webHost.Dispose();
             _webHost = null;
             _running = false;
-            _logger.Log($"Server stopped: {DateTime.Now}", LogLevel.Debug);
+            _logger.Log($"gRPC Server stopped: {DateTime.Now}", LogLevel.Debug);
         }
 
         public void Stop()
         {
-            // Offload the asynchronous stopping to a background thread
+            // Offload the asynchronous stopping of gRPC server to a background thread
             // to prevent blocking the UI thread.
             Task.Run(() => StopAsync());
         }

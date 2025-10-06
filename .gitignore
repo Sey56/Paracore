@@ -58,3 +58,38 @@ logs
 
 # Localtunnel cache (if any)
 .loca.lt/
+
+# --- Added by Gemini ---
+
+# General
+*.bak
+*.tmp
+
+# C# / .NET
+*.pdb
+*.dll
+*.exe
+RevitAPI.dll
+RevitAPIUI.dll
+
+# Node.js (rap-web)
+.vite/
+
+# Python (rap-server & rap-auth-server)
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+instance/
+*.spec
+
+# Tauri
+src-tauri/gen/
+
+# Installers
+/install/
+
+# Sensitive Files
+client_secret_*.json
+jwt_private.pem
+jwt_public.pem

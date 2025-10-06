@@ -34,7 +34,7 @@ app = FastAPI(lifespan=lifespan)
 # In a production environment, you would want to restrict this to your actual frontend URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"], # Local development origins
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "tauri://localhost", "https://tauri.localhost"], # Local development origins and Tauri app origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

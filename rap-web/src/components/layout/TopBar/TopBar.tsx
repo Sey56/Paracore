@@ -48,7 +48,10 @@ export const TopBar: React.FC = () => {
         <button onClick={toggleSidebar} className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
           <FontAwesomeIcon icon={faBars} className="text-xl" />
         </button>
-        <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">RAP</h1>
+        <div className="flex items-center space-x-1">
+          <img src="/RAP.png" alt="RAP Logo" className="h-8 w-auto" />
+          <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">RAP</h1>
+        </div>
         <button
           onClick={toggleTheme}
           className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"

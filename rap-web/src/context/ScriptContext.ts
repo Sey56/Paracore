@@ -26,7 +26,6 @@ export interface ScriptContextProps {
   clearFavoriteScripts: () => void;
   clearRecentScripts: () => void;
   fetchScriptMetadata: (scriptId: string) => Promise<void>;
-  fetchPublishedScriptMetadata: (scriptId: string) => Promise<void>;
   setScripts: React.Dispatch<React.SetStateAction<Script[]>>;
   setCombinedScriptContent: React.Dispatch<React.SetStateAction<string | null>>;
 }
