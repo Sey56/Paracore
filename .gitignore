@@ -58,3 +58,23 @@ logs
 
 # Localtunnel cache (if any)
 .loca.lt/
+
+# --- Added by Gemini (Re-adding necessary ignores) ---
+
+# General Build Outputs
+/install/
+/installer_staging/
+
+# C# / .NET
+*.pdb
+*.dll
+*.exe
+
+# Python (PyInstaller)
+rap-server/build/
+rap-server/dist/
+rap-server/*.spec
+
+# Tauri
+rap-web/src-tauri/target/
+rap-web/src-tauri/gen/
