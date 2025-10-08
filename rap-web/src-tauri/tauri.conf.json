@@ -1,7 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "package": {
-    "productName": "RAP"
+    "productName": "RAP",
+    "version": "1.0.0"
   },
   "build": {
     "beforeBuildCommand": "npm run build",
@@ -11,6 +12,7 @@
   "tauri": {
     "bundle": {
       "active": true,
+      "publisher": "Seyoum Hagos (Paras Codarch)",
       "targets": "all",
       "identifier": "rap.tauri.dev",
       "icon": [

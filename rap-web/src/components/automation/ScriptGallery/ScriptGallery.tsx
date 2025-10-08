@@ -129,7 +129,11 @@ const dateFilterHelper = (dateString: string | undefined, filterValue: string): 
   }
 };
 
-export function ScriptGallery() {
+import { useRevitStatus } from '@/hooks/useRevitStatus';
+
+export const ScriptGallery: React.FC = () => {
+  const { revitStatus, rserverConnected } = useRevitStatus();
+  const isRServerDisconnected = !rserverConnected;
   const { scripts, allScripts, selectedFolder } = useScripts();
   const { selectedCategory, customCategories, setInspectorOpen, openNewScriptModal, closeNewScriptModal, isNewScriptModalOpen, activeScriptSource } = useUI();
   const { setSelectedScript } = useScriptExecution();
@@ -379,7 +383,7 @@ export function ScriptGallery() {
               <button 
                 onClick={handleOpenNewScriptModal} 
                 className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!isAuthenticated}
+                disabled={!isAuthenticated || isRServerDisconnected}
               >
                 New Script
               </button>

@@ -22,7 +22,7 @@ fn get_rap_server_exe_path() -> Option<PathBuf> {
     println!("get_rap_server_exe_path: current_exe = {:?}", current_exe);
     let app_dir = current_exe.parent()?.to_path_buf(); // C:\Program Files\RAP
     println!("get_rap_server_exe_path: app_dir = {:?}", app_dir);
-    let rap_server_exe = app_dir.join("server").join("rap-server.exe");
+    let rap_server_exe = app_dir.join("rap-server.exe");
 
     if rap_server_exe.exists() {
         println!("get_rap_server_exe_path: Found rap-server.exe at {:?}", rap_server_exe);
@@ -155,18 +155,16 @@ async fn google_oauth_login(_app_handle: tauri::AppHandle) -> Result<(String, St
 }
 
 fn main() {
-  tauri::Builder::default()
+  let app = tauri::Builder::default()
     .setup(|_app| {
         start_rap_server();
         Ok(())
     })
-    .on_window_event(|event| match event.event() {
-        tauri::WindowEvent::Destroyed => {
-            terminate_rap_server();
-        }
-        _ => {}
-    })
     .invoke_handler(tauri::generate_handler![google_oauth_login])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application");
+
+  app.run(|_app_handle, _event| {});
+
+  terminate_rap_server();
 }

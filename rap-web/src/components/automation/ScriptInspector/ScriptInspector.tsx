@@ -8,8 +8,8 @@ import { useRevitStatus } from '@/hooks/useRevitStatus'; // Import useRevitStatu
 import { useAuth } from '@/hooks/useAuth';
 
 export const ScriptInspector: React.FC = () => {
-  const { selectedScript, runningScriptPath } = useScriptExecution();
-  const { toggleFavoriteScript } = useScripts();
+  const { selectedScript, runningScriptPath, setSelectedScript } = useScriptExecution();
+  const { toggleFavoriteScript, scripts: allScripts } = useScripts();
   const { toggleFloatingCodeViewer } = useUI();
   const { revitStatus } = useRevitStatus(); // Get Revit status
   const { isAuthenticated, user } = useAuth();
@@ -65,6 +65,15 @@ export const ScriptInspector: React.FC = () => {
 
   const tooltipMessage = getTooltipMessage();
 
+  const handleToggleFavorite = (scriptId: string) => {
+    toggleFavoriteScript(scriptId);
+    // Find the updated script from the allScripts array and set it as selected
+    const updatedScript = allScripts.find(s => s.id === scriptId);
+    if (updatedScript) {
+      setSelectedScript(updatedScript);
+    }
+  };
+
   return (
     <div className="static h-auto rounded-none shadow-none bg-white dark:bg-gray-800 p-4 overflow-y-auto">
       {!script ? (
@@ -74,8 +83,8 @@ export const ScriptInspector: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className={!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}>
-            <ScriptHeader script={script} onToggleFavorite={toggleFavoriteScript} />
+          <div className="">
+            <ScriptHeader script={script} onToggleFavorite={handleToggleFavorite} disabled={!isActionable} isFavoriteProp={script.isFavorite ?? false} />
           </div>
           <InspectorTabs
             script={script}

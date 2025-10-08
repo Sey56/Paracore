@@ -133,7 +133,7 @@ $rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'rserver_
 & $InnoSetupCompiler $rserverAddinInstallerScript
 
 # Copy Tauri MSI to install folder
-$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\target\release\bundle\msi\RAP_0.1.0_x64_en-US.msi'
+$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\target\release\bundle\msi\RAP_1.0.0_x64_en-US.msi'
 $tauriMsiDestination = Join-Path -Path $ProjectRoot -ChildPath 'install\RAP_Installer.msi' # Renaming for consistency
 Copy-Item -Path $tauriMsiSource -Destination $tauriMsiDestination -Force
 Write-Host "Tauri MSI Installer created at: $tauriMsiDestination" -ForegroundColor Yellow

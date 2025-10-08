@@ -4,7 +4,11 @@ import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 
 
-export const FloatingActionButton: React.FC = () => {
+interface FloatingActionButtonProps {
+  disabled?: boolean;
+}
+
+export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disabled }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const { toggleInspector } = useUI();
 
@@ -16,10 +20,11 @@ export const FloatingActionButton: React.FC = () => {
   return (
     <button
       id="fab"
-      className="fab fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg z-20"
+      className={`fab fixed bottom-6 right-6 rounded-full w-14 h-14 flex items-center justify-center shadow-lg z-20 ${disabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
       onClick={handleClick}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
+      disabled={disabled}
     >
       <FontAwesomeIcon icon={faPlus} className="text-xl" />
       <span 

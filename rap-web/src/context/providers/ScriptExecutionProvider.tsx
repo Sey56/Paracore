@@ -54,6 +54,7 @@ const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter
 export const ScriptExecutionProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime } = useScripts();
+  const { scripts: allScriptsFromScriptProvider } = useScripts(); // Get all scripts from ScriptProvider
   const { isAuthenticated } = useAuth();
   const { activeScriptSource } = useUI();
 
@@ -62,6 +63,16 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [userEditedScriptParameters, setUserEditedScriptParameters] = useState<Record<string, ScriptParameter[]>>({});
   const [presets, setPresets] = useState<ParameterPreset[]>([]);
+
+  // Effect to keep selectedScript in sync with allScriptsFromScriptProvider
+  useEffect(() => {
+    if (selectedScript && allScriptsFromScriptProvider.length > 0) {
+      const updatedScript = allScriptsFromScriptProvider.find(s => s.id === selectedScript.id);
+      if (updatedScript && updatedScript.isFavorite !== selectedScript.isFavorite) {
+        setSelectedScriptState(updatedScript);
+      }
+    }
+  }, [allScriptsFromScriptProvider, selectedScript]);
 
   useEffect(() => {
     setSelectedScriptState(null);

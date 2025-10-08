@@ -19,7 +19,8 @@ import { useScriptExecution } from "@/hooks/useScriptExecution";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { useState } from 'react';
 import { AddWorkspaceModal } from '@/components/common/AddWorkspaceModal';
-import { AddCategoryModal } from '@/components/common/AddCategoryModal'; // Import AddCategoryModal
+import { AddCategoryModal } from '@/components/common/AddCategoryModal';
+import { AddFolderModal } from '@/components/common/AddFolderModal'; // Import AddFolderModal
 
 import { useAuth } from '@/hooks/useAuth';
 import { Script, Workspace } from '@/types';
@@ -38,16 +39,26 @@ export const Sidebar = () => {
   const { setSelectedScript } = useScriptExecution();
   const { cloneAndAddWorkspace, setActiveWorkspaceId, activeWorkspace, workspaces } = useWorkspaces();
   const [isAddWorkspaceModalOpen, setIsAddWorkspaceModalOpen] = useState(false);
-  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false); // State for AddCategoryModal
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false); // State for AddFolderModal
 
   const handleAddCustomFolder = async () => {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-    });
-    if (typeof selected === 'string') {
-      addCustomScriptFolder(selected);
+    if (window.__TAURI__) {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+      });
+      if (typeof selected === 'string') {
+        addCustomScriptFolder(selected);
+      }
+    } else {
+      setIsAddFolderModalOpen(true);
     }
+  };
+
+  const handleAddFolderSubmit = (folderPath: string) => {
+    addCustomScriptFolder(folderPath);
+    setIsAddFolderModalOpen(false);
   };
 
   const handleFolderClick = (folder: string) => {
@@ -85,6 +96,11 @@ export const Sidebar = () => {
           isOpen={isAddCategoryModalOpen}
           onClose={() => setIsAddCategoryModalOpen(false)}
           onAddCategory={handleAddCategory}
+        />
+        <AddFolderModal
+          isOpen={isAddFolderModalOpen}
+          onClose={() => setIsAddFolderModalOpen(false)}
+          onAddFolder={handleAddFolderSubmit}
         />
 
         {/* 🗂️ Categories (Global) */}

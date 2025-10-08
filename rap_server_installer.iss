@@ -2,9 +2,9 @@
 
 [Setup]
 AppId={{F22B529C-22A9-42A0-9243-A335A195A80D-SERVER}}
-AppName=RAP Server
-AppVersion=0.1.0
-AppPublisher=RAP Community
+AppName=Revit Automation Platform Server
+AppVersion=1.0.0
+AppPublisher=Seyoum Hagos
 DefaultDirName={autopf}\RAP
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -14,6 +14,10 @@ SetupIconFile=rap-web\src-tauri\icons\rap-icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+VersionInfoVersion=1.0.0
+VersionInfoCompany=Paras Codarch
+VersionInfoDescription=Revit Automation Platform Server. Author: Seyoum Hagos
+VersionInfoTextVersion=1.0.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

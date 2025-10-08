@@ -9,9 +9,11 @@ import { useUI } from '@/hooks/useUI';
 interface ScriptHeaderProps {
   script: Script;
   onToggleFavorite: (scriptId: string) => void;
+  disabled?: boolean;
+  isFavoriteProp: boolean; // New prop to explicitly control favorite state
 }
 
-export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavorite }) => {
+export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavorite, disabled, isFavoriteProp }) => {
   const [gitLog, setGitLog] = useState<string | null>(null);
   const { activeScriptSource } = useUI();
 
@@ -45,16 +47,16 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
   const { author: lastCommitAuthor, date: lastCommitDate, message: lastCommitMessage } = gitLog ? parseGitLog(gitLog) : { author: null, date: null, message: null };
 
   return (
-    <div className="mb-6">
+    <div className={`mb-6 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-medium text-xl text-gray-800 dark:text-gray-100">
           {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
         </h3>
         <button
           onClick={() => onToggleFavorite(script.id)}
-          className={`${script.isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300'}`}
+          className={`${isFavoriteProp ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300'}`}
         >
-          {script.isFavorite ? (
+          {isFavoriteProp ? (
             <FontAwesomeIcon icon={fasStar} />
           ) : (
             <FontAwesomeIcon icon={farStar} />
