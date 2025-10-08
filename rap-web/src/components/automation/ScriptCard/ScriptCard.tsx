@@ -27,14 +27,14 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
   const { selectedScript, runningScriptPath, runScript, setSelectedScript, userEditedScriptParameters } = useScriptExecution();
   const { toggleFavoriteScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
-  const { revitStatus } = useRevitStatus(); // Get Revit status
+  const { revitStatus, rserverConnected } = useRevitStatus(); // Get Revit status
   const { isAuthenticated } = useAuth();
 
   const isSelected = selectedScript?.id === script.id;
   const isRunning = runningScriptPath === script.id;
 
   const isCompatibleWithDocument = React.useMemo(() => {
-    if (revitStatus.document === null) {
+    if (!rserverConnected || revitStatus.document === null) {
       return false;
     }
 
@@ -53,11 +53,15 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
 
     // Otherwise, check for an exact match.
     return scriptDocType === revitDocType;
-  }, [revitStatus.document, revitStatus.documentType, script.metadata.documentType]);
+  }, [rserverConnected, revitStatus.document, revitStatus.documentType, script.metadata.documentType]);
 
-  const isRunButtonDisabled = !isAuthenticated || isRunning || !isCompatibleWithDocument; // Disable if running, or incompatible
+  const isRunButtonDisabled = !isAuthenticated || isRunning || !rserverConnected || !isCompatibleWithDocument; // Disable if running, or incompatible
 
   const getTooltipMessage = () => {
+    if (!rserverConnected) {
+      return "Toggle on RServer in Revit to enable scripts";
+    }
+    
     if (!isAuthenticated) {
       return "You must sign in to use RAP";
     }
@@ -126,7 +130,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     <div
       className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-2.0 cursor-pointer flex flex-col ${
         isSelected ? "ring-2 ring-blue-500" : ""
-      } ${isRunning ? "opacity-70" : ""} ${!isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""} ${isFromActiveWorkspace ? "border-2 border-blue-500" : ""}`} // Removed background color
+      } ${isRunning ? "opacity-70" : ""} ${!rserverConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""} ${isFromActiveWorkspace ? "border-2 border-blue-500" : ""}`} // Removed background color
       onClick={handleSelect}
     >
       <div className="p-4 flex-grow flex flex-col">

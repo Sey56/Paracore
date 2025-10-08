@@ -407,9 +407,11 @@ export const ScriptGallery: React.FC = () => {
 
       {favoriteScripts.length === 0 && otherScripts.length === 0 && (
         <div className="text-gray-500 dark:text-gray-400 text-sm italic">
-          {selectedFolder 
-            ? 'No scripts found in this folder. Why not create one?' 
-            : 'Add a script folder in the sidebar to get started.'
+          {searchTerm
+            ? 'No scripts match your search.'
+            : (selectedFolder 
+              ? 'No scripts found in this folder. Why not create one?' 
+              : 'Add a script folder in the sidebar to get started.')
           }
         </div>
       )}
