@@ -18,8 +18,6 @@ RUN uv pip install --system --no-cache-dir -r requirements.txt
 # Copy your application code into the container
 COPY server/ ./server/
 
-# ✅ Copy the .env file into the container root
-COPY .env .env
 
 # Expose the port your app will run on
 EXPOSE 8001

@@ -18,6 +18,8 @@ import { ParameterInput } from "./ParameterInput";
 import { NewPresetNameModal } from './NewPresetNameModal';
 import { ConfirmActionModal } from './ConfirmActionModal';
 import { InfoModal } from './InfoModal';
+import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+import { Role } from '@/context/authTypes'; // Import Role
 
 interface ParametersTabProps {
   script: Script;
@@ -32,6 +34,7 @@ const initializeParameters = (params: ScriptParameter[]): ScriptParameter[] => {
 
 export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab } = useUI();
+  const { activeRole } = useAuth(); // Get activeRole
   const { 
     runScript,
     runningScriptPath,
@@ -119,8 +122,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const handleUpdatePresetConfirm = () => {
     const result = updatePreset(selectedPreset, { name: selectedPreset, parameters: editedParameters });
     if (result.success) {
-      setInfoModalMessage("Preset updated successfully!");
-      setIsInfoModalOpen(true);
+      // No need to open InfoModal, notification is handled by ScriptExecutionProvider
     } else {
       setInfoModalMessage(result.message);
       setIsInfoModalOpen(true);
@@ -145,8 +147,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const handleDeletePresetConfirm = () => {
     const result = deletePreset(presetToDelete);
     if (result.success) {
-      setInfoModalMessage("Preset deleted successfully!");
-      setIsInfoModalOpen(true);
+      // No need to open InfoModal, notification is handled by ScriptExecutionProvider
     } else {
       setInfoModalMessage(result.message);
       setIsInfoModalOpen(true);
@@ -251,13 +252,15 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               </div>
             )}
           </div>
-            <button
-              title="View Code in New Window"
-              className="text-gray-600 dark:text-gray-300 hover:text-blue-600"
-              onClick={onViewCodeClick}
-            >
-              <FontAwesomeIcon icon={faExternalLinkAlt} />
-            </button>
+            {activeRole !== Role.User && (
+              <button
+                title="View Code in New Window"
+                className="text-gray-600 dark:text-gray-300 hover:text-blue-600"
+                onClick={onViewCodeClick}
+              >
+                <FontAwesomeIcon icon={faExternalLinkAlt} />
+              </button>
+            )}
         </div>
       </div>
 

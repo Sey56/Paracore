@@ -51,6 +51,13 @@ fn is_rap_server_running() -> bool {
     false
 }
 
+#[tauri::command]
+fn get_rap_server_url() -> String {
+    // For now, we assume the rap-server runs on localhost:8000
+    // In a more advanced setup, this could be dynamically determined or configured.
+    "http://localhost:8000".to_string()
+}
+
 fn start_rap_server() {
     if is_rap_server_running() {
         println!("start_rap_server: rap-server is already running.");
@@ -157,14 +164,20 @@ async fn google_oauth_login(_app_handle: tauri::AppHandle) -> Result<(String, St
 fn main() {
   let app = tauri::Builder::default()
     .setup(|_app| {
-        start_rap_server();
+        // Only start rap-server.exe in release builds
+        if !cfg!(debug_assertions) {
+            start_rap_server();
+        }
         Ok(())
     })
-    .invoke_handler(tauri::generate_handler![google_oauth_login])
+    .invoke_handler(tauri::generate_handler![google_oauth_login, get_rap_server_url])
     .build(tauri::generate_context!())
     .expect("error while building tauri application");
 
   app.run(|_app_handle, _event| {});
 
-  terminate_rap_server();
+  // Also, terminate_rap_server() should only be called if it was started
+  if !cfg!(debug_assertions) {
+      terminate_rap_server();
+  }
 }

@@ -12,7 +12,7 @@ import type { Script, ScriptParameter } from '@/types/scriptModel';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { NewScriptModal } from '@/components/common/NewScriptModal';
 import { FilterPills } from '@/components/common/FilterPills';
-import { useWorkspaces } from '@/hooks/useWorkspaces';
+
 import { useAuth } from '@/hooks/useAuth';
 
 const getFolderNameFromPath = (path: string | null): string => {
@@ -134,16 +134,25 @@ import { useRevitStatus } from '@/hooks/useRevitStatus';
 export const ScriptGallery: React.FC = () => {
   const { revitStatus, rserverConnected } = useRevitStatus();
   const isRServerDisconnected = !rserverConnected;
-  const { scripts, allScripts, selectedFolder } = useScripts();
+  const { scripts, allScripts, selectedFolder, teamWorkspaces } = useScripts();
   const { selectedCategory, customCategories, setInspectorOpen, openNewScriptModal, closeNewScriptModal, isNewScriptModalOpen, activeScriptSource } = useUI();
   const { setSelectedScript } = useScriptExecution();
-  const { activeWorkspace } = useWorkspaces();
-  const { isAuthenticated } = useAuth();
+  // const { activeWorkspace } = useWorkspaces(); // Removed
+  const { isAuthenticated, activeRole, activeTeam, user, setActiveTeam } = useAuth();
   const isMobile = useBreakpoint();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [searchAllFolders, setSearchAllFolders] = useState(false);
+
+  const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
+
+  const getNewScriptButtonTooltip = () => {
+    if (!isAuthenticated) return "You must sign in to create scripts";
+    if (isRServerDisconnected) return "RServer is disconnected. Please connect to create scripts.";
+    if (!canCreateScripts) return "You do not have permission to create scripts.";
+    return "";
+  };
 
   const categoryMap = useMemo(() => {
     const source = searchAllFolders ? allScripts : scripts;
@@ -170,10 +179,11 @@ export const ScriptGallery: React.FC = () => {
     if (!script || !script.absolutePath) {
       return false;
     }
-    if (!activeWorkspace || activeScriptSource?.type !== 'workspace') {
-      return false;
+    // If the active source is a workspace, check if the script's path starts with that workspace's path
+    if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
+      return script.absolutePath.startsWith(activeScriptSource.path);
     }
-    return script.absolutePath.startsWith(activeWorkspace.path);
+    return false;
   };
 
   const { filters, pillFilters } = useMemo(() => parseSearchTerm(searchTerm), [searchTerm]);
@@ -292,9 +302,49 @@ export const ScriptGallery: React.FC = () => {
   return (
     <div className={`p-4`}>
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-          {activeScriptSource?.type === 'workspace' ? 'Workspace' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'Script Gallery')}
-        </h1>
+        <div className="flex items-center space-x-3">
+          <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+            {activeScriptSource?.type === 'workspace' ? 'Workspace' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'Script Gallery')}
+          </h1>
+          {user && user.memberships.length > 1 && activeTeam ? (
+            <div className="relative ml-2">
+              <select
+                value={activeTeam.team_id}
+                onChange={(e) => {
+                  const selectedTeamId = parseInt(e.target.value);
+                  const newActiveTeam = user.memberships.find(m => m.team_id === selectedTeamId);
+                  if (newActiveTeam) {
+                    setActiveTeam(newActiveTeam);
+                  }
+                }}
+                className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
+              >
+                {user.memberships.map(membership => (
+                  <option key={membership.team_id} value={membership.team_id}>
+                    {membership.team_name} ({membership.role})
+                  </option>
+                ))}
+              </select>
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
+              />
+            </div>
+          ) : (
+            activeTeam && (
+              <>
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  ({activeTeam.team_name})
+                </span>
+                {activeRole && (
+                  <span className="ml-2 px-2 py-0.5 text-xs font-semibold text-white bg-blue-500 rounded-full">
+                    {activeRole}
+                  </span>
+                )}
+              </>
+            )
+          )}
+        </div>
         <div className="flex items-center">
           <input
             type="checkbox"
@@ -304,7 +354,7 @@ export const ScriptGallery: React.FC = () => {
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
           <label htmlFor="searchAllFolders" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-            All
+            {activeScriptSource?.type === 'workspace' ? 'All Workspaces' : 'All Folders'}
           </label>
         </div>
       </div>
@@ -379,11 +429,11 @@ export const ScriptGallery: React.FC = () => {
                 {selectedFolder && !searchAllFolders ? selectedFolder : 'All Scripts'}
               </h2>
             </div>
-            <div className="relative" title={!isAuthenticated ? "You must sign in to create scripts" : ""}>
+            <div className="relative" title={getNewScriptButtonTooltip()}>
               <button 
                 onClick={handleOpenNewScriptModal} 
                 className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!isAuthenticated || isRServerDisconnected}
+                disabled={!isAuthenticated || isRServerDisconnected || !canCreateScripts || !activeScriptSource}
               >
                 New Script
               </button>

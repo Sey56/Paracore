@@ -4,7 +4,7 @@ export type InspectorTab = "parameters" | "code" | "console" | "metadata" | "sum
 
 export type ActiveScriptSource =
   | { type: 'local'; path: string }
-  | { type: 'workspace'; id: string }
+  | { type: 'workspace'; id: string; path: string }
   | { type: 'published'; id: string }
   | null;
 
@@ -30,6 +30,10 @@ export interface UIContextProps {
   isSettingsModalOpen: boolean;
   openSettingsModal: () => void;
   closeSettingsModal: () => void;
+
+  isTeamManagementModalOpen: boolean;
+  openTeamManagementModal: () => void;
+  closeTeamManagementModal: () => void;
 
   isNewScriptModalOpen: boolean;
   openNewScriptModal: () => void;

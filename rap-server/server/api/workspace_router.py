@@ -1,15 +1,19 @@
-from fastapi import APIRouter, HTTPException, Body, Depends
+from fastapi import APIRouter, HTTPException, Body, Depends, status
 import subprocess
 import os
+import shutil
 import re
 import traceback
 from pydantic import BaseModel, Field
 from typing import Annotated, List
 from sqlalchemy.orm import Session
+import logging # Added logging
 
 from .. import models, schemas
 from ..database_config import get_db
 from ..auth import get_current_user, CurrentUser
+
+logging.basicConfig(level=logging.INFO) # Configure basic logging
 
 # Add CREATE_NO_WINDOW flag for Windows to prevent console pop-ups
 if os.name == 'nt':
@@ -30,6 +34,156 @@ class CloneRequest(BaseModel):
 class CommitRequest(BaseModel):
     workspace_path: str = Field(..., description="The path to the workspace (the local git repository).")
     message: str = Field(..., description="The commit message.")
+
+class BranchListResponse(BaseModel):
+    current_branch: str
+    branches: List[str]
+
+class CheckoutRequest(BaseModel):
+    workspace_path: str = Field(..., description="The path to the workspace.")
+    branch_name: str = Field(..., description="The name of the branch to checkout.")
+
+class CreateBranchRequest(BaseModel):
+    workspace_path: str = Field(..., description="The path to the workspace.")
+    branch_name: str = Field(..., description="The name of the new branch to create.")
+
+@router.post("/api/workspaces/register", response_model=schemas.RegisteredWorkspaceResponse, tags=["Workspaces"])
+async def register_team_workspace(
+    req: schemas.RegisteredWorkspaceCreate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user) # Ensure user is authenticated
+):
+    logging.info(f"Registering workspace: team_id={req.team_id}, name={req.name}, repo_url={req.repo_url}")
+    """
+    Registers a new workspace for a team.
+    """
+    # Basic authorization: ensure the current user is part of the team they are registering for
+    # This needs to be refined based on how current_user is structured from rap-auth-server
+    # For now, we'll assume the frontend sends the correct team_id for the active team.
+    # Further authorization logic can be added here if needed (e.g., only admins can register).
+
+    db_workspace = models.RegisteredWorkspace(
+        team_id=req.team_id,
+        name=req.name,
+        repo_url=req.repo_url
+    )
+    db.add(db_workspace)
+    db.commit()
+    db.refresh(db_workspace)
+    logging.info(f"Workspace registered successfully: id={db_workspace.id}, team_id={db_workspace.team_id}")
+    return db_workspace
+
+@router.get("/api/workspaces/registered/{team_id}", response_model=List[schemas.RegisteredWorkspaceResponse], tags=["Workspaces"])
+async def get_team_registered_workspaces(
+    team_id: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user) # Ensure user is authenticated
+):
+    logging.info(f"Fetching registered workspaces for team_id: {team_id}")
+    """
+    Retrieves all workspaces registered for a specific team.
+    """
+    # Basic authorization: ensure the current user is part of the team they are querying
+    # This needs to be refined based on how current_user is structured from rap-auth-server
+    # For now, we'll assume the frontend sends the correct team_id for the active team.
+    # Further authorization logic can be added here if needed.
+
+    workspaces = db.query(models.RegisteredWorkspace).filter(models.RegisteredWorkspace.team_id == team_id).all()
+    logging.info(f"Found {len(workspaces)} registered workspaces for team_id {team_id}.")
+    return workspaces
+
+@router.post("/api/workspaces/create-branch", tags=["Workspaces"])
+async def create_branch(req: CreateBranchRequest, current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Creates a new branch and checks it out.
+    """
+    if not os.path.isdir(req.workspace_path):
+        raise HTTPException(status_code=404, detail="Workspace path not found.")
+    try:
+        subprocess.run(
+            ["git", "checkout", "-b", req.branch_name],
+            cwd=req.workspace_path,
+            check=True,
+            capture_output=True,
+            text=True,
+            creationflags=CREATE_NO_WINDOW
+        )
+        return {"message": f"Successfully created and checked out branch {req.branch_name}."}
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create branch {req.branch_name}: {e.stderr}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/workspaces/checkout", tags=["Workspaces"])
+async def checkout_branch(req: CheckoutRequest, current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Checks out a specific branch in the workspace.
+    """
+    if not os.path.isdir(req.workspace_path):
+        raise HTTPException(status_code=404, detail="Workspace path not found.")
+    try:
+        subprocess.run(
+            ["git", "checkout", req.branch_name],
+            cwd=req.workspace_path,
+            check=True,
+            capture_output=True,
+            text=True,
+            creationflags=CREATE_NO_WINDOW
+        )
+        return {"message": f"Successfully checked out branch {req.branch_name}."}
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to checkout branch {req.branch_name}: {e.stderr}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/workspaces/branches", response_model=BranchListResponse, tags=["Workspaces"])
+async def get_workspace_branches(workspace_path: str, current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Lists all local and remote branches for a given workspace.
+    """
+    if not os.path.isdir(workspace_path):
+        raise HTTPException(status_code=404, detail="Workspace path not found.")
+    try:
+        # Get current branch
+        current_branch_result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=workspace_path,
+            check=True,
+            capture_output=True,
+            text=True,
+            creationflags=CREATE_NO_WINDOW
+        )
+        current_branch = current_branch_result.stdout.strip()
+
+        # Get all branches (local and remote)
+        branches_result = subprocess.run(
+            ["git", "branch", "-a"],
+            cwd=workspace_path,
+            check=True,
+            capture_output=True,
+            text=True,
+            creationflags=CREATE_NO_WINDOW
+        )
+        all_branches = []
+        for line in branches_result.stdout.splitlines():
+            branch_name = line.strip()
+            if branch_name.startswith('*'):
+                branch_name = branch_name[1:].strip() # Remove asterisk for current branch
+            
+            # Filter out the "HEAD -> origin/main" line
+            if "HEAD ->" in branch_name:
+                continue # Skip this line
+
+            if branch_name.startswith('remotes/origin/'):
+                branch_name = branch_name.replace('remotes/origin/', '')
+            if branch_name != 'HEAD' and branch_name not in all_branches:
+                all_branches.append(branch_name)
+        
+        return {"current_branch": current_branch, "branches": sorted(all_branches)}
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list branches: {e.stderr}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/workspaces/published", response_model=list[schemas.WorkspaceResponse], tags=["Workspaces"])
 def get_published_workspaces(db: Session = Depends(get_db)):
@@ -95,13 +249,24 @@ async def clone_repo(req: CloneRequest, db: Session = Depends(get_db), current_u
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {traceback.format_exc()}")
 
 @router.get("/api/workspaces/status", tags=["Workspaces"])
-async def get_workspace_status(workspace_path: str, db: Session = Depends(get_db)):
+async def get_workspace_status(workspace_path: str, db: Session = Depends(get_db), fetch: bool = False):
     """
     Gets the Git status of a workspace.
+    If fetch is True, performs a git fetch before getting the status.
     """
     if not os.path.isdir(workspace_path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
     try:
+        if fetch: # Perform git fetch if requested
+            subprocess.run(
+                ["git", "fetch"],
+                cwd=workspace_path,
+                check=True,
+                capture_output=True,
+                text=True,
+                creationflags=CREATE_NO_WINDOW
+            )
+
         status_result = subprocess.run(
             ["git", "status", "--porcelain=v2", "-b"],
             cwd=workspace_path,
@@ -233,39 +398,104 @@ async def push_changes(workspace: Annotated[Workspace, Body(embed=True)], curren
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/api/workspaces/sync", tags=["Workspaces"])
-async def sync_workspace(workspace: Annotated[Workspace, Body(embed=True)], current_user: CurrentUser = Depends(get_current_user)):
+class PullTeamWorkspacesRequest(BaseModel):
+    workspace_paths: List[str] = Field(..., description="List of absolute paths to workspaces to pull.")
+
+@router.post("/api/workspaces/pull_team_workspaces", tags=["Workspaces"])
+async def pull_team_workspaces(
+    req: PullTeamWorkspacesRequest,
+    current_user: CurrentUser = Depends(get_current_user)
+):
     """
-    Syncs the workspace by pulling and then pushing changes.
+    Performs a git pull on all specified workspaces.
     """
-    if not os.path.isdir(workspace.path):
-        raise HTTPException(status_code=404, detail="Workspace path not found.")
+    results = []
+    for path in req.workspace_paths:
+        if not os.path.isdir(path):
+            results.append({"path": path, "status": "failed", "message": "Workspace path not found."})
+            continue
+        try:
+            subprocess.run(
+                ["git", "pull", "--rebase"],
+                cwd=path,
+                check=True,
+                capture_output=True,
+                text=True,
+                creationflags=CREATE_NO_WINDOW
+            )
+            results.append({"path": path, "status": "success", "message": "Pull successful."})
+        except subprocess.CalledProcessError as e:
+            results.append({"path": path, "status": "failed", "message": f"Pull failed: {e.stderr}"})
+        except Exception as e:
+            results.append({"path": path, "status": "failed", "message": str(e)})
     
+    return {"message": "Pull operations completed.", "results": results}
+
+@router.delete("/api/workspaces/registered/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Workspaces"])
+async def delete_registered_workspace(
+    workspace_id: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    logging.info(f"Deleting registered workspace with id: {workspace_id}")
+    db_workspace = db.query(models.RegisteredWorkspace).filter(models.RegisteredWorkspace.id == workspace_id).first()
+
+    if not db_workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registered workspace not found")
+
+    # Basic authorization: ensure the current user is part of the team that owns this workspace
+    # This needs to be refined based on how current_user is structured from rap-auth-server
+    # For now, we'll assume the frontend sends the correct team_id for the active team.
+    # Further authorization logic can be added here if needed (e.g., only admins can delete).
+    if current_user.activeRole != 'admin':
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can delete registered workspaces.")
+
+    db.delete(db_workspace)
+    db.commit()
+    logging.info(f"Registered workspace {workspace_id} deleted successfully.")
+    return {}
+
+@router.delete("/api/workspaces/local/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Workspaces"])
+async def delete_local_workspace(
+    workspace_id: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Deletes a locally cloned workspace from the filesystem and the database.
+    """
+    logging.info(f"Attempting to delete local workspace with id: {workspace_id}")
+
+    # Find the local workspace record in the database
+    db_workspace = db.query(models.Workspace).filter(models.Workspace.id == workspace_id).first()
+
+    if not db_workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local workspace record not found.")
+
+    workspace_path = db_workspace.path
+
+    # Security check: ensure the path exists and is a directory
+    if not os.path.isdir(workspace_path):
+        # The path in the DB is stale, just delete the DB record
+        db.delete(db_workspace)
+        db.commit()
+        logging.warning(f"Local workspace path '{workspace_path}' not found or not a directory. Deleting stale DB record.")
+        return # Return success as the desired state is achieved
+
     try:
-        pull_result = subprocess.run(
-            ["git", "pull", "--rebase"],
-            cwd=workspace.path,
-            check=True,
-            capture_output=True,
-            text=True,
-            creationflags=CREATE_NO_WINDOW
-        )
+        if os.name == 'nt': # For Windows, use rmdir /s /q
+            subprocess.run(["rmdir", "/s", "/q", workspace_path], check=True, shell=True, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+        else: # For other OS, use shutil.rmtree
+            shutil.rmtree(workspace_path)
+        logging.info(f"Successfully deleted directory: {workspace_path}")
 
-        push_result = subprocess.run(
-            ["git", "push"],
-            cwd=workspace.path,
-            check=True,
-            capture_output=True,
-            text=True,
-            creationflags=CREATE_NO_WINDOW
-        )
-        return {
-            "message": "Sync (pull and push) successful.",
-            "pull_output": pull_result.stdout,
-            "push_output": push_result.stdout
-        }
+        # Delete the record from the database ONLY if filesystem deletion was successful
+        db.delete(db_workspace)
+        db.commit()
+        logging.info(f"Local workspace record {workspace_id} deleted successfully.")
 
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Sync failed: {e.stderr}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except OSError as e:
+        logging.error(f"Error deleting directory {workspace_path}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete workspace directory: {e}")
+    
+    return {}

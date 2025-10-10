@@ -1,32 +1,124 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ScriptContext, ScriptContextProps } from '../ScriptContext'; // Import from new file
+import { ScriptContext, ScriptContextProps } from '../ScriptContext';
 import type { Script, RawScriptFromApi } from '@/types/scriptModel';
+import { Workspace } from '@/types/index';
 import { useNotifications } from '@/hooks/useNotifications';
 import api from '@/api/axios';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useUI } from '@/hooks/useUI';
-import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+import { useAuth } from '@/hooks/useAuth';
 import { isAxiosErrorWithResponseData } from '@/utils/errorUtils';
-
-
+import { pullTeamWorkspaces as pullTeamWorkspacesApi } from '@/api/rapServerApiClient';
+import { useRapServerUrl } from '@/hooks/useRapServerUrl';
+import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
 
 export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
-  const { activeWorkspace } = useWorkspaces();
-  const { activeScriptSource } = useUI();
-  const { user, isAuthenticated } = useAuth(); // Get user and auth status from auth context
+  const { activeScriptSource, setActiveScriptSource } = useUI();
+  const { user, isAuthenticated, activeTeam, cloudToken } = useAuth();
+  const rapServerUrl = useRapServerUrl();
+  const { userWorkspacePaths } = useUserWorkspaces();
+
   const [scripts, setScripts] = useState<Script[]>([]);
   const [allScripts, setAllScripts] = useState<Script[]>([]);
-  const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>("customScriptFolders", []);
-  const [selectedFolder, setSelectedFolder] = useLocalStorage<string | null>('selectedScriptFolder', null);
-  const [favoriteScripts, setFavoriteScripts] = useLocalStorage<string[]>("favoriteScripts", []);
-  const [recentScripts, setRecentScripts] = useLocalStorage<string[]>("recentScripts", []);
+  // CORRECTED: useLocalStorage key is now user-specific
+  const [customScriptFolders, setCustomScriptFolders] = useState<string[]>([]);
+
+  const fetchCustomScriptFolders = useCallback(async () => {
+    if (!user || !cloudToken || !rapServerUrl) return;
+    try {
+      const response = await api.get(
+        `${rapServerUrl}/api/user-settings/custom_script_folders`,
+        {
+          headers: { Authorization: `Bearer ${cloudToken}` },
+        }
+      );
+      setCustomScriptFolders(response.data.setting_value || []);
+    } catch (error) {
+      console.error("Failed to fetch custom script folders:", error);
+      setCustomScriptFolders([]);
+    }
+  }, [user, cloudToken, rapServerUrl]);
+
+  const saveCustomScriptFolders = useCallback(async (folders: string[]) => {
+    if (!user || !cloudToken || !rapServerUrl) return;
+    try {
+      await api.post(
+        `${rapServerUrl}/api/user-settings/custom_script_folders`,
+        {
+          setting_key: "custom_script_folders",
+          setting_value: folders,
+        },
+        {
+          headers: { Authorization: `Bearer ${cloudToken}` },
+        }
+      );
+    } catch (error) {
+      console.error("Failed to save custom script folders:", error);
+    }
+  }, [user, cloudToken, rapServerUrl]);
+
+  useEffect(() => {
+    if (!user) {
+      setCustomScriptFolders([]); // Clear folders if user logs out
+      return;
+    }
+    fetchCustomScriptFolders();
+  }, [user, fetchCustomScriptFolders]);
+
+  const [teamWorkspaces, setTeamWorkspaces] = useState<Record<number, Workspace[]>>({});
+
+  const fetchTeamWorkspaces = useCallback(async () => {
+    if (!user || !cloudToken || !rapServerUrl || !activeTeam) {
+      setTeamWorkspaces({}); // Clear if no active team or not authenticated
+      return;
+    }
+    try {
+      const response = await api.get(
+        `${rapServerUrl}/api/workspaces/registered/${activeTeam.team_id}`,
+        {
+          headers: { Authorization: `Bearer ${cloudToken}` },
+        }
+      );
+      setTeamWorkspaces(prev => ({
+        ...prev,
+        [activeTeam.team_id]: response.data
+      }));
+    } catch (error) {
+      console.error(`Failed to fetch registered workspaces for team ${activeTeam.team_id}:`, error);
+      setTeamWorkspaces(prev => ({
+        ...prev,
+        [activeTeam.team_id]: []
+      }));
+    }
+  }, [user, cloudToken, rapServerUrl, activeTeam, setTeamWorkspaces]);
+
+  useEffect(() => {
+    fetchTeamWorkspaces();
+  }, [fetchTeamWorkspaces]);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [favoriteScripts, setFavoriteScripts] = useState<string[]>([]);
+  const [recentScripts, setRecentScripts] = useState<string[]>([]);
   const [lastRunTimes, setLastRunTimes] = useState<Record<string, string>>({});
   const [combinedScriptContent, setCombinedScriptContent] = useState<string | null>(null);
   const [currentDisplayPath, setCurrentDisplayPath] = useState<string | null>(null);
 
+  const currentTeamWorkspaces = useMemo(() => {
+    return activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
+  }, [activeTeam, teamWorkspaces]);
+
+  useEffect(() => {
+    setScripts([]);
+    setCurrentDisplayPath(null);
+    setSelectedFolder(null);
+    setActiveScriptSource(null);
+  }, [activeTeam, setActiveScriptSource]);
+
   const loadScriptsFromPath = useCallback(async (folderPath: string) => {
+    if (!folderPath) {
+        setScripts([]);
+        return;
+    }
     try {
       showNotification(`Loading scripts from ${folderPath}...`, "info");
       const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(folderPath)}`);
@@ -52,26 +144,28 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         showNotification(`Loaded ${transformedData.length} scripts.`, "success");
       }
     } catch (error) {
+      console.error(`Failed to fetch scripts from ${folderPath}:`, error);
       const message = error instanceof Error ? error.message : "Unknown error";
       showNotification(`Failed to fetch scripts: ${message}`, "error");
       setScripts([]);
     }
   }, [showNotification, setSelectedFolder]);
 
-  // Effect to manage currentDisplayPath based on activeScriptSource
   useEffect(() => {
     if (activeScriptSource) {
       if (activeScriptSource.type === 'local') {
         setCurrentDisplayPath(activeScriptSource.path);
-      } else if (activeScriptSource.type === 'workspace' && activeWorkspace) {
-        setCurrentDisplayPath(activeWorkspace.path);
+        setSelectedFolder(activeScriptSource.path);
+      } else if (activeScriptSource.type === 'workspace') {
+        setCurrentDisplayPath(activeScriptSource.path);
+        setSelectedFolder(activeScriptSource.path);
       }
     } else {
       setCurrentDisplayPath(null);
+      setSelectedFolder(null);
     }
-  }, [activeScriptSource, activeWorkspace]);
+  }, [activeScriptSource, setSelectedFolder]);
 
-  // Main script loading effect
   useEffect(() => {
     if (currentDisplayPath) {
       loadScriptsFromPath(currentDisplayPath);
@@ -80,41 +174,45 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [currentDisplayPath, loadScriptsFromPath]);
 
-  const { workspaces } = useWorkspaces();
-
   const fetchAllScripts = useCallback(async () => {
     let newAllScripts: Script[] = [];
-    const scriptSources = activeScriptSource?.type === 'local' 
-      ? customScriptFolders 
-      : activeScriptSource?.type === 'workspace' 
-      ? workspaces.map(w => w.path) 
-      : [];
+    if (!isAuthenticated || !activeTeam) {
+      setAllScripts([]);
+      return;
+    }
 
-    for (const path of scriptSources) {
-      try {
-        const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(path)}`);
-        const data = response.data;
-        if (!data.error && Array.isArray(data)) {
-          const transformedData = data.map((s: RawScriptFromApi) => ({
-            ...s,
-            metadata: {
-              ...s.metadata,
-              documentType: s.metadata.document_type,
-              gitInfo: s.metadata.git_info ? {
-                lastCommitDate: s.metadata.git_info.last_commit_date,
-                lastCommitAuthor: s.metadata.git_info.last_commit_author,
-                lastCommitMessage: s.metadata.git_info.last_commit_message,
-              } : undefined,
-            },
-          }));
-          newAllScripts = [...newAllScripts, ...transformedData];
+    const workspacePaths = currentTeamWorkspaces
+      .map(ws => userWorkspacePaths[ws.id]?.path)
+      .filter((path): path is string => !!path);
+
+    const scriptSourcesToFetch = [...customScriptFolders, ...workspacePaths];
+
+    for (const path of scriptSourcesToFetch) {
+        if (!path) continue;
+        try {
+            const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(path)}`);
+            const data = response.data;
+            if (!data.error && Array.isArray(data)) {
+            const transformedData = data.map((s: RawScriptFromApi) => ({
+                ...s,
+                metadata: {
+                ...s.metadata,
+                documentType: s.metadata.document_type,
+                gitInfo: s.metadata.git_info ? {
+                    lastCommitDate: s.metadata.git_info.last_commit_date,
+                    lastCommitAuthor: s.metadata.git_info.last_commit_author,
+                    lastCommitMessage: s.metadata.git_info.last_commit_message,
+                } : undefined,
+                },
+            }));
+            newAllScripts = [...newAllScripts, ...transformedData];
+            }
+        } catch (error) {
+            console.error(`Failed to fetch scripts from ${path}:`, error);
         }
-      } catch (error) {
-        console.error(`Failed to fetch scripts from ${path}:`, error);
-      }
     }
     setAllScripts(newAllScripts);
-  }, [activeScriptSource?.type, customScriptFolders, workspaces]);
+  }, [isAuthenticated, activeTeam, customScriptFolders, currentTeamWorkspaces, userWorkspacePaths]);
 
   useEffect(() => {
     fetchAllScripts();
@@ -161,26 +259,85 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       .filter((script): script is Script => !!script);
   }, [recentScripts, scripts]);
 
-  const addCustomScriptFolder = async (folderPath: string) => {
-    const normalizedPath = folderPath.replaceAll('/', '/');
-    if (!customScriptFolders.includes(normalizedPath)) {
-      setCustomScriptFolders((prevFolders) => [...prevFolders, normalizedPath]);
-      showNotification(`Added custom script folder: ${folderPath}.`, "success");
-    } else {
-      showNotification(`Folder already added: ${folderPath}.`, "info");
-    }
-  };
+  const addCustomScriptFolder = useCallback(async (folderPath: string): Promise<void> => {
+    if (!user) return;
+    setCustomScriptFolders(prev => {
+      const newState = [...prev, folderPath];
+      saveCustomScriptFolders(newState); // Save to server
+      return newState;
+    });
+    showNotification(`Added custom script folder: ${folderPath}.`, "success");
+  }, [user, saveCustomScriptFolders, showNotification]);
 
-  const removeCustomScriptFolder = (folderPath: string) => {
-    setCustomScriptFolders((prevFolders) =>
-      prevFolders.filter((folder) => folder !== folderPath)
-    );
+  const removeCustomScriptFolder = useCallback((folderPath: string) => {
+    if (!user) return;
+    setCustomScriptFolders(prev => {
+      const newState = prev.filter(folder => folder !== folderPath);
+      saveCustomScriptFolders(newState); // Save to server
+      return newState;
+    });
     if (selectedFolder === folderPath) {
       setScripts([]);
       setSelectedFolder(null);
     }
     showNotification(`Removed custom script folder: ${folderPath}.`, "info");
-  };
+  }, [user, saveCustomScriptFolders, selectedFolder, showNotification]);
+
+  const addTeamWorkspace = useCallback(async (teamId: number, workspace: Workspace): Promise<void> => {
+    if (!user || !cloudToken || !rapServerUrl) {
+      showNotification("Not authenticated.", "error");
+      return;
+    }
+    try {
+      const response = await api.post(
+        `${rapServerUrl}/api/workspaces/register`,
+        {
+          team_id: teamId,
+          name: workspace.name,
+          repo_url: workspace.repo_url,
+        },
+        {
+          headers: { Authorization: `Bearer ${cloudToken}` },
+        }
+      );
+      const registeredWorkspace = response.data; // Backend should return the registered workspace with its ID
+
+      setTeamWorkspaces(prev => ({
+        ...prev,
+        [teamId]: [...(prev[teamId] || []), registeredWorkspace] // Use the registeredWorkspace from backend
+      }));
+      showNotification(`Added workspace '${registeredWorkspace.name}' to team.`, "success");
+    } catch (error) {
+      console.error("Failed to register workspace:", error);
+      const message = error instanceof Error ? error.message : "An unknown error occurred.";
+      showNotification(`Failed to add workspace: ${message}`, "error");
+    }
+  }, [user, cloudToken, rapServerUrl, setTeamWorkspaces, showNotification]);
+
+  const removeTeamWorkspace = useCallback(async (teamId: number, workspaceId: string): Promise<void> => { // workspaceId should be string here
+    if (!user || !cloudToken || !rapServerUrl) {
+      showNotification("Not authenticated.", "error");
+      return;
+    }
+    try {
+      await api.delete(
+        `${rapServerUrl}/api/workspaces/registered/${Number(workspaceId)}`, // Convert to number for backend
+        {
+          headers: { Authorization: `Bearer ${cloudToken}` },
+        }
+      );
+
+      setTeamWorkspaces(prev => ({
+        ...prev,
+        [teamId]: (prev[teamId] || []).filter(w => w.id !== workspaceId) // w.id is string, workspaceId is string
+      }));
+      showNotification(`Removed workspace from team.`, "info");
+    } catch (error) {
+      console.error("Failed to remove workspace:", error);
+      const message = error instanceof Error ? error.message : "An unknown error occurred.";
+      showNotification(`Failed to remove workspace: ${message}`, "error");
+    }
+  }, [user, cloudToken, rapServerUrl, setTeamWorkspaces, showNotification]);
 
   const clearScriptsForWorkspace = useCallback((workspacePath: string) => {
     if (currentDisplayPath === workspacePath) {
@@ -207,7 +364,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [loadScriptsFromPath, showNotification]);
 
-  // Other functions (toggleFavoriteScript, addRecentScript, etc.) remain the same
   const toggleFavoriteScript = useCallback((scriptId: string) => {
     setFavoriteScripts(prev => prev.includes(scriptId) ? prev.filter(id => id !== scriptId) : [...prev, scriptId]);
   }, [setFavoriteScripts]);
@@ -222,10 +378,49 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearScripts = useCallback(() => setScripts([]), []);
 
+  const pullAllTeamWorkspaces = useCallback(async () => {
+    if (!activeTeam || !cloudToken) {
+      showNotification("Not authenticated or no active team.", "error");
+      return;
+    }
+    
+    const workspacePaths = currentTeamWorkspaces
+      .map(ws => userWorkspacePaths[ws.id]?.path)
+      .filter((path): path is string => !!path);
+
+    if (workspacePaths.length === 0) {
+      showNotification("No workspaces have been set up on this machine for this team.", "info");
+      return;
+    }
+
+    showNotification("Updating team workspaces...!", "info");
+    try {
+      if (!rapServerUrl) {
+        showNotification("RAP Server URL not available.", "error");
+        return;
+      }
+      const response = await pullTeamWorkspacesApi(rapServerUrl, workspacePaths, cloudToken);
+      const failedPulls = response.results.filter((r: { status: string; }) => r.status === "failed");
+      if (failedPulls.length > 0) {
+        showNotification(`Failed to update ${failedPulls.length} workspaces.`, "error");
+        failedPulls.forEach((f: { path: string; message: string; }) => console.error(`Pull failed for ${f.path}: ${f.message}`));
+      } else {
+        showNotification("All team workspaces updated successfully!", "success");
+      }
+      if (activeScriptSource?.type === 'workspace' && currentDisplayPath) {
+        loadScriptsFromPath(currentDisplayPath);
+      }
+    } catch (err: any) {
+      showNotification(err.response?.data?.detail || "Failed to update team workspaces.", "error");
+      console.error("Pull all team workspaces error:", err);
+    }
+  }, [activeTeam, cloudToken, currentTeamWorkspaces, userWorkspacePaths, showNotification, activeScriptSource, currentDisplayPath, loadScriptsFromPath, rapServerUrl]);
+
   const contextValue: ScriptContextProps = {
     scripts: scriptsWithFavorites,
-    allScripts: allScripts, // allScripts is now less relevant for the role-based view
-    customScriptFolders,
+    allScripts: allScripts,
+    customScriptFolders: customScriptFolders,
+    teamWorkspaces,
     selectedFolder,
     favoriteScripts,
     recentScripts: recentScriptsData,
@@ -235,15 +430,18 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     updateScriptLastRunTime,
     addCustomScriptFolder,
     removeCustomScriptFolder,
-    loadScriptsForFolder: loadScriptsFromPath, // Keep original name for compatibility
+    addTeamWorkspace,
+    removeTeamWorkspace,
+    loadScriptsForFolder: loadScriptsFromPath,
     createNewScript,
     clearFavoriteScripts,
     clearRecentScripts,
     fetchScriptMetadata,
     setScripts,
     setCombinedScriptContent,
-    clearScriptsForWorkspace, // Add this line
+    clearScriptsForWorkspace,
     clearScripts,
+    pullAllTeamWorkspaces,
   };
 
   return (

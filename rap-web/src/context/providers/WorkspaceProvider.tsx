@@ -44,7 +44,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const { isAuthenticated } = useAuth();
 
   const cloneAndAddWorkspace = useCallback(async (payload: CloneWorkspacePayload) => {
-    const existingWorkspaceByUrl = workspaces.find(ws => ws.repoUrl === payload.repo_url);
+    const existingWorkspaceByUrl = workspaces.find(ws => ws.repo_url === payload.repo_url);
     if (existingWorkspaceByUrl) {
       showNotification("Workspace exists, cloning skipped", "info");
       return;
@@ -61,7 +61,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
             id: workspace_id.toString(),
             name: payload.repo_url.split('/').pop()?.replace('.git', '') || 'New Workspace',
             path: cloned_path,
-            repoUrl: payload.repo_url,
+            repo_url: payload.repo_url,
         };
         setWorkspaces((prev) => {
             const updatedWorkspaces = [...prev, newWorkspace];
@@ -77,7 +77,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         id: workspace_id.toString(),
         name: payload.repo_url.split('/').pop()?.replace('.git', '') || 'New Workspace',
         path: cloned_path,
-        repoUrl: payload.repo_url,
+        repo_url: payload.repo_url,
       };
 
       setWorkspaces((prev) => {

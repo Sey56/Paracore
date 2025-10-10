@@ -3,18 +3,20 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BASE_DIR = Path(__file__).resolve().parent
+# By default, pydantic-settings will load from environment variables.
+# It will also automatically load from a `.env` file in the same directory if it exists.
+# Environment variables will ALWAYS override values from a .env file.
+# This is the ideal behavior for production (Railway) vs. local development.
 
 class Settings(BaseSettings):
-    # ✅ Load from .env file inside the container
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # The `extra='ignore'` tells pydantic to ignore extra environment variables
+    # that don't correspond to fields in this model.
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra='ignore')
 
     # 🌐 Frontend
     FRONTEND_URL: str = "tauri://localhost"
     
     # 🔐 Google OAuth2
-    GOOGLE_CLIENT_ID_WEB: str
-    GOOGLE_CLIENT_SECRET_WEB: str
     GOOGLE_CLIENT_ID_DESKTOP: str
     GOOGLE_CLIENT_SECRET_DESKTOP: str
     REDIRECT_URI: str = "http://127.0.0.1:8001/auth/callback"

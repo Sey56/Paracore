@@ -41,8 +41,11 @@
       "all": false,
       "shell": {
         "all": false,
-        "open": true
-      },
+        "open": true,
+                    "execute": true,
+                    "scope": [
+                      
+                    ]      },
       "fs": {
         "all": true,
         "scope": [

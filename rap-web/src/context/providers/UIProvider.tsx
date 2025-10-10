@@ -2,38 +2,69 @@ import { useState, useCallback, useEffect } from "react";
 import { UIContext, InspectorTab, ActiveScriptSource } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useUserWorkspaces } from "@/hooks/useUserWorkspaces"; // Import useUserWorkspaces
+import { useAuth } from "@/hooks/useAuth"; // Import useAuth
 
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
   const { showNotification } = useNotifications();
+  const { user } = useAuth(); // Get the current user
+  const { userWorkspacePaths, isLoaded: userWorkspacesLoaded } = useUserWorkspaces(); // Get user-specific workspace paths
+
   const [isSidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [isInspectorOpen, setInspectorOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [isNewScriptModalOpen, setIsNewScriptModalOpen] = useState(false);
+  const [isTeamManagementModalOpen, setIsTeamManagementModalOpen] = useState(false);
   
   const [isFloatingCodeViewerOpen, setFloatingCodeViewerOpen] = useState(false);
   const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>("parameters");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(() => {
-    // Initialize from localStorage
+  
+  const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(null);
+
+  // Effect to initialize activeScriptSource from localStorage and validate it
+  useEffect(() => {
+    if (!userWorkspacesLoaded || !user) return; // Wait for user workspaces to load and user to be available
+
     const storedSource = localStorage.getItem("activeScriptSource");
     if (storedSource) {
       try {
-        return JSON.parse(storedSource) as ActiveScriptSource;
+        const parsedSource = JSON.parse(storedSource) as ActiveScriptSource;
+        if (parsedSource?.type === 'workspace') {
+          // Validate if the stored workspace is actually set up for the current user
+          const localPathForStoredWorkspace = userWorkspacePaths[parsedSource.id];
+          if (localPathForStoredWorkspace && localPathForStoredWorkspace.path === parsedSource.path) {
+            setActiveScriptSource(parsedSource);
+          } else {
+            // Stored workspace is not set up for this user, or path is inconsistent
+            localStorage.removeItem("activeScriptSource"); // Clear invalid entry
+            setActiveScriptSource(null);
+          }
+        } else if (parsedSource?.type === 'local') {
+          // For local folders, we don't have userWorkspacePaths to validate against
+          // We assume local folders are user-specific via ScriptProvider's useLocalStorage
+          // For now, just set it if it's a local type
+          setActiveScriptSource(parsedSource);
+        } else {
+          setActiveScriptSource(parsedSource);
+        }
       } catch (e) {
         console.error("Failed to parse activeScriptSource from localStorage", e);
-        return null;
+        setActiveScriptSource(null);
       }
     }
-    return null;
-  });
+  }, [user, userWorkspacesLoaded, userWorkspacePaths]); // Re-run when user or userWorkspaces change
 
   const openSettingsModal = () => setSettingsModalOpen(true);
   const closeSettingsModal = () => setSettingsModalOpen(false);
 
   const openNewScriptModal = () => setIsNewScriptModalOpen(true);
   const closeNewScriptModal = () => setIsNewScriptModalOpen(false);
+
+  const openTeamManagementModal = () => setIsTeamManagementModalOpen(true);
+  const closeTeamManagementModal = () => setIsTeamManagementModalOpen(false);
 
   const openFloatingCodeViewer = () => setFloatingCodeViewerOpen(true);
   const closeFloatingCodeViewer = () => setFloatingCodeViewerOpen(false);
@@ -114,6 +145,10 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isSettingsModalOpen,
     openSettingsModal,
     closeSettingsModal,
+
+    isTeamManagementModalOpen,
+    openTeamManagementModal,
+    closeTeamManagementModal,
 
     isNewScriptModalOpen,
     openNewScriptModal,

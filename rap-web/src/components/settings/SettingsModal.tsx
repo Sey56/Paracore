@@ -1,42 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/hooks/useAuth';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import ScriptAutomationSettings from './ScriptAutomationSettings'; // Relative path remains the same
-import WorkspaceSettings from './WorkspaceSettings'; // Relative path remains the same
-
+import ScriptAutomationSettings from './ScriptAutomationSettings';
+import WorkspaceSettings from './WorkspaceSettings';
 import { Modal } from '../common/Modal'; // Updated import path
+import { Role } from '@/context/authTypes'; // Import Role
 
 interface TabComponentProps {
   isAuthenticated: boolean;
 }
 
+const NoopComponent: React.FC<TabComponentProps> = () => null;
+
 interface TabItem {
   name: string;
   component: React.ComponentType<TabComponentProps>;
   disabled?: boolean;
+  onClick?: () => void;
 }
 
 const SettingsModal: React.FC = () => {
-  const { isSettingsModalOpen, closeSettingsModal } = useUI();
-  const { isAuthenticated, user } = useAuth();
+  const { isSettingsModalOpen, closeSettingsModal, openTeamManagementModal } = useUI();
+  const { isAuthenticated, user, activeRole } = useAuth();
 
-  const scriptAutomationTabs: TabItem[] = [
-    { name: 'Local Folders', component: ScriptAutomationSettings },
-    { name: 'Workspaces', component: WorkspaceSettings },
-  ];
+  const scriptAutomationTabs = useMemo(() => {
+    const tabs: TabItem[] = [];
+    // Only add Workspaces tab if not a user
+    if (activeRole !== Role.User) {
+      tabs.push({ name: 'Workspaces', component: WorkspaceSettings });
+    }
+    return tabs;
+  }, [activeRole]); // Dependency on activeRole
 
-
-
-  const otherTabs: TabItem[] = [
+  const otherTabs = useMemo(() => [
+    {
+      name: 'Team Management',
+      component: NoopComponent, // Use NoopComponent here
+      disabled: activeRole !== Role.Admin,
+      onClick: () => { closeSettingsModal(); openTeamManagementModal(); }
+    },
     { name: 'AI Script Generation', component: () => <div>AI Scripts Settings (Coming Soon)</div>, disabled: true },
     { name: 'Agentic Automation', component: () => <div>Agentic Automation Settings (Coming Soon)</div>, disabled: true },
     { name: 'MCP', component: () => <div>MCP Settings (Coming Soon)</div>, disabled: true },
-  ];
+  ], [activeRole, closeSettingsModal, openTeamManagementModal]);
 
-  const allTabs = [...scriptAutomationTabs, ...otherTabs];
-
-  const [activeTab, setActiveTab] = useState<string>(scriptAutomationTabs[0].name);
+  const allTabs = useMemo(() => [...scriptAutomationTabs, ...otherTabs], [scriptAutomationTabs, otherTabs]);
+  const [activeTab, setActiveTab] = useState<string | null>(scriptAutomationTabs.length > 0 ? scriptAutomationTabs[0].name : null);
 
   const ActiveComponent = allTabs.find(tab => tab.name === activeTab)?.component;
 
@@ -50,7 +60,7 @@ const SettingsModal: React.FC = () => {
               Script Automation
             </h3>
             <div className="ml-4 flex flex-col space-y-2">
-              {scriptAutomationTabs.map((tab) => (
+              {scriptAutomationTabs.map((tab: TabItem) => (
                 <button
                   key={tab.name}
                   onClick={() => setActiveTab(tab.name)}
@@ -71,22 +81,27 @@ const SettingsModal: React.FC = () => {
 
 
             {/* Other Settings */}
-            {otherTabs.map((tab) => (
-              <button
-                key={tab.name}
-                onClick={() => setActiveTab(tab.name)}
-                disabled={tab.disabled}
-                className={`text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mt-4 mb-1 py-2.5 text-left rounded-lg transition-colors ${
-                  activeTab === tab.name
-                    ? 'bg-blue-500 text-white'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                } ${
-                  tab.disabled ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                {tab.name}
-              </button>
-            ))}
+            <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mt-4 mb-1">
+              General
+            </h3>
+            <div className="ml-4 flex flex-col space-y-2">
+              {otherTabs.map((tab: TabItem) => (
+                <button
+                  key={tab.name}
+                  onClick={tab.onClick || (() => setActiveTab(tab.name))}
+                  disabled={tab.disabled}
+                  className={`px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-colors ${
+                    activeTab === tab.name && !tab.onClick
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  } ${
+                    tab.disabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {tab.name}
+                </button>
+              ))}
+            </div>
           </nav>
         </div>
 

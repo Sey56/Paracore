@@ -2,26 +2,26 @@ import { useState, useEffect } from 'react';
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
   // State to store our value
-  // Pass initial state function to useState so logic is only executed once
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === 'undefined') {
-      return initialValue;
+  const [storedValue, setStoredValue] = useState<T>(initialValue);
+
+  // Effect to read from local storage when the key changes or on initial mount
+  useEffect(() => {
+    if (typeof window === 'undefined' || !key) { // Added !key check
+      setStoredValue(initialValue); // Reset to initialValue if key is invalid
+      return;
     }
     try {
-      // Get from local storage by key
       const item = window.localStorage.getItem(key);
-      // Parse stored json or if none return initialValue
-      return item ? JSON.parse(item) : initialValue;
+      setStoredValue(item ? JSON.parse(item) : initialValue);
     } catch (error) {
-      // If error also return initialValue
       console.error(error);
-      return initialValue;
+      setStoredValue(initialValue);
     }
-  });
+  }, [key, initialValue]); // Depend on key and initialValue
 
-  // useEffect to update local storage when the state changes
+  // Effect to update local storage when the storedValue changes
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || !key) { // Added !key check
       return;
     }
     try {

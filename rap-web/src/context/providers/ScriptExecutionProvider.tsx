@@ -248,6 +248,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       return { success: false, message: "A preset with this name already exists." };
     }
     const newPresets = presets.map((p) => (p.name === oldName ? { ...p, name: newName } : p));
+    console.log("New presets list after rename:", newPresets); // <--- ADDED FOR DEBUGGING
     setPresets(newPresets);
     savePresets(newPresets);
     return { success: true, message: "Preset renamed." };

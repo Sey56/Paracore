@@ -27,7 +27,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
   const { selectedScript, runningScriptPath, runScript, setSelectedScript, userEditedScriptParameters } = useScriptExecution();
   const { toggleFavoriteScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
-  const { revitStatus, rserverConnected } = useRevitStatus(); // Get Revit status
+  const { revitStatus, rserverConnected } = useRevitStatus();
   const { isAuthenticated } = useAuth();
 
   const isSelected = selectedScript?.id === script.id;
@@ -41,21 +41,18 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     const scriptDocType = script.metadata.documentType?.trim().toLowerCase();
     const revitDocType = revitStatus.documentType?.trim().toLowerCase();
 
-    // If script's documentType is not specified or is "Any", it's compatible with any open document.
     if (!scriptDocType || scriptDocType === 'any') {
       return true;
     }
 
-    // If Revit document type is not available, but script requires a specific type, it's incompatible.
     if (!revitDocType) {
       return false;
     }
 
-    // Otherwise, check for an exact match.
     return scriptDocType === revitDocType;
   }, [rserverConnected, revitStatus.document, revitStatus.documentType, script.metadata.documentType]);
 
-  const isRunButtonDisabled = !isAuthenticated || isRunning || !rserverConnected || !isCompatibleWithDocument; // Disable if running, or incompatible
+  const isRunButtonDisabled = !isAuthenticated || isRunning || !rserverConnected || !isCompatibleWithDocument;
 
   const getTooltipMessage = () => {
     if (!rserverConnected) {
@@ -80,14 +77,14 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
       return `This script requires '${script.metadata.documentType}' document type, but the current is '${revitStatus.documentType || "None"}'`;
     }
 
-    return ""; // Fallback, though should be covered by above conditions
+    return "";
   };
 
   const tooltipMessage = getTooltipMessage();
 
   const handleRunClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isRunButtonDisabled) return; // Prevent execution if disabled
+    if (isRunButtonDisabled) return;
     await setSelectedScript(script);
     setActiveInspectorTab('console');
     runScript(script, userEditedScriptParameters[script.id] || script.parameters);
@@ -128,9 +125,9 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
 
   return (
     <div
-      className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-2.0 cursor-pointer flex flex-col ${
+      className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${
         isSelected ? "ring-2 ring-blue-500" : ""
-      } ${isRunning ? "opacity-70" : ""} ${!rserverConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""} ${isFromActiveWorkspace ? "border-2 border-blue-500" : ""}`} // Removed background color
+      } ${isRunning ? "opacity-70" : ""} ${!rserverConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
       onClick={handleSelect}
     >
       <div className="p-4 flex-grow flex flex-col">
@@ -138,7 +135,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
           <h3 className="font-medium text-lg text-gray-800 dark:text-gray-100">
             {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
             {isFromActiveWorkspace && (
-              <FontAwesomeIcon icon={faCodeBranch} className="ml-2 text-gray-400 dark:text-gray-500" title="From active workspace" />
+              <FontAwesomeIcon icon={faCodeBranch} className="ml-2 text-blue-500" title="From active workspace" />
             )}
           </h3>
           <button
@@ -183,7 +180,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
           <button
             className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm px-2 py-1 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleRunClick}
-            disabled={isRunButtonDisabled} // Use the new disabled state
+            disabled={isRunButtonDisabled}
             title={tooltipMessage}
           >
             <FontAwesomeIcon

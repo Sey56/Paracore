@@ -12,13 +12,15 @@ import { useScripts } from "@/hooks/useScripts"; // Import useScripts
 import { GitStatusPanel } from "@/components/layout/GitStatusPanel"; // Import GitStatusPanel
 import React, { useState, useCallback } from 'react';
 import { useAuth } from "@/hooks/useAuth";
+import { Role } from '@/context/authTypes'; // Import Role
 import SettingsModal from '@/components/settings/SettingsModal';
+import TeamManagementModal from '@/components/settings/TeamManagementModal'; // Import TeamManagementModal
 import { NewScriptModal } from '@/components/common/NewScriptModal'; // Import NewScriptModal
 import { AddFolderModal } from '@/components/common/AddFolderModal'; // Import AddFolderModal
 import { AddCategoryModal } from '@/components/common/AddCategoryModal'; // Import AddCategoryModal
 
 export const AppLayout: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, activeRole } = useAuth();
   const { selectedScript } = useScriptExecution();
   const { addCustomScriptFolder } = useScripts(); // Access addCustomScriptFolder
   const {
@@ -29,7 +31,8 @@ export const AppLayout: React.FC = () => {
     isSettingsModalOpen,
     isNewScriptModalOpen,
     closeNewScriptModal,
-    
+    isTeamManagementModalOpen, // Access isTeamManagementModalOpen
+    closeTeamManagementModal, // Access closeTeamManagementModal
     
     activeScriptSource, // Access activeScriptSource
     isFloatingCodeViewerOpen,
@@ -92,7 +95,7 @@ export const AppLayout: React.FC = () => {
     <div className="flex flex-col h-screen bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 font-sans overflow-hidden">
       <SettingsModal />
       <NewScriptModal isOpen={isNewScriptModalOpen} onClose={closeNewScriptModal} selectedFolder="" /> {/* Render NewScriptModal */}
-      
+      <TeamManagementModal />
       
       {selectedScript && (
         <FloatingCodeViewer
@@ -136,10 +139,9 @@ export const AppLayout: React.FC = () => {
             <div style={{ flex: inspectorWidth }} className="hidden lg:block p-6 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto overflow-hidden min-w-0">
               <ScriptInspector />
             </div>
-          </div>
-          {activeScriptSource?.type === 'workspace' && <GitStatusPanel />} {/* Render GitStatusPanel here */}
-        </div>
-
+                    </div>
+                    {activeScriptSource?.type === 'workspace' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}
+                  </div>
         {/* Mobile Inspector */}
         {isMobile && selectedScript && (
           <div

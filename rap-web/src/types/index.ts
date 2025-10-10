@@ -4,8 +4,14 @@ export * from './scriptModel';
 export interface Workspace {
   id: string;
   name: string;
+  repo_url: string;
   path: string;
-  repoUrl: string;
+}
+
+export interface Membership {
+  team_id: number;
+  team_name: string;
+  role: string;
 }
 
 export interface Notification {

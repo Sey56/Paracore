@@ -11,7 +11,7 @@ from ..auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
-@router.get("/api/runs", response_model=List[schemas.ScriptRunResponse], tags=["runs"])
+@router.get("/api/runs", response_model=List[schemas.RunResponse], tags=["runs"])
 def get_runs(db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
     """
     Retrieves all script runs for the current user.
@@ -51,7 +51,7 @@ def get_latest_runs(db: Session = Depends(get_db), current_user: CurrentUser = D
     return {path: timestamp for path, timestamp in result}
 
 
-@router.get("/api/scripts/{script_path:path}/last_run", response_model=Optional[schemas.ScriptRunResponse], tags=["runs"])
+@router.get("/api/scripts/{script_path:path}/last_run", response_model=Optional[schemas.RunResponse], tags=["runs"])
 def get_last_run(script_path: str, db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
     """
     Retrieves the last run for a specific script.

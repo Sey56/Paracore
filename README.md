@@ -53,63 +53,55 @@ The platform is composed of several key projects that work together:
 
 ## Collaboration: A Git-Powered Approach
 
-To enable powerful team collaboration without compromising data privacy or forcing users into a proprietary system, RAP will integrate directly with Git. This approach treats Git as the "source of truth" for script content, while RAP remains the "engine" for execution and management.
+To enable powerful team collaboration without compromising data privacy or forcing users into a proprietary system, RAP integrates directly with Git. This approach treats Git as the "source of truth" for script content, while RAP remains the "engine" for execution and management.
 
 This model respects user data by keeping scripts within a user-controlled Git repository (e.g., on GitHub, GitLab, or a private server), not on RAP's servers.
 
----
+### Script Sources & Access
 
-#### ✅ What Git Manages (The Source of Truth)
+RAP provides two distinct sources for scripts, tailored to different user needs and roles:
 
-RAP will not reinvent the wheel. It will rely on Git's robust, universally understood features for the core collaboration workflow. Users will manage these aspects using their preferred Git tools (e.g., VS Code's Git lens, GitKraken, or the command line).
+*   **Local Folders (Individual Use):**
+    *   Admins have the unique ability to load scripts directly from local folders on their machine **only when they are in their own personal team space**.
+    *   This feature is designed for personal experimentation and rapid prototyping without the overhead or complexity of Git operations.
+    *   Local folders are not version-controlled and are not visible to anyone else or in any other team space.
+
+*   **Workspaces (Team Collaboration):**
+    *   For team collaboration, scripts are sourced exclusively from registered Git repositories (Workspaces).
+    *   These repositories serve as the central, version-controlled source for all team-approved automation scripts.
+
+### What Git Manages (The Source of Truth - External Git Platform)
+
+RAP relies on Git's robust, universally understood features for the core collaboration workflow, primarily managed on the external Git hosting platform (GitHub, GitLab, Bitbucket, etc.).
 
 *   **Version Control & History:** All script changes, commits, diffs, and historical logs are handled by Git.
-*   **Branching & Merging:** Teams can use standard Git workflows like feature branches (`feature/new-script`), bug fixes, and main/develop branches.
-*   **Access Control:** Managed entirely by the Git provider (e.g., GitHub/GitLab repository permissions). This ensures only authorized team members can read or write scripts.
-*   **Collaboration & Review:** The entire Pull Request (or Merge Request) and code review process happens on the Git provider's platform. This is a mature and well-understood workflow for quality control.
-*   **Conflict Resolution:** If merge conflicts occur, users will resolve them using standard Git tools. RAP will not attempt to build a conflict resolution UI.
+*   **Branching & Merging:** Teams use standard Git workflows like feature branches, bug fixes, and Pull Requests.
+*   **Access Control:** Managed entirely by the Git provider (e.g., GitHub/GitLab repository permissions).
+*   **Conflict Resolution:** If merge conflicts occur, users will resolve them using standard Git tools.
+*   **Protected Branches:** The `main` branch of the repository is configured as "protected" on the Git hosting platform. This prevents direct pushes to `main` and enforces the PR review process.
 
-#### 🧩 What RAP Manages (The Thin Integration Layer)
+### What RAP Manages (The Thin Integration Layer - Convenience within RAP)
 
-RAP's role is to provide a seamless and intelligent interface *on top of* the user's Git repository. It makes the Git workflow accessible and convenient from within the RAP application.
+RAP's role is to provide a seamless and intelligent interface *on top of* the user's Git repository. It makes the Git workflow accessible and convenient from within the RAP application for common operations, without trying to be a full Git client.
 
-*   **Workspace Configuration:**
-    *   In RAP, a user will define a "Workspace" that points to a Git repository.
-    *   **UI:** The configuration screen will require:
-        1.  **Repository URL:** The HTTPS or SSH clone URL.
-        2.  **Local Path:** The directory on the user's machine where the repo is or will be cloned.
-        3.  **Credentials:** A field for a **Personal Access Token (PAT)**. This is more secure than storing usernames/passwords. The PAT will be stored securely in the operating system's credential manager (e.g., Windows Credential Manager, macOS Keychain).
+*   **Workspace Registration (Admin Role):** Admins define a "Workspace" by registering a remote Git repository URL. This registration makes the remote URL available to all members of that team.
+*   **Workspace Setup (All Team Members):** Team members can "Setup" a registered workspace, which clones the remote repository to a local path on their machine.
+*   **Local Clone Management (All Team Members):** Users can "Remove" their local copy of a cloned workspace, deleting the local folder and its record from RAP.
+*   **Branch Management (Admin & Developer Roles):** Display current branch, select/switch branches, and create new branches.
+*   **Git Status Indicators (Admin & Developer Roles):** The UI displays the Git status (Up to Date, Ahead, Behind, Uncommitted Changes).
+*   **User-Driven Git Actions (Role-Based):**
+    *   **Commit (Admin & Developer Roles):** Perform `git add .` and `git commit` to the current local branch.
+    *   **Pull (Admin & Developer Roles):** Performs `git pull` to fetch and merge changes.
+    *   **Push (Admin & Developer Roles):** Performs `git push` to send local commits.
+    *   **Update Scripts (User Role Only):** A simplified button that performs a `git pull` to get the latest versions of published scripts.
 
-*   **Automated & Manual Syncing:**
-    *   **Initial Clone:** If the local path is empty, RAP will `git clone` the repository.
-    *   **Automatic Fetch:** On selecting a workspace, RAP will automatically run `git fetch` to check for remote changes without altering the user's local files.
-    *   **Clear UI Indicators:** The UI will clearly display the sync status:
-        *   `Up to Date`: Local and remote are in sync.
-        *   `Changes to Pull`: The remote has new commits. A "Pull" button will be visible.
-        *   `Changes to Push`: The user has local commits not yet on the remote. A "Push" button will be visible.
-    *   **User-Driven Actions:** All actions that modify the user's code (`pull`, `push`, `commit`) will be initiated by a button click, not automatically on save, to prevent unexpected changes or conflicts.
+### Git Workflow Enforcement
 
-*   **In-App Commit Workflow:**
-    *   RAP will detect unsaved changes (`git status`).
-    *   A "Commit" view will allow the user to:
-        1.  See a list of modified/new files.
-        2.  Write a commit message.
-        3.  Click a "Commit" button, which runs `git add .` and `git commit`. This simplifies the process for users less familiar with the Git CLI.
+RAP implements several features to guide users towards Git best practices and protect the integrity of the `main` branch:
 
-*   **Contextual Script Information:**
-    *   **Enhanced Script Cards:** To provide context, the script card or inspector view will display relevant Git metadata for each script, fetched via `git log`.
-        *   **Last Modified By:** The author of the last commit that touched the file.
-        *   **Last Commit Message:** The message associated with that commit.
-    *   This provides valuable "at-a-glance" context without duplicating the full `git log` history.
-
----
-
-#### 🛡️ Why This Approach is a Win-Win
-
-*   **Keeps RAP Lean and Focused:** RAP concentrates on its core value proposition: a best-in-class script execution environment for Revit. It avoids becoming a bloated, second-rate Git client.
-*   **User Trust and Data Sovereignty:** Users keep their intellectual property in their own repositories. This is the single most important factor for building trust and encouraging adoption in corporate environments.
-*   **Leverages Existing Workflows:** Developers and teams don't have to learn a new version control system. They can continue using the tools and platforms they already know and love.
-*   **Scalability and Maintainability:** By delegating the complex parts of collaboration to Git, the RAP codebase remains simpler, more maintainable, and easier to scale.
+*   **Proactive Branching Reminder (Developer Role):** When a `developer` is on the `main` branch, the `GitStatusPanel` displays a prominent message: "You are on the main branch. Create a branch to commit your changes."
+*   **Disabled Commit/Push (Developer Role on `main`):** The "Commit" and "Push" buttons in the `GitStatusPanel` are disabled for `developer`s when the `main` branch is active.
+*   **Preventing "main" Branch Creation:** RAP prevents both `admin`s and `developer`s from creating a new branch named "main".
 
 ---
 
@@ -128,6 +120,7 @@ The platform is designed around a three-tiered role system that mirrors the stru
 *   **Update Scripts:** A simple "Update Scripts" button performs a `git pull` in the background, ensuring they always have the latest versions of the tools published by the admin.
 *   **Read-Only View:** They can view a script's parameters and description but cannot see or edit the C# code. This prevents accidental changes and keeps the interface clean and focused.
 *   **No Git Complexity:** The user is completely shielded from Git. They don't see commit history, branches, or push/pull commands.
+*   **Local Clone Management:** Can remove their local copy of a cloned workspace.
 
 In short: The `user` is the **consumer** of the automation. They benefit from the tools without the complexity of creating them.
 
@@ -141,6 +134,7 @@ In short: The `user` is the **consumer** of the automation. They benefit from th
 *   **Create & Edit Scripts:** They have full access to the script editor and development environment within RAP.
 *   **Full Git Workflow:** They can use all the Git integration features: commit, push, pull/sync, and manage workspaces.
 *   **Collaboration:** They collaborate with other developers using standard Git practices like branching, merging, and creating Pull Requests on the Git provider's platform (e.g., GitHub, Azure DevOps) for code review.
+*   **Local Clone Management:** Can remove their local copy of a cloned workspace.
 
 In short: The `developer` is the **creator** of the automation. They use RAP as an integrated development and execution environment for Revit scripting.
 
@@ -153,8 +147,11 @@ In short: The `developer` is the **creator** of the automation. They use RAP as 
 **Responsibilities & Permissions in RAP:**
 *   **All `developer` Permissions:** The admin has all the capabilities of the developer role.
 *   **Team Management:** They are responsible for inviting new members, assigning roles (`user`, `developer`, or `admin`), and removing users.
-*   **Publishing Scripts (The "Golden" Responsibility):** This is the most critical function. After a script has been tested and reviewed, the admin uses the "Publish" function in RAP. This action marks a specific version of a script as "ready for production use," making it visible and available to all `user` roles. This prevents users from running broken or half-finished scripts.
+*   **Workspace Registration:** Can register new team Workspaces.
+*   **Registered Workspace Management:** Can delete registered workspaces from the Settings modal.
+*   **Publishing Scripts (The "Golden" Responsibility):** This is the most critical function. After a script has been tested and reviewed, the admin uses the "Publish" function in RAP. This action marks a specific version of a script as "ready for production use," making it visible and available to all `user` roles.
 *   **Gatekeeper of Quality:** The admin acts as the final gatekeeper, ensuring that only high-quality, reliable tools are rolled out to the entire firm.
+*   **Local Clone Management:** Can remove their local copy of a cloned workspace.
 
 In short: The `admin` is the **manager and curator** of the automation ecosystem. They control team access and are responsible for the final "stamp of approval" on scripts.
 

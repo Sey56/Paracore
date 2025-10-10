@@ -59,12 +59,13 @@ async def run_script(
         if response.get("error"): 
             run_output += "\nERROR: " + response.get("error")
 
-        script_run = models.ScriptRun(
+        script_run = models.Run(
             script_id=script.id,
-            user_id=str(current_user.id),
+            user_id=current_user.id,
+            team_id=current_user.activeTeam,
+            role=current_user.activeRole,
             status=run_status,
-            output=run_output,
-            parameters=parameters
+            output=run_output
         )
         db.add(script_run)
         db.commit()
@@ -73,12 +74,13 @@ async def run_script(
         
     except Exception as e:
         # Create a failure run log regardless of the error type
-        script_run = models.ScriptRun(
+        script_run = models.Run(
             script_id=script.id,
-            user_id=str(current_user.id),
+            user_id=current_user.id,
+            team_id=current_user.activeTeam,
+            role=current_user.activeRole,
             status="failure",
-            output=str(e),
-            parameters=parameters
+            output=str(e)
         )
         db.add(script_run)
         db.commit()
