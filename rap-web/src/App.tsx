@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Command } from '@tauri-apps/api/shell';
+import { Command, Child } from '@tauri-apps/api/shell';
 import { appWindow } from '@tauri-apps/api/window';
 import { process } from '@tauri-apps/api';
 import { resolveResource } from '@tauri-apps/api/path';
@@ -8,7 +8,7 @@ import NotificationDisplay from "@/components/common/NotificationDisplay";
 import { AppProvider } from "@/context/AppProvider"; // Import the main AppProvider
 
 function AppContent() {
-  const rapServerProcess = useRef<any>(null); // Ref to store the rap-server process
+  const rapServerProcess = useRef<Child | null>(null); // Ref to store the rap-server process
 
   useEffect(() => {
     const stopRapServer = async () => {

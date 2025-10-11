@@ -12,6 +12,7 @@ import {
   faCodeBranch,
   faSync,
   faTrash,
+  faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
 
 import { open } from '@tauri-apps/api/dialog';
@@ -32,14 +33,24 @@ import { useAuth } from '@/hooks/useAuth';
 import { Script, Workspace } from '@/types/index';
 import { Role } from '@/context/authTypes';
 
+import { defaultCategories } from '@/data/categories';
+
 const getFolderNameFromPath = (path: string) => {
   if (!path) return '';
   const parts = path.split(/[\\/]/);
   return parts.pop() || '';
 };
 
+interface ApiError {
+  response?: {
+    data?: {
+      detail?: string;
+    };
+  };
+}
+
 export const Sidebar = () => {
-  const { user, activeTeam, activeRole } = useAuth();
+  const { user, activeTeam, activeRole, setActiveTeam } = useAuth();
   const { showNotification } = useNotifications();
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource } = useUI();
@@ -66,6 +77,8 @@ export const Sidebar = () => {
 
   const canManageWorkspaces = activeRole === Role.Admin;
 
+
+
   const handleOpenSetupModal = (workspace: Workspace) => {
     setWorkspaceToSetup(workspace);
     setIsSetupModalOpen(true);
@@ -83,8 +96,8 @@ export const Sidebar = () => {
       setWorkspacePath(workspaceToSetup.id, newWorkspaceResponse.cloned_path, Number(newWorkspaceResponse.workspace_id));
       setActiveScriptSource({ type: 'workspace', id: workspaceToSetup.id, path: newWorkspaceResponse.cloned_path });
       showNotification(`Workspace '${workspaceToSetup.name}' set up successfully!`, "success");
-    } catch (err: any) {
-      const apiError = err as any;
+    } catch (err) {
+      const apiError = err as ApiError;
       const errorMessage = apiError.response?.data?.detail || "Failed to set up workspace.";
       showNotification(errorMessage, "error");
       console.error(err);
@@ -160,11 +173,7 @@ export const Sidebar = () => {
     setIsAddCategoryModalOpen(false);
   };
 
-  const defaultCategories = [
-    { name: "Architectural", icon: faLandmark, color: "text-red-500" },
-    { name: "Structural", icon: faIndustry, color: "text-indigo-500" },
-    { name: "MEP", icon: faFan, color: "text-teal-500" },
-  ];
+
 
   return (
     <div className={`bg-white dark:bg-gray-800 shadow-lg overflow-y-auto h-full`}>
@@ -208,6 +217,48 @@ export const Sidebar = () => {
           onAddFolder={handleAddFolderSubmit}
         />
 
+        <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400 mb-2">Active Team</h3>
+          {user && user.memberships.length > 1 && activeTeam ? (
+            <div className="relative">
+              <select
+                value={activeTeam.team_id}
+                onChange={(e) => {
+                  const selectedTeamId = parseInt(e.target.value);
+                  const newActiveTeam = user.memberships.find(m => m.team_id === selectedTeamId);
+                  if (newActiveTeam) {
+                    setActiveTeam(newActiveTeam);
+                  }
+                }}
+                className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
+              >
+                {user.memberships.map(membership => (
+                  <option key={membership.team_id} value={membership.team_id}>
+                    {membership.team_name} ({membership.role})
+                  </option>
+                ))}
+              </select>
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
+              />
+            </div>
+          ) : (
+            activeTeam && (
+              <div className="flex items-center space-x-2">
+                <span className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                  {activeTeam.team_name}
+                </span>
+                {activeRole && (
+                  <span className="px-2 py-0.5 text-xs font-semibold text-white bg-blue-500 rounded-full">
+                    {activeRole}
+                  </span>
+                )}
+              </div>
+            )
+          )}
+        </div>
+
         {/* Categories, Favorites, Recent Sections... */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
@@ -217,23 +268,6 @@ export const Sidebar = () => {
             </button>
           </div>
           <ul className="space-y-1">
-            {defaultCategories.map(category => (
-              <li
-                key={category.name}
-                className={`flex items-center justify-between py-1 px-2 rounded cursor-pointer
-                  ${selectedCategory === category.name
-                    ? "bg-blue-100 dark:bg-blue-700 text-blue-800 dark:text-blue-100"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"}
-                `}
-                onClick={() => setSelectedCategory(selectedCategory === category.name ? null : category.name)}
-              >
-                <div className="flex items-center">
-                  <FontAwesomeIcon icon={category.icon} className={`${category.color} mr-2`} />
-                  <span className="font-semibold">{category.name}</span>
-                </div>
-                <FontAwesomeIcon icon={faChevronRight} className="text-xs text-gray-400 dark:text-gray-500" />
-              </li>
-            ))}
             {customCategories.map((category: string) => (
               <li
                 key={category}

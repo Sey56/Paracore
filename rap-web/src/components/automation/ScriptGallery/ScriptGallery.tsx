@@ -3,7 +3,7 @@ import {
   useState
 } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faSearch } from '@fortawesome/free-solid-svg-icons';
 import { ScriptCard } from '../ScriptCard/ScriptCard';
 import { useScripts } from '@/hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
@@ -12,6 +12,7 @@ import type { Script, ScriptParameter } from '@/types/scriptModel';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { NewScriptModal } from '@/components/common/NewScriptModal';
 import { FilterPills } from '@/components/common/FilterPills';
+import { defaultCategories } from '@/data/categories';
 
 import { useAuth } from '@/hooks/useAuth';
 
@@ -138,14 +139,23 @@ export const ScriptGallery: React.FC = () => {
   const { selectedCategory, customCategories, setInspectorOpen, openNewScriptModal, closeNewScriptModal, isNewScriptModalOpen, activeScriptSource } = useUI();
   const { setSelectedScript } = useScriptExecution();
   // const { activeWorkspace } = useWorkspaces(); // Removed
-  const { isAuthenticated, activeRole, activeTeam, user, setActiveTeam } = useAuth();
+  const { isAuthenticated, activeRole, activeTeam, user } = useAuth();
   const isMobile = useBreakpoint();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [searchAllFolders, setSearchAllFolders] = useState(false);
+  const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
+
+  const handleDefaultCategoryChange = (categoryName: string) => {
+    setSelectedDefaultCategories(prev =>
+      prev.includes(categoryName)
+        ? prev.filter(c => c !== categoryName)
+        : [...prev, categoryName]
+    );
+  };
 
   const getNewScriptButtonTooltip = () => {
     if (!isAuthenticated) return "You must sign in to create scripts";
@@ -195,7 +205,13 @@ export const ScriptGallery: React.FC = () => {
       ? sourceScripts.filter(script => (script.metadata?.categories || []).includes(selectedCategory))
       : sourceScripts;
 
-    let searchedScripts = filteredBySidebarCategory;
+    const filteredByDefaultCategories = selectedDefaultCategories.length > 0
+      ? filteredBySidebarCategory.filter(script =>
+          selectedDefaultCategories.every(cat => (script.metadata?.categories || []).includes(cat))
+        )
+      : filteredBySidebarCategory;
+
+    let searchedScripts = filteredByDefaultCategories;
 
     if (searchTerm) {
       const { tag, author, param, desc, doctype, created, modified, general, categories } = filters;
@@ -270,7 +286,7 @@ export const ScriptGallery: React.FC = () => {
     const otherScripts = sortedScripts.filter(script => !script.isFavorite);
 
     return { favoriteScripts, otherScripts };
-  }, [scripts, allScripts, searchAllFolders, searchTerm, sortOrder, selectedCategory, filters]);
+  }, [scripts, allScripts, searchAllFolders, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories]);
 
   const handleScriptSelect = (script: Script) => {
     setSelectedScript(script);
@@ -300,50 +316,29 @@ export const ScriptGallery: React.FC = () => {
   };
 
   return (
-    <div className={`p-4`}>
+    <div className={`p-4`}> {/* This is a template literal, so the backticks are correct */} 
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-3">
           <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">
             {activeScriptSource?.type === 'workspace' ? 'Workspace' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'Script Gallery')}
           </h1>
-          {user && user.memberships.length > 1 && activeTeam ? (
-            <div className="relative ml-2">
-              <select
-                value={activeTeam.team_id}
-                onChange={(e) => {
-                  const selectedTeamId = parseInt(e.target.value);
-                  const newActiveTeam = user.memberships.find(m => m.team_id === selectedTeamId);
-                  if (newActiveTeam) {
-                    setActiveTeam(newActiveTeam);
-                  }
-                }}
-                className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
-              >
-                {user.memberships.map(membership => (
-                  <option key={membership.team_id} value={membership.team_id}>
-                    {membership.team_name} ({membership.role})
-                  </option>
-                ))}
-              </select>
-              <FontAwesomeIcon
-                icon={faChevronDown}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
+        </div>
+        <div className="flex-grow flex justify-center items-center space-x-4">
+          {defaultCategories.map(category => (
+            <div key={category.name} className="flex items-center">
+              <input
+                type="checkbox"
+                id={`category-${category.name}`}
+                checked={selectedDefaultCategories.includes(category.name)}
+                onChange={() => handleDefaultCategoryChange(category.name)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
+              <label htmlFor={`category-${category.name}`} className="ml-2 text-sm text-gray-900 dark:text-gray-300">
+                <FontAwesomeIcon icon={category.icon} className={`mr-1 ${category.color}`} />
+                {category.name}
+              </label>
             </div>
-          ) : (
-            activeTeam && (
-              <>
-                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  ({activeTeam.team_name})
-                </span>
-                {activeRole && (
-                  <span className="ml-2 px-2 py-0.5 text-xs font-semibold text-white bg-blue-500 rounded-full">
-                    {activeRole}
-                  </span>
-                )}
-              </>
-            )
-          )}
+          ))}
         </div>
         <div className="flex items-center">
           <input
@@ -394,10 +389,6 @@ export const ScriptGallery: React.FC = () => {
             <option value="modified-desc">Sort by Date Modified (Newest)</option>
             <option value="modified-asc">Sort by Date Modified (Oldest)</option>
           </select>
-          <FontAwesomeIcon
-            icon={faChevronDown}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
-          />
         </div>
       </div>
 

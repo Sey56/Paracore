@@ -79,7 +79,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setCombinedScriptContent(null);
     setPresets([]);
     setExecutionResult(null);
-  }, [activeScriptSource]);
+  }, [activeScriptSource, setCombinedScriptContent]);
 
   const notifiedParamsScriptIdRef = useRef<string | null>(null);
   const notifiedPresetsScriptIdRef = useRef<string | null>(null);

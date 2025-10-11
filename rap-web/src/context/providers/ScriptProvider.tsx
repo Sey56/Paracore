@@ -12,6 +12,14 @@ import { pullTeamWorkspaces as pullTeamWorkspacesApi } from '@/api/rapServerApiC
 import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
 
+interface ApiError {
+  response?: {
+    data?: {
+      detail?: string;
+    };
+  };
+}
+
 export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const { activeScriptSource, setActiveScriptSource } = useUI();
@@ -410,8 +418,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       if (activeScriptSource?.type === 'workspace' && currentDisplayPath) {
         loadScriptsFromPath(currentDisplayPath);
       }
-    } catch (err: any) {
-      showNotification(err.response?.data?.detail || "Failed to update team workspaces.", "error");
+    } catch (err) {
+      const apiError = err as ApiError;
+      showNotification(apiError.response?.data?.detail || "Failed to update team workspaces.", "error");
       console.error("Pull all team workspaces error:", err);
     }
   }, [activeTeam, cloudToken, currentTeamWorkspaces, userWorkspacePaths, showNotification, activeScriptSource, currentDisplayPath, loadScriptsFromPath, rapServerUrl]);

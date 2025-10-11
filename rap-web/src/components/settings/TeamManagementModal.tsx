@@ -7,6 +7,14 @@ import { Role } from '@/context/authTypes';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faUserPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 
+interface ApiError {
+  response?: {
+    data?: {
+      detail?: string;
+    };
+  };
+}
+
 const TeamManagementModal: React.FC = () => {
   const { isTeamManagementModalOpen, closeTeamManagementModal } = useUI();
   const { activeTeam, activeRole, user: currentUser } = useAuth();
@@ -24,7 +32,7 @@ const TeamManagementModal: React.FC = () => {
     if (!isAdmin) return; // Should be disabled by UI, but good to have a safeguard
     try {
       await updateMemberRole(memberId, newRole);
-    } catch (err: any) {
+    } catch (err) {
       // Error handling is done in the hook, but we can add specific UI feedback here if needed
       console.error("Failed to update role in UI:", err);
     }
@@ -35,7 +43,7 @@ const TeamManagementModal: React.FC = () => {
     if (window.confirm(`Are you sure you want to remove ${memberName} from the team?`)) {
       try {
         await removeMember(memberId);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Failed to remove member in UI:", err);
       }
     }
@@ -53,8 +61,9 @@ const TeamManagementModal: React.FC = () => {
       setInviteSuccess(`Invitation sent to ${inviteEmail} as ${inviteRole}.`);
       setInviteEmail(''); // Clear form
       setInviteRole(Role.User); // Reset role
-    } catch (err: any) {
-      setInviteError(err.response?.data?.detail || "Failed to send invitation.");
+    } catch (err) {
+      const apiError = err as ApiError;
+      setInviteError(apiError.response?.data?.detail || "Failed to send invitation.");
     } finally {
       setInviteLoading(false);
     }
