@@ -220,14 +220,20 @@ export const ScriptGallery: React.FC = () => {
         const lowercasedName = script.name.toLowerCase();
         const lowercasedDisplayName = (script.metadata?.displayName || '').toLowerCase();
         const lowercasedDescription = (script.metadata?.description || '').toLowerCase();
-        const lowercasedAuthor = (script.metadata?.author || '').toLowerCase();
+        const lowercasedAuthor = (script.metadata?.author || 'Unknown').toLowerCase();
         const scriptCategories = (script.metadata?.categories || []).map(cat => cat.toLowerCase());
         const scriptTags = (script.metadata?.tags || []).map(t => t.toLowerCase());
         const scriptParameters = (script.parameters ?? []).map(p => ({ name: p.name.toLowerCase(), description: (p.description || '').toLowerCase() }));
         const scriptDocumentType = (script.metadata?.documentType || 'any').toLowerCase();
 
         const matchesTag = tag.length === 0 || tag.every(t => scriptTags.includes(t));
-        const matchesAuthor = author.length === 0 || author.every(a => lowercasedAuthor.includes(a));
+        const matchesAuthor = author.length === 0 || author.every(a => {
+          if (a === 'unknown') {
+            return !script.metadata?.author || lowercasedAuthor === '';
+          } else {
+            return lowercasedAuthor.includes(a);
+          }
+        });
         const matchesParam = param.length === 0 || param.every(p => scriptParameters.some(sp => sp.name.includes(p) || sp.description.includes(p)));
         const matchesDesc = desc.length === 0 || desc.every(d => lowercasedDescription.includes(d));
         const matchesDocType = doctype.length === 0 || doctype.every(dt => scriptDocumentType.includes(dt));

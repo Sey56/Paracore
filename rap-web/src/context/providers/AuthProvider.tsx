@@ -200,6 +200,13 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   };
 
+  const handleTeamSelectionCancel = useCallback(() => {
+    setShowTeamSelectionModal(false);
+    setPendingUser(null);
+    // Optionally, you might want to log out the user here if canceling team selection means they can't proceed.
+    // For now, we'll just close the modal and clear pending user.
+  }, []);
+
   const memoizedUser = React.useMemo(() => user, [user]);
 
   return (
@@ -210,6 +217,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           isOpen={showTeamSelectionModal}
           memberships={pendingUser.memberships}
           onSelectTeam={handleTeamSelected}
+          onCancel={handleTeamSelectionCancel}
         />
       )}
     </AuthContext.Provider>
