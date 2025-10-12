@@ -78,3 +78,7 @@ rap-server/*.spec
 # Tauri
 rap-web/src-tauri/target/
 rap-web/src-tauri/gen/
+
+# Untracked files
+package-lock.json
+rap-help/
