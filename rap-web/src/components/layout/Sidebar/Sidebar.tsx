@@ -13,6 +13,9 @@ import {
   faSync,
   faTrash,
   faChevronDown,
+  faUsers, 
+  faBroom,
+  faTh
 } from "@fortawesome/free-solid-svg-icons";
 
 import { open } from '@tauri-apps/api/dialog';
@@ -258,7 +261,10 @@ export const Sidebar = () => {
         />
 
         <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400 mb-2">Active Team</h3>
+          <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400 mb-2">
+            <FontAwesomeIcon icon={faUsers} className="mr-2" />
+            Active Team
+          </h3>
           {user && user.memberships.length > 1 && activeTeam ? (
             <div className="relative">
               <select
@@ -301,7 +307,10 @@ export const Sidebar = () => {
 
         {/* Workspaces */}
             <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Local Workspaces</h3>
+            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+              <FontAwesomeIcon icon={faCodeBranch} className="mr-2" />
+              Local Workspaces
+            </h3>
             <div className="flex items-center space-x-2">
                 {activeRole === Role.User && (
                     <button
@@ -361,9 +370,15 @@ export const Sidebar = () => {
         {isPersonalTeamActive && (
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Local Folders</h3>
-              <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={handleAddCustomFolder}>
-                Add
+              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+                <FontAwesomeIcon icon={faFolder} className="mr-2" />
+                Local Folders
+              </h3>
+              <button 
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" 
+                onClick={handleAddCustomFolder}
+                title="Add Local Folder">
+                <FontAwesomeIcon icon={faPlus} />
               </button>
               {activeScriptSource?.type === 'local' && (
                 <button
@@ -401,8 +416,14 @@ export const Sidebar = () => {
         {/* Categories, Favorites, Recent Sections... */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Categories</h3>
-            <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={() => setIsAddCategoryModalOpen(true)}>
+            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+              <FontAwesomeIcon icon={faTh} className="mr-2" />
+              Categories
+            </h3>
+            <button 
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" 
+              onClick={() => setIsAddCategoryModalOpen(true)}
+              title="Add Category">
               <FontAwesomeIcon icon={faPlus} />
             </button>
           </div>
@@ -437,9 +458,16 @@ export const Sidebar = () => {
 
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Favorites</h3>
-            <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={clearFavoriteScripts}>
-              Clear
+            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+              <FontAwesomeIcon icon={faStar} className="mr-2" />
+              Favorites
+            </h3>
+            <button 
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" 
+              onClick={clearFavoriteScripts}
+              title="Clear Favorites"
+            >
+              <FontAwesomeIcon icon={faBroom} />
             </button>
           </div>
           <ul className="space-y-1 max-h-32 overflow-y-auto">
@@ -458,9 +486,16 @@ export const Sidebar = () => {
 
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Recent</h3>
-            <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={clearRecentScripts}>
-              Clear
+            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+              <FontAwesomeIcon icon={faClock} className="mr-2" />
+              Recent
+            </h3>
+            <button 
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" 
+              onClick={clearRecentScripts}
+              title="Clear Recents"
+            >
+              <FontAwesomeIcon icon={faBroom} />
             </button>
           </div>
           <ul className="space-y-1 max-h-32 overflow-y-auto">
@@ -479,7 +514,10 @@ export const Sidebar = () => {
 
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Registered Workspaces</h3>
+              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+                <FontAwesomeIcon icon={faLandmark} className="mr-2" />
+                Registered Workspaces
+              </h3>
               {selectedUnclonedWorkspaceId && !userWorkspacePaths[selectedUnclonedWorkspaceId] && (
                 <button
                   className="text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded"
