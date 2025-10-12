@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 export interface LocalWorkspaceInfo {
   path: string;
   localId: number;
+  repo_url: string; // Added repo_url
 }
 
 // Type for the stored paths, mapping registered ID to the local info object
@@ -41,9 +42,9 @@ export const useUserWorkspaces = () => {
     }
   }, [user?.id, STORAGE_KEY]); // Re-run effect when user.id or STORAGE_KEY changes
 
-  const setWorkspacePath = useCallback((workspaceId: string, path: string, localId: number) => {
+  const setWorkspacePath = useCallback((workspaceId: string, path: string, localId: number, repo_url: string) => { // Added repo_url
     setUserWorkspacePaths(prev => {
-      const newPaths = { ...prev, [workspaceId]: { path, localId } };
+      const newPaths = { ...prev, [workspaceId]: { path, localId, repo_url } }; // Store repo_url
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(newPaths));
       } catch (error) {

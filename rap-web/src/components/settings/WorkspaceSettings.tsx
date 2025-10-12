@@ -9,6 +9,7 @@ import { useUI } from '@/hooks/useUI';
 import { Workspace } from '@/types/index';
 import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
 import { Role } from '@/context/authTypes';
+import { message } from '@tauri-apps/api/dialog'; // Import message from tauri dialog
 
 interface GitStatus {
   branch_info: {
@@ -59,6 +60,23 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
       showNotification('No active team selected.', 'error');
       return;
     }
+
+    // --- Validation Checks ---
+    const existingWorkspaces = teamWorkspacesWithLocalPaths;
+
+    const nameExists = existingWorkspaces.some(ws => ws.name.toLowerCase() === name.toLowerCase());
+    if (nameExists) {
+      await message(`A workspace with the name '${name}' already exists in this team. Please choose a different name.`, { title: 'Duplicate Workspace Name', type: 'error' });
+      return;
+    }
+
+    const urlExists = existingWorkspaces.some(ws => ws.repo_url.toLowerCase() === repoUrl.toLowerCase());
+    if (urlExists) {
+      await message(`A workspace with the URL '${repoUrl}' is already registered in this team.`, { title: 'Duplicate Repository URL', type: 'error' });
+      return;
+    }
+    // --- End Validation Checks ---
+
     setIsLoading(true);
     setError(null);
     try {
@@ -77,7 +95,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     } finally {
       setIsLoading(false);
     }
-  }, [activeTeam, addTeamWorkspace, showNotification]);
+  }, [activeTeam, addTeamWorkspace, showNotification, teamWorkspacesWithLocalPaths]); // Added teamWorkspacesWithLocalPaths to dependencies
 
   const handleRemove = useCallback(async (workspaceToRemove: Workspace) => {
     if (!activeTeam) {
@@ -176,12 +194,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
             )}
           </div>
 
-          {(activeScriptSource?.type === 'workspace') && activeRole !== Role.User && (
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Active Workspace Status</h3>
-              {/* ... Git Status Details ... */}
-            </div>
-          )}
+
         </div>
       </fieldset>
     </>

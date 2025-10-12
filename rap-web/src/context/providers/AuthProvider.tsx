@@ -3,6 +3,7 @@ import axios from 'axios';
 import { AuthContext, User, TeamMembership, Role } from '../authTypes';
 import { invoke } from '@tauri-apps/api/tauri';
 import { syncUserProfile, UserProfileSyncPayload } from '@/api/workspaces'; // Import syncUserProfile and its payload
+import { TeamSelectionModal } from '@/components/common/TeamSelectionModal'; // Import TeamSelectionModal
 
 // This interface now matches the full UserOut schema from rap-auth-server
 interface CloudUserResponse {
@@ -21,6 +22,8 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [activeTeam, setActiveTeamState] = useState<TeamMembership | null>(null);
   const [activeRole, setActiveRole] = useState<Role | null>(null);
+  const [showTeamSelectionModal, setShowTeamSelectionModal] = useState<boolean>(false);
+  const [pendingUser, setPendingUser] = useState<User | null>(null); // To hold user data before team selection
 
   const logout = useCallback(() => {
     localStorage.removeItem('rap_cloud_token');
@@ -35,6 +38,8 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     setSessionStartTime(null);
     setActiveTeamState(null);
     setActiveRole(null);
+    setShowTeamSelectionModal(false); // Reset modal state on logout
+    setPendingUser(null); // Reset pending user on logout
   }, []);
 
   useEffect(() => {
@@ -50,7 +55,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         setUser(parsedUser);
         setIsAuthenticated(true);
 
-        // Handle active team selection
+        // Handle active team selection from storage
         let teamToActivate: TeamMembership | null = null;
         if (storedActiveTeam) {
           const parsedActiveTeam: TeamMembership = JSON.parse(storedActiveTeam);
@@ -59,16 +64,24 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
             teamToActivate = parsedActiveTeam;
           }
         }
-        // If no valid stored team, default to the first one
-        if (!teamToActivate && parsedUser.memberships.length > 0) {
-          teamToActivate = parsedUser.memberships[0];
-          localStorage.setItem('rap_active_team', JSON.stringify(teamToActivate));
-        }
 
         if (teamToActivate) {
           setActiveTeamState(teamToActivate);
           setActiveRole(teamToActivate.role);
+        } else if (parsedUser.memberships.length > 0) {
+          // If no valid stored team, and user has memberships, prompt for selection or default
+          if (parsedUser.memberships.length > 1) {
+            setPendingUser(parsedUser);
+            setShowTeamSelectionModal(true);
+          } else {
+            // Only one team, set it automatically
+            const initialTeam = parsedUser.memberships[0];
+            localStorage.setItem('rap_active_team', JSON.stringify(initialTeam));
+            setActiveTeamState(initialTeam);
+            setActiveRole(initialTeam.role);
+          }
         }
+
 
         if (storedSessionStartTime) {
           setSessionStartTime(Number(storedSessionStartTime));
@@ -84,6 +97,34 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       }
     }
   }, [logout]);
+
+  const handleTeamSelected = useCallback(async (team: TeamMembership) => {
+    if (!pendingUser) return;
+
+    localStorage.setItem('rap_active_team', JSON.stringify(team));
+    setActiveTeamState(team);
+    setActiveRole(team.role);
+    setShowTeamSelectionModal(false);
+
+    // Sync user profile to local rap-server after team selection
+    if (pendingUser.id && pendingUser.email) {
+      const profilePayload: UserProfileSyncPayload = {
+        user_id: Number(pendingUser.id),
+        email: pendingUser.email,
+        memberships: pendingUser.memberships,
+        activeTeam: team.team_id,
+        activeRole: team.role,
+      };
+      try {
+        await syncUserProfile(profilePayload);
+        console.log("User profile synced to local rap-server after team selection.");
+      } catch (syncError) {
+        console.error("Failed to sync user profile to local rap-server:", syncError);
+      }
+    }
+    setPendingUser(null); // Clear pending user
+  }, [pendingUser]);
+
 
   const login = async () => {
     try {
@@ -121,35 +162,37 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setIsAuthenticated(true);
       setSessionStartTime(now);
 
-      // On first login, set the active team to the first membership
-      let activeTeamToSync: TeamMembership | null = null;
-      if (appUser.memberships.length > 0) {
+      if (appUser.memberships.length > 1) {
+        setPendingUser(appUser);
+        setShowTeamSelectionModal(true);
+      } else if (appUser.memberships.length === 1) {
         const initialTeam = appUser.memberships[0];
         localStorage.setItem('rap_active_team', JSON.stringify(initialTeam));
         setActiveTeamState(initialTeam);
         setActiveRole(initialTeam.role);
-        activeTeamToSync = initialTeam;
-      }
 
-      // --- NEW: Sync user profile to local rap-server ---
-      if (appUser.id && appUser.email) {
-        const profilePayload: UserProfileSyncPayload = {
-          user_id: Number(appUser.id), // Ensure it's a number
-          email: appUser.email,
-          memberships: appUser.memberships,
-          activeTeam: activeTeamToSync ? activeTeamToSync.team_id : null,
-          activeRole: activeTeamToSync ? activeTeamToSync.role : null,
-        };
-        try {
-          await syncUserProfile(profilePayload);
-          console.log("User profile synced to local rap-server.");
-        } catch (syncError) {
-          console.error("Failed to sync user profile to local rap-server:", syncError);
-          // Decide if this should prevent login or just log the error
-          // For now, just log and continue login
+        // Sync user profile to local rap-server immediately if only one team
+        if (appUser.id && appUser.email) {
+          const profilePayload: UserProfileSyncPayload = {
+            user_id: Number(appUser.id),
+            email: appUser.email,
+            memberships: appUser.memberships,
+            activeTeam: initialTeam.team_id,
+            activeRole: initialTeam.role,
+          };
+          try {
+            await syncUserProfile(profilePayload);
+            console.log("User profile synced to local rap-server.");
+          } catch (syncError) {
+            console.error("Failed to sync user profile to local rap-server:", syncError);
+          }
         }
+      } else {
+        // No memberships, handle as an error or specific state
+        console.warn("User has no team memberships.");
+        // Optionally, log out or show an error message
+        logout();
       }
-      // --- END NEW --- 
 
     } catch (error) {
       console.error('Authentication failed:', error);
@@ -157,21 +200,18 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   };
 
-  const setActiveTeam = (team: TeamMembership) => {
-    if (user && user.memberships.some(m => m.team_id === team.team_id)) {
-      localStorage.setItem('rap_active_team', JSON.stringify(team));
-      setActiveTeamState(team);
-      setActiveRole(team.role);
-    } else {
-      console.error("Attempted to set an invalid active team.");
-    }
-  };
-
   const memoizedUser = React.useMemo(() => user, [user]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user: memoizedUser, cloudToken, localToken, login, logout, sessionStartTime, activeTeam, activeRole, setActiveTeam }}>
+    <AuthContext.Provider value={{ isAuthenticated, user: memoizedUser, cloudToken, localToken, login, logout, sessionStartTime, activeTeam, activeRole }}>
       {children}
+      {pendingUser && (
+        <TeamSelectionModal
+          isOpen={showTeamSelectionModal}
+          memberships={pendingUser.memberships}
+          onSelectTeam={handleTeamSelected}
+        />
+      )}
     </AuthContext.Provider>
   );
 };

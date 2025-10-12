@@ -166,7 +166,7 @@ export const GitStatusPanel: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  if (activeScriptSource?.type !== 'workspace' || !currentWorkspace) {
+  if (activeRole === Role.User || activeScriptSource?.type !== 'workspace' || !currentWorkspace) {
     return null;
   }
 

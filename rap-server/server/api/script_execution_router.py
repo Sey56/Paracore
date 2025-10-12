@@ -15,15 +15,22 @@ from ..auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
+from typing import Optional # Import Optional
+
 @router.post("/run-script", tags=["Script Execution"])
 async def run_script(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user),
+    source_folder: Optional[str] = None, # New parameter
+    source_workspace: Optional[str] = None, # New parameter
 ):
     data = await request.json()
     path = data.get("path")
     parameters = data.get("parameters")
     script_type = data.get("type")
+    # Extract source_folder and source_workspace from data if not provided as query params
+    source_folder = data.get("source_folder", source_folder)
+    source_workspace = data.get("source_workspace", source_workspace)
 
     if not path:
         raise HTTPException(status_code=400, detail="No script path provided")
@@ -65,7 +72,9 @@ async def run_script(
             team_id=current_user.activeTeam,
             role=current_user.activeRole,
             status=run_status,
-            output=run_output
+            output=run_output,
+            source_folder=source_folder, # New field
+            source_workspace=source_workspace # New field
         )
         db.add(script_run)
         db.commit()
@@ -80,7 +89,9 @@ async def run_script(
             team_id=current_user.activeTeam,
             role=current_user.activeRole,
             status="failure",
-            output=str(e)
+            output=str(e),
+            source_folder=source_folder, # New field
+            source_workspace=source_workspace # New field
         )
         db.add(script_run)
         db.commit()

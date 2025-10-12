@@ -38,7 +38,7 @@ import { Role } from '@/context/authTypes';
 
 import { defaultCategories } from '@/data/categories';
 
-const getFolderNameFromPath = (path: string) => {
+export const getFolderNameFromPath = (path: string) => {
   if (!path) return '';
   const parts = path.split(/[\\/]/);
   return parts.pop() || '';
@@ -53,7 +53,7 @@ interface ApiError {
 }
 
 export const Sidebar = () => {
-  const { user, activeTeam, activeRole, setActiveTeam } = useAuth();
+  const { user, activeTeam, activeRole } = useAuth();
   const { showNotification } = useNotifications();
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource } = useUI();
@@ -82,23 +82,29 @@ export const Sidebar = () => {
   }, [activeTeam, teamWorkspaces]);
 
   const { localWorkspaces, unclonedWorkspaces } = useMemo(() => {
-    const local: Workspace[] = [];
+    const local: (Workspace & { isOrphaned?: boolean })[] = [];
     const uncloned: Workspace[] = [];
     const clonedIds = new Set(Object.keys(userWorkspacePaths));
+
+    // Get a set of all registered repo URLs for the active team
+    const registeredRepoUrls = new Set(currentTeamWorkspaces.map(ws => ws.repo_url.toLowerCase()));
 
     // Create the list of local workspaces from userWorkspacePaths
     for (const id in userWorkspacePaths) {
       const localPathInfo = userWorkspacePaths[id];
       if (localPathInfo) {
         const repoName = getFolderNameFromPath(localPathInfo.path);
-        // Find the original workspace to get the repo_url
-        const originalWs = currentTeamWorkspaces.find(ws => ws.id === id);
+        
+        // Determine if the local workspace is orphaned
+        const isOrphaned = localPathInfo.repo_url ? !registeredRepoUrls.has(localPathInfo.repo_url.toLowerCase()) : true; // Assume orphaned if repo_url is missing
+
         local.push({
           id: id,
           name: repoName,
-          repo_url: originalWs?.repo_url || '', // Use original repo_url
+          repo_url: localPathInfo.repo_url, // Use the stored repo_url
           path: localPathInfo.path,
           localId: localPathInfo.localId,
+          isOrphaned: isOrphaned, // Add orphaned status
         });
       }
     }
@@ -137,7 +143,7 @@ export const Sidebar = () => {
         local_path: localPath
       });
       
-      setWorkspacePath(workspaceToSetup.id, newWorkspaceResponse.cloned_path, Number(newWorkspaceResponse.workspace_id));
+      setWorkspacePath(workspaceToSetup.id, newWorkspaceResponse.cloned_path, Number(newWorkspaceResponse.workspace_id), workspaceToSetup.repo_url);
       setActiveScriptSource({ type: 'workspace', id: workspaceToSetup.id, path: newWorkspaceResponse.cloned_path });
       showNotification(`Workspace '${workspaceToSetup.name}' set up successfully!`, "success");
     } catch (err) {
@@ -298,32 +304,7 @@ export const Sidebar = () => {
             <FontAwesomeIcon icon={faUsers} className="mr-2" />
             Active Team
           </h3>
-          {user && user.memberships.length > 1 && activeTeam ? (
-            <div className="relative">
-              <select
-                value={activeTeam.team_id}
-                onChange={(e) => {
-                  const selectedTeamId = parseInt(e.target.value);
-                  const newActiveTeam = user.memberships.find(m => m.team_id === selectedTeamId);
-                  if (newActiveTeam) {
-                    setActiveTeam(newActiveTeam);
-                  }
-                }}
-                className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
-              >
-                {user.memberships.map(membership => (
-                  <option key={membership.team_id} value={membership.team_id}>
-                    {membership.team_name} ({membership.role})
-                  </option>
-                ))}
-              </select>
-              <FontAwesomeIcon
-                icon={faChevronDown}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
-              />
-            </div>
-          ) : (
-            activeTeam && (
+          {activeTeam && (
               <div className="flex items-center space-x-2">
                 <span className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                   {activeTeam.team_name}
@@ -334,8 +315,7 @@ export const Sidebar = () => {
                   </span>
                 )}
               </div>
-            )
-          )}
+            )}
         </div>
 
         {/* Workspaces */}
@@ -391,7 +371,7 @@ export const Sidebar = () => {
                 <option value="" disabled>Select a workspace...</option>
                 {localWorkspaces.map((workspace) => (
                   <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}
+                    {workspace.name} {workspace.isOrphaned ? '(orphaned)' : ''}
                   </option>
                 ))}
               </select>

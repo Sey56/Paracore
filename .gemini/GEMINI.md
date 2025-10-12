@@ -1,60 +1,21 @@
-## What We Have Achieved So Far: A Major Transformation of RAP
+## Gemini Added Memories
+- The user wants to implement an 'Enhanced Execution Summary' feature. The plan is to create a convention-based output system. A new `Output.Show()` function will be added to the C# `ExecutionGlobals`. This function will serialize script output into a structured JSON format with a `type` field (e.g., 'table', 'string') and a `data` field. The frontend will then have a 'Summary' tab that dynamically renders the output based on its type. This requires changes to `RScript.Engine`, `RServer.Addin`, and `rap-web`.
+- The user wants to implement an 'Enhanced Execution Summary' feature. The plan is to create a convention-based output system. A new `Output.Show()` function will be added to the C# `ExecutionGlobals`. This function will serialize script output into a structured JSON format with a `type` field (e.g., 'table', 'string') and a `data` field. The frontend will then have a 'Summary' tab that dynamically renders the output based on its type. This requires changes to `RScript.Engine`, `RServer.Addin`, and `rap-web`.
+- The user needs to manually delete the 'node_modules' folder in 'c:\Users\seyou\rap\rap-web' due to 'Access is denied' errors. Once deleted, the next steps are to run 'npm install' and then 'npm run build' to resolve a Tailwind CSS compilation issue where 'darkMode: class' is generating '@media (prefers-color-scheme: dark)' rules instead of '.dark' prefixed classes.
+- Successfully fixed TypeScript compilation errors in `rap-web/src/context/providers/ScriptProvider.tsx` by adding `cloudToken` to `useAuth()` destructuring, importing `pullTeamWorkspaces`, and explicitly typing parameters in `pullAllTeamWorkspaces` callbacks. Verified fix by running `npm run build` successfully.
+- **Enhanced Team Space Management:**
+    - Implemented a new workflow where users select a team at login, and that team remains active for the entire session, preventing in-session switching.
+    - Introduced a team selection modal for users with multiple team memberships at login.
+    - Ensured automatic login to the sole team for users with a single team membership.
+    - Corrected the "Update Workspace" button in `Sidebar.tsx` to update only the currently selected local workspace for `Role.User`.
+    - Implemented an "orphaned" hint in `Sidebar.tsx` for local workspaces whose corresponding registered workspace has been unregistered.
+    - Resolved data synchronization issues for the "orphaned" status across different user sessions.
 
-We have successfully implemented a robust and scalable **Team and Role Management System** across the RAP application. This involved significant architectural changes on both the backend and frontend.
+- **Improved Workspace Registration Validation:**
+    - Added validation checks to the "Register Workspace" functionality in `WorkspaceSettings.tsx` to prevent duplicate names and repository URLs.
+    - Implemented native dialogs (using Tauri's `dialog.message`) for displaying these validation errors, providing clear and prominent feedback.
 
-**Key Achievements:**
-
-*   **Backend (`rap-auth-server`):**
-    *   **Database Schema:** Introduced `Teams` and `TeamMemberships` models, linking users to teams with specific roles (`admin`, `developer`, `user`).
-    *   **User Provisioning:** New users automatically get their own personal team with an `admin` role upon first login.
-    *   **API Endpoints:** Implemented secure, role-protected API endpoints for:
-        *   Retrieving team members and their roles.
-        *   Updating a team member's role.
-        *   Inviting new users to a team.
-    *   **Security:** Ensured the backend enforces role-based access control for all sensitive team management operations.
-    *   **Deployment:** Successfully updated the Docker build process and deployed the new backend to Railway.
-
-*   **Frontend (`rap-web`):**
-    *   **Authentication Context:** Refactored `AuthProvider` and `authTypes.ts` to manage `user.memberships`, `activeTeam`, `activeRole`, and `setActiveTeam`.
-    *   **Team Switcher UI:** Implemented a functional dropdown in the `ScriptGallery` header allowing users to switch between teams they are a member of.
-    *   **Admin Panel:** Built a "Team Management" modal (accessible via Settings for `admin`s) to list members, change roles, and invite new users.
-    *   **Role-Based UI/UX:**
-        *   **"New Script" Button:** Disabled if no script source is selected.
-        *   **`GitStatusPanel.tsx`:** Hidden for `user`s.
-        *   **`ParametersTab.tsx`:** "View Code in New Window" button hidden for `user`s.
-        *   **`WorkspaceSettings.tsx`:** "Workspaces" tab hidden for `user`s in Settings.
-        *   **Sidebar "Local Folders":** Only visible when the user's *own personal team* is active.
-        *   **Sidebar "Workspaces":** Dynamically displays only workspaces for the `activeTeam`.
-    *   **User-Specific Local Folders:** `customScriptFolders` are now isolated per user, preventing cross-user visibility/modification.
-    *   **Workspace Management Refactoring:** Centralized workspace management within `ScriptProvider`, removing the obsolete `useWorkspaces` hook.
-    *   **Tauri Integration:** Updated `tauri.conf.json` to allow `rap-server.exe` execution within the shell scope.
-
-This comprehensive set of changes has transformed RAP into a multi-user, team-collaboration platform, aligning with the original vision of the project.
-
-## Current Task: Refine User Role Git Interaction & Fix Frontend Errors
-
-**Context:**
-We are currently refining the UI/UX for the `user` role. The goal is to completely shield `user`s from Git complexity. This involves:
-1.  Hiding the `GitStatusPanel.tsx` for `user`s.
-2.  Providing a simplified "Update Scripts" button in the `Sidebar.tsx` for `user`s.
-3.  This "Update Scripts" button triggers a `git pull` on all workspaces associated with the `activeTeam` via the `pullAllTeamWorkspaces` function in `ScriptProvider.tsx`.
-
-**Current State:**
-The application is encountering build errors in `ScriptProvider.tsx` related to the `pullAllTeamWorkspaces` function.
-
-**Errors to Address:**
-
-1.  **`src/context/providers/ScriptProvider.tsx:271:25 - error TS2304: Cannot find name 'cloudToken'.` (multiple occurrences)**
-    *   **Cause:** `cloudToken` is used in `pullAllTeamWorkspaces` but not destructured from `useAuth()`.
-    *   **Fix:** Add `cloudToken` to the destructuring of `useAuth()` in `ScriptProvider.tsx`.
-
-2.  **`src/context/providers/ScriptProvider.tsx:283:30 - error TS2552: Cannot find name 'pullTeamWorkspaces'. Did you mean 'pullAllTeamWorkspaces'?`**
-    *   **Cause:** The `pullAllTeamWorkspaces` function is trying to call `pullTeamWorkspaces`, but it's not imported.
-    *   **Fix:** Add `import { pullTeamWorkspaces } from '@/api/authApiClient';` to `ScriptProvider.tsx`.
-
-3.  **`src/context/providers/ScriptProvider.tsx:284:51 - error TS7006: Parameter 'r' implicitly has an 'any' type.` (and similar for `f`)**
-    *   **Cause:** TypeScript is complaining about implicit `any` types in the `filter` and `forEach` callbacks within `pullAllTeamWorkspaces`.
-    *   **Fix:** Explicitly type the parameters `r` and `f` in the callbacks.
-
-**Plan to Fix (Start Here in Next Session):**
-I will rewrite the entire `ScriptProvider.tsx` file to address all these issues cleanly using the `write_file` tool.
+- **Enhanced Run History Tracking:**
+    - Modified the `rap-server` database schema (`models.py`) to include `source_folder` and `source_workspace` columns in the `Run` model.
+    - Updated the `rap-server`'s script execution endpoint (`script_execution_router.py`) to accept and store these new origin details.
+    - Modified the `rap-web` frontend (`useUserWorkspaces.ts`, `Sidebar.tsx`, `ScriptExecutionProvider.tsx`) to correctly determine and pass the `source_folder` or `source_workspace` (including "orphaned" status and `repo_url`) to the backend when a script is executed.

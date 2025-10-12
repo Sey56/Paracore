@@ -7,6 +7,7 @@ import { useScripts } from '@/hooks/useScripts';
 import { useAuth } from '@/hooks/useAuth';
 import { useUI } from '@/hooks/useUI';
 import api from '@/api/axios';
+import { getFolderNameFromPath } from '@/components/layout/Sidebar/Sidebar'; // Import helper
 
 
 interface RawScriptParameterData {
@@ -337,7 +338,25 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setExecutionResult(null);
     showNotification(`Running script: ${script.name}...`, "info");
 
-    const body = { path: script.absolutePath || "", type: script.type, parameters: parameters ? JSON.stringify(parameters) : undefined };
+    let sourceFolder: string | undefined;
+    let sourceWorkspace: string | undefined;
+
+    if (activeScriptSource?.type === 'local') {
+      sourceFolder = getFolderNameFromPath(activeScriptSource.path);
+    } else if (activeScriptSource?.type === 'workspace') {
+      const workspace = localWorkspaces.find(ws => ws.id === activeScriptSource.id);
+      if (workspace) {
+        sourceWorkspace = `${workspace.name}${workspace.isOrphaned ? ' (orphaned)' : ''}:${workspace.repo_url}`;
+      }
+    }
+
+    const body = {
+      path: script.absolutePath || "",
+      type: script.type,
+      parameters: parameters ? JSON.stringify(parameters) : undefined,
+      source_folder: sourceFolder, // New field
+      source_workspace: sourceWorkspace, // New field
+    };
 
     try {
       const response = await api.post("/run-script", body);

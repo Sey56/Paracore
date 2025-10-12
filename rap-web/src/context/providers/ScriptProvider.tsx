@@ -104,7 +104,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     fetchTeamWorkspaces();
-  }, [fetchTeamWorkspaces]);
+  }, [fetchTeamWorkspaces, activeTeam]); // Added activeTeam to dependency array
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [favoriteScripts, setFavoriteScripts] = useState<string[]>([]);
   const [recentScripts, setRecentScripts] = useState<string[]>([]);

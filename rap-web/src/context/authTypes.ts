@@ -38,7 +38,7 @@ export interface AuthContextType {
   activeRole: Role | null;
   login: () => void;
   logout: () => void;
-  setActiveTeam: (team: TeamMembership) => void;
+
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

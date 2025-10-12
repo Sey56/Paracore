@@ -74,6 +74,8 @@ class Run(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String)
     output = Column(Text, nullable=True)
+    source_folder = Column(Text, nullable=True) # New column for local folder source
+    source_workspace = Column(Text, nullable=True) # New column for workspace source
 
     script = relationship("Script")
     user = relationship("User")
