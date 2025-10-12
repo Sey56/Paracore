@@ -93,6 +93,7 @@ export const Sidebar = () => {
           name: repoName,
           repo_url: originalWs?.repo_url || '', // Use original repo_url
           path: localPathInfo.path,
+          localId: localPathInfo.localId,
         });
       }
     }
@@ -164,19 +165,17 @@ export const Sidebar = () => {
     if (!workspaceToRemove) return;
     console.log("handleRemoveLocalConfirm - workspaceToRemove ID:", workspaceToRemove.id);
 
-    const localWorkspaceInfo = userWorkspacePaths[workspaceToRemove.id];
-    console.log("handleRemoveLocalConfirm - localWorkspaceInfo:", localWorkspaceInfo);
-    if (!localWorkspaceInfo || !localWorkspaceInfo.localId) {
+    if (!workspaceToRemove || !workspaceToRemove.localId) {
       showNotification("Could not find local workspace information to remove.", "error");
       return;
     }
 
     try {
-      await deleteLocalWorkspace(localWorkspaceInfo.localId);
+      await deleteLocalWorkspace(workspaceToRemove.localId);
       removeWorkspacePath(workspaceToRemove.id);
       if (activeScriptSource?.type === 'workspace' && activeScriptSource.id === workspaceToRemove.id) {
         setActiveScriptSource(null);
-        clearScriptsForWorkspace(localWorkspaceInfo.path);
+        clearScriptsForWorkspace(workspaceToRemove.path);
       }
       showNotification(`Successfully removed local workspace '${workspaceToRemove.name}'`, "success");
       setIsRemoveModalOpen(false);

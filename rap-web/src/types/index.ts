@@ -6,6 +6,7 @@ export interface Workspace {
   name: string;
   repo_url: string;
   path: string;
+  localId?: number;
 }
 
 export interface Membership {
