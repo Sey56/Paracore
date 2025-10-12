@@ -68,6 +68,8 @@ export const Sidebar = () => {
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [workspaceToRemove, setWorkspaceToRemove] = useState<Workspace | null>(null);
   const [selectedUnclonedWorkspaceId, setSelectedUnclonedWorkspaceId] = useState<string | null>(null);
+  const [isClearConfirmModalOpen, setIsClearConfirmModalOpen] = useState(false);
+  const [clearActionType, setClearActionType] = useState<'favorites' | 'recents' | null>(null);
 
   const { userWorkspacePaths, setWorkspacePath, removeWorkspacePath } = useUserWorkspaces();
 
@@ -216,6 +218,27 @@ export const Sidebar = () => {
     setIsAddCategoryModalOpen(false);
   };
 
+  const handleOpenClearConfirmModal = (type: 'favorites' | 'recents') => {
+    setClearActionType(type);
+    setIsClearConfirmModalOpen(true);
+  };
+
+  const handleClearConfirm = () => {
+    if (clearActionType === 'favorites') {
+      clearFavoriteScripts();
+      showNotification("Favorites cleared.", "success");
+    } else if (clearActionType === 'recents') {
+      clearRecentScripts();
+      showNotification("Recents cleared.", "success");
+    }
+    setIsClearConfirmModalOpen(false);
+    setClearActionType(null);
+  };
+
+
+
+
+
 
 
   return (
@@ -258,6 +281,16 @@ export const Sidebar = () => {
           isOpen={isAddFolderModalOpen}
           onClose={() => setIsAddFolderModalOpen(false)}
           onAddFolder={handleAddFolderSubmit}
+        />
+
+        <ConfirmActionModal
+          isOpen={isClearConfirmModalOpen}
+          onClose={() => setIsClearConfirmModalOpen(false)}
+          onConfirm={handleClearConfirm}
+          title={`Clear All ${clearActionType === 'favorites' ? 'Favorites' : 'Recents'}`}
+          message={`Are you sure you want to clear all your ${clearActionType === 'favorites' ? 'favorite scripts' : 'recently used scripts'}? This action cannot be undone.`}
+          confirmButtonText="Clear"
+          confirmButtonColor="red"
         />
 
         <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
@@ -307,25 +340,27 @@ export const Sidebar = () => {
 
         {/* Workspaces */}
             <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-              <FontAwesomeIcon icon={faCodeBranch} className="mr-2" />
-              Local Workspaces
-            </h3>
-            <div className="flex items-center space-x-2">
-                {activeRole === Role.User && (
-                    <button
-                        onClick={() => {
-                            if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
-                                pullWorkspace(activeScriptSource.path);
-                            }
-                        }}
-                        disabled={activeScriptSource?.type !== 'workspace'}
-                        className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
-                        title="Update Workspace"
-                    >
-                        <FontAwesomeIcon icon={faSync} />
-                    </button>
-                )}
+            <div className="flex items-center space-x-4">
+              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+                <FontAwesomeIcon icon={faCodeBranch} className="mr-2" />
+                Local Workspaces
+              </h3>
+              {activeRole === Role.User && (
+                  <button
+                      onClick={() => {
+                          if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
+                              pullWorkspace(activeScriptSource.path);
+                          }
+                      }}
+                      disabled={activeScriptSource?.type !== 'workspace'}
+                      className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
+                      title="Update Workspace"
+                  >
+                      <FontAwesomeIcon icon={faSync} />
+                  </button>
+              )}
+            </div>
+            <div className="flex items-center">
                 <button
                     className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
                     onClick={() => {
@@ -418,7 +453,7 @@ export const Sidebar = () => {
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
               <FontAwesomeIcon icon={faTh} className="mr-2" />
-              Categories
+              Custom Categories
             </h3>
             <button 
               className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" 
@@ -464,7 +499,7 @@ export const Sidebar = () => {
             </h3>
             <button 
               className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" 
-              onClick={clearFavoriteScripts}
+              onClick={() => handleOpenClearConfirmModal('favorites')}
               title="Clear Favorites"
             >
               <FontAwesomeIcon icon={faBroom} />
@@ -492,7 +527,7 @@ export const Sidebar = () => {
             </h3>
             <button 
               className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" 
-              onClick={clearRecentScripts}
+              onClick={() => handleOpenClearConfirmModal('recents')}
               title="Clear Recents"
             >
               <FontAwesomeIcon icon={faBroom} />
