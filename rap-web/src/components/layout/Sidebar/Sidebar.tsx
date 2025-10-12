@@ -320,12 +320,11 @@ export const Sidebar = () => {
                 <button
                     className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
                     onClick={() => {
-                        if (activeScriptSource?.type === 'workspace') {
-                            const wsToRemove = localWorkspaces.find(ws => ws.id === activeScriptSource.id);
-                            if (wsToRemove) handleOpenRemoveModal(wsToRemove);
-                        }
-                    }}
-                    disabled={activeScriptSource?.type !== 'workspace'}
+                                        if (activeScriptSource?.type === 'workspace') {
+                                            const wsToRemove = localWorkspaces.find(ws => ws.id === activeScriptSource.id);
+                                            if (wsToRemove) handleOpenRemoveModal(wsToRemove);
+                                        }
+                                    }}                    disabled={activeScriptSource?.type !== 'workspace'}
                     title={`Remove local workspace`}
                 >
                     <FontAwesomeIcon icon={faTrash} className="text-xs" />
