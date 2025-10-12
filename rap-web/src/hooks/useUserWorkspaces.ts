@@ -39,7 +39,7 @@ export const useUserWorkspaces = () => {
     } finally {
       setIsLoaded(true);
     }
-  }, [user, STORAGE_KEY]); // Re-run effect when user or key changes
+  }, [user?.id, STORAGE_KEY]); // Re-run effect when user.id or STORAGE_KEY changes
 
   const setWorkspacePath = useCallback((workspaceId: string, path: string, localId: number) => {
     setUserWorkspacePaths(prev => {

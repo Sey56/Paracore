@@ -35,6 +35,7 @@ export interface ScriptContextProps {
   setScripts: React.Dispatch<React.SetStateAction<Script[]>>; // Keep if still needed
   setCombinedScriptContent: React.Dispatch<React.SetStateAction<string | null>>; // Keep if still needed
   pullAllTeamWorkspaces: () => Promise<void>; // New: Function to pull all team workspaces
+  pullWorkspace: (workspacePath: string) => Promise<void>;
 }
 
 export const ScriptContext = createContext<ScriptContextProps | undefined>(undefined);

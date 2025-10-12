@@ -2,6 +2,7 @@ import { FC, useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface RegisterWorkspaceModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
   const [name, setName] = useState('');
   const [repoUrl, setRepoUrl] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
+  const { showNotification } = useNotifications();
 
   useEffect(() => {
     if (isOpen) {
@@ -27,7 +29,20 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
   }, [isOpen]);
 
   const handleSubmit = async () => {
-    if (!name || !repoUrl) return;
+    if (!name || !repoUrl) {
+      showNotification("Workspace Name and Repository URL cannot be empty.", "error");
+      return;
+    }
+
+    // Add URL validation
+    try {
+      new URL(repoUrl); // Attempt to create a URL object
+    } catch (e) {
+      // If URL creation fails, it's an invalid URL
+      showNotification("Repository URL is not a valid URL.", "error");
+      return;
+    }
+
     setIsRegistering(true);
     try {
       await onRegister(name, repoUrl);

@@ -54,7 +54,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     }));
   }, [activeTeam, teamWorkspaces, userWorkspacePaths]);
 
-  const handleRegisterSubmit = useCallback(async (name: string, path: string) => {
+  const handleRegisterSubmit = useCallback(async (name: string, repoUrl: string) => {
     if (!activeTeam) {
       showNotification('No active team selected.', 'error');
       return;
@@ -62,13 +62,12 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     setIsLoading(true);
     setError(null);
     try {
-      const newWorkspace: Workspace = {
+      const newWorkspace: Omit<Workspace, 'path'> = { // Create a Workspace object without the path property
         id: `temp-${Date.now()}`, // Temporary ID, will be replaced by backend
         name: name,
-        repo_url: '', // Assuming repoUrl is not needed for registration or will be set by backend
-        path: path,
+        repo_url: repoUrl,
       };
-      await addTeamWorkspace(activeTeam.team_id, newWorkspace);
+      await addTeamWorkspace(activeTeam.team_id, newWorkspace as Workspace);
       showNotification(`Workspace '${name}' registered successfully.`, 'success');
       setIsRegisterModalOpen(false);
     } catch (err) {
@@ -85,15 +84,15 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
       showNotification('No active team selected.', 'error');
       return;
     }
-    if (!confirm(`Are you sure you want to un-register workspace '${workspaceToRemove.name}'? This will not delete the local folder.`)) {
+    const userConfirmed = await confirm(`Are you sure you want to un-register workspace '${workspaceToRemove.name}'? This will not delete the local folder.`);
+    console.log("User confirmed removal:", userConfirmed);
+    if (!userConfirmed) {
       return;
     }
     setIsLoading(true);
     setError(null);
     try {
       await removeTeamWorkspace(activeTeam.team_id, workspaceToRemove.id);
-      removeWorkspacePath(workspaceToRemove.id);
-      clearScriptsForWorkspace(workspaceToRemove.id);
       showNotification(`Workspace '${workspaceToRemove.name}' un-registered successfully.`, 'success');
     } catch (err) {
       const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to un-register workspace.';
@@ -102,7 +101,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     } finally {
       setIsLoading(false);
     }
-  }, [activeTeam, removeTeamWorkspace, removeWorkspacePath, clearScriptsForWorkspace, showNotification]);
+  }, [activeTeam, removeTeamWorkspace, showNotification]);
 
   return (
     <>

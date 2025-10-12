@@ -88,6 +88,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
           headers: { Authorization: `Bearer ${cloudToken}` },
         }
       );
+      console.log("fetchTeamWorkspaces - response.data:", response.data);
       setTeamWorkspaces(prev => ({
         ...prev,
         [activeTeam.team_id]: response.data
@@ -386,6 +387,41 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearScripts = useCallback(() => setScripts([]), []);
 
+  const pullWorkspace = useCallback(async (workspacePath: string) => {
+    if (!activeTeam || !cloudToken) {
+      showNotification("Not authenticated or no active team.", "error");
+      return;
+    }
+
+    if (!workspacePath) {
+      showNotification("No workspace path provided.", "error");
+      return;
+    }
+
+    showNotification(`Updating workspace at ${workspacePath}...`, "info");
+    try {
+      if (!rapServerUrl) {
+        showNotification("RAP Server URL not available.", "error");
+        return;
+      }
+      const response = await pullTeamWorkspacesApi(rapServerUrl, [workspacePath], cloudToken);
+      const result = response.results[0];
+      if (result.status === "failed") {
+        showNotification(`Failed to update workspace: ${result.message}`, "error");
+        console.error(`Pull failed for ${result.path}: ${result.message}`);
+      } else {
+        showNotification("Workspace updated successfully!", "success");
+      }
+      if (activeScriptSource?.type === 'workspace' && currentDisplayPath) {
+        loadScriptsFromPath(currentDisplayPath);
+      }
+    } catch (err) {
+      const apiError = err as ApiError;
+      showNotification(apiError.response?.data?.detail || "Failed to update workspace.", "error");
+      console.error("Pull workspace error:", err);
+    }
+  }, [activeTeam, cloudToken, showNotification, activeScriptSource, currentDisplayPath, loadScriptsFromPath, rapServerUrl]);
+
   const pullAllTeamWorkspaces = useCallback(async () => {
     if (!activeTeam || !cloudToken) {
       showNotification("Not authenticated or no active team.", "error");
@@ -451,6 +487,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     clearScriptsForWorkspace,
     clearScripts,
     pullAllTeamWorkspaces,
+    pullWorkspace,
   };
 
   return (

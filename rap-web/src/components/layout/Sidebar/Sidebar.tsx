@@ -64,6 +64,7 @@ export const Sidebar = () => {
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [workspaceToRemove, setWorkspaceToRemove] = useState<Workspace | null>(null);
+  const [selectedUnclonedWorkspaceId, setSelectedUnclonedWorkspaceId] = useState<string | null>(null);
 
   const { userWorkspacePaths, setWorkspacePath, removeWorkspacePath } = useUserWorkspaces();
 
@@ -75,21 +76,58 @@ export const Sidebar = () => {
     return activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
   }, [activeTeam, teamWorkspaces]);
 
+  const { localWorkspaces, unclonedWorkspaces } = useMemo(() => {
+    const local: Workspace[] = [];
+    const uncloned: Workspace[] = [];
+    const clonedIds = new Set(Object.keys(userWorkspacePaths));
+
+    // Create the list of local workspaces from userWorkspacePaths
+    for (const id in userWorkspacePaths) {
+      const localPathInfo = userWorkspacePaths[id];
+      if (localPathInfo) {
+        const repoName = getFolderNameFromPath(localPathInfo.path);
+        // Find the original workspace to get the repo_url
+        const originalWs = currentTeamWorkspaces.find(ws => ws.id === id);
+        local.push({
+          id: id,
+          name: repoName,
+          repo_url: originalWs?.repo_url || '', // Use original repo_url
+          path: localPathInfo.path,
+        });
+      }
+    }
+
+    // Filter registered workspaces to find the ones that are not cloned
+    currentTeamWorkspaces.forEach(ws => {
+      if (!clonedIds.has(ws.id)) {
+        uncloned.push(ws);
+      }
+    });
+
+    return { localWorkspaces: local, unclonedWorkspaces: uncloned };
+  }, [currentTeamWorkspaces, userWorkspacePaths]);
+
   const canManageWorkspaces = activeRole === Role.Admin;
 
 
 
-  const handleOpenSetupModal = (workspace: Workspace) => {
-    setWorkspaceToSetup(workspace);
+  const handleCloneClick = () => {
+    const workspaceToClone = unclonedWorkspaces.find(ws => selectedUnclonedWorkspaceId !== null && String(ws.id) === selectedUnclonedWorkspaceId);
+    if (!workspaceToClone) {
+      showNotification("Please select a workspace to clone.", "info");
+      return;
+    }
+    setWorkspaceToSetup(workspaceToClone);
     setIsSetupModalOpen(true);
   };
 
   const handleSetupSubmit = async (localPath: string) => {
     if (!workspaceToSetup) return;
-
+    console.log("workspaceToSetup.repo_url before cloning:", workspaceToSetup.repo_url);
+  
     try {
       const newWorkspaceResponse = await cloneWorkspace({
-        repo_url: workspaceToSetup.repo_url,
+        repo_url: workspaceToSetup.repo_url.replace(/\/+$/, ''), // Remove trailing slashes
         local_path: localPath
       });
       
@@ -117,14 +155,17 @@ export const Sidebar = () => {
   };
 
   const handleOpenRemoveModal = (workspace: Workspace) => {
+    console.log("handleOpenRemoveModal - workspace ID:", workspace.id);
     setWorkspaceToRemove(workspace);
     setIsRemoveModalOpen(true);
   };
 
   const handleRemoveLocalConfirm = async () => {
     if (!workspaceToRemove) return;
+    console.log("handleRemoveLocalConfirm - workspaceToRemove ID:", workspaceToRemove.id);
 
     const localWorkspaceInfo = userWorkspacePaths[workspaceToRemove.id];
+    console.log("handleRemoveLocalConfirm - localWorkspaceInfo:", localWorkspaceInfo);
     if (!localWorkspaceInfo || !localWorkspaceInfo.localId) {
       showNotification("Could not find local workspace information to remove.", "error");
       return;
@@ -259,6 +300,97 @@ export const Sidebar = () => {
           )}
         </div>
 
+        {/* Workspaces */}
+            <div className="flex justify-between items-center mb-2">
+            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Local Workspaces</h3>
+            <div className="flex items-center space-x-2">
+              {activeRole === Role.User && (
+                <button onClick={pullAllTeamWorkspaces} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" title="Update Workspaces">
+                  <FontAwesomeIcon icon={faSync} />
+                </button>
+              )}
+              <button
+                className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                onClick={() => {
+                    if (activeScriptSource?.type === 'workspace') {
+                        const wsToRemove = localWorkspaces.find(ws => ws.id === activeScriptSource.id);
+                        if (wsToRemove) handleOpenRemoveModal(wsToRemove);
+                    }
+                }}
+                disabled={activeScriptSource?.type !== 'workspace'}
+                title={`Remove local workspace`}
+              >
+                <FontAwesomeIcon icon={faTrash} className="text-xs" />
+              </button>
+            </div>
+          </div>
+            <div className="relative">
+              <select
+                value={activeScriptSource?.type === 'workspace' ? activeScriptSource.id : ''}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const workspace = localWorkspaces.find(ws => ws.id === selectedId);
+                  const localPath = userWorkspacePaths[selectedId]?.path;                  
+                  if (workspace && localPath) {
+                    setActiveScriptSource({ type: 'workspace', id: selectedId, path: localPath, });
+                  }
+                }}
+                className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
+              >
+                <option value="" disabled>Select a workspace...</option>
+                {localWorkspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))}
+              </select>
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
+              />
+            </div>
+
+        {/* Local Folders */}
+        {isPersonalTeamActive && (
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Local Folders</h3>
+              <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={handleAddCustomFolder}>
+                Add
+              </button>
+              {activeScriptSource?.type === 'local' && (
+                <button
+                  className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                  onClick={() => { if (activeScriptSource.path) { removeCustomScriptFolder(activeScriptSource.path); clearScriptsForWorkspace(activeScriptSource.path); } }}
+                  title={`Remove folder ${getFolderNameFromPath(activeScriptSource.path || '')}`}
+                >
+                  <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                </button>
+              )}
+            </div>
+            {customScriptFolders.length > 0 && (
+              <div className="relative">
+                <select
+                  value={activeScriptSource?.type === 'local' ? activeScriptSource.path : ''}
+                  onChange={(e) => handleFolderClick(e.target.value)}
+                  className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
+                >
+                  <option value="" disabled>Select a folder...</option>
+                  {customScriptFolders.map((folder) => (
+                    <option key={folder} value={folder}>
+                      {getFolderNameFromPath(folder)}
+                    </option>
+                  ))}
+                </select>
+                <FontAwesomeIcon
+                  icon={faChevronDown}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Categories, Favorites, Recent Sections... */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
@@ -281,7 +413,14 @@ export const Sidebar = () => {
                 <div className="flex items-center">
                   <span className="font-semibold">{String(category)}</span>
                 </div>
-                <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={(e) => {e.stopPropagation(); removeCustomCategory(category)} }>
+                <button
+                  className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeCustomCategory(category);
+                  }}
+                  title={`Remove category ${category}`}
+                >
                   <FontAwesomeIcon icon={faTimes} className="text-xs" />
                 </button>
               </li>
@@ -331,95 +470,39 @@ export const Sidebar = () => {
           </ul>
         </div>
 
-        {/* 📂 Script Sources */}
-        <div className="mb-6">
-          <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400 mb-2">Script Sources</h3>
-        
-          {/* Local Folders */}
-          {isPersonalTeamActive && (
-            <div className="mb-4 ml-2">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-medium text-xs uppercase text-gray-500 dark:text-gray-400">Local Folders</h4>
-                <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={handleAddCustomFolder}>
-                  Add
-                </button>
-              </div>
-              <ul className="space-y-1">
-                {customScriptFolders.map((folder: string) => (
-                  <li
-                    key={folder}
-                    className={`flex items-center justify-between py-1 px-2 rounded cursor-pointer ${activeScriptSource?.type === 'local' && activeScriptSource.path === folder ? "bg-blue-100 dark:bg-blue-700 text-blue-800 dark:text-blue-100" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"}`}
-                    onClick={() => handleFolderClick(folder)}
-                  >
-                    <div className="flex items-center">
-                      <FontAwesomeIcon icon={faFolder} className="text-yellow-500 mr-2" />
-                      <span className="font-semibold">{getFolderNameFromPath(folder)}</span>
-                    </div>
-                    <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={(e) => {e.stopPropagation(); removeCustomScriptFolder(folder)} }>
-                      <FontAwesomeIcon icon={faTimes} className="text-xs" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        
-          {/* Workspaces */}
-          <div className="mb-4 ml-2">
+          <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <h4 className="font-medium text-xs uppercase text-gray-500 dark:text-gray-400">Workspaces</h4>
-              <div className="flex items-center space-x-2">
-                {activeRole === Role.User && (
-                  <button onClick={pullAllTeamWorkspaces} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" disabled={!activeTeam || currentTeamWorkspaces.length === 0} title="Update Workspaces">
-                    <FontAwesomeIcon icon={faSync} />
-                  </button>
-                )}
-                {canManageWorkspaces && (
-                  <button className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" onClick={() => setIsRegisterModalOpen(true)} title="Register New Workspace">
-                    Register
-                  </button>
-                )}
-              </div>
+              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Registered Workspaces</h3>
+              {selectedUnclonedWorkspaceId && !userWorkspacePaths[selectedUnclonedWorkspaceId] && (
+                <button
+                  className="text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded"
+                  onClick={handleCloneClick}
+                >
+                  Clone
+                </button>
+              )}
             </div>
-            <ul className="space-y-1">
-              {currentTeamWorkspaces.map((workspace: Workspace) => {
-                const localWorkspaceInfo = userWorkspacePaths[workspace.id];
-                const isSetUp = !!localWorkspaceInfo;
-                const localPath = isSetUp ? localWorkspaceInfo.path : undefined;
-
-                const isActive = activeScriptSource?.type === 'workspace' && activeScriptSource.id === workspace.id;
-
-                if (isSetUp && localPath) {
-                  return (
-                    <li key={workspace.id} className={`flex items-center justify-between py-1 px-2 rounded cursor-pointer ${isActive ? "bg-blue-100 dark:bg-blue-700 text-blue-800 dark:text-blue-100" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"}`}>
-                      <div className="flex items-center flex-grow min-w-0" onClick={() => setActiveScriptSource({ type: 'workspace', id: workspace.id, path: localPath })}
-                      >
-                        <FontAwesomeIcon icon={faCodeBranch} className="text-purple-500 mr-2 flex-shrink-0" />
-                        <span className="font-semibold truncate">{workspace.name}</span>
-                      </div>
-                      <button className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 ml-2 flex-shrink-0" onClick={() => handleOpenRemoveModal(workspace)}>
-                        <FontAwesomeIcon icon={faTrash} className="text-xs" />
-                      </button>
-                    </li>
-                  );
-                } else {
-                  return (
-                    <li key={workspace.id} className="flex items-center justify-between py-1 px-2 rounded">
-                      <div className="flex items-center text-gray-500 dark:text-gray-400">
-                        <FontAwesomeIcon icon={faCodeBranch} className="text-purple-500 mr-2" />
-                        <span className="font-semibold">{workspace.name}</span>
-                      </div>
-                      <button className="text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded" onClick={() => handleOpenSetupModal(workspace)}>
-                        Setup
-                      </button>
-                    </li>
-                  );
-                }
-              })}
-            </ul>
+            <div className="relative">
+              <select
+                value={selectedUnclonedWorkspaceId ?? ''}
+                onChange={(e) => setSelectedUnclonedWorkspaceId(e.target.value === '' ? null : e.target.value)}
+                className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
+              >
+                <option value="" disabled>Select to clone...</option>
+                {unclonedWorkspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))}
+              </select>
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
+              />
+            </div>
           </div>
-        </div>
-      </div>
+
+      </div> {/* Closes p-4 div */}
     </div>
   );
 };
