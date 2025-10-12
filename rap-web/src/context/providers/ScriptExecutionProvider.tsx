@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUI } from '@/hooks/useUI';
 import api from '@/api/axios';
 import { getFolderNameFromPath } from '@/components/layout/Sidebar/Sidebar'; // Import helper
+import { Workspace } from '@/types';
 
 
 interface RawScriptParameterData {
@@ -55,9 +56,11 @@ const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter
 export const ScriptExecutionProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime } = useScripts();
-  const { scripts: allScriptsFromScriptProvider } = useScripts(); // Get all scripts from ScriptProvider
-  const { isAuthenticated } = useAuth();
+  const { scripts: allScriptsFromScriptProvider, teamWorkspaces } = useScripts(); // Get all scripts and teamWorkspaces from ScriptProvider
+  const { isAuthenticated, activeTeam } = useAuth();
   const { activeScriptSource } = useUI();
+
+  const currentTeamWorkspaces = activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
 
   const [selectedScript, setSelectedScriptState] = useState<Script | null>(null);
   const [runningScriptPath, setRunningScriptPath] = useState<string | null>(null);
@@ -344,7 +347,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     if (activeScriptSource?.type === 'local') {
       sourceFolder = getFolderNameFromPath(activeScriptSource.path);
     } else if (activeScriptSource?.type === 'workspace') {
-      const workspace = localWorkspaces.find(ws => ws.id === activeScriptSource.id);
+      const workspace = currentTeamWorkspaces.find((ws: Workspace) => ws.id === activeScriptSource.id);
       if (workspace) {
         sourceWorkspace = `${workspace.name}${workspace.isOrphaned ? ' (orphaned)' : ''}:${workspace.repo_url}`;
       }

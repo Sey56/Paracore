@@ -7,6 +7,7 @@ export interface Workspace {
   repo_url: string;
   path: string;
   localId?: number;
+  isOrphaned?: boolean;
 }
 
 export interface Membership {

@@ -12,3 +12,4 @@ argon2-cffi
 requests
 python-jose[cryptography]
 pyinstaller
+httpx
