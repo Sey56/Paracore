@@ -54,7 +54,7 @@ export const Sidebar = () => {
   const { showNotification } = useNotifications();
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource } = useUI();
-  const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace } = useScripts();
+  const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace } = useScripts();
   const { setSelectedScript } = useScriptExecution();
   
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -304,24 +304,33 @@ export const Sidebar = () => {
             <div className="flex justify-between items-center mb-2">
             <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">Local Workspaces</h3>
             <div className="flex items-center space-x-2">
-              {activeRole === Role.User && (
-                <button onClick={pullAllTeamWorkspaces} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white" title="Update Workspaces">
-                  <FontAwesomeIcon icon={faSync} />
+                {activeRole === Role.User && (
+                    <button
+                        onClick={() => {
+                            if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
+                                pullWorkspace(activeScriptSource.path);
+                            }
+                        }}
+                        disabled={activeScriptSource?.type !== 'workspace'}
+                        className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
+                        title="Update Workspace"
+                    >
+                        <FontAwesomeIcon icon={faSync} />
+                    </button>
+                )}
+                <button
+                    className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                    onClick={() => {
+                        if (activeScriptSource?.type === 'workspace') {
+                            const wsToRemove = localWorkspaces.find(ws => ws.id === activeScriptSource.id);
+                            if (wsToRemove) handleOpenRemoveModal(wsToRemove);
+                        }
+                    }}
+                    disabled={activeScriptSource?.type !== 'workspace'}
+                    title={`Remove local workspace`}
+                >
+                    <FontAwesomeIcon icon={faTrash} className="text-xs" />
                 </button>
-              )}
-              <button
-                className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
-                onClick={() => {
-                    if (activeScriptSource?.type === 'workspace') {
-                        const wsToRemove = localWorkspaces.find(ws => ws.id === activeScriptSource.id);
-                        if (wsToRemove) handleOpenRemoveModal(wsToRemove);
-                    }
-                }}
-                disabled={activeScriptSource?.type !== 'workspace'}
-                title={`Remove local workspace`}
-              >
-                <FontAwesomeIcon icon={faTrash} className="text-xs" />
-              </button>
             </div>
           </div>
             <div className="relative">
