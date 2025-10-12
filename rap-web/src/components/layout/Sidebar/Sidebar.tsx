@@ -15,7 +15,8 @@ import {
   faChevronDown,
   faUsers, 
   faBroom,
-  faTh
+  faTh,
+  faGlobe
 } from "@fortawesome/free-solid-svg-icons";
 
 import { open } from '@tauri-apps/api/dialog';
@@ -301,7 +302,7 @@ export const Sidebar = () => {
 
         <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400 mb-2">
-            <FontAwesomeIcon icon={faUsers} className="mr-2" />
+            <FontAwesomeIcon icon={faUsers} className="mr-2 text-blue-500" />
             Active Team
           </h3>
           {activeTeam && (
@@ -322,7 +323,7 @@ export const Sidebar = () => {
             <div className="flex justify-between items-center mb-2">
             <div className="flex items-center space-x-4">
               <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-                <FontAwesomeIcon icon={faCodeBranch} className="mr-2" />
+                <FontAwesomeIcon icon={faCodeBranch} className="mr-2 text-green-500" />
                 Local Workspaces
               </h3>
               {activeRole === Role.User && (
@@ -386,7 +387,7 @@ export const Sidebar = () => {
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-                <FontAwesomeIcon icon={faFolder} className="mr-2" />
+                <FontAwesomeIcon icon={faFolder} className="mr-2 text-yellow-500" />
                 Local Folders
               </h3>
               <button 
@@ -432,7 +433,7 @@ export const Sidebar = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-              <FontAwesomeIcon icon={faTh} className="mr-2" />
+              <FontAwesomeIcon icon={faTh} className="mr-2 text-purple-500" />
               Custom Categories
             </h3>
             <button 
@@ -474,7 +475,7 @@ export const Sidebar = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-              <FontAwesomeIcon icon={faStar} className="mr-2" />
+              <FontAwesomeIcon icon={faStar} className="mr-2 text-yellow-400" />
               Favorites
             </h3>
             <button 
@@ -502,7 +503,7 @@ export const Sidebar = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-              <FontAwesomeIcon icon={faClock} className="mr-2" />
+              <FontAwesomeIcon icon={faClock} className="mr-2 text-indigo-500" />
               Recent
             </h3>
             <button 
@@ -530,7 +531,7 @@ export const Sidebar = () => {
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-                <FontAwesomeIcon icon={faLandmark} className="mr-2" />
+                <FontAwesomeIcon icon={faGlobe} className="mr-2 text-red-500" />
                 Registered Workspaces
               </h3>
               {selectedUnclonedWorkspaceId && !userWorkspacePaths[selectedUnclonedWorkspaceId] && (
