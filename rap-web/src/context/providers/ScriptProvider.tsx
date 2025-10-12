@@ -123,13 +123,15 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     setActiveScriptSource(null);
   }, [activeTeam, setActiveScriptSource]);
 
-  const loadScriptsFromPath = useCallback(async (folderPath: string) => {
+  const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false) => {
     if (!folderPath) {
         setScripts([]);
         return;
     }
     try {
-      showNotification(`Loading scripts from ${folderPath}...`, "info");
+      if (!suppressNotification) {
+        showNotification(`Loading scripts from ${folderPath}...`, "info");
+      }
       const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(folderPath)}`);
       const data = response.data;
       if (data.error || !Array.isArray(data)) {
@@ -413,7 +415,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         showNotification("Workspace updated successfully!", "success");
       }
       if (activeScriptSource?.type === 'workspace' && currentDisplayPath) {
-        loadScriptsFromPath(currentDisplayPath);
+        loadScriptsFromPath(currentDisplayPath, true);
       }
     } catch (err) {
       const apiError = err as ApiError;
