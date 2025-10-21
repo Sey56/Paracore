@@ -77,17 +77,16 @@ Write-Host "`n[INFO] Skipping code signing." # In a production build, these line
 # --- Define Output Directory ---
 $finalInstallDir = Join-Path -Path $ProjectRoot -ChildPath 'installers'
 
-# Ensure the final destination directory is clean and exists
-if (Test-Path $finalInstallDir) {
-    Remove-Item -Path $finalInstallDir -Recurse -Force
+# Ensure the final destination directory exists
+if (-not (Test-Path $finalInstallDir)) {
+    New-Item -ItemType Directory -Path $finalInstallDir | Out-Null
 }
-New-Item -ItemType Directory -Path $finalInstallDir | Out-Null
 Write-Host "Installer output will be placed in: $finalInstallDir" -ForegroundColor Yellow
 
 # --- 3. Compile Installer ---
 Write-Host "`n[3/3] Compiling the installer with Inno Setup..."
 
-$rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'rserver_addin_installer.iss'
+$rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'rserver_installer.iss'
 $iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap-icon.ico'
 # Pass the icon path to the Inno Setup script as a define
 & $InnoSetupCompiler "/O$finalInstallDir" "/dIconPath=$iconPath" $rserverAddinInstallerScript
@@ -95,5 +94,5 @@ $iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap
 Write-Host "`n=================================" -ForegroundColor Cyan
 Write-Host '   Build Complete!   '
 Write-Host '=================================' -ForegroundColor Cyan
-$finalAddinInstaller = Join-Path -Path $finalInstallDir -ChildPath 'RServer_Addin_Installer.exe'
-Write-Host "RServer Addin Installer created at: $finalAddinInstaller" -ForegroundColor Yellow
+$finalAddinInstaller = Join-Path -Path $finalInstallDir -ChildPath 'RServer_Installer.exe'
+Write-Host "RServer Installer created at: $finalAddinInstaller" -ForegroundColor Yellow

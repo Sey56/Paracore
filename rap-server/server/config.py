@@ -16,7 +16,10 @@ def load_public_key():
         return None
 
 class Settings:
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{os.path.dirname(__file__)}/rap_local.db")
+    db_path = os.getenv("RAP_DATABASE_PATH", f"{os.path.dirname(__file__)}/rap_local.db")
+    # Replace backslashes with forward slashes for SQLAlchemy URL compatibility
+    db_path = db_path.replace("\\", "/")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
     SECRET_KEY: str = "your-very-secret-key-here"
     ALGORITHM: str = "RS256"
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "RS256")

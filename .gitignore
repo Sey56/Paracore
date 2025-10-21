@@ -82,3 +82,8 @@ rap-web/src-tauri/gen/
 # Untracked files
 package-lock.json
 rap-help/
+
+# RAP Specific
+rap-web/server-modules/
+installer_staging/
+installers/

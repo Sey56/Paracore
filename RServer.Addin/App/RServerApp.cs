@@ -48,8 +48,8 @@ namespace RServer.Addin.App
             services.AddRScriptEngineServices();
             _serviceProvider = services.BuildServiceProvider();
 
-            const string tabName = "RScript";
-            const string panelName = "Core Tools";
+            const string tabName = "RAP";
+            const string panelName = "RAP Tools";
 
             // Tab creation (safe)
             try

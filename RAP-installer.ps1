@@ -133,6 +133,15 @@ finally {
     # --- Cleanup ---
     Write-Host "Restoring original tauri.conf.json..."
     Set-Content -Path $tauriConfigPath -Value $originalConfig
+
+    if (-not $Release) {
+        # Remove the server-modules directory after the build for development builds
+        $bundleDir = Join-Path -Path $webDir -ChildPath 'server-modules'
+        if (Test-Path $bundleDir) {
+            Write-Host "Removing generated server-modules directory..." -ForegroundColor Yellow
+            Remove-Item -Path $bundleDir -Recurse -Force
+        }
+    }
 }
 }
 
@@ -161,11 +170,10 @@ Write-Host "`n[INFO] Skipping code signing." # In a production build, these line
 # --- Define Output Directory based on Build Mode ---
 $finalInstallDir = Join-Path -Path $ProjectRoot -ChildPath 'installers'
 
-# Ensure the final destination directory is clean and exists
-if (Test-Path $finalInstallDir) {
-    Remove-Item -Path $finalInstallDir -Recurse -Force
+# Ensure the final destination directory exists
+if (-not (Test-Path $finalInstallDir)) {
+    New-Item -ItemType Directory -Path $finalInstallDir | Out-Null
 }
-New-Item -ItemType Directory -Path $finalInstallDir | Out-Null
 Write-Host "Installer output will be placed in: $finalInstallDir" -ForegroundColor Yellow
 
 # --- 2. Copy Tauri MSI to installers folder ---

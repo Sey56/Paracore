@@ -37,7 +37,7 @@ export const TopBar: React.FC = () => {
   }, []);
 
   const handleHelpClick = async () => {
-    await shell.open('https://docs.example.com/rap'); // Placeholder for online documentation URL
+    await shell.open('https://rap-help.netlify.app');
     setIsHelpDropdownOpen(false);
   };
 

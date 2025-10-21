@@ -125,10 +125,11 @@ namespace RServer.Addin.Helpers
                 }
 
                                 string arguments = scriptType == "single-file"
-                    ? string.Format("{0} -g \"{1}:1:1\"", workspaceFolder, scriptToOpenPath)
+                    ? string.Format("{0}", workspaceFolder) // Only open the workspace folder
                     : string.Format("{0}", workspaceFolder);
 
                 FileLogger.Log($"Launching VS Code with arguments: {arguments}");
+                FileLogger.Log($"Full VS Code launch command: cmd.exe /c code {arguments}");
                 var psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",

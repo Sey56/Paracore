@@ -12,9 +12,9 @@
     "tauri":  {
                   "bundle":  {
                                  "active":  true,
-                                 "publisher":  "Seyoum Hagos (Paras Codarch)",
+                                 "publisher":  "Paras Codarch",
                                  "targets":  "all",
-                                 "identifier":  "rap.tauri.dev",
+                                 "identifier":  "rap-data",
                                  "icon":  [
                                               "icons/rap-icon-16.png",
                                               "icons/rap-icon-32.png",
@@ -91,6 +91,15 @@
                                 }
               }
 }
+
+
+
+
+
+
+
+
+
 
 
 

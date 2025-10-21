@@ -6,6 +6,7 @@ import { faUpload, faDownload, faCodeBranch, faSyncAlt, faArrowDown, faRedo, faC
 import { faGitAlt } from '@fortawesome/free-brands-svg-icons';
 import { CommitModal } from '@/components/common/CommitModal';
 import { CreateBranchModal } from '@/components/common/CreateBranchModal';
+import { PushConfirmModal } from '@/components/common/PushConfirmModal'; // Import PushConfirmModal
 import { useNotifications } from '@/hooks/useNotifications';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,6 +40,7 @@ export const GitStatusPanel: React.FC = () => {
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
+  const [isPushConfirmModalOpen, setIsPushConfirmModalOpen] = useState(false); // State for PushConfirmModal
   const [error, setError] = useState<string | null>(null);
   const [branches, setBranches] = useState<string[]>([]);
   const [currentSelectedBranch, setCurrentSelectedBranch] = useState<string | null>(null);
@@ -115,6 +117,10 @@ export const GitStatusPanel: React.FC = () => {
   };
 
   const handlePush = async () => {
+    setIsPushConfirmModalOpen(true);
+  };
+
+  const handleConfirmPush = async () => {
     if (!currentWorkspace) return;
     setLoading(true);
     setError(null);
@@ -123,6 +129,7 @@ export const GitStatusPanel: React.FC = () => {
       await pushChanges({ path: currentWorkspace.path });
       showNotification("Push successful!", "success");
       fetchStatus();
+      setIsPushConfirmModalOpen(false); // Close modal on success
     } catch (err: unknown) {
       let errorMessage = "Failed to push changes.";
       const apiError = err as ApiResponseError;
@@ -220,6 +227,12 @@ export const GitStatusPanel: React.FC = () => {
         newBranchName={newBranchName}
         onNewBranchNameChange={setNewBranchName}
         loading={loading}
+      />
+      <PushConfirmModal
+        isOpen={isPushConfirmModalOpen}
+        onClose={() => setIsPushConfirmModalOpen(false)}
+        onConfirm={handleConfirmPush}
+        isLoading={loading}
       />
       <div className="flex items-center space-x-3">
         <FontAwesomeIcon icon={faGitAlt} className="text-orange-500 text-lg" />

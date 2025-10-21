@@ -99,7 +99,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
           title={!canEdit ? "You must be signed in to edit scripts" : "Edit Script"}
         >
           <FontAwesomeIcon icon={faEdit} className="mr-2" />
-          Edit Script
+          Edit in VSCode
         </button>
       </div>
     </Rnd>
