@@ -1,15 +1,9 @@
-import grpc
-from . import rscript_pb2
-from . import rscript_pb2_grpc
-from google.protobuf import json_format
-import json
-import os
-from contextlib import contextmanager
+import logging
 
 # Centralized gRPC channel management
 @contextmanager
 def get_rscript_runner_stub():
-    """Provides a gRPC stub within a managed context."""
+    """Provides a gRPC stub within a managed context."""    
     channel = None
     try:
         grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
@@ -25,13 +19,19 @@ def get_status():
     return response
 
 def execute_script(script_content, parameters_json):
+    logging.info("Attempting to execute script via gRPC.")
     with get_rscript_runner_stub() as stub:
         request = rscript_pb2.ExecuteScriptRequest(
             script_content=script_content.encode('utf-8'),
             parameters_json=parameters_json.encode('utf-8'),
             source="rap-web"
         )
-        response = stub.ExecuteScript(request)
+        try:
+            response = stub.ExecuteScript(request)
+            logging.info("gRPC ExecuteScript call successful.")
+        except grpc.RpcError as e:
+            logging.error(f"gRPC ExecuteScript call failed: {e.code()} - {e.details()}")
+            raise # Re-raise the gRPC error
     return {
         "is_success": response.is_success,
         "output": response.output,

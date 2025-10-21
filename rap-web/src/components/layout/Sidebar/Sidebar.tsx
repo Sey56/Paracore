@@ -58,6 +58,8 @@ export const Sidebar = () => {
   const { user, activeTeam, activeRole } = useAuth();
   const { showNotification } = useNotifications();
 
+  const isDisabled = !user;
+
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource } = useUI();
   const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace, fetchTeamWorkspaces, loadScriptsForFolder } = useScripts();
   const { setSelectedScript } = useScriptExecution();
@@ -270,7 +272,7 @@ export const Sidebar = () => {
 
 
   return (
-    <div className={`bg-white dark:bg-gray-800 shadow-lg overflow-y-auto h-full`}>
+    <div className={`bg-white dark:bg-gray-800 shadow-lg overflow-y-auto h-full ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className="p-4">
 
         {workspaceToSetup && (

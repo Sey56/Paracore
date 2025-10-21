@@ -5,22 +5,30 @@ use log::{error, info};
 use std::fs::{self, File};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::oneshot;
 use url::{form_urlencoded, Url};
 use rand::Rng;
 use tiny_http::{Response, Server};
+use std::io::{BufRead, BufReader, Write};
 
 // Google OAuth client ID for desktop app
 const GOOGLE_CLIENT_ID: &str = "367583834715-rlm1en39oh0sj4dq4qhtaks6j23u5q6d.apps.googleusercontent.com";
 
 struct AppState {
     py_process: Mutex<Option<Child>>,
+    server_port: Mutex<Option<u16>>,
 }
 
 #[tauri::command]
-fn get_rap_server_url() -> String {
-    "http://localhost:8000".to_string()
+fn get_rap_server_url(state: State<AppState>) -> String {
+    let port_guard = state.server_port.lock().unwrap();
+    if let Some(port) = *port_guard {
+        format!("http://localhost:{}", port)
+    } else {
+        error!("Python server port not set in AppState. Falling back to default.");
+        "http://localhost:8000".to_string() // Fallback to default
+    }
 }
 
 #[tauri::command]
@@ -119,7 +127,7 @@ fn launch_main_app(handle: AppHandle, state: State<AppState>) -> Result<(), Stri
     info!("Python server log will be written to: {:?}", log_file_path);
     
     // Clone the file handle for stderr
-    let stderr_log_file = log_file.try_clone().map_err(|e| format!("Failed to clone log file handle: {}", e))?;
+    let _stderr_log_file = log_file.try_clone().map_err(|e| format!("Failed to clone log file handle: {}", e))?;
 
 
     let mut command = Command::new(python_exe_path);
@@ -143,8 +151,15 @@ fn launch_main_app(handle: AppHandle, state: State<AppState>) -> Result<(), Stri
             err_msg
         })?;
     
-    info!("Python process spawned successfully with PID: {}", child.id());
+    // Store the child process immediately
     *py_process_guard = Some(child);
+
+    // Hardcode the port to 8000
+    let port = 8000;
+    *state.server_port.lock().unwrap() = Some(port); // Store the port in AppState
+    info!("Python server will run on fixed port: {}", port);
+    
+    info!("Python process spawned successfully with PID: {}", py_process_guard.as_ref().unwrap().id());
     Ok(())
 }
 
@@ -153,6 +168,7 @@ pub fn main() {
 
         .manage(AppState {
             py_process: Mutex::new(None),
+            server_port: Mutex::new(None),
         })
         .setup(|app| {
             info!("RAP application starting up...");
@@ -168,8 +184,29 @@ pub fn main() {
                 if let Some(mut child) = py_process_guard.take() {
                     info!("Attempting to terminate Python sidecar process with PID: {}", child.id());
                     match child.kill() {
-                        Ok(_) => info!("Successfully terminated Python process."),
-                        Err(e) => error!("Failed to terminate Python process: {}", e),
+                        Ok(_) => {
+                            info!("Sent termination signal to Python process. Waiting for it to exit...");
+                            // Give the process a moment to shut down gracefully
+                            let start_wait = Instant::now();
+                            let timeout = Duration::from_secs(5); // Wait up to 5 seconds
+
+                            // Use try_wait in a loop to check if the process has exited
+                            while start_wait.elapsed() < timeout {
+                                if let Ok(Some(status)) = child.try_wait() {
+                                    info!("Python process exited with status: {:?}", status);
+                                    return;
+                                }
+                                std::thread::sleep(Duration::from_millis(100));
+                            }
+
+                            // If we reach here, the process did not exit within the timeout
+                            error!("Python process did not terminate gracefully within 5 seconds. Attempting to kill forcefully.");
+                            match child.kill() {
+                                Ok(_) => info!("Forcefully killed Python process."),
+                                Err(e) => error!("Failed to forcefully kill Python process: {}", e),
+                            }
+                        },
+                        Err(e) => error!("Failed to send termination signal to Python process: {}", e),
                     }
                 }
             }

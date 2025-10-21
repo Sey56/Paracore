@@ -1,10 +1,10 @@
+import os
+import logging
+from contextlib import contextmanager
 import grpc
 from . import rscript_pb2
 from . import rscript_pb2_grpc
 from google.protobuf import json_format
-import json
-import os
-from contextlib import contextmanager
 
 # Centralized gRPC channel management
 @contextmanager
@@ -13,25 +13,45 @@ def get_rscript_runner_stub():
     channel = None
     try:
         grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
+        logging.info(f"Attempting to connect to gRPC server at: {grpc_server_address}")
         channel = grpc.insecure_channel(grpc_server_address)
-        yield rscript_pb2_grpc.RScriptRunnerStub(channel)
+        stub = rscript_pb2_grpc.RScriptRunnerStub(channel)
+        logging.info("gRPC channel and stub created successfully.")
+        yield stub
+    except Exception as e:
+        logging.error(f"Failed to create gRPC channel or stub: {e}")
+        raise # Re-raise the exception
     finally:
         if channel:
             channel.close()
-
 def get_status():
-    with get_rscript_runner_stub() as stub:
-        response = stub.GetStatus(rscript_pb2.GetStatusRequest())
-    return response
+    logging.info("Attempting to get gRPC server status.")
+    try:
+        with get_rscript_runner_stub() as stub:
+            response = stub.GetStatus(rscript_pb2.GetStatusRequest())
+        logging.info("gRPC GetStatus call successful.")
+        return response
+    except grpc.RpcError as e:
+        logging.error(f"gRPC GetStatus call failed: {e.code()} - {e.details()}")
+        raise # Re-raise the gRPC error
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during gRPC GetStatus call: {e}")
+        raise # Re-raise the unexpected error
 
 def execute_script(script_content, parameters_json):
+    logging.info("Attempting to execute script via gRPC.")
     with get_rscript_runner_stub() as stub:
         request = rscript_pb2.ExecuteScriptRequest(
             script_content=script_content.encode('utf-8'),
             parameters_json=parameters_json.encode('utf-8'),
             source="rap-web"
         )
-        response = stub.ExecuteScript(request)
+        try:
+            response = stub.ExecuteScript(request)
+            logging.info("gRPC ExecuteScript call successful.")
+        except grpc.RpcError as e:
+            logging.error(f"gRPC ExecuteScript call failed: {e.code()} - {e.details()}")
+            raise # Re-raise the gRPC error
     return {
         "is_success": response.is_success,
         "output": response.output,

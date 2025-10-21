@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import csharp from 'react-syntax-highlighter/dist/esm/languages/prism/csharp';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Script } from '../../../types/scriptModel';
 import { useScripts } from '@/hooks/useScripts';
 import { useTheme } from '@/context/ThemeContext';
+
+SyntaxHighlighter.registerLanguage('csharp', csharp);
 
 interface CodeViewerProps {
   script: Script;

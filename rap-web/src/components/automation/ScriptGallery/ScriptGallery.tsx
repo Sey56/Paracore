@@ -329,7 +329,7 @@ export const ScriptGallery: React.FC = () => {
             {activeScriptSource?.type === 'workspace' ? 'Workspace' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'Script Gallery')}
           </h1>
         </div>
-        <div className="flex-grow flex justify-center items-center space-x-4">
+        <div className={`flex-grow flex justify-center items-center space-x-4 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
           {defaultCategories.map(category => (
             <div key={category.name} className="flex items-center">
               <input
@@ -338,6 +338,7 @@ export const ScriptGallery: React.FC = () => {
                 checked={selectedDefaultCategories.includes(category.name)}
                 onChange={() => handleDefaultCategoryChange(category.name)}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                disabled={!isAuthenticated}
               />
               <label htmlFor={`category-${category.name}`} className="ml-2 text-sm text-gray-900 dark:text-gray-300">
                 <FontAwesomeIcon icon={category.icon} className={`mr-1 ${category.color}`} />
@@ -346,13 +347,14 @@ export const ScriptGallery: React.FC = () => {
             </div>
           ))}
         </div>
-        <div className="flex items-center">
+        <div className={`flex items-center ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
           <input
             type="checkbox"
             id="searchAllFolders"
             checked={searchAllFolders}
             onChange={(e) => setSearchAllFolders(e.target.checked)}
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            disabled={!isAuthenticated}
           />
           <label htmlFor="searchAllFolders" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
             {activeScriptSource?.type === 'workspace' ? 'All Workspaces' : 'All Folders'}
@@ -366,7 +368,7 @@ export const ScriptGallery: React.FC = () => {
         </div>
       )}
 
-      <div className="flex items-center space-x-4 mb-6">
+      <div className={`flex items-center space-x-4 mb-6 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="flex-grow relative">
           <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
           <input
@@ -375,6 +377,7 @@ export const ScriptGallery: React.FC = () => {
             className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            disabled={!isAuthenticated}
           />
         </div>
         
@@ -383,6 +386,7 @@ export const ScriptGallery: React.FC = () => {
             className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
             onChange={(e) => setSortOrder(e.target.value)}
             value={sortOrder}
+            disabled={!isAuthenticated}
           >
             <option value="name-asc">Sort by Name (A-Z)</option>
             <option value="name-desc">Sort by Name (Z-A)</option>
@@ -454,11 +458,13 @@ export const ScriptGallery: React.FC = () => {
 
       {favoriteScripts.length === 0 && otherScripts.length === 0 && (
         <div className="text-gray-500 dark:text-gray-400 text-sm italic">
-          {searchTerm
-            ? 'No scripts match your search.'
-            : (selectedFolder 
-              ? 'No scripts found in this folder. Why not create one?' 
-              : 'Add a script folder in the sidebar to get started.')
+          {!isAuthenticated
+            ? "Sign in to load scripts"
+            : searchTerm
+              ? 'No scripts match your search.'
+              : (activeScriptSource 
+                ? 'No scripts found in this source. Why not create one?' 
+                : 'Add or select a script source in the sidebar to get started.')
           }
         </div>
       )}

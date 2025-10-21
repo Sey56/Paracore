@@ -3,11 +3,6 @@ import sys
 import os
 import socket
 
-def find_free_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('127.0.0.1', 0))
-        return s.getsockname()[1]
-
 def run_server():
     """
     Starts the Uvicorn server for the FastAPI application.
@@ -78,16 +73,13 @@ def run_server():
         app_str = "server.main:app"
         logging.info(f"Attempting to run uvicorn with app: {app_str}")
 
-        port = find_free_port() # Dynamically find a free port
-        logging.info(f"Found free port: {port}")
-
-        # Print the port to stdout in a recognizable format for the Tauri app
-        print(f"PORT_READY:{port}", flush=True)
+        port = 8000 # Hardcode the port to 8000
+        logging.info(f"Using fixed port: {port}")
 
         uvicorn.run(
             app_str,
             host="127.0.0.1",
-            port=port, # Use the dynamically found port
+            port=port, # Use the fixed port
             log_config=log_config # Use our custom logging config
         )
         

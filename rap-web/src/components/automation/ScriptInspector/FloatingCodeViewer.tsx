@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Rnd } from 'react-rnd';
-import { CodeViewer } from './CodeViewer';
+const CodeViewer = lazy(() => import('./CodeViewer').then(module => ({ default: module.CodeViewer })));
 import type { Script } from '../../../types/scriptModel';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faEdit } from '@fortawesome/free-solid-svg-icons';
@@ -85,7 +85,9 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
         </button>
       </div>
       <div className="absolute top-10 bottom-16 left-0 right-0 overflow-auto">
-        <CodeViewer script={script} />
+        <Suspense fallback={<div>Loading...</div>}>
+          <CodeViewer script={script} />
+        </Suspense>
       </div>
       <div className="absolute bottom-0 left-0 right-0 h-16 p-4 border-t border-gray-300 dark:border-gray-600 flex justify-end items-center bg-gray-200 dark:bg-gray-700">
         <button
