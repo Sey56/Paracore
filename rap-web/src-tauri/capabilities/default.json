@@ -1,0 +1,9 @@
+{
+  "$schema": "../schemas/capability.json",
+  "identifier": "default",
+  "description": "Default capabilities for the application",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

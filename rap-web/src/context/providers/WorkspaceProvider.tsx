@@ -20,10 +20,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
 
 
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => {
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<number | null>(() => {
     const storedActiveId = localStorage.getItem('rap-active-workspace-id');
-    if (storedActiveId && JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]').some((ws: Workspace) => ws.id === storedActiveId)) {
-      return storedActiveId;
+    if (storedActiveId && JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]').some((ws: Workspace) => ws.id === Number(storedActiveId))) {
+      return Number(storedActiveId);
     }
     return null;
   });
@@ -33,8 +33,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [workspaces]);
 
   useEffect(() => {
-    if (activeWorkspaceId) {
-      localStorage.setItem('rap-active-workspace-id', activeWorkspaceId);
+    if (activeWorkspaceId !== null) {
+      localStorage.setItem('rap-active-workspace-id', String(activeWorkspaceId));
     } else {
       localStorage.removeItem('rap-active-workspace-id');
     }
@@ -58,9 +58,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       if (message && message === "workspace exists in path, loading it...") {
         showNotification(message, "info");
         const newWorkspace: Workspace = {
-            id: workspace_id.toString(),
+            id: workspace_id,
             name: payload.repo_url.split('/').pop()?.replace('.git', '') || 'New Workspace',
-            path: cloned_path,
             repo_url: payload.repo_url,
         };
         setWorkspaces((prev) => {
@@ -74,9 +73,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
 
       const newWorkspace: Workspace = {
-        id: workspace_id.toString(),
+        id: workspace_id,
         name: payload.repo_url.split('/').pop()?.replace('.git', '') || 'New Workspace',
-        path: cloned_path,
         repo_url: payload.repo_url,
       };
 
@@ -95,7 +93,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [workspaces, showNotification]);
 
-  const removeWorkspace = useCallback((id: string) => {
+  const removeWorkspace = useCallback((id: number) => {
     setWorkspaces((prev) => {
       const updatedWorkspaces = prev.filter((ws) => ws.id !== id);
       if (activeWorkspaceId === id) {
@@ -109,7 +107,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     setActiveWorkspaceId(null);
   }, []);
 
-  const activeWorkspace = activeWorkspaceId
+  const activeWorkspace = activeWorkspaceId !== null
     ? workspaces.find(ws => ws.id === activeWorkspaceId) || null
     : null;
 

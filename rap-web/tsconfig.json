@@ -14,7 +14,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client"],
+    "types": ["vite/client", "@tauri-apps/api"],
 
     // ✅ Path alias setup
     "baseUrl": "./src",

@@ -192,10 +192,12 @@ def get_published_workspaces(db: Session = Depends(get_db)):
     """
     return db.query(models.Workspace).distinct().all()
 
+
+
 @router.post("/api/workspaces/clone", tags=["Workspaces"])
-async def clone_repo(req: CloneRequest, db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
+async def clone_repo(req: CloneRequest, current_user: CurrentUser = Depends(get_current_user)):
     """
-    Clones a Git repository into the specified local parent directory, or updates it if it already exists.
+    Clones a Git repository into the specified local parent directory.
     """
     try:
         repo_name = req.repo_url.split('/')[-1].replace('.git', '')
@@ -229,20 +231,8 @@ async def clone_repo(req: CloneRequest, db: Session = Depends(get_db), current_u
                 creationflags=CREATE_NO_WINDOW
             )
             message = f"Repository cloned successfully to {cloned_path}"
-
-        # After successful clone or pull, create or update the workspace in the database
-        workspace = db.query(models.Workspace).filter(models.Workspace.path == cloned_path).first()
-        if not workspace:
-            workspace = models.Workspace(
-                name=repo_name,
-                path=cloned_path
-            )
-            db.add(workspace)
-            db.commit()
-            db.refresh(workspace)
-            message += " and added to workspaces."
         
-        return {"message": message, "cloned_path": cloned_path, "workspace_id": workspace.id}
+        return {"message": message, "cloned_path": cloned_path}
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Git operation failed: {e.stderr}")
     except Exception as e:
@@ -455,32 +445,22 @@ async def delete_registered_workspace(
     logging.info(f"Registered workspace {workspace_id} deleted successfully.")
     return {}
 
-@router.delete("/api/workspaces/local/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Workspaces"])
+@router.delete("/api/workspaces/local", status_code=status.HTTP_204_NO_CONTENT, tags=["Workspaces"])
 async def delete_local_workspace(
-    workspace_id: int,
-    db: Session = Depends(get_db),
+    workspace: Workspace, # Changed to accept Workspace object from request body
     current_user: CurrentUser = Depends(get_current_user)
 ):
     """
-    Deletes a locally cloned workspace from the filesystem and the database.
+    Deletes a locally cloned workspace from the filesystem.
     """
-    logging.info(f"Attempting to delete local workspace with id: {workspace_id}")
+    logging.info(f"Attempting to delete local workspace at path: {workspace.path}")
+    logging.info(f"Received request to delete workspace: {workspace.path}")
 
-    # Find the local workspace record in the database
-    db_workspace = db.query(models.Workspace).filter(models.Workspace.id == workspace_id).first()
-
-    if not db_workspace:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local workspace record not found.")
-
-    workspace_path = db_workspace.path
+    workspace_path = workspace.path
 
     # Security check: ensure the path exists and is a directory
     if not os.path.isdir(workspace_path):
-        # The path in the DB is stale, just delete the DB record
-        db.delete(db_workspace)
-        db.commit()
-        logging.warning(f"Local workspace path '{workspace_path}' not found or not a directory. Deleting stale DB record.")
-        return # Return success as the desired state is achieved
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Local workspace path not found.")
 
     try:
         if os.name == 'nt': # For Windows, use rmdir /s /q
@@ -488,11 +468,6 @@ async def delete_local_workspace(
         else: # For other OS, use shutil.rmtree
             shutil.rmtree(workspace_path)
         logging.info(f"Successfully deleted directory: {workspace_path}")
-
-        # Delete the record from the database ONLY if filesystem deletion was successful
-        db.delete(db_workspace)
-        db.commit()
-        logging.info(f"Local workspace record {workspace_id} deleted successfully.")
 
     except OSError as e:
         logging.error(f"Error deleting directory {workspace_path}: {e}")

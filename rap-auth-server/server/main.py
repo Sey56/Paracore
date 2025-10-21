@@ -1,10 +1,7 @@
 import httpx
 from contextlib import asynccontextmanager
-from jose import jwt, JWTError
-from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
 from starlette.responses import RedirectResponse
 from urllib.parse import urlencode
 from sqlalchemy.orm import Session
@@ -18,58 +15,9 @@ from .models import User, Team, TeamMembership, Role
 from .schemas import UserOut, GoogleAuthCodeRequest, Token, TeamMembershipOut, TeamMemberOut, UpdateMemberRoleRequest, InviteUserRequest
 from sqlalchemy.orm import joinedload
 
+from .dependencies import get_current_user, CurrentUser, get_admin_for_team, oauth2_scheme, create_access_token
+
 print(f"--- DATABASE_URL BEING USED: {settings.DATABASE_URL} ---")
-
-# --- Security & Dependencies ---
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, settings.JWT_PUBLIC_KEY, algorithms=[settings.JWT_ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        raise credentials_exception
-    return user
-
-def get_admin_for_team(team_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> TeamMembership:
-    membership = db.query(TeamMembership).filter(
-        TeamMembership.team_id == team_id,
-        TeamMembership.user_id == current_user.id
-    ).first()
-
-    if not membership or membership.role != Role.admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this resource."
-        )
-    return membership
-
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.JWT_PRIVATE_KEY,
-        algorithm=settings.JWT_ALGORITHM
-    )
-    return encoded_jwt
 
 # --- App Lifecycle ---
 
@@ -102,6 +50,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from .workspace_router import router as workspace_router
+app.include_router(workspace_router)
 
 # --- API Endpoints ---
 

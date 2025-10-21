@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { RegisterWorkspaceModal } from '../common/RegisterWorkspaceModal';
 import { getWorkspaceStatus } from '@/api/workspaces';
 import { useScripts } from '@/hooks/useScripts';
-import { TrashIcon, ArrowPathIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, ArrowPathIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import { useUI } from '@/hooks/useUI';
@@ -35,12 +35,14 @@ interface WorkspaceSettingsProps {
 
 const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }) => {
   const { activeTeam, activeRole } = useAuth();
-  const { teamWorkspaces, addTeamWorkspace, removeTeamWorkspace, clearScriptsForWorkspace } = useScripts();
+  const { teamWorkspaces, addTeamWorkspace, removeTeamWorkspace, updateTeamWorkspace, clearScriptsForWorkspace } = useScripts();
   const { activeScriptSource, setActiveScriptSource } = useUI();
   const { showNotification } = useNotifications();
   const { userWorkspacePaths, removeWorkspacePath } = useUserWorkspaces();
 
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [workspaceToEdit, setWorkspaceToEdit] = useState<Workspace | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
@@ -61,27 +63,11 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
       return;
     }
 
-    // --- Validation Checks ---
-    const existingWorkspaces = teamWorkspacesWithLocalPaths;
-
-    const nameExists = existingWorkspaces.some(ws => ws.name.toLowerCase() === name.toLowerCase());
-    if (nameExists) {
-      await message(`A workspace with the name '${name}' already exists in this team. Please choose a different name.`, { title: 'Duplicate Workspace Name', type: 'error' });
-      return;
-    }
-
-    const urlExists = existingWorkspaces.some(ws => ws.repo_url.toLowerCase() === repoUrl.toLowerCase());
-    if (urlExists) {
-      await message(`A workspace with the URL '${repoUrl}' is already registered in this team.`, { title: 'Duplicate Repository URL', type: 'error' });
-      return;
-    }
-    // --- End Validation Checks ---
-
     setIsLoading(true);
     setError(null);
     try {
       const newWorkspace: Omit<Workspace, 'path'> = { // Create a Workspace object without the path property
-        id: `temp-${Date.now()}`, // Temporary ID, will be replaced by backend
+        id: 0, // Temporary ID, will be replaced by backend
         name: name,
         repo_url: repoUrl,
       };
@@ -95,7 +81,29 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     } finally {
       setIsLoading(false);
     }
-  }, [activeTeam, addTeamWorkspace, showNotification, teamWorkspacesWithLocalPaths]); // Added teamWorkspacesWithLocalPaths to dependencies
+  }, [activeTeam, addTeamWorkspace, showNotification]);
+
+  const handleUpdateSubmit = useCallback(async (name: string, repoUrl: string) => {
+    if (!activeTeam || !workspaceToEdit) {
+      showNotification('No active team or workspace selected for update.', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      await updateTeamWorkspace(activeTeam.team_id, workspaceToEdit.id, name, repoUrl);
+      showNotification(`Workspace '${name}' updated successfully.`, 'success');
+      setIsEditModalOpen(false);
+      setWorkspaceToEdit(null);
+    } catch (err) {
+      const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to update workspace.';
+      setError(errorMessage);
+      showNotification(errorMessage, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeTeam, workspaceToEdit, updateTeamWorkspace, showNotification]);
 
   const handleRemove = useCallback(async (workspaceToRemove: Workspace) => {
     if (!activeTeam) {
@@ -103,8 +111,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
       return;
     }
     const userConfirmed = await confirm(`Are you sure you want to un-register workspace '${workspaceToRemove.name}'? This will not delete the local folder.`);
-    console.log("User confirmed removal:", userConfirmed);
-    if (!userConfirmed) {
+    if (userConfirmed !== true) {
       return;
     }
     setIsLoading(true);
@@ -121,13 +128,28 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     }
   }, [activeTeam, removeTeamWorkspace, showNotification]);
 
+  const handleEditClick = useCallback((workspace: Workspace) => {
+    setWorkspaceToEdit(workspace);
+    setIsEditModalOpen(true);
+  }, []);
+
   return (
     <>
       <RegisterWorkspaceModal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
-        onRegister={handleRegisterSubmit}
+        onSubmit={handleRegisterSubmit}
       />
+      {workspaceToEdit && (
+        <RegisterWorkspaceModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSubmit={handleUpdateSubmit}
+          initialName={workspaceToEdit.name}
+          initialRepoUrl={workspaceToEdit.repo_url}
+          isEditMode={true}
+        />
+      )}
       <fieldset disabled={!isAuthenticated || !activeTeam} className="disabled:opacity-50">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Workspaces</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
@@ -164,7 +186,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
                 {teamWorkspacesWithLocalPaths.map((ws) => (
                   <li
                     key={ws.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${activeScriptSource?.type === 'workspace' && activeScriptSource.id === ws.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === ws.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
                   >
                     <div className="flex-1">
                       <p className="font-medium text-gray-900 dark:text-white">{ws.name}</p>
@@ -172,12 +194,21 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => setActiveScriptSource({ type: 'workspace', id: ws.id, path: ws.localPath!.path })}
+                        onClick={() => setActiveScriptSource({ type: 'workspace', id: String(ws.id), path: ws.localPath!.path })}
                         disabled={!ws.localPath}
-                        className={`px-3 py-1 text-sm rounded-md ${activeScriptSource?.type === 'workspace' && activeScriptSource.id === ws.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                        className={`px-3 py-1 text-sm rounded-md ${activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === ws.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        {activeScriptSource?.type === 'workspace' && activeScriptSource.id === ws.id ? 'Active' : 'Set Active'}
+                        {activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === ws.id ? 'Active' : 'Set Active'}
                       </button>
+                      {canManageWorkspaces && (
+                        <button
+                          onClick={() => handleEditClick(ws)}
+                          className="p-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md"
+                          title="Edit workspace"
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
+                      )}
                       {canManageWorkspaces && (
                         <button
                           onClick={() => handleRemove(ws)}

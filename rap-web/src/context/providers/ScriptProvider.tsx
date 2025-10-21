@@ -12,6 +12,8 @@ import { pullTeamWorkspaces as pullTeamWorkspacesApi } from '@/api/rapServerApiC
 import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
 
+import { getTeamWorkspaces, registerWorkspace, deleteRegisteredWorkspace, updateRegisteredWorkspace } from '@/api/rapAuthApiClient';
+
 interface ApiError {
   response?: {
     data?: {
@@ -77,21 +79,15 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const [teamWorkspaces, setTeamWorkspaces] = useState<Record<number, Workspace[]>>({});
 
   const fetchTeamWorkspaces = useCallback(async () => {
-    if (!user || !cloudToken || !rapServerUrl || !activeTeam) {
-      setTeamWorkspaces({}); // Clear if no active team or not authenticated
+    if (!activeTeam || !cloudToken) {
+      setTeamWorkspaces({});
       return;
     }
     try {
-      const response = await api.get(
-        `${rapServerUrl}/api/workspaces/registered/${activeTeam.team_id}`,
-        {
-          headers: { Authorization: `Bearer ${cloudToken}` },
-        }
-      );
-      console.log("fetchTeamWorkspaces - response.data:", response.data);
+      const workspaces = await getTeamWorkspaces(activeTeam.team_id, cloudToken);
       setTeamWorkspaces(prev => ({
         ...prev,
-        [activeTeam.team_id]: response.data
+        [activeTeam.team_id]: workspaces
       }));
     } catch (error) {
       console.error(`Failed to fetch registered workspaces for team ${activeTeam.team_id}:`, error);
@@ -100,11 +96,11 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         [activeTeam.team_id]: []
       }));
     }
-  }, [user, cloudToken, rapServerUrl, activeTeam, setTeamWorkspaces]);
+  }, [activeTeam, cloudToken, setTeamWorkspaces]);
 
   useEffect(() => {
     fetchTeamWorkspaces();
-  }, [fetchTeamWorkspaces, activeTeam]); // Added activeTeam to dependency array
+  }, [fetchTeamWorkspaces, activeTeam]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [favoriteScripts, setFavoriteScripts] = useState<string[]>([]);
   const [recentScripts, setRecentScripts] = useState<string[]>([]);
@@ -161,21 +157,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       setScripts([]);
     }
   }, [showNotification, setSelectedFolder]);
-
-  useEffect(() => {
-    if (activeScriptSource) {
-      if (activeScriptSource.type === 'local') {
-        setCurrentDisplayPath(activeScriptSource.path);
-        setSelectedFolder(activeScriptSource.path);
-      } else if (activeScriptSource.type === 'workspace') {
-        setCurrentDisplayPath(activeScriptSource.path);
-        setSelectedFolder(activeScriptSource.path);
-      }
-    } else {
-      setCurrentDisplayPath(null);
-      setSelectedFolder(null);
-    }
-  }, [activeScriptSource, setSelectedFolder]);
 
   useEffect(() => {
     if (currentDisplayPath) {
@@ -235,10 +216,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     if (!script || script.metadata) return;
 
     try {
-      const response = await api.post("/api/script-metadata", {
-        scriptPath: script.absolutePath,
-        type: script.type,
-      });
+      const response = await api.post("/api/script-metadata", { scriptPath: script.absolutePath, type: script.type });
 
       const metadata = response.data;
       
@@ -295,27 +273,15 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user, saveCustomScriptFolders, selectedFolder, showNotification]);
 
   const addTeamWorkspace = useCallback(async (teamId: number, workspace: Workspace): Promise<void> => {
-    if (!user || !cloudToken || !rapServerUrl) {
+    if (!cloudToken) {
       showNotification("Not authenticated.", "error");
       return;
     }
     try {
-      const response = await api.post(
-        `${rapServerUrl}/api/workspaces/register`,
-        {
-          team_id: teamId,
-          name: workspace.name,
-          repo_url: workspace.repo_url,
-        },
-        {
-          headers: { Authorization: `Bearer ${cloudToken}` },
-        }
-      );
-      const registeredWorkspace = response.data; // Backend should return the registered workspace with its ID
-
+      const registeredWorkspace = await registerWorkspace(teamId, workspace.name, workspace.repo_url, cloudToken);
       setTeamWorkspaces(prev => ({
         ...prev,
-        [teamId]: [...(prev[teamId] || []), registeredWorkspace] // Use the registeredWorkspace from backend
+        [teamId]: [...(prev[teamId] || []), registeredWorkspace]
       }));
       showNotification(`Added workspace '${registeredWorkspace.name}' to team.`, "success");
     } catch (error) {
@@ -323,24 +289,18 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
       showNotification(`Failed to add workspace: ${message}`, "error");
     }
-  }, [user, cloudToken, rapServerUrl, setTeamWorkspaces, showNotification]);
+  }, [cloudToken, setTeamWorkspaces, showNotification]);
 
-  const removeTeamWorkspace = useCallback(async (teamId: number, workspaceId: string): Promise<void> => { // workspaceId should be string here
-    if (!user || !cloudToken || !rapServerUrl) {
+  const removeTeamWorkspace = useCallback(async (teamId: number, workspaceId: number): Promise<void> => {
+    if (!cloudToken) {
       showNotification("Not authenticated.", "error");
       return;
     }
     try {
-      await api.delete(
-        `${rapServerUrl}/api/workspaces/registered/${Number(workspaceId)}`, // Convert to number for backend
-        {
-          headers: { Authorization: `Bearer ${cloudToken}` },
-        }
-      );
-
+      await deleteRegisteredWorkspace(workspaceId, cloudToken);
       setTeamWorkspaces(prev => ({
         ...prev,
-        [teamId]: (prev[teamId] || []).filter(w => w.id !== workspaceId) // w.id is string, workspaceId is string
+        [teamId]: (prev[teamId] || []).filter(w => w.id !== workspaceId)
       }));
       showNotification(`Removed workspace from team.`, "info");
     } catch (error) {
@@ -348,7 +308,26 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
       showNotification(`Failed to remove workspace: ${message}`, "error");
     }
-  }, [user, cloudToken, rapServerUrl, setTeamWorkspaces, showNotification]);
+  }, [cloudToken, setTeamWorkspaces, showNotification]);
+
+  const updateTeamWorkspace = useCallback(async (teamId: number, workspaceId: number, name: string | undefined, repoUrl: string | undefined): Promise<void> => {
+    if (!cloudToken) {
+      showNotification("Not authenticated.", "error");
+      return;
+    }
+    try {
+      const updatedWorkspace = await updateRegisteredWorkspace(workspaceId, name, repoUrl, cloudToken);
+      setTeamWorkspaces(prev => ({
+        ...prev,
+        [teamId]: (prev[teamId] || []).map(w => w.id === updatedWorkspace.id ? updatedWorkspace : w)
+      }));
+      showNotification(`Updated workspace '${updatedWorkspace.name}'.`, "success");
+    } catch (error) {
+      console.error("Failed to update workspace:", error);
+      const message = error instanceof Error ? error.message : "An unknown error occurred.";
+      showNotification(`Failed to update workspace: ${message}`, "error");
+    }
+  }, [cloudToken, setTeamWorkspaces, showNotification]);
 
   const clearScriptsForWorkspace = useCallback((workspacePath: string) => {
     if (currentDisplayPath === workspacePath) {
@@ -479,6 +458,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     removeCustomScriptFolder,
     addTeamWorkspace,
     removeTeamWorkspace,
+    updateTeamWorkspace,
     loadScriptsForFolder: loadScriptsFromPath,
     createNewScript,
     clearFavoriteScripts,
@@ -490,6 +470,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     clearScripts,
     pullAllTeamWorkspaces,
     pullWorkspace,
+    fetchTeamWorkspaces,
   };
 
   return (

@@ -58,7 +58,7 @@ export const Sidebar = () => {
   const { showNotification } = useNotifications();
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource } = useUI();
-  const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace } = useScripts();
+  const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace, fetchTeamWorkspaces } = useScripts();
   const { setSelectedScript } = useScriptExecution();
   
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -68,7 +68,7 @@ export const Sidebar = () => {
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [workspaceToRemove, setWorkspaceToRemove] = useState<Workspace | null>(null);
-  const [selectedUnclonedWorkspaceId, setSelectedUnclonedWorkspaceId] = useState<string | null>(null);
+  const [selectedUnclonedWorkspaceId, setSelectedUnclonedWorkspaceId] = useState<number | null>(null); // Changed to number
   const [isClearConfirmModalOpen, setIsClearConfirmModalOpen] = useState(false);
   const [clearActionType, setClearActionType] = useState<'favorites' | 'recents' | null>(null);
 
@@ -83,16 +83,17 @@ export const Sidebar = () => {
   }, [activeTeam, teamWorkspaces]);
 
   const { localWorkspaces, unclonedWorkspaces } = useMemo(() => {
-    const local: (Workspace & { isOrphaned?: boolean })[] = [];
+    const local: (Workspace & { isOrphaned?: boolean; path?: string })[] = []; // Added path to local Workspace type
     const uncloned: Workspace[] = [];
-    const clonedIds = new Set(Object.keys(userWorkspacePaths));
+    const clonedIds = new Set(Object.keys(userWorkspacePaths).map(Number)); // Convert keys to numbers
 
     // Get a set of all registered repo URLs for the active team
     const registeredRepoUrls = new Set(currentTeamWorkspaces.map(ws => ws.repo_url.toLowerCase()));
 
     // Create the list of local workspaces from userWorkspacePaths
-    for (const id in userWorkspacePaths) {
-      const localPathInfo = userWorkspacePaths[id];
+    for (const idStr in userWorkspacePaths) {
+      const id = Number(idStr); // Convert id to number
+      const localPathInfo = userWorkspacePaths[idStr];
       if (localPathInfo) {
         const repoName = getFolderNameFromPath(localPathInfo.path);
         
@@ -102,9 +103,9 @@ export const Sidebar = () => {
         local.push({
           id: id,
           name: repoName,
-          repo_url: localPathInfo.repo_url, // Use the stored repo_url
-          path: localPathInfo.path,
-          localId: localPathInfo.localId,
+          repo_url: localPathInfo.repo_url,
+          path: localPathInfo.path, // Add path here
+          // localId: localPathInfo.localId, // Commented out for now, will address in useUserWorkspaces.ts
           isOrphaned: isOrphaned, // Add orphaned status
         });
       }
@@ -125,7 +126,7 @@ export const Sidebar = () => {
 
 
   const handleCloneClick = () => {
-    const workspaceToClone = unclonedWorkspaces.find(ws => selectedUnclonedWorkspaceId !== null && String(ws.id) === selectedUnclonedWorkspaceId);
+    const workspaceToClone = unclonedWorkspaces.find(ws => selectedUnclonedWorkspaceId !== null && ws.id === selectedUnclonedWorkspaceId);
     if (!workspaceToClone) {
       showNotification("Please select a workspace to clone.", "info");
       return;
@@ -144,8 +145,8 @@ export const Sidebar = () => {
         local_path: localPath
       });
       
-      setWorkspacePath(workspaceToSetup.id, newWorkspaceResponse.cloned_path, Number(newWorkspaceResponse.workspace_id), workspaceToSetup.repo_url);
-      setActiveScriptSource({ type: 'workspace', id: workspaceToSetup.id, path: newWorkspaceResponse.cloned_path });
+      setWorkspacePath(String(workspaceToSetup.id), newWorkspaceResponse.cloned_path, workspaceToSetup.repo_url); // Convert id to string
+      setActiveScriptSource({ type: 'workspace', id: String(workspaceToSetup.id), path: newWorkspaceResponse.cloned_path }); // Convert id to string
       showNotification(`Workspace '${workspaceToSetup.name}' set up successfully!`, "success");
     } catch (err) {
       const apiError = err as ApiError;
@@ -168,32 +169,36 @@ export const Sidebar = () => {
   };
 
   const handleOpenRemoveModal = (workspace: Workspace) => {
-    console.log("handleOpenRemoveModal - workspace ID:", workspace.id);
+    console.log("Step 2: handleOpenRemoveModal triggered for workspace:", workspace);
     setWorkspaceToRemove(workspace);
     setIsRemoveModalOpen(true);
   };
 
   const handleRemoveLocalConfirm = async () => {
     if (!workspaceToRemove) return;
-    console.log("handleRemoveLocalConfirm - workspaceToRemove ID:", workspaceToRemove.id);
-
-    if (!workspaceToRemove || !workspaceToRemove.localId) {
-      showNotification("Could not find local workspace information to remove.", "error");
-      return;
-    }
+    console.log("Step 3: handleRemoveLocalConfirm triggered for:", workspaceToRemove);
 
     try {
-      await deleteLocalWorkspace(workspaceToRemove.localId);
-      removeWorkspacePath(workspaceToRemove.id);
-      if (activeScriptSource?.type === 'workspace' && activeScriptSource.id === workspaceToRemove.id) {
+      console.log("Step 4: Calling removeWorkspacePath with ID:", workspaceToRemove.id);
+      await removeWorkspacePath(String(workspaceToRemove.id)); // Convert id to string
+      
+      if (activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === workspaceToRemove.id) { // Convert activeScriptSource.id to number
         setActiveScriptSource(null);
-        clearScriptsForWorkspace(workspaceToRemove.path);
+        const localPath = userWorkspacePaths[workspaceToRemove.id]?.path; // Get path from userWorkspacePaths
+        if (localPath) {
+          clearScriptsForWorkspace(localPath);
+        }
       }
+
+      console.log("Step 5: Success! Showing notification.");
       showNotification(`Successfully removed local workspace '${workspaceToRemove.name}'`, "success");
       setIsRemoveModalOpen(false);
       setWorkspaceToRemove(null);
     } catch (err) {
-      showNotification(`Failed to remove local workspace.`, "error");
+      console.log("Step 5: Failure! Showing error notification.", err);
+      const apiError = err as ApiError;
+      const errorMessage = apiError.response?.data?.detail || "Failed to remove local workspace.";
+      showNotification(errorMessage, "error");
       console.error(err);
     }
   };
@@ -264,7 +269,7 @@ export const Sidebar = () => {
         <RegisterWorkspaceModal
           isOpen={isRegisterModalOpen}
           onClose={() => setIsRegisterModalOpen(false)}
-          onRegister={handleRegisterSubmit}
+          onSubmit={handleRegisterSubmit} // Changed to onSubmit
         />
 
         {workspaceToRemove && (
@@ -321,50 +326,59 @@ export const Sidebar = () => {
 
         {/* Workspaces */}
             <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center space-x-4">
-              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-                <FontAwesomeIcon icon={faCodeBranch} className="mr-2 text-green-500" />
-                Local Workspaces
-              </h3>
-              {activeRole === Role.User && (
+              <div className="flex items-center space-x-4">
+                <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+                  <FontAwesomeIcon icon={faCodeBranch} className="mr-2 text-green-500" />
+                  Local Workspaces
+                </h3>
+                {activeRole === Role.User && (
+                    <button
+                        onClick={() => {
+                            if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
+                                pullWorkspace(activeScriptSource.path);
+                            }
+                        }}
+                        disabled={activeScriptSource?.type !== 'workspace'}
+                        className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
+                        title="Update Workspace"
+                    >
+                        <FontAwesomeIcon icon={faSync} />
+                    </button>
+                )}
+              </div>
+              <div className="flex items-center">
                   <button
+                      className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
                       onClick={() => {
-                          if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
-                              pullWorkspace(activeScriptSource.path);
+                          console.log("Step 1: Remove button clicked. Active source:", activeScriptSource);
+                          if (activeScriptSource?.type === 'workspace' && activeScriptSource.id && userWorkspacePaths[Number(activeScriptSource.id)]?.path) { // Check for path existence
+                              const wsToRemove: Workspace & { path?: string } = {
+                                  id: Number(activeScriptSource.id),
+                                  name: getFolderNameFromPath(userWorkspacePaths[Number(activeScriptSource.id)]!.path),
+                                  repo_url: userWorkspacePaths[Number(activeScriptSource.id)]?.repo_url || '',
+                                  path: userWorkspacePaths[Number(activeScriptSource.id)]!.path // Add path here
+                              };
+                              handleOpenRemoveModal(wsToRemove);
+                          } else {
+                              console.error("Remove button clicked, but active source is not a valid workspace.", activeScriptSource);
                           }
                       }}
                       disabled={activeScriptSource?.type !== 'workspace'}
-                      className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
-                      title="Update Workspace"
+                      title={`Remove local workspace`}
                   >
-                      <FontAwesomeIcon icon={faSync} />
+                      <FontAwesomeIcon icon={faTrash} className="text-xs" />
                   </button>
-              )}
+              </div>
             </div>
-            <div className="flex items-center">
-                <button
-                    className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
-                    onClick={() => {
-                                        if (activeScriptSource?.type === 'workspace') {
-                                            const wsToRemove = localWorkspaces.find(ws => ws.id === activeScriptSource.id);
-                                            if (wsToRemove) handleOpenRemoveModal(wsToRemove);
-                                        }
-                                    }}                    disabled={activeScriptSource?.type !== 'workspace'}
-                    title={`Remove local workspace`}
-                >
-                    <FontAwesomeIcon icon={faTrash} className="text-xs" />
-                </button>
-            </div>
-          </div>
             <div className="relative">
               <select
-                value={activeScriptSource?.type === 'workspace' ? activeScriptSource.id : ''}
+                value={activeScriptSource?.type === 'workspace' ? String(activeScriptSource.id) : ''} // Convert to string for value
                 onChange={(e) => {
-                  const selectedId = e.target.value;
+                  const selectedId = Number(e.target.value); // Convert to number
                   const workspace = localWorkspaces.find(ws => ws.id === selectedId);
                   const localPath = userWorkspacePaths[selectedId]?.path;                  
                   if (workspace && localPath) {
-                    setActiveScriptSource({ type: 'workspace', id: selectedId, path: localPath, });
+                    setActiveScriptSource({ type: 'workspace', id: String(selectedId), path: localPath, }); // Convert to string
                   }
                 }}
                 className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
@@ -530,11 +544,20 @@ export const Sidebar = () => {
 
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-                <FontAwesomeIcon icon={faGlobe} className="mr-2 text-red-500" />
-                Registered Workspaces
-              </h3>
-              {selectedUnclonedWorkspaceId && !userWorkspacePaths[selectedUnclonedWorkspaceId] && (
+              <div className="flex items-center space-x-4">
+                <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+                  <FontAwesomeIcon icon={faGlobe} className="mr-2 text-red-500" />
+                  Registered Workspaces
+                </h3>
+                <button
+                  onClick={() => fetchTeamWorkspaces()} // Add this button
+                  className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
+                  title="Refresh Registered Workspaces"
+                >
+                  <FontAwesomeIcon icon={faSync} />
+                </button>
+              </div>
+              {selectedUnclonedWorkspaceId !== null && !userWorkspacePaths[selectedUnclonedWorkspaceId] && (
                 <button
                   className="text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded"
                   onClick={handleCloneClick}
@@ -546,7 +569,7 @@ export const Sidebar = () => {
             <div className="relative">
               <select
                 value={selectedUnclonedWorkspaceId ?? ''}
-                onChange={(e) => setSelectedUnclonedWorkspaceId(e.target.value === '' ? null : e.target.value)}
+                onChange={(e) => setSelectedUnclonedWorkspaceId(e.target.value === '' ? null : Number(e.target.value))} // Convert to number
                 className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
               >
                 <option value="" disabled>Select to clone...</option>

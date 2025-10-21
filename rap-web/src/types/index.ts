@@ -2,10 +2,9 @@ export * from './common';
 export * from './scriptModel';
 
 export interface Workspace {
-  id: string;
+  id: number;
   name: string;
   repo_url: string;
-  path: string;
   localId?: number;
   isOrphaned?: boolean;
 }

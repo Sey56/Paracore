@@ -1,0 +1,35 @@
+[package]
+name = "app"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+license = ""
+repository = ""
+default-run = "app"
+edition = "2021"
+rust-version = "1.60"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.5.1", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+log4rs = "1.2"
+tauri = { version = "1.5.4", features = [ "shell-execute", "fs-all", "os-all", "window-hide", "process-exit", "window-maximize", "path-all", "window-unmaximize", "window-minimize", "window-close", "dialog-all", "notification-all", "process-relaunch", "http-all", "window-unminimize", "window-start-dragging", "shell-open", "window-show"] }
+tokio = { version = "1.x", features = ["full"] }
+url = "2.x"
+rand = "0.8"
+tiny_http = "0.12"
+webbrowser = "0.8"
+pyo3 = { version = "0.21.2", features = ["auto-initialize"] }
+
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
+# If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `build` modes.
+# DO NOT REMOVE!!
+custom-protocol = [ "tauri/custom-protocol" ]

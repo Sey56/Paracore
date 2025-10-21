@@ -7,8 +7,8 @@ interface WorkspaceContextProps {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   cloneAndAddWorkspace: (payload: CloneWorkspacePayload) => Promise<void>;
-  removeWorkspace: (id: string) => void;
-  setActiveWorkspaceId: (id: string | null) => void;
+  removeWorkspace: (id: number) => void;
+  setActiveWorkspaceId: (id: number | null) => void;
   clearActiveWorkspace: () => void;
 }
 

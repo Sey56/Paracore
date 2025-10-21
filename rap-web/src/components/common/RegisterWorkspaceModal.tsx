@@ -7,26 +7,37 @@ import { useNotifications } from '@/hooks/useNotifications';
 interface RegisterWorkspaceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onRegister: (name: string, repoUrl: string) => Promise<void>;
+  onSubmit: (name: string, repoUrl: string) => Promise<void>;
+  initialName?: string;
+  initialRepoUrl?: string;
+  isEditMode?: boolean;
 }
 
 export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
   isOpen,
   onClose,
-  onRegister,
+  onSubmit,
+  initialName,
+  initialRepoUrl,
+  isEditMode = false,
 }) => {
-  const [name, setName] = useState('');
-  const [repoUrl, setRepoUrl] = useState('');
+  const [name, setName] = useState(initialName || '');
+  const [repoUrl, setRepoUrl] = useState(initialRepoUrl || '');
   const [isRegistering, setIsRegistering] = useState(false);
   const { showNotification } = useNotifications();
 
   useEffect(() => {
     if (isOpen) {
-      setName('');
-      setRepoUrl('');
+      if (isEditMode) {
+        setName(initialName || '');
+        setRepoUrl(initialRepoUrl || '');
+      } else {
+        setName('');
+        setRepoUrl('');
+      }
       setIsRegistering(false);
     }
-  }, [isOpen]);
+  }, [isOpen, isEditMode, initialName, initialRepoUrl]);
 
   const handleSubmit = async () => {
     if (!name || !repoUrl) {
@@ -45,10 +56,10 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
 
     setIsRegistering(true);
     try {
-      await onRegister(name, repoUrl);
+      await onSubmit(name, repoUrl);
       onClose();
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error("Submission failed:", error);
     } finally {
       setIsRegistering(false);
     }
@@ -75,7 +86,7 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
                   as="h3"
                   className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
                 >
-                  Register New Workspace for Team
+                  {isEditMode ? 'Edit Workspace' : 'Register New Workspace for Team'}
                 </Dialog.Title>
                  <button
                     onClick={onClose}
@@ -122,7 +133,7 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
                     onClick={handleSubmit}
                     disabled={!name || !repoUrl || isRegistering}
                   >
-                    {isRegistering ? 'Registering...' : 'Register'}
+                    {isRegistering ? (isEditMode ? 'Updating...' : 'Registering...') : (isEditMode ? 'Update' : 'Register')}
                   </button>
                 </div>
               </Dialog.Panel>

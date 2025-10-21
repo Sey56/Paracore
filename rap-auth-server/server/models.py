@@ -32,6 +32,7 @@ class Team(Base):
 
     owner = relationship("User")
     members = relationship("TeamMembership", back_populates="team")
+    workspaces = relationship("Workspace", back_populates="team")
 
 
 class TeamMembership(Base):
@@ -43,3 +44,13 @@ class TeamMembership(Base):
 
     user = relationship("User", back_populates="memberships")
     team = relationship("Team", back_populates="members")
+
+class Workspace(Base):
+    __tablename__ = "workspaces"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    repo_url = Column(String, nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+
+    team = relationship("Team", back_populates="workspaces")

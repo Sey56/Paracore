@@ -347,7 +347,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     if (activeScriptSource?.type === 'local') {
       sourceFolder = getFolderNameFromPath(activeScriptSource.path);
     } else if (activeScriptSource?.type === 'workspace') {
-      const workspace = currentTeamWorkspaces.find((ws: Workspace) => ws.id === activeScriptSource.id);
+      const workspace = currentTeamWorkspaces.find((ws: Workspace) => ws.id === Number(activeScriptSource.id));
       if (workspace) {
         sourceWorkspace = `${workspace.name}${workspace.isOrphaned ? ' (orphaned)' : ''}:${workspace.repo_url}`;
       }

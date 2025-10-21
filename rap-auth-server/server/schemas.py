@@ -84,3 +84,22 @@ class GoogleToken(BaseModel):
 class GoogleAuthCodeRequest(BaseModel):
     code: str
     redirect_uri: str
+
+# Workspace Schemas
+class WorkspaceBase(BaseModel):
+    name: str
+    repo_url: str
+
+class WorkspaceCreate(WorkspaceBase):
+    pass
+
+class WorkspaceUpdate(WorkspaceBase):
+    name: str | None = None
+    repo_url: str | None = None
+
+class Workspace(WorkspaceBase):
+    id: int
+    team_id: int
+
+    class Config:
+        from_attributes = True

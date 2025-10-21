@@ -1,7 +1,7 @@
 import React, { useState, useEffect, ReactNode, useCallback } from 'react';
 import axios from 'axios';
 import { AuthContext, User, TeamMembership, Role } from '../authTypes';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api';
 import { syncUserProfile, UserProfileSyncPayload } from '@/api/workspaces'; // Import syncUserProfile and its payload
 import { TeamSelectionModal } from '@/components/common/TeamSelectionModal'; // Import TeamSelectionModal
 

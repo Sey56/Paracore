@@ -19,7 +19,8 @@ export interface ScriptContextProps {
   addCustomScriptFolder: (folderPath: string) => Promise<void>;
   removeCustomScriptFolder: (folderPath: string) => void;
   addTeamWorkspace: (teamId: number, workspace: Workspace) => void; // New
-  removeTeamWorkspace: (teamId: number, workspaceId: string) => void; // New
+  updateTeamWorkspace: (teamId: number, workspaceId: number, name: string | undefined, repoUrl: string | undefined) => void; // New
+  removeTeamWorkspace: (teamId: number, workspaceId: number) => void; // New
   clearScripts: () => void;
   clearScriptsForWorkspace: (workspacePath: string) => void;
   loadScriptsForFolder: (folderPath: string) => Promise<void>;
@@ -36,6 +37,7 @@ export interface ScriptContextProps {
   setCombinedScriptContent: React.Dispatch<React.SetStateAction<string | null>>; // Keep if still needed
   pullAllTeamWorkspaces: () => Promise<void>; // New: Function to pull all team workspaces
   pullWorkspace: (workspacePath: string) => Promise<void>;
+  fetchTeamWorkspaces: () => Promise<void>; // New: Function to fetch team workspaces
 }
 
 export const ScriptContext = createContext<ScriptContextProps | undefined>(undefined);

@@ -12,7 +12,7 @@ export interface CloneWorkspacePayload {
 export interface CloneWorkspaceResponse {
   message: string;
   cloned_path: string;
-  workspace_id: string;
+  workspace_id: number;
 }
 
 
@@ -219,12 +219,12 @@ export const registerWorkspace = async (payload: RegisterWorkspacePayload): Prom
 };
 
 /**
- * Calls the backend to delete a local workspace clone.
- * @param workspaceId - The ID of the workspace to delete from the local database.
+ * Calls the backend to delete a local workspace clone from the filesystem.
+ * @param workspacePath - The absolute path of the workspace to delete.
  */
-export const deleteLocalWorkspace = async (workspaceId: number): Promise<void> => {
+export const deleteLocalWorkspace = async (workspacePath: string): Promise<void> => {
   try {
-    await api.delete(`/api/workspaces/local/${workspaceId}`);
+    await api.delete('/api/workspaces/local', { data: { path: workspacePath } });
   } catch (error) {
     console.error("Failed to delete local workspace:", error);
     throw error;
