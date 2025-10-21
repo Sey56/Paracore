@@ -47,6 +47,7 @@ export const getFolderNameFromPath = (path: string) => {
 
 interface ApiError {
   response?: {
+    status?: number;
     data?: {
       detail?: string;
     };
@@ -58,7 +59,7 @@ export const Sidebar = () => {
   const { showNotification } = useNotifications();
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource } = useUI();
-  const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace, fetchTeamWorkspaces } = useScripts();
+  const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace, fetchTeamWorkspaces, loadScriptsForFolder } = useScripts();
   const { setSelectedScript } = useScriptExecution();
   
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);

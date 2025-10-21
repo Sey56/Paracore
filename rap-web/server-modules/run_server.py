@@ -1,6 +1,12 @@
 import uvicorn
 import sys
 import os
+import socket
+
+def find_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
 
 def run_server():
     """
@@ -69,15 +75,19 @@ def run_server():
         logging.info(f"RAP_DATABASE_PATH: {os.environ.get('RAP_DATABASE_PATH')}")
 
         # --- Start Uvicorn Server ---
-        # By passing the app as a string 'package.module:variable', we let uvicorn
-        # handle the import, which is more robust and mirrors the command-line behavior.
-        # This is the correct way to reference your app from this script's location.
         app_str = "server.main:app"
         logging.info(f"Attempting to run uvicorn with app: {app_str}")
+
+        port = find_free_port() # Dynamically find a free port
+        logging.info(f"Found free port: {port}")
+
+        # Print the port to stdout in a recognizable format for the Tauri app
+        print(f"PORT_READY:{port}", flush=True)
+
         uvicorn.run(
             app_str,
             host="127.0.0.1",
-            port=8000,
+            port=port, # Use the dynamically found port
             log_config=log_config # Use our custom logging config
         )
         
