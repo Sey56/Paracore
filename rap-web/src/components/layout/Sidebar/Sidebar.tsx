@@ -148,12 +148,26 @@ export const Sidebar = () => {
       setWorkspacePath(String(workspaceToSetup.id), newWorkspaceResponse.cloned_path, workspaceToSetup.repo_url); // Convert id to string
       setActiveScriptSource({ type: 'workspace', id: String(workspaceToSetup.id), path: newWorkspaceResponse.cloned_path }); // Convert id to string
       showNotification(`Workspace '${workspaceToSetup.name}' set up successfully!`, "success");
+
+      // Explicitly load scripts for the newly cloned workspace
+      loadScriptsForFolder(newWorkspaceResponse.cloned_path);
+
+      // Check for a specific message from the backend that might indicate a non-critical success
+      if (newWorkspaceResponse.message && newWorkspaceResponse.message.includes("workspace exists in path")) {
+        showNotification(newWorkspaceResponse.message, "info");
+      }
+
     } catch (err) {
       const apiError = err as ApiError;
       const errorMessage = apiError.response?.data?.detail || "Failed to set up workspace.";
-      showNotification(errorMessage, "error");
+      
+      if (apiError.response && apiError.response.status === 409 && errorMessage.includes("workspace exists in path")) {
+        showNotification(errorMessage, "info");
+      } else {
+        showNotification(errorMessage, "error");
+      }
       console.error(err);
-      throw err; // Re-throw to keep modal open on error
+      // Removed: throw err; // No longer re-throw to keep modal open on error
     }
   };
 
@@ -181,6 +195,7 @@ export const Sidebar = () => {
     try {
       console.log("Step 4: Calling removeWorkspacePath with ID:", workspaceToRemove.id);
       await removeWorkspacePath(String(workspaceToRemove.id)); // Convert id to string
+      console.log("Step 4.5: removeWorkspacePath completed for ID:", workspaceToRemove.id);
       
       if (activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === workspaceToRemove.id) { // Convert activeScriptSource.id to number
         setActiveScriptSource(null);
@@ -573,7 +588,7 @@ export const Sidebar = () => {
                 className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
               >
                 <option value="" disabled>Select to clone...</option>
-                {unclonedWorkspaces.map((workspace) => (
+                {currentTeamWorkspaces.map((workspace) => (
                   <option key={workspace.id} value={workspace.id}>
                     {workspace.name}
                   </option>

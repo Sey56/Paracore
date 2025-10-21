@@ -79,6 +79,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const [teamWorkspaces, setTeamWorkspaces] = useState<Record<number, Workspace[]>>({});
 
   const fetchTeamWorkspaces = useCallback(async () => {
+    console.log("[ScriptProvider] fetchTeamWorkspaces called.");
     if (!activeTeam || !cloudToken) {
       setTeamWorkspaces({});
       return;
@@ -159,12 +160,25 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   }, [showNotification, setSelectedFolder]);
 
   useEffect(() => {
-    if (currentDisplayPath) {
-      loadScriptsFromPath(currentDisplayPath);
+    let path_to_load: string | null = null;
+
+    if (activeScriptSource) {
+      if (activeScriptSource.type === 'local') {
+        path_to_load = activeScriptSource.path;
+      } else if (activeScriptSource.type === 'workspace') {
+        // Get the local path from userWorkspacePaths using the workspace ID
+        path_to_load = userWorkspacePaths[Number(activeScriptSource.id)]?.path;
+      }
+    }
+
+    if (path_to_load) {
+      loadScriptsFromPath(path_to_load);
+      setSelectedFolder(path_to_load); // Keep setSelectedFolder for UI consistency
     } else {
       setScripts([]);
+      setSelectedFolder(null);
     }
-  }, [currentDisplayPath, loadScriptsFromPath]);
+  }, [activeScriptSource, loadScriptsFromPath, setSelectedFolder, userWorkspacePaths, showNotification]);
 
   const fetchAllScripts = useCallback(async () => {
     let newAllScripts: Script[] = [];
@@ -286,12 +300,17 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       showNotification(`Added workspace '${registeredWorkspace.name}' to team.`, "success");
     } catch (error) {
       console.error("Failed to register workspace:", error);
-      const message = error instanceof Error ? error.message : "An unknown error occurred.";
-      showNotification(`Failed to add workspace: ${message}`, "error");
+      if (isAxiosErrorWithResponseData(error) && error.response.status === 409) {
+        showNotification(error.response.data.detail, "warning");
+      } else {
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        showNotification(`Failed to add workspace: ${message}`, "error");
+      }
     }
   }, [cloudToken, setTeamWorkspaces, showNotification]);
 
   const removeTeamWorkspace = useCallback(async (teamId: number, workspaceId: number): Promise<void> => {
+    console.log(`[ScriptProvider] Attempting to remove registered workspace: teamId=${teamId}, workspaceId=${workspaceId}`);
     if (!cloudToken) {
       showNotification("Not authenticated.", "error");
       return;
