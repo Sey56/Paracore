@@ -1,102 +1,95 @@
 {
-    "$schema":  "../node_modules/@tauri-apps/cli/schema.json",
-    "package":  {
-                    "productName":  "RAP",
-                    "version":  "1.0.0"
-                },
-    "build":  {
-                  "beforeBuildCommand":  "npm run build",
-                  "beforeDevCommand":  "npm run dev",
-                  "devPath":  "http://localhost:5173"
-              },
-    "tauri":  {
-                  "bundle":  {
-                                 "active":  true,
-                                 "publisher":  "Paras Codarch",
-                                 "targets":  "all",
-                                 "identifier":  "rap-data",
-                                 "icon":  [
-                                              "icons/rap-icon-16.png",
-                                              "icons/rap-icon-32.png",
-                                              "icons/rap-icon-64.png",
-                                              "icons/rap-icon-128.png",
-                                              "icons/rap-icon-256.png",
-                                              "icons/rap-icon-512.png",
-                                              "icons/rap-icon.ico"
-                                          ],
-                                 "resources":  [
-                                                   "../server-modules"
-                                               ]
-                             },
-                  "windows":  [
-                                  {
-                                      "title":  "RAP",
-                                      "width":  800,
-                                      "height":  600,
-                                      "resizable":  true,
-                                      "fullscreen":  false
-                                  }
-                              ],
-                  "security":  {
-                                   "csp":  null
-                               },
-                  "allowlist":  {
-                                    "all":  false,
-                                    "shell":  {
-                                                  "all":  false,
-                                                  "open":  true,
-                                                  "execute":  true,
-                                                  "scope":  [
-
-                                                            ]
-                                              },
-                                    "fs":  {
-                                               "all":  true,
-                                               "scope":  [
-                                                             "$APPDATA/*",
-                                                             "$APPDATA/com.tauri.dev/*"
-                                                         ]
-                                           },
-                                    "path":  {
-                                                 "all":  true
-                                             },
-                                    "notification":  {
-                                                         "all":  true
-                                                     },
-                                    "dialog":  {
-                                                   "all":  true
-                                               },
-                                    "process":  {
-                                                    "all":  false,
-                                                    "exit":  true,
-                                                    "relaunch":  true
-                                                },
-                                    "window":  {
-                                                   "all":  false,
-                                                   "close":  true,
-                                                   "hide":  true,
-                                                   "show":  true,
-                                                   "maximize":  true,
-                                                   "minimize":  true,
-                                                   "unmaximize":  true,
-                                                   "unminimize":  true,
-                                                   "startDragging":  true
-                                               },
-                                    "http":  {
-                                                 "all":  true
-                                             },
-                                    "os":  {
-                                               "all":  true
-                                           }
-                                }
-              }
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "package": {
+    "productName": "RAP",
+    "version": "1.0.0"
+  },
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devPath": "http://localhost:5173"
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "publisher": "Paras Codarch",
+      "targets": "all",
+      "identifier": "rap-data",
+      "icon": [
+        "icons/rap-icon-16.png",
+        "icons/rap-icon-32.png",
+        "icons/rap-icon-64.png",
+        "icons/rap-icon-128.png",
+        "icons/rap-icon-256.png",
+        "icons/rap-icon-512.png",
+        "icons/rap-icon.ico"
+      ],
+      "resources": [],
+      "externalBin": [
+        "external/bootstrap"
+      ]
+    },
+    "windows": [
+      {
+        "title": "RAP",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true,
+        "execute": true,
+        "scope": []
+      },
+      "fs": {
+        "all": true,
+        "scope": [
+          "$APPDATA/*",
+          "$APPDATA/com.tauri.dev/*"
+        ]
+      },
+      "path": {
+        "all": true
+      },
+      "notification": {
+        "all": true
+      },
+      "dialog": {
+        "all": true
+      },
+      "process": {
+        "all": false,
+        "exit": true,
+        "relaunch": true
+      },
+      "window": {
+        "all": false,
+        "close": true,
+        "hide": true,
+        "show": true,
+        "maximize": true,
+        "minimize": true,
+        "unmaximize": true,
+        "unminimize": true,
+        "startDragging": true
+      },
+      "http": {
+        "all": true
+      },
+      "os": {
+        "all": true
+      }
+    }
+  }
 }
-
-
-
-
-
-
 
 
 

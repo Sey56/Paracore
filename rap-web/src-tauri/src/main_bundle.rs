@@ -2,21 +2,23 @@ use tauri::{
     AppHandle, Manager, State
 };
 use log::{error, info};
-use std::fs::{self, File};
-use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::{collections::HashMap, fs};
+use std::sync::{Mutex, MutexGuard};
+use std::time::Duration;
 use tokio::sync::oneshot;
 use url::{form_urlencoded, Url};
 use rand::Rng;
 use tiny_http::{Response, Server};
+
+mod process_manager;
+use process_manager::ManagedProcess;
 
 
 // Google OAuth client ID for desktop app
 const GOOGLE_CLIENT_ID: &str = "367583834715-rlm1en39oh0sj4dq4qhtaks6j23u5q6d.apps.googleusercontent.com";
 
 struct AppState {
-    py_process: Mutex<Option<Child>>,
+    py_process: Mutex<Option<ManagedProcess>>,
     server_port: Mutex<Option<u16>>,
 }
 
@@ -82,90 +84,67 @@ async fn google_oauth_login(_app_handle: tauri::AppHandle) -> Result<(String, St
 
 #[tauri::command]
 fn launch_main_app(handle: AppHandle, state: State<AppState>) -> Result<(), String> {
-    info!("Attempting to launch Python sidecar process...");
+    info!("Attempting to launch Python server process...");
     let mut py_process_guard = state.py_process.lock().unwrap();
     if py_process_guard.is_some() {
         return Ok(());
     }
 
-    let resource_path = handle
-        .path_resolver()
-        .resource_dir()
-        .ok_or_else(|| "Failed to resolve resource dir".to_string())?;
+    let data_dir = handle.path_resolver().app_data_dir().unwrap().join("data");
+    fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create data directory: {}", e))?;
+    let db_path = data_dir.join("rap_local.db");
 
-    info!("Tauri resource directory found at: {:?}", resource_path);
+    let child = if cfg!(feature = "bundle-server") {
+        // --- Release Mode: Launch Nuitka executable from resources ---
+        info!("Attempting to spawn Nuitka sidecar executable...");
+        let mut envs = HashMap::new();
+        envs.insert("RAP_DATABASE_PATH".to_string(), db_path.to_string_lossy().to_string());
 
-    // On Windows, the MSI installer places bundled resources relative to the executable.
-    // A more robust way to find them is to start from the current executable's path.
-    let exe_path = std::env::current_exe()
-        .map_err(|e| format!("Failed to get current executable path: {}", e))?;
-    info!("Executable path: {:?}", exe_path);
-
-    // The executable is inside the installation dir (e.g., C:\Program Files\RAP).
-    // The server-modules are bundled inside `_up_`.
-    let server_modules_path = if let Some(parent) = exe_path.parent() {
-        parent.join("_up_").join("server-modules")
+        let (mut _rx, child) = tauri::api::process::Command::new_sidecar("bootstrap")
+            .expect("failed to create `bootstrap` sidecar command")
+            .envs(envs)
+            .spawn()
+            .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
+        ManagedProcess::Tauri(child)
     } else {
-        // Fallback for safety, though it should not be reached in a normal installation.
-        resource_path.join("_up_").join("server-modules")
+        // --- Development Mode: Launch embedded Python server ---
+        let resource_path = handle
+            .path_resolver()
+            .resource_dir()
+            .ok_or_else(|| "Failed to resolve resource dir".to_string())?;
+
+        let server_modules_path = resource_path.join("server-modules");
+        let python_exe_path = server_modules_path.join("python.exe");
+
+        if !python_exe_path.exists() {
+            let err_msg = format!("python.exe not found at: {:?}", python_exe_path);
+            error!("{}", err_msg);
+            return Err(err_msg);
+        }
+
+        let mut command = std::process::Command::new(python_exe_path);
+        command.current_dir(&server_modules_path);
+        command.arg("run_server.py");
+        command.env("RAP_DATABASE_PATH", db_path);
+
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+
+        let child = command
+            .spawn()
+            .map_err(|e| format!("Failed to spawn Python process: {}", e))?;
+        ManagedProcess::Std(child)
     };
 
-    let python_exe_path = server_modules_path.join("python.exe");
-
-    if !python_exe_path.exists() {
-        let err_msg = format!("python.exe not found at: {:?}", python_exe_path);
-        error!("{}", err_msg);
-        return Err(err_msg);
-    }
-    info!("Python executable found at: {:?}", python_exe_path);
-
-    // --- Setup Logging ---
-    let log_dir = handle.path_resolver().app_data_dir().unwrap().join("rap-data").join("logs");
-    fs::create_dir_all(&log_dir).map_err(|e| format!("Failed to create log directory: {}", e))?;
-    let log_file_path = log_dir.join("server.log");
-    let log_file = File::create(&log_file_path).map_err(|e| format!("Failed to create log file: {}", e))?;
-    info!("Python server log will be written to: {:?}", log_file_path);
-    
-    // Clone the file handle for stderr
-    let _stderr_log_file = log_file.try_clone().map_err(|e| format!("Failed to clone log file handle: {}", e))?;
-
-
-    let mut command = Command::new(python_exe_path);
-    command.current_dir(&server_modules_path);
-    command.arg("run_server.py");
-
-    // This configuration ensures the Python process runs headlessly
-    // without spawning an extra console window in release builds.
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    command.creation_flags(CREATE_NO_WINDOW)
-           .stdout(Stdio::null())
-           .stderr(Stdio::null());
-
-    info!("Spawning Python process...");
-    let child = command
-        .spawn()
-        .map_err(|e| {
-            let err_msg = format!("Failed to spawn Python process: {}", e);
-            error!("{}", err_msg);
-            err_msg
-        })?;
-    
-    // Store the child process immediately
     *py_process_guard = Some(child);
 
-    // Hardcode the port to 8000
-    let port = 8000;
-    *state.server_port.lock().unwrap() = Some(port); // Store the port in AppState
-    info!("Python server will run on fixed port: {}", port);
-    
-    info!("Python process spawned successfully with PID: {}", py_process_guard.as_ref().unwrap().id());
+    info!("Python server process spawned successfully.");
     Ok(())
 }
 
 pub fn main() {
     tauri::Builder::default()
-
         .manage(AppState {
             py_process: Mutex::new(None),
             server_port: Mutex::new(None),
@@ -178,37 +157,20 @@ pub fn main() {
         })
         .on_window_event(|event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event.event() {
-                // On close requested, kill the python sidecar
-                let state = event.window().state::<AppState>();
-                let mut py_process_guard = state.py_process.lock().unwrap();
-                if let Some(mut child) = py_process_guard.take() {
-                    info!("Attempting to terminate Python sidecar process with PID: {}", child.id());
-                    match child.kill() {
-                        Ok(_) => {
-                            info!("Sent termination signal to Python process. Waiting for it to exit...");
-                            // Give the process a moment to shut down gracefully
-                            let start_wait = Instant::now();
-                            let timeout = Duration::from_secs(5); // Wait up to 5 seconds
-
-                            // Use try_wait in a loop to check if the process has exited
-                            while start_wait.elapsed() < timeout {
-                                if let Ok(Some(status)) = child.try_wait() {
-                                    info!("Python process exited with status: {:?}", status);
-                                    return;
-                                }
-                                std::thread::sleep(Duration::from_millis(100));
-                            }
-
-                            // If we reach here, the process did not exit within the timeout
-                            error!("Python process did not terminate gracefully within 5 seconds. Attempting to kill forcefully.");
-                            match child.kill() {
-                                Ok(_) => info!("Forcefully killed Python process."),
-                                Err(e) => error!("Failed to forcefully kill Python process: {}", e),
-                            }
-                        },
-                        Err(e) => error!("Failed to send termination signal to Python process: {}", e),
+                // Explicitly scope the state and lock to satisfy the borrow checker.
+                {
+                    let state: State<AppState> = event.window().state();
+                    let mut py_process_guard: MutexGuard<Option<ManagedProcess>> = state.py_process.lock().unwrap();
+                    if let Some(child) = py_process_guard.take() {
+                        info!("Attempting to terminate Python sidecar process with PID: {}", child.id());
+                        if let Err(e) = child.kill() {
+                            error!("Failed to send termination signal to Python process: {}", e);
+                        } else {
+                            info!("Termination signal sent successfully.");
+                        }
                     }
                 }
+                // The lock is released here as py_process_guard goes out of scope.
             }
         })
         .invoke_handler(tauri::generate_handler![
