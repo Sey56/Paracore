@@ -2,8 +2,8 @@ use tauri::{
     AppHandle, Manager, State
 };
 use log::{error, info};
-use std::{collections::HashMap, fs};
-use std::sync::{Mutex, MutexGuard};
+use std::{fs};
+use std::sync::{Mutex};
 use std::time::Duration;
 use tokio::sync::oneshot;
 use url::{form_urlencoded, Url};
@@ -94,50 +94,47 @@ fn launch_main_app(handle: AppHandle, state: State<AppState>) -> Result<(), Stri
     fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create data directory: {}", e))?;
     let db_path = data_dir.join("rap_local.db");
 
-    let child = if cfg!(feature = "bundle-server") {
-        // --- Release Mode: Launch Nuitka executable from resources ---
-        info!("Attempting to spawn Nuitka sidecar executable...");
-        let mut envs = HashMap::new();
-        envs.insert("RAP_DATABASE_PATH".to_string(), db_path.to_string_lossy().to_string());
+    let resource_path = handle
+        .path_resolver()
+        .resource_dir()
+        .ok_or_else(|| "Failed to resolve resource dir".to_string())?;
 
-        let (mut _rx, child) = tauri::api::process::Command::new_sidecar("bootstrap")
-            .expect("failed to create `bootstrap` sidecar command")
-            .envs(envs)
-            .spawn()
-            .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
-        ManagedProcess::Tauri(child)
+    let (exe_path, working_dir) = if !cfg!(debug_assertions) {
+        // Release Mode: Run the standalone executable from the bundled resources.
+        info!("Release mode detected. Looking for standalone server executable...");
+        let dir = resource_path.join("server-release");
+        (dir.join("bootstrap.exe"), dir)
     } else {
-        // --- Development Mode: Launch embedded Python server ---
-        let resource_path = handle
-            .path_resolver()
-            .resource_dir()
-            .ok_or_else(|| "Failed to resolve resource dir".to_string())?;
-
-        let server_modules_path = resource_path.join("server-modules");
-        let python_exe_path = server_modules_path.join("python.exe");
-
-        if !python_exe_path.exists() {
-            let err_msg = format!("python.exe not found at: {:?}", python_exe_path);
-            error!("{}", err_msg);
-            return Err(err_msg);
-        }
-
-        let mut command = std::process::Command::new(python_exe_path);
-        command.current_dir(&server_modules_path);
-        command.arg("run_server.py");
-        command.env("RAP_DATABASE_PATH", db_path);
-
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        command.creation_flags(CREATE_NO_WINDOW);
-
-        let child = command
-            .spawn()
-            .map_err(|e| format!("Failed to spawn Python process: {}", e))?;
-        ManagedProcess::Std(child)
+        // Fast Dev Mode: Run the embedded Python script.
+        info!("Debug mode detected. Looking for embedded python environment...");
+        let dir = resource_path.join("server-modules");
+        (dir.join("python.exe"), dir)
     };
 
-    *py_process_guard = Some(child);
+    if !exe_path.exists() {
+        let err_msg = format!("Server executable not found at: {:?}", exe_path);
+        error!("{}", err_msg);
+        return Err(err_msg);
+    }
+
+    let mut command = std::process::Command::new(exe_path);
+    command.current_dir(&working_dir);
+    command.env("RAP_DATABASE_PATH", db_path);
+
+    if cfg!(debug_assertions) {
+        // Only add the script argument for Python in debug mode
+        command.arg("run_server.py");
+    }
+
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    command.creation_flags(CREATE_NO_WINDOW);
+
+    let child = command
+        .spawn()
+        .map_err(|e| format!("Failed to spawn server process: {}", e))?;
+    
+    *py_process_guard = Some(ManagedProcess::Std(child));
 
     info!("Python server process spawned successfully.");
     Ok(())
@@ -156,21 +153,37 @@ pub fn main() {
             Ok(())
         })
         .on_window_event(|event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event.event() {
-                // Explicitly scope the state and lock to satisfy the borrow checker.
-                {
-                    let state: State<AppState> = event.window().state();
-                    let mut py_process_guard: MutexGuard<Option<ManagedProcess>> = state.py_process.lock().unwrap();
-                    if let Some(child) = py_process_guard.take() {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event.event() {
+                // Prevent the window from closing immediately
+                api.prevent_close();
+
+                let window = event.window().clone();
+                let app_handle = event.window().app_handle();
+                let state: State<AppState> = app_handle.state();
+                
+                let mut py_process_guard = state.py_process.lock().unwrap();
+
+                if let Some(child) = py_process_guard.take() {
+                    // Show a closing message to the user
+                    let _ = window.eval("document.body.style.opacity = '0.5'; document.body.insertAdjacentHTML('afterbegin', '<div style=\'position: fixed; z-index: 9999; top: 50%; left: 50%; transform: translate(-50%, -50%); color: black; background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5);\'>Closing server, please wait...</div>');");
+
+                    let app_handle_clone = app_handle.clone();
+                    // Spawn a background thread to perform the blocking kill operation
+                    std::thread::spawn(move || {
                         info!("Attempting to terminate Python sidecar process with PID: {}", child.id());
                         if let Err(e) = child.kill() {
                             error!("Failed to send termination signal to Python process: {}", e);
                         } else {
                             info!("Termination signal sent successfully.");
                         }
-                    }
+                        
+                        // Now, exit the app from the background thread
+                        app_handle_clone.exit(0);
+                    });
+                } else {
+                    // If there's no process to kill, exit immediately
+                    app_handle.exit(0);
                 }
-                // The lock is released here as py_process_guard goes out of scope.
             }
         })
         .invoke_handler(tauri::generate_handler![
