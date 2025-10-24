@@ -37,7 +37,7 @@ export const TopBar: React.FC = () => {
   }, []);
 
   const handleHelpClick = async () => {
-    await shell.open('https://rap-help.netlify.app');
+    await shell.open('https://paracore-help.netlify.app');
     setIsHelpDropdownOpen(false);
   };
 
@@ -77,8 +77,8 @@ export const TopBar: React.FC = () => {
           <FontAwesomeIcon icon={faBars} className="text-xl" />
         </button>
         <div className="flex items-center space-x-1">
-          <img src="/RAP.png" alt="RAP Logo" className="h-8 w-auto" />
-          <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">RAP</h1>
+          <img src="/Paracore.png" alt="Paracore Logo" className="h-8 w-auto" />
+          <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">Paracore</h1>
         </div>
         <button
           onClick={toggleTheme}
@@ -130,12 +130,12 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* About Modal */}
-      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="About RAP" size="sm">
+      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="About Paracore" size="sm">
         <div className="p-4 text-gray-700 dark:text-gray-200">
-          <p className="mb-2"><strong>RAP - Revit Automation Platform</strong></p>
+          <p className="mb-2"><strong>Paracore - Revit Automation Platform</strong></p>
           <p className="mb-2">Version: 1.0.0 (Beta)</p>
           <p className="mb-2">Developed by: Paras Codarch</p>
-          <p className="mb-2">For more information, visit our <a href="/rap-help/build/index.html" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">documentation</a>.</p>
+          <p className="mb-2">For more information, visit our <a href="https://paracore-help.netlify.app" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">documentation</a>.</p>
         </div>
       </Modal>
     </div>
