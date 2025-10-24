@@ -8,7 +8,7 @@ $ProjectRoot = Get-Location
 
 # --- Banner ---
 Write-Host '=================================' -ForegroundColor Cyan
-Write-Host '   Building RServer.Addin Installer   '
+Write-Host '   Building RServer Installer   '
 Write-Host '=================================' -ForegroundColor Cyan
 
 # --- 1. Prerequisite Check ---
@@ -87,9 +87,10 @@ Write-Host "Installer output will be placed in: $finalInstallDir" -ForegroundCol
 Write-Host "`n[3/3] Compiling the installer with Inno Setup..."
 
 $rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'rserver_installer.iss'
-$iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap-icon.ico'
-# Pass the icon path to the Inno Setup script as a define
-& $InnoSetupCompiler "/O$finalInstallDir" "/dIconPath=$iconPath" $rserverAddinInstallerScript
+$iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\paracore-icon.ico'
+$appDataFolderName = 'Paracore-data'
+# Pass defines to the Inno Setup script
+& $InnoSetupCompiler "/O$finalInstallDir" "/dIconPath=$iconPath" "/dAppDataFolderName=$appDataFolderName" $rserverAddinInstallerScript
 
 Write-Host "`n=================================" -ForegroundColor Cyan
 Write-Host '   Build Complete!   '

@@ -17,13 +17,6 @@ namespace RServer.Addin.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            if (commandData?.Application?.ActiveUIDocument?.Document == null)
-            {
-                TaskDialog.Show("RScripting",
-                    "Please open a valid Revit model before starting the RScripting server.");
-                return Result.Cancelled;
-            }
-
             if (!RServerApp.ServerRunning)
             {
                 try
@@ -46,11 +39,11 @@ namespace RServer.Addin.Commands
                     RServerApp.SetServerRunning(true);
                     ServerViewModel.Instance.IsServerRunning = true;
 
-                    TaskDialog.Show("RScripting", "RScripting gRPC Server started on http://localhost:50051. Run scripts from VSCode!");
+                    TaskDialog.Show("RServer", "RServer On! You can now execute RevitScripts from Paracore and Vscode. Listening on port 50051.");
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("RScripting - Error", $"Failed to start RScripting gRPC Server: {ex.Message}\n\nCheck RScriptServerLog.txt for more details.");
+                    TaskDialog.Show("RServer - Error", $"Failed to start RServer: {ex.Message}\n\nCheck RScriptServerLog.txt for more details.");
                     return Result.Failed;
                 }
             }
@@ -62,11 +55,11 @@ namespace RServer.Addin.Commands
                     RServerApp.SetServer(null);
                     RServerApp.SetServerRunning(false);
                     ServerViewModel.Instance.IsServerRunning = false;
-                    TaskDialog.Show("RScripting", "RScripting gRPC Server stopped.");
+                    TaskDialog.Show("RServer", "RServer stopped!");
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("RScripting - Error", $"Failed to stop RScripting gRPC Server: {ex.Message}\n\nCheck RScriptServerLog.txt for more details.");
+                    TaskDialog.Show("RServer - Error", $"Failed to stop RServer: {ex.Message}\n\nCheck RScriptServerLog.txt for more details.");
                     return Result.Failed;
                 }
             }
