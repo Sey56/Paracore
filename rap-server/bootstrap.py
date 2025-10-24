@@ -14,7 +14,7 @@ if __name__ == "__main__":
         # This is a critical fallback. If run_server() fails for any reason,
         # this will catch the exception and log it to a file in a known location.
         # This ensures you ALWAYS get a log file, even if the main logging setup fails.
-        log_dir = os.path.join(os.getenv('APPDATA'), 'rap-data', 'logs')
+        log_dir = os.path.join(os.getenv('APPDATA'), 'paracore-data', 'logs')
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         
@@ -24,7 +24,7 @@ if __name__ == "__main__":
             f.write(f"Timestamp: {__import__('datetime').datetime.now()}\n")
             f.write(f"Error: {e}\n")
             f.write(traceback.format_exc())
-            f.write("\n")
+            f.write("\n---------------------------------\n")
         
         # Also print to stderr, which might be captured by Tauri's logs.
         print(f"FATAL BOOTSTRAP ERROR: {e}\n{traceback.format_exc()}", file=sys.stderr)

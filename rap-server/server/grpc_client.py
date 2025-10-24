@@ -6,7 +6,6 @@ from . import rscript_pb2
 from . import rscript_pb2_grpc
 from google.protobuf import json_format
 
-# Centralized gRPC channel management
 @contextmanager
 def get_rscript_runner_stub():
     """Provides a gRPC stub within a managed context."""
@@ -24,12 +23,12 @@ def get_rscript_runner_stub():
     finally:
         if channel:
             channel.close()
+
 def get_status():
     logging.info("Attempting to get gRPC server status.")
     try:
         with get_rscript_runner_stub() as stub:
             response = stub.GetStatus(rscript_pb2.GetStatusRequest())
-        logging.info("gRPC GetStatus call successful.")
         return response
     except grpc.RpcError as e:
         logging.error(f"gRPC GetStatus call failed: {e.code()} - {e.details()}")
@@ -49,16 +48,17 @@ def execute_script(script_content, parameters_json):
         try:
             response = stub.ExecuteScript(request)
             logging.info("gRPC ExecuteScript call successful.")
+            # Process and return the successful response
+            return {
+                "is_success": response.is_success,
+                "output": response.output,
+                "error_message": response.error_message,
+                "error_details": list(response.error_details),
+                "showOutputData": [{"type": item.type, "data": item.data} for item in response.structured_output]
+            }
         except grpc.RpcError as e:
             logging.error(f"gRPC ExecuteScript call failed: {e.code()} - {e.details()}")
             raise # Re-raise the gRPC error
-    return {
-        "is_success": response.is_success,
-        "output": response.output,
-        "error_message": response.error_message,
-        "error_details": list(response.error_details),
-        "showOutputData": [{"type": item.type, "data": item.data} for item in response.structured_output]
-    }
 
 def get_script_metadata(script_files):
     with get_rscript_runner_stub() as stub:
