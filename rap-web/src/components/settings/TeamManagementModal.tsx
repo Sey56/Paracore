@@ -1,181 +1,251 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/hooks/useAuth';
-import { Modal } from '../common/Modal';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
-import { Role } from '@/context/authTypes';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner, faUserPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { Modal } from '../common/Modal';
+import { Role, TeamMemberOut } from '@/context/authTypes';
+import { toast } from 'react-toastify';
 
-interface ApiError {
-  response?: {
-    data?: {
-      detail?: string;
-    };
-  };
+interface ConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
 }
+
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, message, confirmText = 'Confirm', cancelText = 'Cancel' }) => {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Confirmation" size="sm">
+      <div className="p-4">
+        <p className="text-gray-700 dark:text-gray-300 mb-6">{message}</p>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 const TeamManagementModal: React.FC = () => {
   const { isTeamManagementModalOpen, closeTeamManagementModal } = useUI();
-  const { activeTeam, activeRole, user: currentUser } = useAuth();
-  const { members, loading, error, updateMemberRole, inviteMember, removeMember } = useTeamMembers();
+  const { user, activeTeam, activeRole } = useAuth();
+  const { members: teamMembers, inviteMember, updateMemberRole, removeMember, loading, error } = useTeamMembers();
 
-  const [inviteEmail, setInviteEmail] = useState<string>('');
-  const [inviteRole, setInviteRole] = useState<Role>(Role.User);
-  const [inviteLoading, setInviteLoading] = useState<boolean>(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState<Role>(Role.User);
+  const [pendingRoleChanges, setPendingRoleChanges] = useState<Map<number, Role>>(new Map());
+
+  // Confirmation Modal State
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmButtonText, setConfirmButtonText] = useState('Confirm');
+
+  const teamId = activeTeam?.team_id;
+
+  const handleOpenConfirm = useCallback((message: string, action: () => void, confirmText?: string) => {
+    setConfirmMessage(message);
+    setConfirmAction(() => action);
+    setConfirmButtonText(confirmText || 'Confirm');
+    setShowConfirm(true);
+  }, []);
+
+  const handleCloseConfirm = useCallback(() => {
+    setShowConfirm(false);
+    setConfirmAction(null);
+    setConfirmMessage('');
+    setConfirmButtonText('Confirm');
+  }, []);
+
+  const handleConfirm = useCallback(() => {
+    if (confirmAction) {
+      confirmAction();
+    }
+    handleCloseConfirm();
+  }, [confirmAction, handleCloseConfirm]);
+
+  const handleInviteMember = useCallback(async () => {
+    if (!teamId || !newMemberEmail || !newMemberRole) return;
+
+    handleOpenConfirm(
+      `Are you sure you want to invite ${newMemberEmail} as a ${newMemberRole}?`,
+      async () => {
+        try {
+          await inviteMember(newMemberEmail, newMemberRole);
+          toast.success(`Invitation sent to ${newMemberEmail}`);
+          setNewMemberEmail('');
+          setNewMemberRole(Role.User);
+        } catch (err) {
+          toast.error(`Failed to send invitation: ${error || 'Unknown error'}`);
+        }
+      },
+      'Invite'
+    );
+  }, [teamId, newMemberEmail, newMemberRole, inviteMember, error, handleOpenConfirm]);
+
+  const handleRoleChange = useCallback((memberId: number, newRole: Role) => {
+    setPendingRoleChanges(prev => {
+      const newMap = new Map(prev);
+      newMap.set(memberId, newRole);
+      return newMap;
+    });
+  }, []);
+
+  const handleUpdateRole = useCallback(async (member: TeamMemberOut) => {
+    if (!teamId) return;
+    const newRole = pendingRoleChanges.get(member.id);
+    if (!newRole) return;
+
+    handleOpenConfirm(
+      `Are you sure you want to change ${member.email}'s role to ${newRole}?`,
+      async () => {
+        try {
+          await updateMemberRole(member.id, newRole);
+          toast.success(`Role for ${member.email} updated to ${newRole}`);
+          setPendingRoleChanges(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(member.id);
+            return newMap;
+          });
+        } catch (err) {
+          toast.error(`Failed to update role: ${error || 'Unknown error'}`);
+        }
+      },
+      'Set Role'
+    );
+  }, [teamId, pendingRoleChanges, updateMemberRole, error, handleOpenConfirm]);
+
+  const handleRemoveMember = useCallback(async (member: TeamMemberOut) => {
+    if (!teamId) return;
+
+    handleOpenConfirm(
+      `Are you sure you want to remove ${member.email} from the team? This action cannot be undone.`,
+      async () => {
+        try {
+          await removeMember(member.id);
+          toast.success(`${member.email} removed from the team.`);
+        } catch (err) {
+          toast.error(`Failed to remove member: ${error || 'Unknown error'}`);
+        }
+      },
+      'Remove'
+    );
+  }, [teamId, removeMember, error, handleOpenConfirm]);
+
+  if (!user || !activeTeam || activeRole === null) {
+    return null; // Or a loading spinner
+  }
 
   const isAdmin = activeRole === Role.Admin;
 
-  const handleRoleChange = async (memberId: number, newRole: Role) => {
-    if (!isAdmin) return; // Should be disabled by UI, but good to have a safeguard
-    try {
-      await updateMemberRole(memberId, newRole);
-    } catch (err) {
-      // Error handling is done in the hook, but we can add specific UI feedback here if needed
-      console.error("Failed to update role in UI:", err);
-    }
-  };
-
-  const handleRemoveMember = async (memberId: number, memberName: string) => {
-    if (!isAdmin) return;
-    if (window.confirm(`Are you sure you want to remove ${memberName} from the team?`)) {
-      try {
-        await removeMember(memberId);
-      } catch (err) {
-        console.error("Failed to remove member in UI:", err);
-      }
-    }
-  };
-
-  const handleInviteSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isAdmin || !activeTeam || !inviteEmail || !inviteRole) return;
-
-    setInviteLoading(true);
-    setInviteError(null);
-    setInviteSuccess(null);
-    try {
-      await inviteMember(inviteEmail, inviteRole);
-      setInviteSuccess(`Invitation sent to ${inviteEmail} as ${inviteRole}.`);
-      setInviteEmail(''); // Clear form
-      setInviteRole(Role.User); // Reset role
-    } catch (err) {
-      const apiError = err as ApiError;
-      setInviteError(apiError.response?.data?.detail || "Failed to send invitation.");
-    } finally {
-      setInviteLoading(false);
-    }
-  };
-
   return (
-    <Modal 
-      isOpen={isTeamManagementModalOpen} 
-      onClose={closeTeamManagementModal} 
-      title={`Team Management for ${activeTeam?.team_name || ''}`}
-      size="2xl"
-    >
-      <div className="p-6 space-y-6">
-        {!activeTeam && <p className="text-red-500">No active team selected.</p>}
-        {loading && <div className="text-center text-gray-500"><FontAwesomeIcon icon={faSpinner} spin /> Loading members...</div>}
-        {error && <p className="text-red-500">Error: {error}</p>}
-
-        {activeTeam && !loading && !error && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Team Members</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
-                    <th scope="col" className="relative px-6 py-3"><span className="sr-only">Edit</span></th>
-                    <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {members.map((member) => (
-                    <tr key={member.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{member.name || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{member.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        <select
-                          value={member.role}
-                          onChange={(e) => handleRoleChange(member.id, e.target.value as Role)}
-                          disabled={!isAdmin || member.id === Number(currentUser?.id) || member.id === activeTeam.owner_id} // Cannot change own role or owner's role
-                          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                        >
-                          {Object.values(Role).map(roleOption => (
-                            <option key={roleOption} value={roleOption}>{roleOption}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {member.id === Number(currentUser?.id) && <span className="text-gray-400 dark:text-gray-500"> (You)</span>}
-                        {member.id === activeTeam.owner_id && <span className="text-blue-500 dark:text-blue-400"> (Owner)</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {isAdmin && member.id !== Number(currentUser?.id) && member.id !== activeTeam.owner_id && (
-                          <button
-                            onClick={() => handleRemoveMember(member.id, member.name || member.email)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-4"
-                            title="Remove Member"
-                          >
-                            <FontAwesomeIcon icon={faTrash} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+    <Modal isOpen={isTeamManagementModalOpen} onClose={closeTeamManagementModal} title={`Manage Team: ${activeTeam.team_name}`} size="2xl">
+      <div className="p-6 space-y-8">
+        {/* Invite New Member Section */}
+        {isAdmin && (
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow-inner">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Invite New Member</h3>
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <input
+                type="email"
+                placeholder="Member Email"
+                value={newMemberEmail}
+                onChange={(e) => setNewMemberEmail(e.target.value)}
+                className="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+              <select
+                value={newMemberRole}
+                onChange={(e) => setNewMemberRole(e.target.value as Role)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                {Object.values(Role).map(role => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleInviteMember}
+                disabled={!newMemberEmail || loading}
+                className="px-6 py-2 bg-blue-600 text-white font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Inviting...' : 'Invite'}
+              </button>
             </div>
-
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mt-8">Invite New Member</h3>
-            <form onSubmit={handleInviteSubmit} className="space-y-4">
-              {inviteSuccess && <p className="text-green-500">{inviteSuccess}</p>}
-              {inviteError && <p className="text-red-500">{inviteError}</p>}
-              <div className="flex items-end space-x-4">
-                <div className="flex-1">
-                  <label htmlFor="inviteEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-200">Email</label>
-                  <input
-                    type="email"
-                    id="inviteEmail"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    required
-                    disabled={!isAdmin || inviteLoading}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="inviteRole" className="block text-sm font-medium text-gray-700 dark:text-gray-200">Role</label>
-                  <select
-                    id="inviteRole"
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as Role)}
-                    disabled={!isAdmin || inviteLoading}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                  >
-                    {Object.values(Role).map(roleOption => (
-                      <option key={roleOption} value={roleOption}>{roleOption}</option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="submit"
-                  disabled={!isAdmin || inviteLoading}
-                  className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {inviteLoading ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faUserPlus} />} Invite
-                </button>
-              </div>
-            </form>
           </div>
         )}
+
+        {/* Team Members Section */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Team Members</h3>
+          {loading && <p className="text-gray-600 dark:text-gray-400">Loading members...</p>}
+          {error && <p className="text-red-500">Error: {error}</p>}
+          {!loading && teamMembers.length === 0 && (
+            <p className="text-gray-600 dark:text-gray-400">No members in this team yet.</p>
+          )}
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {teamMembers.map((member: TeamMemberOut) => (
+              <li key={member.id} className="py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{member.email}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{member.id.toString() === user?.id ? 'You' : member.name}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={pendingRoleChanges.has(member.id) ? pendingRoleChanges.get(member.id) : member.role}
+                    onChange={(e) => handleRoleChange(member.id, e.target.value as Role)}
+                    disabled={!isAdmin || member.id.toString() === user?.id} // Disable for self and non-admins
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                  >
+                    {Object.values(Role).map(role => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
+                  </select>
+                  {pendingRoleChanges.has(member.id) && pendingRoleChanges.get(member.id) !== member.role && (
+                    <button
+                      onClick={() => handleUpdateRole(member)}
+                      disabled={loading}
+                      className="px-4 py-2 bg-green-600 text-white font-medium rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {loading ? 'Setting...' : 'Set'}
+                    </button>
+                  )}
+                  {isAdmin && member.id.toString() !== user?.id && (
+                    <button
+                      onClick={() => handleRemoveMember(member)}
+                      disabled={loading}
+                      className="px-4 py-2 bg-red-600 text-white font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {loading ? 'Removing...' : 'Remove'}
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirm}
+        onClose={handleCloseConfirm}
+        onConfirm={handleConfirm}
+        message={confirmMessage}
+        confirmText={confirmButtonText}
+      />
     </Modal>
   );
 };

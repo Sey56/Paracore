@@ -71,6 +71,9 @@ try {
         if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {
             Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'resources' -Value $null
         }
+        if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'externalBin')) {
+            Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'externalBin' -Value @()
+        }
         $configObject.tauri.bundle.externalBin = @() # Ensure externalBin is empty
         $configObject.tauri.bundle.resources = @("server-release")
     }

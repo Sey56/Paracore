@@ -430,15 +430,17 @@ export const ScriptGallery: React.FC = () => {
                 {selectedFolder && !searchAllFolders ? selectedFolder : 'All Scripts'}
               </h2>
             </div>
-            <div className="relative" title={getNewScriptButtonTooltip()}>
-              <button 
-                onClick={handleOpenNewScriptModal} 
-                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!isAuthenticated || isRServerDisconnected || !canCreateScripts || !activeScriptSource}
-              >
-                New Script
-              </button>
-            </div>
+            {canCreateScripts && (
+              <div className="relative" title={getNewScriptButtonTooltip()}>
+                <button 
+                  onClick={handleOpenNewScriptModal} 
+                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!isAuthenticated || isRServerDisconnected || !activeScriptSource}
+                >
+                  New Script
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

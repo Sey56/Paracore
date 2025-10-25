@@ -77,7 +77,7 @@ export const TopBar: React.FC = () => {
           <FontAwesomeIcon icon={faBars} className="text-xl" />
         </button>
         <div className="flex items-center space-x-1">
-          <img src="/Paracore.png" alt="Paracore Logo" className="h-8 w-auto" />
+          <img src="/RAP.png" alt="Paracore Logo" className="h-8 w-auto" />
           <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">Paracore</h1>
         </div>
         <button
@@ -131,11 +131,26 @@ export const TopBar: React.FC = () => {
 
       {/* About Modal */}
       <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="About Paracore" size="sm">
-        <div className="p-4 text-gray-700 dark:text-gray-200">
-          <p className="mb-2"><strong>Paracore - Revit Automation Platform</strong></p>
-          <p className="mb-2">Version: 1.0.0 (Beta)</p>
-          <p className="mb-2">Developed by: Paras Codarch</p>
-          <p className="mb-2">For more information, visit our <a href="https://paracore-help.netlify.app" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">documentation</a>.</p>
+        <div className="p-6 space-y-4 text-sm">
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Paracore</h2>
+            <p className="text-gray-600 dark:text-gray-400">Revit Automation Platform</p>
+          </div>
+          <div className="space-y-2 pt-2">
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Version:</span>
+              <span className="text-gray-600 dark:text-gray-400">1.0.0</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Developer:</span>
+              <span className="text-gray-600 dark:text-gray-400">Paras Codarch (Ethiopia)</span>
+            </div>
+          </div>
+          <div className="pt-4 text-center">
+            <a href="https://paracore-help.netlify.app" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+              Online Documentation
+            </a>
+          </div>
         </div>
       </Modal>
     </div>

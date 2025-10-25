@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "package": {
-    "productName": "RAP",
+    "productName": "Paracore",
     "version": "1.0.0"
   },
   "build": {
@@ -24,14 +24,11 @@
         "icons/rap-icon-512.png",
         "icons/rap-icon.ico"
       ],
-      "resources": [],
-      "externalBin": [
-        "external/bootstrap"
-      ]
+      "resources": []
     },
     "windows": [
       {
-        "title": "RAP",
+        "title": "Paracore",
         "width": 800,
         "height": 600,
         "resizable": true,
@@ -90,6 +87,10 @@
     }
   }
 }
+
+
+
+
 
 
 

@@ -23,7 +23,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
 
   return (
     <Portal wrapperId="modal-portal">
-      <div className="fixed inset-0 bg-black/20 z-[9999] flex justify-center items-center p-4">
+      <div className="fixed inset-0 bg-black/20 z-[9999] flex justify-center items-center p-4" onClick={onClose}>
         <div 
           className={`bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full ${maxWidthClass} flex flex-col`}
           onClick={(e) => e.stopPropagation()} // Prevent clicks inside the modal from closing it
