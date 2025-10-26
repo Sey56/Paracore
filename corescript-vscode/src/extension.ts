@@ -263,7 +263,7 @@ public class SpiralCreator
           const request = {
             script_content,
             parameters_json,
-            source: "vscode"
+            source: "VSCode"
           } as CoreScript.ExecuteScriptRequest; // Assert the type
 
           response = await executeScript(request);

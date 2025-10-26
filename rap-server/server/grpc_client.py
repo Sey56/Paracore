@@ -43,7 +43,7 @@ def execute_script(script_content, parameters_json):
         request = corescript_pb2.ExecuteScriptRequest(
             script_content=script_content.encode('utf-8'),
             parameters_json=parameters_json.encode('utf-8'),
-            source="rap-web"
+            source="Paracore"
         )
         try:
             response = stub.ExecuteScript(request)
