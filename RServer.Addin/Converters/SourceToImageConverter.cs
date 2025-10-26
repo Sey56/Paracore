@@ -13,12 +13,10 @@ namespace RServer.Addin.Converters
             {
                 switch (sourceString.ToUpperInvariant())
                 {
-                    case "WEB":
-                        return new BitmapImage(new Uri("pack://application:,,,/RServer.Addin;component/Images/web_icon.png"));
+                    case "PARACOR":
+                        return null;
                     case "VSCODE":
-                        return new BitmapImage(new Uri("pack://application:,,,/RServer.Addin;component/Images/vscode_icon.png"));
-                    case "UNKNOWN":
-                        return new BitmapImage(new Uri("pack://application:,,,/RServer.Addin;component/Images/unknown_icon.png"));
+                        return null;
                     default:
                         return null; // Or a default placeholder image
                 }

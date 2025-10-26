@@ -115,7 +115,7 @@ namespace RServer.Addin.ViewModels
                         Status = result.IsSuccess ? "Success" : "Error",
                         Duration = durationString,
                         Timestamp = result.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
-                        Source = LastClientSource.ToString() // Use the stored source
+                        Source = MapSourceForDisplay(LastClientSource) // Map the source for display
                     });
                     FileLogger.Log($"[ServerViewModel] Added record to ExecutionHistory. Current count: {ExecutionHistory.Count}");
                 });
@@ -150,6 +150,16 @@ namespace RServer.Addin.ViewModels
         {
             FileLogger.Log("[ServerViewModel] ClearHistory command executed.");
             ExecutionHistory.Clear();
+        }
+
+        private string MapSourceForDisplay(string source)
+        {
+            return source.ToUpperInvariant() switch
+            {
+                "RAP-WEB" => "Paracore",
+                "VSCODE" => "VSCode",
+                _ => source
+            };
         }
     }
 
