@@ -46,6 +46,7 @@ namespace RScript.Engine.Globals
         public UIDocument? UIDoc => _context.UIDoc;
         public Document? Doc => _context.Doc;
 
+        public void Println(string message) => _context.Println(message);
         public void Print(string message) => _context.Print(message);
         public void LogError(string message) => _context.LogError(message);
 

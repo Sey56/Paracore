@@ -33,18 +33,25 @@ namespace RScript.Engine.Tests
             };
         }
 
-        public void Print(string message)
+        public void Println(string message)
         {
             _printMessages.Add(message);
             FileLogger.Log(message);
             Console.WriteLine(message);
         }
 
-        public void PrintWithTimeStamp(string message)
+        public void Print(string message)
         {
-            _printMessages.Add(message);
+            if (_printMessages.Count > 0)
+            {
+                _printMessages[_printMessages.Count - 1] += message;
+            }
+            else
+            {
+                _printMessages.Add(message);
+            }
             FileLogger.Log(message);
-            Console.WriteLine(message);
+            Console.Write(message);
         }
 
         public void LogError(string message)

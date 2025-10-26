@@ -14,6 +14,7 @@ namespace RScript.Engine.Globals
         private static Exception DesignTimeOnlyException => new InvalidOperationException("This member is for design-time IntelliSense only and cannot be used at runtime.");
 
         // Methods
+        public static void Println(string message) => throw DesignTimeOnlyException;
         public static void Print(string message) => throw DesignTimeOnlyException;
         public static void Transact(string name, Action<Document> action) => throw DesignTimeOnlyException;
         public static void Transact(string name, Action action) => throw DesignTimeOnlyException;

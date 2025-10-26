@@ -34,6 +34,7 @@ import { cloneWorkspace, deleteLocalWorkspace } from '@/api/workspaces';
 import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useRevitStatus } from '@/hooks/useRevitStatus'; // Import useRevitStatus
 import { Script, Workspace } from '@/types/index';
 import { Role } from '@/context/authTypes';
 
@@ -56,9 +57,10 @@ interface ApiError {
 
 export const Sidebar = () => {
   const { user, activeTeam, activeRole } = useAuth();
+  const { rserverConnected } = useRevitStatus(); // Get rserverConnected status
   const { showNotification } = useNotifications();
 
-  const isDisabled = !user;
+  const isDisabled = !user || !rserverConnected;
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource } = useUI();
   const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace, fetchTeamWorkspaces, loadScriptsForFolder } = useScripts();

@@ -120,7 +120,7 @@ namespace RScript.Engine.Core
                 var state = script.RunAsync().Result;
 
                 string successMessage = $"✅ Code executed successfully | {timestamp}";
-                context.Print(successMessage);
+                context.Println(successMessage);
                 FileLogger.Log(successMessage);
 
                 var result = ExecutionResult.Success(successMessage, state.ReturnValue);
@@ -131,8 +131,8 @@ namespace RScript.Engine.Core
             {
                 var errs = ex.Diagnostics.Select(d => d.ToString()).ToArray();
                 string failureMessage = $"❌ Script failed to compile | {timestamp}";
-                context.Print(failureMessage);
-                foreach (var err in errs) context.Print($"[ERROR] {err}");
+                context.Println(failureMessage);
+                foreach (var err in errs) context.Println($"[ERROR] {err}");
                 
                 var failureResult = ExecutionResult.Failure(failureMessage, errs);
                 failureResult.ScriptName = "Unknown Script";
@@ -142,8 +142,8 @@ namespace RScript.Engine.Core
             {
                 var errs = ex.InnerExceptions.Select(e => e.ToString()).ToArray();
                 string failureMessage = $"❌ Script execution failed | {timestamp}";
-                context.Print(failureMessage);
-                foreach (var err in errs) context.Print($"[ERROR] {err}");
+                context.Println(failureMessage);
+                foreach (var err in errs) context.Println($"[ERROR] {err}");
 
                 var failureResult = ExecutionResult.Failure(failureMessage, errs);
                 failureResult.ScriptName = "Unknown Script";
@@ -159,7 +159,7 @@ namespace RScript.Engine.Core
                     ? $"⚠️ Internal engine error occurred | {timestamp}" 
                     : $"❌ Runtime error: {ex.Message} | {timestamp}";
                 
-                context.Print(failureMessage);
+                context.Println(failureMessage);
                 return ExecutionResult.Failure(failureMessage, new[] { ex.Message });
             }
             finally

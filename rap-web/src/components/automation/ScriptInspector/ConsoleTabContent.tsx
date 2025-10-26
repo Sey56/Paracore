@@ -55,17 +55,15 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     <div className="tab-content py-4 flex flex-col h-full">
       <pre className="font-mono text-sm flex-grow overflow-y-auto whitespace-pre-wrap text-left indent-0 text-gray-800 dark:text-gray-200">
         {isRunning && <code className="p-0 m-0">Executing script...</code>}
-        {executionResult?.output && (
-          <code className="p-0 m-0">{String(executionResult.output).split('\n').map(line => line.trim()).join('\n')}</code>
-        )}
-        {executionResult?.error && (
+        {executionResult?.error ? (
           <code className="text-red-600 dark:text-red-400 p-0 m-0 indent-0 pl-0">{String(executionResult.error).trim()}</code>
-        )}
-        {!isRunning && !executionResult && (
+        ) : executionResult?.output ? (
+          <code className="p-0 m-0">{String(executionResult.output).split('\n').map(line => line.trim()).join('\n')}</code>
+        ) : !isRunning ? (
           <code className="p-0 m-0">
             Ready to execute script: {scriptName}
           </code>
-        )}
+        ) : null}
         <div ref={consoleEndRef} />
       </pre>
       {/* Footer Buttons for Console Tab */}

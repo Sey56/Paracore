@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+import { useRevitStatus } from '@/hooks/useRevitStatus'; // Import useRevitStatus
 
 interface FloatingCodeViewerProps {
   script: Script;
@@ -16,12 +17,19 @@ interface FloatingCodeViewerProps {
 export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, isOpen, onClose }) => {
   const { theme } = useTheme();
   const { user, cloudToken } = useAuth(); // Get user and cloudToken from auth context
+  const { rserverConnected } = useRevitStatus(); // Get rserverConnected status
 
   if (!isOpen) {
     return null;
   }
 
-  const canEdit = !!user;
+  const canEdit = !!user && rserverConnected;
+
+  const getTitleMessage = () => {
+    if (!user) return "You must be signed in to edit scripts";
+    if (!rserverConnected) return "RServer is disconnected. Please connect to Revit.";
+    return "Edit Script";
+  };
 
   const onDragResizeStart = () => {
     document.body.style.overflow = 'hidden';
@@ -96,7 +104,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
           className={`bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold flex items-center ${
             !canEdit ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
           }`}
-          title={!canEdit ? "You must be signed in to edit scripts" : "Edit Script"}
+          title={getTitleMessage()}
         >
           <FontAwesomeIcon icon={faEdit} className="mr-2" />
           Edit in VSCode

@@ -462,11 +462,13 @@ export const ScriptGallery: React.FC = () => {
         <div className="text-gray-500 dark:text-gray-400 text-sm italic">
           {!isAuthenticated
             ? "Sign in to load scripts"
-            : searchTerm
-              ? 'No scripts match your search.'
-              : (activeScriptSource 
-                ? 'No scripts found in this source. Why not create one?' 
-                : 'Add or select a script source in the sidebar to get started.')
+            : isRServerDisconnected && !activeScriptSource
+              ? "To load scripts from a source open Revit and toggle on the RServer."
+              : searchTerm
+                ? 'No scripts match your search.'
+                : (activeScriptSource 
+                  ? 'No scripts found in this source. Why not create one?' 
+                  : 'Add or select a script source in the sidebar to get started.')
           }
         </div>
       )}

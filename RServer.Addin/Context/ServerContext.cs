@@ -36,9 +36,6 @@ namespace RServer.Addin.Context
             UIApp = uiApp;
             PrintCallback = msg =>
             {
-                // ✅ Store formatted print entry
-                _printMessages.Add(msg);
-
                 // ✅ Drop debug trace to disk
                 System.IO.File.AppendAllText(
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PrintCallbackDebug.txt"),
@@ -47,11 +44,29 @@ namespace RServer.Addin.Context
             };
         }
 
-        public void Print(string message) => PrintCallback?.Invoke(message);
-
-        public void PrintWithTimeStamp(string message)
+        public void Println(string message)
         {
             _printMessages.Add(message);
+            System.IO.File.AppendAllText(
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PrintCallbackDebug.txt"),
+                $"[DEBUG {DateTime.Now:HH:mm:ss}] {message}\n"
+            );
+        }
+
+        public void Print(string message)
+        {
+            if (_printMessages.Count > 0)
+            {
+                _printMessages[_printMessages.Count - 1] += message;
+            }
+            else
+            {
+                _printMessages.Add(message);
+            }
+            System.IO.File.AppendAllText(
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PrintCallbackDebug.txt"),
+                $"[DEBUG {DateTime.Now:HH:mm:ss}] {message}\n"
+            );
         }
 
         public void LogError(string message)

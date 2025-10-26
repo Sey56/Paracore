@@ -86,8 +86,8 @@ Write-Host "Installer output will be placed in: $finalInstallDir" -ForegroundCol
 # --- 3. Compile Installer ---
 Write-Host "`n[3/3] Compiling the installer with Inno Setup..."
 
-$rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'rserver_installer.iss'
-$iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\paracore-icon.ico'
+$rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'RServer_Installer.iss'
+$iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap-icon.ico'
 $appDataFolderName = 'Paracore-data'
 # Pass defines to the Inno Setup script
 & $InnoSetupCompiler "/O$finalInstallDir" "/dIconPath=$iconPath" "/dAppDataFolderName=$appDataFolderName" $rserverAddinInstallerScript

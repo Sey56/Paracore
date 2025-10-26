@@ -55,15 +55,20 @@ namespace RServer.Addin.Helpers
                 Directory.CreateDirectory(workspacePath);
                 FileLogger.Log($"Created new workspace: {workspacePath}");
 
+                // Create a "Scripts" subfolder
+                string scriptsPath = Path.Combine(workspacePath, "Scripts");
+                Directory.CreateDirectory(scriptsPath);
+                FileLogger.Log($"Created 'Scripts' subfolder: {scriptsPath}");
+
                 List<string> scriptFileNames = new List<string>();
                 string primaryScriptPathInWorkspace = string.Empty;
 
                 if (scriptType == "single-file")
                 {
                     string fileName = Path.GetFileName(scriptPath);
-                    string destScript = Path.Combine(workspacePath, fileName);
+                    string destScript = Path.Combine(scriptsPath, fileName); // Changed path
                     File.Copy(scriptPath, destScript, true);
-                    scriptFileNames.Add(fileName);
+                    scriptFileNames.Add(Path.Combine("Scripts", fileName)); // Add relative path
                     primaryScriptPathInWorkspace = destScript;
                     FileLogger.Log($"Copied single script to workspace: {destScript}");
                 }
@@ -72,12 +77,12 @@ namespace RServer.Addin.Helpers
                     foreach (var file in Directory.GetFiles(scriptPath, "*.cs", SearchOption.TopDirectoryOnly))
                     {
                         string fileName = Path.GetFileName(file);
-                        string destScript = Path.Combine(workspacePath, fileName);
+                        string destScript = Path.Combine(scriptsPath, fileName); // Changed path
                         File.Copy(file, destScript, true);
-                        scriptFileNames.Add(fileName);
+                        scriptFileNames.Add(Path.Combine("Scripts", fileName)); // Add relative path
                         FileLogger.Log($"Copied multi-file script to workspace: {destScript}");
                     }
-                    primaryScriptPathInWorkspace = workspacePath;
+                    primaryScriptPathInWorkspace = scriptsPath; // The folder containing the scripts
                 }
 
                 // Correctly pass the list of script names
@@ -114,7 +119,8 @@ namespace RServer.Addin.Helpers
                     // For multi-file scripts, scriptToOpenPath is the original folder path
                     string originalFolderPath = originalScriptPath; 
 
-                    foreach (var fileInWorkspace in Directory.GetFiles(workspaceFolder, "*.cs", SearchOption.TopDirectoryOnly))
+                    string scriptsPath = Path.Combine(workspaceFolder, "Scripts");
+                    foreach (var fileInWorkspace in Directory.GetFiles(scriptsPath, "*.cs", SearchOption.TopDirectoryOnly))
                     {
                         if (Path.GetFileName(fileInWorkspace).Equals("Globals.cs", StringComparison.OrdinalIgnoreCase)) continue;
 

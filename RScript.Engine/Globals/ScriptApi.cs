@@ -14,6 +14,7 @@ namespace RScript.Engine.Globals
         public static Document Doc => Globals.Doc;
         public static Dictionary<string, object> Parameters => Globals.Parameters;
 
+        public static void Println(string message) => Globals.Println(message);
         public static void Print(string message) => Globals.Print(message);
         
         // Old method for backward compatibility

@@ -1,5 +1,7 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using System;
+using System.Collections.Generic;
 
 namespace RScript.Engine.Context
 {
@@ -12,8 +14,8 @@ namespace RScript.Engine.Context
         UIDocument UIDoc { get; }
         Document Doc { get; }
 
+        void Println(string message);
         void Print(string message);
-        void PrintWithTimeStamp(string message);
         void LogError(string message);
         void AddStructuredOutput(string type, string jsonData);
 

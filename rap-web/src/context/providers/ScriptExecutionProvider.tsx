@@ -363,15 +363,22 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     try {
       const response = await api.post("/run-script", body);
-      setExecutionResult(response.data);
-      if (response.data.error) {
-        showNotification(`Script execution failed: ${response.data.error}`, "error");
+      const result = response.data;
+      const executionResult: ExecutionResult = {
+        output: result.output || '',
+        error: result.error_message ? `${result.error_message}\n${result.error_details?.join('\n') || ''}`.trim() : null,
+        showOutputData: result.showOutputData,
+      };
+      setExecutionResult(executionResult);
+
+      if (executionResult.error) {
+        showNotification("Code execution failed", "error");
       } else {
         showNotification(`Script '${script.name}' executed successfully.`, "success");
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unknown error occurred.";
-      showNotification(`Failed to execute script: ${message}`, "error");
+      showNotification("Failed to execute script: ${message}", "error");
       setExecutionResult({ output: "", error: message });
     } finally {
       setRunningScriptPath(null);
