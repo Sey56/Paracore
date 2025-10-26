@@ -8,20 +8,20 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using RScript.Engine.Logging; // Added
-using RScript.Engine.Globals; // Added
+using CoreScript.Engine.Logging; // Added
+using CoreScript.Engine.Globals; // Added
 
 namespace RServer.Addin.Services
 {
-    public class RScriptServer
+    public class CoreScriptServer
     {
         private bool _running;
-        private readonly string _logPath = Path.Combine(RServerApp.HomePath, "RScriptServerLog.txt");
+        private readonly string _logPath = Path.Combine(RServerApp.HomePath, "CoreScriptServerLog.txt");
         private IHost? _webHost;
         private readonly UIApplication _uiApp;
         private readonly ILogger _logger; // Added
 
-        public RScriptServer(UIApplication uiApp, ILogger logger) // Modified
+        public CoreScriptServer(UIApplication uiApp, ILogger logger) // Modified
         {
             _uiApp = uiApp;
             _logger = logger; // Added
@@ -50,14 +50,14 @@ namespace RServer.Addin.Services
                     {
                         services.AddGrpc();
                         services.AddSingleton(_uiApp); // Register UIApplication as a singleton
-                        services.AddRScriptEngineServices(); // Add RScript.Engine services
+                        services.AddCoreScriptEngineServices(); // Add CoreScript.Engine services
                     });
                     webBuilder.Configure(app =>
                     {
                         app.UseRouting();
                         app.UseEndpoints(endpoints =>
                         {
-                            endpoints.MapGrpcService<RScriptRunnerService>();
+                            endpoints.MapGrpcService<CoreScriptRunnerService>();
                         });
                     });
                 });

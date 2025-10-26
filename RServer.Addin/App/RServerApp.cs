@@ -3,8 +3,8 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Microsoft.Extensions.DependencyInjection; // Added
 using Microsoft.Extensions.Logging;
-using RScript.Engine.Globals; // Added
-using RScript.Engine.Logging;
+using CoreScript.Engine.Globals; // Added
+using CoreScript.Engine.Logging;
 using RServer.Addin.Commands;
 using RServer.Addin.Helpers; // Added for CustomAssemblyResolver
 using RServer.Addin.Services;
@@ -22,7 +22,7 @@ namespace RServer.Addin.App
     {
         public static readonly Guid DashboardPaneId = new Guid("D7C95B7A-2E34-4A1E-8A6A-45A75D25E48B");
         public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        private static RScriptServer? _server;
+        private static CoreScriptServer? _server;
         private static bool _serverRunning;
         private static PushButton? _toggleButton;
         private static ServerActionHandler? _serverActionHandler;
@@ -41,11 +41,11 @@ namespace RServer.Addin.App
         public Result OnStartup(UIControlledApplication application)
         {
             // Initialize the custom assembly resolver
-            RScript.Engine.Globals.CustomAssemblyResolver.Initialize();
+            CoreScript.Engine.Globals.CustomAssemblyResolver.Initialize();
 
             // Setup Dependency Injection
             var services = new ServiceCollection();
-            services.AddRScriptEngineServices();
+            services.AddCoreScriptEngineServices();
             _serviceProvider = services.BuildServiceProvider();
 
             const string tabName = "Paracore";
@@ -88,7 +88,7 @@ namespace RServer.Addin.App
         private void CreateRibbonButtons(RibbonPanel panel)
         {
             PushButtonData toggleServerButton = new(
-                "ToggleRScriptServer",
+                "ToggleCoreScriptServer",
                 "RServer\n(Off)",
                 typeof(RServerApp).Assembly.Location,
                 typeof(ToggleServerCommand).FullName)
@@ -169,8 +169,8 @@ namespace RServer.Addin.App
             UpdateButtonState();
         }
 
-        public static RScriptServer? Server => _server;
-        public static void SetServer(RScriptServer? server) => _server = server;
+        public static CoreScriptServer? Server => _server;
+        public static void SetServer(CoreScriptServer? server) => _server = server;
 
         public static IServiceProvider ServiceProvider => _serviceProvider ?? throw new InvalidOperationException("Service Provider has not been initialized.");
 

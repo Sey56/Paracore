@@ -12,9 +12,9 @@
 
 -   **Thread-Safe Revit API Execution:** Guarantees safe interaction with the Revit API by marshalling all script execution requests onto Revit's main UI thread. This is achieved using Revit's `ExternalEvent` mechanism, which is the only correct and stable way to handle calls into the API from external sources or background threads.
 
--   **Engine Integration:** Acts as the host for the `RScript.Engine`. It invokes the engine to perform the actual compilation and execution of the C# scripts.
+-   **Engine Integration:** Acts as the host for the `CoreScript.Engine`. It invokes the engine to perform the actual compilation and execution of the C# scripts.
 
--   **Context Provider:** Implements the `IRScriptContext` interface required by the `RScript.Engine`. It provides the engine with live Revit API objects (`UIApplication`, `UIDocument`, `Document`) and captures all script output (standard print messages and structured JSON data) for relay back to the client.
+-   **Context Provider:** Implements the `IRScriptContext` interface required by the `CoreScript.Engine`. It provides the engine with live Revit API objects (`UIApplication`, `UIDocument`, `Document`) and captures all script output (standard print messages and structured JSON data) for relay back to the client.
 
 -   **Singleton Execution:** Uses a `SemaphoreSlim` to ensure that only one script execution request is processed at a time, preventing race conditions and ensuring stable execution.
 
@@ -31,10 +31,10 @@
 4.  **Safe API Context Execution:** Revit invokes the `ServerActionHandler` (an `IExternalEventHandler`) on the main UI thread. This handler now has a valid Revit API context.
     -   It retrieves the script details from the `ServerViewModel`.
     -   It creates a `ServerContext` object to provide the script with Revit objects and capture its output.
-    -   It calls the `RScript.Engine`'s `CodeRunner.Execute()` method, passing the script and the context.
+    -   It calls the `CoreScript.Engine`'s `CodeRunner.Execute()` method, passing the script and the context.
 
 5.  **Result Propagation:**
-    -   Once the `RScript.Engine` finishes execution, the `ServerActionHandler` captures the `ExecutionResult`.
+    -   Once the `CoreScript.Engine` finishes execution, the `ServerActionHandler` captures the `ExecutionResult`.
     -   The result is passed back to the `RScriptRunnerService` on the background thread using a `TaskCompletionSource` that was being awaited.
     -   The `RScriptRunnerService` packages the results (output, errors, structured data) into a gRPC response and sends it back to the original client.
 

@@ -1,0 +1,85 @@
+{
+  "name": "corescript",
+  "displayName": "CoreScript",
+  "description": "Write C# scripts for the Revit API with full IntelliSense, code completion, and access to custom global variables. Execute your code directly in Revit and see results instantly in the VS Code output tab. Requires the RServer.Addin (installed via RServer_Installer.exe). This extension is not needed for the Paracore application.",
+  "version": "0.0.1",
+  "license": "MIT",
+  "author": {
+    "name": "Seyoum Hagos"
+  },
+  "publisher": "Paras Codarch (Ethiopia)",
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "Revit",
+    "BIM",
+    "C#",
+    "automation",
+    "CoreScript",
+    "design tools",
+    "VSCode",
+    "Revit API"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCommand:corescript.initializeWorkspace",
+    "onCommand:corescript.runScript"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "corescript.initializeWorkspace",
+        "title": "CoreScript: Initialize Workspace"
+      },
+      {
+        "command": "corescript.runScript",
+        "title": "CoreScript: Send Script"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "corescript.runScript",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "corescript.initializeWorkspace",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@grpc/grpc-js": "^1.10.8",
+    "@grpc/proto-loader": "^0.3.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.101.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1",
+    "grpc-tools": "^1.13.0",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.7",
+    "webpack-cli": "^6.0.1"
+  }
+}

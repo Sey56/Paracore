@@ -2,8 +2,8 @@ import os
 import logging
 from contextlib import contextmanager
 import grpc
-from . import rscript_pb2
-from . import rscript_pb2_grpc
+from . import corescript_pb2
+from . import corescript_pb2_grpc
 from google.protobuf import json_format
 
 @contextmanager
@@ -14,7 +14,7 @@ def get_rscript_runner_stub():
         grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
         logging.info(f"Attempting to connect to gRPC server at: {grpc_server_address}")
         channel = grpc.insecure_channel(grpc_server_address)
-        stub = rscript_pb2_grpc.RScriptRunnerStub(channel)
+        stub = corescript_pb2_grpc.CoreScriptRunnerStub(channel)
         logging.info("gRPC channel and stub created successfully.")
         yield stub
     except Exception as e:
@@ -28,7 +28,7 @@ def get_status():
     logging.info("Attempting to get gRPC server status.")
     try:
         with get_rscript_runner_stub() as stub:
-            response = stub.GetStatus(rscript_pb2.GetStatusRequest())
+            response = stub.GetStatus(corescript_pb2.GetStatusRequest())
         return response
     except grpc.RpcError as e:
         logging.error(f"gRPC GetStatus call failed: {e.code()} - {e.details()}")
@@ -40,7 +40,7 @@ def get_status():
 def execute_script(script_content, parameters_json):
     logging.info("Attempting to execute script via gRPC.")
     with get_rscript_runner_stub() as stub:
-        request = rscript_pb2.ExecuteScriptRequest(
+        request = corescript_pb2.ExecuteScriptRequest(
             script_content=script_content.encode('utf-8'),
             parameters_json=parameters_json.encode('utf-8'),
             source="rap-web"
@@ -49,12 +49,13 @@ def execute_script(script_content, parameters_json):
             response = stub.ExecuteScript(request)
             logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
+            structured_output_data = [{"type": item.type, "data": item.data} for item in response.structured_output]
             return {
                 "is_success": response.is_success,
                 "output": response.output,
                 "error_message": response.error_message,
                 "error_details": list(response.error_details),
-                "showOutputData": [{"type": item.type, "data": item.data} for item in response.structured_output]
+                "showOutputData": structured_output_data
             }
         except grpc.RpcError as e:
             logging.error(f"gRPC ExecuteScript call failed: {e.code()} - {e.details()}")
@@ -62,8 +63,8 @@ def execute_script(script_content, parameters_json):
 
 def get_script_metadata(script_files):
     with get_rscript_runner_stub() as stub:
-        grpc_script_files = [rscript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
-        request = rscript_pb2.GetScriptMetadataRequest(script_files=grpc_script_files)
+        grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
+        request = corescript_pb2.GetScriptMetadataRequest(script_files=grpc_script_files)
         response = stub.GetScriptMetadata(request)
     
     metadata_dict = json_format.MessageToDict(
@@ -78,8 +79,8 @@ def get_script_metadata(script_files):
 
 def get_script_parameters(script_files):
     with get_rscript_runner_stub() as stub:
-        grpc_script_files = [rscript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
-        request = rscript_pb2.GetScriptParametersRequest(script_files=grpc_script_files)
+        grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
+        request = corescript_pb2.GetScriptParametersRequest(script_files=grpc_script_files)
         response = stub.GetScriptParameters(request)
     
     return {
@@ -97,8 +98,8 @@ def get_script_parameters(script_files):
 
 def get_combined_script(script_files):
     with get_rscript_runner_stub() as stub:
-        grpc_script_files = [rscript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
-        request = rscript_pb2.GetCombinedScriptRequest(script_files=grpc_script_files)
+        grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
+        request = corescript_pb2.GetCombinedScriptRequest(script_files=grpc_script_files)
         response = stub.GetCombinedScript(request)
     
     return {
@@ -108,7 +109,7 @@ def get_combined_script(script_files):
 
 def create_and_open_workspace(script_path, script_type):
     with get_rscript_runner_stub() as stub:
-        request = rscript_pb2.CreateWorkspaceRequest(
+        request = corescript_pb2.CreateWorkspaceRequest(
             script_path=script_path,
             script_type=script_type
         )

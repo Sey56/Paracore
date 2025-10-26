@@ -1,4 +1,4 @@
-using RScript.Engine.Logging;
+using CoreScript.Engine.Logging;
 using RServer.Addin.App;
 using System;
 using System.Collections.Generic;
@@ -225,7 +225,7 @@ namespace RServer.Addin.Helpers
             string revitPath = $@"C:\Program Files\Autodesk\Revit {RevitVersion}";
             string enginePath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "Autodesk", "Revit", "Addins", RevitVersion, "RServer", "RScript.Engine.dll");
+                "Autodesk", "Revit", "Addins", RevitVersion, "RServer", "CoreScript.Engine.dll");
 
             var compileItems = string.Join("\n", scriptFileNames.Select(file => $"    <Compile Include=\"{file}\" />"));
 
@@ -249,7 +249,7 @@ namespace RServer.Addin.Helpers
                       <HintPath>{{revitPath}}\RevitAPIUI.dll</HintPath>
                       <Private>false</Private>
                     </Reference>
-                    <Reference Include="RScript.Engine">
+                    <Reference Include="CoreScript.Engine">
                       <HintPath>{{enginePath}}</HintPath>
                       <Private>false</Private>
                     </Reference>
@@ -277,7 +277,7 @@ namespace RServer.Addin.Helpers
         {
             File.WriteAllText(Path.Combine(folderPath, "Globals.cs"),
                 "// This file enables IntelliSense for cutom globals.\n" +
-                "global using static RScript.Engine.Globals.DesignTimeGlobals;");
+                "global using static CoreScript.Engine.Globals.DesignTimeGlobals;");
         }
 
         private static void WriteEditorConfig(string folderPath)

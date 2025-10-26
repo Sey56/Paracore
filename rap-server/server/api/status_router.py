@@ -15,6 +15,7 @@ async def get_status_endpoint():
     """
     try:
         response = get_status()
+        print(f"[DEBUG] Raw GetStatusResponse from RServer.Addin: {response}") # DEBUG LOG
         return JSONResponse(content=json.loads(json_format.MessageToJson(response)))
     except grpc.RpcError:
         return JSONResponse(content={
