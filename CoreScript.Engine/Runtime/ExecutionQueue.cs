@@ -8,14 +8,14 @@ namespace CoreScript.Engine.Runtime
     /// </summary>
     public class ExecutionQueue
     {
-        private readonly ConcurrentQueue<(string script, IRScriptContext context)> _queue = new();
+        private readonly ConcurrentQueue<(string script, ICoreScriptContext context)> _queue = new();
 
-        public void Enqueue(string script, IRScriptContext context)
+        public void Enqueue(string script, ICoreScriptContext context)
         {
             _queue.Enqueue((script, context));
         }
 
-        public bool TryDequeue(out string script, out IRScriptContext context)
+        public bool TryDequeue(out string script, out ICoreScriptContext context)
         {
             if (_queue.TryDequeue(out var item))
             {

@@ -2,6 +2,7 @@
 export interface ExecutionResult {
   output: string;
   error: string | null;
+  isSuccess: boolean;
   showOutputData?: StructuredOutput[];
 }
 

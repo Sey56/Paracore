@@ -112,6 +112,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const removeCustomCategory = (categoryName: string) => {
+    if (selectedCategory === categoryName) {
+      setSelectedCategory(null);
+    }
     const newCategories = customCategories.filter(
       (category) => category !== categoryName
     );

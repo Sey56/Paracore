@@ -71,7 +71,7 @@ namespace RServer.Addin.ViewModels
         public ICommand ClearHistoryCommand => _clearHistoryCommand ??= new RelayCommand(_ => ClearHistory());
 
         public event Action<ExecutionResult> OnExecutionComplete = delegate { };
-        public bool IsInitialized => RScriptExecutionDispatcher.Instance.IsInitialized;
+        public bool IsInitialized => CoreScriptExecutionDispatcher.Instance.IsInitialized;
 
         private string _filterText = string.Empty;
         public string FilterText
@@ -94,8 +94,8 @@ namespace RServer.Addin.ViewModels
             if (_isInitialized) return;
             _isInitialized = true;
 
-            RScriptExecutionDispatcher.Instance.Initialize(codeExecutionEvent);
-            RScriptExecutionDispatcher.Instance.OnExecutionComplete += result =>
+            CoreScriptExecutionDispatcher.Instance.Initialize(codeExecutionEvent);
+            CoreScriptExecutionDispatcher.Instance.OnExecutionComplete += result =>
             {
                 _stopwatch.Stop();
                 var elapsedMs = _stopwatch.ElapsedMilliseconds;
@@ -128,15 +128,15 @@ namespace RServer.Addin.ViewModels
             };
         }
 
-        public ExecutionResult DispatchScript(string scriptContent, string parametersJson, IRScriptContext context)
+        public ExecutionResult DispatchScript(string scriptContent, string parametersJson, ICoreScriptContext context)
         {
             _stopwatch.Restart();
-            return RScriptExecutionDispatcher.Instance.QueueScriptFromServer(scriptContent, parametersJson, context);
+            return CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(scriptContent, parametersJson, context);
         }
 
-        public ExecutionResult ExecuteCodeInRevit(IRScriptContext? context)
+        public ExecutionResult ExecuteCodeInRevit(ICoreScriptContext? context)
         {
-            return RScriptExecutionDispatcher.Instance.ExecuteCodeInRevit(context);
+            return CoreScriptExecutionDispatcher.Instance.ExecuteCodeInRevit(context);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

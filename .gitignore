@@ -82,7 +82,7 @@ rap-web/src-tauri/server-release/
 
 # Untracked files
 package-lock.json
-rap-help/
+paracore-help/
 
 # RAP Specific
 rap-web/server-modules/

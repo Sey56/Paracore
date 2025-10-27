@@ -1,6 +1,6 @@
 # CoreScript.Engine - Dynamic C# Script Execution Engine
 
-`CoreScript.Engine` is a powerful C# library designed for the dynamic compilation and execution of C# scripts at runtime. It is the core of the Revit Automation Platform (RAP), leveraging the Roslyn compiler to provide a secure, flexible, and robust environment for running user-defined code within a host application like Revit.
+`CoreScript.Engine` is a powerful C# library designed for the dynamic compilation and execution of C# scripts at runtime. It is the core of the Revit Automation Platform (RAP), leveraging the Roslyn compiler to provide a secure, flexible, and robust environment for running user-defined code within the Autodesk Revit application.
 
 ## Core Features
 
@@ -10,12 +10,12 @@
 
 -   **Sandboxed and Isolated Execution:** Each script is executed within its own collectible `AssemblyLoadContext`. This ensures that script assemblies are isolated from the host application and can be unloaded immediately after execution, preventing memory leaks and assembly conflicts.
 
--   **Rich and Static Execution Context:** Scripts are executed with a set of "global" functions and properties to interact with the host. This is achieved by creating an `ExecutionGlobals` instance for each run and injecting a `using static CoreScript.Engine.Globals.ScriptApi;` directive into the script. This provides a clean, static API, including:
-    -   **Revit API Access:** `UIApp`, `UIDoc`, `Doc`
-    -   **Input Parameters:** A `Parameters` dictionary containing the user-provided inputs.
-    -   **Logging:** `Print(string message)`
-    -   **Transactions:** `Transact(string name, Action<Document> action)`
-    -   **Structured Output:** `Show(string type, object data)` for returning complex data (like tables or objects) to the host in a serialized JSON format.
+-   **Rich and Static Execution Context:** Scripts are executed within a rich, static context provided by the `ExecutionGlobals` class. This is achieved by creating an `ExecutionGlobals` instance for each run and injecting a `using static CoreScript.Engine.Globals.ScriptApi;` directive into the script. This provides a clean, static API, including:
+    -   **Revit API Access:** `UIApp`, `UIDoc`, `Doc` (properties for accessing the current Revit application, UI document, and document)
+    -   **Input Parameters:** `Parameters` (a `Dictionary<string, object>` containing user-provided inputs)
+    -   **Logging:** `Print(string message)` and `Println(string message)` (methods for outputting messages to the host, with `Println` adding a newline)
+    -   **Transactions:** `Transact(string name, Action<Document> action)` and `Transact(string name, Action action)` (methods for wrapping Revit API modifications within a transaction)
+    -   **Structured Output:** `Output.Show(string type, object data)` (a method accessed via the `Output` property, used for returning complex, structured data in a serialized JSON format to the host)
 
 -   **Multi-File Script Support:** The engine's `SemanticCombinator` can combine multiple C# source files into a single logical script, allowing users to organize their code into classes and helpers while maintaining a single execution flow.
 
@@ -33,20 +33,20 @@
     -   The `ParameterRewriter` traverses this tree, finds variable declarations matching the incoming parameter names, and replaces their initial values with the new values.
 
 3.  **Compile and Execute:**
-    -   The modified syntax tree is converted back to a string, and a `using static CoreScript.Engine.Globals.ScriptApi;` directive is prepended.
+    -   The modified syntax tree is. converted back to a string, and a `using static CoreScript.Engine.Globals.ScriptApi;` directive is prepended.
     -   The engine creates a `CSharpScript` instance, configured with references to the .NET runtime and Revit API assemblies.
-    -   An `ExecutionGlobals` object is created, containing the host's `IRScriptContext` and the input parameters.
+    -   An `ExecutionGlobals` object is created, containing the host's `ICoreScriptContext` and the input parameters.
     -   The script is executed asynchronously within a new, collectible `AssemblyLoadContext`. The `ScriptApi` provides static access to the `ExecutionGlobals` instance for that specific run.
 
 4.  **Return Results:**
     -   Any return value from the script is captured.
-    -   All messages sent via `Print()` and structured data from `Show()` are collected from the `IRScriptContext`.
+    -   All messages sent via `Print()` and structured data from `Show()` are collected from the `ICoreScriptContext`.
     -   The `AssemblyLoadContext` is unloaded, and the results are returned to the host application in an `ExecutionResult` object.
 
 ## Build and Deployment
 
-This project is not a standalone application. It is intended to be integrated into a .NET application that requires C# scripting capabilities. The `.csproj` file includes a custom `CopyToLibFolder` build target. This target copies the `CoreScript.Engine.dll` and all of its Roslyn dependencies into a shared `lib` folder in the parent directory. This ensures that any host application referencing the engine has access to all the necessary assemblies at runtime.
+`CoreScript.Engine` is a .NET library specifically designed for integration into Autodesk Revit applications. It provides dynamic script processing and execution capabilities tailored for the Revit API. It is not a standalone application.
 
-## Usage
+It is directly referenced by the `RServer.Addin` project. During the build process of `RServer.Addin`, the `dotnet publish` command automatically includes `CoreScript.Engine.dll` and all its necessary dependencies (including Roslyn components) into the `RServer.Addin`'s publish output directory. This ensures that `RServer.Addin` has access to all required assemblies at runtime.
 
-The host application must implement the `IRScriptContext` interface to provide the necessary context (like Revit API objects and logging callbacks) for the engine to function. The `CodeRunner.Execute` method is the main entry point for running a script.
+The `RServer-Installer.ps1` script then utilizes these published files from `RServer.Addin` to create the final `RServer_Installer.exe` using Inno Setup, which deploys the add-in to the appropriate Revit Addins folder.

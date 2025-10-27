@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace CoreScript.Engine.Tests
 {
-    public class TestScriptContext : IRScriptContext
+    public class TestScriptContext : ICoreScriptContext
     {
         private readonly List<string> _printMessages = new();
         private readonly List<string> _showOutputMessages = new();

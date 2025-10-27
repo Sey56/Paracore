@@ -13,7 +13,7 @@ namespace RServer.Addin.Context
         public string Data { get; set; }
     }
 
-    public class ServerContext : IRScriptContext
+    public class ServerContext : ICoreScriptContext
     {
         private readonly List<string> _printMessages = new();
         private readonly List<string> _errorMessages = new();

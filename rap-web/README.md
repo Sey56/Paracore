@@ -1,4 +1,4 @@
-# rap-web - Revit Automation Platform (RAP) Frontend
+# rap-web - Revit Automation Platform (RAP) Frontend (Public-facing product name: Paracore)
 
 `rap-web` is the primary user interface for the Revit Automation Platform (RAP). It is a modern, responsive desktop application built with React and TypeScript, and packaged as a native application using Tauri. It provides a rich and intuitive environment for users to browse, manage, inspect, and execute Revit automation scripts.
 
@@ -22,7 +22,7 @@
 
 -   **Integrated VSCode Editing:**
     -   **Ephemeral Workspaces:** Instead of building a custom editor, RAP leverages the power of VSCode. Clicking "Edit Script" dynamically creates a temporary, ephemeral workspace on disk.
-    -   **IntelliSense Ready:** This workspace is automatically scaffolded with a `.csproj` file containing all necessary references to the Revit API and `RScript.Engine`, providing full IntelliSense and code completion in VSCode.
+    -   **IntelliSense Ready:** This workspace is automatically scaffolded with a `.csproj` file containing all necessary references to the Revit API and `CoreScript.Engine`, providing full IntelliSense and code completion in VSCode.
     -   **Live Sync:** The original script files are copied to the workspace, and a `FileSystemWatcher` is initiated. Any saves made in the VSCode workspace are automatically and instantly synced back to the original script files.
     -   **Automatic Cleanup:** The temporary workspace folders are automatically deleted when Revit is closed.
 

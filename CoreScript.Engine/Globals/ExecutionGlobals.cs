@@ -8,9 +8,9 @@ namespace CoreScript.Engine.Globals
 {
     public class Output
     {
-        private readonly IRScriptContext _context;
+        private readonly ICoreScriptContext _context;
 
-        public Output(IRScriptContext context)
+        public Output(ICoreScriptContext context)
         {
             _context = context;
         }
@@ -29,13 +29,13 @@ namespace CoreScript.Engine.Globals
         public static void SetContext(ExecutionGlobals context) => Current.Value = context;
         public static void ClearContext() => Current.Value = null;
 
-        private readonly IRScriptContext _context;
+        private readonly ICoreScriptContext _context;
 
         public Dictionary<string, object> Parameters { get; }
         public Output Output { get; }
 
 
-        public ExecutionGlobals(IRScriptContext context, Dictionary<string, object> parameters)
+        public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters)
         {
             _context = context;
             Parameters = parameters;

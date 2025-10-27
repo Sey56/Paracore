@@ -20,10 +20,12 @@ namespace CoreScript.Engine.Core
 {
     public class CodeRunner : ICodeRunner
     {
-        public ExecutionResult Execute(string scriptContent, string parametersJson, IRScriptContext context)
-            => Execute(scriptContent, parametersJson, context, null);
+        public ExecutionResult Execute(string scriptContent, string parametersJson, ICoreScriptContext context)
+        {
+            return Execute(scriptContent, parametersJson, context, null);
+        }
 
-        public ExecutionResult Execute(string userCode, string parametersJson, IRScriptContext context, object? customHost)
+        public ExecutionResult Execute(string userCode, string parametersJson, ICoreScriptContext context, object? customHost)
         {
             var alc = new AssemblyLoadContext("RevitScript", isCollectible: true);
             string timestamp = DateTime.Now.ToString("dddd dd, MMMM yyyy | hh:mm:ss tt", CultureInfo.InvariantCulture);
@@ -119,18 +121,49 @@ namespace CoreScript.Engine.Core
                 var script = CSharpScript.Create(finalScriptCode, options);
                 var state = script.RunAsync().Result;
 
-                string successMessage = $"✅ Code executed successfully | {timestamp}";
+                // Check PrintLog for error indicators
+                bool scriptReportedError = context.PrintLog.Any(logEntry => logEntry.Contains("❌"));
+
+                if (scriptReportedError)
+                {
+                    string failureMessage = "❌ Script execution failed due to runtime errors | " + timestamp;
+                    context.Println(failureMessage);
+                    FileLogger.Log(failureMessage);
+                    // Populate ErrorDetails with the entire PrintLog for frontend display
+                    var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
+                    failureResult.ScriptName = topLevelScriptName;
+                    return failureResult;
+                }
+
+                string successMessage = "✅ Code executed successfully | " + timestamp;
                 context.Println(successMessage);
                 FileLogger.Log(successMessage);
 
                 var result = ExecutionResult.Success(successMessage, state.ReturnValue);
+                result.PrintLog = context.PrintLog.ToList();
                 result.ScriptName = topLevelScriptName;
                 return result;
             }
             catch (CompilationErrorException ex)
             {
-                var errs = ex.Diagnostics.Select(d => d.ToString()).ToArray();
-                string failureMessage = $"❌ Script failed to compile | {timestamp}";
+                var errs = ex.Diagnostics.Select(d =>
+                {
+                    var lineSpan = d.Location.GetLineSpan();
+                    if (lineSpan.IsValid)
+                    {
+                        // Decrement the line number by 1 because of the prepended 'using' statement
+                        int user1IndexedLine = Math.Max(1, lineSpan.StartLinePosition.Line); // Roslyn's 0-indexed line + 1 is the 1-indexed line in the combined script. We want the 1-indexed line in the user's script.
+                        // Since Roslyn's 0-indexed line is already 1 higher than the user's 0-indexed line, we just use Roslyn's 0-indexed line as the user's 1-indexed line.
+                        // Example: User's 0-indexed line 0 -> Roslyn's 0-indexed line 1. We want to display 1.
+                        // Example: User's 0-indexed line 56 -> Roslyn's 0-indexed line 57. We want to display 57.
+                        // So, we just use lineSpan.StartLinePosition.Line as the 1-indexed line number.
+                        // We use Math.Max(1, ...) to ensure the line number is at least 1.
+                        return $"{lineSpan.Path}({user1IndexedLine},{lineSpan.StartLinePosition.Character + 1}): {d.Severity.ToString().ToLower()} {d.Id}: {d.GetMessage()}";
+                    }
+                    return d.ToString(); // Fallback to original string if line info is not valid
+                }).ToArray();
+
+                string failureMessage = "❌ Script failed to compile | " + timestamp;
                 context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
                 
@@ -141,7 +174,7 @@ namespace CoreScript.Engine.Core
             catch (AggregateException ex)
             {
                 var errs = ex.InnerExceptions.Select(e => e.ToString()).ToArray();
-                string failureMessage = $"❌ Script execution failed | {timestamp}";
+                string failureMessage = "❌ Script execution failed | " + timestamp;
                 context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
 

@@ -21,6 +21,6 @@ namespace CoreScript.Engine.Core
         /// <returns>
         /// ExecutionResult describing success, failure, output logs, and return value.
         /// </returns>
-        ExecutionResult Execute(string scriptContent, string parametersJson, IRScriptContext context);
+        ExecutionResult Execute(string scriptContent, string parametersJson, ICoreScriptContext context);
     }
 }

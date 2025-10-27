@@ -6,7 +6,7 @@
 
 -   **API Gateway:** Exposes a RESTful API over HTTP for the `rap-web` frontend, handling all incoming requests for script management and execution.
 -   **Filesystem Operations:** Manages browsing the local filesystem to discover and list available C# scripts for the script gallery.
--   **gRPC Client:** Acts as the client for the gRPC server hosted by `RServer.Addin`. It translates the frontend's HTTP requests into gRPC calls to be executed inside Revit.
+-   **gRPC Client:** Acts as the client for the gRPC server hosted by `RServer.Addin`. It communicates with the `CoreScriptRunnerService` exposed by the add-in, translating the frontend\'s HTTP requests into gRPC calls to be executed inside Revit.
 -   **Data Persistence:** Handles local data storage using an SQLite database for script run history and other metadata.
 -   **Workspace Orchestration:** Initiates the creation of ephemeral VSCode workspaces by calling the appropriate gRPC endpoint on the `RServer.Addin`.
 -   **Authentication:** Includes an authentication router (`auth_router`) to handle user authentication and authorization. For local development, it uses a hardcoded user ID.

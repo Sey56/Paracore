@@ -8,7 +8,7 @@ namespace CoreScript.Engine.Context
     /// <summary>
     /// Defines the execution context provided by host add-ins, including access to Revit API and logging.
     /// </summary>
-    public interface IRScriptContext
+    public interface ICoreScriptContext
     {
         UIApplication UIApp { get; }
         UIDocument UIDoc { get; }

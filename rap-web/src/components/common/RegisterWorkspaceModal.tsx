@@ -23,6 +23,7 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
 }) => {
   const [name, setName] = useState(initialName || '');
   const [repoUrl, setRepoUrl] = useState(initialRepoUrl || '');
+  const [selectedPostfix, setSelectedPostfix] = useState<string>('-dev'); // New state for postfix
   const [isRegistering, setIsRegistering] = useState(false);
   const { showNotification } = useNotifications();
 
@@ -34,6 +35,7 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
       } else {
         setName('');
         setRepoUrl('');
+        setSelectedPostfix('-dev'); // Reset to default when opening for new registration
       }
       setIsRegistering(false);
     }
@@ -54,9 +56,11 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
       return;
     }
 
+    const finalName = isEditMode ? name : `${name}${selectedPostfix}`;
+
     setIsRegistering(true);
     try {
-      await onSubmit(name, repoUrl);
+      await onSubmit(finalName, repoUrl);
       onClose();
     } catch (error) {
       console.error("Submission failed:", error);
@@ -117,6 +121,36 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
                             className="mt-1 block w-full p-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                         />
                     </div>
+
+                    {!isEditMode && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Audience</label>
+                        <div className="flex space-x-4">
+                          <label className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              className="form-radio"
+                              name="postfix"
+                              value="-dev"
+                              checked={selectedPostfix === '-dev'}
+                              onChange={() => setSelectedPostfix('-dev')}
+                            />
+                            <span className="ml-2 text-gray-700 dark:text-gray-300">Developer (-dev)</span>
+                          </label>
+                          <label className="inline-flex items-center">
+                            <input
+                              type="radio"
+                              className="form-radio"
+                              name="postfix"
+                              value="-user"
+                              checked={selectedPostfix === '-user'}
+                              onChange={() => setSelectedPostfix('-user')}
+                            />
+                            <span className="ml-2 text-gray-700 dark:text-gray-300">User (-user)</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
                 </div>
 
                 <div className="mt-6 flex justify-end space-x-2">

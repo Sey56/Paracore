@@ -11,7 +11,7 @@ namespace CoreScript.Engine.Globals
     /// </summary>
     public class ScriptHost : ExecutionGlobals
     {
-        public ScriptHost(IRScriptContext context) : base(context, new Dictionary<string, object>()) { }
+        public ScriptHost(ICoreScriptContext context) : base(context, new Dictionary<string, object>()) { }
 
         // No overrides.
         // No PrintCallback.

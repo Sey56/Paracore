@@ -35,7 +35,7 @@ namespace CoreScript.Engine.Core
 
                 foreach (var declaration in potentialParameters)
                 {
-                    // Check for a comment containing [ScriptParameter] immediately above the declaration
+                    // Check for a comment containing [Parameter] immediately above the declaration
                     var triviaList = declaration.GetLeadingTrivia();
                     bool isParameter = triviaList
                         .Any(trivia => trivia.IsKind(SyntaxKind.SingleLineCommentTrivia) &&

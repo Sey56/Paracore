@@ -23,6 +23,7 @@ export interface StructuredOutput {
 export interface ScriptExecutionResult {
   output: string;
   error: string | null;
+  isSuccess: boolean;
   showOutputData?: StructuredOutput[];
 }
 

@@ -84,8 +84,25 @@ export const Sidebar = () => {
   }, [activeTeam, user]);
 
   const currentTeamWorkspaces = useMemo(() => {
-    return activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
-  }, [activeTeam, teamWorkspaces]);
+    if (!activeTeam) return [];
+
+    const allWorkspaces = teamWorkspaces[activeTeam.team_id] || [];
+
+    return allWorkspaces.filter(workspace => {
+      const name = workspace.name.toLowerCase();
+      const isDevWorkspace = name.endsWith('-dev');
+      const isUserWorkspace = name.endsWith('-user');
+
+      if (isDevWorkspace) {
+        return activeRole === Role.Admin || activeRole === Role.Developer;
+      } else if (isUserWorkspace) {
+        return activeRole === Role.Admin || activeRole === Role.User;
+      } else {
+        // Show to all if no specific postfix
+        return true;
+      }
+    });
+  }, [activeTeam, teamWorkspaces, activeRole]);
 
   const { localWorkspaces, unclonedWorkspaces } = useMemo(() => {
     const local: (Workspace & { isOrphaned?: boolean; path?: string })[] = []; // Added path to local Workspace type

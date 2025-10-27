@@ -10,9 +10,9 @@ namespace CoreScript.Engine.Tests
     public class CodeRunnerTests
     {
         private readonly ICodeRunner _runner;
-        private readonly IRScriptContext _context;
+        private readonly ICoreScriptContext _context;
 
-        public CodeRunnerTests(IRScriptContext context)
+        public CodeRunnerTests(ICoreScriptContext context)
         {
             _context = context;
             _runner = new CodeRunner();
