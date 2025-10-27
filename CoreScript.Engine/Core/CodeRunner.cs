@@ -130,7 +130,7 @@ namespace CoreScript.Engine.Core
                     context.Println(failureMessage);
                     FileLogger.Log(failureMessage);
                     // Populate ErrorDetails with the entire PrintLog for frontend display
-                    var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
+                    var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                     failureResult.ScriptName = topLevelScriptName;
                     return failureResult;
                 }
@@ -167,7 +167,7 @@ namespace CoreScript.Engine.Core
                 context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
                 
-                var failureResult = ExecutionResult.Failure(failureMessage, errs);
+                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
                 return failureResult;
             }
@@ -178,7 +178,7 @@ namespace CoreScript.Engine.Core
                 context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
 
-                var failureResult = ExecutionResult.Failure(failureMessage, errs);
+                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
                 return failureResult;
             }
@@ -193,7 +193,8 @@ namespace CoreScript.Engine.Core
                     : $"❌ Runtime error: {ex.Message} | {timestamp}";
                 
                 context.Println(failureMessage);
-                return ExecutionResult.Failure(failureMessage, new[] { ex.Message });
+                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                return failureResult;
             }
             finally
             {

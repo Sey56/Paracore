@@ -12,6 +12,8 @@ const execPromise = promisify(exec);
 export function activate(context: vscode.ExtensionContext) {
   console.log("CoreScript extension is now active!");
 
+  const outputChannel = vscode.window.createOutputChannel("CoreScript");
+
   const initializeWorkspace = vscode.commands.registerCommand(
     "corescript.initializeWorkspace",
     async () => {
@@ -206,7 +208,6 @@ public class SpiralCreator
 
       const rootPath = folders[0].uri.fsPath;
       const scriptsPath = path.join(rootPath, "Scripts");
-      const outputChannel = vscode.window.createOutputChannel("CoreScript");
       outputChannel.clear();
       outputChannel.show(true);
       vscode.window.setStatusBarMessage(
