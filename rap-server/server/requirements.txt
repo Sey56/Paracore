@@ -47,3 +47,8 @@ uvicorn==0.38.0
 watchdog==6.0.0
 zstandard==0.25.0
 websockets==10.4
+# Agent Dependencies
+langchain==0.2.1
+langgraph==0.0.62
+langchain-openai==0.1.7
+langchain-google-genai==1.0.4
