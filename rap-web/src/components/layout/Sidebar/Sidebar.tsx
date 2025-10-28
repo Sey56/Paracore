@@ -315,7 +315,7 @@ export const Sidebar = () => {
             onClose={() => setIsRemoveModalOpen(false)}
             onConfirm={handleRemoveLocalConfirm}
             title={`Remove Local Workspace '${workspaceToRemove.name}'`}
-            message={`Are you sure you want to remove your local copy of this workspace? This will delete the folder '${userWorkspacePaths[workspaceToRemove.id]?.path}' from your computer. This action cannot be undone.`}
+            message={`Are you sure you want to unload this workspace? This will remove it from the list, but it will not delete the folder from your computer.`}
             confirmButtonText="Remove"
             confirmButtonColor="red"
           />

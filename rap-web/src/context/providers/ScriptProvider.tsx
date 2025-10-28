@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ScriptContext, ScriptContextProps } from '../ScriptContext';
+import { ScriptContext, ScriptContextProps } from './ScriptContext';
 import type { Script, RawScriptFromApi } from '@/types/scriptModel';
 import { Workspace } from '@/types/index';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -31,7 +31,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [scripts, setScripts] = useState<Script[]>([]);
   const [allScripts, setAllScripts] = useState<Script[]>([]);
-  // CORRECTED: useLocalStorage key is now user-specific
   const [customScriptFolders, setCustomScriptFolders] = useState<string[]>([]);
 
   const fetchCustomScriptFolders = useCallback(async () => {
@@ -79,7 +78,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const [teamWorkspaces, setTeamWorkspaces] = useState<Record<number, Workspace[]>>({});
 
   const fetchTeamWorkspaces = useCallback(async () => {
-    console.log("[ScriptProvider] fetchTeamWorkspaces called.");
     if (!activeTeam || !cloudToken) {
       setTeamWorkspaces({});
       return;
@@ -102,6 +100,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     fetchTeamWorkspaces();
   }, [fetchTeamWorkspaces, activeTeam]);
+
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [favoriteScripts, setFavoriteScripts] = useState<string[]>([]);
   const [recentScripts, setRecentScripts] = useState<string[]>([]);
@@ -166,14 +165,13 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       if (activeScriptSource.type === 'local') {
         path_to_load = activeScriptSource.path;
       } else if (activeScriptSource.type === 'workspace') {
-        // Get the local path from userWorkspacePaths using the workspace ID
         path_to_load = userWorkspacePaths[Number(activeScriptSource.id)]?.path;
       }
     }
 
     if (path_to_load) {
       loadScriptsFromPath(path_to_load);
-      setSelectedFolder(path_to_load); // Keep setSelectedFolder for UI consistency
+      setSelectedFolder(path_to_load);
     } else {
       setScripts([]);
       setSelectedFolder(null);
@@ -224,7 +222,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     fetchAllScripts();
   }, [fetchAllScripts]);
 
-
   const fetchScriptMetadata = useCallback(async (scriptId: string) => {
     const script = scripts.find(s => s.id === scriptId);
     if (!script || script.metadata) return;
@@ -266,7 +263,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
     setCustomScriptFolders(prev => {
       const newState = [...prev, folderPath];
-      saveCustomScriptFolders(newState); // Save to server
+      saveCustomScriptFolders(newState);
       return newState;
     });
     showNotification(`Added custom script folder: ${folderPath}.`, "success");
@@ -276,15 +273,18 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
     setCustomScriptFolders(prev => {
       const newState = prev.filter(folder => folder !== folderPath);
-      saveCustomScriptFolders(newState); // Save to server
+      saveCustomScriptFolders(newState);
       return newState;
     });
     if (selectedFolder === folderPath) {
       setScripts([]);
       setSelectedFolder(null);
     }
+    if (activeScriptSource?.type === 'local' && activeScriptSource.path === folderPath) {
+      setActiveScriptSource(null);
+    }
     showNotification(`Removed custom script folder: ${folderPath}.`, "info");
-  }, [user, saveCustomScriptFolders, selectedFolder, showNotification]);
+  }, [user, saveCustomScriptFolders, selectedFolder, showNotification, activeScriptSource, setActiveScriptSource]);
 
   const addTeamWorkspace = useCallback(async (teamId: number, workspace: Workspace): Promise<void> => {
     if (!cloudToken) {
@@ -310,7 +310,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   }, [cloudToken, setTeamWorkspaces, showNotification]);
 
   const removeTeamWorkspace = useCallback(async (teamId: number, workspaceId: number): Promise<void> => {
-    console.log(`[ScriptProvider] Attempting to remove registered workspace: teamId=${teamId}, workspaceId=${workspaceId}`);
     if (!cloudToken) {
       showNotification("Not authenticated.", "error");
       return;
@@ -355,7 +354,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [currentDisplayPath]);
   
-  
   const createNewScript = useCallback(async (details: {
     parent_folder: string;
     script_type: 'single' | 'multi';
@@ -369,19 +367,22 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: unknown) {
       const message = isAxiosErrorWithResponseData(error) ? error.response.data.detail : (error instanceof Error ? error.message : "An unknown error occurred.");
       showNotification(`Failed to create script: ${message}`, "error");
-      throw new Error(message); 
+      throw new Error(message);
     }
   }, [loadScriptsFromPath, showNotification]);
 
   const toggleFavoriteScript = useCallback((scriptId: string) => {
     setFavoriteScripts(prev => prev.includes(scriptId) ? prev.filter(id => id !== scriptId) : [...prev, scriptId]);
   }, [setFavoriteScripts]);
+
   const addRecentScript = useCallback((scriptId: string) => {
     setRecentScripts(prev => [scriptId, ...prev.filter(id => id !== scriptId)].slice(0, 10));
   }, [setRecentScripts]);
+
   const updateScriptLastRunTime = (scriptId: string) => {
     setLastRunTimes(prev => ({ ...prev, [scriptId]: new Date().toISOString() }));
   };
+
   const clearFavoriteScripts = useCallback(() => setFavoriteScripts([]), [setFavoriteScripts]);
   const clearRecentScripts = useCallback(() => setRecentScripts([]), [setRecentScripts]);
 

@@ -1,6 +1,6 @@
-
 import { createContext } from 'react';
 import type { Script } from '@/types/scriptModel';
+import { Workspace } from '@/types/index'; // Import Workspace type
 
 export interface ScriptContextProps {
   scripts: Script[];
@@ -27,6 +27,15 @@ export interface ScriptContextProps {
   fetchScriptMetadata: (scriptId: string) => Promise<void>;
   setScripts: React.Dispatch<React.SetStateAction<Script[]>>;
   setCombinedScriptContent: React.Dispatch<React.SetStateAction<string | null>>;
+  teamWorkspaces: Record<number, Workspace[]>;
+  addTeamWorkspace: (teamId: number, workspace: Workspace) => Promise<void>;
+  removeTeamWorkspace: (teamId: number, workspaceId: number) => Promise<void>;
+  updateTeamWorkspace: (teamId: number, workspaceId: number, name: string | undefined, repoUrl: string | undefined) => Promise<void>;
+  clearScriptsForWorkspace: (workspacePath: string) => void;
+  pullAllTeamWorkspaces: () => Promise<void>;
+  pullWorkspace: (workspacePath: string) => Promise<void>;
+  fetchTeamWorkspaces: () => Promise<void>;
+  clearScripts: () => void;
 }
 
 export const ScriptContext = createContext<ScriptContextProps | undefined>(undefined);

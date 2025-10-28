@@ -55,41 +55,16 @@ export const useUserWorkspaces = () => {
   }, [STORAGE_KEY]);
 
   const removeWorkspacePath = useCallback(async (workspaceId: string) => {
-    const pathToRemove = userWorkspacePaths[workspaceId]?.path;
-    if (!pathToRemove) {
-      console.error("Could not find path for workspace to remove.");
-      // Even if path is not found, proceed to remove from state
-      // This handles cases where the entry is stale
-      setUserWorkspacePaths(prev => {
-        const { [workspaceId]: _, ...remainingPaths } = prev;
+    setUserWorkspacePaths(prev => {
+      const { [workspaceId]: _, ...remainingPaths } = prev;
+      try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remainingPaths));
-        return remainingPaths;
-      });
-      return; // Exit after cleaning up state
-    }
-
-    try {
-      // Step 1: Attempt to delete the folder from the filesystem via the backend
-      await api.delete('/api/workspaces/local', { data: { path: pathToRemove } });
-
-      // Step 2: If successful, remove the workspace from the frontend state and local storage
-      setUserWorkspacePaths(prev => {
-        const { [workspaceId]: _, ...remainingPaths } = prev;
-        try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remainingPaths));
-        } catch (error) {
-          console.error("Failed to remove workspace path from localStorage", error);
-        }
-        return remainingPaths;
-      });
-
-    } catch (error) {
-      console.error("Failed to delete local workspace from backend", error);
-      // If the backend fails, we should not remove the entry from the UI
-      // as it still exists on disk. Re-throw the error to be caught by the caller.
-      throw error;
-    }
-  }, [userWorkspacePaths, STORAGE_KEY]);
+      } catch (error) {
+        console.error("Failed to remove workspace path from localStorage", error);
+      }
+      return remainingPaths;
+    });
+  }, [STORAGE_KEY]);
 
   return { userWorkspacePaths, setWorkspacePath, removeWorkspacePath, isLoaded };
 };

@@ -95,6 +95,7 @@ export interface Script {
   metadata: ScriptMetadata;
   isFavorite?: boolean;
   metadataError?: boolean; // Added this line
+  sourceType?: 'local' | 'workspace';
 }
 
 export type InspectorTab = "parameters" | "code" | "console" | "summary" | "metadata";

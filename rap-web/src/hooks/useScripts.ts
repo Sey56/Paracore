@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { ScriptContext, ScriptContextProps } from '../context/ScriptContext';
+import { ScriptContext, ScriptContextProps } from '../context/providers/ScriptContext';
 
 export const useScripts = (): ScriptContextProps => {
   const context = useContext(ScriptContext);

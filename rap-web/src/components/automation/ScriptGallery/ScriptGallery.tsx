@@ -103,16 +103,16 @@ const dateFilterHelper = (dateString: string | undefined, filterValue: string): 
   let datePart = filterValue;
 
   if (filterValue.startsWith('>=')) {
-    operator = ' >= ';
+    operator = ' >= '; 
     datePart = filterValue.substring(2);
   } else if (filterValue.startsWith('<=')) {
-    operator = ' <= ';
+    operator = ' <= '; 
     datePart = filterValue.substring(2);
   } else if (filterValue.startsWith('>')) {
-    operator = ' > ';
+    operator = ' > '; 
     datePart = filterValue.substring(1);
   } else if (filterValue.startsWith('<')) {
-    operator = ' < ';
+    operator = ' < '; 
     datePart = filterValue.substring(1);
   }
 
@@ -138,13 +138,11 @@ export const ScriptGallery: React.FC = () => {
   const { scripts, allScripts, selectedFolder, teamWorkspaces } = useScripts();
   const { selectedCategory, customCategories, setInspectorOpen, openNewScriptModal, closeNewScriptModal, isNewScriptModalOpen, activeScriptSource } = useUI();
   const { setSelectedScript } = useScriptExecution();
-  // const { activeWorkspace } = useWorkspaces(); // Removed
   const { isAuthenticated, activeRole, activeTeam, user } = useAuth();
   const isMobile = useBreakpoint();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('name-asc');
-  const [searchAllFolders, setSearchAllFolders] = useState(false);
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
@@ -165,7 +163,7 @@ export const ScriptGallery: React.FC = () => {
   };
 
   const categoryMap = useMemo(() => {
-    const source = searchAllFolders ? allScripts : scripts;
+    const source = scripts;
     const map: Record<string, Script[]> = {};
     source.forEach((script: Script) => {
       (script.metadata?.categories || []).forEach((category: string) => {
@@ -176,7 +174,7 @@ export const ScriptGallery: React.FC = () => {
       });
     });
     return map;
-  }, [scripts, allScripts, searchAllFolders]);
+  }, [scripts, allScripts]);
 
   const allCategories = useMemo(() => {
     const defaultCategories = ["Architectural", "Structural", "MEP"];
@@ -189,7 +187,6 @@ export const ScriptGallery: React.FC = () => {
     if (!script || !script.absolutePath) {
       return false;
     }
-    // If the active source is a workspace, check if the script's path starts with that workspace's path
     if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
       return script.absolutePath.startsWith(activeScriptSource.path);
     }
@@ -199,7 +196,7 @@ export const ScriptGallery: React.FC = () => {
   const { filters, pillFilters } = useMemo(() => parseSearchTerm(searchTerm), [searchTerm]);
 
   const { favoriteScripts, otherScripts } = useMemo(() => {
-    const sourceScripts = searchAllFolders ? allScripts : scripts;
+    const sourceScripts = scripts;
 
     const filteredBySidebarCategory = selectedCategory
       ? sourceScripts.filter(script => (script.metadata?.categories || []).includes(selectedCategory))
@@ -292,7 +289,7 @@ export const ScriptGallery: React.FC = () => {
     const otherScripts = sortedScripts.filter(script => !script.isFavorite);
 
     return { favoriteScripts, otherScripts };
-  }, [scripts, allScripts, searchAllFolders, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories]);
+  }, [scripts, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories]);
 
   const handleScriptSelect = (script: Script) => {
     setSelectedScript(script);
@@ -348,17 +345,9 @@ export const ScriptGallery: React.FC = () => {
           ))}
         </div>
         <div className={`flex items-center ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
-          <input
-            type="checkbox"
-            id="searchAllFolders"
-            checked={searchAllFolders}
-            onChange={(e) => setSearchAllFolders(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            disabled={!isAuthenticated}
-          />
-          <label htmlFor="searchAllFolders" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-            {activeScriptSource?.type === 'workspace' ? 'All Workspaces' : 'All Folders'}
-          </label>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {`${favoriteScripts.length + otherScripts.length} scripts`}
+          </p>
         </div>
       </div>
 
@@ -427,7 +416,7 @@ export const ScriptGallery: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm text-gray-400 dark:text-gray-500">
-                {selectedFolder && !searchAllFolders ? selectedFolder : 'All Scripts'}
+                {selectedFolder ? selectedFolder : 'All Scripts'}
               </h2>
             </div>
             {canCreateScripts && (
