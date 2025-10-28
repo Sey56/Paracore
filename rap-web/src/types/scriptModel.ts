@@ -98,4 +98,4 @@ export interface Script {
   sourceType?: 'local' | 'workspace';
 }
 
-export type InspectorTab = "parameters" | "code" | "console" | "summary" | "metadata";
+export type InspectorTab = "parameters" | "agent" | "log" | "summary" | "metadata";

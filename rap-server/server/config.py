@@ -15,6 +15,10 @@ def load_public_key():
         print(f"!!! CRITICAL: Could not load JWT public key from file: {e}")
         return None
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 class Settings:
     db_path = os.getenv("RAP_DATABASE_PATH", f"{os.path.dirname(__file__)}/rap_local.db")
     # Replace backslashes with forward slashes for SQLAlchemy URL compatibility

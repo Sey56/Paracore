@@ -7,6 +7,8 @@ import { ConsoleTabContent } from './ConsoleTabContent';
 import { SummaryTabContent } from './SummaryTabContent';
 import { MetadataTabContent } from './MetadataTabContent';
 
+import { AgentTabContent } from './AgentTabContent';
+
 interface InspectorTabsProps {
   script: Script;
   isRunning: boolean;
@@ -22,7 +24,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
     clearExecutionResult,
   } = useScriptExecution();
 
-  const tabsToShow = ["parameters", "console", "summary", "metadata"] as const;
+  const tabsToShow = ["parameters", "agent", "log", "summary", "metadata"] as const;
 
   return (
     <div className={`tabs mb-6 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
@@ -37,35 +39,34 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             }`}
             onClick={() => setActiveInspectorTab(tab)}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'log' ? 'Log' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
 
-      {/* Parameters Tab */}
-      {activeInspectorTab === "parameters" && (
-        <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
-      )}
-
-      {/* Console Tab */}
-      {activeInspectorTab === "console" && (
-        <ConsoleTabContent
-          isRunning={isRunning}
-          executionResult={executionResult}
-          scriptName={script.name}
-          clearExecutionResult={clearExecutionResult}
-        />
-      )}
-
-      {/* Summary Tab */}
-      {activeInspectorTab === "summary" && (
-        <SummaryTabContent executionResult={executionResult} />
-      )}
-
-      {/* Metadata Tab */}
-      {activeInspectorTab === "metadata" && (
-        <MetadataTabContent metadata={script.metadata} />
-      )}
+      {/* Tab Content Area */}
+      <div className="mt-4">
+        <div className={activeInspectorTab === 'parameters' ? '' : 'hidden'}>
+          <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
+        </div>
+        <div className={activeInspectorTab === 'agent' ? '' : 'hidden'}>
+          <AgentTabContent />
+        </div>
+        <div className={activeInspectorTab === 'log' ? '' : 'hidden'}>
+          <ConsoleTabContent
+            isRunning={isRunning}
+            executionResult={executionResult}
+            scriptName={script.name}
+            clearExecutionResult={clearExecutionResult}
+          />
+        </div>
+        <div className={activeInspectorTab === 'summary' ? '' : 'hidden'}>
+          <SummaryTabContent executionResult={executionResult} />
+        </div>
+        <div className={activeInspectorTab === 'metadata' ? '' : 'hidden'}>
+          <MetadataTabContent metadata={script.metadata} />
+        </div>
+      </div>
     </div>
   );
 };

@@ -12,10 +12,10 @@ def get_rscript_runner_stub():
     channel = None
     try:
         grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
-        logging.info(f"Attempting to connect to gRPC server at: {grpc_server_address}")
+        # logging.info(f"Attempting to connect to gRPC server at: {grpc_server_address}")
         channel = grpc.insecure_channel(grpc_server_address)
         stub = corescript_pb2_grpc.CoreScriptRunnerStub(channel)
-        logging.info("gRPC channel and stub created successfully.")
+        # logging.info("gRPC channel and stub created successfully.")
         yield stub
     except Exception as e:
         logging.error(f"Failed to create gRPC channel or stub: {e}")
@@ -25,7 +25,7 @@ def get_rscript_runner_stub():
             channel.close()
 
 def get_status():
-    logging.info("Attempting to get gRPC server status.")
+    # logging.info("Attempting to get gRPC server status.")
     try:
         with get_rscript_runner_stub() as stub:
             response = stub.GetStatus(corescript_pb2.GetStatusRequest())
@@ -38,7 +38,7 @@ def get_status():
         raise # Re-raise the unexpected error
 
 def execute_script(script_content, parameters_json):
-    logging.info("Attempting to execute script via gRPC.")
+    # logging.info("Attempting to execute script via gRPC.")
     with get_rscript_runner_stub() as stub:
         request = corescript_pb2.ExecuteScriptRequest(
             script_content=script_content.encode('utf-8'),
@@ -47,7 +47,7 @@ def execute_script(script_content, parameters_json):
         )
         try:
             response = stub.ExecuteScript(request)
-            logging.info("gRPC ExecuteScript call successful.")
+            # logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
             structured_output_data = [{"type": item.type, "data": item.data} for item in response.structured_output]
             return {

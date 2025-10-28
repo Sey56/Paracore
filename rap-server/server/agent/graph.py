@@ -5,6 +5,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_google_genai import ChatGoogleGenerativeAI
+
 from .tools import execute_revit_script
 
 # --- 1. Define Agent State ---
@@ -13,15 +14,17 @@ class AgentState(TypedDict):
 
 # --- 2. Setup Tools and LLM ---
 
-# The agent's toolkit consists of the one tool we've created.
 tools = [execute_revit_script]
 
-# Set up the chat model
-# This requires the GOOGLE_API_KEY environment variable to be set.
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+if not gemini_api_key:
+    raise ValueError("GEMINI_API_KEY not found in environment variables. Please set it in the .env file.")
 
-# Bind the tools to the LLM, so it knows what functions it can call.
-llm_with_tools = llm.bind_tools(tools)
+# Initialize LLM and bind tools in one step, passing the api_key directly.
+llm_with_tools = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash", 
+    api_key=gemini_api_key
+).bind_tools(tools)
 
 # --- 3. Define Graph Nodes ---
 
