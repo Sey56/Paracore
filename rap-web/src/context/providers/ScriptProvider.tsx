@@ -306,6 +306,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
         showNotification(`Failed to add workspace: ${message}`, "error");
       }
+      throw error;
     }
   }, [cloudToken, setTeamWorkspaces, showNotification]);
 
@@ -405,7 +406,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         showNotification("RAP Server URL not available.", "error");
         return;
       }
-      const response = await pullTeamWorkspacesApi(rapServerUrl, [workspacePath], cloudToken);
+      const response = await pullTeamWorkspacesApi(rapServerUrl, [workspacePath], cloudToken, "main");
       const result = response.results[0];
       if (result.status === "failed") {
         showNotification(`Failed to update workspace: ${result.message}`, "error");

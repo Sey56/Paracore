@@ -390,6 +390,7 @@ async def push_changes(workspace: Annotated[Workspace, Body(embed=True)], curren
 
 class PullTeamWorkspacesRequest(BaseModel):
     workspace_paths: List[str] = Field(..., description="List of absolute paths to workspaces to pull.")
+    branch: str | None = None
 
 @router.post("/api/workspaces/pull_team_workspaces", tags=["Workspaces"])
 async def pull_team_workspaces(
@@ -405,8 +406,13 @@ async def pull_team_workspaces(
             results.append({"path": path, "status": "failed", "message": "Workspace path not found."})
             continue
         try:
+            command = ["git", "pull", "--rebase"]
+            if req.branch:
+                command.insert(2, "origin")
+                command.insert(3, req.branch)
+            
             subprocess.run(
-                ["git", "pull", "--rebase"],
+                command,
                 cwd=path,
                 check=True,
                 capture_output=True,

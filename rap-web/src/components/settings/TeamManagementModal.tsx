@@ -154,7 +154,7 @@ const TeamManagementModal: React.FC = () => {
 
   return (
     <Modal isOpen={isTeamManagementModalOpen} onClose={closeTeamManagementModal} title={`Manage Team: ${activeTeam.team_name}`} size="2xl">
-      <div className="p-6 space-y-8">
+      <div className="p-6 space-y-8 overflow-y-auto">
         {/* Invite New Member Section */}
         {isAdmin && (
           <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow-inner">

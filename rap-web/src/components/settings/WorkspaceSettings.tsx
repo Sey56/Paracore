@@ -72,12 +72,10 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
         repo_url: repoUrl,
       };
       await addTeamWorkspace(activeTeam.team_id, newWorkspace as Workspace);
-      showNotification(`Workspace '${name}' registered successfully.`, 'success');
       setIsRegisterModalOpen(false);
     } catch (err) {
       const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to register workspace.';
       setError(errorMessage);
-      showNotification(errorMessage, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +132,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
   }, []);
 
   return (
-    <>
+    <div className="overflow-y-auto">
       <RegisterWorkspaceModal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
@@ -228,7 +226,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
 
         </div>
       </fieldset>
-    </>
+    </div>
   );
 };
 
