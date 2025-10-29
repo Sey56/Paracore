@@ -1,21 +1,30 @@
-import json
 from langchain_core.tools import tool
-from .. import grpc_client
 
 @tool
-def execute_revit_script(script_content: str, parameters: dict) -> str:
-    """Executes a C# script in Revit and returns the result.
-    
-    Args:
-        script_content: The full C# code of the script to execute.
-        parameters: A dictionary of parameters to pass to the script.
-        
-    Returns:
-        A JSON string containing the execution result, including success status, output, and any errors.
-    """ 
-    try:
-        parameters_json = json.dumps(parameters)
-        result = grpc_client.execute_script(script_content, parameters_json)
-        return json.dumps(result)
-    except Exception as e:
-        return json.dumps({"is_success": False, "error_message": f"Failed to execute script: {str(e)}"})
+def run_script_by_name(script_name: str, parameters: dict = {}) -> str:
+    """Executes a script in Revit by its name.
+    - Use this tool to run any script requested by the user.
+    - You must provide the exact name of the script.
+    """
+    # The actual implementation is orchestrated by the custom tool_node in the graph.
+    # This function is just a definition for the LLM.
+    pass
+
+@tool
+def get_script_parameters_tool(script_name: str, script_type: str) -> str:
+    """Retrieves the parameters for a specific script by its name and type.
+    - Use this tool to understand what inputs a script requires before running it.
+    - Provide the exact name of the script and its type ('single-file' or 'multi-file').
+    """
+    # The actual implementation is orchestrated by the custom tool_node in the graph.
+    # This function is just a definition for the LLM.
+    pass
+
+@tool
+def list_available_scripts() -> str:
+    """Lists all available scripts in the current workspace."""
+    # The actual implementation is orchestrated by the custom tool_node in the graph.
+    # This function is just a definition for the LLM.
+    pass
+
+
