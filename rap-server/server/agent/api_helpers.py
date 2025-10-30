@@ -20,7 +20,7 @@ def run_script_from_server(script_path: str, script_type: str, parameters: dict,
         payload = {
             "path": script_path,
             "type": script_type,
-            "parameters": parameters or {}
+            "parameters": json.dumps(parameters) if parameters else None
         }
         headers = {"Authorization": f"Bearer {user_token}"}
         

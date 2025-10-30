@@ -41,11 +41,11 @@ prompt = ChatPromptTemplate.from_messages(
             "system",
             """You are a specialized Revit assistant named Paracore Agent. Your primary function is to help users by executing scripts in their Revit workspace.
 
+## CORE LOGIC
 - **Identify User Intent:** Your first step is to understand if the user wants to run a script, list available scripts, or something else.
-- **Find the Script:** If the user wants to run a script, you must first find it. Use the `list_available_scripts` tool to see what is in their workspace. Use the user's message to identify the correct script from that list.
-- **Check Parameters:** Once a script is identified, use the `get_script_parameters_tool` to see if it requires any inputs.
-- **Elicit Parameters:** If the script has parameters, present them to the user clearly and ask for the values. Do not run the script until you have the required parameters. If a parameter has a default value, mention it.
-- **Execute the Script:** Once you have the script name and all required parameters, call the `run_script_by_name` tool.
+- **Find the Script:** If the user wants to run a script, you must first find it. Use the `list_available_scripts` tool to see what is in their workspace.
+- **Get All Parameters:** Once a script is identified, use the `get_script_parameters_tool` to get the full list of its parameters and their default values. Present these to the user in a clear, formatted list.
+- **Update and Send All Parameters:** When the user asks to run the script, update your list of parameters with their specific changes. Then, call the `run_script_by_name` tool with the **complete, updated list of ALL parameters** (both changed and default).
 - **Handle Ambiguity:** If you are unsure which script to run, or if the user's request is unclear, ask for clarification. Do not guess.
 - **Confirm Success:** After running a script, confirm to the user that it was executed and report the result."""
         ),
@@ -69,6 +69,19 @@ def agent_node(state: AgentState) -> AgentState:
                 patched_messages.append(msg)
 
         response = chain.invoke({"messages": patched_messages})
+        
+        # Post-process the response to ensure proper formatting for lists
+        if isinstance(response, AIMessage) and response.content:
+            # Aggressively ensure list items are on new lines
+            processed_content = response.content
+            
+            # Replace common list item prefixes with newline + prefix
+            processed_content = processed_content.replace("* ", "\n* ")
+            processed_content = processed_content.replace("- ", "\n- ")
+            
+            # Clean up any leading newlines that might result from the split
+            response.content = processed_content.strip()
+
         return {"messages": [response]}
 
     except Exception as e:
@@ -101,7 +114,6 @@ def tool_node(state: AgentState) -> dict:
         elif tool_name == 'get_script_parameters_tool':
             script_name = tool_args.get('script_name', '')
             all_scripts = list_scripts_in_workspace(workspace_path)
-            # Perform a case-insensitive match against the script name without the extension
             matching_scripts = [s for s in all_scripts if os.path.splitext(s['name'])[0].lower() == os.path.splitext(script_name)[0].lower()]
 
             if len(matching_scripts) == 0:
@@ -115,6 +127,10 @@ def tool_node(state: AgentState) -> dict:
                     script_type=found_script['type'],
                     user_token=user_token
                 )
+                # Save parameter definitions in the state for later use
+                if 'parameters' in result_json:
+                    state['script_parameters_definitions'] = result_json['parameters']
+
         elif tool_name == 'list_available_scripts':
             result_json = list_scripts_in_workspace(workspace_path)
 
@@ -135,10 +151,9 @@ def human_in_the_loop_node(state: AgentState) -> dict:
     workspace_path = state.get('workspace_path')
     user_token = state.get('user_token')
     script_name = tool_call['args'].get('script_name', '')
-    parameters = tool_call['args'].get('parameters', {})
+    parameters_dict = tool_call['args'].get('parameters', {})
 
     all_scripts = list_scripts_in_workspace(workspace_path)
-    # Perform a case-insensitive match against the script name without the extension
     matching_scripts = [s for s in all_scripts if os.path.splitext(s['name'])[0].lower() == os.path.splitext(script_name)[0].lower()]
 
     if len(matching_scripts) == 0:
@@ -147,10 +162,63 @@ def human_in_the_loop_node(state: AgentState) -> dict:
         result_json = {"error": "multiple_scripts_found", "scripts": [s['name'] for s in matching_scripts]}
     else:
         found_script = matching_scripts[0]
+        
+        # Get parameter definitions from the state (or fetch if not present)
+        param_defs_from_state = state.get('script_parameters_definitions', [])
+        if not param_defs_from_state:
+            # Fallback: if not in state, fetch them now
+            param_defs_result = get_script_parameters_from_server(
+                script_path=found_script['absolutePath'],
+                script_type=found_script['type'],
+                user_token=user_token
+            )
+            param_defs_from_state = param_defs_result.get('parameters', [])
+
+        # Create a map of parameter definitions for easy lookup
+        param_defs_map = {p['name']: p for p in param_defs_from_state}
+
+        # Build the final parameters_list, merging overrides and performing type conversion
+        parameters_list = []
+        for param_def in param_defs_from_state:
+            param_name = param_def['name']
+            param_type = param_def['type']
+            
+            # Start with the default value from the definition
+            current_value = param_def['defaultValueJson']
+            try:
+                current_value = json.loads(current_value)
+            except json.JSONDecodeError:
+                pass # Keep as string if not JSON
+
+            # Apply override from LLM if present
+            if param_name in parameters_dict:
+                current_value = parameters_dict[param_name]
+
+            # Perform type conversion on the final value
+            processed_value = current_value
+            try:
+                if param_type == 'number':
+                    processed_value = float(current_value)
+                elif param_type == 'boolean':
+                    processed_value = str(current_value).lower() in ['true', '1', 'yes']
+            except (ValueError, TypeError):
+                # If conversion fails, keep original value and let the engine handle it
+                processed_value = current_value 
+            
+            # Append the full ScriptParameter object with the updated value
+            parameters_list.append({
+                "name": param_name,
+                "type": param_type,
+                "value": processed_value,
+                "defaultValueJson": param_def['defaultValueJson'],
+                "description": param_def['description'],
+                "options": param_def['options']
+            })
+
         result_json = run_script_from_server(
             script_path=found_script['absolutePath'],
             script_type=found_script['type'],
-            parameters=parameters,
+            parameters=parameters_list, # Send the complete, correctly formatted and typed list
             user_token=user_token
         )
     
