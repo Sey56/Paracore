@@ -1,5 +1,10 @@
 import sys
 import os
+import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # This block allows running main.py directly from within the 'server' directory
 # by adding the current directory to sys.path. This is a development workaround
@@ -18,6 +23,9 @@ from .agent import agent_router
 from . import models  # Ensure models are imported so that they are registered with SQLAlchemy
 
 from .config import settings
+
+# Configure Uvicorn logging to suppress access logs
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

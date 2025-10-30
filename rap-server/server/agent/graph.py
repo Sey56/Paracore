@@ -23,13 +23,13 @@ class AgentState(TypedDict):
 
 tools = [run_script_by_name, get_script_parameters_tool, list_available_scripts]
 
-gemini_api_key = os.getenv("GEMINI_API_KEY")
-if not gemini_api_key:
-    raise ValueError("GEMINI_API_KEY not found in environment variables.")
+google_api_key = os.getenv("GOOGLE_API_KEY")
+if not google_api_key:
+    raise ValueError("GOOGLE_API_KEY not found in environment variables.")
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash", 
-    api_key=gemini_api_key,
+    api_key=google_api_key,
     convert_system_message_to_human=True # Important for Gemini 1.5
 )
 
@@ -44,7 +44,7 @@ prompt = ChatPromptTemplate.from_messages(
 ## CORE LOGIC
 - **Identify User Intent:** Your first step is to understand if the user wants to run a script, list available scripts, or something else.
 - **Find the Script:** If the user wants to run a script, you must first find it. Use the `list_available_scripts` tool to see what is in their workspace.
-- **Get All Parameters:** Once a script is identified, use the `get_script_parameters_tool` to get the full list of its parameters and their default values. Present these to the user in a clear, formatted list.
+- **Get All Parameters:** Once a script is identified, use the `get_script_parameters_tool` to get the full list of its parameters and their default values. Present these to the user in a clear, formatted list. **After presenting the parameters, you must explicitly ask the user if they want to change any of them and wait for their response before proceeding.**
 - **Update and Send All Parameters:** When the user asks to run the script, update your list of parameters with their specific changes. Then, call the `run_script_by_name` tool with the **complete, updated list of ALL parameters** (both changed and default).
 - **Handle Ambiguity:** If you are unsure which script to run, or if the user's request is unclear, ask for clarification. Do not guess.
 - **Confirm Success:** After running a script, confirm to the user that it was executed and report the result."""
@@ -130,6 +130,7 @@ def tool_node(state: AgentState) -> dict:
                 # Save parameter definitions in the state for later use
                 if 'parameters' in result_json:
                     state['script_parameters_definitions'] = result_json['parameters']
+                results.append(ToolMessage(content=json.dumps(result_json), tool_call_id=tool_call['id']))
 
         elif tool_name == 'list_available_scripts':
             result_json = list_scripts_in_workspace(workspace_path)

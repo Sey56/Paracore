@@ -26,5 +26,3 @@ def list_available_scripts() -> str:
     # The actual implementation is orchestrated by the custom tool_node in the graph.
     # This function is just a definition for the LLM.
     pass
-
-

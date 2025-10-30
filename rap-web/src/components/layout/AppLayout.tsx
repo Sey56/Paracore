@@ -18,6 +18,7 @@ import TeamManagementModal from '@/components/settings/TeamManagementModal'; // 
 import { NewScriptModal } from '@/components/common/NewScriptModal'; // Import NewScriptModal
 import { AddFolderModal } from '@/components/common/AddFolderModal'; // Import AddFolderModal
 import { AddCategoryModal } from '@/components/common/AddCategoryModal'; // Import AddCategoryModal
+import { AgentView } from "@/components/agent/AgentView"; // Import AgentView
 
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
@@ -37,6 +38,7 @@ export const AppLayout: React.FC = () => {
     activeScriptSource, // Access activeScriptSource
     isFloatingCodeViewerOpen,
     closeFloatingCodeViewer,
+    activeMainView, // Access activeMainView
   } = useUI();
 
   const isMobile = useBreakpoint();
@@ -124,9 +126,10 @@ export const AppLayout: React.FC = () => {
           }}
         >
           <div className="flex flex-1 overflow-hidden">
-            {/* Script Gallery */}
+            {/* Main Content based on activeMainView */}
             <div style={{ flex: galleryWidth }} className={`overflow-y-auto p-4 lg:p-6 ${isMobile ? 'pt-4' : ''}`}>
-              <ScriptGallery />
+              {activeMainView === 'scripts' && <ScriptGallery />}
+              {activeMainView === 'agent' && <AgentView />}
             </div>
 
             {/* Resizer */}

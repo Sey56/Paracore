@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -13,7 +13,7 @@ import { Modal } from '@/components/common/Modal'; // Import Modal component
 import { shell } from '@tauri-apps/api'; // Import shell
 
 export const TopBar: React.FC = () => {
-  const { toggleSidebar, openSettingsModal } = useUI();
+  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView } = useUI();
   const { rserverConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, logout, activeTeam } = useAuth();
@@ -95,6 +95,22 @@ export const TopBar: React.FC = () => {
       </div>
 
       <div className="flex items-center space-x-2">
+        {/* Agent/Automation Toggle */}
+          <button
+            onClick={() => setActiveMainView('scripts')}
+            className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'scripts' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+            title="Automation Mode"
+          >
+            <FontAwesomeIcon icon={faRectangleList} />
+          </button>
+          <button
+            onClick={() => setActiveMainView('agent')}
+            className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+            title="Agent Mode"
+          >
+            <FontAwesomeIcon icon={faRobot} />
+          </button>
+
         <div className="action-icons flex items-center space-x-2 border-r border-gray-200 dark:border-gray-700 pr-4">
           <div className="relative" ref={helpDropdownRef}>
             <button

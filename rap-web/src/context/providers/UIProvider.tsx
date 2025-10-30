@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { UIContext, InspectorTab, ActiveScriptSource } from "./UIContext";
+import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useUserWorkspaces } from "@/hooks/useUserWorkspaces"; // Import useUserWorkspaces
@@ -23,6 +23,15 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   
   const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(null);
+
+  // Agent related state
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [isAwaitingApproval, setIsAwaitingApproval] = useState<boolean>(false);
+  const [pendingToolCall, setPendingToolCall] = useState<ToolCall | null>(null);
+
+  // Main View Toggle
+  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent'>('scripts'); // Default to 'scripts'
 
   // Effect to initialize activeScriptSource from localStorage and validate it
   useEffect(() => {
@@ -164,6 +173,17 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
 
     activeScriptSource,
     setActiveScriptSource,
+
+    messages,
+    setMessages,
+    threadId,
+    setThreadId,
+    isAwaitingApproval,
+    setIsAwaitingApproval,
+    pendingToolCall,
+    setPendingToolCall,
+    activeMainView,
+    setActiveMainView,
   };
 
   return (
