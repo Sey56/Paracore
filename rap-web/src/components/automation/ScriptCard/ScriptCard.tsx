@@ -86,7 +86,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     e.stopPropagation();
     if (isRunButtonDisabled) return;
     await setSelectedScript(script);
-    setActiveInspectorTab('log');
+    setActiveInspectorTab('console');
     runScript(script, userEditedScriptParameters[script.id] || script.parameters);
   };
 

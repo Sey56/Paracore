@@ -97,5 +97,3 @@ export interface Script {
   metadataError?: boolean; // Added this line
   sourceType?: 'local' | 'workspace';
 }
-
-export type InspectorTab = "parameters" | "agent" | "log" | "summary" | "metadata";

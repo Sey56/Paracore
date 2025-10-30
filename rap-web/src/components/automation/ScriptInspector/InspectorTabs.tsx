@@ -1,13 +1,12 @@
 import React from "react";
-import type { Script, InspectorTab } from "@/types/scriptModel";
+import type { Script } from "@/types/scriptModel";
+import type { InspectorTab } from "@/context/providers/UIContext";
 import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/hooks/useScriptExecution";
 import { ParametersTab } from './ParametersTab';
 import { ConsoleTabContent } from './ConsoleTabContent';
 import { SummaryTabContent } from './SummaryTabContent';
 import { MetadataTabContent } from './MetadataTabContent';
-
-import { AgentTabContent } from './AgentTabContent';
 
 interface InspectorTabsProps {
   script: Script;
@@ -24,7 +23,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
     clearExecutionResult,
   } = useScriptExecution();
 
-  const tabsToShow = ["parameters", "agent", "log", "summary", "metadata"] as const;
+  const tabsToShow = ["parameters", "console", "summary", "metadata"] as const;
 
   return (
     <div className={`tabs mb-6 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
@@ -39,7 +38,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             }`}
             onClick={() => setActiveInspectorTab(tab)}
           >
-            {tab === 'log' ? 'Log' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'console' ? 'Console' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
@@ -49,10 +48,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
         <div className={activeInspectorTab === 'parameters' ? '' : 'hidden'}>
           <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
         </div>
-        <div className={activeInspectorTab === 'agent' ? '' : 'hidden'}>
-          <AgentTabContent />
-        </div>
-        <div className={activeInspectorTab === 'log' ? '' : 'hidden'}>
+        <div className={activeInspectorTab === 'console' ? '' : 'hidden'}>
           <ConsoleTabContent
             isRunning={isRunning}
             executionResult={executionResult}

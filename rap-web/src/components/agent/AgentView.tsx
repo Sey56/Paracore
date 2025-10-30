@@ -4,8 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import api from '@/api/axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faRobot, faUser, faCheckCircle, faTimesCircle, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faRobot, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons';
 import type { Message, ToolCall } from '@/context/providers/UIContext'; // Import Message and ToolCall types
+import { Modal } from '@/components/common/Modal';
 
 type AgentResponse = {
   thread_id: string;
@@ -39,6 +40,7 @@ export const AgentView: React.FC = () => {
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
 
   // Declare token and currentWorkspacePath here to make them accessible to handleApproveToolCall
   const token = cloudToken;
@@ -170,6 +172,24 @@ export const AgentView: React.FC = () => {
     showNotification("Tool call rejected.", "info");
   }, [setMessages, setIsAwaitingApproval, setPendingToolCall, showNotification]); // Add dependencies
 
+  const handleClearChat = useCallback(() => {
+    setMessages([{ sender: 'agent', text: 'Hello, How can I help you today?' }]);
+    setThreadId(null);
+    setIsAwaitingApproval(false);
+    setPendingToolCall(null);
+    setInput('');
+    setIsClearChatModalOpen(false);
+    showNotification('Chat history cleared.', 'info');
+  }, [
+    setMessages,
+    setThreadId,
+    setIsAwaitingApproval,
+    setPendingToolCall,
+    setInput,
+    setIsClearChatModalOpen,
+    showNotification,
+  ]);
+
   const formatAgentMessage = (text: string | undefined) => {
     if (!text) return "";
     let processedText = text;
@@ -186,7 +206,16 @@ export const AgentView: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full"> {/* Use h-full here for chat scrolling */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
+        <button
+          onClick={() => setIsClearChatModalOpen(true)}
+          className="absolute top-4 right-4 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          title="Clear Chat History"
+          disabled={isLoading || isAwaitingApproval}
+        >
+          <FontAwesomeIcon icon={faTrash} />
+        </button>
+
         {messages.map((msg: Message, index: number) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex items-start max-w-xs lg:max-w-md ${msg.sender === 'user' ? 'flex-row-reverse space-x-2 space-x-reverse' : 'space-x-2'}`}>
@@ -258,6 +287,32 @@ export const AgentView: React.FC = () => {
           </button>
         </form>
       </div>
+      <Modal
+        isOpen={isClearChatModalOpen}
+        onClose={() => setIsClearChatModalOpen(false)}
+        title="Clear Chat History"
+        size="sm"
+      >
+        <div className="p-4 text-center">
+          <p className="text-gray-700 dark:text-gray-300 mb-4">
+            Are you sure you want to clear the entire chat history?
+          </p>
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => setIsClearChatModalOpen(false)}
+              className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleClearChat}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Clear Chat
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-export type InspectorTab = "parameters" | "agent" | "log" | "summary" | "metadata" | "console";
+export type InspectorTab = "parameters" | "agent" | "console" | "summary" | "metadata";
 
 export type ActiveScriptSource =
   | { type: 'local'; path: string }
