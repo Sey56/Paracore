@@ -17,13 +17,16 @@ interface InspectorTabsProps {
 }
 
 export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning, onViewCodeClick, isActionable, tooltipMessage }) => {
-  const { activeInspectorTab, setActiveInspectorTab } = useUI();
+  const { activeInspectorTab, setActiveInspectorTab, activeMainView } = useUI();
   const { 
     executionResult,
     clearExecutionResult,
   } = useScriptExecution();
 
-  const tabsToShow = ["parameters", "console", "summary", "metadata"] as const;
+  const allTabs = ["parameters", "console", "summary", "metadata"] as const;
+  const tabsToShow = activeMainView === 'agent'
+    ? allTabs.filter(tab => tab !== 'console' && tab !== 'metadata')
+    : allTabs;
 
   return (
     <div className={`tabs mb-6 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>

@@ -58,7 +58,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime } = useScripts();
   const { scripts: allScriptsFromScriptProvider, teamWorkspaces } = useScripts(); // Get all scripts and teamWorkspaces from ScriptProvider
   const { isAuthenticated, activeTeam } = useAuth();
-  const { activeScriptSource } = useUI();
+  const { activeScriptSource, setAgentSelectedScriptPath } = useUI();
 
   const currentTeamWorkspaces = activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
 
@@ -78,12 +78,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [allScriptsFromScriptProvider, selectedScript]);
 
-  useEffect(() => {
-    setSelectedScriptState(null);
-    setCombinedScriptContent(null);
-    setPresets([]);
-    setExecutionResult(null);
-  }, [activeScriptSource, setCombinedScriptContent]);
+
 
   const notifiedParamsScriptIdRef = useRef<string | null>(null);
   const notifiedPresetsScriptIdRef = useRef<string | null>(null);
@@ -258,7 +253,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     return { success: true, message: "Preset renamed." };
   };
 
-  const setSelectedScript = useCallback(async (script: Script | null) => {
+  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' = 'user') => {
+    if (source === 'user') {
+      setAgentSelectedScriptPath(null);
+    }
     if (!script) {
       setSelectedScriptState(null);
       setCombinedScriptContent(null);
@@ -271,7 +269,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
 
     // Set loading state immediately for better UX
-    setSelectedScriptState(script);
     setCombinedScriptContent("// Loading script content...");
     setPresets([]);
     setExecutionResult(null);
@@ -327,7 +324,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setSelectedScriptState(script); // Keep the initial script selected
       setCombinedScriptContent("// Error loading script. Please try again.");
     }
-  }, [selectedScript, fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification]);
+  }, [selectedScript, fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath]);
 
   const runScript = async (script: Script, parameters?: ScriptParameter[]) => {
     if (runningScriptPath) {

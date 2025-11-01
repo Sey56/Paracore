@@ -13,6 +13,7 @@ export type Message = {
   text?: string;
   toolCall?: ToolCall;
   toolResponse?: any; // Adjust as needed
+  additional_kwargs?: { [key: string]: any }; // Added for agent messages
 };
 
 export type ToolCall = {
@@ -63,6 +64,8 @@ export interface UIContextProps {
   setActiveScriptSource: (source: ActiveScriptSource) => void;
 
   // Agent related state
+  agentSelectedScriptPath: string | null;
+  setAgentSelectedScriptPath: (path: string | null) => void;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   threadId: string | null;

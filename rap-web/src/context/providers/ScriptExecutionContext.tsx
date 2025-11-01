@@ -5,7 +5,7 @@ import type { ExecutionResult, ParameterPreset } from '@/types/common';
 
 export interface ScriptExecutionContextProps {
   selectedScript: Script | null;
-  setSelectedScript: (script: Script | null) => void;
+  setSelectedScript: (script: Script | null, source?: 'user' | 'agent') => Promise<void>;
   runningScriptPath: string | null;
   executionResult: ExecutionResult | null;
   runScript: (script: Script, parameters?: ScriptParameter[]) => Promise<void>;

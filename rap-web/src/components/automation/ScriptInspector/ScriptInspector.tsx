@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { InspectorTabs } from './InspectorTabs';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { useScripts } from '@/hooks/useScripts';
@@ -9,10 +9,19 @@ import { useAuth } from '@/hooks/useAuth';
 
 export const ScriptInspector: React.FC = () => {
   const { selectedScript, runningScriptPath, setSelectedScript } = useScriptExecution();
-  const { toggleFavoriteScript, scripts: allScripts } = useScripts();
-  const { toggleFloatingCodeViewer } = useUI();
+  const { toggleFavoriteScript, allScripts } = useScripts();
+  const { toggleFloatingCodeViewer, agentSelectedScriptPath } = useUI();
   const { revitStatus } = useRevitStatus(); // Get Revit status
   const { isAuthenticated, user } = useAuth();
+
+  useEffect(() => {
+    if (agentSelectedScriptPath && allScripts.length > 0) {
+      const script = allScripts.find(s => s.absolutePath === agentSelectedScriptPath);
+      if (script) {
+        setSelectedScript(script, 'agent');
+      }
+    }
+  }, [agentSelectedScriptPath, allScripts, setSelectedScript]);
 
   const script = selectedScript;
 

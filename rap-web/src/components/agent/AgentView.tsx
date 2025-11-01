@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/hooks/useAuth';
-import { useNotifications } from '@/hooks/useNotifications';
 import api from '@/api/axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faRobot, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useScriptExecution } from '@/hooks/useScriptExecution';
+
 import type { Message, ToolCall } from '@/context/providers/UIContext'; // Import Message and ToolCall types
 import { Modal } from '@/components/common/Modal';
 
@@ -33,9 +35,12 @@ export const AgentView: React.FC = () => {
     setIsAwaitingApproval,
     pendingToolCall,
     setPendingToolCall,
+    setAgentSelectedScriptPath,
   } = useUI();
   const { user, cloudToken } = useAuth();
   const { showNotification } = useNotifications();
+  const { selectedScript, userEditedScriptParameters } = useScriptExecution();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [input, setInput] = useState('');
@@ -56,27 +61,48 @@ export const AgentView: React.FC = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([{ sender: 'agent', text: 'Hello, How can I help you today?' }]);
-    }
-  }, [messages, setMessages]);
-
   const processAgentResponse = useCallback(async (data: AgentResponse, originalMessageText: string, approvedToolCall: boolean) => {
+    console.log('Agent Response:', data);
     setThreadId(data.thread_id);
 
+    if (data.tool_call && data.tool_call.name === 'set_active_script_source_tool') {
+      const scriptInfo = data.tool_call.arguments;
+      setAgentSelectedScriptPath(scriptInfo.absolutePath);
+    }
+
     if (data.status === "interrupted" && data.tool_call) {
-      setPendingToolCall(data.tool_call);
-      setIsAwaitingApproval(true);
-      console.log("Received tool_call from backend:", data.tool_call); // Add this line for debugging
-      setMessages((prev: Message[]) => [...prev, {
-        sender: 'agent',
-        text: `Agent wants to call tool: ${data.tool_call?.name} with arguments: ${JSON.stringify(data.tool_call?.arguments)}`,
-        toolCall: data.tool_call,
-      }]);
-      setIsLoading(false); // Stop loading when waiting for approval
+      if (data.tool_call.name === 'get_ui_parameters_tool') {
+        console.log("Agent is requesting UI parameters. selectedScript:", selectedScript, "userEditedScriptParameters:", userEditedScriptParameters);
+        // Automatically handle this tool call without user approval
+        const currentParams = (selectedScript && userEditedScriptParameters[selectedScript.id]) || [];
+        try {
+          const resumeResponse = await api.post("/agent/resume", {
+            thread_id: data.thread_id,
+            token: token,
+            tool_result: JSON.stringify(currentParams),
+          });
+          processAgentResponse(resumeResponse.data, "UI parameters sent.", true);
+        } catch (error) {
+          console.error("Agent resume error after getting UI params:", error);
+          showNotification("Failed to send UI parameters to the agent.", "error");
+        }
+        return; // Stop further processing for this response
+      }
+
+      if (data.tool_call.name !== 'set_active_script_source_tool') { // Already handled
+        setPendingToolCall(data.tool_call);
+        setIsAwaitingApproval(true);
+        setMessages((prev: Message[]) => [...prev, {
+          sender: 'agent',
+          text: `Agent wants to call tool: ${data.tool_call?.name} with arguments: ${JSON.stringify(data.tool_call?.arguments)}`,
+          toolCall: data.tool_call,
+        }]);
+      }
+      setIsLoading(false);
     } else if (data.status === "complete") {
-      setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: data.message }]);
+      if (data.message) {
+        setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: data.message }]);
+      }
       setIsLoading(false);
     } else if (data.status === "processing_internal") {
       setIsLoading(true); // Keep loading true while processing internally
@@ -103,7 +129,7 @@ export const AgentView: React.FC = () => {
       setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: "Sorry, I encountered an error." }]);
       setIsLoading(false);
     }
-  }, [setMessages, setThreadId, setIsAwaitingApproval, setPendingToolCall, showNotification, currentWorkspacePath, token]); // Add dependencies
+  }, [setMessages, setThreadId, setIsAwaitingApproval, setPendingToolCall, showNotification, currentWorkspacePath, token, setAgentSelectedScriptPath, selectedScript, userEditedScriptParameters]); // Add selectedScript and userEditedScriptParameters to dependencies
 
   const sendMessage = useCallback(async (messageText: string, approvedToolCall: boolean = false) => {
     if (!messageText.trim() && !approvedToolCall) return;
@@ -154,6 +180,7 @@ export const AgentView: React.FC = () => {
         const resumeResponse = await api.post("/agent/resume", {
           thread_id: threadId,
           token: token,
+          workspace_path: currentWorkspacePath, // Add this
         });
         processAgentResponse(resumeResponse.data, "Tool call approved.", true);
       } catch (error) {
@@ -163,7 +190,7 @@ export const AgentView: React.FC = () => {
         setIsLoading(false);
       }
     }
-  }, [threadId, pendingToolCall, token, setMessages, setIsAwaitingApproval, setPendingToolCall, showNotification, processAgentResponse]); // Add dependencies
+  }, [threadId, pendingToolCall, token, setMessages, setIsAwaitingApproval, setPendingToolCall, showNotification, processAgentResponse, currentWorkspacePath]); // Add dependencies
 
   const handleRejectToolCall = useCallback(() => {
     setIsAwaitingApproval(false);

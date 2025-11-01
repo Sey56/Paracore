@@ -25,10 +25,36 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(null);
 
   // Agent related state
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const savedMessages = localStorage.getItem('chatHistory');
+      if (savedMessages) {
+        const parsedMessages = JSON.parse(savedMessages);
+        if (parsedMessages.length > 0) {
+          return parsedMessages;
+        } else {
+          return [{ sender: 'agent', text: 'Hello I am Paracore Revit agent. what can i help you?' }];
+        }
+      } else {
+        return [{ sender: 'agent', text: 'Hello I am Paracore Revit agent. what can i help you?' }];
+      }
+    } catch (error) {
+      console.error("Failed to load chat history from localStorage during initialization", error);
+      return [{ sender: 'agent', text: 'Hello, How can I help you today?' }];
+    }
+  });
   const [threadId, setThreadId] = useState<string | null>(null);
   const [isAwaitingApproval, setIsAwaitingApproval] = useState<boolean>(false);
   const [pendingToolCall, setPendingToolCall] = useState<ToolCall | null>(null);
+  const [agentSelectedScriptPath, setAgentSelectedScriptPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('chatHistory', JSON.stringify(messages));
+    } catch (error) {
+      console.error("Failed to save chat history to localStorage", error);
+    }
+  }, [messages]);
 
   // Main View Toggle
   const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent'>('scripts'); // Default to 'scripts'
@@ -182,6 +208,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     setIsAwaitingApproval,
     pendingToolCall,
     setPendingToolCall,
+    agentSelectedScriptPath,
+    setAgentSelectedScriptPath,
     activeMainView,
     setActiveMainView,
   };

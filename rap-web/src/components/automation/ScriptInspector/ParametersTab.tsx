@@ -33,7 +33,7 @@ const initializeParameters = (params: ScriptParameter[]): ScriptParameter[] => {
 };
 
 export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCodeClick, isActionable, tooltipMessage }) => {
-  const { activeInspectorTab, setActiveInspectorTab } = useUI();
+  const { activeInspectorTab, setActiveInspectorTab, activeMainView } = useUI();
   const { activeRole } = useAuth(); // Get activeRole
   const { 
     runScript,
@@ -44,14 +44,16 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     updatePreset,
     deletePreset,
     renamePreset,
-    userEditedScriptParameters,
     updateUserEditedParameters,
     setSelectedScript,
   } = useScriptExecution();
 
-  const [editedParameters, setEditedParameters] = useState<ScriptParameter[]>(() => {
-    return userEditedScriptParameters[script.id] || initializeParameters(script.parameters ?? []);
-  });
+  const [editedParameters, setEditedParameters] = useState<ScriptParameter[]>([]);
+
+  useEffect(() => {
+    setEditedParameters(script.parameters || []);
+  }, [script.id, script.parameters]);
+
   const [selectedPreset, setSelectedPreset] = useState("<Default Parameters>");
 
   const [isNewPresetModalOpen, setIsNewPresetModalOpen] = useState(false);
@@ -64,14 +66,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   
 
   const isRunning = runningScriptPath === script.id;
-
-  useEffect(() => {
-    if (userEditedScriptParameters[script.id] && userEditedScriptParameters[script.id].length > 0) {
-      setEditedParameters(userEditedScriptParameters[script.id]);
-    } else {
-      setEditedParameters(initializeParameters(script.parameters ?? []));
-    }
-  }, [script.id, script.parameters, userEditedScriptParameters]);
 
   useEffect(() => {
     setSelectedPreset("<Default Parameters>");
@@ -179,7 +173,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     <div className={`tab-content p-4`}>
       <div className="space-y-6">
         {/* Preset Selector + Actions */}
-        {script.parameters && script.parameters.length > 0 && (
+        {activeMainView === 'scripts' && script.parameters && script.parameters.length > 0 && (
           <div className="relative flex items-center justify-end">
             <select
               className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-auto"
@@ -189,12 +183,10 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 setSelectedPreset(presetName);
                 if (presetName === "<Default Parameters>") {
                   const defaultParams = initializeParameters(script.parameters ?? []);
-                  setEditedParameters(defaultParams);
                   updateUserEditedParameters(script.id, defaultParams);
                 } else {
                   const preset = presets.find((p) => p.name === presetName);
                   if (preset) {
-                    setEditedParameters(preset.parameters);
                     updateUserEditedParameters(script.id, preset.parameters);
                   }
                 }
@@ -229,39 +221,41 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         ))}
 
         {/* Run Script Button */}
-        <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <div className="relative flex items-center" title={tooltipMessage}>
-            <button
-              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 text-base rounded-lg font-semibold flex items-center justify-center disabled:bg-blue-400 dark:disabled:bg-blue-800 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
-              onClick={handleRunScript}
-              disabled={!!runningScriptPath || !isActionable}
-            >
-              <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`mr-3 ${isRunning ? "animate-spin" : ""}`} />
-              {isRunning ? "Running..." : "Run Script"}
-            </button>
-            {showStatusIcon && (
-              <div 
-                className="absolute -right-12 cursor-pointer p-1" 
-                onClick={handleStatusIconClick}
-                title={activeInspectorTab === 'console' ? "Go to Parameters" : "Go to Console"}
-              >
-                <FontAwesomeIcon 
-                  icon={runSucceeded ? faCheckCircle : faTimesCircle} 
-                  className={`${runSucceeded ? 'text-green-500' : 'text-red-500'} text-2xl`}
-                />
-              </div>
-            )}
-          </div>
-            {activeRole !== Role.User && (
+        {activeMainView === 'scripts' && (
+          <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <div className="relative flex items-center" title={tooltipMessage}>
               <button
-                title="View Code in New Window"
-                className="text-gray-600 dark:text-gray-300 hover:text-blue-600"
-                onClick={onViewCodeClick}
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 text-base rounded-lg font-semibold flex items-center justify-center disabled:bg-blue-400 dark:disabled:bg-blue-800 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+                onClick={handleRunScript}
+                disabled={!!runningScriptPath || !isActionable}
               >
-                <FontAwesomeIcon icon={faExternalLinkAlt} />
+                <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`mr-3 ${isRunning ? "animate-spin" : ""}`} />
+                {isRunning ? "Running..." : "Run Script"}
               </button>
-            )}
-        </div>
+              {showStatusIcon && (
+                <div 
+                  className="absolute -right-12 cursor-pointer p-1" 
+                  onClick={handleStatusIconClick}
+                  title={activeInspectorTab === 'console' ? "Go to Parameters" : "Go to Console"}
+                >
+                  <FontAwesomeIcon 
+                    icon={runSucceeded ? faCheckCircle : faTimesCircle} 
+                    className={`${runSucceeded ? 'text-green-500' : 'text-red-500'} text-2xl`}
+                  />
+                </div>
+              )}
+            </div>
+              {activeRole !== Role.User && (
+                <button
+                  title="View Code in New Window"
+                  className="text-gray-600 dark:text-gray-300 hover:text-blue-600"
+                  onClick={onViewCodeClick}
+                >
+                  <FontAwesomeIcon icon={faExternalLinkAlt} />
+                </button>
+              )}
+          </div>
+        )}
       </div>
 
       <NewPresetNameModal
