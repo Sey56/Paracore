@@ -49,13 +49,9 @@ const SettingsModal: React.FC = () => {
     return tabs;
   }, [activeRole, openTeamManagementModal]);
 
-  const [activeTab, setActiveTab] = useState<string | null>(coreFeaturesTabs.length > 0 ? coreFeaturesTabs[0].name : null);
-
-  // Effect to reset active tab when tabs change (e.g., role change)
-  useEffect(() => {
-    const defaultTab = coreFeaturesTabs.length > 0 ? coreFeaturesTabs[0].name : null;
-    setActiveTab(defaultTab);
-  }, [coreFeaturesTabs]);
+  const [activeTab, setActiveTab] = useState<string | null>(
+    coreFeaturesTabs.length > 0 ? coreFeaturesTabs[0].name : null
+  );
 
   const ActiveComponent = coreFeaturesTabs.find(tab => tab.name === activeTab)?.component;
 

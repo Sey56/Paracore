@@ -22,6 +22,10 @@ type ChatPayload = {
   workspace_path: string;
   token: string | undefined;
   message?: string;
+  llm_provider?: string | null;
+  llm_model?: string | null;
+  llm_api_key_name?: string | null;
+  llm_api_key_value?: string | null;
 };
 
 export const AgentView: React.FC = () => {
@@ -76,10 +80,19 @@ export const AgentView: React.FC = () => {
         // Automatically handle this tool call without user approval
         const currentParams = (selectedScript && userEditedScriptParameters[selectedScript.id]) || [];
         try {
+          const llmProvider = localStorage.getItem('llmProvider');
+          const llmModel = localStorage.getItem('llmModel');
+          const llmApiKeyName = localStorage.getItem('llmApiKeyName');
+          const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
+
           const resumeResponse = await api.post("/agent/resume", {
             thread_id: data.thread_id,
             token: token,
             tool_result: JSON.stringify(currentParams),
+            llm_provider: llmProvider,
+            llm_model: llmModel,
+            llm_api_key_name: llmApiKeyName,
+            llm_api_key_value: llmApiKeyValue,
           });
           processAgentResponse(resumeResponse.data, "UI parameters sent.", true);
         } catch (error) {
@@ -108,12 +121,20 @@ export const AgentView: React.FC = () => {
       setIsLoading(true); // Keep loading true while processing internally
       setTimeout(async () => {
         try {
+          const llmProvider = localStorage.getItem('llmProvider');
+          const llmModel = localStorage.getItem('llmModel');
+          const llmApiKeyName = localStorage.getItem('llmApiKeyName');
+          const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
           // Send an internal message to continue processing
           const internalResponse = await api.post("/agent/chat", {
             thread_id: data.thread_id,
             message: "INTERNAL_CONTINUE_PROCESSING", // Special internal message
             workspace_path: currentWorkspacePath,
             token: token,
+            llm_provider: llmProvider,
+            llm_model: llmModel,
+            llm_api_key_name: llmApiKeyName,
+            llm_api_key_value: llmApiKeyValue,
           });
           // Process the internal response recursively
           processAgentResponse(internalResponse.data, originalMessageText, approvedToolCall);
@@ -146,10 +167,19 @@ export const AgentView: React.FC = () => {
     setIsLoading(true);
 
     try {
+      const llmProvider = localStorage.getItem('llmProvider');
+      const llmModel = localStorage.getItem('llmModel');
+      const llmApiKeyName = localStorage.getItem('llmApiKeyName');
+      const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
+
       const chatPayload: ChatPayload = {
         thread_id: threadId,
         workspace_path: currentWorkspacePath,
         token: token,
+        llm_provider: llmProvider,
+        llm_model: llmModel,
+        llm_api_key_name: llmApiKeyName,
+        llm_api_key_value: llmApiKeyValue,
       };
 
       if (!approvedToolCall) {
@@ -177,10 +207,19 @@ export const AgentView: React.FC = () => {
       }
 
       try {
+        const llmProvider = localStorage.getItem('llmProvider');
+        const llmModel = localStorage.getItem('llmModel');
+        const llmApiKeyName = localStorage.getItem('llmApiKeyName');
+        const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
+
         const resumeResponse = await api.post("/agent/resume", {
           thread_id: threadId,
           token: token,
           workspace_path: currentWorkspacePath, // Add this
+          llm_provider: llmProvider,
+          llm_model: llmModel,
+          llm_api_key_name: llmApiKeyName,
+          llm_api_key_value: llmApiKeyValue,
         });
         processAgentResponse(resumeResponse.data, "Tool call approved.", true);
       } catch (error) {

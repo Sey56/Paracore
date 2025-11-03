@@ -34,21 +34,29 @@ def _get_llm(state: AgentState):
     llm_api_key_name = state.get("llm_api_key_name")
     llm_api_key_value = state.get("llm_api_key_value")
 
+    # Default to Google if no provider is specified
+    if not llm_provider:
+        llm_provider = "Google"
+
+    # Determine the API key
+    api_key = llm_api_key_value or os.getenv(llm_api_key_name or "GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError(f"API key not found. Please provide it directly or set the '{llm_api_key_name or 'GOOGLE_API_KEY'}' environment variable.")
+
+    # For now, we only have the Google client, but we'll use the model from the state
+    # This can be expanded with a factory function for different providers
     if llm_provider == "Google":
-        api_key = llm_api_key_value or os.getenv(llm_api_key_name or "GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("Google API key not found.")
         return ChatGoogleGenerativeAI(
             model=llm_model or "gemini-2.0-flash",
             api_key=api_key,
             convert_system_message_to_human=True
         )
     else:
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+        # Fallback for other providers, assuming a compatible API for now.
+        # This removes the hardcoded model and API key name.
+        print(f"Warning: LLM provider '{llm_provider}' is not officially supported. Using Google's client as a fallback.")
         return ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
+            model=llm_model or "gemini-2.0-flash",
             api_key=api_key,
             convert_system_message_to_human=True
         )
