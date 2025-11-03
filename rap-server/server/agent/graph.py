@@ -19,51 +19,53 @@ class AgentState(TypedDict):
     script_to_run: dict | None
     script_parameters_definitions: list | None
     selected_script_info: dict | None # New field to store selected script details
+    llm_provider: str | None
+    llm_model: str | None
+    llm_api_key_name: str | None
+    llm_api_key_value: str | None
 
 # --- 2. Setup Tools, Prompt, and LLM ---
 
 tools = [run_script_by_name, get_script_parameters_tool, list_available_scripts, set_active_script_source_tool, get_ui_parameters_tool]
 
-google_api_key = os.getenv("GOOGLE_API_KEY")
-if not google_api_key:
-    raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+def _get_llm(state: AgentState):
+    llm_provider = state.get("llm_provider")
+    llm_model = state.get("llm_model")
+    llm_api_key_name = state.get("llm_api_key_name")
+    llm_api_key_value = state.get("llm_api_key_value")
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash", 
-    api_key=google_api_key,
-    convert_system_message_to_human=True # Important for Gemini 1.5
-)
+    if llm_provider == "Google":
+        api_key = llm_api_key_value or os.getenv(llm_api_key_name or "GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("Google API key not found.")
+        return ChatGoogleGenerativeAI(
+            model=llm_model or "gemini-2.0-flash",
+            api_key=api_key,
+            convert_system_message_to_human=True
+        )
+    else:
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+        return ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash",
+            api_key=api_key,
+            convert_system_message_to_human=True
+        )
 
-llm_with_tools = llm.bind_tools(tools)
+
 
 prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            """You are a specialized Revit assistant named Paracore Agent. Your primary function is to help users by executing scripts to accomplish Revit tasks. You are the expert, and the user is not expected to know the names of your scripts/tools.
-
-## CORE LOGIC
-- **Understand the Goal:** Your first step is to understand what the user wants to accomplish in Revit.
-- **Find the Right Tool:** Based on the user's request, you must find a relevant script from your workspace. Use the `list_available_scripts` tool to get a list of available scripts. **You must prioritize the `description` of the script over its `name` when determining relevance.** The description provides the most important information about what the script does.
-- **Get All Parameters:** Once a script is identified, use the `get_script_parameters_tool` to get the full list of its parameters and their default values. Present these to the user in a clear, formatted list. **After presenting the parameters, you must explicitly ask the user if they want to change any of them and wait for their response before proceeding.**
-- **Sync and Confirm before Execution:** Every single time the user asks you to run the script or proceed with execution, you **must** perform the following synchronization steps, even if you have done them before:
-    1.  Call the `get_ui_parameters_tool` to get the latest parameter values from the user interface.
-    2.  Take the result of that tool as the new baseline for the parameters.
-    3.  Apply any parameter changes from the user's most recent conversational message.
-    4.  If the user's instruction was to run the script directly (e.g., "...and run it"), you can proceed to call `run_script_by_name` with the merged parameters.
-    5.  Otherwise, you must present the complete, final list of merged parameters to the user for one last confirmation before proceeding.
-- **Update and Send All Parameters:** When the user asks to run the script, update your list of parameters with their specific changes. Then, call the `run_script_by_name` tool with the **complete, updated list of ALL parameters** (both changed and default).
-- **Handle Ambiguity:** If you are unsure which script to run, or if the user's request is unclear, ask for clarification. Do not guess.
-- **If No Tool is Found:** If you don't have a tool to accomplish the user's request, you must inform them of this and ask if they would like you to create one.
-- **Confirm Success:** After running a script, confirm to the user that it was executed and report the result."""
+            """You are a specialized Revit assistant named Paracore Agent. Your primary function is to help users by executing scripts to accomplish Revit tasks. You are the expert, and the user is not expected to know the names of your scripts/tools.\n\n## CORE LOGIC\n- **Understand the Goal:** Your first step is to understand what the user wants to accomplish in Revit.\n- **Find the Right Tool:** Based on the user's request, you must find a relevant script from your workspace. Use the `list_available_scripts` tool to get a list of available scripts. **You must prioritize the `description` of the script over its `name` when determining relevance.** The description provides the most important information about what the script does.\n- **Get All Parameters:** Once a script is identified, use the `get_script_parameters_tool` to get the full list of its parameters and their default values. Present these to the user in a clear, formatted list. **After presenting the parameters, you must explicitly ask the user if they want to change any of them and wait for their response before proceeding.**\n- **Sync and Confirm before Execution:** Every single time the user asks you to run the script or proceed with execution, you **must** perform the following synchronization steps, even if you have done them before:\n    1.  Call the `get_ui_parameters_tool` to get the latest parameter values from the user interface.\n    2.  Take the result of that tool as the new baseline for the parameters.\n    3.  Apply any parameter changes from the user's most recent conversational message.\n    4.  If the user's instruction was to run the script directly (e.g., "...and run it"), you can proceed to call `run_script_by_name` with the merged parameters.\n    5.  Otherwise, you must present the complete, final list of merged parameters to the user for one last confirmation before proceeding.\n- **Update and Send All Parameters:** When the user asks to run the script, update your list of parameters with their specific changes. Then, call the `run_script_by_name` tool with the **complete, updated list of ALL parameters** (both changed and default).\n- **Handle Ambiguity:** If you are unsure which script to run, or if the user's request is unclear, ask for clarification. Do not guess.\n- **If No Tool is Found:** If you don't have a tool to accomplish the user's request, you must inform them of this and ask if they would like you to create one.\n- **Confirm Success:** After running a script, confirm to the user that it was executed and report the result."""
         ),
         MessagesPlaceholder(variable_name="messages"),
     ]
 )
 
-chain = prompt | llm_with_tools
 
-# --- 3. Define Graph Nodes ---
 
 def agent_node(state: AgentState) -> AgentState:
     """Invokes the LLM to get the next action, with a robust fail-safe."""
@@ -86,6 +88,9 @@ def agent_node(state: AgentState) -> AgentState:
                 patched_messages.append(msg)
 
         print(f"agent_node: Messages being sent to LLM: {patched_messages}")
+        llm = _get_llm(state)
+        llm_with_tools = llm.bind_tools(tools)
+        chain = prompt | llm_with_tools
         response = chain.invoke({"messages": patched_messages})
         
         # If selected_script_info is present in the state, create a new AIMessage with it

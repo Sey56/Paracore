@@ -17,12 +17,20 @@ class ChatRequest(BaseModel):
     message: str
     workspace_path: str | None = None
     token: str # Add token to the request
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    llm_api_key_name: str | None = None
+    llm_api_key_value: str | None = None
 
 class ResumeRequest(BaseModel):
     thread_id: str
     token: str # Add token to the request
     workspace_path: str | None = None # Add workspace_path
     tool_result: str | None = None # Add tool_result for UI parameters
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    llm_api_key_name: str | None = None
+    llm_api_key_value: str | None = None
 
 @router.post("/agent/chat")
 async def chat_with_agent(request: ChatRequest):
@@ -34,7 +42,11 @@ async def chat_with_agent(request: ChatRequest):
         # Explicitly update the state with context
         app.update_state(config, {
             "workspace_path": request.workspace_path or "",
-            "user_token": request.token
+            "user_token": request.token,
+            "llm_provider": request.llm_provider,
+            "llm_model": request.llm_model,
+            "llm_api_key_name": request.llm_api_key_name,
+            "llm_api_key_value": request.llm_api_key_value,
         })
         
         if request.message == "INTERNAL_CONTINUE_PROCESSING":
@@ -140,7 +152,11 @@ async def resume_agent_tool_call(request: ResumeRequest):
     # Update state before resuming
     app.update_state(config, {
         "workspace_path": request.workspace_path or "",
-        "user_token": request.token
+        "user_token": request.token,
+        "llm_provider": request.llm_provider,
+        "llm_model": request.llm_model,
+        "llm_api_key_name": request.llm_api_key_name,
+        "llm_api_key_value": request.llm_api_key_value,
     })
 
     if request.tool_result:

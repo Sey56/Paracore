@@ -3,6 +3,7 @@ import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/hooks/useAuth';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import WorkspaceSettings from './WorkspaceSettings';
+import LLMSettings from './LLMSettings'; // Import the new LLMSettings component
 import { Modal } from '../common/Modal';
 import { Role } from '@/context/authTypes';
 
@@ -37,6 +38,12 @@ const SettingsModal: React.FC = () => {
       component: NoopComponent, // This tab opens a modal, so it doesn't render a component in the main view
       disabled: activeRole !== Role.Admin,
       onClick: () => { openTeamManagementModal(); } // Corrected: Does not close the settings modal
+    });
+
+    // Add LLM Settings tab
+    tabs.push({
+      name: 'LLM Settings',
+      component: LLMSettings,
     });
 
     return tabs;
