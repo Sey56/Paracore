@@ -13,16 +13,14 @@ The agent is in a stable state on the `feature/revit-agent` branch. The current 
 
 ## Future Plans
 
-The following are the next steps and future enhancements we plan to build on top of the current stable agent:
+The following are the next steps for polishing and enhancing the agent:
 
-- **Dynamic LLM/API Key Configuration:**
-  - Allow users to select their preferred LLM model.
-  - Provide a UI for users to enter their own API keys, instead of having them hard-coded.
-
-- **`ScriptInspector` Integration:**
-  - When the agent selects a script, its details (name, description, parameters, etc.) should be displayed in the `ScriptInspector` UI component.
-  - This will provide a richer and more interactive experience for reviewing and editing parameters.
-
-- **Model Context Protocol (MCP):**
-  - Integrate MCP to provide the agent with a wider range of tools, resources, and context about the Revit model.
-  - This will significantly enhance the agent's capabilities and allow it to perform more complex and context-aware tasks.
+- **Enhanced Output Formatting & Summarization:**
+  - **Token Limiting:** Implement a mechanism to handle large outputs from Revit scripts gracefully. Instead of displaying potentially huge blocks of text or data, the agent should provide a concise summary.
+  - **Intelligent Summaries for Tables:** When a script returns a table, the agent should:
+    - Count the total number of rows.
+    - List all column headers.
+    - Display only the first 5 rows of the table.
+    - Guide the user to the **Summary Tab** in the UI to view the full, interactive table.
+  - **Guidance for Text Output:** For long print statements or other non-tabular results, the agent should provide a summary and direct the user to the **Console Tab** for the complete log.
+  - **Visual Appeal:** Improve the formatting of agent responses, especially lists, to make them more visually engaging and easier to read.

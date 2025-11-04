@@ -60,3 +60,6 @@ def get_ui_parameters_tool() -> str:
     pass
 
 
+tools = [run_script_by_name, get_script_parameters_tool, list_available_scripts, set_active_script_source_tool, get_ui_parameters_tool]
+
+
