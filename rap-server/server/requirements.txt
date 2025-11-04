@@ -47,3 +47,6 @@ uvicorn==0.38.0
 watchdog==6.0.0
 zstandard==0.25.0
 websockets==10.4
+langchain
+langgraph
+langchain-google-genai
