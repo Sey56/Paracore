@@ -12,3 +12,5 @@ class AgentState(TypedDict):
     llm_model: str | None
     llm_api_key_name: str | None
     llm_api_key_value: str | None
+    plan: list | None # Added to store multi-step plan
+    agent_scripts_path: str | None # Path to the agent's dedicated script workspace

@@ -268,7 +268,20 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       return; // Avoid re-fetching if the same script is clicked again
     }
 
-    // Set loading state immediately for better UX
+    // --- NEW LOGIC: Check for cached parameters first ---
+    const cachedParameters = userEditedScriptParameters[script.id];
+    if (cachedParameters) {
+      const updatedScript = { ...script, parameters: cachedParameters };
+      setSelectedScriptState(updatedScript);
+      // Still fetch content in the background
+      fetchScriptContent(updatedScript).then(content => {
+        setCombinedScriptContent(content || "// Failed to load script content.");
+      });
+      fetchScriptMetadata(script.id); // Fire and forget metadata update
+      return; // Exit early, we are using the cached parameters
+    }
+
+    // If no cached params, proceed with fetching...
     setCombinedScriptContent("// Loading script content...");
     setPresets([]);
     setExecutionResult(null);
@@ -276,16 +289,12 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     try {
       const promises = [];
 
-      // --- Parameters Promise ---
-      if (!script.parameters || script.parameters.length === 0) {
-        promises.push(
-          api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
-            .then(response => response.data)
-            .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }))
-        );
-      } else {
-        promises.push(Promise.resolve({ parameters: script.parameters }));
-      }
+      // --- Parameters Promise (only runs if not cached) ---
+      promises.push(
+        api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
+          .then(response => response.data)
+          .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }))
+      );
 
       // --- Content Promise ---
       promises.push(fetchScriptContent(script));
@@ -295,7 +304,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
       const [paramsResult, contentResult] = await Promise.all(promises);
 
-      let finalParameters = script.parameters || [];
+      let finalParameters: ScriptParameter[] = [];
       if (paramsResult.error) {
         showNotification(paramsResult.error, "error");
       } else if (paramsResult.parameters) {
@@ -306,11 +315,14 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           } catch { /* Ignore if not JSON */ }
           if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
           else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
-          return { ...p, value };
+          return { ...p, value, defaultValue: value }; // Also set defaultValue for preset comparison
         });
       }
 
       const updatedScript = { ...script, parameters: finalParameters };
+
+      // --- NEW LOGIC: Store the newly fetched parameters in our cache ---
+      updateUserEditedParameters(script.id, finalParameters);
 
       // Final state updates
       setCombinedScriptContent(contentResult || "// Failed to load script content.");
@@ -324,7 +336,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setSelectedScriptState(script); // Keep the initial script selected
       setCombinedScriptContent("// Error loading script. Please try again.");
     }
-  }, [selectedScript, fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath]);
+  }, [selectedScript, userEditedScriptParameters, fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath, updateUserEditedParameters]);
 
   const runScript = async (script: Script, parameters?: ScriptParameter[]) => {
     if (runningScriptPath) {

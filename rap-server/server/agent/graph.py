@@ -14,6 +14,10 @@ graph_builder.set_entry_point("agent")
 
 def should_continue(state: AgentState):
     """Determines the next step for the agent."""
+    # If there's an active plan, continue processing it
+    if state.get('plan') and len(state['plan']) > 0:
+        return "tools" # Route to tools to execute the next step in the plan
+
     last_message = state['messages'][-1]
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         tool_name = last_message.tool_calls[0]['name']

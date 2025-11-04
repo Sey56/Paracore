@@ -9,13 +9,21 @@ import traceback
 from .graph import app
 
 from ..auth import get_current_user, CurrentUser
+from .. import corescript_pb2
+from .. import corescript_pb2_grpc
+import grpc
+from google.protobuf.json_format import MessageToDict
 
 router = APIRouter()
+
+class ScriptManifestRequest(BaseModel):
+    agent_scripts_path: str
 
 class ChatRequest(BaseModel):
     thread_id: str | None = None
     message: str
     workspace_path: str | None = None
+    agent_scripts_path: str | None = None # Add agent_scripts_path
     token: str # Add token to the request
     llm_provider: str | None = None
     llm_model: str | None = None
@@ -26,11 +34,37 @@ class ResumeRequest(BaseModel):
     thread_id: str
     token: str # Add token to the request
     workspace_path: str | None = None # Add workspace_path
+    agent_scripts_path: str | None = None # Add agent_scripts_path
     tool_result: str | None = None # Add tool_result for UI parameters
     llm_provider: str | None = None
     llm_model: str | None = None
     llm_api_key_name: str | None = None
     llm_api_key_value: str | None = None
+
+@router.post("/agent/script_manifest")
+async def get_script_manifest(request: ScriptManifestRequest):
+    """Fetches the script manifest from the RServer C# backend."""
+    try:
+        with grpc.insecure_channel('localhost:50052') as channel:
+            stub = corescript_pb2_grpc.CoreScriptRunnerStub(channel)
+            grpc_request = corescript_pb2.GetScriptManifestRequest(agent_scripts_path=request.agent_scripts_path)
+            
+            response = stub.GetScriptManifest(grpc_request)
+
+            if response.error_message:
+                raise HTTPException(status_code=500, detail=f"RServer failed to get manifest: {response.error_message}")
+
+            # Convert the protobuf message to a dictionary for JSON response
+            response_dict = MessageToDict(response, preserving_proto_field_name=True)
+            return response_dict
+
+    except grpc.RpcError as e:
+        # Handle cases where the gRPC server is unavailable or throws an error
+        raise HTTPException(status_code=503, detail=f"Failed to connect to RServer: {e.details()}")
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
 
 @router.post("/agent/chat")
 async def chat_with_agent(request: ChatRequest):
@@ -42,6 +76,7 @@ async def chat_with_agent(request: ChatRequest):
         # Explicitly update the state with context
         app.update_state(config, {
             "workspace_path": request.workspace_path or "",
+            "agent_scripts_path": request.agent_scripts_path or "", # Add agent_scripts_path
             "user_token": request.token,
             "llm_provider": request.llm_provider,
             "llm_model": request.llm_model,
@@ -152,6 +187,7 @@ async def resume_agent_tool_call(request: ResumeRequest):
     # Update state before resuming
     app.update_state(config, {
         "workspace_path": request.workspace_path or "",
+        "agent_scripts_path": request.agent_scripts_path or "", # Add agent_scripts_path
         "user_token": request.token,
         "llm_provider": request.llm_provider,
         "llm_model": request.llm_model,

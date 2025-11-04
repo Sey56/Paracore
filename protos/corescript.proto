@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package CoreScript;
 
+// The main service for interacting with the CoreScript engine in Revit.
 service CoreScriptRunner {
   rpc ExecuteScript(ExecuteScriptRequest) returns (ExecuteScriptResponse);
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
@@ -9,7 +10,17 @@ service CoreScriptRunner {
   rpc GetScriptParameters(GetScriptParametersRequest) returns (GetScriptParametersResponse);
   rpc GetCombinedScript(GetCombinedScriptRequest) returns (GetCombinedScriptResponse);
   rpc CreateAndOpenWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  // New RPC for fetching the entire script manifest
+  rpc GetScriptManifest(GetScriptManifestRequest) returns (ScriptManifestResponse);
 }
+
+// Request for the GetScriptManifest RPC
+message GetScriptManifestRequest {
+  string agent_scripts_path = 1;
+}
+
+// General purpose empty message
+message Empty {}
 
 message CreateWorkspaceRequest {
   string script_path = 1;
@@ -70,21 +81,27 @@ message GetScriptParametersRequest {
   repeated ScriptFile script_files = 1;
 }
 
+// Represents the metadata for a single script (single-file or multi-file).
+// This is the new, finalized format.
 message ScriptMetadata {
-  string name = 1;
-  string description = 2;
-  string author = 3;
-  string website = 4;
-  string version = 5;
-  repeated string tags = 6;
-  repeated string categories = 7;
-  string last_run = 8;
-  bool is_default = 9;
-  repeated string dependencies = 10;
-  string history = 11;
-  string document_type = 12;
+  string name = 1;                  // Name of the script (filename or folder name)
+  string file_path = 2;             // Relative path from the agent workspace root
+  string script_type = 3;           // "single-file" or "multi-file"
+  string description = 4;
+  string author = 5;
+  repeated string categories = 6;
+  repeated string dependencies = 7;
+  string document_type = 8;
+  string usage_examples = 9;        // New field for usage examples
+  string website = 10; 
+  string last_run = 11;
 }
 
+// The response containing the full manifest of all available scripts.
+message ScriptManifestResponse {
+  repeated ScriptMetadata scripts = 1;
+  string error_message = 2; // Field for communicating errors
+}
 message GetScriptParametersResponse {
   repeated ScriptParameter parameters = 1;
   string error_message = 2;

@@ -22,7 +22,10 @@ def get_script_parameters_tool(script_name: str, script_type: str) -> str:
 
 @tool
 def list_available_scripts() -> str:
-    """Lists all available scripts in the current workspace."""
+    """Lists all available automation scripts that can be run in Revit.
+    - Use this tool to discover what scripts are available.
+    - The tool returns a detailed manifest containing a list of scripts, each with metadata like name, description, categories, and usage examples.
+    """
     # The actual implementation is orchestrated by the custom tool_node in the graph.
     # This function is just a definition for the LLM.
     pass

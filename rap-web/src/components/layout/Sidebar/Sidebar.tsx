@@ -544,7 +544,6 @@ export const Sidebar = () => {
                 className="flex items-center py-1 px-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-gray-700 dark:text-gray-200"
                 onClick={() => setSelectedScript(script)}
               >
-                <FontAwesomeIcon icon={faStar} className="text-yellow-400 mr-2" />
                 <span className="truncate">{script.metadata.displayName || script.name}</span>
               </li>
             ))}

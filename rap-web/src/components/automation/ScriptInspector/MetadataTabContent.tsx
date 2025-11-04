@@ -50,20 +50,12 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
             <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.documentType || 'Any'}</p>
           </div>
           <div>
-            <h4 className="font-medium text-gray-700 dark:text-gray-300">Version</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.version || 'N/A'}</p>
-          </div>
-          <div>
             <h4 className="font-medium text-gray-700 dark:text-gray-300">Website</h4>
             <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.website || 'N/A'}</p>
           </div>
           <div>
             <h4 className="font-medium text-gray-700 dark:text-gray-300">Categories</h4>
             <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.categories?.join(', ') || 'N/A'}</p>
-          </div>
-          <div>
-            <h4 className="font-medium text-gray-700 dark:text-gray-300">Tags</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.tags?.join(', ') || 'N/A'}</p>
           </div>
         </div>
 
@@ -74,15 +66,39 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
             <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{formatLastRun(metadata.lastRun)}</p>
           </div>
           <div>
-            <h4 className="font-medium text-gray-700 dark:text-gray-300">Default Script</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.isDefault ? 'Yes' : 'No'}</p>
+            <h4 className="font-medium text-gray-700 dark:text-gray-300">Date Created</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.dateCreated ? new Date(metadata.dateCreated).toLocaleDateString() : 'N/A'}</p>
           </div>
+          <div>
+            <h4 className="font-medium text-gray-700 dark:text-gray-300">Date Modified</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{metadata.dateModified ? new Date(metadata.dateModified).toLocaleDateString() : 'N/A'}</p>
+          </div>
+          {metadata.gitInfo && (
+            <div>
+              <h4 className="font-medium text-gray-700 dark:text-gray-300">Last Commit</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {metadata.gitInfo.lastCommitAuthor || 'N/A'} on {metadata.gitInfo.lastCommitDate ? new Date(metadata.gitInfo.lastCommitDate).toLocaleDateString() : 'N/A'}
+                {metadata.gitInfo.lastCommitMessage && <span className="block italic">"{metadata.gitInfo.lastCommitMessage}"</span>}
+              </p>
+            </div>
+          )}
           <div>
             <h4 className="font-medium text-gray-700 dark:text-gray-300">Dependencies</h4>
             <ul className="text-sm space-y-1 text-gray-600 dark:text-gray-300">
               {metadata.dependencies?.map((dep, index) => (
                 <li key={index}>{dep}</li>
               )) || <li>N/A</li>}
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-700 dark:text-gray-300">Usage Examples</h4>
+            <ul className="text-sm space-y-1 text-gray-600 dark:text-gray-300">
+              {(Array.isArray(metadata.usage_examples) ? metadata.usage_examples : (metadata.usage_examples || '').split('\n'))
+                .filter(example => example.trim() !== '')
+                .map((example, index) => (
+                  <li key={index}>{example}</li>
+              ))}
+              {(!metadata.usage_examples || (Array.isArray(metadata.usage_examples) && metadata.usage_examples.length === 0)) && <li>No examples provided.</li>}
             </ul>
           </div>
         </div>
@@ -92,12 +108,7 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
           <h4 className="font-medium text-gray-700 dark:text-gray-300">Description</h4>
           <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mt-1">{metadata.description || 'No description provided.'}</p>
         </div>
-        <div className="md:col-span-2">
-          <h4 className="font-medium text-gray-700 dark:text-gray-300">History</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mt-1">{metadata.history || 'No history provided.'}</p>
-        </div>
       </div>
     </div>
   );
 };
-

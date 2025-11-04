@@ -35,20 +35,17 @@ export interface GitInfo {
 
 export interface ScriptMetadata {
   displayName: string;
-  tags: string[];
-  version: string;
   lastRun: string | null;
-  isDefault: boolean;
   dependencies: string[];
   description: string;
   categories: string[];
   author?: string;
   website?: string;
-  history?: string;
   documentType?: 'ConceptualMass' | 'Family' | 'Project' | 'Any' | null;
   dateCreated?: string;
   dateModified?: string;
   gitInfo?: GitInfo;
+  usage_examples?: string[];
 }
 
 export interface RawGitInfoFromApi {
@@ -59,18 +56,17 @@ export interface RawGitInfoFromApi {
 
 export interface RawScriptMetadataFromApi {
   displayName: string;
-  tags: string[];
-  version: string;
   lastRun: string | null;
-  isDefault: boolean;
   dependencies: string[];
   description: string;
   categories: string[];
   author?: string;
   website?: string;
-  history?: string;
   document_type?: 'ConceptualMass' | 'Family' | 'Project' | 'Any' | null;
   git_info?: RawGitInfoFromApi;
+  usage_examples?: string[];
+  dateCreated?: string;
+  dateModified?: string;
 }
 
 export interface RawScriptFromApi {

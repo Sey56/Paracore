@@ -20,6 +20,7 @@ type AgentResponse = {
 type ChatPayload = {
   thread_id: string | null;
   workspace_path: string;
+  agent_scripts_path?: string | null; // Add agent_scripts_path
   token: string | undefined;
   message?: string;
   llm_provider?: string | null;
@@ -125,11 +126,13 @@ export const AgentView: React.FC = () => {
           const llmModel = localStorage.getItem('llmModel');
           const llmApiKeyName = localStorage.getItem('llmApiKeyName');
           const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
+          const agentScriptsPath = localStorage.getItem('agentScriptsPath'); // Get agent scripts path
           // Send an internal message to continue processing
           const internalResponse = await api.post("/agent/chat", {
             thread_id: data.thread_id,
             message: "INTERNAL_CONTINUE_PROCESSING", // Special internal message
             workspace_path: currentWorkspacePath,
+            agent_scripts_path: agentScriptsPath, // Add to payload
             token: token,
             llm_provider: llmProvider,
             llm_model: llmModel,
@@ -171,10 +174,12 @@ export const AgentView: React.FC = () => {
       const llmModel = localStorage.getItem('llmModel');
       const llmApiKeyName = localStorage.getItem('llmApiKeyName');
       const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
+      const agentScriptsPath = localStorage.getItem('agentScriptsPath'); // Get agent scripts path
 
       const chatPayload: ChatPayload = {
         thread_id: threadId,
         workspace_path: currentWorkspacePath,
+        agent_scripts_path: agentScriptsPath, // Add to payload
         token: token,
         llm_provider: llmProvider,
         llm_model: llmModel,
@@ -211,11 +216,13 @@ export const AgentView: React.FC = () => {
         const llmModel = localStorage.getItem('llmModel');
         const llmApiKeyName = localStorage.getItem('llmApiKeyName');
         const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
+        const agentScriptsPath = localStorage.getItem('agentScriptsPath'); // Get agent scripts path
 
         const resumeResponse = await api.post("/agent/resume", {
           thread_id: threadId,
           token: token,
           workspace_path: currentWorkspacePath, // Add this
+          agent_scripts_path: agentScriptsPath, // Add to payload
           llm_provider: llmProvider,
           llm_model: llmModel,
           llm_api_key_name: llmApiKeyName,

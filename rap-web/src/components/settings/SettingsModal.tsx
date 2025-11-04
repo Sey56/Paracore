@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import WorkspaceSettings from './WorkspaceSettings';
 import LLMSettings from './LLMSettings'; // Import the new LLMSettings component
+import AgentSettings from './AgentSettings'; // Import the new AgentSettings component
 import { Modal } from '../common/Modal';
 import { Role } from '@/context/authTypes';
 
@@ -44,6 +45,12 @@ const SettingsModal: React.FC = () => {
     tabs.push({
       name: 'LLM Settings',
       component: LLMSettings,
+    });
+
+    // Add Agent Settings tab
+    tabs.push({
+      name: 'Agent Settings',
+      component: AgentSettings,
     });
 
     return tabs;

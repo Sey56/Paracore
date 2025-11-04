@@ -32,7 +32,6 @@ namespace CoreScript.Engine.Core
             SyntaxTree tree = CSharpSyntaxTree.ParseText(scriptContent);
             var root = tree.GetRoot();
 
-            // Find all multiline comments
             var multilineComments = root.DescendantTrivia()
                 .Where(trivia => trivia.Kind() == SyntaxKind.MultiLineCommentTrivia ||
                                  trivia.Kind() == SyntaxKind.MultiLineDocumentationCommentTrivia)
@@ -41,84 +40,69 @@ namespace CoreScript.Engine.Core
 
             foreach (var commentText in multilineComments)
             {
-                // Remove comment delimiters /* */ and trim whitespace
                 var content = commentText.Length > 4 ? commentText.Substring(2, commentText.Length - 4) : string.Empty;
-                var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None)
+                var lines = content.Split(new[] { "\r\n", "\r", "\n" }, System.StringSplitOptions.None)
                     .Select(line => line.Trim().TrimStart('*').Trim());
                 var cleanComment = string.Join("\n", lines);
 
-                // Regex patterns for metadata fields
-                var categoriesMatch = Regex.Match(cleanComment, @"^Categories:\s*(.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (categoriesMatch.Success)
+                // General pattern for simple key-value pairs
+                var simplePattern = new Regex(@"^([a-zA-Z_]+):\s*(.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+                foreach (Match match in simplePattern.Matches(cleanComment))
                 {
-                    metadata.Categories.AddRange(categoriesMatch.Groups[1].Value.Split(',').Select(c => c.Trim()).Where(c => !string.IsNullOrEmpty(c)));
-                }
+                    var key = match.Groups[1].Value.Trim();
+                    var value = match.Groups[2].Value.Trim();
 
-                var authorMatch = Regex.Match(cleanComment, @"^Author:\s*(.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (authorMatch.Success)
-                {
-                    metadata.Author = authorMatch.Groups[1].Value.Trim();
-                }
+                    if (string.IsNullOrEmpty(value)) continue;
 
-                var versionMatch = Regex.Match(cleanComment, @"^Version:\s*(.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (versionMatch.Success)
-                {
-                    metadata.Version = versionMatch.Groups[1].Value.Trim();
-                }
-
-                var lastRunMatch = Regex.Match(cleanComment, @"^LastRun:\s*(.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (lastRunMatch.Success)
-                {
-                    // Assuming LastRun can be parsed directly as a string for now
-                    metadata.LastRun = lastRunMatch.Groups[1].Value.Trim();
-                }
-
-                var isDefaultMatch = Regex.Match(cleanComment, @"^IsDefault:\s*(true|false)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (isDefaultMatch.Success)
-                {
-                    metadata.IsDefault = bool.Parse(isDefaultMatch.Groups[1].Value);
-                }
-
-                var dependenciesMatch = Regex.Match(cleanComment, @"^Dependencies:\s*(.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (dependenciesMatch.Success)
-                {
-                    metadata.Dependencies.AddRange(dependenciesMatch.Groups[1].Value.Split(',').Select(d => d.Trim()).Where(d => !string.IsNullOrEmpty(d)));
-                }
-
-                var documentTypeMatch = Regex.Match(cleanComment, @"^DocumentType:\s*(.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (documentTypeMatch.Success)
-                {
-                    var docType = documentTypeMatch.Groups[1].Value.Trim();
-                    if (docType.Equals("ConceptualMass", StringComparison.OrdinalIgnoreCase) ||
-                        docType.Equals("Project", StringComparison.OrdinalIgnoreCase) ||
-                        docType.Equals("Family", StringComparison.OrdinalIgnoreCase))
+                    switch (key.ToLower())
                     {
-                        metadata.DocumentType = docType;
+                        case "author":
+                            metadata.Author = value;
+                            break;
+                        case "website":
+                            metadata.Website = value;
+                            break;
+                        case "lastrun":
+                            metadata.LastRun = value;
+                            break;
+                        case "documenttype":
+                            if (value.Equals("ConceptualMass", System.StringComparison.OrdinalIgnoreCase) ||
+                                value.Equals("Project", System.StringComparison.OrdinalIgnoreCase) ||
+                                value.Equals("Family", System.StringComparison.OrdinalIgnoreCase))
+                            {
+                                metadata.DocumentType = value;
+                            }
+                            break;
+                        case "categories":
+                            metadata.Categories.AddRange(value.Split(',').Select(c => c.Trim()).Where(c => !string.IsNullOrEmpty(c)));
+                            break;
+                        case "dependencies":
+                            metadata.Dependencies.AddRange(value.Split(',').Select(d => d.Trim()).Where(d => !string.IsNullOrEmpty(d)));
+                            break;
                     }
                 }
 
-                // Description and History require special handling for multiline content
-                var descriptionMatch = Regex.Match(cleanComment, @"^Description:\s*\n([\s\S]*?)(?=\n\n|^History:|^Categories:|^Author:|^Version:|^LastRun:|^IsDefault:|^Dependencies:|$)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (descriptionMatch.Success)
+                // Special handling for potentially multi-line fields
+                var multiLinePattern = new Regex(@"^(Description|UsageExamples):\s*([\s\S]*?)(?=\n[a-zA-Z_]+:|$)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+                foreach (Match match in multiLinePattern.Matches(cleanComment))
                 {
-                    metadata.Description = descriptionMatch.Groups[1].Value.Trim();
-                }
+                    var key = match.Groups[1].Value.Trim();
+                    var value = match.Groups[2].Value.Trim();
 
-                var historyMatch = Regex.Match(cleanComment, @"^History:\s*\n([\s\S]*?)(?=\n\n|^Categories:|^Author:|^Version:|^LastRun:|^IsDefault:|^Dependencies:|^Description:|$)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                if (historyMatch.Success)
-                {
-                    // For now, store history as a single string. Further parsing can be added if needed.
-                    metadata.History = historyMatch.Groups[1].Value.Trim();
-                }
+                    if (string.IsNullOrEmpty(value)) continue;
 
-                // The script name is usually the file name, but can be overridden by a 'name' tag
-                // We'll keep the existing XML parsing for 'name' as a fallback/override
+                    if (key.Equals("Description", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        metadata.Description = value;
+                    }
+                    else if (key.Equals("UsageExamples", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        metadata.UsageExamples = value;
+                    }
+                }
             }
 
-            _logger.Log($"[MetadataExtractor] Extracted Metadata: Name={metadata.Name}, Description={metadata.Description}, Author={metadata.Author}, Version={metadata.Version}, Categories={string.Join(", ", metadata.Categories)}, LastRun={metadata.LastRun}, IsDefault={metadata.IsDefault}, Dependencies={string.Join(", ", metadata.Dependencies)}, History={metadata.History}, DocumentType={metadata.DocumentType}", LogLevel.Debug);
-
-            // Keep existing XML parsing logic for now, in case some scripts use it.
-            // We can remove it later if confirmed not needed.
+            // XML parsing for name override
             var classNode = root.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
             if (classNode != null)
             {
@@ -129,18 +113,15 @@ namespace CoreScript.Engine.Core
 
                 if (xmlTrivia != null)
                 {
-                    // Only override if the XML tag provides a name
                     var nameFromXml = GetTextFromTag(xmlTrivia, "name");
                     if (!string.IsNullOrEmpty(nameFromXml))
                     {
                         metadata.Name = nameFromXml;
                     }
-                    // Existing XML parsing for other fields (summary, author, etc.) will be redundant
-                    // if the multiline comment parsing is comprehensive. Consider removing these
-                    // if multiline comment parsing becomes the primary source.
-                    // For now, we'll let the multiline comment parsing take precedence if a field is found there.
                 }
             }
+
+            _logger.Log($"[MetadataExtractor] Extracted Metadata: Name={metadata.Name}, Description={metadata.Description}, Author={metadata.Author}, Website={metadata.Website}, Categories={string.Join(", ", metadata.Categories)}, LastRun={metadata.LastRun}, Dependencies={string.Join(", ", metadata.Dependencies)}, DocumentType={metadata.DocumentType}", LogLevel.Debug);
 
             return metadata;
         }
@@ -154,9 +135,6 @@ namespace CoreScript.Engine.Core
         private static string GetElementContent(XmlElementSyntax element)
         {
             if (element == null) return "";
-
-            // This will concatenate the text from all XmlTextSyntax nodes within the element,
-            // handling multiple lines of text content.
             return string.Concat(element.Content.Select(node => node.ToString())).Trim();
         }
     }

@@ -76,10 +76,9 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
         <p className="text-gray-600 dark:text-gray-300 mb-4">{script.metadata.description}</p>
       )}
       
-      {/* Author and Version */}
+      {/* Author */}
       <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
         <span>{script.metadata.author || 'Unknown Author'}</span>
-        <span>{script.metadata.version || 'v1.0'}</span>
       </div>
 
       {/* Git Last Commit Info */}

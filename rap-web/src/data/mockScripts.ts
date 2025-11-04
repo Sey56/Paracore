@@ -27,13 +27,14 @@ export const mockScripts: Script[] = [
     ],
     metadata: {
       displayName: 'Wall Schedule Generator', // Mapped from title
-      tags: [], // Placeholder
-      version: 'v2.1.4',
       lastRun: '2 hours ago',
-      isDefault: false, // Placeholder
       dependencies: [], // Placeholder
       description: 'Generates detailed wall schedules with material takeoffs.',
       categories: ['Architectural', 'Schedules'],
+      usage_examples: [
+        'Generate a schedule for all walls.',
+        'Export wall data to Excel.'
+      ],
     }
   },
   {
@@ -55,13 +56,14 @@ export const mockScripts: Script[] = [
     ],
     metadata: {
       displayName: 'Room Tag Updater', // Mapped from title
-      tags: [], // Placeholder
-      version: 'v1.3.2',
       lastRun: '1 day ago',
-      isDefault: false, // Placeholder
       dependencies: [], // Placeholder
       description: 'Updates all room tags with current room data and parameters.',
       categories: ['Architectural', 'Tags'],
+      usage_examples: [
+        'Update tags in selected views.',
+        'Update tags in the current view only.'
+      ],
     }
   },
   // Add other mock scripts here...

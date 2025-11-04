@@ -24,7 +24,6 @@ const getFolderNameFromPath = (path: string | null): string => {
 
 const parseSearchTerm = (term: string) => {
   const filters: {
-    tag: string[];
     author: string[];
     param: string[];
     desc: string[];
@@ -34,7 +33,6 @@ const parseSearchTerm = (term: string) => {
     categories: string[];
     general: string[];
   } = {
-    tag: [],
     author: [],
     param: [],
     desc: [],
@@ -51,11 +49,7 @@ const parseSearchTerm = (term: string) => {
 
   parts.forEach(part => {
     const lowerPart = part.toLowerCase();
-    if (lowerPart.startsWith('tag:')) {
-      const value = part.substring(4);
-      filters.tag.push(value.toLowerCase());
-      pillFilters.push({ type: 'tag', value });
-    } else if (lowerPart.startsWith('author:')) {
+    if (lowerPart.startsWith('author:')) {
       const value = part.substring(7);
       filters.author.push(value.toLowerCase());
       pillFilters.push({ type: 'author', value });
@@ -211,7 +205,7 @@ export const ScriptGallery: React.FC = () => {
     let searchedScripts = filteredByDefaultCategories;
 
     if (searchTerm) {
-      const { tag, author, param, desc, doctype, created, modified, general, categories } = filters;
+      const { author, param, desc, doctype, created, modified, general, categories } = filters;
 
       searchedScripts = filteredBySidebarCategory.filter((script: Script) => {
         const lowercasedName = script.name.toLowerCase();
@@ -219,11 +213,9 @@ export const ScriptGallery: React.FC = () => {
         const lowercasedDescription = (script.metadata?.description || '').toLowerCase();
         const lowercasedAuthor = (script.metadata?.author || 'Unknown').toLowerCase();
         const scriptCategories = (script.metadata?.categories || []).map(cat => cat.toLowerCase());
-        const scriptTags = (script.metadata?.tags || []).map(t => t.toLowerCase());
         const scriptParameters = (script.parameters ?? []).map(p => ({ name: p.name.toLowerCase(), description: (p.description || '').toLowerCase() }));
         const scriptDocumentType = (script.metadata?.documentType || 'any').toLowerCase();
 
-        const matchesTag = tag.length === 0 || tag.every(t => scriptTags.includes(t));
         const matchesAuthor = author.length === 0 || author.every(a => {
           if (a === 'unknown') {
             return !script.metadata?.author || lowercasedAuthor === '';
@@ -246,11 +238,10 @@ export const ScriptGallery: React.FC = () => {
           lowercasedDisplayName.includes(g) ||
           lowercasedDescription.includes(g) ||
           scriptCategories.some(cat => cat.includes(g)) ||
-          scriptTags.some(t => t.includes(g)) ||
           scriptParameters.some(sp => sp.name.includes(g) || sp.description.includes(g))
         );
 
-        return matchesTag && matchesAuthor && matchesParam && matchesDesc && matchesDocType && matchesCreated && matchesModified && matchesCategories && matchesGeneral;
+        return matchesAuthor && matchesParam && matchesDesc && matchesDocType && matchesCreated && matchesModified && matchesCategories && matchesGeneral;
       });
     }
 
