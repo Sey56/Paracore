@@ -8,9 +8,9 @@ import traceback
 
 from .graph import app
 
-from ..auth import get_current_user, CurrentUser
-from .. import corescript_pb2
-from .. import corescript_pb2_grpc
+from auth import get_current_user, CurrentUser
+import corescript_pb2
+import corescript_pb2_grpc
 import grpc
 from google.protobuf.json_format import MessageToDict
 
@@ -23,7 +23,7 @@ class ChatRequest(BaseModel):
     thread_id: str | None = None
     message: str
     workspace_path: str | None = None
-    agent_scripts_path: str | None = None # Add agent_scripts_path
+    agent_scripts_path: str | None = None
     token: str # Add token to the request
     llm_provider: str | None = None
     llm_model: str | None = None
@@ -76,7 +76,7 @@ async def chat_with_agent(request: ChatRequest):
         # Explicitly update the state with context
         app.update_state(config, {
             "workspace_path": request.workspace_path or "",
-            "agent_scripts_path": request.agent_scripts_path or "", # Add agent_scripts_path
+            "agent_scripts_path": request.agent_scripts_path or "",
             "user_token": request.token,
             "llm_provider": request.llm_provider,
             "llm_model": request.llm_model,
@@ -114,14 +114,36 @@ async def chat_with_agent(request: ChatRequest):
                 "message": last_message.content
             }
             if last_message.additional_kwargs.get('selected_script_info'):
-                script_info = last_message.additional_kwargs['selected_script_info']
-                response_data['tool_call'] = {
-                    "name": "set_active_script_source_tool",
-                    "arguments": {
-                        "absolutePath": script_info['absolutePath'],
-                        "type": script_info['type']
+                script_info_from_state = last_message.additional_kwargs['selected_script_info']
+                
+                # Retrieve the full manifest from the agent's state (now from file)
+                current_state = app.get_state(config)
+                agent_scripts_path = current_state.values.get('agent_scripts_path')
+                manifest_path = os.path.join(agent_scripts_path, 'cache', 'scripts_manifest.json')
+                
+                manifest = []
+                if os.path.exists(manifest_path):
+                    with open(manifest_path, 'r', encoding='utf-8') as f:
+                        manifest = json.load(f)
+                else:
+                    print(f"Warning: Manifest file not found at {manifest_path} when trying to get full script object.")
+
+                full_script_object = next(
+                    (s for s in manifest if s.get('absolutePath') == script_info_from_state['absolutePath']),
+                    None
+                )
+
+                if full_script_object:
+                    print(f"agent_router: full_script_object found in manifest: {full_script_object}")
+                    response_data['selected_script_info'] = full_script_object
+                else:
+                    # Fallback to partial info if full script not found in manifest (should not happen if flow is correct)
+                    print(f"agent_router: full_script_object NOT found in manifest, falling back to partial info: {script_info_from_state}")
+                    response_data['selected_script_info'] = {
+                        "id": script_info_from_state['absolutePath'],
+                        "absolutePath": script_info_from_state['absolutePath'],
+                        "type": script_info_from_state['type']
                     }
-                }
             return response_data
         elif isinstance(last_message, HumanMessage) and last_message.content == "INTERRUPT_FOR_APPROVAL":
             # This is a forced interruption for HITL approval

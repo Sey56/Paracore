@@ -10,10 +10,10 @@ export type ActiveScriptSource =
 
 export type Message = {
   sender: 'user' | 'agent';
-  text?: string;
+  text?: string | Array<{ type: 'text'; text: string; extras?: any }>; // Updated to handle array content
   toolCall?: ToolCall;
   toolResponse?: any; // Adjust as needed
-  additional_kwargs?: { [key: string]: any }; // Added for agent messages
+  additional_kwargs?: { [key:string]: any }; // Added for agent messages
 };
 
 export type ToolCall = {

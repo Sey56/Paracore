@@ -31,38 +31,13 @@ def list_available_scripts() -> str:
     pass
 
 @tool
-
-def set_active_script_source_tool(absolutePath: str, type: str) -> str:
-
-    """Signals the frontend to set the active script source in the UI.
-
-    - This tool is used internally by the agent to update the Script Inspector.
-
-    - It takes the absolute path and type of the script as arguments.
-
-    """
-
-    # This tool is handled entirely by the frontend; no backend action is needed.
-
-    return f"Active script source set to: {absolutePath} ({type})"
-
-
-
-@tool
-
 def get_ui_parameters_tool() -> str:
-
     """Retrieves the current parameter values from the user interface.
-
     - Use this tool before running a script to ensure you have the latest parameter values that the user may have edited in the UI.
-
     """
-
     # This tool is handled by the frontend; the agent will pause and wait for the result.
-
     pass
 
-
-tools = [run_script_by_name, get_script_parameters_tool, list_available_scripts, set_active_script_source_tool, get_ui_parameters_tool]
+tools = [run_script_by_name, get_script_parameters_tool, list_available_scripts, get_ui_parameters_tool]
 
 

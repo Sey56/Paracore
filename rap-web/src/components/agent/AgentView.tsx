@@ -6,15 +6,19 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faRobot, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
+import { useScripts } from '@/hooks/useScripts';
 
 import type { Message, ToolCall } from '@/context/providers/UIContext'; // Import Message and ToolCall types
 import { Modal } from '@/components/common/Modal';
+
+import type { Script } from '@/types/scriptModel'; // Import Script type
 
 type AgentResponse = {
   thread_id: string;
   status: "interrupted" | "complete" | "processing_internal";
   message?: string;
   tool_call?: ToolCall;
+  selected_script_info?: Script; // Add selected_script_info as a top-level field
 };
 
 type ChatPayload = {
@@ -40,17 +44,22 @@ export const AgentView: React.FC = () => {
     setIsAwaitingApproval,
     pendingToolCall,
     setPendingToolCall,
-    setAgentSelectedScriptPath,
+    setActiveScriptSource, // Import setActiveScriptSource
   } = useUI();
   const { user, cloudToken } = useAuth();
   const { showNotification } = useNotifications();
-  const { selectedScript, userEditedScriptParameters } = useScriptExecution();
+  const { selectedScript, userEditedScriptParameters, setSelectedScript } = useScriptExecution();
+  const { fetchScriptManifest, toolLibraryPath } = useScripts();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
+
+  const handleRefreshManifest = useCallback(() => {
+    fetchScriptManifest();
+  }, [fetchScriptManifest]);
 
   // Declare token and currentWorkspacePath here to make them accessible to handleApproveToolCall
   const token = cloudToken;
@@ -67,12 +76,20 @@ export const AgentView: React.FC = () => {
   }, [messages, isLoading]);
 
   const processAgentResponse = useCallback(async (data: AgentResponse, originalMessageText: string, approvedToolCall: boolean) => {
-    console.log('Agent Response:', data);
+    console.log('AgentView: RAW data received from backend:', data); // New log to inspect raw data
+    console.log('AgentView: Received data from backend:', data);
     setThreadId(data.thread_id);
 
-    if (data.tool_call && data.tool_call.name === 'set_active_script_source_tool') {
-      const scriptInfo = data.tool_call.arguments;
-      setAgentSelectedScriptPath(scriptInfo.absolutePath);
+    if (data.selected_script_info) { // Check for top-level selected_script_info
+      const scriptObject = data.selected_script_info;
+      if (scriptObject) {
+        console.log("AgentView: selected_script_info found:", scriptObject);
+        setSelectedScript(scriptObject, 'agent');
+        console.log("AgentView: Calling setSelectedScript with:", scriptObject);
+      } else {
+        console.error("AgentView: selected_script_info did not contain a script object.");
+        showNotification("Agent failed to select a script.", "error");
+      }
     }
 
     if (data.status === "interrupted" && data.tool_call) {
@@ -103,15 +120,14 @@ export const AgentView: React.FC = () => {
         return; // Stop further processing for this response
       }
 
-      if (data.tool_call.name !== 'set_active_script_source_tool') { // Already handled
-        setPendingToolCall(data.tool_call);
-        setIsAwaitingApproval(true);
-        setMessages((prev: Message[]) => [...prev, {
-          sender: 'agent',
-          text: `Agent wants to call tool: ${data.tool_call?.name} with arguments: ${JSON.stringify(data.tool_call?.arguments)}`,
-          toolCall: data.tool_call,
-        }]);
-      }
+      // Removed the check for 'set_active_script_source_tool' as it's no longer relevant
+      setPendingToolCall(data.tool_call);
+      setIsAwaitingApproval(true);
+      setMessages((prev: Message[]) => [...prev, {
+        sender: 'agent',
+        text: `Agent wants to call tool: ${data.tool_call?.name} with arguments: ${JSON.stringify(data.tool_call?.arguments)}`,
+        toolCall: data.tool_call,
+      }]);
       setIsLoading(false);
     } else if (data.status === "complete") {
       if (data.message) {
@@ -153,7 +169,7 @@ export const AgentView: React.FC = () => {
       setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: "Sorry, I encountered an error." }]);
       setIsLoading(false);
     }
-  }, [setMessages, setThreadId, setIsAwaitingApproval, setPendingToolCall, showNotification, currentWorkspacePath, token, setAgentSelectedScriptPath, selectedScript, userEditedScriptParameters]); // Add selectedScript and userEditedScriptParameters to dependencies
+  }, [setMessages, setThreadId, setIsAwaitingApproval, setPendingToolCall, showNotification, currentWorkspacePath, token, setActiveScriptSource, selectedScript, userEditedScriptParameters, setSelectedScript]); // Add setSelectedScript to dependencies
 
   const sendMessage = useCallback(async (messageText: string, approvedToolCall: boolean = false) => {
     if (!messageText.trim() && !approvedToolCall) return;
@@ -174,12 +190,11 @@ export const AgentView: React.FC = () => {
       const llmModel = localStorage.getItem('llmModel');
       const llmApiKeyName = localStorage.getItem('llmApiKeyName');
       const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
-      const agentScriptsPath = localStorage.getItem('agentScriptsPath'); // Get agent scripts path
 
       const chatPayload: ChatPayload = {
         thread_id: threadId,
         workspace_path: currentWorkspacePath,
-        agent_scripts_path: agentScriptsPath, // Add to payload
+        agent_scripts_path: toolLibraryPath, // Use toolLibraryPath from context
         token: token,
         llm_provider: llmProvider,
         llm_model: llmModel,
@@ -216,13 +231,12 @@ export const AgentView: React.FC = () => {
         const llmModel = localStorage.getItem('llmModel');
         const llmApiKeyName = localStorage.getItem('llmApiKeyName');
         const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
-        const agentScriptsPath = localStorage.getItem('agentScriptsPath'); // Get agent scripts path
 
         const resumeResponse = await api.post("/agent/resume", {
           thread_id: threadId,
           token: token,
           workspace_path: currentWorkspacePath, // Add this
-          agent_scripts_path: agentScriptsPath, // Add to payload
+          agent_scripts_path: toolLibraryPath, // Use toolLibraryPath from context
           llm_provider: llmProvider,
           llm_model: llmModel,
           llm_api_key_name: llmApiKeyName,
@@ -263,9 +277,17 @@ export const AgentView: React.FC = () => {
     showNotification,
   ]);
 
-  const formatAgentMessage = (text: string | undefined) => {
-    if (!text) return "";
-    let processedText = text;
+  const formatAgentMessage = (text: string | Array<{ type: 'text'; text: string; extras?: any }> | undefined) => {
+    if (!text) {
+      return "";
+    }
+    let processedText: string;
+    if (Array.isArray(text)) {
+      // Concatenate text from all objects in the array
+      processedText = text.map(item => item.text).join('\n');
+    } else {
+      processedText = text;
+    }
     // Remove trailing asterisks from words
     processedText = processedText.replace(/(\w+)\*\s*/g, '$1 ');
     // Replace leading asterisk or dash list items with bullet points
@@ -280,14 +302,24 @@ export const AgentView: React.FC = () => {
   return (
     <div className="flex flex-col h-full"> {/* Use h-full here for chat scrolling */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
-        <button
-          onClick={() => setIsClearChatModalOpen(true)}
-          className="absolute top-4 right-4 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-          title="Clear Chat History"
-          disabled={isLoading || isAwaitingApproval}
-        >
-          <FontAwesomeIcon icon={faTrash} />
-        </button>
+        <div className="absolute top-4 right-4 flex space-x-2">
+          <button
+            onClick={handleRefreshManifest}
+            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            title="Refresh Agent Script Manifest"
+            disabled={isLoading || isAwaitingApproval}
+          >
+            <FontAwesomeIcon icon={faSpinner} />
+          </button>
+          <button
+            onClick={() => setIsClearChatModalOpen(true)}
+            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            title="Clear Chat History"
+            disabled={isLoading || isAwaitingApproval}
+          >
+            <FontAwesomeIcon icon={faTrash} />
+          </button>
+        </div>
 
         {messages.map((msg: Message, index: number) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
