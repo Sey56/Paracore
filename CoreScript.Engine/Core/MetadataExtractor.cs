@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using CoreScript.Engine.Logging;
+using System;
 
 namespace CoreScript.Engine.Core
 {
@@ -26,8 +27,7 @@ namespace CoreScript.Engine.Core
                 return metadata;
             }
             
-            // Set default value
-            metadata.DocumentType = "Any";
+            metadata.DocumentType = "Any"; // Default value
 
             SyntaxTree tree = CSharpSyntaxTree.ParseText(scriptContent);
             var root = tree.GetRoot();
@@ -41,65 +41,11 @@ namespace CoreScript.Engine.Core
             foreach (var commentText in multilineComments)
             {
                 var content = commentText.Length > 4 ? commentText.Substring(2, commentText.Length - 4) : string.Empty;
-                var lines = content.Split(new[] { "\r\n", "\r", "\n" }, System.StringSplitOptions.None)
+                var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None)
                     .Select(line => line.Trim().TrimStart('*').Trim());
                 var cleanComment = string.Join("\n", lines);
 
-                // General pattern for simple key-value pairs
-                var simplePattern = new Regex(@"^([a-zA-Z_]+):\s*(.*)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                foreach (Match match in simplePattern.Matches(cleanComment))
-                {
-                    var key = match.Groups[1].Value.Trim();
-                    var value = match.Groups[2].Value.Trim();
-
-                    if (string.IsNullOrEmpty(value)) continue;
-
-                    switch (key.ToLower())
-                    {
-                        case "author":
-                            metadata.Author = value;
-                            break;
-                        case "website":
-                            metadata.Website = value;
-                            break;
-                        case "lastrun":
-                            metadata.LastRun = value;
-                            break;
-                        case "documenttype":
-                            if (value.Equals("ConceptualMass", System.StringComparison.OrdinalIgnoreCase) ||
-                                value.Equals("Project", System.StringComparison.OrdinalIgnoreCase) ||
-                                value.Equals("Family", System.StringComparison.OrdinalIgnoreCase))
-                            {
-                                metadata.DocumentType = value;
-                            }
-                            break;
-                        case "categories":
-                            metadata.Categories.AddRange(value.Split(',').Select(c => c.Trim()).Where(c => !string.IsNullOrEmpty(c)));
-                            break;
-                        case "dependencies":
-                            metadata.Dependencies.AddRange(value.Split(',').Select(d => d.Trim()).Where(d => !string.IsNullOrEmpty(d)));
-                            break;
-                    }
-                }
-
-                // Special handling for potentially multi-line fields
-                var multiLinePattern = new Regex(@"^(Description|UsageExamples):\s*([\s\S]*?)(?=\n[a-zA-Z_]+:|$)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                foreach (Match match in multiLinePattern.Matches(cleanComment))
-                {
-                    var key = match.Groups[1].Value.Trim();
-                    var value = match.Groups[2].Value.Trim();
-
-                    if (string.IsNullOrEmpty(value)) continue;
-
-                    if (key.Equals("Description", System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        metadata.Description = value;
-                    }
-                    else if (key.Equals("UsageExamples", System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        metadata.UsageExamples = value;
-                    }
-                }
+                ParseCleanComment(cleanComment, metadata);
             }
 
             // XML parsing for name override
@@ -126,9 +72,94 @@ namespace CoreScript.Engine.Core
             return metadata;
         }
 
+        private void ParseCleanComment(string cleanComment, ScriptMetadata metadata)
+        {
+            var lines = cleanComment.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            string? currentKey = null;
+            var currentValue = new List<string>();
+            var keyRegex = new Regex(@"^([a-zA-Z_]+):\s*(.*)");
+
+            Action processPreviousKey = () =>
+            {
+                if (currentKey != null && currentValue.Count > 0)
+                {
+                    ProcessMetadataValue(metadata, currentKey, string.Join("\n", currentValue).Trim());
+                }
+                currentValue.Clear();
+            };
+
+            foreach (var line in lines)
+            {
+                Match match = keyRegex.Match(line);
+                if (match.Success)
+                {
+                    processPreviousKey();
+                    currentKey = match.Groups[1].Value.Trim();
+                    string restOfLine = match.Groups[2].Value.Trim();
+                    if (!string.IsNullOrEmpty(restOfLine))
+                    {
+                        currentValue.Add(restOfLine);
+                    }
+                }
+                else if (currentKey != null)
+                {
+                    currentValue.Add(line.Trim());
+                }
+            }
+            processPreviousKey(); // Process the last key
+        }
+
+        private void ProcessMetadataValue(ScriptMetadata metadata, string key, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+
+            switch (key.ToLower())
+            {
+                case "author":
+                    metadata.Author = value;
+                    break;
+                case "website":
+                    metadata.Website = value;
+                    break;
+                case "lastrun":
+                    metadata.LastRun = value;
+                    break;
+                case "documenttype":
+                    if (value.Equals("ConceptualMass", StringComparison.OrdinalIgnoreCase) ||
+                        value.Equals("Project", StringComparison.OrdinalIgnoreCase) ||
+                        value.Equals("Family", StringComparison.OrdinalIgnoreCase))
+                    {
+                        metadata.DocumentType = value;
+                    }
+                    break;
+                case "categories":
+                    metadata.Categories.AddRange(value.Split(',').Select(c => c.Trim()).Where(c => !string.IsNullOrEmpty(c)));
+                    break;
+                case "dependencies":
+                    metadata.Dependencies.AddRange(value.Split(',').Select(d => d.Trim()).Where(d => !string.IsNullOrEmpty(d)));
+                    break;
+                case "description":
+                    metadata.Description = value;
+                    break;
+                case "usageexamples":
+                    _logger.Log($"[MetadataExtractor] Raw UsageExamples value: '{value}'", LogLevel.Debug);
+                    var exampleLines = value.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var exampleLine in exampleLines)
+                    {
+                        var trimmedLine = exampleLine.Trim();
+                        _logger.Log($"[MetadataExtractor] Processed UsageExample line: '{trimmedLine}'", LogLevel.Debug);
+                        if (trimmedLine.StartsWith("-"))
+                        {
+                            metadata.UsageExamples.Add(trimmedLine.Substring(1).Trim());
+                        }
+                    }
+                    break;
+            }
+        }
+
         private static string GetTextFromTag(DocumentationCommentTriviaSyntax xmlTrivia, string tagName)
         {
-            var element = xmlTrivia.Content.OfType<XmlElementSyntax>().FirstOrDefault(e => e.StartTag.Name.ToString().Equals(tagName, System.StringComparison.OrdinalIgnoreCase));
+            var element = xmlTrivia.Content.OfType<XmlElementSyntax>().FirstOrDefault(e => e.StartTag.Name.ToString().Equals(tagName, StringComparison.OrdinalIgnoreCase));
             return GetElementContent(element);
         }
 

@@ -38,6 +38,17 @@ def get_ui_parameters_tool() -> str:
     # This tool is handled by the frontend; the agent will pause and wait for the result.
     pass
 
-tools = [run_script_by_name, get_script_parameters_tool, list_available_scripts, get_ui_parameters_tool]
+@tool
+def select_script_tool(script_name: str) -> str:
+    """Informs the UI that a specific script has been selected by the agent.
+    - Use this tool after the user has confirmed their choice of script.
+    - This will update the UI's Script Inspector to show the parameters for the selected script.
+    - You must provide the exact name of the script to be selected.
+    """
+    # This tool is handled by the frontend; the agent will process this call to update the UI.
+    pass
+
+tools = [run_script_by_name, get_script_parameters_tool, list_available_scripts, get_ui_parameters_tool, select_script_tool]
+tools_by_name = {tool.name: tool for tool in tools}
 
 

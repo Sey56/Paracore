@@ -25,7 +25,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
 
   const allTabs = ["parameters", "console", "summary", "metadata"] as const;
   const tabsToShow = activeMainView === 'agent'
-    ? allTabs.filter(tab => tab !== 'console' && tab !== 'metadata')
+    ? allTabs.filter(tab => tab !== 'console' && tab !== 'metadata' && tab !== 'summary')
     : allTabs;
 
   return (

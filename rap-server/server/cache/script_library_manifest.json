@@ -1,0 +1,59 @@
+[
+  {
+    "id": "C:/Users/seyou/Documents/ParacoreAgentToolbox/01_Element_Creation/Walls/Create_Wall.cs",
+    "name": "Create_Wall.cs",
+    "type": "single-file",
+    "absolutePath": "C:/Users/seyou/Documents/ParacoreAgentToolbox/01_Element_Creation/Walls/Create_Wall.cs",
+    "sourcePath": "C:/Users/seyou/Documents/ParacoreAgentToolbox/01_Element_Creation/Walls/Create_Wall.cs",
+    "metadata": {
+      "description": "Creates a wall along the X-axis at a user-defined level with specified length and height.\nParameters allow customizing geometry in meters. Great for layout prototyping.",
+      "author": "Seyoum Hagos",
+      "categories": [
+        "Architectural",
+        "Structural",
+        "MEP"
+      ],
+      "dependencies": [
+        "RevitAPI 2025",
+        "RScript.Engine",
+        "RServer.Addin"
+      ],
+      "document_type": "Project",
+      "usage_examples": [
+        "Create a 10m x 4m wall on 'Level 2'",
+        "Create a wall of 8m length and 3m height on 'Level 1'"
+      ],
+      "dateCreated": "2025-11-04T22:22:34.500311",
+      "dateModified": "2025-11-06T12:21:29.194784"
+    }
+  },
+  {
+    "id": "C:/Users/seyou/Documents/ParacoreAgentToolbox/01_Element_Creation/Walls/Create_Spiral_Wall",
+    "name": "Create_Spiral_Wall",
+    "type": "multi-file",
+    "absolutePath": "C:/Users/seyou/Documents/ParacoreAgentToolbox/01_Element_Creation/Walls/Create_Spiral_Wall",
+    "sourcePath": "C:/Users/seyou/Documents/ParacoreAgentToolbox/01_Element_Creation/Walls/Create_Spiral_Wall",
+    "metadata": {
+      "description": "Creates spiral walls on a specified level with user-defined parameters for turns, radius, and wall properties.\nThe walls follow a mathematical spiral pattern, perfect for creating helical structures and decorative walls.",
+      "author": "Seyoum Hagos",
+      "categories": [
+        "Architectural",
+        "Generative",
+        "Walls"
+      ],
+      "dependencies": [
+        "RevitAPI 2025",
+        "CoreScript.Engine",
+        "RServer.Addin"
+      ],
+      "document_type": "Project",
+      "usage_examples": [
+        "Create spiral walls on Level 1 with 5 turns",
+        "Generate helical wall with 3 meter radius",
+        "Make spiral partition wall 200mm thick"
+      ],
+      "dateCreated": "2025-11-04T22:26:51.160002",
+      "dateModified": "2025-11-04T22:26:51.173970"
+    }
+  }
+]

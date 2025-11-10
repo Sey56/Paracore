@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x63orescript.proto\x12\nCoreScript\"6\n\x18GetScriptManifestRequest\x12\x1a\n\x12\x61gent_scripts_path\x18\x01 \x01(\t\"\x07\n\x05\x45mpty\"B\n\x16\x43reateWorkspaceRequest\x12\x13\n\x0bscript_path\x18\x01 \x01(\t\x12\x13\n\x0bscript_type\x18\x02 \x01(\t\"H\n\x17\x43reateWorkspaceResponse\x12\x16\n\x0eworkspace_path\x18\x01 \x01(\t\x12\x15\n\rerror_message\x18\x02 \x01(\t\"0\n\nScriptFile\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\"W\n\x14\x45xecuteScriptRequest\x12\x16\n\x0escript_content\x18\x01 \x01(\t\x12\x17\n\x0fparameters_json\x18\x02 \x01(\x0c\x12\x0e\n\x06source\x18\x03 \x01(\t\"2\n\x14StructuredOutputItem\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t\"\xa6\x01\n\x15\x45xecuteScriptResponse\x12\x12\n\nis_success\x18\x01 \x01(\x08\x12\x0e\n\x06output\x18\x02 \x01(\t\x12\x15\n\rerror_message\x18\x03 \x01(\t\x12\x15\n\rerror_details\x18\x04 \x03(\t\x12;\n\x11structured_output\x18\x05 \x03(\x0b\x32 .CoreScript.StructuredOutputItem\"\x12\n\x10GetStatusRequest\"\x9f\x01\n\x11GetStatusResponse\x12\x19\n\x11rserver_connected\x18\x01 \x01(\x08\x12\x12\n\nrevit_open\x18\x02 \x01(\x08\x12\x15\n\rrevit_version\x18\x03 \x01(\t\x12\x15\n\rdocument_open\x18\x04 \x01(\x08\x12\x16\n\x0e\x64ocument_title\x18\x05 \x01(\t\x12\x15\n\rdocument_type\x18\x06 \x01(\t\"H\n\x18GetScriptMetadataRequest\x12,\n\x0cscript_files\x18\x01 \x03(\x0b\x32\x16.CoreScript.ScriptFile\"`\n\x19GetScriptMetadataResponse\x12,\n\x08metadata\x18\x01 \x01(\x0b\x32\x1a.CoreScript.ScriptMetadata\x12\x15\n\rerror_message\x18\x02 \x01(\t\"J\n\x1aGetScriptParametersRequest\x12,\n\x0cscript_files\x18\x01 \x03(\x0b\x32\x16.CoreScript.ScriptFile\"\xe7\x01\n\x0eScriptMetadata\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12\x13\n\x0bscript_type\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x05 \x01(\t\x12\x12\n\ncategories\x18\x06 \x03(\t\x12\x14\n\x0c\x64\x65pendencies\x18\x07 \x03(\t\x12\x15\n\rdocument_type\x18\x08 \x01(\t\x12\x16\n\x0eusage_examples\x18\t \x01(\t\x12\x0f\n\x07website\x18\n \x01(\t\x12\x10\n\x08last_run\x18\x0b \x01(\t\"\\\n\x16ScriptManifestResponse\x12+\n\x07scripts\x18\x01 \x03(\x0b\x32\x1a.CoreScript.ScriptMetadata\x12\x15\n\rerror_message\x18\x02 \x01(\t\"e\n\x1bGetScriptParametersResponse\x12/\n\nparameters\x18\x01 \x03(\x0b\x32\x1b.CoreScript.ScriptParameter\x12\x15\n\rerror_message\x18\x02 \x01(\t\"o\n\x0fScriptParameter\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x1a\n\x12\x64\x65\x66\x61ult_value_json\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0f\n\x07options\x18\x05 \x03(\t\"H\n\x18GetCombinedScriptRequest\x12,\n\x0cscript_files\x18\x01 \x03(\x0b\x32\x16.CoreScript.ScriptFile\"K\n\x19GetCombinedScriptResponse\x12\x17\n\x0f\x63ombined_script\x18\x01 \x01(\t\x12\x15\n\rerror_message\x18\x02 \x01(\t2\xa0\x05\n\x10\x43oreScriptRunner\x12T\n\rExecuteScript\x12 .CoreScript.ExecuteScriptRequest\x1a!.CoreScript.ExecuteScriptResponse\x12H\n\tGetStatus\x12\x1c.CoreScript.GetStatusRequest\x1a\x1d.CoreScript.GetStatusResponse\x12`\n\x11GetScriptMetadata\x12$.CoreScript.GetScriptMetadataRequest\x1a%.CoreScript.GetScriptMetadataResponse\x12\x66\n\x13GetScriptParameters\x12&.CoreScript.GetScriptParametersRequest\x1a\'.CoreScript.GetScriptParametersResponse\x12`\n\x11GetCombinedScript\x12$.CoreScript.GetCombinedScriptRequest\x1a%.CoreScript.GetCombinedScriptResponse\x12\x61\n\x16\x43reateAndOpenWorkspace\x12\".CoreScript.CreateWorkspaceRequest\x1a#.CoreScript.CreateWorkspaceResponse\x12]\n\x11GetScriptManifest\x12$.CoreScript.GetScriptManifestRequest\x1a\".CoreScript.ScriptManifestResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x63orescript.proto\x12\nCoreScript\"6\n\x18GetScriptManifestRequest\x12\x1a\n\x12\x61gent_scripts_path\x18\x01 \x01(\t\"\x07\n\x05\x45mpty\"B\n\x16\x43reateWorkspaceRequest\x12\x13\n\x0bscript_path\x18\x01 \x01(\t\x12\x13\n\x0bscript_type\x18\x02 \x01(\t\"H\n\x17\x43reateWorkspaceResponse\x12\x16\n\x0eworkspace_path\x18\x01 \x01(\t\x12\x15\n\rerror_message\x18\x02 \x01(\t\"0\n\nScriptFile\x12\x11\n\tfile_name\x18\x01 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\"W\n\x14\x45xecuteScriptRequest\x12\x16\n\x0escript_content\x18\x01 \x01(\t\x12\x17\n\x0fparameters_json\x18\x02 \x01(\x0c\x12\x0e\n\x06source\x18\x03 \x01(\t\"2\n\x14StructuredOutputItem\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t\"\xc2\x01\n\rOutputSummary\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\'\n\x05table\x18\x03 \x01(\x0b\x32\x18.CoreScript.TableSummary\x12+\n\x07\x63onsole\x18\x04 \x01(\x0b\x32\x1a.CoreScript.ConsoleSummary\x12<\n\x14return_value_summary\x18\x05 \x01(\x0b\x32\x1e.CoreScript.ReturnValueSummary\"V\n\x0cTableSummary\x12\x11\n\trow_count\x18\x01 \x01(\x05\x12\x16\n\x0e\x63olumn_headers\x18\x02 \x03(\t\x12\x1b\n\x13truncated_rows_json\x18\x03 \x03(\t\"=\n\x0e\x43onsoleSummary\x12\x12\n\nline_count\x18\x01 \x01(\x05\x12\x17\n\x0ftruncated_lines\x18\x02 \x03(\t\"1\n\x12ReturnValueSummary\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\xd9\x01\n\x15\x45xecuteScriptResponse\x12\x12\n\nis_success\x18\x01 \x01(\x08\x12\x0e\n\x06output\x18\x02 \x01(\t\x12\x15\n\rerror_message\x18\x03 \x01(\t\x12\x15\n\rerror_details\x18\x04 \x03(\t\x12;\n\x11structured_output\x18\x05 \x03(\x0b\x32 .CoreScript.StructuredOutputItem\x12\x31\n\x0eoutput_summary\x18\x06 \x01(\x0b\x32\x19.CoreScript.OutputSummary\"\x12\n\x10GetStatusRequest\"\x9f\x01\n\x11GetStatusResponse\x12\x19\n\x11rserver_connected\x18\x01 \x01(\x08\x12\x12\n\nrevit_open\x18\x02 \x01(\x08\x12\x15\n\rrevit_version\x18\x03 \x01(\t\x12\x15\n\rdocument_open\x18\x04 \x01(\x08\x12\x16\n\x0e\x64ocument_title\x18\x05 \x01(\t\x12\x15\n\rdocument_type\x18\x06 \x01(\t\"H\n\x18GetScriptMetadataRequest\x12,\n\x0cscript_files\x18\x01 \x03(\x0b\x32\x16.CoreScript.ScriptFile\"`\n\x19GetScriptMetadataResponse\x12,\n\x08metadata\x18\x01 \x01(\x0b\x32\x1a.CoreScript.ScriptMetadata\x12\x15\n\rerror_message\x18\x02 \x01(\t\"J\n\x1aGetScriptParametersRequest\x12,\n\x0cscript_files\x18\x01 \x03(\x0b\x32\x16.CoreScript.ScriptFile\"\xe7\x01\n\x0eScriptMetadata\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12\x13\n\x0bscript_type\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x05 \x01(\t\x12\x12\n\ncategories\x18\x06 \x03(\t\x12\x14\n\x0c\x64\x65pendencies\x18\x07 \x03(\t\x12\x15\n\rdocument_type\x18\x08 \x01(\t\x12\x16\n\x0eusage_examples\x18\t \x03(\t\x12\x0f\n\x07website\x18\n \x01(\t\x12\x10\n\x08last_run\x18\x0b \x01(\t\"\\\n\x16ScriptManifestResponse\x12+\n\x07scripts\x18\x01 \x03(\x0b\x32\x1a.CoreScript.ScriptMetadata\x12\x15\n\rerror_message\x18\x02 \x01(\t\"e\n\x1bGetScriptParametersResponse\x12/\n\nparameters\x18\x01 \x03(\x0b\x32\x1b.CoreScript.ScriptParameter\x12\x15\n\rerror_message\x18\x02 \x01(\t\"o\n\x0fScriptParameter\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x1a\n\x12\x64\x65\x66\x61ult_value_json\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0f\n\x07options\x18\x05 \x03(\t\"H\n\x18GetCombinedScriptRequest\x12,\n\x0cscript_files\x18\x01 \x03(\x0b\x32\x16.CoreScript.ScriptFile\"K\n\x19GetCombinedScriptResponse\x12\x17\n\x0f\x63ombined_script\x18\x01 \x01(\t\x12\x15\n\rerror_message\x18\x02 \x01(\t2\xa0\x05\n\x10\x43oreScriptRunner\x12T\n\rExecuteScript\x12 .CoreScript.ExecuteScriptRequest\x1a!.CoreScript.ExecuteScriptResponse\x12H\n\tGetStatus\x12\x1c.CoreScript.GetStatusRequest\x1a\x1d.CoreScript.GetStatusResponse\x12`\n\x11GetScriptMetadata\x12$.CoreScript.GetScriptMetadataRequest\x1a%.CoreScript.GetScriptMetadataResponse\x12\x66\n\x13GetScriptParameters\x12&.CoreScript.GetScriptParametersRequest\x1a\'.CoreScript.GetScriptParametersResponse\x12`\n\x11GetCombinedScript\x12$.CoreScript.GetCombinedScriptRequest\x1a%.CoreScript.GetCombinedScriptResponse\x12\x61\n\x16\x43reateAndOpenWorkspace\x12\".CoreScript.CreateWorkspaceRequest\x1a#.CoreScript.CreateWorkspaceResponse\x12]\n\x11GetScriptManifest\x12$.CoreScript.GetScriptManifestRequest\x1a\".CoreScript.ScriptManifestResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -45,30 +45,38 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_EXECUTESCRIPTREQUEST']._serialized_end=376
   _globals['_STRUCTUREDOUTPUTITEM']._serialized_start=378
   _globals['_STRUCTUREDOUTPUTITEM']._serialized_end=428
-  _globals['_EXECUTESCRIPTRESPONSE']._serialized_start=431
-  _globals['_EXECUTESCRIPTRESPONSE']._serialized_end=597
-  _globals['_GETSTATUSREQUEST']._serialized_start=599
-  _globals['_GETSTATUSREQUEST']._serialized_end=617
-  _globals['_GETSTATUSRESPONSE']._serialized_start=620
-  _globals['_GETSTATUSRESPONSE']._serialized_end=779
-  _globals['_GETSCRIPTMETADATAREQUEST']._serialized_start=781
-  _globals['_GETSCRIPTMETADATAREQUEST']._serialized_end=853
-  _globals['_GETSCRIPTMETADATARESPONSE']._serialized_start=855
-  _globals['_GETSCRIPTMETADATARESPONSE']._serialized_end=951
-  _globals['_GETSCRIPTPARAMETERSREQUEST']._serialized_start=953
-  _globals['_GETSCRIPTPARAMETERSREQUEST']._serialized_end=1027
-  _globals['_SCRIPTMETADATA']._serialized_start=1030
-  _globals['_SCRIPTMETADATA']._serialized_end=1261
-  _globals['_SCRIPTMANIFESTRESPONSE']._serialized_start=1263
-  _globals['_SCRIPTMANIFESTRESPONSE']._serialized_end=1355
-  _globals['_GETSCRIPTPARAMETERSRESPONSE']._serialized_start=1357
-  _globals['_GETSCRIPTPARAMETERSRESPONSE']._serialized_end=1458
-  _globals['_SCRIPTPARAMETER']._serialized_start=1460
-  _globals['_SCRIPTPARAMETER']._serialized_end=1571
-  _globals['_GETCOMBINEDSCRIPTREQUEST']._serialized_start=1573
-  _globals['_GETCOMBINEDSCRIPTREQUEST']._serialized_end=1645
-  _globals['_GETCOMBINEDSCRIPTRESPONSE']._serialized_start=1647
-  _globals['_GETCOMBINEDSCRIPTRESPONSE']._serialized_end=1722
-  _globals['_CORESCRIPTRUNNER']._serialized_start=1725
-  _globals['_CORESCRIPTRUNNER']._serialized_end=2397
+  _globals['_OUTPUTSUMMARY']._serialized_start=431
+  _globals['_OUTPUTSUMMARY']._serialized_end=625
+  _globals['_TABLESUMMARY']._serialized_start=627
+  _globals['_TABLESUMMARY']._serialized_end=713
+  _globals['_CONSOLESUMMARY']._serialized_start=715
+  _globals['_CONSOLESUMMARY']._serialized_end=776
+  _globals['_RETURNVALUESUMMARY']._serialized_start=778
+  _globals['_RETURNVALUESUMMARY']._serialized_end=827
+  _globals['_EXECUTESCRIPTRESPONSE']._serialized_start=830
+  _globals['_EXECUTESCRIPTRESPONSE']._serialized_end=1047
+  _globals['_GETSTATUSREQUEST']._serialized_start=1049
+  _globals['_GETSTATUSREQUEST']._serialized_end=1067
+  _globals['_GETSTATUSRESPONSE']._serialized_start=1070
+  _globals['_GETSTATUSRESPONSE']._serialized_end=1229
+  _globals['_GETSCRIPTMETADATAREQUEST']._serialized_start=1231
+  _globals['_GETSCRIPTMETADATAREQUEST']._serialized_end=1303
+  _globals['_GETSCRIPTMETADATARESPONSE']._serialized_start=1305
+  _globals['_GETSCRIPTMETADATARESPONSE']._serialized_end=1401
+  _globals['_GETSCRIPTPARAMETERSREQUEST']._serialized_start=1403
+  _globals['_GETSCRIPTPARAMETERSREQUEST']._serialized_end=1477
+  _globals['_SCRIPTMETADATA']._serialized_start=1480
+  _globals['_SCRIPTMETADATA']._serialized_end=1711
+  _globals['_SCRIPTMANIFESTRESPONSE']._serialized_start=1713
+  _globals['_SCRIPTMANIFESTRESPONSE']._serialized_end=1805
+  _globals['_GETSCRIPTPARAMETERSRESPONSE']._serialized_start=1807
+  _globals['_GETSCRIPTPARAMETERSRESPONSE']._serialized_end=1908
+  _globals['_SCRIPTPARAMETER']._serialized_start=1910
+  _globals['_SCRIPTPARAMETER']._serialized_end=2021
+  _globals['_GETCOMBINEDSCRIPTREQUEST']._serialized_start=2023
+  _globals['_GETCOMBINEDSCRIPTREQUEST']._serialized_end=2095
+  _globals['_GETCOMBINEDSCRIPTRESPONSE']._serialized_start=2097
+  _globals['_GETCOMBINEDSCRIPTRESPONSE']._serialized_end=2172
+  _globals['_CORESCRIPTRUNNER']._serialized_start=2175
+  _globals['_CORESCRIPTRUNNER']._serialized_end=2847
 # @@protoc_insertion_point(module_scope)

@@ -6,11 +6,11 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
-from ..database_config import get_db
-from ..grpc_client import execute_script
-from ..utils import get_or_create_script, resolve_script_path
-from ..auth import get_current_user, CurrentUser
+import models, schemas
+from database_config import get_db
+from grpc_client import execute_script
+from utils import get_or_create_script, resolve_script_path
+from auth import get_current_user, CurrentUser
 
 
 router = APIRouter()

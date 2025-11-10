@@ -9,6 +9,7 @@ import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/hooks/useAuth';
 import { isAxiosErrorWithResponseData } from '@/utils/errorUtils';
 import { pullTeamWorkspaces as pullTeamWorkspacesApi } from '@/api/rapServerApiClient';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
 
@@ -124,6 +125,47 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         setScripts([]);
         return;
     }
+
+    // If the path is a direct file path, handle it differently
+    if (folderPath.endsWith('.cs')) {
+        try {
+            if (!suppressNotification) {
+                showNotification(`Loading script: ${folderPath}...`, "info");
+            }
+            // We need to get the metadata for this single script.
+            // We can reuse the logic from fetchScriptManifest but for a single file.
+            const metadataResponse = await api.post("/api/script-metadata", {
+              scriptPath: folderPath,
+              type: 'single-file', // Assuming agent-selected scripts are single files for now
+            });
+            const metadata = metadataResponse.data.metadata;
+
+            const scriptObject: Script = {
+                id: folderPath,
+                name: folderPath.split('/').pop() || folderPath,
+                type: 'single-file',
+                absolutePath: folderPath,
+                sourcePath: folderPath,
+                metadata: {
+                    ...metadata,
+                    documentType: metadata.document_type,
+                },
+                parameters: [], // Satisfy the Script type
+            };
+            setScripts([scriptObject]);
+            setSelectedFolder(folderPath); // Keep track of the selected file
+            showNotification(`Loaded script ${scriptObject.name}.`, "success");
+
+        } catch (error) {
+            console.error(`Failed to fetch metadata for script ${folderPath}:`, error);
+            const message = error instanceof Error ? error.message : "Unknown error";
+            showNotification(`Failed to fetch metadata: ${message}`, "error");
+            setScripts([]);
+        }
+        return;
+    }
+
+    // Original logic for handling folder paths
     try {
       if (!suppressNotification) {
         showNotification(`Loading scripts from ${folderPath}...`, "info");
@@ -178,49 +220,27 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [activeScriptSource, loadScriptsFromPath, setSelectedFolder, userWorkspacePaths, showNotification]);
 
-  const fetchAllScripts = useCallback(async () => {
-    let newAllScripts: Script[] = [];
-    if (!isAuthenticated || !activeTeam) {
-      setAllScripts([]);
+  const { rserverConnected } = useRevitStatus();
+  const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>('agentScriptsPath', null);
+
+  const fetchScriptManifest = useCallback(async () => {
+    if (!rserverConnected || !toolLibraryPath) {
+      showNotification("Cannot generate manifest: RServer is not connected or tool library path is not set.", "error");
       return;
     }
 
-    const workspacePaths = currentTeamWorkspaces
-      .map(ws => userWorkspacePaths[ws.id]?.path)
-      .filter((path): path is string => !!path);
-
-    const scriptSourcesToFetch = [...customScriptFolders, ...workspacePaths];
-
-    for (const path of scriptSourcesToFetch) {
-        if (!path) continue;
-        try {
-            const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(path)}`);
-            const data = response.data;
-            if (!data.error && Array.isArray(data)) {
-            const transformedData = data.map((s: RawScriptFromApi) => ({
-                ...s,
-                metadata: {
-                ...s.metadata,
-                documentType: s.metadata.document_type,
-                gitInfo: s.metadata.git_info ? {
-                    lastCommitDate: s.metadata.git_info.last_commit_date,
-                    lastCommitAuthor: s.metadata.git_info.last_commit_author,
-                    lastCommitMessage: s.metadata.git_info.last_commit_message,
-                } : undefined,
-                },
-            }));
-            newAllScripts = [...newAllScripts, ...transformedData];
-            }
-        } catch (error) {
-            console.error(`Failed to fetch scripts from ${path}:`, error);
-        }
+    showNotification("Generating agent tool manifest...", "info");
+    try {
+      const response = await api.post("/api/script-manifest", { tool_library_path: toolLibraryPath });
+      showNotification(response.data.message, "success");
+    } catch (error) {
+      console.error(`Failed to generate script manifest:`, error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      showNotification(`Failed to generate script manifest: ${message}`, "error");
     }
-    setAllScripts(newAllScripts);
-  }, [isAuthenticated, activeTeam, customScriptFolders, currentTeamWorkspaces, userWorkspacePaths]);
+  }, [rserverConnected, toolLibraryPath, showNotification]);
 
-  useEffect(() => {
-    fetchAllScripts();
-  }, [fetchAllScripts]);
+
 
   const fetchScriptMetadata = useCallback(async (scriptId: string) => {
     const script = scripts.find(s => s.id === scriptId);
@@ -374,18 +394,18 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const toggleFavoriteScript = useCallback((scriptId: string) => {
     setFavoriteScripts(prev => prev.includes(scriptId) ? prev.filter(id => id !== scriptId) : [...prev, scriptId]);
-  }, [setFavoriteScripts]);
+  }, []);
 
   const addRecentScript = useCallback((scriptId: string) => {
     setRecentScripts(prev => [scriptId, ...prev.filter(id => id !== scriptId)].slice(0, 10));
-  }, [setRecentScripts]);
+  }, []);
 
   const updateScriptLastRunTime = (scriptId: string) => {
     setLastRunTimes(prev => ({ ...prev, [scriptId]: new Date().toISOString() }));
   };
 
-  const clearFavoriteScripts = useCallback(() => setFavoriteScripts([]), [setFavoriteScripts]);
-  const clearRecentScripts = useCallback(() => setRecentScripts([]), [setRecentScripts]);
+  const clearFavoriteScripts = useCallback(() => setFavoriteScripts([]), []);
+  const clearRecentScripts = useCallback(() => setRecentScripts([]), []);
 
   const clearScripts = useCallback(() => setScripts([]), []);
 
@@ -492,6 +512,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     pullAllTeamWorkspaces,
     pullWorkspace,
     fetchTeamWorkspaces,
+    fetchScriptManifest,
+    toolLibraryPath: toolLibraryPath,
+    setToolLibraryPath: setToolLibraryPath,
   };
 
   return (

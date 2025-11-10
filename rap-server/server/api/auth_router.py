@@ -4,9 +4,9 @@ import httpx
 import json # Added json import
 from sqlalchemy.orm import Session # Added Session import
 
-from .. import schemas, auth, models # Added models import
-from ..config import settings
-from ..database_config import get_db # Added get_db import
+import schemas, auth, models # Added models import
+from config import settings
+from database_config import get_db # Added get_db import
 
 router = APIRouter()
 

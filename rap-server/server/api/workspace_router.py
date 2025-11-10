@@ -9,9 +9,9 @@ from typing import Annotated, List
 from sqlalchemy.orm import Session
 import logging # Added logging
 
-from .. import models, schemas
-from ..database_config import get_db
-from ..auth import get_current_user, CurrentUser
+import models, schemas
+from database_config import get_db
+from auth import get_current_user, CurrentUser
 
 logging.basicConfig(level=logging.INFO) # Configure basic logging
 

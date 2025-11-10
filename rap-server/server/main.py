@@ -17,12 +17,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from .database_config import Base, engine
-from .api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router
-from .agent import agent_router
-from . import models  # Ensure models are imported so that they are registered with SQLAlchemy
+from database_config import Base, engine
+from api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router
+from agent import agent_router
+import models  # Ensure models are imported so that they are registered with SQLAlchemy
 
-from .config import settings
+from config import settings
 
 # Configure Uvicorn logging to suppress access logs
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

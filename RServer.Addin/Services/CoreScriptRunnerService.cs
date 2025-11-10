@@ -153,6 +153,39 @@ namespace RServer.Addin.Services
                 ErrorMessage = finalResult.ErrorMessage ?? "",
             };
 
+            if (finalResult.OutputSummary != null)
+            {
+                response.OutputSummary = new CoreScript.OutputSummary();
+
+                if (finalResult.OutputSummary.Console != null)
+                {
+                    response.OutputSummary.Console = new CoreScript.ConsoleSummary
+                    {
+                        LineCount = finalResult.OutputSummary.Console.LineCount,
+                        TruncatedLines = { finalResult.OutputSummary.Console.TruncatedLines }
+                    };
+                }
+
+                if (finalResult.OutputSummary.Table != null)
+                {
+                    response.OutputSummary.Table = new CoreScript.TableSummary
+                    {
+                        RowCount = finalResult.OutputSummary.Table.RowCount,
+                        ColumnHeaders = { finalResult.OutputSummary.Table.ColumnHeaders },
+                        TruncatedRowsJson = { finalResult.OutputSummary.Table.TruncatedRows.Select(row => System.Text.Json.JsonSerializer.Serialize(row)) }
+                    };
+                }
+
+                if (finalResult.OutputSummary.ReturnValueSummary != null)
+                {
+                    response.OutputSummary.ReturnValueSummary = new CoreScript.ReturnValueSummary
+                    {
+                        Type = finalResult.OutputSummary.ReturnValueSummary.Type,
+                        Value = finalResult.OutputSummary.ReturnValueSummary.Value
+                    };
+                }
+            }
+
             if (finalResult.ErrorDetails != null)
             {
                 response.ErrorDetails.AddRange(finalResult.ErrorDetails);
@@ -191,11 +224,11 @@ var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.S
                     Author = extractedMetadata.Author ?? "",
                     Website = extractedMetadata.Website ?? "",
                     LastRun = extractedMetadata.LastRun ?? "",
-                    UsageExamples = extractedMetadata.UsageExamples ?? "",
                     DocumentType = extractedMetadata.DocumentType ?? "",
                 };
                 response.Metadata.Categories.AddRange(extractedMetadata.Categories);
                 response.Metadata.Dependencies.AddRange(extractedMetadata.Dependencies);
+                response.Metadata.UsageExamples.AddRange(extractedMetadata.UsageExamples);
             }
             catch (Exception ex)
             {
@@ -246,85 +279,7 @@ var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.S
 
         public override Task<ScriptManifestResponse> GetScriptManifest(GetScriptManifestRequest request, ServerCallContext context)
         {
-            var response = new ScriptManifestResponse();
-            var processedFiles = new HashSet<string>();
-
-            try
-            {
-                if (!Directory.Exists(request.AgentScriptsPath))
-                {
-                    response.ErrorMessage = "Agent scripts path does not exist.";
-                    return Task.FromResult(response);
-                }
-
-                // Process multi-file scripts first
-                foreach (var dir in Directory.EnumerateDirectories(request.AgentScriptsPath, "*", SearchOption.AllDirectories))
-                {
-                    string dirName = new DirectoryInfo(dir).Name;
-                    string mainScriptFile = Path.Combine(dir, dirName + ".cs");
-
-                    if (File.Exists(mainScriptFile))
-                    {
-                        var scriptContent = File.ReadAllText(mainScriptFile);
-                        var extractedMetadata = _metadataExtractor.ExtractMetadata(scriptContent);
-
-                        var metadata = new CoreScript.ScriptMetadata
-                        {
-                            Name = extractedMetadata.Name ?? dirName,
-                            FilePath = Path.GetRelativePath(request.AgentScriptsPath, dir),
-                            ScriptType = "multi-file",
-                            Description = extractedMetadata.Description ?? "",
-                            Author = extractedMetadata.Author ?? "",
-                            Website = extractedMetadata.Website ?? "",
-                            LastRun = extractedMetadata.LastRun ?? "",
-                            UsageExamples = extractedMetadata.UsageExamples ?? "",
-                            DocumentType = extractedMetadata.DocumentType ?? "Any",
-                        };
-                        metadata.Categories.AddRange(extractedMetadata.Categories);
-                        metadata.Dependencies.AddRange(extractedMetadata.Dependencies);
-                        response.Scripts.Add(metadata);
-
-                        // Mark all files in this multi-file script as processed
-                        foreach (var file in Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories))
-                        {
-                            processedFiles.Add(file);
-                        }
-                    }
-                }
-
-                // Process single-file scripts
-                foreach (var file in Directory.EnumerateFiles(request.AgentScriptsPath, "*.cs", SearchOption.AllDirectories))
-                {
-                    if (processedFiles.Contains(file)) continue;
-
-                    var scriptContent = File.ReadAllText(file);
-                    var extractedMetadata = _metadataExtractor.ExtractMetadata(scriptContent);
-                    string fileName = Path.GetFileNameWithoutExtension(file);
-
-                    var metadata = new CoreScript.ScriptMetadata
-                    {
-                        Name = extractedMetadata.Name ?? fileName,
-                        FilePath = Path.GetRelativePath(request.AgentScriptsPath, file),
-                        ScriptType = "single-file",
-                        Description = extractedMetadata.Description ?? "",
-                        Author = extractedMetadata.Author ?? "",
-                        Website = extractedMetadata.Website ?? "",
-                        LastRun = extractedMetadata.LastRun ?? "",
-                        UsageExamples = extractedMetadata.UsageExamples ?? "",
-                        DocumentType = extractedMetadata.DocumentType ?? "Any",
-                    };
-                    metadata.Categories.AddRange(extractedMetadata.Categories);
-                    metadata.Dependencies.AddRange(extractedMetadata.Dependencies);
-                    response.Scripts.Add(metadata);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[CoreScriptRunnerService] Error in GetScriptManifest: {ex.Message}");
-                response.ErrorMessage = $"Failed to generate script manifest: {ex.Message}";
-            }
-
-            return Task.FromResult(response);
+            throw new RpcException(new Status(StatusCode.Unimplemented, "This method is no longer used. The rap-server is now responsible for manifest generation."));
         }
 
 

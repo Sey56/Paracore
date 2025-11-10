@@ -7,7 +7,6 @@ using CoreScript.Engine.Context;
 using CoreScript.Engine.Globals;
 using CoreScript.Engine.Logging;
 using CoreScript.Engine.Models;
-using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -132,6 +131,18 @@ namespace CoreScript.Engine.Core
                     // Populate ErrorDetails with the entire PrintLog for frontend display
                     var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                     failureResult.ScriptName = topLevelScriptName;
+                    // --- Populate OutputSummary for runtime error ---
+                    failureResult.OutputSummary = new OutputSummary
+                    {
+                        Type = "error",
+                        Message = failureMessage,
+                        Console = new ConsoleSummary
+                        {
+                            LineCount = context.PrintLog.Count,
+                            TruncatedLines = context.PrintLog.Take(5).ToList()
+                        }
+                    };
+                    // --- End Populate OutputSummary ---
                     return failureResult;
                 }
 
@@ -142,6 +153,42 @@ namespace CoreScript.Engine.Core
                 var result = ExecutionResult.Success(successMessage, state.ReturnValue);
                 result.PrintLog = context.PrintLog.ToList();
                 result.ScriptName = topLevelScriptName;
+
+                // --- Populate OutputSummary for success ---
+                result.OutputSummary = new OutputSummary
+                {
+                    Type = "string", // Default type
+                    Message = successMessage
+                };
+
+                // Console Summary
+                if (result.PrintLog != null && result.PrintLog.Any())
+                {
+                    result.OutputSummary.Console = new ConsoleSummary
+                    {
+                        LineCount = result.PrintLog.Count,
+                        TruncatedLines = result.PrintLog.Take(5).ToList()
+                    };
+                    result.OutputSummary.Type = "console"; // If there's console output, prioritize this type
+                }
+
+                // Return Value Summary
+                if (state.ReturnValue != null)
+                {
+                    result.OutputSummary.ReturnValueSummary = new ReturnValueSummary
+                    {
+                        Type = state.ReturnValue.GetType().Name,
+                        Value = state.ReturnValue.ToString() // Generic string representation
+                    };
+                    // If ReturnValue is more complex, we might need to adjust Type and Message
+                    if (result.OutputSummary.Type == "string") // Only change if not already console
+                    {
+                        result.OutputSummary.Type = "return_value";
+                        result.OutputSummary.Message = $"Script returned a value of type {result.OutputSummary.ReturnValueSummary.Type}.";
+                    }
+                }
+                // --- End Populate OutputSummary ---
+
                 return result;
             }
             catch (CompilationErrorException ex)
@@ -169,17 +216,41 @@ namespace CoreScript.Engine.Core
                 
                 var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
+                // --- Populate OutputSummary for compilation error ---
+                failureResult.OutputSummary = new OutputSummary
+                {
+                    Type = "error",
+                    Message = failureMessage,
+                    Console = new ConsoleSummary
+                    {
+                        LineCount = context.PrintLog.Count,
+                        TruncatedLines = context.PrintLog.Take(5).ToList()
+                    }
+                };
+                // --- End Populate OutputSummary ---
                 return failureResult;
             }
             catch (AggregateException ex)
             {
                 var errs = ex.InnerExceptions.Select(e => e.ToString()).ToArray();
-                string failureMessage = "❌ Script execution failed | " + timestamp;
+                string failureMessage = "❌ Script execution failed due to an aggregate exception | " + timestamp;
                 context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
 
                 var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
+                // --- Populate OutputSummary for aggregate exception ---
+                failureResult.OutputSummary = new OutputSummary
+                {
+                    Type = "error",
+                    Message = failureMessage,
+                    Console = new ConsoleSummary
+                    {
+                        LineCount = context.PrintLog.Count,
+                        TruncatedLines = context.PrintLog.Take(5).ToList()
+                    }
+                };
+                // --- End Populate OutputSummary ---
                 return failureResult;
             }
             catch (Exception ex)
@@ -194,6 +265,18 @@ namespace CoreScript.Engine.Core
                 
                 context.Println(failureMessage);
                 var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                // --- Populate OutputSummary for general exception ---
+                failureResult.OutputSummary = new OutputSummary
+                {
+                    Type = "error",
+                    Message = failureMessage,
+                    Console = new ConsoleSummary
+                    {
+                        LineCount = context.PrintLog.Count,
+                        TruncatedLines = context.PrintLog.Take(5).ToList()
+                    }
+                };
+                // --- End Populate OutputSummary ---
                 return failureResult;
             }
             finally

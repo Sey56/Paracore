@@ -4,10 +4,10 @@ from sqlalchemy import func
 from typing import List, Optional, Dict
 from datetime import datetime
 
-from .. import models, schemas
-from ..database_config import get_db
-from ..utils import resolve_script_path
-from ..auth import get_current_user, CurrentUser
+import models, schemas
+from database_config import get_db
+from utils import resolve_script_path
+from auth import get_current_user, CurrentUser
 
 router = APIRouter()
 

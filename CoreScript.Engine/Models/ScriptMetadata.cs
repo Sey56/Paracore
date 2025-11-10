@@ -12,6 +12,6 @@ namespace CoreScript.Engine.Models
         public string LastRun { get; set; } = "";
         public List<string> Dependencies { get; set; } = new List<string>();
         public string? DocumentType { get; set; } = null;
-        public string UsageExamples { get; set; } = ""; // Added
+        public List<string> UsageExamples { get; set; } = new List<string>();
     }
 }

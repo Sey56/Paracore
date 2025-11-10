@@ -1,4 +1,6 @@
-﻿namespace CoreScript.Engine.Core
+﻿using CoreScript.Engine.Models;
+
+namespace CoreScript.Engine.Core
 {
     /// <summary>
     /// Standard return type for all script execution responses.
@@ -16,6 +18,8 @@
 
         // ✅ Added: log buffer for Print(...) output
         public List<string> PrintLog { get; set; } = new();
+
+        public OutputSummary? OutputSummary { get; set; } // New property for structured summary
 
         /// <summary>
         /// Factory for failed execution result.

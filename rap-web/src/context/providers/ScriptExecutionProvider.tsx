@@ -7,9 +7,8 @@ import { useScripts } from '@/hooks/useScripts';
 import { useAuth } from '@/hooks/useAuth';
 import { useUI } from '@/hooks/useUI';
 import api from '@/api/axios';
-import { getFolderNameFromPath } from '@/components/layout/Sidebar/Sidebar'; // Import helper
+import { getFolderNameFromPath } from '@/components/layout/Sidebar/Sidebar';
 import { Workspace } from '@/types';
-
 
 interface RawScriptParameterData {
   name: string;
@@ -58,7 +57,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime } = useScripts();
   const { scripts: allScriptsFromScriptProvider, teamWorkspaces } = useScripts(); // Get all scripts and teamWorkspaces from ScriptProvider
   const { isAuthenticated, activeTeam } = useAuth();
-  const { activeScriptSource, setAgentSelectedScriptPath } = useUI();
+  const { activeScriptSource, setAgentSelectedScriptPath, messages, setActiveMainView, setActiveInspectorTab } = useUI();
 
   const currentTeamWorkspaces = activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
 
@@ -67,6 +66,269 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [userEditedScriptParameters, setUserEditedScriptParameters] = useState<Record<string, ScriptParameter[]>>({});
   const [presets, setPresets] = useState<ParameterPreset[]>([]);
+
+  const lastProcessedToolMessageIdRef = useRef<string | null>(null);
+
+  const clearExecutionResult = useCallback(() => {
+    setExecutionResult(null);
+  }, []);
+
+  const updateUserEditedParameters = useCallback((scriptId: string, parameters: ScriptParameter[]) => {
+    setUserEditedScriptParameters(prev => ({
+      ...prev,
+      [scriptId]: parameters,
+    }));
+  }, []);
+
+  const fetchScriptContent = useCallback(async (script: Script) => {
+    if (!script.sourcePath) {
+      setCombinedScriptContent('// No source path available for this script type.');
+      return null;
+    }
+    try {
+      const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(script.sourcePath)}&type=${script.type}`);
+      return response.data.sourceCode;
+    } catch (_) {
+      return null;
+    }
+  }, [setCombinedScriptContent]);
+
+  const savePresets = async (newPresets: ParameterPreset[]) => {
+    if (selectedScript && selectedScript.absolutePath) {
+      try {
+        await api.post("/api/presets", { scriptPath: selectedScript.absolutePath, presets: newPresets });
+        showNotification("Presets saved successfully.", "success");
+      } catch (error) {
+        showNotification("Failed to save presets.", "error");
+      }
+    }
+  };
+
+  const addPreset = (preset: ParameterPreset) => {
+    if (presets.some((p) => p.name === preset.name)) {
+      showNotification("A preset with this name already exists.", "warning");
+      return { success: false, message: "A preset with this name already exists." };
+    }
+
+    const existingPresetWithSameValues = presets.find((p) => areParametersEqual(p.parameters, preset.parameters));
+    if (existingPresetWithSameValues) {
+      showNotification(`A preset with identical parameter values already exists: ${existingPresetWithSameValues.name}`, "warning");
+      return { success: false, message: `A preset with identical parameter values already exists: ${existingPresetWithSameValues.name}` };
+    }
+
+    const newPresets = [...presets, preset];
+    setPresets(newPresets);
+    savePresets(newPresets);
+    return { success: true, message: "Preset saved." };
+  };
+
+  const updatePreset = (name: string, preset: ParameterPreset) => {
+    // Check for name uniqueness if the name is being changed
+    if (name !== preset.name && presets.some((p) => p.name === preset.name)) {
+      showNotification("A preset with this name already exists.", "warning");
+      return { success: false, message: "A preset with this name already exists." };
+    }
+
+    // Check for parameter value uniqueness against other presets
+    const existingPresetWithSameValues = presets.find(
+      (p) => p.name !== name && areParametersEqual(p.parameters, preset.parameters)
+    );
+    if (existingPresetWithSameValues) {
+      showNotification(`A preset with identical parameter values already exists: ${existingPresetWithSameValues.name}`, "warning");
+      return { success: false, message: `A preset with identical parameter values already exists: ${existingPresetWithSameValues.name}` };
+    }
+
+    const newPresets = presets.map((p) => (p.name === name ? preset : p));
+    setPresets(newPresets);
+    savePresets(newPresets);
+    return { success: true, message: "Preset updated." };
+  };
+
+  const deletePreset = (name: string) => {
+    const newPresets = presets.filter((p) => p.name !== name);
+    setPresets(newPresets);
+    savePresets(newPresets);
+    return { success: true, message: "Preset deleted successfully!" };
+  };
+
+  const renamePreset = (oldName: string, newName: string) => {
+    if (oldName === newName) {
+      return { success: false, message: "Preset name is the same. No rename performed." };
+    }
+    if (presets.some((p) => p.name === newName && p.name !== oldName)) {
+      showNotification("A preset with this name already exists.", "warning");
+      return { success: false, message: "A preset with this name already exists." };
+    }
+    const newPresets = presets.map((p) => (p.name === oldName ? { ...p, name: newName } : p));
+    console.log("New presets list after rename:", newPresets); // <--- ADDED FOR DEBUGGING
+    setPresets(newPresets);
+    savePresets(newPresets);
+    return { success: true, message: "Preset renamed." };
+  };
+
+  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' | 'agent_executed_full_output' = 'user') => {
+    console.log(`[setSelectedScript] Called with script:`, script, `source:`, source);
+    if (!script) {
+      setSelectedScriptState(null);
+      setCombinedScriptContent(null);
+      setPresets([]);
+      setAgentSelectedScriptPath(null); // Clear agent selected path
+      console.log("[setSelectedScript] Script is null, clearing selection.");
+      return;
+    }
+
+    if (script.id === selectedScript?.id) {
+      if (source === 'agent') {
+        // If agent selects the same script, ensure agentSelectedScriptPath is set
+        setAgentSelectedScriptPath(script.absolutePath);
+      }
+      console.log("[setSelectedScript] Same script selected, avoiding re-fetch.");
+      return; // Avoid re-fetching if the same script is clicked again
+    }
+
+    if (source === 'agent') {
+      console.log("[setSelectedScript] Source is 'agent', processing agent selection.");
+      // If the agent is setting the script, we already have the full script object
+      // and its metadata. We just need to fetch parameters and content.
+      setSelectedScriptState(script);
+      setAgentSelectedScriptPath(script.absolutePath); // Set agent selected path
+      setCombinedScriptContent("// Loading script content...");
+      setPresets([]);
+      setExecutionResult(null);
+
+      try {
+        const promises = [];
+        promises.push(
+          api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
+            .then(response => response.data)
+            .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }))
+        );
+        promises.push(fetchScriptContent(script));
+
+        const [paramsResult, contentResult] = await Promise.all(promises);
+        console.log("[setSelectedScript] API results - paramsResult:", paramsResult, "contentResult:", contentResult);
+
+        let finalParameters: ScriptParameter[] = [];
+        if (paramsResult.error) {
+          showNotification(paramsResult.error, "error");
+        } else if (paramsResult.parameters) {
+          finalParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
+            let value: string | number | boolean = p.defaultValueJson;
+            try {
+              value = JSON.parse(p.defaultValueJson);
+            } catch { /* Ignore if not JSON */ }
+            if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
+            else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
+            return { ...p, value, defaultValue: value };
+          });
+        }
+        const updatedScript = { ...script, parameters: finalParameters };
+        console.log("[setSelectedScript] Updated script with parameters:", updatedScript);
+        updateUserEditedParameters(script.id, finalParameters);
+        setCombinedScriptContent(contentResult || "// Failed to load script content.");
+        setScripts((prev: Script[]) => prev.map((s: Script) => s.id === updatedScript.id ? updatedScript : s));
+        setSelectedScriptState(updatedScript);
+        console.log("[setSelectedScript] Script state updated successfully.");
+
+      } catch (err) {
+        console.error("[RAP] Critical error in setSelectedScript (agent source):", err);
+        showNotification("An unexpected error occurred while loading the script.", "error");
+        setSelectedScriptState(script);
+        setCombinedScriptContent("// Error loading script. Please try again.");
+      }
+      return;
+    }
+
+    if (source === 'agent_executed_full_output') {
+      console.log("[setSelectedScript] Source is 'agent_executed_full_output', processing agent selection for full output.");
+      setSelectedScriptState(script);
+      setAgentSelectedScriptPath(script.absolutePath); // Set agent selected path
+      setCombinedScriptContent("// Loading script content...");
+      setPresets([]);
+      // Do not clear executionResult here, it will be set by the useEffect
+      // We still need to fetch content for the code viewer
+      fetchScriptContent(script).then(content => {
+        setCombinedScriptContent(content || "// Failed to load script content.");
+      });
+      fetchScriptMetadata(script.id); // Fire and forget metadata update
+      return;
+    }
+
+    // Original logic for user selection
+    setAgentSelectedScriptPath(null); // Clear agent selected path for user interaction
+    // --- NEW LOGIC: Check for cached parameters first ---
+    const cachedParameters = userEditedScriptParameters[script.id];
+    if (cachedParameters) {
+      const updatedScript = { ...script, parameters: cachedParameters };
+      setSelectedScriptState(updatedScript);
+      // Still fetch content in the background
+      fetchScriptContent(updatedScript).then(content => {
+        setCombinedScriptContent(content || "// Failed to load script content.");
+      });
+      fetchScriptMetadata(script.id); // Fire and forget metadata update
+      console.log("[setSelectedScript] Using cached parameters for user selection.");
+      return; // Exit early, we are using the cached parameters
+    }
+
+    // If no cached params, proceed with fetching...
+    setCombinedScriptContent("// Loading script content...");
+    setPresets([]);
+    setExecutionResult(null);
+    
+    try {
+      const promises = [];
+
+      // --- Parameters Promise (only runs if not cached) ---
+      promises.push(
+        api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
+          .then(response => response.data)
+          .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }))
+      );
+
+      // --- Content Promise ---
+      promises.push(fetchScriptContent(script));
+
+      // --- Metadata Promise (fire and forget, doesn't block) ---
+      fetchScriptMetadata(script.id);
+
+      const [paramsResult, contentResult] = await Promise.all(promises);
+      console.log("[setSelectedScript] API results (user source) - paramsResult:", paramsResult, "contentResult:", contentResult);
+
+      let finalParameters: ScriptParameter[] = [];
+      if (paramsResult.error) {
+        showNotification(paramsResult.error, "error");
+      } else if (paramsResult.parameters) {
+        finalParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
+          let value: string | number | boolean = p.defaultValueJson;
+          try {
+            value = JSON.parse(p.defaultValueJson);
+          } catch { /* Ignore if not JSON */ }
+          if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
+          else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
+          return { ...p, value, defaultValue: value }; // Also set defaultValue for preset comparison
+        });
+      }
+
+      const updatedScript = { ...script, parameters: finalParameters };
+      console.log("[setSelectedScript] Updated script with parameters (user source):", updatedScript);
+
+      // --- NEW LOGIC: Store the newly fetched parameters in our cache ---
+      updateUserEditedParameters(script.id, finalParameters);
+
+      // Final state updates
+      setCombinedScriptContent(contentResult || "// Failed to load script content.");
+      setScripts((prev: Script[]) => prev.map((s: Script) => s.id === updatedScript.id ? updatedScript : s));
+      setSelectedScriptState(updatedScript);
+      console.log("[setSelectedScript] Script state updated successfully (user source).");
+
+    } catch (err) {
+      console.error("[RAP] Critical error in setSelectedScript:", err);
+      showNotification("An unexpected error occurred while loading the script.", "error");
+      // Reset to a stable state
+      setSelectedScriptState(script); // Keep the initial script selected
+      setCombinedScriptContent("// Error loading script. Please try again.");
+    }
+  }, [selectedScript, userEditedScriptParameters, fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath, updateUserEditedParameters]);
 
   // Effect to keep selectedScript in sync with allScriptsFromScriptProvider
   useEffect(() => {
@@ -144,200 +406,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [selectedScript, showNotification, isAuthenticated]);
 
-  const clearExecutionResult = useCallback(() => {
-    setExecutionResult(null);
-  }, []);
-
-  const updateUserEditedParameters = useCallback((scriptId: string, parameters: ScriptParameter[]) => {
-    setUserEditedScriptParameters(prev => ({
-      ...prev,
-      [scriptId]: parameters,
-    }));
-  }, []);
-
-  const fetchScriptContent = useCallback(async (script: Script) => {
-    if (!script.sourcePath) {
-      setCombinedScriptContent('// No source path available for this script type.');
-      return null;
-    }
-    try {
-      const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(script.sourcePath)}&type=${script.type}`);
-      return response.data.sourceCode;
-    } catch (_) {
-      return null;
-    }
-  }, [setCombinedScriptContent]);
-
-  useEffect(() => {
-    const handleFocus = () => {
-      if (selectedScript) {
-        fetchScriptContent(selectedScript).then(content => {
-          if (content) setCombinedScriptContent(content);
-        });
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [selectedScript, fetchScriptContent, setCombinedScriptContent]);
-
-  const savePresets = async (newPresets: ParameterPreset[]) => {
-    if (selectedScript && selectedScript.absolutePath) {
-      try {
-        await api.post("/api/presets", { scriptPath: selectedScript.absolutePath, presets: newPresets });
-        showNotification("Presets saved successfully.", "success");
-      } catch (error) {
-        showNotification("Failed to save presets.", "error");
-      }
-    }
-  };
-
-  const addPreset = (preset: ParameterPreset) => {
-    if (presets.some((p) => p.name === preset.name)) {
-      showNotification("A preset with this name already exists.", "warning");
-      return { success: false, message: "A preset with this name already exists." };
-    }
-
-    const existingPresetWithSameValues = presets.find((p) => areParametersEqual(p.parameters, preset.parameters));
-    if (existingPresetWithSameValues) {
-      showNotification(`A preset with identical parameter values already exists: ${existingPresetWithSameValues.name}`, "warning");
-      return { success: false, message: `A preset with identical parameter values already exists: ${existingPresetWithSameValues.name}` };
-    }
-
-    const newPresets = [...presets, preset];
-    setPresets(newPresets);
-    savePresets(newPresets);
-    return { success: true, message: "Preset saved." };
-  };
-
-  const updatePreset = (name: string, preset: ParameterPreset) => {
-    // Check for name uniqueness if the name is being changed
-    if (name !== preset.name && presets.some((p) => p.name === preset.name)) {
-      showNotification("A preset with this name already exists.", "warning");
-      return { success: false, message: "A preset with this name already exists." };
-    }
-
-    // Check for parameter value uniqueness against other presets
-    const existingPresetWithSameValues = presets.find(
-      (p) => p.name !== name && areParametersEqual(p.parameters, preset.parameters)
-    );
-    if (existingPresetWithSameValues) {
-      showNotification(`A preset with identical parameter values already exists: ${existingPresetWithSameValues.name}`, "warning");
-      return { success: false, message: `A preset with identical parameter values already exists: ${existingPresetWithSameValues.name}` };
-    }
-
-    const newPresets = presets.map((p) => (p.name === name ? preset : p));
-    setPresets(newPresets);
-    savePresets(newPresets);
-    return { success: true, message: "Preset updated." };
-  };
-
-  const deletePreset = (name: string) => {
-    const newPresets = presets.filter((p) => p.name !== name);
-    setPresets(newPresets);
-    savePresets(newPresets);
-    return { success: true, message: "Preset deleted successfully!" };
-  };
-
-  const renamePreset = (oldName: string, newName: string) => {
-    if (oldName === newName) {
-      return { success: false, message: "Preset name is the same. No rename performed." };
-    }
-    if (presets.some((p) => p.name === newName && p.name !== oldName)) {
-      showNotification("A preset with this name already exists.", "warning");
-      return { success: false, message: "A preset with this name already exists." };
-    }
-    const newPresets = presets.map((p) => (p.name === oldName ? { ...p, name: newName } : p));
-    console.log("New presets list after rename:", newPresets); // <--- ADDED FOR DEBUGGING
-    setPresets(newPresets);
-    savePresets(newPresets);
-    return { success: true, message: "Preset renamed." };
-  };
-
-  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' = 'user') => {
-    if (source === 'user') {
-      setAgentSelectedScriptPath(null);
-    }
-    if (!script) {
-      setSelectedScriptState(null);
-      setCombinedScriptContent(null);
-      setPresets([]);
-      return;
-    }
-
-    if (script.id === selectedScript?.id) {
-      return; // Avoid re-fetching if the same script is clicked again
-    }
-
-    // --- NEW LOGIC: Check for cached parameters first ---
-    const cachedParameters = userEditedScriptParameters[script.id];
-    if (cachedParameters) {
-      const updatedScript = { ...script, parameters: cachedParameters };
-      setSelectedScriptState(updatedScript);
-      // Still fetch content in the background
-      fetchScriptContent(updatedScript).then(content => {
-        setCombinedScriptContent(content || "// Failed to load script content.");
-      });
-      fetchScriptMetadata(script.id); // Fire and forget metadata update
-      return; // Exit early, we are using the cached parameters
-    }
-
-    // If no cached params, proceed with fetching...
-    setCombinedScriptContent("// Loading script content...");
-    setPresets([]);
-    setExecutionResult(null);
-    
-    try {
-      const promises = [];
-
-      // --- Parameters Promise (only runs if not cached) ---
-      promises.push(
-        api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
-          .then(response => response.data)
-          .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }))
-      );
-
-      // --- Content Promise ---
-      promises.push(fetchScriptContent(script));
-
-      // --- Metadata Promise (fire and forget, doesn't block) ---
-      fetchScriptMetadata(script.id);
-
-      const [paramsResult, contentResult] = await Promise.all(promises);
-
-      let finalParameters: ScriptParameter[] = [];
-      if (paramsResult.error) {
-        showNotification(paramsResult.error, "error");
-      } else if (paramsResult.parameters) {
-        finalParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
-          let value: string | number | boolean = p.defaultValueJson;
-          try {
-            value = JSON.parse(p.defaultValueJson);
-          } catch { /* Ignore if not JSON */ }
-          if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
-          else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
-          return { ...p, value, defaultValue: value }; // Also set defaultValue for preset comparison
-        });
-      }
-
-      const updatedScript = { ...script, parameters: finalParameters };
-
-      // --- NEW LOGIC: Store the newly fetched parameters in our cache ---
-      updateUserEditedParameters(script.id, finalParameters);
-
-      // Final state updates
-      setCombinedScriptContent(contentResult || "// Failed to load script content.");
-      setScripts((prev: Script[]) => prev.map((s: Script) => s.id === updatedScript.id ? updatedScript : s));
-      setSelectedScriptState(updatedScript);
-
-    } catch (err) {
-      console.error("[RAP] Critical error in setSelectedScript:", err);
-      showNotification("An unexpected error occurred while loading the script.", "error");
-      // Reset to a stable state
-      setSelectedScriptState(script); // Keep the initial script selected
-      setCombinedScriptContent("// Error loading script. Please try again.");
-    }
-  }, [selectedScript, userEditedScriptParameters, fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath, updateUserEditedParameters]);
-
   const runScript = async (script: Script, parameters?: ScriptParameter[]) => {
     if (runningScriptPath) {
       showNotification("A script is already running. Please wait.", "warning");
@@ -401,6 +469,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setSelectedScript,
     runningScriptPath,
     executionResult,
+    setExecutionResult, // Expose the setter
     runScript,
     clearExecutionResult,
     userEditedScriptParameters,

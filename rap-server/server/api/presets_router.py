@@ -4,10 +4,10 @@ from typing import List, Dict, Any
 import json
 import math
 
-from .. import models, schemas
-from ..database_config import get_db
-from ..utils import get_or_create_script, resolve_script_path
-from ..auth import get_current_user, CurrentUser
+import models, schemas
+from database_config import get_db
+from utils import get_or_create_script, resolve_script_path
+from auth import get_current_user, CurrentUser
 
 router = APIRouter()
 

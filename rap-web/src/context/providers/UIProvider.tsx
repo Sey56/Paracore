@@ -5,6 +5,9 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useUserWorkspaces } from "@/hooks/useUserWorkspaces"; // Import useUserWorkspaces
 import { useAuth } from "@/hooks/useAuth"; // Import useAuth
 
+const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
+const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
+
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
   const { showNotification } = useNotifications();
@@ -27,42 +30,54 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   // Agent related state
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
-      const savedMessages = localStorage.getItem('chatHistory');
-      if (savedMessages) {
-        const parsedMessages = JSON.parse(savedMessages);
-        if (parsedMessages.length > 0) {
-          return parsedMessages;
-        } else {
-          return [{ sender: 'agent', text: 'Hello I am Paracore Revit agent. what can i help you?' }];
-        }
-      } else {
-        return [{ sender: 'agent', text: 'Hello I am Paracore Revit agent. what can i help you?' }];
-      }
+      const storedMessages = localStorage.getItem(LOCAL_STORAGE_KEY_MESSAGES);
+      return storedMessages ? JSON.parse(storedMessages) : [];
     } catch (error) {
-      console.error("Failed to load chat history from localStorage during initialization", error);
-      return [{ sender: 'agent', text: 'Hello, How can I help you today?' }];
+      console.error("Failed to load chat messages from localStorage:", error);
+      return [];
     }
   });
-  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(() => {
+    try {
+      const storedThreadId = localStorage.getItem(LOCAL_STORAGE_KEY_THREAD_ID);
+      return storedThreadId || null;
+    } catch (error) {
+      console.error("Failed to load threadId from localStorage:", error);
+      return null;
+    }
+  });
   const [isAwaitingApproval, setIsAwaitingApproval] = useState<boolean>(false);
   const [pendingToolCall, setPendingToolCall] = useState<ToolCall | null>(null);
   const [agentSelectedScriptPath, setAgentSelectedScriptPath] = useState<string | null>(null);
-
+  
+  // Effect to save messages and threadId to localStorage whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem('chatHistory', JSON.stringify(messages));
+      localStorage.setItem(LOCAL_STORAGE_KEY_MESSAGES, JSON.stringify(messages));
     } catch (error) {
-      console.error("Failed to save chat history to localStorage", error);
+      console.error("Failed to save chat messages to localStorage:", error);
     }
   }, [messages]);
 
+  useEffect(() => {
+    try {
+      if (threadId) {
+        localStorage.setItem(LOCAL_STORAGE_KEY_THREAD_ID, threadId);
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
+      }
+    } catch (error) {
+      console.error("Failed to save threadId to localStorage:", error);
+    }
+  }, [threadId]);
+  
   // Main View Toggle
   const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent'>('scripts'); // Default to 'scripts'
-
+  
   // Effect to initialize activeScriptSource from localStorage and validate it
   useEffect(() => {
     if (!userWorkspacesLoaded || !user) return; // Wait for user workspaces to load and user to be available
-
+  
     const storedSource = localStorage.getItem("activeScriptSource");
     if (storedSource) {
       try {
@@ -91,20 +106,20 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [user, userWorkspacesLoaded, userWorkspacePaths]); // Re-run when user or userWorkspaces change
-
+  
   const openSettingsModal = () => setSettingsModalOpen(true);
   const closeSettingsModal = () => setSettingsModalOpen(false);
-
+  
   const openNewScriptModal = () => setIsNewScriptModalOpen(true);
   const closeNewScriptModal = () => setIsNewScriptModalOpen(false);
-
+  
   const openTeamManagementModal = () => setIsTeamManagementModalOpen(true);
   const closeTeamManagementModal = () => setIsTeamManagementModalOpen(false);
-
+  
   const openFloatingCodeViewer = () => setFloatingCodeViewerOpen(true);
   const closeFloatingCodeViewer = () => setFloatingCodeViewerOpen(false);
   const toggleFloatingCodeViewer = () => setFloatingCodeViewerOpen(prev => !prev);
-
+  
   // Effect to load custom categories
   useEffect(() => {
     const storedCategories = localStorage.getItem("customCategories");
@@ -124,7 +139,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [showNotification]);
-
+  
   // Effect to save activeScriptSource to localStorage whenever it changes
   useEffect(() => {
     if (activeScriptSource) {
@@ -133,8 +148,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem("activeScriptSource");
     }
   }, [activeScriptSource]);
-
-
+  
+  
   const addCustomCategory = (categoryName: string) => {
     if (!customCategories.includes(categoryName)) {
       const newCategories = [...customCategories, categoryName];
@@ -145,7 +160,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       showNotification(`Category already exists: ${categoryName}.`, "info");
     }
   };
-
+  
   const removeCustomCategory = (categoryName: string) => {
     if (selectedCategory === categoryName) {
       setSelectedCategory(null);
@@ -157,15 +172,15 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("customCategories", JSON.stringify(newCategories));
     showNotification(`Removed custom category: ${categoryName}.`, "info");
   };
-
+  
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
-
+  
   const toggleInspector = useCallback(() => {
     setInspectorOpen((prev) => !prev);
   }, []);
-
+  
   const contextValue = {
     isSidebarOpen,
     toggleSidebar,
@@ -183,23 +198,23 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isSettingsModalOpen,
     openSettingsModal,
     closeSettingsModal,
-
+  
     isTeamManagementModalOpen,
     openTeamManagementModal,
     closeTeamManagementModal,
-
+  
     isNewScriptModalOpen,
     openNewScriptModal,
     closeNewScriptModal,
-
+  
     isFloatingCodeViewerOpen,
     openFloatingCodeViewer,
     closeFloatingCodeViewer,
     toggleFloatingCodeViewer,
-
+  
     activeScriptSource,
     setActiveScriptSource,
-
+  
     messages,
     setMessages,
     threadId,

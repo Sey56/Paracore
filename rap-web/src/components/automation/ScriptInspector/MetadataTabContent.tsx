@@ -38,6 +38,28 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
 }) => {
   return (
     <div className="tab-content py-4">
+      {/* Full-width Description section */}
+      <div className="mb-6">
+        <h4 className="font-medium text-gray-700 dark:text-gray-300">Description</h4>
+        <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mt-1">{metadata.description || 'No description provided.'}</p>
+      </div>
+
+      {/* Full-width Usage Examples section */}
+      <div className="mb-6">
+        <h4 className="font-medium text-gray-700 dark:text-gray-300">Usage Examples</h4>
+        {metadata.usage_examples && metadata.usage_examples.length > 0 ? (
+          <ul className="text-sm space-y-1 text-gray-600 dark:text-gray-300 list-disc list-inside">
+            {metadata.usage_examples
+              .filter(example => example.trim() !== '')
+              .map((example, index) => (
+                <li key={index}>{example}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-300">No examples provided.</p>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Column 1 */}
         <div className="space-y-4">
@@ -90,23 +112,6 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
               )) || <li>N/A</li>}
             </ul>
           </div>
-          <div>
-            <h4 className="font-medium text-gray-700 dark:text-gray-300">Usage Examples</h4>
-            <ul className="text-sm space-y-1 text-gray-600 dark:text-gray-300">
-              {(Array.isArray(metadata.usage_examples) ? metadata.usage_examples : (metadata.usage_examples || '').split('\n'))
-                .filter(example => example.trim() !== '')
-                .map((example, index) => (
-                  <li key={index}>{example}</li>
-              ))}
-              {(!metadata.usage_examples || (Array.isArray(metadata.usage_examples) && metadata.usage_examples.length === 0)) && <li>No examples provided.</li>}
-            </ul>
-          </div>
-        </div>
-
-        {/* Full-width sections */}
-        <div className="md:col-span-2">
-          <h4 className="font-medium text-gray-700 dark:text-gray-300">Description</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mt-1">{metadata.description || 'No description provided.'}</p>
         </div>
       </div>
     </div>

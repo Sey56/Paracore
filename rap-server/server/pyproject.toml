@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiohttp>=3.13.2",
     "annotated-types>=0.7.0",
     "anyio>=4.11.0",
     "argon2-cffi>=25.1.0",
@@ -28,6 +29,7 @@ dependencies = [
     "httpcore>=1.0.9",
     "httpx>=0.28.1",
     "idna>=3.11",
+    "ipython>=9.7.0",
     "langchain>=1.0.3",
     "langchain-google-genai>=3.0.1",
     "langgraph>=1.0.2",

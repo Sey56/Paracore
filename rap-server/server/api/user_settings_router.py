@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List, Any
 import json
 
-from .. import models, schemas, auth
-from ..database_config import get_db
+import models, schemas, auth
+from database_config import get_db
 
 router = APIRouter()
 

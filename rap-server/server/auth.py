@@ -6,10 +6,9 @@ from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List # Added List
 from sqlalchemy.orm import Session # Added Session
-from .database_config import get_db # Added get_db
-from . import models # Added models
-
-from .config import settings
+from database_config import get_db
+import models
+from config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

@@ -11,16 +11,16 @@ from pydantic import BaseModel, Field
 from typing import List, Literal
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
-from ..database_config import get_db
-from ..grpc_client import (
+import models, schemas
+from database_config import get_db
+from grpc_client import (
     get_script_metadata,
     get_script_parameters,
     get_combined_script,
     create_and_open_workspace
 )
-from ..utils import get_or_create_script, resolve_script_path
-from ..auth import get_current_user, CurrentUser
+from utils import get_or_create_script, resolve_script_path
+from auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
@@ -358,6 +358,100 @@ async def get_script_content(scriptPath: str, type: str):
         raise HTTPException(status_code=500, detail=f"gRPC Error: {e.details()}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/script-manifest", tags=["Script Management"])
+async def get_script_manifest(request: Request):
+    data = await request.json()
+    tool_library_path = data.get("tool_library_path")
+
+    if not tool_library_path or not os.path.isabs(tool_library_path) or not os.path.isdir(tool_library_path):
+        raise HTTPException(status_code=400, detail="A valid, absolute tool library path is required.")
+
+    print(f"--- Generating Script Manifest ---")
+    print(f"Received tool_library_path: {tool_library_path}")
+
+    all_scripts = []
+    
+    major_categories = [d for d in os.listdir(tool_library_path) if os.path.isdir(os.path.join(tool_library_path, d))]
+    print(f"Found {len(major_categories)} major categories: {major_categories}")
+
+    for major_category in major_categories:
+        major_category_path = os.path.join(tool_library_path, major_category)
+        
+        sub_categories = [d for d in os.listdir(major_category_path) if os.path.isdir(os.path.join(major_category_path, d))]
+        print(f"  In '{major_category}', found {len(sub_categories)} sub-categories: {sub_categories}")
+
+        for sub_category in sub_categories:
+            script_source_path = os.path.join(major_category_path, sub_category)
+            print(f"    Processing script source: {script_source_path}")
+
+            try:
+                # Process single .cs files
+                for file_path in glob.glob(os.path.join(script_source_path, "*.cs")):
+                    try:
+                        resolved_file_path = resolve_script_path(file_path)
+                        content = ""
+                        try:
+                            with open(resolved_file_path, 'r', encoding='utf-8-sig') as f: content = f.read()
+                        except UnicodeDecodeError:
+                            with open(resolved_file_path, 'r', encoding='utf-8') as f: content = f.read()
+
+                        script_files = [{"file_name": os.path.basename(resolved_file_path), "content": content}]
+                        metadata = get_script_metadata(script_files).get("metadata", {})
+                        
+                        all_scripts.append({
+                            "id": resolved_file_path.replace('\\', '/'),
+                            "name": os.path.basename(resolved_file_path),
+                            "type": "single-file",
+                            "absolutePath": resolved_file_path.replace('\\', '/'),
+                            "sourcePath": resolved_file_path.replace('\\', '/'),
+                            "metadata": { **metadata, "majorCategory": major_category, "subCategory": sub_category }
+                        })
+                    except Exception as e:
+                        traceback.print_exc()
+
+                # Process multi-file script folders
+                for item in os.listdir(script_source_path):
+                    item_path = os.path.join(script_source_path, item)
+                    if os.path.isdir(item_path) and glob.glob(os.path.join(item_path, "*.cs")):
+                        try:
+                            resolved_item_path = resolve_script_path(item_path)
+                            script_files = []
+                            for fp in glob.glob(os.path.join(item_path, "*.cs")):
+                                with open(fp, 'r', encoding='utf-8-sig') as f: content = f.read()
+                                script_files.append({"file_name": os.path.basename(fp), "content": content})
+
+                            if not script_files: continue
+                            metadata = get_script_metadata(script_files).get("metadata", {})
+                            all_scripts.append({
+                                "id": resolved_item_path.replace('\\', '/'),
+                                "name": os.path.basename(resolved_item_path),
+                                "type": "multi-file",
+                                "absolutePath": resolved_item_path.replace('\\', '/'),
+                                "sourcePath": resolved_item_path.replace('\\', '/'),
+                                "metadata": { **metadata, "majorCategory": major_category, "subCategory": sub_category }
+                            })
+                        except Exception as e:
+                            traceback.print_exc()
+            except Exception as e:
+                traceback.print_exc()
+
+    # Save the manifest to a file
+    cache_dir = os.path.join(tool_library_path, 'cache')
+    os.makedirs(cache_dir, exist_ok=True)
+    manifest_file_path = os.path.join(cache_dir, 'scripts_manifest.json')
+    
+    try:
+        with open(manifest_file_path, 'w', encoding='utf-8') as f:
+            json.dump(all_scripts, f, indent=2)
+        print(f"--- Manifest successfully saved to {manifest_file_path} ---")
+    except Exception as e:
+        print(f"--- ERROR: Failed to save manifest file: {e} ---")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save manifest file: {e}")
+
+    print(f"--- Manifest Generation Complete: Found {len(all_scripts)} total scripts ---")
+    return JSONResponse(content={"message": f"Manifest generated successfully with {len(all_scripts)} tools.", "path": manifest_file_path})
 
 @router.post("/api/edit-script", tags=["Script Management"])
 async def edit_script(request: Request, current_user: CurrentUser = Depends(get_current_user)):

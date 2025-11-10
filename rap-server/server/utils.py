@@ -3,7 +3,7 @@ import glob
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from . import models
+import models
 
 def resolve_script_path(relative_or_absolute_path: str) -> str:
     """

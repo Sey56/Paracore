@@ -1,0 +1,72 @@
+AgentView: RAW data received from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'complete', message: "I found a script called WallParameters.cs that lis…u're asking for.\n\nDo you want to run this script?"}
+AgentView.tsx:80 AgentView: Received data from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'complete', message: "I found a script called WallParameters.cs that lis…u're asking for.\n\nDo you want to run this script?"}
+AgentView.tsx:79 AgentView: RAW data received from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'complete', message: Array(1), selected_script_info: {…}}
+AgentView.tsx:80 AgentView: Received data from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'complete', message: Array(1), selected_script_info: {…}}
+AgentView.tsx:86 AgentView: selected_script_info found: {id: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', name: 'WallParameters.cs', type: 'single-file', absolutePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', sourcePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', …}
+ScriptExecutionProvider.tsx:171 [setSelectedScript] Called with script: {id: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', name: 'WallParameters.cs', type: 'single-file', absolutePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', sourcePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', …} source: agent
+ScriptExecutionProvider.tsx:191 [setSelectedScript] Source is 'agent', processing agent selection.
+AgentView.tsx:88 AgentView: Calling setSelectedScript with: {id: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', name: 'WallParameters.cs', type: 'single-file', absolutePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', sourcePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', …}
+ScriptExecutionProvider.tsx:210 [setSelectedScript] API results - paramsResult: {parameters: Array(0), error_message: ''} contentResult: using Autodesk.Revit.DB;
+
+/*
+DocumentType: Project
+Categories: General, Prototyping
+Author: Seyoum Hagos
+Dependencies: RevitAPI 2025, RScript.Engine, RServer.Addin
+
+Description:
+Lists all parameters of the first wall found in the active Revit document, including name, value, and storage type.
+
+UsageExamples:
+- "List wall parameters":
+*/
+
+// Comment just to test git commit
+// Comment just to test git pull
+
+// Top-Level Statements
+Println("Searching for a wall...");
+
+// Find the first wall in the document
+Wall? wall = new FilteredElementCollector(Doc)
+    .OfClass(typeof(Wall))
+    .Cast<Wall>()
+    .FirstOrDefault();
+
+if (wall == null)
+{
+    Println("No wall found in the document.");
+    Show("message", "No wall found in the document.");
+    return;
+}
+
+// Collect parameters
+List<object> paramData = [];
+foreach (Parameter param in wall.Parameters)
+{
+    string paramName = param.Definition.Name;
+    string paramValue = param.AsValueString() ?? param.AsString() ?? "(null)";
+    string paramType = param.StorageType.ToString();
+
+    paramData.Add(new
+    {
+        Name = paramName,
+        Value = paramValue,
+        Type = paramType
+    });
+}
+
+// Display in table format
+Show("table", paramData);
+
+Println($"✅ Listed {paramData.Count} parameters from the first wall.");
+
+ScriptExecutionProvider.tsx:227 [setSelectedScript] Updated script with parameters: {id: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', name: 'WallParameters.cs', type: 'single-file', absolutePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', sourcePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', …}
+ScriptExecutionProvider.tsx:232 [setSelectedScript] Script state updated successfully.
+AgentView.tsx:79 AgentView: RAW data received from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'interrupted', tool_call: {…}}
+AgentView.tsx:80 AgentView: Received data from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'interrupted', tool_call: {…}}
+AgentView.tsx:97 Agent is requesting UI parameters. selectedScript: {id: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', name: 'WallParameters.cs', type: 'single-file', absolutePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', sourcePath: 'C:/Users/seyou/Documents/ParacoreAgentToolbox/04_D…Parameters/Parameter_Management/WallParameters.cs', …} userEditedScriptParameters: {C:/Users/seyou/Documents/ParacoreAgentToolbox/04_Data_Parameters/Parameter_Management/WallParameters.cs: Array(0)}
+AgentView.tsx:79 AgentView: RAW data received from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'interrupted', tool_call: {…}}
+AgentView.tsx:80 AgentView: Received data from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'interrupted', tool_call: {…}}
+AgentView.tsx:79 AgentView: RAW data received from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'complete', message: Array(1)}
+AgentView.tsx:80 AgentView: Received data from backend: {thread_id: 'ab053d38-4320-41eb-a1d5-2eea8429711f', status: 'complete', message: Array(1)}

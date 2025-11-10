@@ -17,11 +17,16 @@ export const TopBar: React.FC = () => {
   const { rserverConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, logout, activeTeam } = useAuth();
-  const { loadScriptsForFolder } = useScripts();
+  const { loadScriptsForFolder, fetchScriptManifest } = useScripts();
 
   const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const helpDropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleAgentModeClick = () => {
+    setActiveMainView('agent');
+    fetchScriptManifest();
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -104,7 +109,7 @@ export const TopBar: React.FC = () => {
             <FontAwesomeIcon icon={faRectangleList} />
           </button>
           <button
-            onClick={() => setActiveMainView('agent')}
+            onClick={handleAgentModeClick}
             className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
             title="Agent Mode"
           >

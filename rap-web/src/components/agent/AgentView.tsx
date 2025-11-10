@@ -1,37 +1,26 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/api/axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faRobot, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faRobot, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { useScripts } from '@/hooks/useScripts';
 
-import type { Message, ToolCall } from '@/context/providers/UIContext'; // Import Message and ToolCall types
+import type { Message, ToolCall } from '@/context/providers/UIContext';
 import { Modal } from '@/components/common/Modal';
 
-import type { Script } from '@/types/scriptModel'; // Import Script type
+// This component will be responsible for rendering the new HITL modal
+// It will be created in a subsequent step. For now, we define the props.
+interface HITLModalProps {
+  toolCall: ToolCall;
+  onApprove: (parameters: any) => void;
+  onReject: () => void;
+}
 
-type AgentResponse = {
-  thread_id: string;
-  status: "interrupted" | "complete" | "processing_internal";
-  message?: string;
-  tool_call?: ToolCall;
-  selected_script_info?: Script; // Add selected_script_info as a top-level field
-};
-
-type ChatPayload = {
-  thread_id: string | null;
-  workspace_path: string;
-  agent_scripts_path?: string | null; // Add agent_scripts_path
-  token: string | undefined;
-  message?: string;
-  llm_provider?: string | null;
-  llm_model?: string | null;
-  llm_api_key_name?: string | null;
-  llm_api_key_value?: string | null;
-};
+const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
+const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
 
 export const AgentView: React.FC = () => {
   const {
@@ -40,150 +29,74 @@ export const AgentView: React.FC = () => {
     setMessages,
     threadId,
     setThreadId,
-    isAwaitingApproval,
-    setIsAwaitingApproval,
-    pendingToolCall,
-    setPendingToolCall,
-    setActiveScriptSource, // Import setActiveScriptSource
+    setActiveInspectorTab, // Correctly get from useUI
   } = useUI();
-  const { user, cloudToken } = useAuth();
+  const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
-  const { selectedScript, userEditedScriptParameters, setSelectedScript } = useScriptExecution();
-  const { fetchScriptManifest, toolLibraryPath } = useScripts();
+  // Correctly get execution-related functions and state from their respective hooks
+  const { selectedScript, setSelectedScript, setExecutionResult, userEditedScriptParameters } = useScriptExecution();
+  const { fetchScriptManifest, toolLibraryPath, scripts: allScriptsFromScriptProvider } = useScripts();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
 
-  const handleRefreshManifest = useCallback(() => {
-    fetchScriptManifest();
-  }, [fetchScriptManifest]);
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const storedMessages = localStorage.getItem(LOCAL_STORAGE_KEY_MESSAGES);
+      if (storedMessages) {
+        setMessages(JSON.parse(storedMessages));
+      }
+      const storedThreadId = localStorage.getItem(LOCAL_STORAGE_KEY_THREAD_ID);
+      if (storedThreadId) {
+        setThreadId(storedThreadId);
+      }
+    } catch (error) {
+      console.error("Failed to load chat history from localStorage:", error);
+      // Optionally clear corrupted data
+      localStorage.removeItem(LOCAL_STORAGE_KEY_MESSAGES);
+      localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
+    }
+  }, [setMessages, setThreadId]);
 
-  // Declare token and currentWorkspacePath here to make them accessible to handleApproveToolCall
-  const token = cloudToken;
-  const currentWorkspacePath = activeScriptSource?.type === 'workspace' || activeScriptSource?.type === 'local'
-    ? activeScriptSource.path
-    : ""; // Ensure it's always a string
+  // Save to localStorage on messages or threadId change
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+    } catch (error) {
+      console.error("Failed to save messages to localStorage:", error);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    try {
+      if (threadId) {
+        localStorage.setItem(LOCAL_STORAGE_KEY_THREAD_ID, threadId);
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
+      }
+    } catch (error) {
+      console.error("Failed to save threadId to localStorage:", error);
+    }
+  }, [threadId]);
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+  useEffect(scrollToBottom, [messages, isLoading]);
 
-  const processAgentResponse = useCallback(async (data: AgentResponse, originalMessageText: string, approvedToolCall: boolean) => {
-    console.log('AgentView: RAW data received from backend:', data); // New log to inspect raw data
-    console.log('AgentView: Received data from backend:', data);
-    setThreadId(data.thread_id);
-
-    if (data.selected_script_info) { // Check for top-level selected_script_info
-      const scriptObject = data.selected_script_info;
-      if (scriptObject) {
-        console.log("AgentView: selected_script_info found:", scriptObject);
-        setSelectedScript(scriptObject, 'agent');
-        console.log("AgentView: Calling setSelectedScript with:", scriptObject);
-      } else {
-        console.error("AgentView: selected_script_info did not contain a script object.");
-        showNotification("Agent failed to select a script.", "error");
-      }
-    }
-
-    if (data.status === "interrupted" && data.tool_call) {
-      if (data.tool_call.name === 'get_ui_parameters_tool') {
-        console.log("Agent is requesting UI parameters. selectedScript:", selectedScript, "userEditedScriptParameters:", userEditedScriptParameters);
-        // Automatically handle this tool call without user approval
-        const currentParams = (selectedScript && userEditedScriptParameters[selectedScript.id]) || [];
-        try {
-          const llmProvider = localStorage.getItem('llmProvider');
-          const llmModel = localStorage.getItem('llmModel');
-          const llmApiKeyName = localStorage.getItem('llmApiKeyName');
-          const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
-
-          const resumeResponse = await api.post("/agent/resume", {
-            thread_id: data.thread_id,
-            token: token,
-            tool_result: JSON.stringify(currentParams),
-            llm_provider: llmProvider,
-            llm_model: llmModel,
-            llm_api_key_name: llmApiKeyName,
-            llm_api_key_value: llmApiKeyValue,
-          });
-          processAgentResponse(resumeResponse.data, "UI parameters sent.", true);
-        } catch (error) {
-          console.error("Agent resume error after getting UI params:", error);
-          showNotification("Failed to send UI parameters to the agent.", "error");
-        }
-        return; // Stop further processing for this response
-      }
-
-      // Removed the check for 'set_active_script_source_tool' as it's no longer relevant
-      setPendingToolCall(data.tool_call);
-      setIsAwaitingApproval(true);
-      setMessages((prev: Message[]) => [...prev, {
-        sender: 'agent',
-        text: `Agent wants to call tool: ${data.tool_call?.name} with arguments: ${JSON.stringify(data.tool_call?.arguments)}`,
-        toolCall: data.tool_call,
-      }]);
-      setIsLoading(false);
-    } else if (data.status === "complete") {
-      if (data.message) {
-        setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: data.message }]);
-      }
-      setIsLoading(false);
-    } else if (data.status === "processing_internal") {
-      setIsLoading(true); // Keep loading true while processing internally
-      setTimeout(async () => {
-        try {
-          const llmProvider = localStorage.getItem('llmProvider');
-          const llmModel = localStorage.getItem('llmModel');
-          const llmApiKeyName = localStorage.getItem('llmApiKeyName');
-          const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
-          const agentScriptsPath = localStorage.getItem('agentScriptsPath'); // Get agent scripts path
-          // Send an internal message to continue processing
-          const internalResponse = await api.post("/agent/chat", {
-            thread_id: data.thread_id,
-            message: "INTERNAL_CONTINUE_PROCESSING", // Special internal message
-            workspace_path: currentWorkspacePath,
-            agent_scripts_path: agentScriptsPath, // Add to payload
-            token: token,
-            llm_provider: llmProvider,
-            llm_model: llmModel,
-            llm_api_key_name: llmApiKeyName,
-            llm_api_key_value: llmApiKeyValue,
-          });
-          // Process the internal response recursively
-          processAgentResponse(internalResponse.data, originalMessageText, approvedToolCall);
-        } catch (internalError: any) {
-          console.error("Agent internal processing error:", internalError);
-          showNotification("Failed to continue agent processing.", "error");
-          setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: "Sorry, I couldn't continue processing." }]);
-          setIsLoading(false);
-        }
-      }, 500); // Re-send after 500ms
-    } else {
-      showNotification(data.message || "An unknown error occurred with the agent.", "error");
-      setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: "Sorry, I encountered an error." }]);
-      setIsLoading(false);
-    }
-  }, [setMessages, setThreadId, setIsAwaitingApproval, setPendingToolCall, showNotification, currentWorkspacePath, token, setActiveScriptSource, selectedScript, userEditedScriptParameters, setSelectedScript]); // Add setSelectedScript to dependencies
-
-  const sendMessage = useCallback(async (messageText: string, approvedToolCall: boolean = false) => {
-    if (!messageText.trim() && !approvedToolCall) return;
-
-    if (!token) {
-      showNotification("You must be logged in to chat with the agent.", "error");
-      return;
-    }
-
-    if (!approvedToolCall) { // Only add user message if it's not an internal approval message
-      setMessages((prev: Message[]) => [...prev, { sender: 'user', text: messageText }]);
-    }
-    setInput('');
+  const invokeAgent = useCallback(async (newMessages: Message[]) => {
     setIsLoading(true);
+    
+    // Optimistically add the user's message to the UI for responsiveness
+    if (newMessages.some(m => m.type === 'human')) {
+        setMessages(prev => [...prev, ...newMessages]);
+        setInput('');
+    }
 
     try {
       const llmProvider = localStorage.getItem('llmProvider');
@@ -191,188 +104,249 @@ export const AgentView: React.FC = () => {
       const llmApiKeyName = localStorage.getItem('llmApiKeyName');
       const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
 
-      const chatPayload: ChatPayload = {
+      const response = await api.post("/agent/invoke", {
         thread_id: threadId,
-        workspace_path: currentWorkspacePath,
-        agent_scripts_path: toolLibraryPath, // Use toolLibraryPath from context
-        token: token,
+        messages: newMessages,
+        workspace_path: activeScriptSource?.type !== 'published' ? activeScriptSource?.path || "" : "",
+        agent_scripts_path: toolLibraryPath,
+        token: cloudToken,
         llm_provider: llmProvider,
         llm_model: llmModel,
         llm_api_key_name: llmApiKeyName,
         llm_api_key_value: llmApiKeyValue,
-      };
-
-      if (!approvedToolCall) {
-        chatPayload.message = messageText;
-      }
+      });
       
-      const response = await api.post("/agent/chat", chatPayload);
-      processAgentResponse(response.data, messageText, approvedToolCall);
+      // The API now returns only the new, user-facing messages. We append them.
+      if (response.data.new_messages) {
+        console.log("AgentView: Received new_messages from backend:", response.data.new_messages);
+        setMessages(prev => [...prev, ...response.data.new_messages]);
+
+        // --- Handle HITL for get_ui_parameters_tool ---
+        const lastNewMessage = response.data.new_messages[response.data.new_messages.length - 1];
+        console.log("AgentView: lastNewMessage:", lastNewMessage);
+        if (lastNewMessage && lastNewMessage.type === 'ai') {
+            // Check for tool calls that require UI interaction or state update
+            if (lastNewMessage.tool_calls) {
+                // Handle select_script_tool call
+                const selectScriptToolCall = lastNewMessage.tool_calls.find((tc: ToolCall) => tc.name === 'select_script_tool');
+                if (selectScriptToolCall) {
+                    console.log("AgentView: Detected select_script_tool call:", selectScriptToolCall);
+                    const scriptName = selectScriptToolCall.args.script_name;
+                    console.log("AgentView: Script name from tool call:", scriptName);
+                    console.log("AgentView: All scripts from ScriptProvider:", allScriptsFromScriptProvider);
+                    const selected = allScriptsFromScriptProvider.find(s => s.name === scriptName);
+                    console.log("AgentView: Found script in provider:", selected);
+                    if (selected) {
+                        setSelectedScript(selected, 'agent');
+                        console.log(`AgentView: setSelectedScript called with:`, selected, 'agent');
+                        console.log(`Agent selected script via tool call: ${scriptName}. UI updated.`);
+                    } else {
+                        console.warn(`AgentView: Script with name "${scriptName}" not found for selection via tool call.`);
+                    }
+                }
+
+                // Handle get_ui_parameters_tool call
+                const getUiParamsToolCall = lastNewMessage.tool_calls.find((tc: ToolCall) => tc.name === 'get_ui_parameters_tool');
+                if (getUiParamsToolCall) {
+                    console.log("Agent requested UI parameters. Retrieving from UI...");
+                    const currentParams = (selectedScript && userEditedScriptParameters[selectedScript.id]) || [];
+                    
+                    const toolMessageContent = {
+                        user_decision: "auto_approve",
+                        parameters: currentParams,
+                    };
+                    const toolResponse: Message = {
+                        type: 'tool',
+                        content: JSON.stringify(toolMessageContent),
+                        tool_call_id: getUiParamsToolCall.id,
+                    };
+                    invokeAgent([toolResponse]);
+                    return;
+                }
+            }
+        }
+        // --- End HITL for get_ui_parameters_tool ---
+      }
+      if (response.data.thread_id) {
+        setThreadId(response.data.thread_id);
+      }
+
     } catch (error) {
-      console.error("Agent chat error:", error);
+      console.error("Agent invoke error:", error);
       showNotification("Failed to communicate with the agent.", "error");
-      setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: "Sorry, I couldn't connect to the agent." }]);
+      setMessages(prev => [...prev, { type: 'ai', content: "Sorry, I couldn't connect to the agent.", id: `error-${Date.now()}` }]);
+    } finally {
       setIsLoading(false);
     }
-  }, [token, currentWorkspacePath, threadId, setMessages, showNotification, processAgentResponse]); // Add dependencies
+  }, [threadId, activeScriptSource, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, allScriptsFromScriptProvider, setSelectedScript]);
 
-  const handleApproveToolCall = useCallback(async () => {
-    if (threadId && pendingToolCall) {
-      setIsAwaitingApproval(false);
-      setPendingToolCall(null);
-      
-      if (!token) {
-        showNotification("You must be logged in to chat with the agent.", "error");
-        return;
-      }
+  const sendMessage = (messageText: string) => {
+    if (!messageText.trim()) return;
+    const newMessage: Message = { type: 'human', content: messageText, id: `user-${Date.now()}` };
+    invokeAgent([newMessage]);
+  };
 
-      try {
-        const llmProvider = localStorage.getItem('llmProvider');
-        const llmModel = localStorage.getItem('llmModel');
-        const llmApiKeyName = localStorage.getItem('llmApiKeyName');
-        const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
+  const handleToolResponse = (toolCallId: string, userDecision: 'approve' | 'reject', parameters?: any) => {
+    const toolMessageContent = {
+      user_decision: userDecision,
+      parameters: parameters || {},
+    };
+    const newMessage: Message = {
+      type: 'tool',
+      content: JSON.stringify(toolMessageContent),
+      tool_call_id: toolCallId,
+    };
+    invokeAgent([newMessage]);
+  };
 
-        const resumeResponse = await api.post("/agent/resume", {
-          thread_id: threadId,
-          token: token,
-          workspace_path: currentWorkspacePath, // Add this
-          agent_scripts_path: toolLibraryPath, // Use toolLibraryPath from context
-          llm_provider: llmProvider,
-          llm_model: llmModel,
-          llm_api_key_name: llmApiKeyName,
-          llm_api_key_value: llmApiKeyValue,
-        });
-        processAgentResponse(resumeResponse.data, "Tool call approved.", true);
-      } catch (error) {
-        console.error("Agent resume error:", error);
-        showNotification("Failed to resume agent execution.", "error");
-        setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: "Sorry, I couldn't resume processing." }]);
-        setIsLoading(false);
-      }
-    }
-  }, [threadId, pendingToolCall, token, setMessages, setIsAwaitingApproval, setPendingToolCall, showNotification, processAgentResponse, currentWorkspacePath]); // Add dependencies
-
-  const handleRejectToolCall = useCallback(() => {
-    setIsAwaitingApproval(false);
-    setPendingToolCall(null);
-    setMessages((prev: Message[]) => [...prev, { sender: 'agent', text: "Tool call rejected by user." }]);
-    showNotification("Tool call rejected.", "info");
-  }, [setMessages, setIsAwaitingApproval, setPendingToolCall, showNotification]); // Add dependencies
 
   const handleClearChat = useCallback(() => {
-    setMessages([{ sender: 'agent', text: 'Hello, How can I help you today?' }]);
+    setMessages([]); // Set to an empty array
     setThreadId(null);
-    setIsAwaitingApproval(false);
-    setPendingToolCall(null);
     setInput('');
     setIsClearChatModalOpen(false);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_MESSAGES);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
     showNotification('Chat history cleared.', 'info');
-  }, [
-    setMessages,
-    setThreadId,
-    setIsAwaitingApproval,
-    setPendingToolCall,
-    setInput,
-    setIsClearChatModalOpen,
-    showNotification,
-  ]);
+  }, [setMessages, setThreadId]);
 
-  const formatAgentMessage = (text: string | Array<{ type: 'text'; text: string; extras?: any }> | undefined) => {
-    if (!text) {
-      return "";
+  // --- Derived State for Rendering ---
+
+  const { activePendingToolCall, resolvedToolCallIds } = useMemo<{ activePendingToolCall: ToolCall | null; resolvedToolCallIds: Set<string> }>(() => {
+    const resolvedIds = new Set<string>();
+    messages.forEach(msg => {
+      if (msg.type === 'tool' && msg.tool_call_id) {
+        resolvedIds.add(msg.tool_call_id);
+      }
+    });
+
+    let activeCall: ToolCall | null = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.type === 'ai' && msg.tool_calls && msg.tool_calls.length > 0) {
+        const unresolvedCall = msg.tool_calls.find((tc: ToolCall) => !resolvedIds.has(tc.id));
+        if (unresolvedCall) {
+          activeCall = unresolvedCall;
+          break;
+        }
+      }
     }
-    let processedText: string;
-    if (Array.isArray(text)) {
-      // Concatenate text from all objects in the array
-      processedText = text.map(item => item.text).join('\n');
-    } else {
-      processedText = text;
+    return { activePendingToolCall: activeCall, resolvedToolCallIds: resolvedIds };
+  }, [messages]);
+
+  // --- Rendering ---
+
+  const renderMessageContent = (msg: any) => {
+    if (msg.tool_calls && msg.tool_calls.length > 0) {
+      const toolCall = msg.tool_calls[0];
+      const isPending = activePendingToolCall?.id === toolCall.id;
+      return (
+        <div>
+          <p className="font-semibold">Tool Call Request:</p>
+          <p><strong>Name:</strong> {toolCall.name}</p>
+          <p><strong>Arguments:</strong> {JSON.stringify(toolCall.args, null, 2)}</p>
+          {isPending && (
+            <div className="flex space-x-2 mt-2">
+              <button
+                onClick={() => handleToolResponse(toolCall.id, 'approve')}
+                className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+                disabled={isLoading}
+              >
+                <FontAwesomeIcon icon={faCheckCircle} className="mr-1" /> Approve
+              </button>
+              <button
+                onClick={() => handleToolResponse(toolCall.id, 'reject')}
+                className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm"
+                disabled={isLoading}
+              >
+                <FontAwesomeIcon icon={faTimesCircle} className="mr-1" /> Reject
+              </button>
+            </div>
+          )}
+        </div>
+      );
     }
-    // Remove trailing asterisks from words
-    processedText = processedText.replace(/(\w+)\*\s*/g, '$1 ');
-    // Replace leading asterisk or dash list items with bullet points
-    processedText = processedText.replace(/^[\*\- ]+/gm, '• ');
-    // Remove apostrophes
-    processedText = processedText.replace(/'/g, '');
-    // Remove tilde marks
-    processedText = processedText.replace(/~/g, '');
-    return processedText;
+
+    // Handle complex content structures from LangChain
+    let contentToRender = '';
+    if (typeof msg.content === 'string') {
+      contentToRender = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      // It's an array of content blocks
+      contentToRender = msg.content
+        .map((item: any) => (typeof item === 'object' && item.text ? item.text : ''))
+        .join('\n');
+    } else if (typeof msg.content === 'object' && msg.content !== null) {
+      // It's a single content block object
+      contentToRender = msg.content.text || '';
+    }
+
+    return <p className="whitespace-pre-wrap leading-tight">{contentToRender}</p>;
   };
 
   return (
-    <div className="flex flex-col h-full"> {/* Use h-full here for chat scrolling */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
-        <div className="absolute top-4 right-4 flex space-x-2">
+    <div className="flex flex-col h-full">
+      {/* Static Header */}
+      <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Hello, How can I help you today?</p>
+        <div className="flex space-x-2">
           <button
-            onClick={handleRefreshManifest}
+            onClick={fetchScriptManifest}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             title="Refresh Agent Script Manifest"
-            disabled={isLoading || isAwaitingApproval}
+            disabled={isLoading}
           >
-            <FontAwesomeIcon icon={faSpinner} />
+            <FontAwesomeIcon icon={faSyncAlt} />
           </button>
           <button
             onClick={() => setIsClearChatModalOpen(true)}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             title="Clear Chat History"
-            disabled={isLoading || isAwaitingApproval}
+            disabled={isLoading}
           >
             <FontAwesomeIcon icon={faTrash} />
           </button>
         </div>
+      </div>
 
-        {messages.map((msg: Message, index: number) => (
-          <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex items-start max-w-xs lg:max-w-md ${msg.sender === 'user' ? 'flex-row-reverse space-x-2 space-x-reverse' : 'space-x-2'}`}>
-              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>
-                <FontAwesomeIcon icon={msg.sender === 'user' ? faUser : faRobot} />
-              </div>
-              <div className={`p-3 rounded-lg shadow-md ${msg.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>
-                {msg.toolCall ? (
-                  <div>
-                    <p className="font-semibold">Tool Call Request:</p>
-                    <p><strong>Name:</strong> {msg.toolCall?.name}</p>
-                    <p><strong>Arguments:</strong> {JSON.stringify(msg.toolCall?.arguments, null, 2)}</p>
-                    {isAwaitingApproval && pendingToolCall?.name === msg.toolCall.name && (
-                      <div className="flex space-x-2 mt-2">
-                        <button
-                          onClick={handleApproveToolCall}
-                          className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
-                          disabled={isLoading}
-                        >
-                          <FontAwesomeIcon icon={faCheckCircle} className="mr-1" /> Approve
-                        </button>
-                        <button
-                          onClick={handleRejectToolCall}
-                          className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm"
-                          disabled={isLoading}
-                        >
-                          <FontAwesomeIcon icon={faTimesCircle} className="mr-1" /> Reject
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="whitespace-pre-wrap leading-tight">{formatAgentMessage(msg.text)}</p>
-                )}
+      {/* Scrollable Chat History */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Messages */}
+        {messages.map((msg: any, index: number) => {
+          const sender = msg.type === 'human' ? 'user' : 'agent';
+          // We don't render tool messages directly
+          if (msg.type === 'tool') return null;
+
+          return (
+            <div key={index} className={`flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex items-start max-w-xs lg:max-w-md ${sender === 'user' ? 'flex-row-reverse space-x-2 space-x-reverse' : 'space-x-2'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                  <FontAwesomeIcon icon={sender === 'user' ? faUser : faRobot} />
+                </div>
+                <div className={`p-3 rounded-lg shadow-md ${sender === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-700'}`}>
+                  {renderMessageContent(msg)}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+
         {isLoading && (
           <div className="flex justify-start">
-            <div className={`flex items-start space-x-2`}>
-              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+            <div className="flex items-start space-x-2">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-300 dark:bg-gray-700">
                 <FontAwesomeIcon icon={faRobot} />
               </div>
-              <div className="p-3 rounded-lg shadow-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />Thinking...
+              <div className="p-3 rounded-lg shadow-md bg-white dark:bg-gray-700">
+                <FontAwesomeIcon icon={faSpinner} spin /> Thinking...
               </div>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Input Form */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex space-x-2">
           <input
@@ -380,41 +354,26 @@ export const AgentView: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading || isAwaitingApproval}
+            className="flex-1 p-2 border rounded-md bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isLoading}
           />
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading || isAwaitingApproval}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            disabled={isLoading}
           >
             <FontAwesomeIcon icon={faPaperPlane} />
           </button>
         </form>
       </div>
-      <Modal
-        isOpen={isClearChatModalOpen}
-        onClose={() => setIsClearChatModalOpen(false)}
-        title="Clear Chat History"
-        size="sm"
-      >
+
+      {/* Clear Chat Modal */}
+      <Modal isOpen={isClearChatModalOpen} onClose={() => setIsClearChatModalOpen(false)} title="Clear Chat History">
         <div className="p-4 text-center">
-          <p className="text-gray-700 dark:text-gray-300 mb-4">
-            Are you sure you want to clear the entire chat history?
-          </p>
+          <p className="mb-4">Are you sure you want to clear the entire chat history?</p>
           <div className="flex justify-center space-x-4">
-            <button
-              onClick={() => setIsClearChatModalOpen(false)}
-              className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleClearChat}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-            >
-              Clear Chat
-            </button>
+            <button onClick={() => setIsClearChatModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancel</button>
+            <button onClick={handleClearChat} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Clear Chat</button>
           </div>
         </div>
       </Modal>

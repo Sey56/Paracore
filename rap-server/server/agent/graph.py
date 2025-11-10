@@ -1,8 +1,8 @@
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import AIMessage
-from .state import AgentState
-from .nodes import agent_node, tool_node, human_in_the_loop_node, get_ui_parameters_node
+from agent.state import AgentState
+from agent.nodes import agent_node, tool_node, human_in_the_loop_node, get_ui_parameters_node
 
 # --- 1. Wire up the Graph ---
 graph_builder = StateGraph(AgentState)

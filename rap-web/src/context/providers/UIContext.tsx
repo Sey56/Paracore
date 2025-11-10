@@ -8,19 +8,21 @@ export type ActiveScriptSource =
   | { type: 'published'; id: string }
   | null;
 
-export type Message = {
-  sender: 'user' | 'agent';
-  text?: string | Array<{ type: 'text'; text: string; extras?: any }>; // Updated to handle array content
-  toolCall?: ToolCall;
-  toolResponse?: any; // Adjust as needed
-  additional_kwargs?: { [key:string]: any }; // Added for agent messages
+export type ToolCall = {
+  name: string;
+  args: { [key: string]: any };
+  id: string;
 };
 
-export type ToolCall = {
-  id?: string; // Making id optional as it's not present in the provided backend output
-  name: string;
-  arguments: { [key: string]: any };
+// This defines the shape of messages coming directly from the LangGraph state
+export type Message = {
+  type: 'human' | 'ai' | 'tool';
+  content: string;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+  id?: string; // Langchain message ID
 };
+
 
 export interface UIContextProps {
   // Sidebar
@@ -70,10 +72,6 @@ export interface UIContextProps {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   threadId: string | null;
   setThreadId: React.Dispatch<React.SetStateAction<string | null>>;
-  isAwaitingApproval: boolean;
-  setIsAwaitingApproval: React.Dispatch<React.SetStateAction<boolean>>;
-  pendingToolCall: ToolCall | null;
-  setPendingToolCall: React.Dispatch<React.SetStateAction<ToolCall | null>>;
 
   // Main View Toggle
   activeMainView: 'scripts' | 'agent';

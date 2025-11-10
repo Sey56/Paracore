@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from . import corescript_pb2 as corescript__pb2
+import corescript_pb2 as corescript__pb2
 
 GRPC_GENERATED_VERSION = '1.76.0'
 GRPC_VERSION = grpc.__version__
