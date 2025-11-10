@@ -104,9 +104,13 @@ export const AgentView: React.FC = () => {
       const llmApiKeyName = localStorage.getItem('llmApiKeyName');
       const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
 
-      const response = await api.post("/agent/invoke", {
+      // Extract the last human message content
+      const lastHumanMessage = newMessages.findLast(m => m.type === 'human');
+      const messageContent = lastHumanMessage ? lastHumanMessage.content : '';
+
+      const response = await api.post("/agent/chat", {
         thread_id: threadId,
-        messages: newMessages,
+        message: messageContent, // Send a single string message
         workspace_path: activeScriptSource?.type !== 'published' ? activeScriptSource?.path || "" : "",
         agent_scripts_path: toolLibraryPath,
         token: cloudToken,
@@ -116,59 +120,54 @@ export const AgentView: React.FC = () => {
         llm_api_key_value: llmApiKeyValue,
       });
       
-      // The API now returns only the new, user-facing messages. We append them.
-      if (response.data.new_messages) {
-        console.log("AgentView: Received new_messages from backend:", response.data.new_messages);
-        setMessages(prev => [...prev, ...response.data.new_messages]);
-
-        // --- Handle HITL for get_ui_parameters_tool ---
-        const lastNewMessage = response.data.new_messages[response.data.new_messages.length - 1];
-        console.log("AgentView: lastNewMessage:", lastNewMessage);
-        if (lastNewMessage && lastNewMessage.type === 'ai') {
-            // Check for tool calls that require UI interaction or state update
-            if (lastNewMessage.tool_calls) {
-                // Handle select_script_tool call
-                const selectScriptToolCall = lastNewMessage.tool_calls.find((tc: ToolCall) => tc.name === 'select_script_tool');
-                if (selectScriptToolCall) {
-                    console.log("AgentView: Detected select_script_tool call:", selectScriptToolCall);
-                    const scriptName = selectScriptToolCall.args.script_name;
-                    console.log("AgentView: Script name from tool call:", scriptName);
-                    console.log("AgentView: All scripts from ScriptProvider:", allScriptsFromScriptProvider);
-                    const selected = allScriptsFromScriptProvider.find(s => s.name === scriptName);
-                    console.log("AgentView: Found script in provider:", selected);
-                    if (selected) {
-                        setSelectedScript(selected, 'agent');
-                        console.log(`AgentView: setSelectedScript called with:`, selected, 'agent');
-                        console.log(`Agent selected script via tool call: ${scriptName}. UI updated.`);
-                    } else {
-                        console.warn(`AgentView: Script with name "${scriptName}" not found for selection via tool call.`);
-                    }
-                }
-
-                // Handle get_ui_parameters_tool call
-                const getUiParamsToolCall = lastNewMessage.tool_calls.find((tc: ToolCall) => tc.name === 'get_ui_parameters_tool');
-                if (getUiParamsToolCall) {
-                    console.log("Agent requested UI parameters. Retrieving from UI...");
-                    const currentParams = (selectedScript && userEditedScriptParameters[selectedScript.id]) || [];
-                    
-                    const toolMessageContent = {
-                        user_decision: "auto_approve",
-                        parameters: currentParams,
-                    };
-                    const toolResponse: Message = {
-                        type: 'tool',
-                        content: JSON.stringify(toolMessageContent),
-                        tool_call_id: getUiParamsToolCall.id,
-                    };
-                    invokeAgent([toolResponse]);
-                    return;
-                }
-            }
-        }
-        // --- End HITL for get_ui_parameters_tool ---
-      }
+      // After any response, update the threadId if the backend provides one
       if (response.data.thread_id) {
         setThreadId(response.data.thread_id);
+      }
+
+      // The API now returns only the new, user-facing messages. We append them.
+      if (response.data.status === 'complete' && response.data.message) {
+        console.log("AgentView: Received complete message from backend:", response.data.message);
+        const agentMessage: Message = { type: 'ai', content: response.data.message, id: `ai-${Date.now()}` };
+        setMessages(prev => [...prev, agentMessage]);
+
+        // --- Handle tool_call for set_active_script_source_tool if present ---
+        if (response.data.tool_call && response.data.tool_call.name === 'set_active_script_source_tool') {
+            const scriptInfo = response.data.tool_call.arguments;
+            console.log("AgentView: Detected set_active_script_source_tool call:", scriptInfo);
+            // Simulate a script object for setSelectedScript
+            const selected = {
+                id: scriptInfo.absolutePath, // Use absolutePath as ID
+                name: scriptInfo.absolutePath.split('/').pop(), // Extract name from path
+                type: scriptInfo.type,
+                absolutePath: scriptInfo.absolutePath,
+                sourcePath: scriptInfo.absolutePath,
+                metadata: {}, // Metadata will be fetched by ScriptExecutionProvider
+            };
+            setSelectedScript(selected, 'agent');
+            setActiveInspectorTab('metadata'); // Switch to metadata tab
+            showNotification(`Agent selected script: ${selected.name}.`, 'info');
+        }
+      } else if (response.data.status === 'interrupted' && response.data.tool_call) {
+        console.log("AgentView: Received interrupted status with tool_call:", response.data.tool_call);
+        const toolCallMessage: Message = {
+            type: 'ai',
+            content: `Agent requested tool: ${response.data.tool_call.name}`,
+            id: `ai-tool-${Date.now()}`,
+            tool_calls: [{
+                id: `tool-call-${Date.now()}`, // Generate a unique ID for the frontend
+                name: response.data.tool_call.name,
+                args: response.data.tool_call.arguments,
+                type: 'tool_call'
+            }]
+        };
+        setMessages(prev => [...prev, toolCallMessage]);
+      } else if (response.data.status === 'processing_internal') {
+        console.log("AgentView: Backend is processing internally. No new user-facing message.");
+        // Do nothing, the agent will send a new message when it's ready for user interaction
+      } else {
+        console.warn("AgentView: Received unexpected response data:", response.data);
+        showNotification("Received unexpected response from agent.", "warning");
       }
 
     } catch (error) {

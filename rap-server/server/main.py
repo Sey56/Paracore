@@ -18,8 +18,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from database_config import Base, engine
-from api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router
+
+from api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router, manifest_router
+
 from agent import agent_router
+
 import models  # Ensure models are imported so that they are registered with SQLAlchemy
 
 from config import settings
@@ -60,6 +63,7 @@ app.include_router(workspace_router.router)
 app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
 app.include_router(agent_router.router)
+app.include_router(manifest_router.router, prefix="/api")
 
 @app.get("/")
 def read_root():

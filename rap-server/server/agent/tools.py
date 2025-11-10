@@ -1,32 +1,30 @@
 from langchain_core.tools import tool
 
 @tool
-def run_script_by_name(script_name: str, parameters: dict = {}) -> str:
+def run_script_by_name(script_name: str, is_final_approval: bool = False) -> str:
     """Executes a script in Revit by its name.
     - Use this tool to run any script requested by the user.
     - You must provide the exact name of the script.
+    - `is_final_approval` should be set to `True` when the user has given final confirmation to execute the script.
     """
     # The actual implementation is orchestrated by the custom tool_node in the graph.
     # This function is just a definition for the LLM.
     pass
 
 @tool
-def get_script_parameters_tool(script_name: str, script_type: str) -> str:
-    """Retrieves the parameters for a specific script by its name and type.
-    - Use this tool to understand what inputs a script requires before running it.
-    - Provide the exact name of the script and its type ('single-file' or 'multi-file').
-    """
+def list_available_scripts(agent_scripts_path: str) -> str:
+    """Lists all available scripts in the current workspace by fetching the script manifest."""
     # The actual implementation is orchestrated by the custom tool_node in the graph.
     # This function is just a definition for the LLM.
     pass
 
 @tool
-def list_available_scripts() -> str:
-    """Lists all available automation scripts that can be run in Revit.
-    - Use this tool to discover what scripts are available.
-    - The tool returns a detailed manifest containing a list of scripts, each with metadata like name, description, categories, and usage examples.
+def select_script_tool(script_name: str) -> str:
+    """Selects a script by its name for further parameter inspection or execution.
+    - Use this tool after the user has confirmed which script they want to use from a list of identified scripts.
+    - Provide the exact name of the script to be selected.
     """
-    # The actual implementation is orchestrated by the custom tool_node in the graph.
+    # The actual implementation is orchestrated by the custom select_script_node in the graph.
     # This function is just a definition for the LLM.
     pass
 
@@ -38,17 +36,4 @@ def get_ui_parameters_tool() -> str:
     # This tool is handled by the frontend; the agent will pause and wait for the result.
     pass
 
-@tool
-def select_script_tool(script_name: str) -> str:
-    """Informs the UI that a specific script has been selected by the agent.
-    - Use this tool after the user has confirmed their choice of script.
-    - This will update the UI's Script Inspector to show the parameters for the selected script.
-    - You must provide the exact name of the script to be selected.
-    """
-    # This tool is handled by the frontend; the agent will process this call to update the UI.
-    pass
-
-tools = [run_script_by_name, get_script_parameters_tool, list_available_scripts, get_ui_parameters_tool, select_script_tool]
-tools_by_name = {tool.name: tool for tool in tools}
-
-
+tools = [run_script_by_name, list_available_scripts, select_script_tool, get_ui_parameters_tool]

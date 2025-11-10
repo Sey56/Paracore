@@ -128,3 +128,12 @@ def create_and_open_workspace(script_path, script_type):
         "workspace_path": response.workspace_path,
         "error_message": response.error_message
     }
+
+def get_script_manifest(script_path: str) -> str:
+    """
+    Calls the gRPC service to get a JSON manifest of scripts from a given path.
+    """
+    with get_rscript_runner_stub() as stub:
+        request = corescript_pb2.GetScriptManifestRequest(script_path=script_path)
+        response = stub.GetScriptManifest(request)
+        return response.manifest_json
