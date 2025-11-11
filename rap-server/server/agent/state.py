@@ -1,18 +1,16 @@
-from langchain_core.messages import BaseMessage
 from typing_extensions import TypedDict, Annotated, Literal
-import os
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import BaseMessage
 
-# --- 1. Define Agent State ---
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], lambda x, y: x + y] # Conversation history (HumanMessage, AIMessage, ToolMessage)
-    workspace_path: str # User's active workspace path
-    user_token: str # User's authentication token
-    llm_provider: str | None
-    llm_model: str | None
-    llm_api_key_name: str | None
-    llm_api_key_value: str | None
-    agent_scripts_path: str | None # Path to the agent's dedicated script workspace (toolbox)
+    
+    # --- Configuration from Frontend (Passed via ChatRequest) ---
+    user_token: str # User's authentication token (for API calls)
+    llm_provider: str | None # e.g., "google"
+    llm_model: str | None # e.g., "gemini-2.0-flash"
+    llm_api_key_name: str | None # e.g., "GOOGLE_API_KEY"
+    llm_api_key_value: str | None # The actual API key value
+    agent_scripts_path: str | None # Path to the agent's dedicated script workspace (tools_library path)
 
     # --- State for User Intent & Script Discovery Workflow ---
     current_task_description: str | None # User's initial task request (e.g., "create a wall")
@@ -24,6 +22,7 @@ class AgentState(TypedDict):
 
     # --- State for Parameter Management Workflow ---
     user_provided_param_modifications: dict | None # User's requested changes to parameters (e.g., {"levelName": "Level 2"})
+    script_parameters_definitions: list[dict] | None # Definitions of parameters for the selected script (name, type, defaultValueJson, etc.)
     final_parameters_for_execution: list[dict] | None # Merged and validated parameters ready for execution (from sync_params_node)
 
     # --- State for Execution Workflow ---
@@ -42,41 +41,3 @@ class AgentState(TypedDict):
         "greeting", # For simple greetings
         None # No specific conversational action pending
     ]
-
-def _get_llm(state: AgentState):
-    llm_provider = state.get("llm_provider")
-    llm_model = state.get("llm_model")
-    llm_api_key_name = state.get("llm_api_key_name")
-    llm_api_key_value = state.get("llm_api_key_value")
-
-    # Default to Google if no provider is specified
-    if not llm_provider:
-        llm_provider = "Google"
-
-    # Determine the API key
-    api_key = llm_api_key_value or os.getenv(llm_api_key_name or "GOOGLE_API_KEY")
-    if not api_key:
-        raise ValueError(f"API key not found. Please provide it directly or set the '{llm_api_key_name or 'GOOGLE_API_KEY'}' environment variable.")
-
-    if not llm_model:
-        raise ValueError("LLM model not specified in AgentState. Please provide a model name.")
-
-    # For now, we only have the Google client, but we'll use the model from the state
-    # This can be expanded with a factory function for different providers
-    if llm_provider == "Google":
-        return ChatGoogleGenerativeAI(
-            model=llm_model,
-            api_key=api_key,
-            convert_system_message_to_human=True,
-            max_retries=0 # Disable retries on API errors
-        )
-    else:
-        # Fallback for other providers, assuming a compatible API for now.
-        # This removes the hardcoded model and API key name.
-        print(f"Warning: LLM provider '{llm_provider}' is not officially supported. Using Google's client as a fallback.")
-        return ChatGoogleGenerativeAI(
-            model=llm_model,
-            api_key=api_key,
-            convert_system_message_to_human=True,
-            max_retries=0 # Disable retries on API errors
-        )

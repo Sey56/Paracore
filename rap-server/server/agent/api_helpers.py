@@ -1,49 +1,51 @@
-import requests
+import os
 import json
+import logging
 
-API_BASE_URL = "http://127.0.0.1:8000"
+# Configure logging for this module
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO) # Set desired logging level
 
-def list_scripts_in_workspace(workspace_path: str) -> list:
-    """Calls the /api/scripts endpoint to get a list of scripts."""
-    if not workspace_path:
+def read_local_script_manifest(agent_scripts_path: str) -> list[dict]:
+    """
+    Reads and parses the local manifest.json file from the specified agent_scripts_path.
+    The manifest.json is assumed to be a list of dictionaries, where each dictionary
+    represents a script's metadata.
+    """
+    manifest_file_path = os.path.join(agent_scripts_path, "manifest.json")
+    
+    logger.info(f"Attempting to read manifest from: {manifest_file_path}")
+
+    if not os.path.exists(agent_scripts_path):
+        logger.error(f"Agent scripts path does not exist: {agent_scripts_path}")
         return []
+
+    # List contents of the directory for debugging
     try:
-        response = requests.get(f"{API_BASE_URL}/api/scripts", params={"folderPath": workspace_path})
-        response.raise_for_status() # Raise an exception for bad status codes
-        return response.json()
+        dir_contents = os.listdir(agent_scripts_path)
+        logger.info(f"Contents of '{agent_scripts_path}': {dir_contents}")
     except Exception as e:
-        return []
+        logger.error(f"Could not list contents of '{agent_scripts_path}': {e}")
 
-def run_script_from_server(script_path: str, script_type: str, parameters: dict, user_token: str) -> dict:
-    """Calls the /run-script endpoint to execute a script."""
+    if not os.path.exists(manifest_file_path):
+        logger.warning(f"Manifest file not found at: {manifest_file_path}")
+        return []
+    
     try:
-        payload = {
-            "path": script_path,
-            "type": script_type,
-            "parameters": json.dumps(parameters) if parameters else None
-        }
-        headers = {"Authorization": f"Bearer {user_token}"}
+        with open(manifest_file_path, 'r', encoding='utf-8') as f:
+            manifest_content = json.load(f)
         
-        response = requests.post(f"http://127.0.0.1:8000/run-script", json=payload, headers=headers)
-        response.raise_for_status() # Raise an exception for bad status codes
-        return response.json()
+        if not isinstance(manifest_content, list):
+            logger.error(f"Manifest file content is not a list: {manifest_file_path}")
+            return []
+            
+        return manifest_content
+    except FileNotFoundError:
+        logger.warning(f"Manifest file not found at: {manifest_file_path}")
+        return []
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding manifest.json at {manifest_file_path}: {e}")
+        return []
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"error": str(e)}
-
-def get_script_parameters_from_server(script_path: str, script_type: str, user_token: str) -> dict:
-    """Calls the /api/get-script-parameters endpoint to get a script's parameter definitions."""
-    try:
-        payload = {
-            "scriptPath": script_path,
-            "type": script_type
-        }
-        headers = {"Authorization": f"Bearer {user_token}"}
-
-        response = requests.post(f"{API_BASE_URL}/api/get-script-parameters", json=payload, headers=headers)
-        response.raise_for_status() # Raise an exception for bad status codes
-        return response.json()
-    except Exception as e:
-        return {"error": str(e)}
-
+        logger.error(f"An unexpected error occurred while reading manifest at {manifest_file_path}: {e}")
+        return []

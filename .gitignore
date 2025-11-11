@@ -81,6 +81,7 @@ rap-web/src-tauri/gen/
 rap-web/src-tauri/server-release/
 
 # Untracked files
+manifest.json
 package-lock.json
 paracore-help/
 
@@ -90,3 +91,7 @@ installer_staging/
 installers/
 rap-web/analyse.html
 RAssistant/
+frontend-console-log.txt
+rap-server/server/temp-agent/
+temp-agent.tar
+

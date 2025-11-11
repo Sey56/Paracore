@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Body, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 import uuid
@@ -7,31 +8,26 @@ import json
 import traceback
 
 from .graph import app
-
-from auth import get_current_user, CurrentUser
+from .state import AgentState # Import AgentState
 
 router = APIRouter()
+
+# Add this helper function (copied from previous version)
+def serialize_message(message):
+    if isinstance(message, (HumanMessage, AIMessage, ToolMessage)):
+        # Langchain messages have a .dict() method for serialization
+        return message.dict()
+    return message
 
 class ChatRequest(BaseModel):
     thread_id: str | None = None
     message: str
-    workspace_path: str | None = None
-    agent_scripts_path: str | None = None # Add agent_scripts_path
-    token: str # Add token to the request
-    llm_provider: str | None = None
-    llm_model: str | None = None
-    llm_api_key_name: str | None = None
-    llm_api_key_value: str | None = None
-
-class ResumeRequest(BaseModel):
-    thread_id: str
-    token: str # Add token to the request
-    workspace_path: str | None = None # Add workspace_path
-    tool_result: str | None = None # Add tool_result for UI parameters
-    llm_provider: str | None = None
-    llm_model: str | None = None
-    llm_api_key_name: str | None = None
-    llm_api_key_value: str | None = None
+    token: str # Change from user_token to token
+    llm_provider: str | None
+    llm_model: str | None
+    llm_api_key_name: str | None
+    llm_api_key_value: str | None
+    agent_scripts_path: str | None # Path to the agent's dedicated script workspace (tools_library path)
 
 @router.post("/agent/chat")
 async def chat_with_agent(request: ChatRequest):
@@ -44,177 +40,120 @@ async def chat_with_agent(request: ChatRequest):
         current_state = app.get_state(config)
         is_new_thread = not current_state.values.get("messages")
 
-        # Prepare the state update, preserving existing identified_scripts_for_choice
+        # Prepare the state update
         state_update = {
+            "messages": [HumanMessage(content=request.message)],
             "user_token": request.token,
             "llm_provider": request.llm_provider,
             "llm_model": request.llm_model,
             "llm_api_key_name": request.llm_api_key_name,
             "llm_api_key_value": request.llm_api_key_value,
-            "agent_scripts_path": request.agent_scripts_path or ""
-        }
-        
-        if current_state.values.get("identified_scripts_for_choice"):
-            state_update["identified_scripts_for_choice"] = current_state.values.get("identified_scripts_for_choice")
-
-        # If it's a new thread, set the initial task description
-        if is_new_thread:
-            state_update["current_task_description"] = request.message
-            print(f"agent_router: New thread {thread_id}. Set current_task_description.")
-        # If not a new thread, carry over the identified scripts and selected script
-        elif current_state.values.get("identified_scripts_for_choice"):
-            state_update["identified_scripts_for_choice"] = current_state.values.get("identified_scripts_for_choice")
-            if current_state.values.get("selected_script_metadata"):
-                state_update["selected_script_metadata"] = current_state.values.get("selected_script_metadata")
-            print(f"agent_router: Continuing thread {thread_id}. Carrying over identified and selected scripts.")
-
+            "agent_scripts_path": request.agent_scripts_path
+        }        
         # Always update the state with the latest context from the request
         app.update_state(config, state_update)
 
         # Invoke the agent with the new message
-        if request.message == "INTERNAL_CONTINUE_PROCESSING":
-            input_message = None
-            final_response = await app.ainvoke(None, config=config)
-        else:
-            input_message = {"messages": [HumanMessage(content=request.message)]}
-            final_response = await app.ainvoke(input_message, config=config)
+        # For a new thread, we set current_task_description
+        if is_new_thread:
+            app.update_state(config, {"current_task_description": request.message})
+        
+        final_response = await app.ainvoke(input=state_update, config=config)
+
+        if not isinstance(final_response, dict):
+            print(f"agent_router: WARNING: app.ainvoke returned unexpected type: {type(final_response)}. Value: {final_response}")
+            raise ValueError(f"Agent invocation returned unexpected response type: {type(final_response)}")
+
+        # Create a serializable version of final_response for logging
+        serializable_final_response = final_response.copy()
+        if 'messages' in serializable_final_response and isinstance(serializable_final_response['messages'], list):
+            serializable_final_response['messages'] = [serialize_message(msg) for msg in serializable_final_response['messages']]
+
+        print(f"agent_router: app.ainvoke final_response: {json.dumps(serializable_final_response, indent=2)}")
 
         # The agent's response is the last message in the state
-        last_message = final_response.get('messages', [])[-1]
+        try:
+            last_message = final_response.get('messages', [])[-1]
+        except IndexError:
+            print(f"agent_router: WARNING: final_response['messages'] is empty. final_response: {json.dumps(serializable_final_response, indent=2)}")
+            raise ValueError("Agent invocation returned an empty message list.")
 
-        # After the agent has run, check if a script has been selected
+        # Get the final state to check for conversational actions or tool calls
         final_state = app.get_state(config)
-        if final_state.values.get("selected_script_metadata"):
-            script_info = final_state.values["selected_script_metadata"]
-            # Clear the flag to prevent re-triggering
-            app.update_state(config, {"selected_script_metadata": None})
-            
-            return {
+        next_conversational_action = final_state.values.get("next_conversational_action")
+
+        # --- Handle conversational responses ---
+        if isinstance(last_message, AIMessage) and not last_message.tool_calls:
+            # If the LLM generated a conversational message without tool calls
+            return Response(content=json.dumps({
                 "thread_id": thread_id,
                 "status": "complete",
                 "message": last_message.content,
+                "tool_call": None
+            }), media_type="application/json")
+        
+        # --- Handle tool calls ---
+        elif isinstance(last_message, AIMessage) and last_message.tool_calls:
+            tool_call = last_message.tool_calls[0] # Assuming one tool call per message for now
+            
+            # If it's list_available_scripts, we need to summarize the results
+            if tool_call["name"] == "list_available_scripts":
+                scripts_for_choice = final_state.values.get("identified_scripts_for_choice", [])
+                if scripts_for_choice:
+                    script_summary = "I found the following scripts:\n"
+                    for script in scripts_for_choice:
+                        script_summary += f"- **{script.get('name', 'Unknown')}**: {script.get('metadata', {}).get('description', 'No description available.')}\n"
+                    
+                    # Update the agent's state to indicate a conversational action is needed
+                    app.update_state(config, {"next_conversational_action": "ask_for_script_confirmation"})
+                    
+                    return Response(content=json.dumps({
+                        "thread_id": thread_id,
+                        "status": "complete",
+                        "message": script_summary,
+                        "tool_call": None
+                    }), media_type="application/json")
+                else:
+                    app.update_state(config, {"next_conversational_action": "handle_error"})
+                    return Response(content=json.dumps({
+                        "thread_id": thread_id,
+                        "status": "complete",
+                        "message": "I couldn't find any scripts in the specified path.",
+                        "tool_call": None
+                    }), media_type="application/json")
+            
+            # For any other tool call, it's an interruption for the frontend
+            return Response(content=json.dumps({
+                "thread_id": thread_id,
+                "status": "interrupted",
                 "tool_call": {
-                    "name": "set_active_script_source_tool",
-                    "arguments": {
-                        "absolutePath": script_info['absolutePath'],
-                        "type": script_info['type']
-                    }
+                    "name": tool_call["name"],
+                    "arguments": tool_call["args"]
                 }
-            }
+            }), media_type="application/json")
 
-        if isinstance(last_message, AIMessage) and last_message.tool_calls:
-            # The agent (LLM) decided to call a tool and is awaiting human approval
-            tool_call = last_message.tool_calls[0]
-            return {
-                "thread_id": thread_id,
-                "status": "interrupted",
-                "tool_call": {
-                    "name": tool_call["name"],
-                    "arguments": tool_call["args"]
-                }
-            }
-        elif isinstance(last_message, AIMessage):
-            # It's a final answer from the agent (LLM)
-            response_data = {
-                "thread_id": thread_id,
-                "status": "complete",
-                "message": last_message.content
-            }
-            if last_message.additional_kwargs.get('selected_script_info'):
-                script_info = last_message.additional_kwargs['selected_script_info']
-                response_data['tool_call'] = {
-                    "name": "set_active_script_source_tool",
-                    "arguments": {
-                        "absolutePath": script_info['absolutePath'],
-                        "type": script_info['type']
-                    }
-                }
-            return response_data
-        elif isinstance(last_message, HumanMessage) and last_message.content == "INTERRUPT_FOR_APPROVAL":
-            # This is a forced interruption for HITL approval
-            # The actual tool call is in the previous AIMessage
-            tool_call = final_response.get('messages', [])[-2].tool_calls[0]
-            return {
-                "thread_id": thread_id,
-                "status": "interrupted",
-                "tool_call": {
-                    "name": tool_call["name"],
-                    "arguments": tool_call["args"]
-                }
-            }
-        elif isinstance(last_message, HumanMessage):
-            # This is a HumanMessage returned by agent_node (e.g., asking for parameters)
-            return {
-                "thread_id": thread_id,
-                "status": "complete", # Treat as complete for now, frontend will display it
-                "message": last_message.content
-            }
+        # --- Handle ToolMessage results ---
         elif isinstance(last_message, ToolMessage):
-            # This is a ToolMessage returned by tool_node (e.g., result of get_script_parameters_tool)
-            # The agent should continue processing internally, so we return a special status
-            return {"thread_id": thread_id, "status": "processing_internal"}
+            # After a tool executes, the agent_node will be invoked again to process the result.
+            # For now, we'll just return a generic message, the LLM will generate the actual response.
+            return Response(content=json.dumps({
+                "thread_id": thread_id,
+                "status": "processing_internal", # Indicate that the agent is still processing
+                "message": "Tool executed. Agent is processing the result...",
+                "tool_call": None
+            }), media_type="application/json")
+
+        # --- Handle other unexpected messages ---
         else:
-            return {"thread_id": thread_id, "status": "error", "message": "Invalid agent response."}
+            print(f"agent_router: WARNING: Unexpected last message type: {type(last_message)}. Content: {last_message}")
+            return Response(content=json.dumps({
+                "thread_id": thread_id,
+                "status": "error",
+                "message": "Agent returned an unexpected message type.",
+                "tool_call": None
+            }), media_type="application/json", status_code=500)
 
     except Exception as e:
-        import traceback
+        print(f"An error occurred: {e}")
         traceback.print_exc()
-        raise
-
-def _process_agent_response(thread_id: str, final_response: dict):
-    last_message = final_response.get('messages', [])[-1]
-
-    if isinstance(last_message, AIMessage) and last_message.tool_calls:
-        tool_call = last_message.tool_calls[0]
-        return {
-            "thread_id": thread_id,
-            "status": "interrupted",
-            "tool_call": {
-                "name": tool_call["name"],
-                "arguments": tool_call["args"]
-            }
-        }
-    elif isinstance(last_message, AIMessage):
-        return {
-            "thread_id": thread_id,
-            "status": "complete",
-            "message": last_message.content
-        }
-    elif isinstance(last_message, ToolMessage):
-        return {"thread_id": thread_id, "status": "processing_internal"}
-    else:
-        return {"thread_id": thread_id, "status": "error", "message": "Invalid agent response after resume."}
-
-@router.post("/agent/resume")
-async def resume_agent_tool_call(request: ResumeRequest):
-    """Resumes the agent's execution after a tool call has been approved by the user."""
-    thread_id = request.thread_id
-    config = {"configurable": {"thread_id": thread_id}}
-
-    # Update state before resuming
-    app.update_state(config, {
-        "workspace_path": request.workspace_path or "",
-        "user_token": request.token,
-        "llm_provider": request.llm_provider,
-        "llm_model": request.llm_model,
-        "llm_api_key_name": request.llm_api_key_name,
-        "llm_api_key_value": request.llm_api_key_value,
-    })
-
-    if request.tool_result:
-        # Get the last state to find the tool_call_id
-        last_state = app.get_state(config)
-        last_ai_message = next((msg for msg in reversed(last_state.values.get('messages', [])) if isinstance(msg, AIMessage) and msg.tool_calls), None)
-        
-        if last_ai_message:
-            tool_call_id = last_ai_message.tool_calls[0]['id']
-            tool_message = ToolMessage(content=request.tool_result, tool_call_id=tool_call_id)
-            final_response = await app.ainvoke({"messages": [tool_message]}, config=config)
-            return _process_agent_response(thread_id, final_response)
-        else:
-            # Handle the case where no pending tool call was found
-            return {"thread_id": thread_id, "status": "error", "message": "No pending tool call found to resume with result."}
-    else:
-        # Original flow for HITL approval (no tool result)
-        final_response = await app.ainvoke(None, config=config)
-        return _process_agent_response(thread_id, final_response)
+        raise HTTPException(status_code=500, detail=str(e))

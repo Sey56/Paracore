@@ -119,9 +119,17 @@ export const AgentView: React.FC = () => {
         llm_api_key_name: llmApiKeyName,
         llm_api_key_value: llmApiKeyValue,
       });
-      
+
+      // IMPORTANT: Add a check here to ensure response.data is not null/undefined
+      if (!response.data) {
+        console.error("AgentView: Received empty or null response data from backend.");
+        showNotification("Received an empty response from the agent.", "error");
+        setMessages(prev => [...prev, { type: 'ai', content: "Sorry, I received an empty response from the agent.", id: `error-${Date.now()}` }]);
+        return; // Stop further processing
+      }
+
       // After any response, update the threadId if the backend provides one
-      if (response.data.thread_id) {
+      if (response.data && response.data.thread_id) {
         setThreadId(response.data.thread_id);
       }
 
@@ -170,8 +178,19 @@ export const AgentView: React.FC = () => {
         showNotification("Received unexpected response from agent.", "warning");
       }
 
-    } catch (error) {
+    } catch (error: any) { // Explicitly type error as any for easier access to properties
       console.error("Agent invoke error:", error);
+      // Add detailed logging for the error object
+      if (error.response) {
+        console.error("Agent invoke error - Server Response Data:", error.response.data);
+        console.error("Agent invoke error - Server Response Status:", error.response.status);
+        console.error("Agent invoke error - Server Response Headers:", error.response.headers);
+      } else if (error.request) {
+        console.error("Agent invoke error - No Response Received:", error.request);
+      } else {
+        console.error("Agent invoke error - Request Setup Error:", error.message);
+      }
+
       showNotification("Failed to communicate with the agent.", "error");
       setMessages(prev => [...prev, { type: 'ai', content: "Sorry, I couldn't connect to the agent.", id: `error-${Date.now()}` }]);
     } finally {
