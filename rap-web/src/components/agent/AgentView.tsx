@@ -139,8 +139,25 @@ export const AgentView: React.FC = () => {
         const agentMessage: Message = { type: 'ai', content: response.data.message, id: `ai-${Date.now()}` };
         setMessages(prev => [...prev, agentMessage]);
 
+        // --- Handle active_script if present ---
+        if (response.data.active_script) {
+            const scriptInfo = response.data.active_script;
+            console.log("AgentView: Detected active_script in response:", scriptInfo);
+            const selected = {
+                id: scriptInfo.id,
+                name: scriptInfo.name,
+                type: scriptInfo.type,
+                absolutePath: scriptInfo.absolutePath,
+                sourcePath: scriptInfo.sourcePath,
+                metadata: scriptInfo.metadata,
+                parameters: [],
+            };
+            setSelectedScript(selected, 'agent');
+            setActiveInspectorTab('parameters'); // Switch to parameters tab
+            showNotification(`Agent selected script: ${selected.name}.`, 'info');
+        }
         // --- Handle tool_call for set_active_script_source_tool if present ---
-        if (response.data.tool_call && response.data.tool_call.name === 'set_active_script_source_tool') {
+        else if (response.data.tool_call && response.data.tool_call.name === 'set_active_script_source_tool') {
             const scriptInfo = response.data.tool_call.arguments;
             console.log("AgentView: Detected set_active_script_source_tool call:", scriptInfo);
             // Simulate a script object for setSelectedScript
@@ -150,7 +167,14 @@ export const AgentView: React.FC = () => {
                 type: scriptInfo.type,
                 absolutePath: scriptInfo.absolutePath,
                 sourcePath: scriptInfo.absolutePath,
-                metadata: {}, // Metadata will be fetched by ScriptExecutionProvider
+                metadata: {
+                    displayName: scriptInfo.absolutePath.split('/').pop() || 'Unknown',
+                    lastRun: null,
+                    dependencies: [],
+                    description: 'Metadata will be fetched...',
+                    categories: [],
+                }, // Metadata will be fetched by ScriptExecutionProvider
+                parameters: [], // Add empty parameters to satisfy the type
             };
             setSelectedScript(selected, 'agent');
             setActiveInspectorTab('metadata'); // Switch to metadata tab
@@ -165,8 +189,7 @@ export const AgentView: React.FC = () => {
             tool_calls: [{
                 id: `tool-call-${Date.now()}`, // Generate a unique ID for the frontend
                 name: response.data.tool_call.name,
-                args: response.data.tool_call.arguments,
-                type: 'tool_call'
+                args: response.data.tool_call.arguments
             }]
         };
         setMessages(prev => [...prev, toolCallMessage]);
