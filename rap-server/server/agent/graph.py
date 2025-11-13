@@ -3,14 +3,17 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import MemorySaver
 from .state import AgentState
 from .prompt import prompt
-from .tools import tools, search_scripts_tool, get_script_parameters_tool, set_active_script_tool
+from .tools import tools, search_scripts_tool, get_script_parameters_tool, set_active_script_tool, run_script_by_name
 import os
 from langchain_core.messages import ToolMessage, HumanMessage, AIMessage
 from .api_helpers import read_local_script_manifest
 import json
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Any
+import uuid
 import re
+
+
 
 class RelevantScripts(BaseModel):
     """A list of relevant script IDs."""
@@ -79,7 +82,103 @@ def agent_node(state: AgentState):
 
     # --- Handle Parameter Modification from User Chat ---
     elif previous_conversational_action == "confirm_execution" and current_human_message:
-        return {"messages": [AIMessage(content="I see you want to change parameters. This feature is not yet implemented.")]}
+        
+        class ParameterUpdate(BaseModel):
+            """A single parameter update."""
+            name: str = Field(description="The name of the parameter to update.")
+            value: Any = Field(description="The new value for the parameter.")
+
+        class ParameterUpdates(BaseModel):
+            """A list of parameter updates extracted from the user's message."""
+            updates: List[ParameterUpdate] = Field(description="A list of parameter updates.")
+
+        extraction_llm = llm.with_structured_output(ParameterUpdates)
+        
+        current_params = state.get('script_parameters_definitions', [])
+        param_names = [p.get('name') for p in current_params]
+
+        extraction_prompt = f"""The user wants to modify parameters for a script. Their request is: "{current_human_message.content}"
+        
+        Available parameter names are: {param_names}
+        
+        Your task is to extract the parameter names and their new values from the user's request.
+        - The user might refer to parameters by their exact name or a close variation (e.g., "level" for "levelName").
+        - The value could be a string, a number, or a boolean.
+        - If a parameter name from the user's request does not closely match any of the available parameter names, ignore it.
+        
+        Return a list of all identified parameter updates.
+        """
+        
+        try:
+            extracted_updates_obj = extraction_llm.invoke([HumanMessage(content=extraction_prompt)])
+            chat_updates = {item.name: item.value for item in extracted_updates_obj.updates}
+        except Exception as e:
+            print(f"agent_node: Could not extract parameter updates from user message: {e}")
+            chat_updates = {}
+
+        # Merge parameters: UI changes first, then chat changes
+        ui_params = state.get('ui_parameters') # This is a dict of {name: value}
+        
+        # Create a dictionary of current parameters for easy lookup
+        params_dict = {p['name']: p for p in current_params}
+
+        # Apply UI updates
+        if ui_params:
+            for param_name, param_value in ui_params.items():
+                if param_name in params_dict:
+                    params_dict[param_name]['value'] = param_value
+                    params_dict[param_name]['defaultValueJson'] = json.dumps(param_value)
+
+        # Apply chat updates (these take precedence)
+        if chat_updates:
+            for param_name, param_value in chat_updates.items():
+                # Find the correct parameter name (case-insensitive)
+                for p_name in params_dict.keys():
+                    if p_name.lower() == param_name.lower():
+                        params_dict[p_name]['value'] = param_value
+                        params_dict[p_name]['defaultValueJson'] = json.dumps(param_value)
+                        break
+
+        updated_params_list = list(params_dict.values())
+
+        # Check if the user also wants to run the script
+        run_intent_prompt = f"""Does the following user request include a command to run or execute the script? Respond with a single word: YES or NO. User request: "{current_human_message.content}" """
+        run_intent_response = llm.invoke([HumanMessage(content=run_intent_prompt)])
+        is_run_request = "YES" in run_intent_response.content.strip().upper()
+
+        if is_run_request:
+            # Prepare for HITL by calling the run_script_by_name tool
+            selected_script = state.get('selected_script_metadata')
+            final_params = {p['name']: p['value'] for p in updated_params_list}
+            
+            tool_call_id = f"tool_call_{uuid.uuid4()}"
+            tool_call = {
+                "name": "run_script_by_name",
+                "args": {
+                    "script_name": selected_script.get('name'),
+                    "parameters": final_params,
+                    "is_final_approval": True # Signal to frontend this is the final step
+                },
+                "id": tool_call_id
+            }
+            
+            return {
+                "messages": [AIMessage(content="", tool_calls=[tool_call])],
+                "final_parameters_for_execution": updated_params_list,
+            }
+
+        else:
+            # Just respond with the updated parameters for confirmation
+            param_summary = "I've updated the parameters. Here is the new configuration:\n"
+            for param in updated_params_list:
+                param_summary += f"- **{param.get('name')}**: {param.get('defaultValueJson')}\n"
+            param_summary += "\nDo you want to run the script with these settings, or make more changes?"
+
+            return {
+                "messages": [AIMessage(content=param_summary)],
+                "script_parameters_definitions": updated_params_list,
+                "next_conversational_action": "confirm_execution" # Stay in this state
+            }
 
     # --- Handle User's Script Selection ---
     elif previous_conversational_action == "ask_for_script_confirmation" and current_human_message:
@@ -212,6 +311,10 @@ def tool_node(state: AgentState):
             full_manifest = read_local_script_manifest(agent_scripts_path=actual_agent_scripts_path)
             state_update['identified_scripts_for_choice'] = full_manifest
             results.append(ToolMessage(content=json.dumps(full_manifest), tool_call_id=tool_call['id']))
+        elif tool_call['name'] == run_script_by_name.name:
+            # The tool call is just a signal to the frontend, so we pass the result through
+            result = run_script_by_name.invoke(tool_call['args'])
+            results.append(ToolMessage(content=json.dumps(result), tool_call_id=tool_call['id']))
         else:
             results.append(ToolMessage(content=f"Unknown or unhandled tool: {tool_call['name']}", tool_call_id=tool_call['id']))
     state_update["messages"] = results
@@ -236,6 +339,10 @@ def get_parameters_node(state: AgentState):
 def should_continue(state: AgentState):
     last_message = state['messages'][-1]
     if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+        # If the tool call is for running the script, the agent's job is done.
+        # The frontend will take over and show the HITL modal.
+        if last_message.tool_calls[0]['name'] == 'run_script_by_name':
+            return END
         return "tool_node"
     if state.get("next_conversational_action") == "present_parameters":
         return "get_parameters_node"

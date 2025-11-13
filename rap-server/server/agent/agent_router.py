@@ -71,23 +71,38 @@ async def chat_with_agent(request: ChatRequest):
         # The agent's final response is the last message in the state
         last_message = final_state.get('messages', [])[-1]
 
-        if not isinstance(last_message, AIMessage) or last_message.tool_calls:
+        if isinstance(last_message, AIMessage) and last_message.tool_calls:
+            # This is a tool call, likely for the HITL modal
+            tool_call = last_message.tool_calls[0]
+            return Response(content=json.dumps({
+                "thread_id": thread_id,
+                "status": "interrupted", # Signal to frontend to handle the tool call
+                "message": None,
+                "tool_call": {
+                    "name": tool_call['name'],
+                    "arguments": tool_call['args']
+                },
+                "active_script": final_state.get('selected_script_metadata')
+            }), media_type="application/json")
+
+        elif isinstance(last_message, AIMessage) and not last_message.tool_calls:
+            # This is a standard conversational response
+            active_script_metadata = None
+            if final_state.get('next_conversational_action') == "confirm_execution" and final_state.get('selected_script_metadata'):
+                active_script_metadata = final_state.get('selected_script_metadata')
+
+            return Response(content=json.dumps({
+                "thread_id": thread_id,
+                "status": "complete",
+                "message": last_message.content,
+                "tool_call": None,
+                "active_script": active_script_metadata
+            }), media_type="application/json")
+
+        else:
+            # Handle other unexpected cases
             print(f"agent_router: WARNING: Graph ended in an unexpected state. Last message: {last_message}")
-            raise ValueError("Agent did not produce a final answer. The graph may have ended unexpectedly.")
-
-        # Check if a script was selected and parameters are being presented
-        active_script_metadata = None
-        if final_state.get('next_conversational_action') == "confirm_execution" and final_state.get('selected_script_metadata'):
-            active_script_metadata = final_state.get('selected_script_metadata')
-
-        # Return the final, semantically filtered message from the agent
-        return Response(content=json.dumps({
-            "thread_id": thread_id,
-            "status": "complete",
-            "message": last_message.content,
-            "tool_call": None,
-            "active_script": active_script_metadata
-        }), media_type="application/json")
+            raise ValueError("Agent did not produce a final answer or a valid tool call.")
 
     except Exception as e:
         print(f"An error occurred: {e}")

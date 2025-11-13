@@ -52,4 +52,25 @@ def set_active_script_tool(script_metadata: dict) -> str:
     """
     return f"Successfully signaled UI to set {script_metadata.get('name')} as the active script."
 
-tools = [search_scripts_tool, get_script_parameters_tool, set_active_script_tool]
+class RunScriptByNameArgs(BaseModel):
+    script_name: str = Field(..., description="The name of the script to run.")
+    parameters: dict = Field(..., description="A dictionary of parameter names and their values.")
+    is_final_approval: bool = Field(False, description="A flag to indicate if this is the final approval step before execution.")
+
+@tool(args_schema=RunScriptByNameArgs)
+def run_script_by_name(script_name: str, parameters: dict, is_final_approval: bool = False) -> dict:
+    """
+    Executes a C# Revit script by its name with the provided parameters.
+    This tool should only be called when the user has confirmed all parameters and is ready to run the script.
+    """
+    # This tool is primarily for triggering the HITL modal in the frontend.
+    # The actual execution happens when the user approves the modal.
+    # We return a dictionary that can be interpreted by the frontend.
+    return {
+        "tool": "run_script_by_name",
+        "script_name": script_name,
+        "parameters": parameters,
+        "is_final_approval": is_final_approval
+    }
+
+tools = [search_scripts_tool, get_script_parameters_tool, set_active_script_tool, run_script_by_name]

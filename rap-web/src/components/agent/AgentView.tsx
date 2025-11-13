@@ -34,7 +34,7 @@ export const AgentView: React.FC = () => {
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
   // Correctly get execution-related functions and state from their respective hooks
-  const { selectedScript, setSelectedScript, setExecutionResult, userEditedScriptParameters } = useScriptExecution();
+  const { selectedScript, setSelectedScript, runScript, setExecutionResult, userEditedScriptParameters } = useScriptExecution();
   const { fetchScriptManifest, toolLibraryPath, scripts: allScriptsFromScriptProvider } = useScripts();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -235,17 +235,41 @@ export const AgentView: React.FC = () => {
     invokeAgent([newMessage]);
   };
 
-  const handleToolResponse = (toolCallId: string, userDecision: 'approve' | 'reject', parameters?: any) => {
+  const handleToolResponse = (toolCall: ToolCall, userDecision: 'approve' | 'reject') => {
+    // Immediately add a tool message to the state to disable the buttons
     const toolMessageContent = {
       user_decision: userDecision,
-      parameters: parameters || {},
+      parameters: userDecision === 'approve' ? toolCall.args.parameters : {},
     };
     const newMessage: Message = {
       type: 'tool',
       content: JSON.stringify(toolMessageContent),
-      tool_call_id: toolCallId,
+      tool_call_id: toolCall.id,
     };
-    invokeAgent([newMessage]);
+    setMessages(prev => [...prev, newMessage]);
+
+    // If this is the final approval step, call the runScript function directly
+    if (toolCall.name === 'run_script_by_name' && userDecision === 'approve') {
+      if (selectedScript) {
+        // The `runScript` function from `useScriptExecution` expects the full Script object
+        // and an array of ScriptParameter objects.
+        const finalParams = selectedScript.parameters.map(p => ({
+          ...p,
+          value: toolCall.args.parameters[p.name] ?? p.value,
+        }));
+        runScript(selectedScript, finalParams);
+        setActiveInspectorTab('results');
+      } else {
+        showNotification("Error: No script is selected for execution.", "error");
+      }
+    } else if (userDecision === 'reject') {
+      // If the user rejects, we can just send a message to the agent
+      invokeAgent([{ type: 'human', content: `I have rejected the action.`, id: `user-${Date.now()}` }]);
+    }
+    // For other tool calls in the future, we might re-invoke the agent
+    // else {
+    //   invokeAgent([newMessage]);
+    // }
   };
 
 
@@ -297,14 +321,14 @@ export const AgentView: React.FC = () => {
           {isPending && (
             <div className="flex space-x-2 mt-2">
               <button
-                onClick={() => handleToolResponse(toolCall.id, 'approve')}
+                onClick={() => handleToolResponse(toolCall, 'approve')}
                 className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
                 disabled={isLoading}
               >
                 <FontAwesomeIcon icon={faCheckCircle} className="mr-1" /> Approve
               </button>
               <button
-                onClick={() => handleToolResponse(toolCall.id, 'reject')}
+                onClick={() => handleToolResponse(toolCall, 'reject')}
                 className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm"
                 disabled={isLoading}
               >
