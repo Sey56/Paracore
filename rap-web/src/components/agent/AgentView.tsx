@@ -108,6 +108,13 @@ export const AgentView: React.FC = () => {
       const lastHumanMessage = newMessages.findLast(m => m.type === 'human');
       const messageContent = lastHumanMessage ? lastHumanMessage.content : '';
 
+      const currentParamsArray = selectedScript ? userEditedScriptParameters[selectedScript.id] : undefined;
+      const currentParamsDict = currentParamsArray ? 
+        currentParamsArray.reduce((acc, param) => {
+          acc[param.name] = param.value;
+          return acc;
+        }, {} as Record<string, any>) : undefined;
+
       const response = await api.post("/agent/chat", {
         thread_id: threadId,
         message: messageContent, // Send a single string message
@@ -118,6 +125,7 @@ export const AgentView: React.FC = () => {
         llm_model: llmModel,
         llm_api_key_name: llmApiKeyName,
         llm_api_key_value: llmApiKeyValue,
+        user_edited_parameters: currentParamsDict,
       });
 
       // IMPORTANT: Add a check here to ensure response.data is not null/undefined

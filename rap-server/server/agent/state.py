@@ -11,6 +11,7 @@ class AgentState(TypedDict):
     llm_api_key_name: str | None
     llm_api_key_value: str | None
     agent_scripts_path: str | None
+    ui_parameters: dict | None
 
     # --- State for User Intent & Script Discovery ---
     current_task_description: str | None

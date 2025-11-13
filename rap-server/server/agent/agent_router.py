@@ -27,6 +27,7 @@ class ChatRequest(BaseModel):
     llm_api_key_name: str | None
     llm_api_key_value: str | None
     agent_scripts_path: str # Path to the agent's dedicated script workspace (tools_library path)
+    user_edited_parameters: dict | None = None
 
 @router.post("/agent/chat")
 async def chat_with_agent(request: ChatRequest):
@@ -56,6 +57,7 @@ async def chat_with_agent(request: ChatRequest):
             "llm_api_key_name": request.llm_api_key_name,
             "llm_api_key_value": request.llm_api_key_value,
             "agent_scripts_path": request.agent_scripts_path,
+            "ui_parameters": request.user_edited_parameters,
         }
         if is_new_thread:
             config_update["current_task_description"] = request.message

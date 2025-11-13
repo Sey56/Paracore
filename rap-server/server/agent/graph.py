@@ -22,16 +22,25 @@ def _get_llm(state: AgentState):
     model = state.get("llm_model")
     api_key_value = state.get("llm_api_key_value")
 
-    if provider == "google":
-        api_key = api_key_value or os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY environment variable not set or not provided in state.")
-        return ChatGoogleGenerativeAI(model=model or "gemini-2.0-flash", google_api_key=api_key, convert_system_message_to_human=True)
+    if not provider:
+        raise ValueError("LLM provider not specified in agent state. Please configure it in the settings.")
+    if not model:
+        raise ValueError("LLM model not specified in agent state. Please configure it in the settings.")
+    if not api_key_value:
+        raise ValueError("LLM API key not provided in agent state. Please configure it in the settings.")
+
+    if provider.lower() == "google":
+        return ChatGoogleGenerativeAI(
+            model=model, 
+            google_api_key=api_key_value, 
+            convert_system_message_to_human=True
+        )
+    # In the future, other providers can be added here.
+    # elif provider == "openai":
+    #     return ChatOpenAI(model=model, api_key=api_key_value)
     
-    api_key = api_key_value or os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY environment variable not set or not provided in state.")
-    return ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=api_key, convert_system_message_to_human=True)
+    else:
+        raise ValueError(f"Unsupported LLM provider: {provider}")
 
 def agent_node(state: AgentState):
     """
@@ -50,7 +59,7 @@ def agent_node(state: AgentState):
     previous_conversational_action = state.get("next_conversational_action")
 
     # --- Handle presenting parameters after they've been fetched ---
-    if previous_conversational_action == "present_parameters" and state.get('script_parameters_definitions'):
+    if previous_conversational_action == "present_parameters" and state.get('script_parameters_definitions') is not None:
         selected_script = state.get('selected_script_metadata')
         parameters = state.get('script_parameters_definitions')
 
@@ -68,8 +77,12 @@ def agent_node(state: AgentState):
             "next_conversational_action": "confirm_execution"
         }
 
+    # --- Handle Parameter Modification from User Chat ---
+    elif previous_conversational_action == "confirm_execution" and current_human_message:
+        return {"messages": [AIMessage(content="I see you want to change parameters. This feature is not yet implemented.")]}
+
     # --- Handle User's Script Selection ---
-    if previous_conversational_action == "ask_for_script_confirmation" and current_human_message:
+    elif previous_conversational_action == "ask_for_script_confirmation" and current_human_message:
         user_selection = current_human_message.content.strip()
         identified_scripts = state.get('identified_scripts_for_choice', [])
         recommended_script_name = state.get('recommended_script_name')
@@ -119,7 +132,7 @@ def agent_node(state: AgentState):
             }
 
     # --- Perform Semantic Search ---
-    if state.get('identified_scripts_for_choice') and isinstance(state['identified_scripts_for_choice'], list):
+    elif state.get('identified_scripts_for_choice') and isinstance(state['identified_scripts_for_choice'], list):
         full_manifest = state['identified_scripts_for_choice']
         query = state.get('current_task_description')
         if query and full_manifest:
@@ -129,7 +142,7 @@ def agent_node(state: AgentState):
                 filtering_prompt = f"""You are a script filter. Your task is to identify all scripts that EXACTLY match the user's requested action.
 User Query: "{query}"
 Review the "Available Scripts" below. For each script, check if its `description` indicates that it performs the user's requested action.
-**CRITICAL RULE:** Do NOT select a script if it only contains a keyword but performs the wrong action. For example, if the query is "create a wall", you MUST REJECT a script that "lists wall parameters".
+**CRITICAL RULE:** Do NOT select a script if it only contains a keyword but performs the wrong action. For example, if the query is "create a wall", a script that "rotates a wall" is not a match.
 **EXAMPLE:**
 If the user query is "make a building element" and the available scripts are one that "creates a wall" and another that "creates a floor", you should return the IDs of BOTH scripts.
 Available Scripts:
@@ -171,8 +184,9 @@ Your task is to respond with the `name` of the single best script. Only return t
                 print(f"agent_node: Error processing LLM response for script filtering: {e}")
                 return {"messages": [AIMessage(content="I encountered an error while trying to find relevant scripts. Please try again.")]}
 
-    # If no specific semantic search flow was triggered, invoke the main chain
-    chain = prompt | llm_with_tools
+    # If no specific conversational action or semantic search was triggered, invoke the main chain
+    else:
+        chain = prompt | llm_with_tools
     response = chain.invoke({
         "messages": state["messages"],
         "agent_scripts_path": state.get("agent_scripts_path"),
