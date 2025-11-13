@@ -6,12 +6,6 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class GetScriptManifestRequest(_message.Message):
-    __slots__ = ("agent_scripts_path",)
-    AGENT_SCRIPTS_PATH_FIELD_NUMBER: _ClassVar[int]
-    agent_scripts_path: str
-    def __init__(self, agent_scripts_path: _Optional[str] = ...) -> None: ...
-
 class Empty(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
@@ -99,20 +93,22 @@ class ReturnValueSummary(_message.Message):
     def __init__(self, type: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
 
 class ExecuteScriptResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "output_summary")
+    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "output_summary", "agent_summary")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ERROR_DETAILS_FIELD_NUMBER: _ClassVar[int]
     STRUCTURED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    AGENT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
     error_details: _containers.RepeatedScalarFieldContainer[str]
     structured_output: _containers.RepeatedCompositeFieldContainer[StructuredOutputItem]
     output_summary: OutputSummary
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., output_summary: _Optional[_Union[OutputSummary, _Mapping]] = ...) -> None: ...
+    agent_summary: str
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., output_summary: _Optional[_Union[OutputSummary, _Mapping]] = ..., agent_summary: _Optional[str] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ()
@@ -179,14 +175,6 @@ class ScriptMetadata(_message.Message):
     website: str
     last_run: str
     def __init__(self, name: _Optional[str] = ..., file_path: _Optional[str] = ..., script_type: _Optional[str] = ..., description: _Optional[str] = ..., author: _Optional[str] = ..., categories: _Optional[_Iterable[str]] = ..., dependencies: _Optional[_Iterable[str]] = ..., document_type: _Optional[str] = ..., usage_examples: _Optional[_Iterable[str]] = ..., website: _Optional[str] = ..., last_run: _Optional[str] = ...) -> None: ...
-
-class ScriptManifestResponse(_message.Message):
-    __slots__ = ("scripts", "error_message")
-    SCRIPTS_FIELD_NUMBER: _ClassVar[int]
-    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    scripts: _containers.RepeatedCompositeFieldContainer[ScriptMetadata]
-    error_message: str
-    def __init__(self, scripts: _Optional[_Iterable[_Union[ScriptMetadata, _Mapping]]] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class GetScriptParametersResponse(_message.Message):
     __slots__ = ("parameters", "error_message")

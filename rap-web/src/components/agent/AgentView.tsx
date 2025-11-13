@@ -188,7 +188,12 @@ export const AgentView: React.FC = () => {
             setActiveInspectorTab('metadata'); // Switch to metadata tab
             showNotification(`Agent selected script: ${selected.name}.`, 'info');
         }
-      } else if (response.data.status === 'interrupted' && response.data.tool_call) {
+      } else if (response.data.agent_summary) { // NEW BLOCK FOR AGENT SUMMARY
+        console.log("AgentView: Received agent_summary from backend:", response.data.agent_summary);
+        const agentSummaryMessage: Message = { type: 'ai', content: response.data.agent_summary, id: `ai-summary-${Date.now()}` };
+        setMessages(prev => [...prev, agentSummaryMessage]);
+      }
+      else if (response.data.status === 'interrupted' && response.data.tool_call) {
         console.log("AgentView: Received interrupted status with tool_call:", response.data.tool_call);
         const toolCallMessage: Message = {
             type: 'ai',
@@ -258,7 +263,7 @@ export const AgentView: React.FC = () => {
           value: toolCall.args.parameters[p.name] ?? p.value,
         }));
         runScript(selectedScript, finalParams);
-        setActiveInspectorTab('results');
+        setActiveInspectorTab('summary');
       } else {
         showNotification("Error: No script is selected for execution.", "error");
       }

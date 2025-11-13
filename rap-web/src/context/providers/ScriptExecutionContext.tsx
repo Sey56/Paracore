@@ -1,7 +1,7 @@
 
 import { createContext } from 'react';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
-import type { ExecutionResult, ParameterPreset } from '@/types/common';
+import type { ExecutionResult, ParameterPreset, OutputSummary } from '@/types/common';
 
 export interface ScriptExecutionContextProps {
   selectedScript: Script | null;
@@ -18,6 +18,7 @@ export interface ScriptExecutionContextProps {
   updatePreset: (name: string, preset: ParameterPreset) => { success: boolean; message: string };
   deletePreset: (name: string) => { success: boolean; message: string };
   renamePreset: (oldName: string, newName: string) => { success: boolean; message: string };
+  outputSummary?: OutputSummary;
 }
 
 export const ScriptExecutionContext = createContext<ScriptExecutionContextProps | undefined>(undefined);

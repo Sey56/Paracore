@@ -10,14 +10,9 @@ service CoreScriptRunner {
   rpc GetScriptParameters(GetScriptParametersRequest) returns (GetScriptParametersResponse);
   rpc GetCombinedScript(GetCombinedScriptRequest) returns (GetCombinedScriptResponse);
   rpc CreateAndOpenWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
-  // New RPC for fetching the entire script manifest
-  rpc GetScriptManifest(GetScriptManifestRequest) returns (ScriptManifestResponse);
 }
 
-// Request for the GetScriptManifest RPC
-message GetScriptManifestRequest {
-  string agent_scripts_path = 1;
-}
+
 
 // General purpose empty message
 message Empty {}
@@ -80,6 +75,7 @@ message ExecuteScriptResponse {
   repeated string error_details = 4;
   repeated StructuredOutputItem structured_output = 5;
   OutputSummary output_summary = 6; // New field for structured summary
+  string agent_summary = 7;
 }
 
 message GetStatusRequest {
@@ -123,11 +119,7 @@ message ScriptMetadata {
   string last_run = 11;
 }
 
-// The response containing the full manifest of all available scripts.
-message ScriptManifestResponse {
-  repeated ScriptMetadata scripts = 1;
-  string error_message = 2; // Field for communicating errors
-}
+
 message GetScriptParametersResponse {
   repeated ScriptParameter parameters = 1;
   string error_message = 2;

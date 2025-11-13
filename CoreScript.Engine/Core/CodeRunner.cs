@@ -143,6 +143,7 @@ namespace CoreScript.Engine.Core
                         }
                     };
                     // --- End Populate OutputSummary ---
+                    failureResult.AgentSummary = GenerateAgentSummary(context, false);
                     return failureResult;
                 }
 
@@ -153,6 +154,7 @@ namespace CoreScript.Engine.Core
                 var result = ExecutionResult.Success(successMessage, state.ReturnValue);
                 result.PrintLog = context.PrintLog.ToList();
                 result.ScriptName = topLevelScriptName;
+                result.AgentSummary = GenerateAgentSummary(context, true);
 
                 // --- Populate OutputSummary for success ---
                 result.OutputSummary = new OutputSummary
@@ -170,6 +172,57 @@ namespace CoreScript.Engine.Core
                         TruncatedLines = result.PrintLog.Take(5).ToList()
                     };
                     result.OutputSummary.Type = "console"; // If there's console output, prioritize this type
+                }
+
+                // Structured Output Summary (for success path)
+                if (context.StructuredOutputLog.Any())
+                {
+                    var structuredOutput = context.StructuredOutputLog.First();
+                    if (structuredOutput.Type == "table")
+                    {
+                        try
+                        {
+                            using JsonDocument doc = JsonDocument.Parse(structuredOutput.Data);
+                            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                            {
+                                var rows = doc.RootElement.EnumerateArray().ToList();
+                                int rowCount = rows.Count;
+                                if (rowCount > 0)
+                                {
+                                    var firstRow = rows.First();
+                                    var headers = firstRow.EnumerateObject().Select(p => p.Name).ToList();
+                                    result.OutputSummary.Table = new TableSummary
+                                    {
+                                        RowCount = rowCount,
+                                        ColumnHeaders = headers,
+                                        TruncatedRows = rows.Take(5).Select(r => r.EnumerateObject().Select(p => (object)p.Value.ToString()).ToList()).ToList() // Corrected conversion
+                                    };
+                                    result.OutputSummary.Type = "table";
+                                    result.OutputSummary.Message = $"Script returned a table with {rowCount} rows. See the Summary tab for details.";
+                                }
+                                else
+                                {
+                                    result.OutputSummary.Type = "table";
+                                    result.OutputSummary.Message = "Script returned an empty table. See the Summary tab for details.";
+                                }
+                            }
+                        }
+                        catch (JsonException)
+                        {
+                            result.OutputSummary.Type = "table";
+                            result.OutputSummary.Message = "Script returned structured table data, but it could not be parsed. See the Summary tab for details.";
+                        }
+                    }
+                    else if (structuredOutput.Type == "string")
+                    {
+                        result.OutputSummary.Type = "string";
+                        result.OutputSummary.Message = $"Script returned a string: \"{structuredOutput.Data.Replace("\"", "'")}\". See the Summary tab for details.";
+                    }
+                    else
+                    {
+                        result.OutputSummary.Type = structuredOutput.Type;
+                        result.OutputSummary.Message = $"Script returned structured output of type '{structuredOutput.Type}'. See the Summary tab for details.";
+                    }
                 }
 
                 // Return Value Summary
@@ -213,9 +266,10 @@ namespace CoreScript.Engine.Core
                 string failureMessage = "❌ Script failed to compile | " + timestamp;
                 context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
-                
+
                 var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
+                failureResult.AgentSummary = GenerateAgentSummary(context, false);
                 // --- Populate OutputSummary for compilation error ---
                 failureResult.OutputSummary = new OutputSummary
                 {
@@ -239,6 +293,7 @@ namespace CoreScript.Engine.Core
 
                 var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
+                failureResult.AgentSummary = GenerateAgentSummary(context, false);
                 // --- Populate OutputSummary for aggregate exception ---
                 failureResult.OutputSummary = new OutputSummary
                 {
@@ -265,6 +320,7 @@ namespace CoreScript.Engine.Core
                 
                 context.Println(failureMessage);
                 var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                failureResult.AgentSummary = GenerateAgentSummary(context, false);
                 // --- Populate OutputSummary for general exception ---
                 failureResult.OutputSummary = new OutputSummary
                 {
@@ -291,6 +347,70 @@ namespace CoreScript.Engine.Core
         {
             try { AssemblyName.GetAssemblyName(path); return true; }
             catch { return false; }
+        }
+
+        private string GenerateAgentSummary(ICoreScriptContext context, bool isSuccess)
+        {
+            var summaryBuilder = new System.Text.StringBuilder();
+            if (isSuccess)
+            {
+                summaryBuilder.Append("Script executed successfully. ");
+            }
+            else
+            {
+                summaryBuilder.Append("Script execution failed. ");
+            }
+
+            if (context.StructuredOutputLog.Any())
+            {
+                var structuredOutput = context.StructuredOutputLog.First();
+                if (structuredOutput.Type == "table")
+                {
+                    try
+                    {
+                        using JsonDocument doc = JsonDocument.Parse(structuredOutput.Data);
+                        if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                        {
+                            var rows = doc.RootElement.EnumerateArray().ToList();
+                            int rowCount = rows.Count;
+                            summaryBuilder.Append($"It returned a table with {rowCount} rows. ");
+                            if (rowCount > 0)
+                            {
+                                var firstRow = rows.First();
+                                var headers = firstRow.EnumerateObject().Select(p => p.Name).ToList();
+                                summaryBuilder.Append($"Columns: {string.Join(", ", headers)}. ");
+                                summaryBuilder.Append($"First {Math.Min(5, rowCount)} rows: {JsonSerializer.Serialize(rows.Take(5))}. ");
+                            }
+                            summaryBuilder.Append("For full table, see the Summary tab.");
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        summaryBuilder.Append("It returned structured table data, but it could not be parsed. See the Summary tab for details.");
+                    }
+                }
+                else if (structuredOutput.Type == "string")
+                {
+                    summaryBuilder.Append($"It returned a string: \"{structuredOutput.Data.Replace("\"", "'")}\". For full output, see the Summary tab.");
+                }
+                else
+                {
+                    summaryBuilder.Append($"It returned structured output of type '{structuredOutput.Type}'. See the Summary tab for details.");
+                }
+            }
+            else if (context.PrintLog.Any())
+            {
+                int lineCount = context.PrintLog.Count;
+                summaryBuilder.Append($"It printed {lineCount} lines to the console. ");
+                summaryBuilder.Append($"First {Math.Min(5, lineCount)} lines: \"{string.Join(" ", context.PrintLog.Take(5).Select(s => s.Trim()))}\". ");
+                summaryBuilder.Append("For full console output, see the Console tab.");
+            }
+            else
+            {
+                summaryBuilder.Append("No specific output was generated.");
+            }
+
+            return summaryBuilder.ToString();
         }
     }
 

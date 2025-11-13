@@ -20,6 +20,7 @@ namespace CoreScript.Engine.Core
         public List<string> PrintLog { get; set; } = new();
 
         public OutputSummary? OutputSummary { get; set; } // New property for structured summary
+        public string? AgentSummary { get; set; } // New property for agent-specific summary
 
         /// <summary>
         /// Factory for failed execution result.

@@ -1,23 +1,18 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using CoreScript.Engine.Context;
+using CoreScript.Engine.Models; // Added this using directive
 using System;
 using System.Collections.Generic;
 using System.IO;
 
 namespace RServer.Addin.Context
 {
-    public class StructuredOutputItem
-    {
-        public string Type { get; set; }
-        public string Data { get; set; }
-    }
-
     public class ServerContext : ICoreScriptContext
     {
         private readonly List<string> _printMessages = new();
         private readonly List<string> _errorMessages = new();
-        private readonly List<StructuredOutputItem> _structuredOutputItems = new(); // New list
+        private readonly List<CoreScript.Engine.Models.StructuredOutputItem> _structuredOutputItems = new(); // New list, using the correct type
 
         public UIApplication UIApp { get; }
         public UIDocument? UIDoc => UIApp.ActiveUIDocument;

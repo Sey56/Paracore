@@ -2,6 +2,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
+using CoreScript.Engine.Models;
 
 namespace CoreScript.Engine.Context
 {
@@ -22,5 +23,6 @@ namespace CoreScript.Engine.Context
         Action<string>? PrintCallback { get; }
 
         IReadOnlyList<string> PrintLog { get; } // ✅ New: expose print buffer to engine
+        IReadOnlyList<StructuredOutputItem> StructuredOutputLog { get; } // New: expose structured output buffer to engine
     }
 }

@@ -151,6 +151,7 @@ namespace RServer.Addin.Services
                 IsSuccess = finalResult.IsSuccess,
                 Output = string.Join("\n", outputMessages),
                 ErrorMessage = finalResult.ErrorMessage ?? "",
+                AgentSummary = finalResult.AgentSummary ?? "" // Added AgentSummary
             };
 
             if (finalResult.OutputSummary != null)
@@ -277,10 +278,7 @@ var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.S
             return Task.FromResult(response);
         }
 
-        public override Task<ScriptManifestResponse> GetScriptManifest(GetScriptManifestRequest request, ServerCallContext context)
-        {
-            throw new RpcException(new Status(StatusCode.Unimplemented, "This method is no longer used. The rap-server is now responsible for manifest generation."));
-        }
+
 
 
         public override Task<GetCombinedScriptResponse> GetCombinedScript(GetCombinedScriptRequest request, ServerCallContext context)

@@ -151,7 +151,6 @@ def agent_node(state: AgentState):
             selected_script = state.get('selected_script_metadata')
             final_params = {p['name']: p['value'] for p in updated_params_list}
             
-            tool_call_id = f"tool_call_{uuid.uuid4()}"
             tool_call = {
                 "name": "run_script_by_name",
                 "args": {
@@ -159,12 +158,14 @@ def agent_node(state: AgentState):
                     "parameters": final_params,
                     "is_final_approval": True # Signal to frontend this is the final step
                 },
-                "id": tool_call_id
+                "id": f"tool_call_{uuid.uuid4()}" # Generate a unique ID
             }
             
             return {
                 "messages": [AIMessage(content="", tool_calls=[tool_call])],
-                "final_parameters_for_execution": updated_params_list,
+                "status": "interrupted", # Signal to frontend to look for tool_call
+                "tool_call": tool_call, # Include the tool_call directly in the response data
+                "final_parameters_for_execution": updated_params_list, # Keep this for potential frontend use
             }
 
         else:
@@ -312,9 +313,18 @@ def tool_node(state: AgentState):
             state_update['identified_scripts_for_choice'] = full_manifest
             results.append(ToolMessage(content=json.dumps(full_manifest), tool_call_id=tool_call['id']))
         elif tool_call['name'] == run_script_by_name.name:
-            # The tool call is just a signal to the frontend, so we pass the result through
             result = run_script_by_name.invoke(tool_call['args'])
-            results.append(ToolMessage(content=json.dumps(result), tool_call_id=tool_call['id']))
+            
+            agent_summary = result.get("agent_summary", "Script executed. See Summary tab for details.")
+            
+            # Create an AIMessage with the agent_summary
+            ai_message = AIMessage(content=agent_summary)
+            
+            # Update state with the AI message and signal END
+            return {
+                "messages": [ai_message],
+                "next_conversational_action": END # Explicitly set END here
+            }
         else:
             results.append(ToolMessage(content=f"Unknown or unhandled tool: {tool_call['name']}", tool_call_id=tool_call['id']))
     state_update["messages"] = results
