@@ -2,7 +2,6 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using CoreScript.Engine.Context;
 using CoreScript.Engine.Logging;
-using CoreScript.Engine.Models; // Added
 using System;
 using System.Collections.Generic;
 
@@ -11,10 +10,10 @@ namespace CoreScript.Engine.Tests
     public class TestScriptContext : ICoreScriptContext
     {
         private readonly List<string> _printMessages = new();
-        private readonly List<StructuredOutputItem> _structuredOutputLog = new(); // Changed
-        
+        private readonly List<string> _showOutputMessages = new();
+
         public IReadOnlyList<string> PrintLog => _printMessages;
-        public IReadOnlyList<StructuredOutputItem> StructuredOutputLog => _structuredOutputLog; // Changed
+        public IReadOnlyList<string> ShowOutputLog => _showOutputMessages;
 
         public UIApplication UIApp { get; }
 
@@ -62,7 +61,7 @@ namespace CoreScript.Engine.Tests
 
         public void AddStructuredOutput(string type, string jsonData)
         {
-            _structuredOutputLog.Add(new StructuredOutputItem { Type = type, Data = jsonData });
+            _showOutputMessages.Add($"Type: {type}, Data: {jsonData}");
             FileLogger.Log($"Structured Output - Type: {type}, Data: {jsonData}");
             Console.WriteLine($"Structured Output - Type: {type}, Data: {jsonData}");
         }

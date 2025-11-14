@@ -1,0 +1,137 @@
+<UserControl x:Class="RServer.Addin.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:converters="clr-namespace:RServer.Addin.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="900">
+    <UserControl.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        
+        <Style x:Key="DataGridCellTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#B3B3B3"/>
+        </Style>
+    </UserControl.Resources>
+    <Grid Background="#1E1E2F" Margin="0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Orientation="Vertical" Margin="0">
+                <!-- Header -->
+                <StackPanel Orientation="Horizontal" Margin="20,20,20,10" VerticalAlignment="Top">
+                    <TextBlock Text="RServer Dashboard" FontSize="16" FontWeight="Bold" Foreground="#F8F8F2"/>
+                    <Ellipse x:Name="HeartbeatEllipse" Width="16" Height="16" Margin="16,0,0,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#FF5555"/>
+                                <Setter Property="Opacity" Value="1"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsServerRunning}" Value="True">
+                                        <Setter Property="Fill" Value="#4CAF50"/>
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard x:Name="HeartbeatStoryboard">
+                                                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:0.7"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                        <DataTrigger.ExitActions>
+                                            <RemoveStoryboard BeginStoryboardName="HeartbeatStoryboard"/>
+                                        </DataTrigger.ExitActions>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsServerRunning}" Value="False">
+                                        <Setter Property="Opacity" Value="1"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                        <Ellipse.Effect>
+                            <DropShadowEffect Color="#4CAF50" BlurRadius="10" ShadowDepth="0"/>
+                        </Ellipse.Effect>
+                    </Ellipse>
+                    <TextBlock x:Name="OnlineText" FontWeight="SemiBold" VerticalAlignment="Center" Margin="6,0,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="  Offline"/>
+                                <Setter Property="Foreground" Value="#FF5555"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsServerRunning}" Value="True">
+                                        <Setter Property="Text" Value="  Online"/>
+                                        <Setter Property="Foreground" Value="#4CAF50"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+                <!-- Status Cards -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="20,0,20,16">
+                    <Border Background="#282A36" CornerRadius="12" Padding="18" Margin="0,0,16,0" Width="120" Height="90">
+                        <StackPanel>
+                            <TextBlock Text="Executions" Foreground="#8BE9FD" FontWeight="Bold" FontSize="12"/>
+                            <TextBlock Text="{Binding TotalExecutions}" Foreground="#F8F8F2" FontSize="18" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#282A36" CornerRadius="12" Padding="18" Width="120" Height="90">
+                        <StackPanel>
+                            <TextBlock Text="Last Status" Foreground="#FFB86C" FontWeight="Bold" FontSize="12"/>
+                            <TextBlock Text="{Binding LastExecutionStatus}" Foreground="#F8F8F2" FontSize="18" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                <!-- Execution Table -->
+                <Border Background="#282A36" CornerRadius="12" Padding="16" Margin="20,0,20,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Execution History" Foreground="#F8F8F2" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                            <Button Content="Clear" Command="{Binding ClearHistoryCommand}" Margin="10,0,0,0" Padding="8,2" FontSize="10"/>
+                        </StackPanel>
+                        <DataGrid x:Name="ExecutionHistoryGrid" ItemsSource="{Binding ExecutionHistory}" AutoGenerateColumns="False" HeadersVisibility="Column" Height="220" Background="#282A36" Foreground="#F8F8F2" BorderThickness="0" RowBackground="#23243A" AlternatingRowBackground="#22223A" GridLinesVisibility="None">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#282A36"/>
+                                    <Setter Property="Foreground" Value="#F8F8F2"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Source" Width="60" Binding="{Binding Source}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellTextStyle}"/>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Script" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ScriptName}" Style="{StaticResource DataGridCellTextStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Status" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Status}" Style="{StaticResource DataGridCellTextStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Duration" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Duration}" Style="{StaticResource DataGridCellTextStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Timestamp" Width="140">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Timestamp}" Style="{StaticResource DataGridCellTextStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

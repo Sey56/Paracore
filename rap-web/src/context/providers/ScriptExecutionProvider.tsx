@@ -446,7 +446,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         output: result.output || '',
         isSuccess: result.is_success,
         error: !result.is_success ? (result.error_message || (result.error_details && result.error_details.join('\n')) || null) : null,
-        showOutputData: result.showOutputData,
+        structuredOutput: result.structured_output,
       };
       setExecutionResult(frontendExecutionResult);
 

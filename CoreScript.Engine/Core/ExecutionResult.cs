@@ -1,6 +1,4 @@
-﻿using CoreScript.Engine.Models;
-
-namespace CoreScript.Engine.Core
+﻿namespace CoreScript.Engine.Core
 {
     /// <summary>
     /// Standard return type for all script execution responses.
@@ -15,12 +13,10 @@ namespace CoreScript.Engine.Core
         public object? ReturnValue { get; set; }
         public string ScriptName { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; } = DateTime.Now;
+        public List<string> StructuredOutput { get; set; } = new();
 
         // ✅ Added: log buffer for Print(...) output
         public List<string> PrintLog { get; set; } = new();
-
-        public OutputSummary? OutputSummary { get; set; } // New property for structured summary
-        public string? AgentSummary { get; set; } // New property for agent-specific summary
 
         /// <summary>
         /// Factory for failed execution result.

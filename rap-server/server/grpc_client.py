@@ -64,7 +64,7 @@ def execute_script(script_content, parameters_json):
                 "output": response.output,
                 "error_message": response.error_message,
                 "error_details": list(response.error_details),
-                "showOutputData": structured_output_data,
+                "structured_output": structured_output_data,
                 "output_summary": output_summary_data
             }
         except grpc.RpcError as e:

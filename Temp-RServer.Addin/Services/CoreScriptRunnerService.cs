@@ -7,9 +7,8 @@ using CoreScript.Engine.Logging;
 using RServer.Addin.Context;
 using RServer.Addin.Helpers; // Added for EphemeralWorkspaceManager
 using RServer.Addin.ViewModels;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
+using System.IO;
+using System.Collections.Generic;
 
 namespace RServer.Addin.Services
 {
@@ -154,6 +153,39 @@ namespace RServer.Addin.Services
                 ErrorMessage = finalResult.ErrorMessage ?? "",
             };
 
+            if (finalResult.OutputSummary != null)
+            {
+                response.OutputSummary = new CoreScript.OutputSummary();
+
+                if (finalResult.OutputSummary.Console != null)
+                {
+                    response.OutputSummary.Console = new CoreScript.ConsoleSummary
+                    {
+                        LineCount = finalResult.OutputSummary.Console.LineCount,
+                        TruncatedLines = { finalResult.OutputSummary.Console.TruncatedLines }
+                    };
+                }
+
+                if (finalResult.OutputSummary.Table != null)
+                {
+                    response.OutputSummary.Table = new CoreScript.TableSummary
+                    {
+                        RowCount = finalResult.OutputSummary.Table.RowCount,
+                        ColumnHeaders = { finalResult.OutputSummary.Table.ColumnHeaders },
+                        TruncatedRowsJson = { finalResult.OutputSummary.Table.TruncatedRows.Select(row => System.Text.Json.JsonSerializer.Serialize(row)) }
+                    };
+                }
+
+                if (finalResult.OutputSummary.ReturnValueSummary != null)
+                {
+                    response.OutputSummary.ReturnValueSummary = new CoreScript.ReturnValueSummary
+                    {
+                        Type = finalResult.OutputSummary.ReturnValueSummary.Type,
+                        Value = finalResult.OutputSummary.ReturnValueSummary.Value
+                    };
+                }
+            }
+
             if (finalResult.ErrorDetails != null)
             {
                 response.ErrorDetails.AddRange(finalResult.ErrorDetails);
@@ -187,16 +219,16 @@ var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.S
 
                 response.Metadata = new CoreScript.ScriptMetadata
                 {
-                    Name = extractedMetadata.Name,
-                    Description = extractedMetadata.Description,
-                    Author = extractedMetadata.Author,
-                    Website = extractedMetadata.Website,
-                    Categories = { extractedMetadata.Categories },
-                    LastRun = extractedMetadata.LastRun,
-                    Dependencies = { extractedMetadata.Dependencies },
-                    DocumentType = extractedMetadata.DocumentType,
-                    UsageExamples = { extractedMetadata.UsageExamples }
+                    Name = extractedMetadata.Name ?? "",
+                    Description = extractedMetadata.Description ?? "",
+                    Author = extractedMetadata.Author ?? "",
+                    Website = extractedMetadata.Website ?? "",
+                    LastRun = extractedMetadata.LastRun ?? "",
+                    DocumentType = extractedMetadata.DocumentType ?? "",
                 };
+                response.Metadata.Categories.AddRange(extractedMetadata.Categories);
+                response.Metadata.Dependencies.AddRange(extractedMetadata.Dependencies);
+                response.Metadata.UsageExamples.AddRange(extractedMetadata.UsageExamples);
             }
             catch (Exception ex)
             {
@@ -244,6 +276,12 @@ var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.S
             }
             return Task.FromResult(response);
         }
+
+        public override Task<ScriptManifestResponse> GetScriptManifest(GetScriptManifestRequest request, ServerCallContext context)
+        {
+            throw new RpcException(new Status(StatusCode.Unimplemented, "This method is no longer used. The rap-server is now responsible for manifest generation."));
+        }
+
 
         public override Task<GetCombinedScriptResponse> GetCombinedScript(GetCombinedScriptRequest request, ServerCallContext context)
         {

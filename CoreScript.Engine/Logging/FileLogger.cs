@@ -18,7 +18,7 @@ namespace CoreScript.Engine.Logging
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "CodeRunnerDebug.txt");
 
-        public static LogLevel CurrentLogLevel { get; set; } = LogLevel.Debug; // Default to Debug for debugging
+        public static LogLevel CurrentLogLevel { get; set; } = LogLevel.Info; // Default to Info
 
         public static void Log(string message, LogLevel level = LogLevel.Info)
         {

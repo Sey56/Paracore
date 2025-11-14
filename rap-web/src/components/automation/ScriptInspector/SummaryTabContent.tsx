@@ -15,12 +15,12 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   executionResult,
 }) => {
   const { showNotification } = useNotifications();
-  const hasOutput = executionResult?.showOutputData && executionResult.showOutputData.length > 0;
+  const hasOutput = executionResult?.structuredOutput && executionResult.structuredOutput.length > 0;
 
   const handleCopy = () => {
-    if (!executionResult?.showOutputData) return;
+    if (!executionResult?.structuredOutput) return;
 
-    const tableDataItem = executionResult.showOutputData.find(item => item.type === 'table');
+    const tableDataItem = executionResult.structuredOutput.find(item => item.type === 'table');
 
     if (tableDataItem) {
       try {
@@ -42,15 +42,15 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
     }
 
     // Fallback for non-table data or if table is empty or parsing fails
-    const textToCopy = executionResult.showOutputData.map(item => item.data).join('\n\n');
+    const textToCopy = executionResult.structuredOutput.map(item => item.data).join('\n\n');
     navigator.clipboard.writeText(textToCopy);
     showNotification('Raw output copied to clipboard.', 'info');
   };
 
   const handleExportCsv = async () => {
-    if (!executionResult?.showOutputData) return;
+    if (!executionResult?.structuredOutput) return;
 
-    const tableDataItem = executionResult.showOutputData.find(item => item.type === 'table');
+    const tableDataItem = executionResult.structuredOutput.find(item => item.type === 'table');
 
     if (tableDataItem) {
       try {
@@ -92,9 +92,9 @@ export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
   return (
     <div className="tab-content py-4 flex flex-col h-full">
       <div className="flex-grow overflow-y-auto">
-        {hasOutput && executionResult?.showOutputData ? (
+        {hasOutput && executionResult?.structuredOutput ? (
           <div className="space-y-4">
-            {executionResult.showOutputData.map((item, index) => (
+            {executionResult.structuredOutput.map((item, index) => (
               <StructuredOutputViewer key={index} item={item} />
             ))}
           </div>

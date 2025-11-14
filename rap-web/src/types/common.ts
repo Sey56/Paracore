@@ -27,7 +27,7 @@ export interface ExecutionResult {
   output: string;
   error: string | null;
   isSuccess: boolean;
-  showOutputData?: StructuredOutput[];
+  structuredOutput?: StructuredOutput[];
   outputSummary?: OutputSummary; // Added outputSummary here
 }
 

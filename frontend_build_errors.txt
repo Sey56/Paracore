@@ -1,0 +1,77 @@
+❯ npm run build
+
+> rap@1.0.0 build
+> tsc -b && vite build
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:16:38 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+16   const hasOutput = executionResult?.showOutputData && executionResult.showOutputData.length > 0;
+                                        ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:16:72 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+16   const hasOutput = executionResult?.showOutputData && executionResult.showOutputData.length > 0;
+                                                                          ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:19:27 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+19     if (!executionResult?.showOutputData) return;
+                             ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:21:43 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+21     const tableDataItem = executionResult.showOutputData.find(item => item.type === 'table');
+                                             ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:21:63 - error TS7006: Parameter 'item' implicitly has an 'any' type.
+
+21     const tableDataItem = executionResult.showOutputData.find(item => item.type === 'table');
+                                                                 ~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:43:40 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+43     const textToCopy = executionResult.showOutputData.map(item => item.data).join('\n\n');
+                                          ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:43:59 - error TS7006: Parameter 'item' implicitly has an 'any' type.
+
+43     const textToCopy = executionResult.showOutputData.map(item => item.data).join('\n\n');
+                                                             ~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:49:27 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+49     if (!executionResult?.showOutputData) return;
+                             ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:51:43 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+51     const tableDataItem = executionResult.showOutputData.find(item => item.type === 'table');
+                                             ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:51:63 - error TS7006: Parameter 'item' implicitly has an 'any' type.
+
+51     const tableDataItem = executionResult.showOutputData.find(item => item.type === 'table');
+                                                                 ~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:93:40 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+93         {hasOutput && executionResult?.showOutputData ? (
+                                          ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:95:30 - error TS2339: Property 'showOutputData' does not exist on type 'ScriptExecutionResult'.
+
+95             {executionResult.showOutputData.map((item, index) => (
+                                ~~~~~~~~~~~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:95:50 - error TS7006: Parameter 'item' implicitly has an 'any' type.
+
+95             {executionResult.showOutputData.map((item, index) => (
+                                                    ~~~~
+
+src/components/automation/ScriptInspector/SummaryTabContent.old.tsx:95:56 - error TS7006: Parameter 'index' implicitly has an 'any' type.
+
+95             {executionResult.showOutputData.map((item, index) => (
+                                                          ~~~~~
+
+
+Found 14 errors.

@@ -24,7 +24,7 @@ export interface ScriptExecutionResult {
   output: string;
   error: string | null;
   isSuccess: boolean;
-  showOutputData?: StructuredOutput[];
+  structuredOutput?: StructuredOutput[];
 }
 
 export interface GitInfo {
