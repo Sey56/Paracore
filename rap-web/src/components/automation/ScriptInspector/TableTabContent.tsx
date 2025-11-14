@@ -7,11 +7,11 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { save } from '@tauri-apps/api/dialog'; // Import save from dialog
 import { writeTextFile } from '@tauri-apps/api/fs'; // Import writeTextFile from fs
 
-interface SummaryTabContentProps {
+interface TableTabContentProps {
   executionResult: ScriptExecutionResult | null;
 }
 
-export const SummaryTabContent: React.FC<SummaryTabContentProps> = ({
+export const TableTabContent: React.FC<TableTabContentProps> = ({
   executionResult,
 }) => {
   const { showNotification } = useNotifications();

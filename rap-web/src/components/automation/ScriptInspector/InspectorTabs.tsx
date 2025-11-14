@@ -5,7 +5,7 @@ import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/hooks/useScriptExecution";
 import { ParametersTab } from './ParametersTab';
 import { ConsoleTabContent } from './ConsoleTabContent';
-import { SummaryTabContent } from './SummaryTabContent';
+import { TableTabContent } from './TableTabContent';
 import { MetadataTabContent } from './MetadataTabContent';
 
 interface InspectorTabsProps {
@@ -17,21 +17,18 @@ interface InspectorTabsProps {
 }
 
 export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning, onViewCodeClick, isActionable, tooltipMessage }) => {
-  const { activeInspectorTab, setActiveInspectorTab, activeMainView } = useUI();
+  const { activeInspectorTab, setActiveInspectorTab } = useUI();
   const { 
     executionResult,
     clearExecutionResult,
   } = useScriptExecution();
 
-  const allTabs = ["parameters", "console", "summary", "metadata"] as const;
-  const tabsToShow = activeMainView === 'agent'
-    ? allTabs.filter(tab => tab !== 'console' && tab !== 'metadata' && tab !== 'summary')
-    : allTabs;
+  const allTabs = ["parameters", "console", "table", "metadata"] as const;
 
   return (
     <div className={`tabs mb-6 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
       <div className="flex border-b border-gray-200 dark:border-gray-700">
-        {tabsToShow.map((tab: InspectorTab) => (
+        {allTabs.map((tab: InspectorTab) => (
           <button
             key={tab}
             className={`tab-button px-4 py-2 font-medium text-sm ${ 
@@ -59,8 +56,8 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             clearExecutionResult={clearExecutionResult}
           />
         </div>
-        <div className={activeInspectorTab === 'summary' ? '' : 'hidden'}>
-          <SummaryTabContent executionResult={executionResult} />
+        <div className={activeInspectorTab === 'table' ? '' : 'hidden'}>
+          <TableTabContent executionResult={executionResult} />
         </div>
         <div className={activeInspectorTab === 'metadata' ? '' : 'hidden'}>
           <MetadataTabContent metadata={script.metadata} />

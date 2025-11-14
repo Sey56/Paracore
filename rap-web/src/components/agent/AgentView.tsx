@@ -263,7 +263,7 @@ export const AgentView: React.FC = () => {
           value: toolCall.args.parameters[p.name] ?? p.value,
         }));
         runScript(selectedScript, finalParams);
-        setActiveInspectorTab('summary');
+        setActiveInspectorTab('table');
       } else {
         showNotification("Error: No script is selected for execution.", "error");
       }
