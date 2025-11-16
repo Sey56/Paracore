@@ -52,63 +52,21 @@ class StructuredOutputItem(_message.Message):
     data: str
     def __init__(self, type: _Optional[str] = ..., data: _Optional[str] = ...) -> None: ...
 
-class OutputSummary(_message.Message):
-    __slots__ = ("type", "message", "table", "console", "return_value_summary")
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    TABLE_FIELD_NUMBER: _ClassVar[int]
-    CONSOLE_FIELD_NUMBER: _ClassVar[int]
-    RETURN_VALUE_SUMMARY_FIELD_NUMBER: _ClassVar[int]
-    type: str
-    message: str
-    table: TableSummary
-    console: ConsoleSummary
-    return_value_summary: ReturnValueSummary
-    def __init__(self, type: _Optional[str] = ..., message: _Optional[str] = ..., table: _Optional[_Union[TableSummary, _Mapping]] = ..., console: _Optional[_Union[ConsoleSummary, _Mapping]] = ..., return_value_summary: _Optional[_Union[ReturnValueSummary, _Mapping]] = ...) -> None: ...
-
-class TableSummary(_message.Message):
-    __slots__ = ("row_count", "column_headers", "truncated_rows_json")
-    ROW_COUNT_FIELD_NUMBER: _ClassVar[int]
-    COLUMN_HEADERS_FIELD_NUMBER: _ClassVar[int]
-    TRUNCATED_ROWS_JSON_FIELD_NUMBER: _ClassVar[int]
-    row_count: int
-    column_headers: _containers.RepeatedScalarFieldContainer[str]
-    truncated_rows_json: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, row_count: _Optional[int] = ..., column_headers: _Optional[_Iterable[str]] = ..., truncated_rows_json: _Optional[_Iterable[str]] = ...) -> None: ...
-
-class ConsoleSummary(_message.Message):
-    __slots__ = ("line_count", "truncated_lines")
-    LINE_COUNT_FIELD_NUMBER: _ClassVar[int]
-    TRUNCATED_LINES_FIELD_NUMBER: _ClassVar[int]
-    line_count: int
-    truncated_lines: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, line_count: _Optional[int] = ..., truncated_lines: _Optional[_Iterable[str]] = ...) -> None: ...
-
-class ReturnValueSummary(_message.Message):
-    __slots__ = ("type", "value")
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
-    type: str
-    value: str
-    def __init__(self, type: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
-
 class ExecuteScriptResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "output_summary", "agent_summary")
+    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "agent_summary")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ERROR_DETAILS_FIELD_NUMBER: _ClassVar[int]
     STRUCTURED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
-    OUTPUT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     AGENT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
     error_details: _containers.RepeatedScalarFieldContainer[str]
     structured_output: _containers.RepeatedCompositeFieldContainer[StructuredOutputItem]
-    output_summary: OutputSummary
     agent_summary: str
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., output_summary: _Optional[_Union[OutputSummary, _Mapping]] = ..., agent_summary: _Optional[str] = ...) -> None: ...
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., agent_summary: _Optional[str] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ()

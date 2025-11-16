@@ -201,24 +201,17 @@ export const AgentView: React.FC = () => {
     if (executionResult && agentRunTriggeredRef.current) {
       const internalMessage = "System: Script execution was successful.";
       
-      let summaryPayload = null;
-      let rawOutputPayload = null;
-
-      if (executionResult.outputSummary) {
-        summaryPayload = executionResult.outputSummary;
-      } else {
-        // If no summary, package the raw output for the agent to summarize
-        rawOutputPayload = {
-          structuredOutput: executionResult.structuredOutput,
-          consoleOutput: executionResult.output,
-        };
-      }
+      // Package the raw output for the agent to process
+      const rawOutputPayload = {
+        structuredOutput: executionResult.structuredOutput,
+        output: executionResult.output, // Use 'output' to match the python agent's expectation
+      };
 
       invokeAgent(
         [{ type: 'human', content: internalMessage, id: `system-${Date.now()}` }],
         { 
           isInternal: true, 
-          summary: summaryPayload,
+          summary: null, // Explicitly set summary to null
           raw_output: rawOutputPayload
         }
       );

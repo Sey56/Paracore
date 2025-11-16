@@ -43,38 +43,12 @@ message StructuredOutputItem {
   string data = 2; 
 }
 
-message OutputSummary {
-  string type = 1; // e.g., "string", "table", "console", "return_value", "error"
-  string message = 2; // General summary message
-
-  TableSummary table = 3;
-  ConsoleSummary console = 4;
-  ReturnValueSummary return_value_summary = 5;
-}
-
-message TableSummary {
-  int32 row_count = 1;
-  repeated string column_headers = 2;
-  repeated string truncated_rows_json = 3; // JSON serialized strings of rows
-}
-
-message ConsoleSummary {
-  int32 line_count = 1;
-  repeated string truncated_lines = 2; // First 5 lines
-}
-
-message ReturnValueSummary {
-  string type = 1;
-  string value = 2; // String representation of the return value
-}
-
 message ExecuteScriptResponse {
   bool is_success = 1;
   string output = 2;
   string error_message = 3;
   repeated string error_details = 4;
   repeated StructuredOutputItem structured_output = 5;
-  OutputSummary output_summary = 6; // New field for structured summary
   string agent_summary = 7;
 }
 

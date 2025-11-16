@@ -6,6 +6,8 @@ import corescript_pb2
 import corescript_pb2_grpc
 from google.protobuf import json_format
 
+import json
+
 @contextmanager
 def get_rscript_runner_stub():
     """Provides a gRPC stub within a managed context."""
@@ -51,21 +53,12 @@ def execute_script(script_content, parameters_json):
             # Process and return the successful response
             structured_output_data = [{"type": item.type, "data": item.data} for item in response.structured_output]
             
-            output_summary_data = None
-            if response.HasField("output_summary"):
-                output_summary_data = {
-                    "console_summary": json_format.MessageToDict(response.output_summary.console, preserving_proto_field_name=True) if response.output_summary.HasField("console") else None,
-                    "table_summary": json_format.MessageToDict(response.output_summary.table, preserving_proto_field_name=True) if response.output_summary.HasField("table") else None,
-                    "return_value_summary": json_format.MessageToDict(response.output_summary.return_value_summary, preserving_proto_field_name=True) if response.output_summary.HasField("return_value_summary") else None,
-                }
-
             return {
                 "is_success": response.is_success,
                 "output": response.output,
                 "error_message": response.error_message,
                 "error_details": list(response.error_details),
                 "structured_output": structured_output_data,
-                "output_summary": output_summary_data
             }
         except grpc.RpcError as e:
             logging.error(f"gRPC ExecuteScript call failed: {e.code()} - {e.details()}")

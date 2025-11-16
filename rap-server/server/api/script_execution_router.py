@@ -58,10 +58,6 @@ async def run_script(
         # Single call to the gRPC service
         response_data = execute_script(script_content_json, parameters_json)
         
-        # --- AGENT-DEBUG: Log the received summary ---
-        print(f"[script_execution_router] Received output_summary: {response_data.get('output_summary')}")
-        # --- END-AGENT-DEBUG ---
-        
         # Log the script run to the database
         run_status = "success" if response_data.get("is_success") else "failure"
         
