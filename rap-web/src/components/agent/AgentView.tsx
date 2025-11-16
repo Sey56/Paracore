@@ -34,66 +34,20 @@ export const AgentView: React.FC = () => {
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
   // Correctly get execution-related functions and state from their respective hooks
-  const { selectedScript, setSelectedScript, runScript, setExecutionResult, userEditedScriptParameters } = useScriptExecution();
+  const { selectedScript, setSelectedScript, runScript, executionResult, clearExecutionResult, userEditedScriptParameters } = useScriptExecution();
   const { fetchScriptManifest, toolLibraryPath, scripts: allScriptsFromScriptProvider } = useScripts();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const agentRunTriggeredRef = useRef<boolean>(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const storedMessages = localStorage.getItem(LOCAL_STORAGE_KEY_MESSAGES);
-      if (storedMessages) {
-        setMessages(JSON.parse(storedMessages));
-      }
-      const storedThreadId = localStorage.getItem(LOCAL_STORAGE_KEY_THREAD_ID);
-      if (storedThreadId) {
-        setThreadId(storedThreadId);
-      }
-    } catch (error) {
-      console.error("Failed to load chat history from localStorage:", error);
-      // Optionally clear corrupted data
-      localStorage.removeItem(LOCAL_STORAGE_KEY_MESSAGES);
-      localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
-    }
-  }, [setMessages, setThreadId]);
-
-  // Save to localStorage on messages or threadId change
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY_MESSAGES, JSON.stringify(messages));
-    } catch (error) {
-      console.error("Failed to save messages to localStorage:", error);
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    try {
-      if (threadId) {
-        localStorage.setItem(LOCAL_STORAGE_KEY_THREAD_ID, threadId);
-      } else {
-        localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
-      }
-    } catch (error) {
-      console.error("Failed to save threadId to localStorage:", error);
-    }
-  }, [threadId]);
-
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(scrollToBottom, [messages, isLoading]);
-
-  const invokeAgent = useCallback(async (newMessages: Message[]) => {
+  const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: any; raw_output?: any }) => {
     setIsLoading(true);
     
-    // Optimistically add the user's message to the UI for responsiveness
-    if (newMessages.some(m => m.type === 'human')) {
+    // Optimistically add the user's message to the UI for responsiveness, but only if it's not internal
+    if (!options?.isInternal && newMessages.some(m => m.type === 'human')) {
         setMessages(prev => [...prev, ...newMessages]);
         setInput('');
     }
@@ -126,6 +80,8 @@ export const AgentView: React.FC = () => {
         llm_api_key_name: llmApiKeyName,
         llm_api_key_value: llmApiKeyValue,
         user_edited_parameters: currentParamsDict,
+        execution_summary: options?.summary,
+        raw_output_for_summary: options?.raw_output,
       });
 
       // IMPORTANT: Add a check here to ensure response.data is not null/undefined
@@ -146,6 +102,12 @@ export const AgentView: React.FC = () => {
         console.log("AgentView: Received complete message from backend:", response.data.message);
         const agentMessage: Message = { type: 'ai', content: response.data.message, id: `ai-${Date.now()}` };
         setMessages(prev => [...prev, agentMessage]);
+
+        // If this message is the result of a script run, clear the execution result now
+        if (agentRunTriggeredRef.current) {
+          clearExecutionResult();
+          agentRunTriggeredRef.current = false; // Reset for the next run
+        }
 
         // --- Handle active_script if present ---
         if (response.data.active_script) {
@@ -234,6 +196,38 @@ export const AgentView: React.FC = () => {
     }
   }, [threadId, activeScriptSource, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, allScriptsFromScriptProvider, setSelectedScript]);
 
+  // Listen for execution results from agent-led runs
+  useEffect(() => {
+    if (executionResult && agentRunTriggeredRef.current) {
+      const internalMessage = "System: Script execution was successful.";
+      
+      let summaryPayload = null;
+      let rawOutputPayload = null;
+
+      if (executionResult.outputSummary) {
+        summaryPayload = executionResult.outputSummary;
+      } else {
+        // If no summary, package the raw output for the agent to summarize
+        rawOutputPayload = {
+          structuredOutput: executionResult.structuredOutput,
+          consoleOutput: executionResult.output,
+        };
+      }
+
+      invokeAgent(
+        [{ type: 'human', content: internalMessage, id: `system-${Date.now()}` }],
+        { 
+          isInternal: true, 
+          summary: summaryPayload,
+          raw_output: rawOutputPayload
+        }
+      );
+
+      // Reset the trigger, but not the result yet
+      agentRunTriggeredRef.current = false;
+    }
+  }, [executionResult, invokeAgent]);
+
   const sendMessage = (messageText: string) => {
     if (!messageText.trim()) return;
     const newMessage: Message = { type: 'human', content: messageText, id: `user-${Date.now()}` };
@@ -256,6 +250,7 @@ export const AgentView: React.FC = () => {
     // If this is the final approval step, call the runScript function directly
     if (toolCall.name === 'run_script_by_name' && userDecision === 'approve') {
       if (selectedScript) {
+        agentRunTriggeredRef.current = true; // Set the flag before running
         // The `runScript` function from `useScriptExecution` expects the full Script object
         // and an array of ScriptParameter objects.
         const finalParams = selectedScript.parameters.map(p => ({

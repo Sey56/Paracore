@@ -1,5 +1,6 @@
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
+using Google.Protobuf;
 using Grpc.Core;
 using CoreScript;
 using CoreScript.Engine.Core; // Added for ParameterExtractor
@@ -10,6 +11,8 @@ using RServer.Addin.ViewModels;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Text.Json;
 
 namespace RServer.Addin.Services
 {
@@ -166,6 +169,58 @@ namespace RServer.Addin.Services
                 {
                     response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { Type = item.Type, Data = item.Data });
                 }
+            }
+
+            // Generate Agent Summary with strict primacy for Table output.
+            const int summaryThreshold = 5;
+
+            // Rule #1: Prioritize StructuredOutput (from Show()). If it exists, we base our summary decision SOLELY on it.
+            if (finalResult.StructuredOutput.Any() && !string.IsNullOrEmpty(finalResult.StructuredOutput.FirstOrDefault()))
+            {
+                var tableJson = finalResult.StructuredOutput.First();
+                try
+                {
+                    var tableRows = JsonSerializer.Deserialize<List<JsonElement>>(tableJson);
+                    if (tableRows != null && tableRows.Count > summaryThreshold)
+                    {
+                        var truncatedRowsJson = tableRows.Take(summaryThreshold)
+                                                         .Select(row => row.ToString())
+                                                         .ToList();
+
+                        var tableSummary = new TableSummary { RowCount = tableRows.Count };
+                        tableSummary.TruncatedRowsJson.AddRange(truncatedRowsJson);
+
+                        response.OutputSummary = new OutputSummary
+                        {
+                            Type = "table",
+                            Message = $"Script returned a table with {tableRows.Count} rows.",
+                            Table = tableSummary
+                        };
+                    }
+                    // If row count is <= 5, we intentionally do nothing, creating no summary.
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogError($"[CoreScriptRunnerService] Failed to deserialize StructuredOutput for summary: {ex.Message}");
+                }
+            }
+            // Rule #2: Only if there is NO structured output, check PrintLog.
+            else if (finalResult.PrintLog.Any())
+            {
+                var relevantLog = finalResult.PrintLog.Where(l => !l.StartsWith("✅") && !l.StartsWith("❌")).ToList();
+                if (relevantLog.Count > summaryThreshold)
+                {
+                    var consoleSummary = new ConsoleSummary { LineCount = relevantLog.Count };
+                    consoleSummary.TruncatedLines.AddRange(relevantLog.Take(summaryThreshold));
+
+                    response.OutputSummary = new OutputSummary
+                    {
+                        Type = "console",
+                        Message = $"Script produced {relevantLog.Count} log messages.",
+                        Console = consoleSummary
+                    };
+                }
+                // If line count is <= 5, we do nothing, creating no summary.
             }
 
             return response;

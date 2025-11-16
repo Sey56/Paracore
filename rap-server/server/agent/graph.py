@@ -58,6 +58,72 @@ def agent_node(state: AgentState):
         if isinstance(msg, HumanMessage):
             current_human_message = msg
             break
+
+    # --- Handle Post-Execution Summary ---
+    if current_human_message and current_human_message.content == "System: Script execution was successful.":
+        
+        final_message = "Action completed successfully." # Default message
+        summary_data = state.get("execution_summary")
+        raw_output_data = state.get("raw_output_for_summary")
+
+        if summary_data:
+            # Case 1: A pre-generated summary exists for large output
+            prompt_text = ""
+            table_summary = summary_data.get('table_summary') or summary_data.get('table')
+            console_summary = summary_data.get('console_summary') or summary_data.get('console')
+
+            if table_summary:
+                row_count = table_summary.get('row_count', 'an unknown number of')
+                prompt_text = f"""The script you ran returned a table with {row_count} rows. 
+                Briefly state this and tell the user they can see the full table in the 'Table' tab. 
+                Keep the response to a single, user-friendly sentence."""
+            elif console_summary:
+                line_count = console_summary.get('line_count', 'an unknown number of')
+                prompt_text = f"""The script you ran produced {line_count} lines of console output. 
+                Briefly state this and tell the user they can see the full output in the 'Console' tab. 
+                Keep the response to a single, user-friendly sentence."""
+            
+            if prompt_text:
+                final_message = llm.invoke(prompt_text).content
+            else:
+                final_message = "Script executed successfully, but the summary format was unrecognized."
+        elif raw_output_data:
+            # Case 2: No pre-generated summary exists. The agent MUST summarize the raw console output.
+            console_output = raw_output_data.get('consoleOutput')
+
+            # Console output is guaranteed to exist due to CodeRunner's success/failure messages.
+            # Filter out the default success message from the console log before summarizing
+            lines = console_output.strip().split('\n')
+            relevant_lines = [line for line in lines if not line.startswith("✅") and not line.startswith("❌")]
+            relevant_output = "\n".join(relevant_lines).strip()
+
+            if relevant_output:
+                prompt_text = f"""The script ran and produced the following console output:
+                ---
+                {relevant_output}
+                ---
+                Summarize this output in a user-friendly, conversational way. Keep the response to 1-2 sentences."""
+                final_message = llm.invoke(prompt_text).content
+            else:
+                # If after filtering, there's no relevant output, just state success.
+                final_message = "Script executed successfully."
+        # Case 3: No summary and no raw output, use the default "Action completed successfully."
+
+        # Return state to end the conversation
+        return {
+            "messages": [AIMessage(content=final_message)],
+            # Reset state for the next turn
+            "selected_script_metadata": None,
+            "script_parameters_definitions": None,
+            "next_conversational_action": None,
+            "identified_scripts_for_choice": None,
+            "recommended_script_name": None,
+            "script_selected_for_params": None,
+            "final_parameters_for_execution": None,
+            "ui_parameters": None,
+            "execution_summary": None,
+            "raw_output_for_summary": None,
+        }
             
     previous_conversational_action = state.get("next_conversational_action")
 

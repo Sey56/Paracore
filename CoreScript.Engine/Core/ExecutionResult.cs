@@ -18,6 +18,36 @@
         // ✅ Added: log buffer for Print(...) output
         public List<string> PrintLog { get; set; } = new();
 
+        public OutputSummaryData? OutputSummary { get; set; }
+
+        #region Agent Summary Classes
+        /// <summary>
+        /// Represents a structured, summarized version of the script's output for agent consumption.
+        /// Mirrors the gRPC message contract.
+        /// </summary>
+        public class OutputSummaryData
+        {
+            public string Type { get; set; } = "none"; // "table", "console"
+            public string Message { get; set; } = string.Empty;
+            public TableSummary? Table { get; set; }
+            public ConsoleSummary? Console { get; set; }
+        }
+
+        public class TableSummary
+        {
+            public int RowCount { get; set; }
+            // Headers are not available at this stage, skip for now.
+            // public List<string> ColumnHeaders { get; set; } = new();
+            public List<string> TruncatedRowsJson { get; set; } = new();
+        }
+
+        public class ConsoleSummary
+        {
+            public int LineCount { get; set; }
+            public List<string> TruncatedLines { get; set; } = new();
+        }
+        #endregion
+
         /// <summary>
         /// Factory for failed execution result.
         /// </summary>

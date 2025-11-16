@@ -442,11 +442,16 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       const response = await api.post("/run-script", body);
       const result = response.data;
 
+      // --- AGENT-DEBUG: Log the received summary ---
+      console.log("[ScriptExecutionProvider] Received result from /run-script:", result);
+      // --- END-AGENT-DEBUG ---
+
       const frontendExecutionResult: ExecutionResult = {
         output: result.output || '',
         isSuccess: result.is_success,
         error: !result.is_success ? (result.error_message || (result.error_details && result.error_details.join('\n')) || null) : null,
         structuredOutput: result.structured_output,
+        outputSummary: result.output_summary, // Pass the summary to the state
       };
       setExecutionResult(frontendExecutionResult);
 

@@ -28,6 +28,8 @@ class ChatRequest(BaseModel):
     llm_api_key_value: str | None
     agent_scripts_path: str # Path to the agent's dedicated script workspace (tools_library path)
     user_edited_parameters: dict | None = None
+    execution_summary: dict | None = None # New field for the summary
+    raw_output_for_summary: dict | None = None # New field for small raw outputs
 
 @router.post("/agent/chat")
 async def chat_with_agent(request: ChatRequest):
@@ -58,15 +60,25 @@ async def chat_with_agent(request: ChatRequest):
             "llm_api_key_value": request.llm_api_key_value,
             "agent_scripts_path": request.agent_scripts_path,
             "ui_parameters": request.user_edited_parameters,
+            "execution_summary": request.execution_summary, # Pass summary to state
         }
         if is_new_thread:
             config_update["current_task_description"] = request.message
         
-        # Update the state with the config_update. This will be merged by the checkpointer.
-        app_instance.update_state(config, config_update)
-
-        # The `ainvoke` call should only receive the new message as input.
-        final_state = await app_instance.ainvoke({"messages": [input_message]}, config)
+        # The `ainvoke` call should receive the new message and any state updates.
+        final_state = await app_instance.ainvoke({
+            "messages": [input_message],
+            "user_token": request.token,
+            "llm_provider": request.llm_provider,
+            "llm_model": request.llm_model,
+            "llm_api_key_name": request.llm_api_key_name,
+            "llm_api_key_value": request.llm_api_key_value,
+            "agent_scripts_path": request.agent_scripts_path,
+            "ui_parameters": request.user_edited_parameters,
+            "execution_summary": request.execution_summary,
+            "raw_output_for_summary": request.raw_output_for_summary,
+            "current_task_description": request.message if is_new_thread else None,
+        }, config)
 
         # The agent's final response is the last message in the state
         last_message = final_state.get('messages', [])[-1]
