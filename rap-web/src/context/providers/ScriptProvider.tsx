@@ -232,13 +232,16 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     showNotification("Generating agent tool manifest...", "info");
     try {
       const response = await api.post("/api/script-manifest", { tool_library_path: toolLibraryPath });
-      showNotification(response.data.message, "success");
+      console.log("ScriptProvider: Manifest API response data:", response.data); // Re-added log
+      setAllScripts(response.data.manifest); // Store the manifest in state
+      localStorage.setItem('full_script_manifest', JSON.stringify(response.data.manifest)); // Store in local storage
+      showNotification(response.data.message || "Agent tool manifest generated successfully!", "success");
     } catch (error) {
       console.error(`Failed to generate script manifest:`, error);
       const message = error instanceof Error ? error.message : "Unknown error";
       showNotification(`Failed to generate script manifest: ${message}`, "error");
     }
-  }, [rserverConnected, toolLibraryPath, showNotification]);
+  }, [rserverConnected, toolLibraryPath, showNotification, setAllScripts]);
 
 
 

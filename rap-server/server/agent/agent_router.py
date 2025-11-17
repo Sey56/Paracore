@@ -31,6 +31,7 @@ class ChatRequest(BaseModel):
     user_edited_parameters: dict | None = None
     execution_summary: dict | None = None # New field for the summary
     raw_output_for_summary: dict | None = None # New field for small raw outputs
+    full_script_manifest: list | None = None # Injected from frontend
 
 @router.post("/agent/chat")
 async def chat_with_agent(request: ChatRequest):
@@ -51,6 +52,8 @@ async def chat_with_agent(request: ChatRequest):
         # Prepare the input for the graph - ONLY the new message
         input_message = HumanMessage(content=request.message)
 
+        print(f"agent_router: Received full_script_manifest: {request.full_script_manifest}") # ADDED LOG
+
         # --- NEW: Generate summary from raw_output_for_summary if present ---
         generated_summary = None
         if request.raw_output_for_summary:
@@ -69,8 +72,6 @@ async def chat_with_agent(request: ChatRequest):
             "ui_parameters": request.user_edited_parameters,
             "execution_summary": generated_summary, # Pass generated summary to state
         }
-        if is_new_thread:
-            config_update["current_task_description"] = request.message
         
         # The `ainvoke` call should receive the new message and any state updates.
         final_state = await app_instance.ainvoke({
@@ -84,7 +85,8 @@ async def chat_with_agent(request: ChatRequest):
             "ui_parameters": request.user_edited_parameters,
             "execution_summary": generated_summary, # Pass generated summary to state
             "raw_output_for_summary": request.raw_output_for_summary, # Still pass raw output for small cases
-            "current_task_description": request.message if is_new_thread else None,
+            "current_task_description": request.message, # Always pass the current message as the task description
+            "identified_scripts_for_choice": request.full_script_manifest, # Inject the manifest
         }, config)
 
         # The agent's final response is the last message in the state

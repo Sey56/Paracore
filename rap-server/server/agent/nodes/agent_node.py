@@ -1,4 +1,4 @@
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from .summary_node import summary_node
 from .parameter_node import handle_present_parameters, handle_parameter_modification
 from .selection_node import handle_script_selection
@@ -12,6 +12,7 @@ def agent_node(state: dict):
     The main agent node router.
     It inspects the state and calls the appropriate handler function.
     """
+    print(f"agent_node: Current state: {state}") # ADDED LOG
     llm = get_llm(state)
     
     current_human_message = None
@@ -40,17 +41,12 @@ def agent_node(state: dict):
     elif previous_conversational_action == "ask_for_script_confirmation" and current_human_message:
         return handle_script_selection(state, llm)
 
-    # 5. Perform Semantic Search
-    elif state.get('identified_scripts_for_choice') and isinstance(state['identified_scripts_for_choice'], list):
+    # 5. Perform Semantic Search (if manifest is injected)
+    if state.get('identified_scripts_for_choice') and isinstance(state['identified_scripts_for_choice'], list):
+        print(f"agent_node: identified_scripts_for_choice is present and is a list. Length: {len(state['identified_scripts_for_choice'])}") # ADDED LOG
         return handle_semantic_search(state, llm)
     
-    # 6. Default: If no specific action, invoke the main chain for a new query
+    # 6. Default: If manifest is not injected, return an error.
     else:
-        llm_with_tools = llm.bind_tools(tools)
-        chain = prompt | llm_with_tools
-        response = chain.invoke({
-            "messages": state["messages"],
-            "agent_scripts_path": state.get("agent_scripts_path"),
-            "current_task_description": state.get("current_task_description")
-        })
-        return {"messages": [response]}
+        print(f"agent_node: identified_scripts_for_choice is NOT present or not a list. Value: {state.get('identified_scripts_for_choice')}, Type: {type(state.get('identified_scripts_for_choice'))}") # ADDED LOG
+        return {"messages": [AIMessage(content="I don't have a list of scripts to choose from. Please check the application configuration and ensure the script manifest is being provided.")]}
