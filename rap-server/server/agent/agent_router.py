@@ -9,6 +9,7 @@ import traceback
 from .graph import get_app
 from .state import AgentState
 from .tools import search_scripts_tool
+from .summary_utils import generate_summary # Import the new utility
 router = APIRouter()
 
 # Add this helper function (copied from previous version)
@@ -50,6 +51,12 @@ async def chat_with_agent(request: ChatRequest):
         # Prepare the input for the graph - ONLY the new message
         input_message = HumanMessage(content=request.message)
 
+        # --- NEW: Generate summary from raw_output_for_summary if present ---
+        generated_summary = None
+        if request.raw_output_for_summary:
+            generated_summary = generate_summary(request.raw_output_for_summary)
+        # --- END NEW ---
+
         # Update the state with configuration parameters and current_task_description
         # This is done *before* ainvoke, and the checkpointer will merge it.
         config_update = {
@@ -60,7 +67,7 @@ async def chat_with_agent(request: ChatRequest):
             "llm_api_key_value": request.llm_api_key_value,
             "agent_scripts_path": request.agent_scripts_path,
             "ui_parameters": request.user_edited_parameters,
-            "execution_summary": request.execution_summary, # Pass summary to state
+            "execution_summary": generated_summary, # Pass generated summary to state
         }
         if is_new_thread:
             config_update["current_task_description"] = request.message
@@ -75,8 +82,8 @@ async def chat_with_agent(request: ChatRequest):
             "llm_api_key_value": request.llm_api_key_value,
             "agent_scripts_path": request.agent_scripts_path,
             "ui_parameters": request.user_edited_parameters,
-            "execution_summary": request.execution_summary,
-            "raw_output_for_summary": request.raw_output_for_summary,
+            "execution_summary": generated_summary, # Pass generated summary to state
+            "raw_output_for_summary": request.raw_output_for_summary, # Still pass raw output for small cases
             "current_task_description": request.message if is_new_thread else None,
         }, config)
 

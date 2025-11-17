@@ -26,6 +26,10 @@ class AgentState(TypedDict):
     user_provided_param_modifications: dict | None
     script_parameters_definitions: list[dict] | None
     final_parameters_for_execution: list[dict] | None
+
+    # --- Post-Execution State ---
+    execution_summary: dict | None
+    raw_output_for_summary: dict | None
     
     # --- Control Signals for LLM ---
     next_conversational_action: Literal[
