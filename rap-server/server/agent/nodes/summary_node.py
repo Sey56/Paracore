@@ -76,9 +76,11 @@ def summary_node(state: dict) -> dict:
             else:
                 final_message = "Script executed successfully."
     
+    messages = state.get("messages", []) + [AIMessage(content=final_message)]
+
     # Return state to end the conversation
     return {
-        "messages": [AIMessage(content=final_message)],
+        "messages": messages,
         # Reset state for the next turn
         "selected_script_metadata": None,
         "script_parameters_definitions": None,

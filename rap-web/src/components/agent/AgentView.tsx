@@ -57,19 +57,6 @@ export const AgentView: React.FC = () => {
       const llmModel = localStorage.getItem('llmModel');
       const llmApiKeyName = localStorage.getItem('llmApiKeyName');
       const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
-      
-      // Read the manifest directly from local storage to ensure we get the latest value
-      let fullScriptManifest = [];
-      const manifestString = localStorage.getItem('full_script_manifest');
-      if (manifestString) {
-          try {
-              fullScriptManifest = JSON.parse(manifestString);
-              console.log("AgentView: manifestString from localStorage:", manifestString); // ADDED LOG
-              console.log("AgentView: fullScriptManifest parsed from localStorage:", fullScriptManifest); // ADDED LOG
-          } catch (e) {
-              console.error("Failed to parse full_script_manifest from localStorage:", e);
-          }
-      }
 
       // Extract the last human message content
       const lastHumanMessage = newMessages.findLast(m => m.type === 'human');
@@ -82,7 +69,7 @@ export const AgentView: React.FC = () => {
           return acc;
         }, {} as Record<string, any>) : undefined;
 
-      const requestBody = {
+      const response = await api.post("/agent/chat", {
         thread_id: threadId,
         message: messageContent, // Send a single string message
         workspace_path: activeScriptSource?.type !== 'published' ? activeScriptSource?.path || "" : "",
@@ -95,12 +82,7 @@ export const AgentView: React.FC = () => {
         user_edited_parameters: currentParamsDict,
         execution_summary: options?.summary,
         raw_output_for_summary: options?.raw_output,
-        full_script_manifest: fullScriptManifest, // Inject the manifest
-      };
-
-      console.log("AgentView: Sending request to /agent/chat with body:", requestBody);
-
-      const response = await api.post("/agent/chat", requestBody);
+      });
 
       // IMPORTANT: Add a check here to ensure response.data is not null/undefined
       if (!response.data) {
@@ -212,7 +194,7 @@ export const AgentView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [threadId, activeScriptSource, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, setSelectedScript]);
+  }, [threadId, activeScriptSource, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, allScriptsFromScriptProvider, setSelectedScript]);
 
   // Listen for execution results from agent-led runs
   useEffect(() => {

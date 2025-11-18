@@ -5,6 +5,7 @@ import uuid
 import os
 import json
 import traceback
+from typing import List
 
 from .graph import get_app
 from .state import AgentState
@@ -31,7 +32,6 @@ class ChatRequest(BaseModel):
     user_edited_parameters: dict | None = None
     execution_summary: dict | None = None # New field for the summary
     raw_output_for_summary: dict | None = None # New field for small raw outputs
-    full_script_manifest: list | None = None # Injected from frontend
 
 @router.post("/agent/chat")
 async def chat_with_agent(request: ChatRequest):
@@ -52,26 +52,11 @@ async def chat_with_agent(request: ChatRequest):
         # Prepare the input for the graph - ONLY the new message
         input_message = HumanMessage(content=request.message)
 
-        print(f"agent_router: Received full_script_manifest: {request.full_script_manifest}") # ADDED LOG
-
         # --- NEW: Generate summary from raw_output_for_summary if present ---
         generated_summary = None
         if request.raw_output_for_summary:
             generated_summary = generate_summary(request.raw_output_for_summary)
         # --- END NEW ---
-
-        # Update the state with configuration parameters and current_task_description
-        # This is done *before* ainvoke, and the checkpointer will merge it.
-        config_update = {
-            "user_token": request.token,
-            "llm_provider": request.llm_provider,
-            "llm_model": request.llm_model,
-            "llm_api_key_name": request.llm_api_key_name,
-            "llm_api_key_value": request.llm_api_key_value,
-            "agent_scripts_path": request.agent_scripts_path,
-            "ui_parameters": request.user_edited_parameters,
-            "execution_summary": generated_summary, # Pass generated summary to state
-        }
         
         # The `ainvoke` call should receive the new message and any state updates.
         final_state = await app_instance.ainvoke({
@@ -85,8 +70,7 @@ async def chat_with_agent(request: ChatRequest):
             "ui_parameters": request.user_edited_parameters,
             "execution_summary": generated_summary, # Pass generated summary to state
             "raw_output_for_summary": request.raw_output_for_summary, # Still pass raw output for small cases
-            "current_task_description": request.message, # Always pass the current message as the task description
-            "identified_scripts_for_choice": request.full_script_manifest, # Inject the manifest
+            "current_task_description": request.message if is_new_thread else None,
         }, config)
 
         # The agent's final response is the last message in the state

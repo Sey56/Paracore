@@ -82,7 +82,7 @@ async def create_script_manifest(
         with open(manifest_path, 'w', encoding='utf-8') as f:
             json.dump(scripts, f, indent=2)
             
-        return {"message": f"Successfully generated and saved manifest for {len(scripts)} scripts at {manifest_path}.", "manifest": scripts}
+        return {"message": f"Successfully generated and saved manifest for {len(scripts)} scripts at {manifest_path}."}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate script manifest: {str(e)}")
