@@ -199,9 +199,16 @@ export const AgentView: React.FC = () => {
   // Listen for execution results from agent-led runs
   useEffect(() => {
     if (executionResult && agentRunTriggeredRef.current) {
+      // First, determine which tab to activate based on the output
+      const hasTableOutput = executionResult.structuredOutput?.some(item => item.type === 'table');
+      if (hasTableOutput) {
+        setActiveInspectorTab('table');
+      } else {
+        setActiveInspectorTab('console');
+      }
+
+      // Now, package the raw output for the agent to process for summary
       const internalMessage = "System: Script execution was successful.";
-      
-      // Package the raw output for the agent to process
       const rawOutputPayload = {
         structuredOutput: executionResult.structuredOutput,
         output: executionResult.output, // Use 'output' to match the python agent's expectation
@@ -219,7 +226,7 @@ export const AgentView: React.FC = () => {
       // Reset the trigger, but not the result yet
       agentRunTriggeredRef.current = false;
     }
-  }, [executionResult, invokeAgent]);
+  }, [executionResult, invokeAgent, setActiveInspectorTab]);
 
   const sendMessage = (messageText: string) => {
     if (!messageText.trim()) return;
@@ -251,7 +258,7 @@ export const AgentView: React.FC = () => {
           value: toolCall.args.parameters[p.name] ?? p.value,
         }));
         runScript(selectedScript, finalParams);
-        setActiveInspectorTab('table');
+        // setActiveInspectorTab('table'); // This was the hardcoded line to remove
       } else {
         showNotification("Error: No script is selected for execution.", "error");
       }
