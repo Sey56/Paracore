@@ -36,16 +36,19 @@ async def create_script_manifest(
                 with open(resolved_file_path, 'r', encoding='utf-8-sig') as f:
                     content = f.read()
                 script_files = [{"file_name": os.path.basename(resolved_file_path), "content": content}]
-                metadata = grpc_client.get_script_metadata(script_files).get("metadata", {})
                 
-                file_stat = os.stat(resolved_file_path)
+                # Get full metadata and then prune it
+                full_metadata = grpc_client.get_script_metadata(script_files).get("metadata", {})
+                pruned_metadata = {
+                    "description": full_metadata.get("description", ""),
+                    "displayName": full_metadata.get("displayName", os.path.basename(resolved_file_path)),
+                }
+                
                 scripts.append({
-                    "id": resolved_file_path.replace('\\', '/'),
                     "name": os.path.basename(resolved_file_path),
                     "type": "single-file",
                     "absolutePath": resolved_file_path.replace('\\', '/'),
-                    "sourcePath": resolved_file_path.replace('\\', '/'),
-                    "metadata": {**metadata, "dateCreated": datetime.fromtimestamp(file_stat.st_ctime).isoformat(), "dateModified": datetime.fromtimestamp(file_stat.st_mtime).isoformat()}
+                    "metadata": pruned_metadata
                 })
             except Exception:
                 continue
@@ -64,15 +67,18 @@ async def create_script_manifest(
                     
                     if not script_files: continue
                     
-                    metadata = grpc_client.get_script_metadata(script_files).get("metadata", {})
-                    folder_stat = os.stat(resolved_item_path)
+                    # Get full metadata and then prune it
+                    full_metadata = grpc_client.get_script_metadata(script_files).get("metadata", {})
+                    pruned_metadata = {
+                        "description": full_metadata.get("description", ""),
+                        "displayName": full_metadata.get("displayName", os.path.basename(resolved_item_path)),
+                    }
+
                     scripts.append({
-                        "id": resolved_item_path.replace('\\', '/'),
                         "name": os.path.basename(resolved_item_path),
                         "type": "multi-file",
                         "absolutePath": resolved_item_path.replace('\\', '/'),
-                        "sourcePath": resolved_item_path.replace('\\', '/'),
-                        "metadata": {**metadata, "dateCreated": datetime.fromtimestamp(folder_stat.st_ctime).isoformat(), "dateModified": datetime.fromtimestamp(folder_stat.st_mtime).isoformat()}
+                        "metadata": pruned_metadata
                     })
                 except Exception:
                     continue

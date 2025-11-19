@@ -114,11 +114,11 @@ export const AgentView: React.FC = () => {
             const scriptInfo = response.data.active_script;
             console.log("AgentView: Detected active_script in response:", scriptInfo);
             const selected = {
-                id: scriptInfo.id,
+                id: scriptInfo.absolutePath, // Use absolutePath as the unique ID
                 name: scriptInfo.name,
                 type: scriptInfo.type,
                 absolutePath: scriptInfo.absolutePath,
-                sourcePath: scriptInfo.sourcePath,
+                sourcePath: scriptInfo.absolutePath, // Use absolutePath for sourcePath as well
                 metadata: scriptInfo.metadata,
                 parameters: [],
             };
@@ -364,7 +364,7 @@ export const AgentView: React.FC = () => {
         <p className="text-sm text-gray-500 dark:text-gray-400">Hello, How can I help you today?</p>
         <div className="flex space-x-2">
           <button
-            onClick={fetchScriptManifest}
+            onClick={() => (fetchScriptManifest as (force?: boolean) => Promise<void>)(true)}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             title="Refresh Agent Script Manifest"
             disabled={isLoading}

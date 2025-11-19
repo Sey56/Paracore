@@ -23,6 +23,9 @@ interface ApiError {
   };
 }
 
+// Module-level flag to ensure manifest is generated only once per application session
+let _manifestGeneratedInSession = false;
+
 export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const { activeScriptSource, setActiveScriptSource } = useUI();
@@ -223,7 +226,11 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { rserverConnected } = useRevitStatus();
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>('agentScriptsPath', null);
 
-  const fetchScriptManifest = useCallback(async () => {
+  const fetchScriptManifest = useCallback(async (force: boolean = false) => {
+    if (_manifestGeneratedInSession && !force) {
+      console.log("Manifest has already been generated for this session. Skipping.");
+      return;
+    }
     if (!rserverConnected || !toolLibraryPath) {
       showNotification("Cannot generate manifest: RServer is not connected or tool library path is not set.", "error");
       return;
@@ -233,6 +240,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const response = await api.post("/api/script-manifest", { tool_library_path: toolLibraryPath });
       showNotification(response.data.message, "success");
+      _manifestGeneratedInSession = true;
     } catch (error) {
       console.error(`Failed to generate script manifest:`, error);
       const message = error instanceof Error ? error.message : "Unknown error";

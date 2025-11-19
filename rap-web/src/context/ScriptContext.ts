@@ -38,6 +38,7 @@ export interface ScriptContextProps {
   pullAllTeamWorkspaces: () => Promise<void>; // New: Function to pull all team workspaces
   pullWorkspace: (workspacePath: string) => Promise<void>;
   fetchTeamWorkspaces: () => Promise<void>; // New: Function to fetch team workspaces
+  fetchScriptManifest: (force?: boolean) => Promise<void>;
 }
 
 export const ScriptContext = createContext<ScriptContextProps | undefined>(undefined);

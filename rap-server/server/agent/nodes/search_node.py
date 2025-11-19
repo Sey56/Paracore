@@ -4,8 +4,8 @@ from typing import List
 import json
 
 class RelevantScripts(BaseModel):
-    """A list of relevant script IDs."""
-    script_ids: List[str] = Field(description="A list of the string IDs of scripts that are relevant to the user's query.")
+    """A list of relevant script absolute paths."""
+    script_paths: List[str] = Field(description="A list of the string `absolutePath` values of scripts that are relevant to the user's query.")
 
 def handle_semantic_search(state: dict, llm) -> dict:
     """
@@ -33,14 +33,14 @@ User Query: "{query}"
 Review the "Available Scripts" below. For each script, check if its `description` indicates that it performs the user's requested action.
 **CRITICAL RULE:** Do NOT select a script if it only contains a keyword but performs the wrong action. For example, if the query is "create a wall", a script that "rotates a wall" is not a match.
 **EXAMPLE:**
-If the user query is "make a building element" and the available scripts are one that "creates a wall" and another that "creates a floor", you should return the IDs of BOTH scripts.
+If the user query is "make a building element" and the available scripts are one that "creates a wall" and another that "creates a floor", you should return the `absolutePath` of BOTH scripts.
 Available Scripts:
 {json.dumps(scripts_for_llm, indent=2)}
-Identify ALL scripts that are a direct match for the user's query and return their IDs.
+Identify ALL scripts that are a direct match for the user's query and return their `absolutePath` values.
 """
         response_obj = structured_llm.invoke([HumanMessage(content=filtering_prompt)])
-        matching_ids = response_obj.script_ids
-        semantically_relevant_scripts = [s for s in scripts_for_llm if s.get('id') in matching_ids]
+        matching_paths = response_obj.script_paths
+        semantically_relevant_scripts = [s for s in scripts_for_llm if s.get('absolutePath') in matching_paths]
 
         if len(semantically_relevant_scripts) == 1:
             return {

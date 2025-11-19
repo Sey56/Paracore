@@ -1,5 +1,32 @@
 [
   {
+    "id": "C:/Users/seyou/Desktop/agent-scripts/Create_Door.cs",
+    "name": "Create_Door.cs",
+    "type": "single-file",
+    "absolutePath": "C:/Users/seyou/Desktop/agent-scripts/Create_Door.cs",
+    "sourcePath": "C:/Users/seyou/Desktop/agent-scripts/Create_Door.cs",
+    "metadata": {
+      "description": "Creates a door on a selected wall in the Revit project. The script checks for a valid wall selection,\nretrieves the appropriate door family symbol, and places the door at the midpoint of the wall.",
+      "author": "Seyoum Hagos",
+      "categories": [
+        "Architectural",
+        "Structural",
+        "MEP"
+      ],
+      "dependencies": [
+        "RevitAPI 2025",
+        "RScript.Engine",
+        "RServer.Addin"
+      ],
+      "document_type": "Project",
+      "usage_examples": [
+        "\"Create a door on a selected wall in the project.\""
+      ],
+      "dateCreated": "2025-11-17T18:53:30.206300",
+      "dateModified": "2025-11-17T19:03:43.915028"
+    }
+  },
+  {
     "id": "C:/Users/seyou/Desktop/agent-scripts/Create_Wall.cs",
     "name": "Create_Wall.cs",
     "type": "single-file",
@@ -23,8 +50,91 @@
         "\"Create a 10m x 4m wall on 'Level 2'\":",
         "\"Create a wall of 8m length and 3m height on 'Level 1'\":"
       ],
-      "dateCreated": "2025-11-10T11:02:53.660562",
+      "dateCreated": "2025-11-12T21:56:50.684119",
       "dateModified": "2025-11-06T12:21:29.194784"
+    }
+  },
+  {
+    "id": "C:/Users/seyou/Desktop/agent-scripts/DeleteAllWalls.cs",
+    "name": "DeleteAllWalls.cs",
+    "type": "single-file",
+    "absolutePath": "C:/Users/seyou/Desktop/agent-scripts/DeleteAllWalls.cs",
+    "sourcePath": "C:/Users/seyou/Desktop/agent-scripts/DeleteAllWalls.cs",
+    "metadata": {
+      "description": "Deletes all wall elements in the active document. Useful for prototyping resets,\nbatch cleanup, or preparing a fresh layout canvas.",
+      "author": "Seyoum Hagos",
+      "categories": [
+        "Architectural",
+        "Cleanup"
+      ],
+      "dependencies": [
+        "RevitAPI 2025",
+        "RScript.Engine",
+        "RServer.Addin"
+      ],
+      "document_type": "Project",
+      "usage_examples": [
+        "\"Delete all walls in the current project\":"
+      ],
+      "dateCreated": "2025-11-19T22:56:55.464039",
+      "dateModified": "2025-11-19T22:59:10.612564"
+    }
+  },
+  {
+    "id": "C:/Users/seyou/Desktop/agent-scripts/HelloTaskDialog.cs",
+    "name": "HelloTaskDialog.cs",
+    "type": "single-file",
+    "absolutePath": "C:/Users/seyou/Desktop/agent-scripts/HelloTaskDialog.cs",
+    "sourcePath": "C:/Users/seyou/Desktop/agent-scripts/HelloTaskDialog.cs",
+    "metadata": {
+      "description": "Displayes a Task Dialog with a Hello World message.",
+      "author": "Seyoum Hagos",
+      "categories": [
+        "Architectural",
+        "Structural",
+        "MEP"
+      ],
+      "dependencies": [
+        "RevitAPI 2025",
+        "RScript.Engine",
+        "RServer.Addin"
+      ],
+      "document_type": "Project",
+      "usage_examples": [
+        "\"Hello Task Dialog\"",
+        "\"Task Dialog Example\""
+      ],
+      "dateCreated": "2025-11-16T18:32:16.796342",
+      "dateModified": "2025-11-16T18:37:17.316121"
+    }
+  },
+  {
+    "id": "C:/Users/seyou/Desktop/agent-scripts/ListWallTypes.cs",
+    "name": "ListWallTypes.cs",
+    "type": "single-file",
+    "absolutePath": "C:/Users/seyou/Desktop/agent-scripts/ListWallTypes.cs",
+    "sourcePath": "C:/Users/seyou/Desktop/agent-scripts/ListWallTypes.cs",
+    "metadata": {
+      "description": "Lists all wall types (WallType) available in the current Revit project document.",
+      "author": "Seyoum Hagos",
+      "categories": [
+        "Architectural",
+        "Structural",
+        "MEP"
+      ],
+      "dependencies": [
+        "RevitAPI 2025",
+        "RScript.Engine",
+        "RServer.Addin"
+      ],
+      "document_type": "Project",
+      "usage_examples": [
+        "\"list available wall types\":",
+        "\"List all wall types in the current project\":'\":",
+        "\"list wall types\":"
+      ],
+      "dateCreated": "2025-11-19T12:23:18.676216",
+      "dateModified": "2025-11-16T09:25:45.196106"
     }
   },
   {
