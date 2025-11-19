@@ -24,26 +24,26 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       return (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead>
               <tr>
                 {headers.map((header, index) => (
                   <th
                     key={index}
                     scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                   >
                     {header}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {parsedData.map((row: Record<string, string | number | boolean | null | undefined>, rowIndex: number) => (
                 <tr key={rowIndex}>
                   {headers.map((header, colIndex) => (
                     <td
                       key={colIndex}
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200"
+                      className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200"
                     >
                       {row[header] !== null && row[header] !== undefined ? String(row[header]) : ''}
                     </td>
