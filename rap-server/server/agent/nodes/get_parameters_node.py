@@ -11,7 +11,6 @@ def get_parameters_node(state: AgentState):
     parameters = get_script_parameters_tool.invoke({
         "script_path": selected_script.get('absolutePath'),
         "script_type": selected_script.get('type'),
-        "user_token": user_token
     })
     set_active_script_tool.invoke({"script_metadata": selected_script})
     return {

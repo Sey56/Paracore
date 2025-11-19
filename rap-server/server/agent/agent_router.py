@@ -92,9 +92,7 @@ async def chat_with_agent(request: ChatRequest):
 
         elif isinstance(last_message, AIMessage) and not last_message.tool_calls:
             # This is a standard conversational response
-            active_script_metadata = None
-            if final_state.get('next_conversational_action') == "confirm_execution" and final_state.get('selected_script_metadata'):
-                active_script_metadata = final_state.get('selected_script_metadata')
+            active_script_metadata = final_state.get('selected_script_metadata')
 
             return Response(content=json.dumps({
                 "thread_id": thread_id,

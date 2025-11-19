@@ -1,8 +1,0 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <SolidColorBrush x:Key="PrimaryBackgroundColor" Color="#1E1E2F"/>
-    <SolidColorBrush x:Key="SecondaryBackgroundColor" Color="#282A36"/>
-    <SolidColorBrush x:Key="PrimaryTextColor" Color="#F8F8F2"/>
-    <SolidColorBrush x:Key="SecondaryTextColor" Color="#8BE9FD"/>
-    <SolidColorBrush x:Key="AccentColor" Color="#50FA7B"/>
-</ResourceDictionary>

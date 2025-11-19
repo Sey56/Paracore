@@ -49,6 +49,7 @@ Identify ALL scripts that are a direct match for the user's query and return the
                 "next_conversational_action": "present_parameters"
             }
         elif len(semantically_relevant_scripts) > 1:
+            # If multiple scripts are found, have the LLM rank them to find the best fit.
             ranking_prompt = f"""Given the user's query and a list of relevant scripts, which script is the single best fit for the task?
 User Query: "{query}"
 Relevant Scripts:
@@ -57,16 +58,25 @@ Your task is to respond with the `name` of the single best script. Only return t
 """
             best_fit_response = llm.invoke([HumanMessage(content=ranking_prompt)])
             best_fit_name = best_fit_response.content.strip().replace('"', '')
-            script_summary_text = "I've found a few scripts that could work:\n"
-            for i, script in enumerate(semantically_relevant_scripts):
-                script_summary_text += f"{i+1}. **{script.get('name', 'Unknown')}**: {script.get('metadata', {}).get('description', 'No description available.')}\n"
-            script_summary_text += f"\nBased on your request, **{best_fit_name}** seems like the best fit. Do you want to proceed with it, or would you like to choose a different one?"
-            return {
-                "messages": [AIMessage(content=script_summary_text)],
-                "identified_scripts_for_choice": semantically_relevant_scripts,
-                "recommended_script_name": best_fit_name,
-                "next_conversational_action": "ask_for_script_confirmation"
-            }
+
+            # Find the full metadata for the best fit script.
+            best_script = next((s for s in semantically_relevant_scripts if s.get('name') == best_fit_name), None)
+
+            # If a best script is found, proceed directly to parameter presentation.
+            if best_script:
+                return {
+                    "selected_script_metadata": best_script,
+                    "script_selected_for_params": True,
+                    "next_conversational_action": "present_parameters"
+                }
+            # Fallback in case the LLM hallucinates a name (select the first one).
+            else:
+                return {
+                    "selected_script_metadata": semantically_relevant_scripts[0],
+                    "script_selected_for_params": True,
+                    "next_conversational_action": "present_parameters"
+                }
+
         else:
             return {"messages": [AIMessage(content="I couldn't find any relevant scripts for your task.")]}
     except Exception as e:

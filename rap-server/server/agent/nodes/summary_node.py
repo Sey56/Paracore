@@ -92,4 +92,5 @@ def summary_node(state: dict) -> dict:
         "ui_parameters": None,
         "execution_summary": None,
         "raw_output_for_summary": None,
+        "current_task_description": None,
     }

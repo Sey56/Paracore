@@ -1,7 +1,14 @@
-import httpx
+import os
+import glob
+import grpc
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from typing import List
+
+# Local imports
+from grpc_client import get_script_parameters
+from utils import resolve_script_path
+
 
 class SearchScriptsArgs(BaseModel):
     query: str = Field(..., description="The user's task description or query to find relevant scripts.")
@@ -19,26 +26,40 @@ def search_scripts_tool(query: str, agent_scripts_path: str) -> list:
 class GetScriptParametersArgs(BaseModel):
     script_path: str = Field(..., description="The absolute path of the script for which to retrieve parameters.")
     script_type: str = Field(..., description="The type of the script, e.g., 'single-file' or 'multi-file'.")
-    user_token: str = Field(..., description="The user's authentication token.")
 
 @tool(args_schema=GetScriptParametersArgs)
-def get_script_parameters_tool(script_path: str, script_type: str, user_token: str) -> list:
+def get_script_parameters_tool(script_path: str, script_type: str) -> list:
     """
-    Retrieves the UI parameters for a specified C# Revit script by calling the internal API.
+    Retrieves the UI parameters for a specified C# Revit script by reading the script
+    file(s) and calling the gRPC service directly.
     """
     try:
-        with httpx.Client() as client:
-            response = client.post(
-                "http://127.0.0.1:8000/api/get-script-parameters",
-                json={"scriptPath": script_path, "type": script_type},
-                headers={"Authorization": f"Bearer {user_token}"}
-            )
-            response.raise_for_status()
-            return response.json().get("parameters", [])
-    except httpx.HTTPStatusError as e:
-        return {"error": f"HTTP error occurred: {e.response.status_code} - {e.response.text}"}
-    except Exception as e:
-        return {"error": f"An unexpected error occurred: {str(e)}"}
+        absolute_path = resolve_script_path(script_path)
+        script_files = []
+        if script_type == "single-file":
+            with open(absolute_path, 'r', encoding='utf-8-sig') as f:
+                source_code = f.read()
+            script_files.append({"file_name": os.path.basename(absolute_path), "content": source_code})
+        elif script_type == "multi-file":
+            if not os.path.isdir(absolute_path):
+                # Return an empty list on error to maintain type consistency
+                return []
+            for file_path in glob.glob(os.path.join(absolute_path, "*.cs")):
+                with open(file_path, 'r', encoding='utf-8-sig') as f:
+                    source_code = f.read()
+                script_files.append({"file_name": os.path.basename(file_path), "content": source_code})
+        
+        if not script_files:
+            return []
+
+        response = get_script_parameters(script_files)
+        # Ensure we return the list of parameters, or an empty list if key is missing
+        return response.get("parameters", [])
+        
+    except (FileNotFoundError, grpc.RpcError, Exception):
+        # On any error, return an empty list to prevent downstream crashes.
+        # The agent will interpret an empty list as "no parameters found".
+        return []
 
 class SetActiveScriptArgs(BaseModel):
     script_metadata: dict = Field(..., description="The full metadata object of the script to be set as active in the UI.")
