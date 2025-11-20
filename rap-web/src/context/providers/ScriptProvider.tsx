@@ -289,13 +289,20 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addCustomScriptFolder = useCallback(async (folderPath: string): Promise<void> => {
     if (!user) return;
-    setCustomScriptFolders(prev => {
-      const newState = [...prev, folderPath];
-      saveCustomScriptFolders(newState);
-      return newState;
-    });
+
+    // First, check for duplicates using the current state.
+    if (customScriptFolders.includes(folderPath)) {
+      showNotification(`Folder '${folderPath}' is already added.`, "warning");
+      return; // Exit early if it's a duplicate
+    }
+
+    // If not a duplicate, proceed with adding the folder.
+    const newState = [...customScriptFolders, folderPath];
+    setCustomScriptFolders(newState);
+    await saveCustomScriptFolders(newState);
     showNotification(`Added custom script folder: ${folderPath}.`, "success");
-  }, [user, saveCustomScriptFolders, showNotification]);
+
+  }, [user, customScriptFolders, saveCustomScriptFolders, showNotification]);
 
   const removeCustomScriptFolder = useCallback((folderPath: string) => {
     if (!user) return;
