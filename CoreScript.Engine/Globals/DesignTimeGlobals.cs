@@ -19,6 +19,7 @@ namespace CoreScript.Engine.Globals
         public static void Transact(string name, Action<Document> action) => throw DesignTimeOnlyException;
         public static void Transact(string name, Action action) => throw DesignTimeOnlyException;
         public static void Show(string type, object data) => throw DesignTimeOnlyException;
+        public static void SetInternalData(string data) => throw DesignTimeOnlyException;
 
         // Properties
         public static UIApplication UIApp => throw DesignTimeOnlyException;

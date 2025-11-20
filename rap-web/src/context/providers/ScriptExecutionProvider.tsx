@@ -451,6 +451,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         isSuccess: result.is_success,
         error: !result.is_success ? (result.error_message || (result.error_details && result.error_details.join('\n')) || null) : null,
         structuredOutput: result.structured_output,
+        internalData: result.internal_data, // Add the new internal data field
       };
       setExecutionResult(frontendExecutionResult);
 

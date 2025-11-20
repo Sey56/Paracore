@@ -38,20 +38,45 @@ Line wallLine = Line.CreateBound(pt1, pt2);
 Level? level = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
     .Cast<Level>()
-    .FirstOrDefault(l => l.Name == levelName);
+    .FirstOrDefault(l => l.Name == levelName); 
 
 if (level == null)
 {
     Println($"❌ Level '{levelName}' not found.");
-    return;
 }
 
 Println($"Preparing to create wall of {wallLengthMeters}m × {wallHeightMeters}m on '{levelName}'...");
+
+Wall? createdWall = null;
 
 // Write operations inside a transaction
 Transact("Create Wall", doc =>
 {
     Wall wall = Wall.Create(doc, wallLine, level.Id, false);
     wall.get_Parameter(BuiltInParameter.WALL_USER_HEIGHT_PARAM)?.Set(heightFt);
+    createdWall = wall;
 });
-Println("✅ Wall created.");
+
+if (createdWall != null)
+{
+    long wallId = createdWall.Id.Value;
+    // Using the helper function for cleaner output
+    // Print the JSON payload and exit with success code
+    Println(BuildWorkingSetJson(
+        "replace",
+        [wallId],
+        "✅ Wall created and added to the working set."
+    ));
+    return 0;
+}
+
+// Helper function to build the JSON string for working set updates
+static string BuildWorkingSetJson(string operation, long[] elementIds, string message) {
+    string idsJson = string.Join(",", elementIds);
+    // Using C# interpolated strings, escaping internal quotes and curly braces for literal JSON output
+    return $"{{ \"paracore_output_type\": \"working_set_elements\", \"operation\": \"{operation}\", \"element_ids\": [{idsJson}], \"display_message\": \"{message}\" }}";
+}
+
+// Using the helper function for error return: print JSON and exit with non-zero code
+Println(BuildWorkingSetJson("none", [], "Error: Wall creation failed to produce an element."));
+return 1;

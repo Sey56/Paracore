@@ -49,6 +49,7 @@ message ExecuteScriptResponse {
   string error_message = 3;
   repeated string error_details = 4;
   repeated StructuredOutputItem structured_output = 5;
+  string internal_data = 6;
   string agent_summary = 7;
 }
 

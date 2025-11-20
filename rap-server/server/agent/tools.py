@@ -94,4 +94,92 @@ def run_script_by_name(script_name: str, parameters: dict, is_final_approval: bo
         "is_final_approval": is_final_approval
     }
 
-tools = [search_scripts_tool, get_script_parameters_tool, set_active_script_tool, run_script_by_name]
+# --- Working Set Management Tools ---
+
+@tool
+def clear_working_set() -> str:
+    """
+    Clears the current working set of elements. Use this when the user wants to start fresh.
+    """
+    import json
+    return json.dumps({
+        "paracore_output_type": "working_set_elements",
+        "operation": "replace",
+        "element_ids": [],
+        "display_message": "Working set has been cleared."
+    })
+
+class SetWorkingSetArgs(BaseModel):
+    element_ids: List[int] = Field(..., description="The list of element IDs to set as the new working set.")
+    reason: str = Field(..., description="A brief, user-facing explanation for why the working set is being changed.")
+
+@tool(args_schema=SetWorkingSetArgs)
+def set_working_set(element_ids: List[int], reason: str) -> str:
+    """
+    Replaces the current working set with a new list of element IDs.
+    """
+    import json
+    return json.dumps({
+        "paracore_output_type": "working_set_elements",
+        "operation": "replace",
+        "element_ids": element_ids,
+        "display_message": reason
+    })
+
+class AddToWorkingSetArgs(BaseModel):
+    element_ids: List[int] = Field(..., description="The list of element IDs to add to the current working set.")
+    reason: str = Field(..., description="A brief, user-facing explanation for why the elements are being added.")
+
+@tool(args_schema=AddToWorkingSetArgs)
+def add_to_working_set(element_ids: List[int], reason: str) -> str:
+    """
+    Adds a list of element IDs to the current working set, ensuring no duplicates.
+    IMPORTANT: Only use this tool if the element IDs are already known. If you need to get the user's current selection from Revit, search for a script that can get the selection and add it to the working set instead of calling this tool.
+    """
+    import json
+    return json.dumps({
+        "paracore_output_type": "working_set_elements",
+        "operation": "add",
+        "element_ids": element_ids,
+        "display_message": reason
+    })
+
+class RemoveFromWorkingSetArgs(BaseModel):
+    element_ids: List[int] = Field(..., description="The list of element IDs to remove from the current working set.")
+    reason: str = Field(..., description="A brief, user-facing explanation for why the elements are being removed.")
+
+@tool(args_schema=RemoveFromWorkingSetArgs)
+def remove_from_working_set(element_ids: List[int], reason: str) -> str:
+    """
+    Removes a list of element IDs from the current working set.
+    """
+    import json
+    return json.dumps({
+        "paracore_output_type": "working_set_elements",
+        "operation": "remove",
+        "element_ids": element_ids,
+        "display_message": reason
+    })
+
+@tool
+def get_working_set_details() -> str:
+    """
+    Retrieves the details of the current working set, such as the element IDs it contains.
+    Use this tool if the user asks what is in the working set or asks for the IDs of the current elements.
+    """
+    # The implementation of this tool is handled directly in the tool_node
+    # as it needs access to the agent's state.
+    pass
+
+
+tools = [
+    search_scripts_tool, 
+    get_script_parameters_tool, 
+    set_active_script_tool, 
+    run_script_by_name,
+    clear_working_set,
+    set_working_set,
+    add_to_working_set,
+    remove_from_working_set,
+    get_working_set_details
+]

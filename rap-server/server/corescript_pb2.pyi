@@ -53,20 +53,22 @@ class StructuredOutputItem(_message.Message):
     def __init__(self, type: _Optional[str] = ..., data: _Optional[str] = ...) -> None: ...
 
 class ExecuteScriptResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "agent_summary")
+    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "internal_data", "agent_summary")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ERROR_DETAILS_FIELD_NUMBER: _ClassVar[int]
     STRUCTURED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    INTERNAL_DATA_FIELD_NUMBER: _ClassVar[int]
     AGENT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
     error_details: _containers.RepeatedScalarFieldContainer[str]
     structured_output: _containers.RepeatedCompositeFieldContainer[StructuredOutputItem]
+    internal_data: str
     agent_summary: str
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., agent_summary: _Optional[str] = ...) -> None: ...
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., internal_data: _Optional[str] = ..., agent_summary: _Optional[str] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ()

@@ -18,6 +18,7 @@ namespace CoreScript.Engine.Context
         void Print(string message);
         void LogError(string message);
         void AddStructuredOutput(string type, string jsonData);
+        void SetInternalData(string data);
 
         Action<string>? PrintCallback { get; }
 

@@ -10,6 +10,7 @@ import { useScripts } from '@/hooks/useScripts';
 
 import type { Message, ToolCall } from '@/context/providers/UIContext';
 import { Modal } from '@/components/common/Modal';
+import WorkingSetPanel from './WorkingSetPanel'; // Import the new component
 
 // This component will be responsible for rendering the new HITL modal
 // It will be created in a subsequent step. For now, we define the props.
@@ -42,6 +43,7 @@ export const AgentView: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
+  const [workingSet, setWorkingSet] = useState<number[]>([]); // State for the working set
 
   const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: any; raw_output?: any }) => {
     setIsLoading(true);
@@ -92,9 +94,14 @@ export const AgentView: React.FC = () => {
         return; // Stop further processing
       }
 
-      // After any response, update the threadId if the backend provides one
-      if (response.data && response.data.thread_id) {
-        setThreadId(response.data.thread_id);
+      // After any response, update the threadId and working set if the backend provides them
+      if (response.data) {
+        if (response.data.thread_id) {
+          setThreadId(response.data.thread_id);
+        }
+        if (Array.isArray(response.data.working_set)) {
+          setWorkingSet(response.data.working_set);
+        }
       }
 
       // The API now returns only the new, user-facing messages. We append them.
@@ -212,6 +219,7 @@ export const AgentView: React.FC = () => {
       const rawOutputPayload = {
         structuredOutput: executionResult.structuredOutput,
         output: executionResult.output, // Use 'output' to match the python agent's expectation
+        internal_data: executionResult.internalData,
       };
 
       invokeAgent(
@@ -358,7 +366,7 @@ export const AgentView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Static Header */}
       <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
         <p className="text-sm text-gray-500 dark:text-gray-400">Hello, How can I help you today?</p>
@@ -450,6 +458,7 @@ export const AgentView: React.FC = () => {
           </div>
         </div>
       </Modal>
+      <WorkingSetPanel workingSet={workingSet} />
     </div>
   );
 };

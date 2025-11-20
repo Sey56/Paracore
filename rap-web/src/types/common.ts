@@ -3,6 +3,7 @@ export interface ExecutionResult {
   error: string | null;
   isSuccess: boolean;
   structuredOutput?: StructuredOutput[];
+  internalData?: string;
 }
 
 import { StructuredOutput, ScriptParameter } from './scriptModel';

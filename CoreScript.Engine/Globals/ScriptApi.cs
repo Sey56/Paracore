@@ -16,6 +16,7 @@ namespace CoreScript.Engine.Globals
 
         public static void Println(string message) => Globals.Println(message);
         public static void Print(string message) => Globals.Print(message);
+        public static void SetInternalData(string data) => Globals.SetInternalData(data);
         
         // Old method for backward compatibility
         public static void Transact(string name, Action<Document> action) => Globals.Transact(name, action);

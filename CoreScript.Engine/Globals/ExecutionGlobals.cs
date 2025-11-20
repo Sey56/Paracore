@@ -49,6 +49,7 @@ namespace CoreScript.Engine.Globals
         public void Println(string message) => _context.Println(message);
         public void Print(string message) => _context.Print(message);
         public void LogError(string message) => _context.LogError(message);
+        public void SetInternalData(string data) => _context.SetInternalData(data);
 
         // Old method for backward compatibility
         public void Transact(string name, Action<Document> action)

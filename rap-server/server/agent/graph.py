@@ -3,7 +3,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from .state import AgentState
 
 # Import the node functions from the new structure
-from .nodes.start_node import start_node # <-- Import start_node
+from .nodes.start_node import start_node
 from .nodes.agent_node import agent_node
 from .nodes.tool_node import tool_node
 from .nodes.get_parameters_node import get_parameters_node
@@ -13,7 +13,7 @@ from .nodes.conditional_edges import should_continue
 graph_builder = StateGraph(AgentState)
 
 # Define the nodes
-graph_builder.add_node("start_node", start_node) # <-- Add start_node
+graph_builder.add_node("start_node", start_node)
 graph_builder.add_node("agent", agent_node)
 graph_builder.add_node("tool_node", tool_node)
 graph_builder.add_node("get_parameters_node", get_parameters_node)

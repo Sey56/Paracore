@@ -59,6 +59,7 @@ def execute_script(script_content, parameters_json):
                 "error_message": response.error_message,
                 "error_details": list(response.error_details),
                 "structured_output": structured_output_data,
+                "internal_data": response.internal_data,
             }
         except grpc.RpcError as e:
             logging.error(f"gRPC ExecuteScript call failed: {e.code()} - {e.details()}")

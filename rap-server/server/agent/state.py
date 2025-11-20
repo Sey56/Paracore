@@ -30,6 +30,9 @@ class AgentState(TypedDict):
     # --- Post-Execution State ---
     execution_summary: dict | None
     raw_output_for_summary: dict | None
+
+    # --- Working Set State ---
+    working_set: list[int] | None
     
     # --- Control Signals for LLM ---
     next_conversational_action: Literal[

@@ -87,7 +87,8 @@ async def chat_with_agent(request: ChatRequest):
                     "name": tool_call['name'],
                     "arguments": tool_call['args']
                 },
-                "active_script": final_state.get('selected_script_metadata')
+                "active_script": final_state.get('selected_script_metadata'),
+                "working_set": final_state.get('working_set')
             }), media_type="application/json")
 
         elif isinstance(last_message, AIMessage) and not last_message.tool_calls:
@@ -99,7 +100,8 @@ async def chat_with_agent(request: ChatRequest):
                 "status": "complete",
                 "message": last_message.content,
                 "tool_call": None,
-                "active_script": active_script_metadata
+                "active_script": active_script_metadata,
+                "working_set": final_state.get('working_set')
             }), media_type="application/json")
 
         else:

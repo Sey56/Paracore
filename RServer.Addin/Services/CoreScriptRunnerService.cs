@@ -171,6 +171,8 @@ namespace RServer.Addin.Services
                 }
             }
 
+            response.InternalData = finalResult.InternalData ?? "";
+
             return response;
         }
 

@@ -46,11 +46,24 @@ def agent_node(state: dict):
     
     # 6. Default: If no specific action, invoke the main chain for a new query
     else:
+        # Prepare the working set context for the prompt
+        working_set = state.get('working_set')
+        working_set_context = ""
+        if working_set:
+            working_set_context = f"""
+CONTEXT: You have access to a 'working set', which is a list of Revit Element IDs.
+The current working set is: {working_set}.
+When the user refers to 'it', 'them', or 'these', they are referring to the elements in this working set.
+If the user asks for information directly available in this context (like the IDs themselves), you can answer directly.
+IMPORTANT: If you need to pass these IDs to a script parameter, you MUST format them as a single, comma-separated string (e.g., "12345,67890").
+"""
+
         llm_with_tools = llm.bind_tools(tools)
         chain = prompt | llm_with_tools
         response = chain.invoke({
             "messages": state["messages"],
             "agent_scripts_path": state.get("agent_scripts_path"),
-            "current_task_description": state.get("current_task_description")
+            "current_task_description": state.get("current_task_description"),
+            "working_set_context": working_set_context
         })
         return {"messages": [response]}

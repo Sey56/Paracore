@@ -157,6 +157,12 @@ namespace CoreScript.Engine.Core
                     }
                 }
 
+                var internalDataLogProperty = context.GetType().GetProperty("InternalDataLog");
+                if (internalDataLogProperty != null)
+                {
+                    result.InternalData = internalDataLogProperty.GetValue(context) as string;
+                }
+
                 return result;
             }
             catch (CompilationErrorException ex)
