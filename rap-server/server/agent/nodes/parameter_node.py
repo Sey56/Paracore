@@ -12,15 +12,17 @@ def handle_present_parameters(state: dict) -> dict:
     """
     selected_script = state.get('selected_script_metadata')
     parameters = state.get('script_parameters_definitions')
+    script_name = selected_script.get('name', 'the selected script')
 
-    param_summary = "Here are the parameters for **" + selected_script.get('name', 'the selected script') + "**:\n"
+    # Check if there are any parameters to present
     if parameters:
+        param_summary = f"Here are the parameters for **{script_name}**:\n"
         for param in parameters:
             param_summary += f"- **{param.get('name')}**: Type={param.get('type')}, Default={param.get('defaultValueJson')}\n"
+        param_summary += "\nDo you want to run it with these parameters, or would you like to change any parameter values?"
     else:
-        param_summary += "No parameters found for this script.\n"
-    
-    param_summary += "\nDo you want to run it with these parameters, or would you like to change any parameter values?"
+        # If there are no parameters, provide a more direct confirmation message
+        param_summary = f"The script **{script_name}** doesn't require any parameters.\n\nDo you want to run it?"
     
     return {
         "messages": [AIMessage(content=param_summary)],
@@ -37,6 +39,42 @@ def handle_parameter_modification(state: dict, llm) -> dict:
             current_human_message = msg
             break
 
+    current_params = state.get('script_parameters_definitions', [])
+
+    # Special handling for scripts with NO parameters
+    if not current_params:
+        is_affirmative_prompt = f"""Is the user's response an affirmative confirmation (e.g., yes, sure, ok, do it)? Respond with a single word: YES or NO. User response: "{current_human_message.content}" """
+        affirmative_response = llm.invoke([HumanMessage(content=is_affirmative_prompt)])
+        is_affirmative = "YES" in affirmative_response.content.strip().upper()
+
+        if is_affirmative:
+            # If user says yes, proceed directly to execution
+            selected_script = state.get('selected_script_metadata')
+            tool_call = {
+                "name": "run_script_by_name",
+                "args": {
+                    "script_name": str(selected_script.get('name')),
+                    "parameters": {},  # No parameters
+                    "is_final_approval": True
+                },
+                "id": f"tool_call_{uuid.uuid4()}"
+            }
+            return {
+                "messages": [AIMessage(content="", tool_calls=[tool_call])],
+                "status": "interrupted",
+                "tool_call": tool_call,
+            }
+        else:
+            # If user says no, cancel the operation gracefully
+            return {
+                "messages": [AIMessage(content="Okay, I won't run the script. What would you like to do next?")],
+                "next_conversational_action": None,
+                "selected_script_metadata": None,
+                "script_parameters_definitions": None,
+                "script_selected_for_params": None,
+            }
+
+    # --- Existing logic for scripts WITH parameters ---
     class ParameterUpdate(BaseModel):
         """A single parameter update."""
         name: str = Field(description="The name of the parameter to update.")
@@ -49,14 +87,22 @@ def handle_parameter_modification(state: dict, llm) -> dict:
     extraction_llm = llm.with_structured_output(ParameterUpdates)
     
     current_params = state.get('script_parameters_definitions', [])
-    param_names = [p.get('name') for p in current_params]
+    
+    # Create a simplified representation of parameters for the prompt
+    param_context = [
+        {"name": p.get('name'), "defaultValue": p.get('defaultValueJson')} 
+        for p in current_params
+    ]
 
-    extraction_prompt = f"""The user wants to modify parameters for a script. Their request is: "{current_human_message.content}"    
-Available parameter names are: {param_names}
+    extraction_prompt = f"""The user wants to modify parameters for a script. Their request is: "{current_human_message.content}"
+    
+Here are the available parameters and their default values, which you should use as a formatting guide:
+{json.dumps(param_context, indent=2)}
     
 Your task is to extract the parameter names and their new values from the user's request.
     - The user might refer to parameters by their exact name or a close variation (e.g., "level" for "levelName").
     - The value could be a string, a number, or a boolean.
+    - **Crucially, you must format the new value to match the style of the default value.** For example, if the default is "Level 1" and the user says "set level to 2", the new value must be "Level 2".
     - If a parameter name from the user's request does not closely match any of the available parameter names, ignore it.
     
 Return a list of all identified parameter updates.
@@ -95,7 +141,13 @@ Return a list of all identified parameter updates.
     updated_params_list = list(params_dict.values())
 
     # Check if the user also wants to run the script
-    run_intent_prompt = f"""Does the following user request include a command to run or execute the script? Respond with a single word: YES or NO. User request: "{current_human_message.content}" """
+    run_intent_prompt = f"""You must determine if the user wants to execute the script based on their message.
+- If the message ONLY contains parameter changes (e.g., "change the level to 2", "set the height to 5"), respond NO.
+- If the message contains an explicit command to proceed or execute (e.g., "run it", "yes", "ok", "proceed", "change the level to 2 and run it"), respond YES.
+
+User request: "{current_human_message.content}"
+Does this message contain an explicit command to run the script? Respond with a single word: YES or NO.
+"""
     run_intent_response = llm.invoke([HumanMessage(content=run_intent_prompt)])
     is_run_request = "YES" in run_intent_response.content.strip().upper()
 
@@ -144,7 +196,8 @@ Return a list of all identified parameter updates.
         param_summary = "I've updated the parameters. Here is the new configuration:\n"
         for param in updated_params_list:
             # We need to use 'value' to show the current setting, not 'defaultValueJson'
-            param_summary += f"- **{param.get('name')}**: {json.dumps(param.get('value'))}\n"
+            # The value is already formatted correctly by the LLM, so we don't need json.dumps
+            param_summary += f"- **{param.get('name')}**: {param.get('value')}\n"
         param_summary += "\nDo you want to run the script with these settings, or make more changes?"
 
         return {
