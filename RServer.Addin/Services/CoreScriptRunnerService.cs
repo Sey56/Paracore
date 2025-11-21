@@ -272,43 +272,60 @@ var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.S
             return Task.FromResult(response);
         }
 
-        public override Task<GetContextResponse> GetContext(GetContextRequest request, ServerCallContext context)
+        public override async Task<GetContextResponse> GetContext(GetContextRequest request, ServerCallContext context)
         {
             _logger.Log("[CoreScriptRunnerService] Entering GetContext.", LogLevel.Debug);
-            var response = new GetContextResponse();
 
-            if (_uiApp?.ActiveUIDocument == null)
+            if (_uiApp == null)
             {
-                return Task.FromResult(response);
+                _logger.Log("[CoreScriptRunnerService] UIApplication is null.", LogLevel.Warning);
+                return new GetContextResponse();
             }
-            
-            try 
+
+            try
             {
-                var uidoc = _uiApp.ActiveUIDocument;
-                var doc = uidoc.Document;
-
-                response.ActiveViewName = uidoc.ActiveView?.Name ?? "Unknown";
-                
-                var selection = uidoc.Selection.GetElementIds();
-                response.SelectionCount = selection.Count;
-                response.SelectedElementIds.AddRange(selection.Select(id => (int)id.Value));
-
-                if (doc.ProjectInformation != null)
+                var result = await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
                 {
-                    response.ProjectInfo = new CoreScript.ProjectInfo
+                    var response = new GetContextResponse();
+                    var uidoc = _uiApp.ActiveUIDocument;
+                    if (uidoc == null)
                     {
-                        Name = doc.ProjectInformation.Name ?? "",
-                        Number = doc.ProjectInformation.Number ?? "",
-                        Title = doc.Title
-                    };
-                }
+                        _logger.Log("[CoreScriptRunnerService] ActiveUIDocument is null inside UI context.", LogLevel.Warning);
+                        return response;
+                    }
+
+                    var doc = uidoc.Document;
+                    response.ActiveViewName = uidoc.ActiveView?.Name ?? "Unknown";
+                    response.ActiveViewType = uidoc.ActiveView?.ViewType.ToString() ?? "Unknown";
+                    response.ActiveViewScale = uidoc.ActiveView?.Scale ?? 0;
+                    response.ActiveViewDetailLevel = uidoc.ActiveView?.DetailLevel.ToString() ?? "Unknown";
+                    
+                    var selection = uidoc.Selection.GetElementIds();
+                    response.SelectionCount = selection.Count;
+                    response.SelectedElementIds.AddRange(selection.Select(id => (int)id.Value));
+
+                    if (doc.ProjectInformation != null)
+                    {
+                        response.ProjectInfo = new CoreScript.ProjectInfo
+                        {
+                            Name = doc.ProjectInformation.Name ?? "",
+                            Number = doc.ProjectInformation.Number ?? "",
+                            Title = doc.Title,
+                            FilePath = doc.PathName,
+                            IsWorkshared = doc.IsWorkshared,
+                            Username = _uiApp.Application.Username
+                        };
+                    }
+                    return response;
+                });
+                return result;
             }
             catch (Exception ex)
             {
                 _logger.LogError($"[CoreScriptRunnerService] Error in GetContext: {ex.Message}");
+                // Optionally return a response with an error message
+                return new GetContextResponse();
             }
-
-            return Task.FromResult(response);
         }
 
         public override Task<CreateWorkspaceResponse> CreateAndOpenWorkspace(CreateWorkspaceRequest request, ServerCallContext context)

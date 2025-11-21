@@ -123,10 +123,16 @@ message GetContextResponse {
   int32 selection_count = 2;
   repeated int32 selected_element_ids = 3;
   ProjectInfo project_info = 4;
+  string active_view_type = 5;
+  int32 active_view_scale = 6;
+  string active_view_detail_level = 7;
 }
 
 message ProjectInfo {
   string name = 1;
   string number = 2;
   string title = 3;
+  string file_path = 4;
+  bool is_workshared = 5;
+  string username = 6;
 }

@@ -146,12 +146,18 @@ def get_context():
         
         return {
             "active_view_name": response.active_view_name,
+            "active_view_type": response.active_view_type,
+            "active_view_scale": response.active_view_scale,
+            "active_view_detail_level": response.active_view_detail_level,
             "selection_count": response.selection_count,
             "selected_element_ids": list(response.selected_element_ids),
             "project_info": {
                 "name": response.project_info.name,
                 "number": response.project_info.number,
-                "title": response.project_info.title
+                "title": response.project_info.title,
+                "file_path": response.project_info.file_path,
+                "is_workshared": response.project_info.is_workshared,
+                "username": response.project_info.username
             } if response.HasField("project_info") else None
         }
     except Exception as e:

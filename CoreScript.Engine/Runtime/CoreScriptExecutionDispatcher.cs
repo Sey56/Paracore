@@ -12,6 +12,8 @@ namespace CoreScript.Engine.Runtime
                 private string _pendingScriptContent = string.Empty;
         private string _pendingParametersJson = string.Empty; // New field
         private ICoreScriptContext? _pendingContext;
+        private Func<object> _pendingUIFunc;
+        private TaskCompletionSource<object> _uiTaskCompletionSource;
 
         public static CoreScriptExecutionDispatcher Instance => _instance ??= new CoreScriptExecutionDispatcher(new CodeRunner());
         private static CoreScriptExecutionDispatcher _instance;
@@ -27,6 +29,21 @@ namespace CoreScript.Engine.Runtime
         public void Initialize(ExternalEvent codeExecutionEvent)
         {
             _codeExecutionEvent = codeExecutionEvent;
+        }
+
+        public Task<T> ExecuteInUIContext<T>(Func<T> func)
+        {
+            if (_codeExecutionEvent == null)
+            {
+                throw new InvalidOperationException("CoreScriptExecutionDispatcher is not initialized.");
+            }
+
+            _pendingUIFunc = () => func();
+            _uiTaskCompletionSource = new TaskCompletionSource<object>();
+
+            _codeExecutionEvent.Raise();
+
+            return _uiTaskCompletionSource.Task.ContinueWith(t => (T)t.Result);
         }
 
         public ExecutionResult ExecuteSingleScript(string scriptText, ICoreScriptContext context)
@@ -59,8 +76,26 @@ namespace CoreScript.Engine.Runtime
 
         public ExecutionResult ExecuteCodeInRevit(ICoreScriptContext context)
         {
-            FileLogger.Log("[CoreScriptExecutionDispatcher] Entering ExecuteCodeInRevit.");
-            ExecutionResult result = ExecutionResult.Failure("Unknown error.");
+             if (_pendingUIFunc != null)
+            {
+                try
+                {
+                    var result = _pendingUIFunc();
+                    _uiTaskCompletionSource.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    _uiTaskCompletionSource.SetException(ex);
+                }
+                finally
+                {
+                    _pendingUIFunc = null;
+                }
+                return ExecutionResult.Success("UI function executed.");
+            }
+
+            FileLogger.Log("[CoreScriptExecutionDispatcher] Entering ExecuteCodeInRevit for script.");
+            ExecutionResult scriptResult = ExecutionResult.Failure("Unknown error.");
 
             try
             {
@@ -69,15 +104,15 @@ namespace CoreScript.Engine.Runtime
                     var errorMessage = "No script content or context available to execute.";
                     LogErrorToFile(errorMessage);
                     FileLogger.Log("[CoreScriptExecutionDispatcher] No script content or context. Returning failure.");
-                    result = ExecutionResult.Failure(errorMessage);
+                    scriptResult = ExecutionResult.Failure(errorMessage);
                 }
                 else
                 {
                     FileLogger.Log("[CoreScriptExecutionDispatcher] Executing script via CodeRunner.");
-                    result = _runner.Execute(_pendingScriptContent, _pendingParametersJson, _pendingContext); // Pass parametersJson
+                    scriptResult = _runner.Execute(_pendingScriptContent, _pendingParametersJson, _pendingContext);
 
-                    if (!result.IsSuccess)
-                        LogErrorToFile(result.ErrorMessage ?? "Unknown error.");
+                    if (!scriptResult.IsSuccess)
+                        LogErrorToFile(scriptResult.ErrorMessage ?? "Unknown error.");
                 }
             }
             catch (Exception ex)
@@ -86,19 +121,19 @@ namespace CoreScript.Engine.Runtime
                 LogErrorToFile(error);
                 FileLogger.LogError($"[CoreScriptExecutionDispatcher] Exception in ExecuteCodeInRevit: {ex.Message}");
                 FileLogger.LogError(ex.StackTrace);
-                result = ExecutionResult.Failure(error, ex.StackTrace);
+                scriptResult = ExecutionResult.Failure(error, ex.StackTrace);
             }
             finally
             {
                 _pendingScriptContent = string.Empty;
-                _pendingParametersJson = string.Empty; // Clear parametersJson
+                _pendingParametersJson = string.Empty;
                 _pendingContext = null;
 
-                OnExecutionComplete?.Invoke(result);
-                FileLogger.Log("[CoreScriptExecutionDispatcher] Exiting ExecuteCodeInRevit.");
+                OnExecutionComplete?.Invoke(scriptResult);
+                FileLogger.Log("[CoreScriptExecutionDispatcher] Exiting ExecuteCodeInRevit for script.");
             }
 
-            return result;
+            return scriptResult;
         }
 
         private static void LogErrorToFile(string errorMessage)
