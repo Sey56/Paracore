@@ -29,11 +29,16 @@ def agent_node(state: dict):
         return summary_node(state)
 
     # 2. Handle presenting parameters after they've been fetched
-    elif previous_conversational_action == "present_parameters" and state.get('script_parameters_definitions') is not None:
+    # Only present parameters if a script was actually selected for parameter input.
+    elif previous_conversational_action == "present_parameters" and state.get('script_parameters_definitions') is not None and state.get('script_selected_for_params'):
         return handle_present_parameters(state)
 
     # 3. Handle Parameter Modification from User Chat
-    elif previous_conversational_action == "confirm_execution" and current_human_message:
+    # Only allow parameter modification when the agent explicitly selected a script
+    # for parameter entry (e.g., user just confirmed a script and the UI/agent is
+    # expecting parameter edits). This prevents stray user messages from re-entering
+    # the parameter flow after an execution has completed.
+    elif previous_conversational_action == "confirm_execution" and current_human_message and state.get('script_selected_for_params'):
         return handle_parameter_modification(state, llm)
 
     # 4. Handle User's Script Selection
