@@ -57,7 +57,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime } = useScripts();
   const { scripts: allScriptsFromScriptProvider, teamWorkspaces } = useScripts(); // Get all scripts and teamWorkspaces from ScriptProvider
   const { isAuthenticated, activeTeam } = useAuth();
-  const { activeScriptSource, setAgentSelectedScriptPath, messages, setActiveMainView, setActiveInspectorTab } = useUI();
+  const { activeScriptSource, setAgentSelectedScriptPath, messages, setActiveMainView, setActiveInspectorTab, threadId } = useUI();
 
   const currentTeamWorkspaces = activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
 
@@ -436,6 +436,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       parameters: parameters ? JSON.stringify(parameters) : undefined,
       source_folder: sourceFolder, // New field
       source_workspace: sourceWorkspace, // New field
+      thread_id: threadId, // Add thread_id for working set injection
     };
 
     try {

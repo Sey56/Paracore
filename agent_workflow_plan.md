@@ -1,68 +1,74 @@
-# Proposed Agent Workflow Enhancement Plan
+# Paracore Agent: Workflow and State Protocol
 
-## Introduction
+## 1. Vision: A Stateful, Conversational Design Partner
 
-You've made two excellent observations about improving the agent:
-1.  It should be more decisive and not ask the user to choose between similar scripts.
-2.  It should be more proactive by fetching and showing parameters earlier.
+The Paracore Agent is not a simple command executor. It is a stateful, conversational partner for Revit automation. Its primary purpose is to maintain a context of the user's current focus—the "Working Set"—and perform a continuous series of operations on that context.
 
-Based on our code review and your suggestions, here is a proposed new workflow that achieves both goals, making the agent faster and more user-friendly. I've also identified some areas in the current code we can simplify.
+This document defines the explicit rules and protocols that govern the agent's behavior to ensure it is predictable, powerful, and not confusing.
 
-## Analysis of Current Inefficiencies
+---
 
-*   In `search_node.py`, the agent makes two LLM calls if it finds multiple scripts: one to get a list, and a second to rank them. This is redundant and inefficient.
-*   In `selection_node.py`, the agent uses an expensive LLM call just to understand if the user said "yes" or "no". This is a non-deterministic call for a simple task that can be done with simple Python logic.
-*   The overall conversation has too many turns: `find -> ask to choose -> get choice -> ask to proceed -> get params -> ask to run`. This leads to a chatty and slower user experience.
+## 2. The "Working Set": The Agent's Core Context
 
-## The New, Streamlined Workflow: Decisive and Proactive
+*   **What It Is:** The Working Set is a list of Revit `ElementId`s that represents the agent's short-term memory. It is the subject of the conversation. The list contains no duplicates.
+*   **Purpose:** It allows the user to perform sequential operations on a group of elements without having to re-select or re-describe them in every command.
 
-This new workflow reduces conversational turns and provides a richer, more transparent experience.
+---
 
-1.  **User Query (Example):**
-    > "Create a 10-meter-long linear wall at level 1"
+## 3. The Rules of Engagement: How the Agent Decides
 
-2.  **(IMPROVED) Agent - Decisive Search (Code Change in `search_node.py`):**
-    *   The `search_node` will be modified. Its prompt will be updated to be much stricter, instructing the LLM it **must** return only the single best script ID for the user's request.
-    *   This will remove the "multi-choice" scenario and the second LLM call for ranking, making the agent faster and more decisive.
-    *   The node's output will now **always** be the single `selected_script_metadata` (or an appropriate "no script found" message).
+To eliminate ambiguity, the agent will follow a strict priority list when deciding which elements to act upon.
 
-3.  **(NEW) Agent - Proactive Parameter Fetching (Code Change in `graph.py` and potentially a new handler):**
-    *   We will re-wire the agent's state graph. After the `search_node` successfully selects a single script, the graph will **immediately** transition to call the `get_script_parameters_tool`. It will **not** ask the user for confirmation yet.
-    *   This tool call will fetch the parameter definitions and default values for the selected script directly from the C# engine.
-    *   The results (the parameter definitions) will be added to the agent's state (e.g., `script_parameters_definitions`).
+#### **Priority #1: The Working Set**
+*   **Rule:** If the Working Set is **not empty**, the agent **MUST** assume the user's command (e.g., "change their height," "list parameters") applies to the elements *within the Working Set*.
+*   **Behavior:** The backend will automatically inject the Working Set IDs into any script that is designed to receive them. The agent will not ask the user "which elements?"
 
-4.  **(NEW) Agent - Intelligent Parameter Parsing & Proposal (Code Change in `agent_node.py` and a new prompt):**
-    *   The graph will then transition back to the `agent_node` (or a specific new handler within it).
-    *   A new LLM prompt will be used for this step. This prompt will instruct the agent to:
-        1.  Parse the original user's query (from the agent's state).
-        2.  Parse the fetched script parameter definitions (from the agent's state).
-        3.  Intelligently extract relevant values from the user's query and assign them to the appropriate parameters.
-        4.  Construct a clear message for the user, presenting the chosen script and the parameters that have been pre-filled.
-        5.  End with a clear call to action (e.g., "Do you want to run this, or make a change?").
+#### **Priority #2: The User's Revit Selection**
+*   **Rule:** If the Working Set is **empty** and the user's command includes words like "selected" or "selection" (e.g., "add the selected walls"), the agent's first job is to run a script to get those selected elements from Revit.
+*   **Behavior:** The agent finds and executes a script like `AddToWorkingSet.cs`. This action's purpose is to populate the working set.
 
-5.  **Unified Agent Response (Example):**
-    > "I've selected `Create_Wall.cs`. Based on your request, I have filled out the parameters:
-    > *   `length`: 10.0
-    > *   `levelName`: 'Level 1'
-    >
-    > Do you want to **run** this, or would you like to make a **change**?"
+#### **Priority #3: The Entire Project (Fallback)**
+*   **Rule:** If, and only if, the Working Set is **empty** and the user's query is general (e.g., "list wall parameters"), may the agent fall back to using a script that searches the whole project for an element to act on.
+*   **Behavior:** This is a "discovery" mode and should be the last resort to prevent unexpected actions.
 
-6.  **(EXISTING, BUT IMPROVED) User Interaction & Execution:**
-    *   From this point, the existing robust logic for handling user modifications (e.g., "change length to 12 meters"), syncing with the UI, and the final Human-in-the-Loop (HITL) confirmation will take over.
-    *   This new proactive proposal flows directly into that existing loop, providing a seamless experience.
+---
 
-## Required Code Changes (High Level)
+## 4. State Management: What the Agent Remembers
 
-*   **`rap-server/server/agent/nodes/search_node.py`:**
-    *   Modify the LLM prompt to enforce a single, best-fit script selection.
-    *   Simplify the logic to remove the multi-script choice and second ranking LLM call.
-    *   Ensure the node's output always points to the next step of parameter fetching.
-*   **`rap-server/server/agent/nodes/selection_node.py`:**
-    *   This node will be **removed** as its functionality (parsing user selection and affirmation) will be integrated into the new flow or replaced with simpler Python checks.
-*   **`rap-server/server/agent/graph.py`:**
-    *   Update the graph's edges to reflect the new sequence: `agent (search)` -> `tool_node (for get_script_parameters_tool)` -> `agent (propose)`.
-    *   Possibly introduce a new state if the `agent_node` becomes too complex for this new stage.
-*   **`rap-server/server/agent/nodes/agent_node.py`:**
-    *   Implement the new handler for the "Intelligent Parameter Parsing & Proposal" step, including a new prompt tailored for this task.
-*   **`rap-server/server/agent/prompt.py`:**
-    *   Potentially update the main prompt to reflect the agent's new capabilities.
+The agent's memory is carefully managed to be both stateful and clean. There are two types of state:
+
+#### **Persistent State (The Long-Term Conversation)**
+This state is **intentionally preserved** across every single turn and command. It is only cleared when the user clears the chat history.
+*   `messages`: The full history of the user's and the agent's conversation.
+*   `working_set`: The list of `ElementId`s that are the current subject of the conversation.
+
+#### **Transient State (The "Scratchpad" for a Single Action)**
+This state is **intentionally cleared** after each action is fully complete.
+*   `selected_script_metadata`, `script_parameters_definitions`, `raw_output_for_summary`, and all other fields related to the mechanics of a single turn.
+
+**Why this is powerful:** By clearing the transient details, the agent is always ready for the next command without being biased by the *how* of the previous step. It only remembers *what* you're focused on (the Working Set) and *what's been said* (the conversation history).
+
+---
+
+## 5. Working Set Update Mechanism: The "Intelligent Engine"
+
+The Working Set is updated through two primary mechanisms, providing a balance of automation and explicit control.
+
+#### **Mechanism #1: Automatic Detection by the Engine (Default)**
+*   **Concept:** The `CoreScript.Engine` is intelligent. The script writer should **not** have to add special code to their scripts to manage the working set.
+*   **Implementation:** The engine's core `Transact` function will now automatically listen to the `Document.DocumentChanged` event that fires during a transaction.
+*   **Behavior:**
+    *   If the engine detects that **new elements were created** during the script's execution, it will automatically capture their `ElementId`s.
+    *   It will then package these IDs into the `internal_data` payload with an **"add"** operation. This allows the user to chain creation commands (e.g., "create walls," then "create doors") and have all new elements accumulate in the working set.
+    *   Scripts that only **modify or delete** elements will not automatically affect the working set, preventing unwanted changes.
+
+#### **Mechanism #2: Manual Control by Scripts (For Advanced Cases)**
+*   **Concept:** For specific tasks, like adding a user's selection or the results of a filter to the working set, a script needs to have explicit control.
+*   **Implementation:** The `SetInternalData(string json)` global function will remain. Specialized scripts, such as `AddToWorkingSet.cs`, will use this function to manually create the `internal_data` JSON payload and specify the desired operation (`add`, `replace`, `remove`).
+*   **Behavior:** This gives the user and script writer precise control over the working set when needed, without cluttering simple creation scripts with boilerplate.
+
+---
+
+## 6. The Path Forward
+
+The next implementation step is to refactor the C# `CoreScript.Engine` to implement the "Intelligent Engine" automatic detection. All subsequent Python and frontend code will remain the same, as it already supports the `internal_data` channel. Once this is complete, we will clean up the C# scripts to remove the manual `SetInternalData` calls from creation scripts.

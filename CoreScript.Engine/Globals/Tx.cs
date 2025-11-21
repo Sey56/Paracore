@@ -1,6 +1,9 @@
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Events;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace CoreScript.Engine.Globals
 {
@@ -22,20 +25,30 @@ namespace CoreScript.Engine.Globals
 
         private static void ExecuteTransaction(Document doc, string transactionName, Action action)
         {
-            File.AppendAllText(_logPath, $"Starting transaction: {transactionName} at {DateTime.Now}\n");
-
             if (doc == null)
             {
                 File.AppendAllText(_logPath, "Document is null in Transact\n");
                 throw new InvalidOperationException("Document is null. Cannot start a transaction.");
             }
 
+            var createdElementIds = new List<ElementId>();
+
+            // Define the event handler
+            void DocumentChangedHandler(object sender, DocumentChangedEventArgs e)
+            {
+                // Collect IDs of newly created elements
+                createdElementIds.AddRange(e.GetAddedElementIds());
+            }
+
+            // Subscribe to the event
+            doc.Application.DocumentChanged += DocumentChangedHandler;
+
             using var transaction = new Transaction(doc, transactionName);
             try
             {
                 File.AppendAllText(_logPath, $"Starting transaction: {transactionName}\n");
                 transaction.Start();
-                action(); // Execute the action, which will use the global Doc
+                action(); // Execute the script's action
                 File.AppendAllText(_logPath, $"Committing transaction: {transactionName}\n");
                 transaction.Commit();
                 File.AppendAllText(_logPath, $"Transaction committed successfully: {transactionName}\n");
@@ -48,7 +61,24 @@ namespace CoreScript.Engine.Globals
                     File.AppendAllText(_logPath, $"Rolling back transaction: {transactionName}\n");
                     transaction.RollBack();
                 }
-                throw;
+                throw; // Re-throw the exception to be handled by the CodeRunner
+            }
+            finally
+            {
+                // CRITICAL: Always unsubscribe from the event
+                doc.Application.DocumentChanged -= DocumentChangedHandler;
+
+                // After the transaction is complete, process the created elements
+                if (createdElementIds.Any())
+                {
+                    var globals = ExecutionGlobals.Current.Value;
+                    if (globals != null)
+                    {
+                        string idsJson = string.Join(",", createdElementIds.Select(id => id.Value));
+                        string payload = $"{{ \"paracore_output_type\": \"working_set_elements\", \"operation\": \"add\", \"element_ids\": [{idsJson}] }}";
+                        globals.SetInternalData(payload);
+                    }
+                }
             }
         }
     }

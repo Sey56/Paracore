@@ -1,8 +1,10 @@
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel, Field
-from typing import List, Any
+from typing import List, Any, Dict
 import json
 import uuid
+
+from .utils import get_llm
 
 def handle_present_parameters(state: dict) -> dict:
     """
@@ -62,23 +64,23 @@ Return a list of all identified parameter updates.
     
     try:
         extracted_updates_obj = extraction_llm.invoke([HumanMessage(content=extraction_prompt)])
-        chat_updates = {item.name: item.value for item in extracted_updates_obj.updates}
+        chat_updates = {str(item.name): item.value for item in extracted_updates_obj.updates}
     except Exception as e:
         print(f"parameter_node: Could not extract parameter updates from user message: {e}")
         chat_updates = {}
 
     # Merge parameters: UI changes first, then chat changes
-    ui_params = state.get('ui_parameters') # This is a dict of {name: value}
+    ui_params = state.get('ui_parameters') # This is a dict of {name: value} 
     
     # Create a dictionary of current parameters for easy lookup
-    params_dict = {p['name']: p for p in current_params}
+    params_dict = {str(p['name']): p for p in current_params if 'name' in p and isinstance(p['name'], str)}
 
     # Apply UI updates
     if ui_params:
         for param_name, param_value in ui_params.items():
             if param_name in params_dict:
                 params_dict[param_name]['value'] = param_value
-                params_dict[param_name]['defaultValueJson'] = json.dumps(param_value)
+                # CRITICAL FIX: DO NOT update defaultValueJson here. It must retain the original default.
 
     # Apply chat updates (these take precedence)
     if chat_updates:
@@ -87,7 +89,7 @@ Return a list of all identified parameter updates.
             for p_name in params_dict.keys():
                 if p_name.lower() == param_name.lower():
                     params_dict[p_name]['value'] = param_value
-                    params_dict[p_name]['defaultValueJson'] = json.dumps(param_value)
+                    # CRITICAL FIX: DO NOT update defaultValueJson here. It must retain the original default.
                     break
 
     updated_params_list = list(params_dict.values())
@@ -100,34 +102,53 @@ Return a list of all identified parameter updates.
     if is_run_request:
         # Prepare for HITL by calling the run_script_by_name tool
         selected_script = state.get('selected_script_metadata')
-        final_params = {p['name']: p['value'] for p in updated_params_list}
+        # Normalize parameter values so the backend receives plain strings for simple values
+        final_params = {}
+        for p in updated_params_list:
+            if 'name' not in p or not isinstance(p['name'], str):
+                continue
+            name = str(p['name'])
+            val = p.get('value')
+            # If value is a dict/list, send JSON string
+            if isinstance(val, (dict, list)):
+                final_params[name] = json.dumps(val)
+            elif isinstance(val, str):
+                # Strip accidental surrounding quotes from UI or chat input
+                if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                    final_params[name] = val[1:-1]
+                else:
+                    final_params[name] = val
+            else:
+                # For numbers/bools/None, convert to plain string
+                final_params[name] = str(val)
         
         tool_call = {
             "name": "run_script_by_name",
             "args": {
-                "script_name": selected_script.get('name'),
+                "script_name": str(selected_script.get('name')),
                 "parameters": final_params,
-                "is_final_approval": True # Signal to frontend this is the final step
+                "is_final_approval": True  # Signal to frontend this is the final step
             },
-            "id": f"tool_call_{uuid.uuid4()}" # Generate a unique ID
+            "id": f"tool_call_{uuid.uuid4()}"  # Generate a unique ID
         }
         
         return {
             "messages": [AIMessage(content="", tool_calls=[tool_call])],
-            "status": "interrupted", # Signal to frontend to look for tool_call
-            "tool_call": tool_call, # Include the tool_call directly in the response data
-            "final_parameters_for_execution": updated_params_list, # Keep this for potential frontend use
+            "status": "interrupted",  # Signal to frontend to look for tool_call
+            "tool_call": tool_call,  # Include the tool_call directly in the response data
+            "final_parameters_for_execution": updated_params_list,  # Keep this for potential frontend use
         }
 
     else:
         # Just respond with the updated parameters for confirmation
         param_summary = "I've updated the parameters. Here is the new configuration:\n"
         for param in updated_params_list:
-            param_summary += f"- **{param.get('name')}**: {param.get('defaultValueJson')}\n"
+            # We need to use 'value' to show the current setting, not 'defaultValueJson'
+            param_summary += f"- **{param.get('name')}**: {json.dumps(param.get('value'))}\n"
         param_summary += "\nDo you want to run the script with these settings, or make more changes?"
 
         return {
             "messages": [AIMessage(content=param_summary)],
             "script_parameters_definitions": updated_params_list,
-            "next_conversational_action": "confirm_execution" # Stay in this state
+            "next_conversational_action": "confirm_execution"  # Stay in this state
         }

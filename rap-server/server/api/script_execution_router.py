@@ -11,6 +11,7 @@ from database_config import get_db
 from grpc_client import execute_script
 from utils import get_or_create_script, resolve_script_path
 from auth import get_current_user, CurrentUser
+from agent.graph import get_app # Import agent app
 
 
 router = APIRouter()
@@ -28,6 +29,7 @@ async def run_script(
     script_type = data.get("type")
     source_folder = data.get("source_folder")
     source_workspace = data.get("source_workspace")
+    thread_id = data.get("thread_id") # Get thread_id from request
 
     if not path:
         raise HTTPException(status_code=400, detail="No script path provided")
@@ -51,6 +53,30 @@ async def run_script(
 
         if not script_files_payload:
             raise HTTPException(status_code=404, detail="No script files found.")
+
+        # --- WORKING SET INJECTION LOGIC ---
+        if thread_id:
+            try:
+                app_instance = get_app()
+                config = {"configurable": {"thread_id": thread_id}}
+                latest_state = app_instance.get_state(config)
+                working_set = latest_state.values.get('working_set') if latest_state else None
+                
+                if working_set:
+                    # Construct the C# code for List<ElementId> initialization
+                    # Example: List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> { new ElementId(123L), new ElementId(456L) };
+                    element_id_initializers = ", ".join([f"new Autodesk.Revit.DB.ElementId({id}L)" for id in working_set])
+                    csharp_list_code = f"List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> {{ {element_id_initializers} }};"
+
+                    # Placeholder to look for in the script content
+                    placeholder_line = "List<ElementId> targetWallIds; // __INJECT_WORKING_SET__"
+
+                    for script_file in script_files_payload:
+                        script_file["Content"] = script_file["Content"].replace(placeholder_line, csharp_list_code)
+            except Exception as e:
+                # Log the error but don't block execution
+                print(f"Warning: Failed to inject working set. Reason: {e}")
+        # --- END INJECTION LOGIC ---
 
         script_content_json = json.dumps(script_files_payload)
         parameters_json = json.dumps(parameters)
