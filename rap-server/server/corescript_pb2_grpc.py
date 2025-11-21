@@ -65,6 +65,11 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.CreateWorkspaceRequest.SerializeToString,
                 response_deserializer=corescript__pb2.CreateWorkspaceResponse.FromString,
                 _registered_method=True)
+        self.GetContext = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/GetContext',
+                request_serializer=corescript__pb2.GetContextRequest.SerializeToString,
+                response_deserializer=corescript__pb2.GetContextResponse.FromString,
+                _registered_method=True)
 
 
 class CoreScriptRunnerServicer(object):
@@ -107,6 +112,12 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetContext(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreScriptRunnerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -139,6 +150,11 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.CreateAndOpenWorkspace,
                     request_deserializer=corescript__pb2.CreateWorkspaceRequest.FromString,
                     response_serializer=corescript__pb2.CreateWorkspaceResponse.SerializeToString,
+            ),
+            'GetContext': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetContext,
+                    request_deserializer=corescript__pb2.GetContextRequest.FromString,
+                    response_serializer=corescript__pb2.GetContextResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -304,6 +320,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/CreateAndOpenWorkspace',
             corescript__pb2.CreateWorkspaceRequest.SerializeToString,
             corescript__pb2.CreateWorkspaceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetContext(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/GetContext',
+            corescript__pb2.GetContextRequest.SerializeToString,
+            corescript__pb2.GetContextResponse.FromString,
             options,
             channel_credentials,
             insecure,

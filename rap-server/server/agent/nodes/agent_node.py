@@ -12,6 +12,14 @@ def agent_node(state: dict):
     The main agent node router.
     It inspects the state and calls the appropriate handler function.
     """
+    import logging
+    logging.info("DEBUG: agent_node called")
+    print("DEBUG: agent_node called (print)")
+    
+    # Verify tools
+    logging.info(f"DEBUG: Available tools count: {len(tools)}")
+    logging.info(f"DEBUG: Tool names: {[t.name for t in tools]}")
+
     llm = get_llm(state)
     
     current_human_message = None

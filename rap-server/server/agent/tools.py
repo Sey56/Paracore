@@ -172,6 +172,26 @@ def get_working_set_details() -> str:
     pass
 
 
+@tool
+def get_revit_context_tool() -> dict:
+    """
+    Retrieves the current Revit context, including the active view name, the number of selected elements,
+    their IDs, and project information.
+    Use this tool when the user asks about the current selection or the active view.
+    """
+    print("DEBUG: get_revit_context_tool called")
+    from grpc_client import get_context
+    try:
+        context = get_context()
+        print(f"DEBUG: get_context returned: {context}")
+        return context
+    except Exception as e:
+        print(f"DEBUG: get_revit_context_tool failed with error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}
+
+
 tools = [
     search_scripts_tool, 
     get_script_parameters_tool, 
@@ -181,5 +201,6 @@ tools = [
     set_working_set,
     add_to_working_set,
     remove_from_working_set,
-    get_working_set_details
+    get_working_set_details,
+    get_revit_context_tool
 ]

@@ -8,6 +8,8 @@ prompt = ChatPromptTemplate.from_messages(
 {working_set_context}
 **CRITICAL INSTRUCTION:** For any user message that describes a task or asks what you can do (e.g., "create a wall", "can you make a floor?", "what can you do?"), you **MUST** use the `search_scripts_tool` to find relevant scripts. Do not answer generically.
 
+**CONTEXT AWARENESS:** You have access to the `get_revit_context_tool`. If the user refers to "selection", "selected elements", "active view", or "current view", use this tool to get the live state from Revit.
+
 When calling `search_scripts_tool`, you MUST provide the `query` argument with the user's task description and the `agent_scripts_path` argument from your context.
 """
         ),

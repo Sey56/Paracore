@@ -42,43 +42,47 @@ Identify ALL scripts that are a direct match for the user's query and return the
         matching_paths = response_obj.script_paths
         semantically_relevant_scripts = [s for s in scripts_for_llm if s.get('absolutePath') in matching_paths]
 
-        if len(semantically_relevant_scripts) == 1:
-            return {
-                "selected_script_metadata": semantically_relevant_scripts[0],
-                "script_selected_for_params": True,
-                "next_conversational_action": "present_parameters"
-            }
-        elif len(semantically_relevant_scripts) > 1:
-            # If multiple scripts are found, have the LLM rank them to find the best fit.
-            ranking_prompt = f"""Given the user's query and a list of relevant scripts, which script is the single best fit for the task?
-User Query: "{query}"
-Relevant Scripts:
-{json.dumps(semantically_relevant_scripts, indent=2)}
-Your task is to respond with the `name` of the single best script. Only return the name, nothing else.
-"""
-            best_fit_response = llm.invoke([HumanMessage(content=ranking_prompt)])
-            best_fit_name = best_fit_response.content.strip().replace('"', '')
-
-            # Find the full metadata for the best fit script.
-            best_script = next((s for s in semantically_relevant_scripts if s.get('name') == best_fit_name), None)
-
-            # If a best script is found, proceed directly to parameter presentation.
-            if best_script:
-                return {
-                    "selected_script_metadata": best_script,
-                    "script_selected_for_params": True,
-                    "next_conversational_action": "present_parameters"
-                }
-            # Fallback in case the LLM hallucinates a name (select the first one).
-            else:
-                return {
-                    "selected_script_metadata": semantically_relevant_scripts[0],
-                    "script_selected_for_params": True,
-                    "next_conversational_action": "present_parameters"
-                }
-
-        else:
+        if not semantically_relevant_scripts:
             return {"messages": [AIMessage(content="I couldn't find any relevant scripts for your task.")]}
+
+        # --- Sequence Planning ---
+        class ScriptSequence(BaseModel):
+            is_chain: bool = Field(description="True if the scripts should be executed in a sequence to fulfill the request. False if they are alternatives.")
+            ordered_script_names: List[str] = Field(description="The names of the scripts in the correct execution order.")
+
+        sequencing_llm = llm.with_structured_output(ScriptSequence)
+        sequencing_prompt = f"""User Query: "{query}"
+Identified Scripts:
+{json.dumps(semantically_relevant_scripts, indent=2)}
+
+Determine if the user's request requires executing multiple scripts in a specific order (a chain), or if these are alternative options and only one should be chosen.
+If it is a chain, order them logically (e.g., Selection first, then Modification).
+If they are alternatives, pick the single best one and put it in the list.
+
+Return the decision.
+"""
+        sequence_response = sequencing_llm.invoke([HumanMessage(content=sequencing_prompt)])
+        
+        ordered_scripts = []
+        for name in sequence_response.ordered_script_names:
+            script = next((s for s in semantically_relevant_scripts if s.get('name') == name), None)
+            if script:
+                ordered_scripts.append(script)
+        
+        if not ordered_scripts:
+             # Fallback if LLM returns names that don't match (shouldn't happen often)
+             ordered_scripts = [semantically_relevant_scripts[0]]
+
+        # Setup the execution queue
+        first_script = ordered_scripts[0]
+        remaining_queue = ordered_scripts[1:]
+
+        return {
+            "selected_script_metadata": first_script,
+            "script_execution_queue": remaining_queue,
+            "script_selected_for_params": True,
+            "next_conversational_action": "present_parameters"
+        }
     except Exception as e:
         print(f"search_node: Error processing LLM response for script filtering: {e}")
         return {"messages": [AIMessage(content="I encountered an error while trying to find relevant scripts. Please try again.")]}

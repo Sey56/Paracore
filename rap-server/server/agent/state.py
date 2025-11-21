@@ -21,6 +21,7 @@ class AgentState(TypedDict):
     recommended_script_name: str | None # The name of the script recommended by the agent
     selected_script_metadata: dict | None
     script_selected_for_params: bool | None
+    script_execution_queue: list[dict] | None # Queue for multi-step automation
 
     # --- State for Parameter Management Workflow ---
     user_provided_param_modifications: dict | None

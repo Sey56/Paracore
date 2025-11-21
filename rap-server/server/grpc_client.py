@@ -131,3 +131,29 @@ def get_script_manifest(script_path: str) -> str:
         request = corescript_pb2.GetScriptManifestRequest(script_path=script_path)
         response = stub.GetScriptManifest(request)
         return response.manifest_json
+
+def get_context():
+    """
+    Calls the gRPC service to get the current Revit context (selection, view, etc.).
+    """
+    print("DEBUG: grpc_client.get_context called")
+    try:
+        with get_rscript_runner_stub() as stub:
+            print("DEBUG: Stub created, sending GetContextRequest...")
+            request = corescript_pb2.GetContextRequest()
+            response = stub.GetContext(request)
+            print("DEBUG: Received GetContextResponse")
+        
+        return {
+            "active_view_name": response.active_view_name,
+            "selection_count": response.selection_count,
+            "selected_element_ids": list(response.selected_element_ids),
+            "project_info": {
+                "name": response.project_info.name,
+                "number": response.project_info.number,
+                "title": response.project_info.title
+            } if response.HasField("project_info") else None
+        }
+    except Exception as e:
+        print(f"DEBUG: grpc_client.get_context exception: {e}")
+        raise e

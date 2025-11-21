@@ -10,9 +10,8 @@ service CoreScriptRunner {
   rpc GetScriptParameters(GetScriptParametersRequest) returns (GetScriptParametersResponse);
   rpc GetCombinedScript(GetCombinedScriptRequest) returns (GetCombinedScriptResponse);
   rpc CreateAndOpenWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  rpc GetContext(GetContextRequest) returns (GetContextResponse);
 }
-
-
 
 // General purpose empty message
 message Empty {}
@@ -115,4 +114,19 @@ message GetCombinedScriptRequest {
 message GetCombinedScriptResponse {
   string combined_script = 1;
   string error_message = 2;
+}
+
+message GetContextRequest {}
+
+message GetContextResponse {
+  string active_view_name = 1;
+  int32 selection_count = 2;
+  repeated int32 selected_element_ids = 3;
+  ProjectInfo project_info = 4;
+}
+
+message ProjectInfo {
+  string name = 1;
+  string number = 2;
+  string title = 3;
 }

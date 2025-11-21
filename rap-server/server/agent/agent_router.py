@@ -39,6 +39,10 @@ async def chat_with_agent(request: ChatRequest):
     Initiates or continues a conversation with the agent, allowing the agent
     to run to completion without interruption.
     """
+    print(f"DEBUG: Received chat request: {request.message}")
+    import logging
+    logging.info(f"DEBUG: Received chat request: {request.message}")
+    
     try:
         thread_id = request.thread_id or str(uuid.uuid4())
         config = {"configurable": {"thread_id": thread_id}}

@@ -3,7 +3,7 @@ from langchain_core.messages import ToolMessage, AIMessage
 from langgraph.graph import END
 
 from ..state import AgentState
-from ..tools import search_scripts_tool, run_script_by_name, get_working_set_details, clear_working_set, set_working_set, add_to_working_set, remove_from_working_set
+from ..tools import search_scripts_tool, run_script_by_name, get_working_set_details, clear_working_set, set_working_set, add_to_working_set, remove_from_working_set, get_revit_context_tool
 from ..api_helpers import read_local_script_manifest
 from .working_set_utils import process_working_set_output
 
@@ -54,6 +54,15 @@ def tool_node(state: AgentState):
             else:
                 result_str = f"The current working set contains the following element IDs: {working_set}"
             results.append(ToolMessage(content=result_str, tool_call_id=tool_call_id))
+
+        elif tool_name == get_revit_context_tool.name:
+            try:
+                # Invoke the tool directly
+                context_result = get_revit_context_tool.invoke(tool_args)
+                # The result is a dict, convert to JSON string for the message content
+                results.append(ToolMessage(content=json.dumps(context_result), tool_call_id=tool_call_id))
+            except Exception as e:
+                results.append(ToolMessage(content=f"Error getting Revit context: {str(e)}", tool_call_id=tool_call_id))
         
         elif tool_name in tool_map:
             # For state-modifying working set tools, call the tool to get the JSON,

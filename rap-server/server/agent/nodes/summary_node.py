@@ -24,7 +24,39 @@ def summary_node(state: dict) -> dict:
     # Otherwise, preserve the set from before this run.
     final_working_set = new_working_set_from_script if new_working_set_from_script is not None else preserved_working_set
         
-    # 4. Generate the user-facing summary message
+    # 4. Check for Script Chaining (Multi-step Automation)
+    script_queue = state.get("script_execution_queue") or []
+    
+    if script_queue:
+        # If there are more scripts to run, we don't summarize yet.
+        # We set up the next script and continue the conversation flow.
+        next_script = script_queue[0]
+        remaining_queue = script_queue[1:]
+        
+        # We might want to add a small system message to indicate progress
+        progress_message = AIMessage(content=f"Step completed. Proceeding to the next step: {next_script.get('name')}...")
+        
+        existing_messages = state.get("messages", [])
+        preserved_conversation = [m for m in existing_messages if isinstance(m, (HumanMessage, AIMessage))]
+        preserved_conversation.append(progress_message)
+
+        return {
+            "messages": preserved_conversation,
+            "working_set": final_working_set,
+            "script_execution_queue": remaining_queue,
+            "selected_script_metadata": next_script,
+            "script_selected_for_params": True,
+            "next_conversational_action": "present_parameters",
+            # Clear execution results of the previous step
+            "execution_summary": None,
+            "raw_output_for_summary": None,
+            # Clear parameter definitions so they are re-fetched for the new script
+            "script_parameters_definitions": None,
+            "final_parameters_for_execution": None,
+            "user_provided_param_modifications": None,
+        }
+
+    # 5. Generate the user-facing summary message (Final Step)
     final_message = "Action completed successfully. See the Console tab for details."
     summary_data = state.get("execution_summary")
     if summary_data:
@@ -39,7 +71,7 @@ def summary_node(state: dict) -> dict:
             message = summary_data.get('message', 'Code executed')
             final_message = f"{message}. See the Console tab for full details."
     
-    # 5. Prepare the response and clear transient state from the completed run.
+    # 6. Prepare the response and clear transient state from the completed run.
     # After summarizing, the agent should finish this turn and be ready for a new query.
     # We preserve the `working_set` (ids of created/modified elements) but clear
     # script-selection and parameter-related fields so the next user query starts fresh.
@@ -68,4 +100,5 @@ def summary_node(state: dict) -> dict:
         "identified_scripts_for_choice": None,
         "recommended_script_name": None,
         "current_task_description": None,
+        "script_execution_queue": None, # Ensure queue is cleared
     }

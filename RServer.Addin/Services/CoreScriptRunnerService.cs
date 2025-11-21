@@ -272,6 +272,45 @@ var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.S
             return Task.FromResult(response);
         }
 
+        public override Task<GetContextResponse> GetContext(GetContextRequest request, ServerCallContext context)
+        {
+            _logger.Log("[CoreScriptRunnerService] Entering GetContext.", LogLevel.Debug);
+            var response = new GetContextResponse();
+
+            if (_uiApp?.ActiveUIDocument == null)
+            {
+                return Task.FromResult(response);
+            }
+            
+            try 
+            {
+                var uidoc = _uiApp.ActiveUIDocument;
+                var doc = uidoc.Document;
+
+                response.ActiveViewName = uidoc.ActiveView?.Name ?? "Unknown";
+                
+                var selection = uidoc.Selection.GetElementIds();
+                response.SelectionCount = selection.Count;
+                response.SelectedElementIds.AddRange(selection.Select(id => (int)id.Value));
+
+                if (doc.ProjectInformation != null)
+                {
+                    response.ProjectInfo = new CoreScript.ProjectInfo
+                    {
+                        Name = doc.ProjectInformation.Name ?? "",
+                        Number = doc.ProjectInformation.Number ?? "",
+                        Title = doc.Title
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[CoreScriptRunnerService] Error in GetContext: {ex.Message}");
+            }
+
+            return Task.FromResult(response);
+        }
+
         public override Task<CreateWorkspaceResponse> CreateAndOpenWorkspace(CreateWorkspaceRequest request, ServerCallContext context)
         {
             var response = new CreateWorkspaceResponse();
