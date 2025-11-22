@@ -43,15 +43,15 @@ export const AgentView: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
-  const [workingSet, setWorkingSet] = useState<number[]>([]); // State for the working set
+  const [workingSet, setWorkingSet] = useState<Record<string, number[]>>({}); // State for the working set
 
   const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: any; raw_output?: any }) => {
     setIsLoading(true);
-    
+
     // Optimistically add the user's message to the UI for responsiveness, but only if it's not internal
     if (!options?.isInternal && newMessages.some(m => m.type === 'human')) {
-        setMessages(prev => [...prev, ...newMessages]);
-        setInput('');
+      setMessages(prev => [...prev, ...newMessages]);
+      setInput('');
     }
 
     try {
@@ -65,7 +65,7 @@ export const AgentView: React.FC = () => {
       const messageContent = lastHumanMessage ? lastHumanMessage.content : '';
 
       const currentParamsArray = selectedScript ? userEditedScriptParameters[selectedScript.id] : undefined;
-      const currentParamsDict = currentParamsArray ? 
+      const currentParamsDict = currentParamsArray ?
         currentParamsArray.reduce((acc, param) => {
           acc[param.name] = param.value;
           return acc;
@@ -99,8 +99,12 @@ export const AgentView: React.FC = () => {
         if (response.data.thread_id) {
           setThreadId(response.data.thread_id);
         }
-        if (Array.isArray(response.data.working_set)) {
+        // Handle working set update (expecting a dictionary now)
+        if (response.data.working_set && typeof response.data.working_set === 'object') {
           setWorkingSet(response.data.working_set);
+        } else if (Array.isArray(response.data.working_set)) {
+          // Fallback for legacy array format - put in "Unknown" category
+          setWorkingSet({ "Unknown": response.data.working_set });
         }
       }
 
@@ -118,44 +122,44 @@ export const AgentView: React.FC = () => {
 
         // --- Handle active_script if present ---
         if (response.data.active_script) {
-            const scriptInfo = response.data.active_script;
-            console.log("AgentView: Detected active_script in response:", scriptInfo);
-            const selected = {
-                id: scriptInfo.absolutePath, // Use absolutePath as the unique ID
-                name: scriptInfo.name,
-                type: scriptInfo.type,
-                absolutePath: scriptInfo.absolutePath,
-                sourcePath: scriptInfo.absolutePath, // Use absolutePath for sourcePath as well
-                metadata: scriptInfo.metadata,
-                parameters: [],
-            };
-            setSelectedScript(selected, 'agent');
-            setActiveInspectorTab('parameters'); // Switch to parameters tab
-            showNotification(`Agent selected script: ${selected.name}.`, 'info');
+          const scriptInfo = response.data.active_script;
+          console.log("AgentView: Detected active_script in response:", scriptInfo);
+          const selected = {
+            id: scriptInfo.absolutePath, // Use absolutePath as the unique ID
+            name: scriptInfo.name,
+            type: scriptInfo.type,
+            absolutePath: scriptInfo.absolutePath,
+            sourcePath: scriptInfo.absolutePath, // Use absolutePath for sourcePath as well
+            metadata: scriptInfo.metadata,
+            parameters: [],
+          };
+          setSelectedScript(selected, 'agent');
+          setActiveInspectorTab('parameters'); // Switch to parameters tab
+          showNotification(`Agent selected script: ${selected.name}.`, 'info');
         }
         // --- Handle tool_call for set_active_script_source_tool if present ---
         else if (response.data.tool_call && response.data.tool_call.name === 'set_active_script_source_tool') {
-            const scriptInfo = response.data.tool_call.arguments;
-            console.log("AgentView: Detected set_active_script_source_tool call:", scriptInfo);
-            // Simulate a script object for setSelectedScript
-            const selected = {
-                id: scriptInfo.absolutePath, // Use absolutePath as ID
-                name: scriptInfo.absolutePath.split('/').pop(), // Extract name from path
-                type: scriptInfo.type,
-                absolutePath: scriptInfo.absolutePath,
-                sourcePath: scriptInfo.absolutePath,
-                metadata: {
-                    displayName: scriptInfo.absolutePath.split('/').pop() || 'Unknown',
-                    lastRun: null,
-                    dependencies: [],
-                    description: 'Metadata will be fetched...',
-                    categories: [],
-                }, // Metadata will be fetched by ScriptExecutionProvider
-                parameters: [], // Add empty parameters to satisfy the type
-            };
-            setSelectedScript(selected, 'agent');
-            setActiveInspectorTab('metadata'); // Switch to metadata tab
-            showNotification(`Agent selected script: ${selected.name}.`, 'info');
+          const scriptInfo = response.data.tool_call.arguments;
+          console.log("AgentView: Detected set_active_script_source_tool call:", scriptInfo);
+          // Simulate a script object for setSelectedScript
+          const selected = {
+            id: scriptInfo.absolutePath, // Use absolutePath as ID
+            name: scriptInfo.absolutePath.split('/').pop(), // Extract name from path
+            type: scriptInfo.type,
+            absolutePath: scriptInfo.absolutePath,
+            sourcePath: scriptInfo.absolutePath,
+            metadata: {
+              displayName: scriptInfo.absolutePath.split('/').pop() || 'Unknown',
+              lastRun: null,
+              dependencies: [],
+              description: 'Metadata will be fetched...',
+              categories: [],
+            }, // Metadata will be fetched by ScriptExecutionProvider
+            parameters: [], // Add empty parameters to satisfy the type
+          };
+          setSelectedScript(selected, 'agent');
+          setActiveInspectorTab('metadata'); // Switch to metadata tab
+          showNotification(`Agent selected script: ${selected.name}.`, 'info');
         }
       } else if (response.data.agent_summary) { // NEW BLOCK FOR AGENT SUMMARY
         console.log("AgentView: Received agent_summary from backend:", response.data.agent_summary);
@@ -165,14 +169,14 @@ export const AgentView: React.FC = () => {
       else if (response.data.status === 'interrupted' && response.data.tool_call) {
         console.log("AgentView: Received interrupted status with tool_call:", response.data.tool_call);
         const toolCallMessage: Message = {
-            type: 'ai',
-            content: `Agent requested tool: ${response.data.tool_call.name}`,
-            id: `ai-tool-${Date.now()}`,
-            tool_calls: [{
-                id: `tool-call-${Date.now()}`, // Generate a unique ID for the frontend
-                name: response.data.tool_call.name,
-                args: response.data.tool_call.arguments
-            }]
+          type: 'ai',
+          content: `Agent requested tool: ${response.data.tool_call.name}`,
+          id: `ai-tool-${Date.now()}`,
+          tool_calls: [{
+            id: `tool-call-${Date.now()}`, // Generate a unique ID for the frontend
+            name: response.data.tool_call.name,
+            args: response.data.tool_call.arguments
+          }]
         };
         setMessages(prev => [...prev, toolCallMessage]);
       } else if (response.data.status === 'processing_internal') {
@@ -224,8 +228,8 @@ export const AgentView: React.FC = () => {
 
       invokeAgent(
         [{ type: 'human', content: internalMessage, id: `system-${Date.now()}` }],
-        { 
-          isInternal: true, 
+        {
+          isInternal: true,
           summary: null, // Explicitly set summary to null
           raw_output: rawOutputPayload
         }
