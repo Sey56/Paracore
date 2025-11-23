@@ -17,7 +17,7 @@ export const TopBar: React.FC = () => {
   const { rserverConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, logout, activeTeam } = useAuth();
-  const { loadScriptsForFolder, fetchScriptManifest } = useScripts();
+  const { loadScriptsForFolder } = useScripts();
 
   const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
@@ -25,7 +25,7 @@ export const TopBar: React.FC = () => {
 
   const handleAgentModeClick = () => {
     setActiveMainView('agent');
-    fetchScriptManifest();
+
   };
 
   useEffect(() => {
@@ -101,20 +101,20 @@ export const TopBar: React.FC = () => {
 
       <div className="flex items-center space-x-2">
         {/* Agent/Automation Toggle */}
-          <button
-            onClick={() => setActiveMainView('scripts')}
-            className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'scripts' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-            title="Automation Mode"
-          >
-            <FontAwesomeIcon icon={faRectangleList} />
-          </button>
-          <button
-            onClick={handleAgentModeClick}
-            className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-            title="Agent Mode"
-          >
-            <FontAwesomeIcon icon={faRobot} />
-          </button>
+        <button
+          onClick={() => setActiveMainView('scripts')}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'scripts' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          title="Automation Mode"
+        >
+          <FontAwesomeIcon icon={faRectangleList} />
+        </button>
+        <button
+          onClick={handleAgentModeClick}
+          className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          title="Agent Mode"
+        >
+          <FontAwesomeIcon icon={faRobot} />
+        </button>
 
         <div className="action-icons flex items-center space-x-2 border-r border-gray-200 dark:border-gray-700 pr-4">
           <div className="relative" ref={helpDropdownRef}>

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.13.2",
+    "aiosqlite>=0.21.0",
     "annotated-types>=0.7.0",
     "anyio>=4.11.0",
     "argon2-cffi>=25.1.0",
@@ -33,6 +34,7 @@ dependencies = [
     "langchain>=1.0.3",
     "langchain-google-genai>=3.0.1",
     "langgraph>=1.0.2",
+    "langgraph-checkpoint-sqlite>=3.0.0",
     "nuitka>=2.8.4",
     "ordered-set>=4.1.0",
     "protobuf>=6.33.0",

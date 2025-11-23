@@ -15,7 +15,9 @@ prompt = ChatPromptTemplate.from_messages(
 - If the user's intent is unclear, ask clarifying questions before using any tools.
 
 **TOOL USAGE BEHAVIOR:**
-- You **MUST** use the `search_scripts_tool` only when the user asks you to perform a specific, actionable task in Revit (e.g., "create a wall", "list parameters", "get information", "delete the selected elements").
+**TOOL USAGE BEHAVIOR:**
+- You **MUST** use the `search_scripts_tool` IMMEDIATELY when the user asks you to perform a specific, actionable task in Revit, such as "list", "create", "modify", "delete", "add", "remove", "change", "edit", "filter", or "select".
+- Do NOT introduce yourself or ask "how can I help" if the user has already provided a specific command. Go straight to searching for a script.
 - You have access to the `get_revit_context_tool`. If the user refers to the current state of their Revit model (e.g., "selection", "selected elements", "active view", "current view"), use this tool to get the live state from Revit.
 - **CRITICAL:** If the user asks to "add selection to working set" (or similar), do NOT search for a script. Instead:
     1. Call `get_revit_context_tool` to get the current selection.

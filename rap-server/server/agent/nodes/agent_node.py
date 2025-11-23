@@ -12,13 +12,8 @@ def agent_node(state: dict):
     The main agent node router.
     It inspects the state and calls the appropriate handler function.
     """
-    import logging
-    logging.info("DEBUG: agent_node called")
-    print("DEBUG: agent_node called (print)")
     
     # Verify tools
-    logging.info(f"DEBUG: Available tools count: {len(tools)}")
-    logging.info(f"DEBUG: Tool names: {[t.name for t in tools]}")
 
     llm = get_llm(state)
     
@@ -70,14 +65,19 @@ When the user refers to 'it', 'them', or 'these', they are referring to the elem
 If the user asks for information directly available in this context (like the IDs themselves), you can answer directly.
 IMPORTANT: If you need to pass these IDs to a script parameter, you MUST format them as a single, comma-separated string (e.g., "12345,67890").
 """
-
-        llm_with_tools = llm.bind_tools(tools)
-        chain = prompt | llm_with_tools
         
-        response = chain.invoke({
-            "messages": state["messages"],
-            "agent_scripts_path": state.get("agent_scripts_path"),
-            "current_task_description": state.get("current_task_description"),
-            "working_set_context": working_set_context
-        })
-        return {"messages": [response]}
+        try:
+            llm_with_tools = llm.bind_tools(tools)
+            chain = prompt | llm_with_tools
+            
+            response = chain.invoke({
+                "messages": state["messages"],
+                "agent_scripts_path": state.get("agent_scripts_path"),
+                "current_task_description": state.get("current_task_description"),
+                "working_set_context": working_set_context
+            })
+            return {"messages": [response]}
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise e

@@ -35,7 +35,7 @@ export interface ScriptContextProps {
   pullAllTeamWorkspaces: () => Promise<void>;
   pullWorkspace: (workspacePath: string) => Promise<void>;
   fetchTeamWorkspaces: () => Promise<void>;
-  fetchScriptManifest: () => Promise<void>;
+
   toolLibraryPath: string | null;
   setToolLibraryPath: (path: string) => void;
   clearScripts: () => void;

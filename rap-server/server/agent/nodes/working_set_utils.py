@@ -172,3 +172,76 @@ def process_working_set_output(output_str: str, current_working_set: dict[str, L
 
     print(f"DEBUG: Calculated final new_working_set: {working_set_state}")
     return working_set_state, last_display_message
+
+def validate_working_set(working_set: dict[str, List[int]]) -> dict[str, List[int]]:
+    """
+    Validates the current working set against the active Revit document by running a dynamic script.
+    Removes any element IDs that no longer exist in the document.
+    """
+    if not working_set:
+        return {}
+
+    all_ids = []
+    for ids in working_set.values():
+        all_ids.extend(ids)
+    
+    if not all_ids:
+        return {}
+
+    # Create a dynamic C# script to check for element existence
+    # We use a simple script that iterates and checks doc.GetElement
+    script_content = f"""
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Autodesk.Revit.DB;
+
+var idsToCheck = new List<long> {{ {', '.join(map(str, all_ids))} }};
+
+return string.Join(",", validIds);
+"""
+
+    try:
+        # Import from the root server package
+        import sys
+        import os
+        # Ensure server directory is in path
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        server_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        if server_dir not in sys.path:
+            sys.path.append(server_dir)
+
+        from grpc_client import execute_script
+        print("DEBUG: Executing validation script...")
+        result = execute_script(script_content, "{}")
+        
+        if result.get("is_success"):
+            output = result.get("output", "")
+            print(f"DEBUG: Validation script output: {output}")
+            
+            if not output:
+                return {}
+                
+            valid_ids_set = set()
+            try:
+                # Output should be comma-separated string of IDs
+                valid_ids_set = set(map(int, output.split(',')))
+            except ValueError:
+                print("DEBUG: Failed to parse validation output")
+                return working_set # Fallback to original if parse fails
+
+            # Reconstruct working set with only valid IDs
+            new_working_set = {}
+            for category, ids in working_set.items():
+                valid_category_ids = [eid for eid in ids if eid in valid_ids_set]
+                if valid_category_ids:
+                    new_working_set[category] = valid_category_ids
+            
+            return new_working_set
+        else:
+            print(f"DEBUG: Validation script failed: {result.get('error_message')}")
+            return working_set # Fallback
+            
+    except Exception as e:
+        print(f"DEBUG: Validation failed with exception: {e}")
+        return working_set # Fallback

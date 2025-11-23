@@ -23,9 +23,6 @@ interface ApiError {
   };
 }
 
-// Module-level flag to ensure manifest is generated only once per application session
-let _manifestGeneratedInSession = false;
-
 export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const { activeScriptSource, setActiveScriptSource } = useUI();
@@ -125,47 +122,46 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false) => {
     if (!folderPath) {
-        setScripts([]);
-        return;
+      setScripts([]);
+      return;
     }
 
     // If the path is a direct file path, handle it differently
     if (folderPath.endsWith('.cs')) {
-        try {
-            if (!suppressNotification) {
-                showNotification(`Loading script: ${folderPath}...`, "info");
-            }
-            // We need to get the metadata for this single script.
-            // We can reuse the logic from fetchScriptManifest but for a single file.
-            const metadataResponse = await api.post("/api/script-metadata", {
-              scriptPath: folderPath,
-              type: 'single-file', // Assuming agent-selected scripts are single files for now
-            });
-            const metadata = metadataResponse.data.metadata;
-
-            const scriptObject: Script = {
-                id: folderPath,
-                name: folderPath.split('/').pop() || folderPath,
-                type: 'single-file',
-                absolutePath: folderPath,
-                sourcePath: folderPath,
-                metadata: {
-                    ...metadata,
-                    documentType: metadata.document_type,
-                },
-                parameters: [], // Satisfy the Script type
-            };
-            setScripts([scriptObject]);
-            setSelectedFolder(folderPath); // Keep track of the selected file
-            showNotification(`Loaded script ${scriptObject.name}.`, "success");
-
-        } catch (error) {
-            console.error(`Failed to fetch metadata for script ${folderPath}:`, error);
-            const message = error instanceof Error ? error.message : "Unknown error";
-            showNotification(`Failed to fetch metadata: ${message}`, "error");
-            setScripts([]);
+      try {
+        if (!suppressNotification) {
+          showNotification(`Loading script: ${folderPath}...`, "info");
         }
-        return;
+        // We need to get the metadata for this single script.
+        const metadataResponse = await api.post("/api/script-metadata", {
+          scriptPath: folderPath,
+          type: 'single-file', // Assuming agent-selected scripts are single files for now
+        });
+        const metadata = metadataResponse.data.metadata;
+
+        const scriptObject: Script = {
+          id: folderPath,
+          name: folderPath.split('/').pop() || folderPath,
+          type: 'single-file',
+          absolutePath: folderPath,
+          sourcePath: folderPath,
+          metadata: {
+            ...metadata,
+            documentType: metadata.document_type,
+          },
+          parameters: [], // Satisfy the Script type
+        };
+        setScripts([scriptObject]);
+        setSelectedFolder(folderPath); // Keep track of the selected file
+        showNotification(`Loaded script ${scriptObject.name}.`, "success");
+
+      } catch (error) {
+        console.error(`Failed to fetch metadata for script ${folderPath}:`, error);
+        const message = error instanceof Error ? error.message : "Unknown error";
+        showNotification(`Failed to fetch metadata: ${message}`, "error");
+        setScripts([]);
+      }
+      return;
     }
 
     // Original logic for handling folder paths
@@ -226,30 +222,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { rserverConnected } = useRevitStatus();
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>('agentScriptsPath', null);
 
-  const fetchScriptManifest = useCallback(async (force: boolean = false) => {
-    if (_manifestGeneratedInSession && !force) {
-      console.log("Manifest has already been generated for this session. Skipping.");
-      return;
-    }
-    if (!rserverConnected || !toolLibraryPath) {
-      showNotification("Cannot generate manifest: RServer is not connected or tool library path is not set.", "error");
-      return;
-    }
-
-    showNotification("Generating agent tool manifest...", "info");
-    try {
-      const response = await api.post("/api/script-manifest", { tool_library_path: toolLibraryPath });
-      showNotification(response.data.message, "success");
-      _manifestGeneratedInSession = true;
-    } catch (error) {
-      console.error(`Failed to generate script manifest:`, error);
-      const message = error instanceof Error ? error.message : "Unknown error";
-      showNotification(`Failed to generate script manifest: ${message}`, "error");
-    }
-  }, [rserverConnected, toolLibraryPath, showNotification]);
-
-
-
   const fetchScriptMetadata = useCallback(async (scriptId: string) => {
     const script = scripts.find(s => s.id === scriptId);
     if (!script || script.metadata) return;
@@ -258,7 +230,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       const response = await api.post("/api/script-metadata", { scriptPath: script.absolutePath, type: script.type });
 
       const metadata = response.data;
-      
+
       setScripts(prevScripts =>
         prevScripts.map(s =>
           s.id === scriptId ? { ...s, metadata: metadata.metadata } : s
@@ -389,7 +361,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       setCurrentDisplayPath(null);
     }
   }, [currentDisplayPath]);
-  
+
   const createNewScript = useCallback(async (details: {
     parent_folder: string;
     script_type: 'single' | 'multi';
@@ -464,7 +436,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       showNotification("Not authenticated or no active team.", "error");
       return;
     }
-    
+
     const workspacePaths = currentTeamWorkspaces
       .map(ws => userWorkspacePaths[ws.id]?.path)
       .filter((path): path is string => !!path);
@@ -527,7 +499,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     pullAllTeamWorkspaces,
     pullWorkspace,
     fetchTeamWorkspaces,
-    fetchScriptManifest,
     toolLibraryPath: toolLibraryPath,
     setToolLibraryPath: setToolLibraryPath,
   };

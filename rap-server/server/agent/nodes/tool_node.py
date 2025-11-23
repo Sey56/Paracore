@@ -5,12 +5,10 @@ from langgraph.graph import END
 from ..state import AgentState
 from ..tools import search_scripts_tool, run_script_by_name, get_working_set_details, clear_working_set, set_working_set, add_to_working_set, remove_from_working_set, get_revit_context_tool, set_active_script_tool
 from ..api_helpers import read_local_script_manifest
-from .working_set_utils import process_working_set_output
+from .working_set_utils import process_working_set_output, validate_working_set
 
 def tool_node(state: AgentState):
-    """
-    This node executes tools requested by the agent.
-    """
+
     last_message = state['messages'][-1]
     
     if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
@@ -58,7 +56,18 @@ def tool_node(state: AgentState):
             if not working_set:
                 result_str = "The current working set is empty."
             else:
-                result_str = f"The current working set contains the following element IDs: {working_set}"
+                # Validate the working set against Revit to ensure IDs still exist
+                validated_working_set = validate_working_set(working_set)
+                
+                # Update the state if the working set has changed
+                if validated_working_set != working_set:
+                    state_update['working_set'] = validated_working_set
+                    working_set = validated_working_set # Use validated set for display
+                
+                if not working_set:
+                     result_str = "The current working set is empty (elements may have been deleted)."
+                else:
+                    result_str = f"The current working set contains the following element IDs: {working_set}"
             results.append(ToolMessage(content=result_str, tool_call_id=tool_call_id))
 
         elif tool_name == get_revit_context_tool.name:

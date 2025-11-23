@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 
 from database_config import Base, engine
 
-from api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router, manifest_router
+from api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router
 
 from agent import agent_router
 
@@ -30,6 +30,8 @@ from config import settings
 # Configure Uvicorn logging to suppress access logs
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
+from agent.graph import close_app
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -39,6 +41,8 @@ async def lifespan(app: FastAPI):
     # Note: In a production environment with Alembic, you might remove this.
     Base.metadata.create_all(bind=engine)
     yield
+    # Shutdown events
+    await close_app()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -63,7 +67,6 @@ app.include_router(workspace_router.router)
 app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
 app.include_router(agent_router.router)
-app.include_router(manifest_router.router, prefix="/api")
 
 @app.get("/")
 def read_root():

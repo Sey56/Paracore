@@ -30,20 +30,25 @@ export const AgentView: React.FC = () => {
     setMessages,
     threadId,
     setThreadId,
-    setActiveInspectorTab, // Correctly get from useUI
+    setActiveInspectorTab,
   } = useUI();
+  const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
+  const [workingSet, setWorkingSet] = useState<Record<string, number[]>>({}); // State for the working set
+
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
-  // Correctly get execution-related functions and state from their respective hooks
   const { selectedScript, setSelectedScript, runScript, executionResult, clearExecutionResult, userEditedScriptParameters } = useScriptExecution();
-  const { fetchScriptManifest, toolLibraryPath, scripts: allScriptsFromScriptProvider } = useScripts();
+  const { toolLibraryPath, scripts: allScriptsFromScriptProvider } = useScripts();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const agentRunTriggeredRef = useRef<boolean>(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
-  const [workingSet, setWorkingSet] = useState<Record<string, number[]>>({}); // State for the working set
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
 
   const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: any; raw_output?: any }) => {
     setIsLoading(true);
@@ -375,14 +380,7 @@ export const AgentView: React.FC = () => {
       <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
         <p className="text-sm text-gray-500 dark:text-gray-400">Hello, How can I help you today?</p>
         <div className="flex space-x-2">
-          <button
-            onClick={() => (fetchScriptManifest as (force?: boolean) => Promise<void>)(true)}
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-            title="Refresh Agent Script Manifest"
-            disabled={isLoading}
-          >
-            <FontAwesomeIcon icon={faSyncAlt} />
-          </button>
+
           <button
             onClick={() => setIsClearChatModalOpen(true)}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -463,6 +461,6 @@ export const AgentView: React.FC = () => {
         </div>
       </Modal>
       <WorkingSetPanel workingSet={workingSet} />
-    </div>
+    </div >
   );
 };

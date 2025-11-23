@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, HTTPException, Response # Ensure Response is here
+from fastapi import APIRouter, Body, HTTPException, Response
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 import uuid
@@ -6,61 +6,60 @@ import os
 import json
 import traceback
 from typing import List
+import logging
 
 from .graph import get_app
 from .state import AgentState
 from .tools import search_scripts_tool
-from .summary_utils import generate_summary # Import the new utility
+from .summary_utils import generate_summary
+
 router = APIRouter()
 
-# Add this helper function (copied from previous version)
+# Add this helper function
 def serialize_message(message):
     if isinstance(message, (HumanMessage, AIMessage, ToolMessage)):
-        # Langchain messages have a .dict() method for serialization
         return message.dict()
     return message
 
 class ChatRequest(BaseModel):
     thread_id: str | None = None
     message: str
-    token: str # Change from user_token to token
+    token: str
     llm_provider: str | None
     llm_model: str | None
     llm_api_key_name: str | None
     llm_api_key_value: str | None
-    agent_scripts_path: str # Path to the agent's dedicated script workspace (tools_library path)
+    agent_scripts_path: str
     user_edited_parameters: dict | None = None
-    execution_summary: dict | None = None # New field for the summary
-    raw_output_for_summary: dict | None = None # New field for small raw outputs
+    execution_summary: dict | None = None
+    raw_output_for_summary: dict | None = None
 
 @router.post("/agent/chat")
 async def chat_with_agent(request: ChatRequest):
     """
-    Initiates or continues a conversation with the agent, allowing the agent
-    to run to completion without interruption.
+    Initiates or continues a conversation with the agent.
     """
     print(f"DEBUG: Received chat request: {request.message}")
-    import logging
     logging.info(f"DEBUG: Received chat request: {request.message}")
     
     try:
         thread_id = request.thread_id or str(uuid.uuid4())
         config = {"configurable": {"thread_id": thread_id}}
 
-        app_instance = get_app()
+        # Await the async get_app to ensure DB connection is ready
+        app_instance = await get_app()
 
-        # Determine if this is the first message in the thread
-        current_state = app_instance.get_state(config)
+        # Use aget_state for async checkpointer
+        current_state = await app_instance.aget_state(config)
         is_new_thread = not current_state or not current_state.values.get("messages")
 
         # Prepare the input for the graph - ONLY the new message
         input_message = HumanMessage(content=request.message)
 
-        # --- NEW: Generate summary from raw_output_for_summary if present ---
+        # Generate summary from raw_output_for_summary if present
         generated_summary = None
         if request.raw_output_for_summary:
             generated_summary = generate_summary(request.raw_output_for_summary)
-        # --- END NEW ---
         
         # The `ainvoke` call should receive the new message and any state updates.
         final_state = await app_instance.ainvoke({
@@ -72,8 +71,8 @@ async def chat_with_agent(request: ChatRequest):
             "llm_api_key_value": request.llm_api_key_value,
             "agent_scripts_path": request.agent_scripts_path,
             "ui_parameters": request.user_edited_parameters,
-            "execution_summary": generated_summary, # Pass generated summary to state
-            "raw_output_for_summary": request.raw_output_for_summary, # Still pass raw output for small cases
+            "execution_summary": generated_summary,
+            "raw_output_for_summary": request.raw_output_for_summary,
             "current_task_description": request.message if is_new_thread else None,
         }, config)
 
@@ -85,7 +84,7 @@ async def chat_with_agent(request: ChatRequest):
             tool_call = last_message.tool_calls[0]
             return Response(content=json.dumps({
                 "thread_id": thread_id,
-                "status": "interrupted", # Signal to frontend to handle the tool call
+                "status": "interrupted",
                 "message": None,
                 "tool_call": {
                     "name": tool_call['name'],

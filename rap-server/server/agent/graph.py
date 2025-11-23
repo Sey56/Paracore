@@ -1,5 +1,6 @@
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+import aiosqlite
 from .state import AgentState
 
 # Import the node functions from the new structure
@@ -41,14 +42,28 @@ graph_builder.add_edge("tool_node", "agent")
 graph_builder.add_edge("get_parameters_node", "tool_node")
 
 # Compile the graph
-memory = MemorySaver()
-_app = None
+# Use a persistent SQLite database for checkpoints
+db_path = "checkpoints.sqlite"
 
-def get_app():
+_app = None
+_connection = None
+
+async def get_app():
     """
     Compiles and returns the singleton LangGraph app instance.
     """
-    global _app
+    global _app, _connection
     if _app is None:
-        _app = graph_builder.compile(checkpointer=memory)
+        _connection = await aiosqlite.connect(db_path, check_same_thread=False)
+        checkpointer = AsyncSqliteSaver(_connection)
+        _app = graph_builder.compile(checkpointer=checkpointer)
     return _app
+
+async def close_app():
+    """
+    Closes the database connection.
+    """
+    global _connection
+    if _connection:
+        await _connection.close()
+        _connection = None
