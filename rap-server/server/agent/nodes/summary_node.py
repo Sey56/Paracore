@@ -1,4 +1,4 @@
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage, RemoveMessage
 from .working_set_utils import process_working_set_output
 
 def summary_node(state: dict) -> dict:
@@ -73,19 +73,33 @@ def summary_node(state: dict) -> dict:
             final_message = f"{message}. See the Console tab for full details."
     
     # 6. Prepare the response and clear transient state from the completed run.
-    # After summarizing, the agent should finish this turn and be ready for a new query.
-    # We preserve the `working_set` (ids of created/modified elements) but clear
-    # script-selection and parameter-related fields so the next user query starts fresh.
-    # Preserve only conversational messages (HumanMessage and AIMessage) so
-    # the user/agent conversation history is retained, but remove any ToolMessage
-    # or other transient messages that represent actions.
+    # We clean the history to remove the technical steps of execution (the tool call, the system signal)
+    # so the conversation remains natural and valid for the LLM.
     existing_messages = state.get("messages", [])
-    preserved_conversation = [m for m in existing_messages if isinstance(m, (HumanMessage, AIMessage))]
+    messages_to_return = []
+    
+    for m in existing_messages:
+        # Remove the internal system signal
+        if isinstance(m, HumanMessage) and m.content == "System: Script execution was successful.":
+            if m.id:
+                messages_to_return.append(RemoveMessage(id=m.id))
+            continue
+        # Remove ANY AI message that contains tool calls.
+        if isinstance(m, AIMessage) and m.tool_calls:
+            if m.id:
+                messages_to_return.append(RemoveMessage(id=m.id))
+            continue
+        # Remove ToolMessages (transient outputs)
+        if isinstance(m, ToolMessage):
+            if m.id:
+                messages_to_return.append(RemoveMessage(id=m.id))
+            continue
+        
     # Append the summary message as the latest agent response
-    preserved_conversation.append(AIMessage(content=final_message))
+    messages_to_return.append(AIMessage(content=final_message))
 
     return {
-        "messages": preserved_conversation,
+        "messages": messages_to_return,
         "working_set": final_working_set,
         # Signal no next conversational action so the graph will terminate this turn.
         "next_conversational_action": None,
