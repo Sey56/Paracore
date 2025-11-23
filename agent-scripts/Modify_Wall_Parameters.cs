@@ -108,6 +108,7 @@ Transact("Modify Wall Parameters", doc =>
 if (modifiedCount > 0)
 {
     Println($"✅ Successfully modified {modifiedCount} wall(s).");
+    Println($"SUMMARY: Successfully modified {modifiedCount} wall(s) with parameter '{parameterName}' set to {newValue} {unitType}.");
 }
 else
 {

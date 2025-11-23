@@ -16,7 +16,17 @@ def generate_summary(raw_execution_result: dict) -> dict | None:
             try:
                 rows = json.loads(table_item['data'])
                 if isinstance(rows, list):
-                    return {'type': 'table', 'row_count': len(rows)}
+                    summary = {'type': 'table', 'row_count': len(rows)}
+                    
+                    # Add headers and preview
+                    if len(rows) > 0:
+                        first_row = rows[0]
+                        if isinstance(first_row, dict):
+                            summary['headers'] = list(first_row.keys())
+                            # Preview first 2 rows
+                            summary['preview'] = rows[:2]
+                    
+                    return summary
             except (json.JSONDecodeError, TypeError):
                 # If data is invalid, fall through to other summary types
                 pass
@@ -28,7 +38,19 @@ def generate_summary(raw_execution_result: dict) -> dict | None:
         relevant_lines = [line for line in lines if not line.startswith("✅") and not line.startswith("❌")]
         
         if relevant_lines:
-            return {'type': 'console', 'line_count': len(relevant_lines)}
+            summary = {'type': 'console', 'line_count': len(relevant_lines)}
+            
+            # Check for explicit SUMMARY: convention
+            summary_lines = [line for line in relevant_lines if line.strip().startswith("SUMMARY:")]
+            if summary_lines:
+                # Join multiple summary lines if present, removing the prefix
+                summary_text = " ".join([line.replace("SUMMARY:", "").strip() for line in summary_lines])
+                summary['summary_text'] = summary_text
+            else:
+                # Preview first 2 lines
+                summary['preview'] = relevant_lines[:2]
+            
+            return summary
 
     # --- Priority 3: Default Summary (Success/Failure message) ---
     if console_output and isinstance(console_output, str):

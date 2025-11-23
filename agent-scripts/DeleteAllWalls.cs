@@ -49,4 +49,5 @@ Transact("Delete All Walls", () =>
 });
 
 Println($"✅ Deleted {wallCount} wall(s).");
+Println($"SUMMARY: Deleted {wallCount} wall(s).");
 

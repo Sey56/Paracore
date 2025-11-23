@@ -3,7 +3,7 @@ from langchain_core.messages import ToolMessage, AIMessage
 from langgraph.graph import END
 
 from ..state import AgentState
-from ..tools import search_scripts_tool, run_script_by_name, get_working_set_details, clear_working_set, set_working_set, add_to_working_set, remove_from_working_set, get_revit_context_tool
+from ..tools import search_scripts_tool, run_script_by_name, get_working_set_details, clear_working_set, set_working_set, add_to_working_set, remove_from_working_set, get_revit_context_tool, set_active_script_tool
 from ..api_helpers import read_local_script_manifest
 from .working_set_utils import process_working_set_output
 
@@ -47,6 +47,12 @@ def tool_node(state: AgentState):
             # This tool call is a signal to the frontend, no backend execution needed.
             return {} 
         
+        elif tool_name == set_active_script_tool.name:
+            # This tool call is primarily a signal to the frontend to update the UI.
+            # We return a simple confirmation message to satisfy the LLM's conversation history requirement.
+            script_name = tool_args.get('script_metadata', {}).get('name', 'Unknown Script')
+            results.append(ToolMessage(content=f"Active script set to: {script_name}", tool_call_id=tool_call_id))
+
         elif tool_name == get_working_set_details.name:
             working_set = state.get('working_set')
             if not working_set:

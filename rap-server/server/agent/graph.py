@@ -38,7 +38,7 @@ graph_builder.add_conditional_edges(
 
 # Add the edges from the tool nodes back to the agent
 graph_builder.add_edge("tool_node", "agent")
-graph_builder.add_edge("get_parameters_node", "agent")
+graph_builder.add_edge("get_parameters_node", "tool_node")
 
 # Compile the graph
 memory = MemorySaver()

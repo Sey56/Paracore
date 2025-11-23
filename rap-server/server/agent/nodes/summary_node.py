@@ -64,10 +64,31 @@ def summary_node(state: dict) -> dict:
         summary_type = summary_data.get('type')
         if summary_type == 'table':
             row_count = summary_data.get('row_count', 0)
-            final_message = f"A table with {row_count} row{'s' if row_count != 1 else ''} was generated. See the Table tab for full output."
+            headers = summary_data.get('headers', [])
+            preview = summary_data.get('preview', [])
+            
+            final_message = f"A table with {row_count} row{'s' if row_count != 1 else ''} was generated."
+            if headers:
+                final_message += f" Columns: {', '.join(headers)}."
+            if preview:
+                # Convert preview rows to string and truncate if too long
+                preview_str = str(preview)
+                if len(preview_str) > 200:
+                    preview_str = preview_str[:200] + "..."
+                final_message += f" Preview: {preview_str}"
+            final_message += " See the Table tab for full output."
+
         elif summary_type == 'console':
-            line_count = summary_data.get('line_count', 0)
-            final_message = f"{line_count} line{'s' if line_count != 1 else ''} were printed. See the Console tab for full output."
+            summary_text = summary_data.get('summary_text')
+            if summary_text:
+                final_message = summary_text
+            else:
+                line_count = summary_data.get('line_count', 0)
+                preview = summary_data.get('preview', [])
+                final_message = f"{line_count} line{'s' if line_count != 1 else ''} were printed."
+                if preview:
+                    final_message += f" Output: {'; '.join(preview)}..."
+                final_message += " See the Console tab for full output."
         elif summary_type == 'default':
             message = summary_data.get('message', 'Code executed')
             final_message = f"{message}. See the Console tab for full details."
@@ -78,24 +99,49 @@ def summary_node(state: dict) -> dict:
     existing_messages = state.get("messages", [])
     messages_to_return = []
     
-    for m in existing_messages:
-        # Remove the internal system signal
+    # We only want to remove the messages related to the *current* execution.
+    # These are typically at the end of the history.
+    # We will iterate backwards and remove the specific sequence:
+    # 1. The "System: Script execution was successful." message.
+    # 2. The ToolMessage(s) that came before it.
+    # 3. The AIMessage with tool_calls that triggered it.
+    
+    # We stop removing once we hit a normal message or go back too far.
+    
+    messages_to_check = list(reversed(existing_messages))
+    
+    print("--- DEBUG: SUMMARY NODE CLEANUP ---")
+    for m in messages_to_check:
+        should_remove = False
+        
+        # 1. The System signal
         if isinstance(m, HumanMessage) and m.content == "System: Script execution was successful.":
+            should_remove = True
+            
+        # 2. ToolMessages (likely the execution signal result)
+        elif isinstance(m, ToolMessage):
+            should_remove = True
+            
+        # 3. AIMessage with tool calls (likely the execution request)
+        elif isinstance(m, AIMessage) and m.tool_calls:
+            should_remove = True
+            
+        if should_remove:
             if m.id:
+                print(f"Removing message: {type(m).__name__} (ID: {m.id})")
                 messages_to_return.append(RemoveMessage(id=m.id))
-            continue
-        # Remove ANY AI message that contains tool calls.
-        if isinstance(m, AIMessage) and m.tool_calls:
-            if m.id:
-                messages_to_return.append(RemoveMessage(id=m.id))
-            continue
-        # Remove ToolMessages (transient outputs)
-        if isinstance(m, ToolMessage):
-            if m.id:
-                messages_to_return.append(RemoveMessage(id=m.id))
-            continue
+            else:
+                print(f"WARNING: Wanted to remove {type(m).__name__} but it has NO ID!")
+        else:
+            # Once we hit a message that doesn't fit the "execution sequence" pattern (e.g. the user's original command),
+            # we stop cleaning to preserve history.
+            break
+    print("-----------------------------------")
         
     # Append the summary message as the latest agent response
+    if not final_message or not final_message.strip():
+        final_message = "Action completed successfully."
+        
     messages_to_return.append(AIMessage(content=final_message))
 
     return {

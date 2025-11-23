@@ -73,6 +73,15 @@ IMPORTANT: If you need to pass these IDs to a script parameter, you MUST format 
 
         llm_with_tools = llm.bind_tools(tools)
         chain = prompt | llm_with_tools
+        
+        # DEBUG: Print message history
+        print("--- DEBUG: MESSAGE HISTORY SENT TO LLM ---")
+        for i, m in enumerate(state["messages"]):
+            print(f"[{i}] {type(m).__name__} (ID: {getattr(m, 'id', 'None')}): Content='{m.content}'")
+            if hasattr(m, 'tool_calls') and m.tool_calls:
+                print(f"    Tool Calls: {m.tool_calls}")
+        print("------------------------------------------")
+
         response = chain.invoke({
             "messages": state["messages"],
             "agent_scripts_path": state.get("agent_scripts_path"),

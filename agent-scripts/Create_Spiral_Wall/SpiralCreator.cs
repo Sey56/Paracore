@@ -63,5 +63,6 @@ public class SpiralWallCreator
         }
 
         Println($"Created {wallCurves.Count} spiral wall segments");
+        Println($"SUMMARY: Created {wallCurves.Count} spiral wall segments.");
     }
 }
