@@ -68,7 +68,10 @@ def get_script_parameters_tool(script_path: str, script_type: str) -> list:
         response = get_script_parameters(script_files)
         return response.get("parameters", [])
         
-    except (FileNotFoundError, grpc.RpcError, Exception):
+    except (FileNotFoundError, grpc.RpcError, Exception) as e:
+        print(f"DEBUG: get_script_parameters_tool failed: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 class SetActiveScriptArgs(BaseModel):
