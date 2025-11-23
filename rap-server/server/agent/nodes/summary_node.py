@@ -54,6 +54,7 @@ def summary_node(state: dict) -> dict:
             "script_parameters_definitions": None,
             "final_parameters_for_execution": None,
             "user_provided_param_modifications": None,
+            "ui_parameters": None, # Clear UI parameters
         }
 
     # 5. Generate the user-facing summary message (Final Step)
@@ -101,4 +102,5 @@ def summary_node(state: dict) -> dict:
         "recommended_script_name": None,
         "current_task_description": None,
         "script_execution_queue": None, # Ensure queue is cleared
+        "ui_parameters": None, # Clear UI parameters
     }

@@ -70,7 +70,7 @@ def tool_node(state: AgentState):
             tool_to_call = tool_map[tool_name]
             json_str_output = tool_to_call.invoke(tool_args)
             
-            current_working_set = state.get("working_set") or []
+            current_working_set = state.get("working_set") or {}
             new_ws, display_message = process_working_set_output(json_str_output, current_working_set)
             
             if new_ws is not None:

@@ -2,19 +2,16 @@ syntax = "proto3";
 
 package CoreScript;
 
-// The main service for interacting with the CoreScript engine in Revit.
 service CoreScriptRunner {
-  rpc ExecuteScript(ExecuteScriptRequest) returns (ExecuteScriptResponse);
-  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
-  rpc GetScriptMetadata(GetScriptMetadataRequest) returns (GetScriptMetadataResponse);
-  rpc GetScriptParameters(GetScriptParametersRequest) returns (GetScriptParametersResponse);
-  rpc GetCombinedScript(GetCombinedScriptRequest) returns (GetCombinedScriptResponse);
-  rpc CreateAndOpenWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
-  rpc GetContext(GetContextRequest) returns (GetContextResponse);
+  rpc ExecuteScript (ExecuteScriptRequest) returns (ExecuteScriptResponse);
+  rpc GetStatus (GetStatusRequest) returns (GetStatusResponse);
+  rpc GetScriptMetadata (GetScriptMetadataRequest) returns (GetScriptMetadataResponse);
+  rpc GetScriptParameters (GetScriptParametersRequest) returns (GetScriptParametersResponse);
+  rpc GetCombinedScript (GetCombinedScriptRequest) returns (GetCombinedScriptResponse);
+  rpc GetContext (GetContextRequest) returns (GetContextResponse);
+  rpc CreateAndOpenWorkspace (CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  rpc GetScriptManifest (GetScriptManifestRequest) returns (GetScriptManifestResponse);
 }
-
-// General purpose empty message
-message Empty {}
 
 message CreateWorkspaceRequest {
   string script_path = 1;
@@ -109,6 +106,7 @@ message ScriptParameter {
 
 message GetCombinedScriptRequest {
   repeated ScriptFile script_files = 1;
+  string script_path = 2; // Optional: Path to the script for context
 }
 
 message GetCombinedScriptResponse {
@@ -126,6 +124,12 @@ message GetContextResponse {
   string active_view_type = 5;
   int32 active_view_scale = 6;
   string active_view_detail_level = 7;
+  repeated ElementInfo selected_elements = 8;
+}
+
+message ElementInfo {
+  int32 id = 1;
+  string category = 2;
 }
 
 message ProjectInfo {
@@ -135,4 +139,13 @@ message ProjectInfo {
   string file_path = 4;
   bool is_workshared = 5;
   string username = 6;
+}
+
+message GetScriptManifestRequest {
+  string script_path = 1;
+}
+
+message GetScriptManifestResponse {
+  string manifest_json = 1;
+  string error_message = 2;
 }

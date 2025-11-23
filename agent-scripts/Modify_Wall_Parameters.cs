@@ -37,6 +37,8 @@ if (targetWallIds == null || targetWallIds.Count == 0)
     return 1; // Indicate failure
 }
 
+int skippedCount = 0;
+
 Transact("Modify Wall Parameters", doc =>
 {
     foreach (ElementId wallElementId in targetWallIds)
@@ -47,7 +49,8 @@ Transact("Modify Wall Parameters", doc =>
 
             if (wall == null)
             {
-                errorMessages.Add($"Wall with ID {wallElementId.Value} not found or is not a Wall element.");
+                // Silently skip non-wall elements
+                skippedCount++;
                 continue;
             }
 
@@ -104,11 +107,16 @@ Transact("Modify Wall Parameters", doc =>
 
 if (modifiedCount > 0)
 {
-    Println($"✅ Successfully modified {modifiedCount} of {targetWallIds.Count} specified wall(s).");
+    Println($"✅ Successfully modified {modifiedCount} wall(s).");
 }
 else
 {
     Println("⚠️ No walls were modified.");
+}
+
+if (skippedCount > 0)
+{
+    Println($"ℹ️ Skipped {skippedCount} non-wall element(s) from the working set.");
 }
 
 if (errorMessages.Any())

@@ -14,19 +14,31 @@ def read_local_script_manifest(agent_scripts_path: str) -> list[dict]:
     """
     manifest_file_path = os.path.join(agent_scripts_path, "manifest.json")
     
-    logger.info(f"Attempting to read manifest from: {manifest_file_path}")
+    logger.info(f"Attempting to read manifest from: {agent_scripts_path}")
 
     if not os.path.exists(agent_scripts_path):
         logger.error(f"Agent scripts path does not exist: {agent_scripts_path}")
         return []
 
-    # List contents of the directory for debugging
+    # --- NEW: Try to get manifest via gRPC from C# backend (Recursive Scan) ---
     try:
-        dir_contents = os.listdir(agent_scripts_path)
-        logger.info(f"Contents of '{agent_scripts_path}': {dir_contents}")
-    except Exception as e:
-        logger.error(f"Could not list contents of '{agent_scripts_path}': {e}")
+        from grpc_client import get_script_manifest
+        logger.info("Calling gRPC GetScriptManifest...")
+        manifest_json_str = get_script_manifest(agent_scripts_path)
+        if manifest_json_str:
+            manifest_content = json.loads(manifest_json_str)
+            logger.info(f"Successfully retrieved {len(manifest_content)} scripts via gRPC.")
+            
+            # DEBUG: Log the manifest content to inspect descriptions
+            for script in manifest_content:
+                logger.info(f"Script: {script.get('name')}, Desc: {script.get('description')[:50] if script.get('description') else 'None'}")
 
+            return manifest_content
+    except Exception as e:
+        logger.warning(f"Failed to get manifest via gRPC (Revit might be offline): {e}. Falling back to local manifest.json.")
+    # --- END NEW ---
+
+    # Fallback: Read local manifest.json
     if not os.path.exists(manifest_file_path):
         logger.warning(f"Manifest file not found at: {manifest_file_path}")
         return []

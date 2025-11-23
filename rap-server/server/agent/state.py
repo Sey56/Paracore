@@ -33,7 +33,7 @@ class AgentState(TypedDict):
     raw_output_for_summary: dict | None
 
     # --- Working Set State ---
-    working_set: list[int] | None
+    working_set: dict[str, list[int]] | None
     
     # --- Control Signals for LLM ---
     next_conversational_action: Literal[

@@ -65,13 +65,24 @@ def handle_parameter_modification(state: dict, llm) -> dict:
                 "tool_call": tool_call,
             }
         else:
-            # If user says no, cancel the operation gracefully
+            # If user says no, cancel the operation gracefully and clear ALL state
             return {
                 "messages": [AIMessage(content="Okay, I won't run the script. What would you like to do next?")],
                 "next_conversational_action": None,
+                
+                # Clear all script-specific state
                 "selected_script_metadata": None,
                 "script_parameters_definitions": None,
-                "script_selected_for_params": None,
+                "script_selected_for_params": False,
+                "user_provided_param_modifications": None,
+                "ui_parameters": None,
+                "final_parameters_for_execution": None,
+                
+                # Clear discovery state
+                "identified_scripts_for_choice": None,
+                "recommended_script_name": None,
+                "current_task_description": None,
+                "script_execution_queue": None,
             }
 
     # --- Existing logic for scripts WITH parameters ---

@@ -49,9 +49,9 @@ const WorkingSetPanel: React.FC<WorkingSetPanelProps> = ({ workingSet }) => {
     };
   }, [currentIds]);
 
-  if (currentIds.size === 0) {
-    return null;
-  }
+  // if (currentIds.size === 0) {
+  //   return null;
+  // }
 
   return (
     <div className="absolute bottom-20 right-4 flex flex-col items-end space-y-2 pointer-events-none">
@@ -65,11 +65,13 @@ const WorkingSetPanel: React.FC<WorkingSetPanelProps> = ({ workingSet }) => {
         </div>
       )}
 
-      {/* Main Status Panel */}
-      <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 text-xs font-semibold px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 pointer-events-auto">
-        <FontAwesomeIcon icon={faBolt} className="text-yellow-500" />
-        <span>{currentIds.size} element{currentIds.size !== 1 ? 's' : ''} in working set</span>
-      </div>
+      {/* Main Status Panel - Only show if there are elements */}
+      {currentIds.size > 0 && (
+        <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 text-xs font-semibold px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 pointer-events-auto">
+          <FontAwesomeIcon icon={faBolt} className="text-yellow-500" />
+          <span>{currentIds.size} element{currentIds.size !== 1 ? 's' : ''} in working set</span>
+        </div>
+      )}
     </div>
   );
 };

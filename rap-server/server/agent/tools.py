@@ -35,30 +35,40 @@ def get_script_parameters_tool(script_path: str, script_type: str) -> list:
     """
     try:
         absolute_path = resolve_script_path(script_path)
+        
+        # Auto-detect type to be robust against agent errors
         script_files = []
-        if script_type == "single-file":
+        if os.path.isdir(absolute_path):
+            files = glob.glob(os.path.join(absolute_path, "*.cs"))
+            for file_path in files:
+                try:
+                    with open(file_path, 'r', encoding='utf-8-sig') as f:
+                        source_code = f.read()
+                except UnicodeDecodeError:
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            source_code = f.read()
+                    except Exception:
+                        continue
+                except Exception:
+                    continue
+                script_files.append({"file_name": os.path.basename(file_path), "content": source_code})
+        
+        elif os.path.isfile(absolute_path):
             with open(absolute_path, 'r', encoding='utf-8-sig') as f:
                 source_code = f.read()
             script_files.append({"file_name": os.path.basename(absolute_path), "content": source_code})
-        elif script_type == "multi-file":
-            if not os.path.isdir(absolute_path):
-                # Return an empty list on error to maintain type consistency
-                return []
-            for file_path in glob.glob(os.path.join(absolute_path, "*.cs")):
-                with open(file_path, 'r', encoding='utf-8-sig') as f:
-                    source_code = f.read()
-                script_files.append({"file_name": os.path.basename(file_path), "content": source_code})
+        
+        else:
+            return []
         
         if not script_files:
             return []
 
         response = get_script_parameters(script_files)
-        # Ensure we return the list of parameters, or an empty list if key is missing
         return response.get("parameters", [])
         
     except (FileNotFoundError, grpc.RpcError, Exception):
-        # On any error, return an empty list to prevent downstream crashes.
-        # The agent will interpret an empty list as "no parameters found".
         return []
 
 class SetActiveScriptArgs(BaseModel):
@@ -105,59 +115,66 @@ def clear_working_set() -> str:
     return json.dumps({
         "paracore_output_type": "working_set_elements",
         "operation": "replace",
-        "element_ids": [],
+        "elements_by_category": {},
         "display_message": "Working set has been cleared."
     })
 
 class SetWorkingSetArgs(BaseModel):
-    element_ids: List[int] = Field(..., description="The list of element IDs to set as the new working set.")
+    element_ids: List[int] = Field(default=[], description="NOT RECOMMENDED. List of element IDs (will be categorized as 'Unknown'). Use 'elements_by_category' instead.")
+    elements_by_category: dict = Field(default={}, description="PREFERRED. Dictionary of category names to lists of element IDs (e.g., {'Walls': [1, 2]}).")
     reason: str = Field(..., description="A brief, user-facing explanation for why the working set is being changed.")
 
 @tool(args_schema=SetWorkingSetArgs)
-def set_working_set(element_ids: List[int], reason: str) -> str:
+def set_working_set(element_ids: List[int] = [], elements_by_category: dict = {}, reason: str = "") -> str:
     """
-    Replaces the current working set with a new list of element IDs.
+    Replaces the current working set with a new set of elements.
+    ALWAYS use 'elements_by_category' to maintain category information. Using 'element_ids' will result in 'Unknown' categories.
     """
     import json
     return json.dumps({
         "paracore_output_type": "working_set_elements",
         "operation": "replace",
         "element_ids": element_ids,
+        "elements_by_category": elements_by_category,
         "display_message": reason
     })
 
 class AddToWorkingSetArgs(BaseModel):
-    element_ids: List[int] = Field(..., description="The list of element IDs to add to the current working set.")
+    element_ids: List[int] = Field(default=[], description="NOT RECOMMENDED. List of element IDs (will be categorized as 'Unknown'). Use 'elements_by_category' instead.")
+    elements_by_category: dict = Field(default={}, description="PREFERRED. Dictionary of category names to lists of element IDs (e.g., {'Walls': [1, 2]}).")
     reason: str = Field(..., description="A brief, user-facing explanation for why the elements are being added.")
 
 @tool(args_schema=AddToWorkingSetArgs)
-def add_to_working_set(element_ids: List[int], reason: str) -> str:
+def add_to_working_set(element_ids: List[int] = [], elements_by_category: dict = {}, reason: str = "") -> str:
     """
-    Adds a list of element IDs to the current working set, ensuring no duplicates.
-    IMPORTANT: Only use this tool if the element IDs are already known. If you need to get the user's current selection from Revit, search for a script that can get the selection and add it to the working set instead of calling this tool.
+    Adds elements to the current working set, ensuring no duplicates.
+    ALWAYS use 'elements_by_category' to maintain category information. Using 'element_ids' will result in 'Unknown' categories.
     """
     import json
     return json.dumps({
         "paracore_output_type": "working_set_elements",
         "operation": "add",
         "element_ids": element_ids,
+        "elements_by_category": elements_by_category,
         "display_message": reason
     })
 
 class RemoveFromWorkingSetArgs(BaseModel):
-    element_ids: List[int] = Field(..., description="The list of element IDs to remove from the current working set.")
+    element_ids: List[int] = Field(default=[], description="The list of element IDs to remove from the current working set.")
+    elements_by_category: dict = Field(default={}, description="Dictionary of category names to lists of element IDs to remove.")
     reason: str = Field(..., description="A brief, user-facing explanation for why the elements are being removed.")
 
 @tool(args_schema=RemoveFromWorkingSetArgs)
-def remove_from_working_set(element_ids: List[int], reason: str) -> str:
+def remove_from_working_set(element_ids: List[int] = [], elements_by_category: dict = {}, reason: str = "") -> str:
     """
-    Removes a list of element IDs from the current working set.
+    Removes elements from the current working set.
     """
     import json
     return json.dumps({
         "paracore_output_type": "working_set_elements",
         "operation": "remove",
         "element_ids": element_ids,
+        "elements_by_category": elements_by_category,
         "display_message": reason
     })
 
@@ -183,7 +200,20 @@ def get_revit_context_tool() -> dict:
     from grpc_client import get_context
     try:
         context = get_context()
-        print(f"DEBUG: get_context returned: {context}")
+        
+        # Pre-calculate elements_by_category for the agent's convenience
+        elements_by_category = {}
+        if context.get("selected_elements"):
+            for item in context["selected_elements"]:
+                cat = item.get("category", "Unknown")
+                eid = item.get("id")
+                if cat not in elements_by_category:
+                    elements_by_category[cat] = []
+                elements_by_category[cat].append(eid)
+        
+        context["elements_by_category"] = elements_by_category
+        
+        # print(f"DEBUG: get_context returned: {context}")
         return context
     except Exception as e:
         print(f"DEBUG: get_revit_context_tool failed with error: {e}")

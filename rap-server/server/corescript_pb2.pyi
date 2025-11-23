@@ -6,10 +6,6 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class Empty(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
 class CreateWorkspaceRequest(_message.Message):
     __slots__ = ("script_path", "script_type")
     SCRIPT_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -159,10 +155,12 @@ class ScriptParameter(_message.Message):
     def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., default_value_json: _Optional[str] = ..., description: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class GetCombinedScriptRequest(_message.Message):
-    __slots__ = ("script_files",)
+    __slots__ = ("script_files", "script_path")
     SCRIPT_FILES_FIELD_NUMBER: _ClassVar[int]
+    SCRIPT_PATH_FIELD_NUMBER: _ClassVar[int]
     script_files: _containers.RepeatedCompositeFieldContainer[ScriptFile]
-    def __init__(self, script_files: _Optional[_Iterable[_Union[ScriptFile, _Mapping]]] = ...) -> None: ...
+    script_path: str
+    def __init__(self, script_files: _Optional[_Iterable[_Union[ScriptFile, _Mapping]]] = ..., script_path: _Optional[str] = ...) -> None: ...
 
 class GetCombinedScriptResponse(_message.Message):
     __slots__ = ("combined_script", "error_message")
@@ -171,3 +169,65 @@ class GetCombinedScriptResponse(_message.Message):
     combined_script: str
     error_message: str
     def __init__(self, combined_script: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
+
+class GetContextRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetContextResponse(_message.Message):
+    __slots__ = ("active_view_name", "selection_count", "selected_element_ids", "project_info", "active_view_type", "active_view_scale", "active_view_detail_level", "selected_elements")
+    ACTIVE_VIEW_NAME_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_ELEMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_INFO_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_VIEW_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_VIEW_SCALE_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_VIEW_DETAIL_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_ELEMENTS_FIELD_NUMBER: _ClassVar[int]
+    active_view_name: str
+    selection_count: int
+    selected_element_ids: _containers.RepeatedScalarFieldContainer[int]
+    project_info: ProjectInfo
+    active_view_type: str
+    active_view_scale: int
+    active_view_detail_level: str
+    selected_elements: _containers.RepeatedCompositeFieldContainer[ElementInfo]
+    def __init__(self, active_view_name: _Optional[str] = ..., selection_count: _Optional[int] = ..., selected_element_ids: _Optional[_Iterable[int]] = ..., project_info: _Optional[_Union[ProjectInfo, _Mapping]] = ..., active_view_type: _Optional[str] = ..., active_view_scale: _Optional[int] = ..., active_view_detail_level: _Optional[str] = ..., selected_elements: _Optional[_Iterable[_Union[ElementInfo, _Mapping]]] = ...) -> None: ...
+
+class ElementInfo(_message.Message):
+    __slots__ = ("id", "category")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    id: int
+    category: str
+    def __init__(self, id: _Optional[int] = ..., category: _Optional[str] = ...) -> None: ...
+
+class ProjectInfo(_message.Message):
+    __slots__ = ("name", "number", "title", "file_path", "is_workshared", "username")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    NUMBER_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    FILE_PATH_FIELD_NUMBER: _ClassVar[int]
+    IS_WORKSHARED_FIELD_NUMBER: _ClassVar[int]
+    USERNAME_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    number: str
+    title: str
+    file_path: str
+    is_workshared: bool
+    username: str
+    def __init__(self, name: _Optional[str] = ..., number: _Optional[str] = ..., title: _Optional[str] = ..., file_path: _Optional[str] = ..., is_workshared: bool = ..., username: _Optional[str] = ...) -> None: ...
+
+class GetScriptManifestRequest(_message.Message):
+    __slots__ = ("script_path",)
+    SCRIPT_PATH_FIELD_NUMBER: _ClassVar[int]
+    script_path: str
+    def __init__(self, script_path: _Optional[str] = ...) -> None: ...
+
+class GetScriptManifestResponse(_message.Message):
+    __slots__ = ("manifest_json", "error_message")
+    MANIFEST_JSON_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    manifest_json: str
+    error_message: str
+    def __init__(self, manifest_json: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...

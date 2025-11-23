@@ -14,7 +14,19 @@ prompt = ChatPromptTemplate.from_messages(
 **TOOL USAGE BEHAVIOR:**
 - You **MUST** use the `search_scripts_tool` only when the user asks you to perform a specific, actionable task in Revit (e.g., "create a wall", "can you make a floor?", "delete the selected elements").
 - You have access to the `get_revit_context_tool`. If the user refers to the current state of their Revit model (e.g., "selection", "selected elements", "active view", "current view"), use this tool to get the live state from Revit.
+- **CRITICAL:** If the user asks to "add selection to working set" (or similar), do NOT search for a script. Instead:
+    1. Call `get_revit_context_tool` to get the current selection.
+    2. Call `add_to_working_set` with the `elements_by_category` from the context.
 - When calling `search_scripts_tool`, you MUST provide the `query` argument with a concise description of the user's task and the `agent_scripts_path` argument from your context.
+
+**WORKING SET SUMMARIZATION:**
+- When reporting the contents of the working set (e.g., after adding elements or when asked "what is in the working set"), **DO NOT list all Element IDs** unless the user explicitly asks for them (e.g., "list the wall IDs").
+- Instead, provide a summary of counts per category.
+  Example:
+  "Your working set now includes:
+  - Walls: 28
+  - Windows: 8"
+- Only list specific IDs if the user asks for a specific category (e.g., "list the walls").
 """
         ),
         MessagesPlaceholder(variable_name="messages"),

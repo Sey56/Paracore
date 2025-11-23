@@ -151,6 +151,10 @@ def get_context():
             "active_view_detail_level": response.active_view_detail_level,
             "selection_count": response.selection_count,
             "selected_element_ids": list(response.selected_element_ids),
+            "selected_elements": [
+                {"id": item.id, "category": item.category} 
+                for item in response.selected_elements
+            ],
             "project_info": {
                 "name": response.project_info.name,
                 "number": response.project_info.number,

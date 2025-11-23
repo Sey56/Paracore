@@ -63,16 +63,28 @@ async def run_script(
                 working_set = latest_state.values.get('working_set') if latest_state else None
                 
                 if working_set:
+                    all_ids = []
+                    if isinstance(working_set, dict):
+                        for ids in working_set.values():
+                            all_ids.extend(ids)
+                    elif isinstance(working_set, list):
+                        all_ids = working_set
+                    
+                    # Deduplicate
+                    all_ids = list(set(all_ids))
+
                     # Construct the C# code for List<ElementId> initialization
                     # Example: List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> { new ElementId(123L), new ElementId(456L) };
-                    element_id_initializers = ", ".join([f"new Autodesk.Revit.DB.ElementId({id}L)" for id in working_set])
+                    # Ensure IDs are integers to avoid "365799.0L" syntax errors
+                    element_id_initializers = ", ".join([f"new Autodesk.Revit.DB.ElementId({int(eid)}L)" for eid in all_ids])
                     csharp_list_code = f"List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> {{ {element_id_initializers} }};"
 
                     # Placeholder to look for in the script content
                     placeholder_line = "List<ElementId> targetWallIds; // __INJECT_WORKING_SET__"
 
                     for script_file in script_files_payload:
-                        script_file["Content"] = script_file["Content"].replace(placeholder_line, csharp_list_code)
+                        if placeholder_line in script_file["Content"]:
+                             script_file["Content"] = script_file["Content"].replace(placeholder_line, csharp_list_code)
             except Exception as e:
                 # Log the error but don't block execution
                 print(f"Warning: Failed to inject working set. Reason: {e}")

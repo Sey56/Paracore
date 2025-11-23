@@ -81,7 +81,11 @@ Return the decision.
             "selected_script_metadata": first_script,
             "script_execution_queue": remaining_queue,
             "script_selected_for_params": True,
-            "next_conversational_action": "present_parameters"
+            "next_conversational_action": "present_parameters",
+            # Clear previous parameter state to avoid pollution
+            "script_parameters_definitions": None,
+            "ui_parameters": None,
+            "user_provided_param_modifications": None
         }
     except Exception as e:
         print(f"search_node: Error processing LLM response for script filtering: {e}")
