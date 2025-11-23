@@ -110,7 +110,6 @@ def summary_node(state: dict) -> dict:
     
     messages_to_check = list(reversed(existing_messages))
     
-    print("--- DEBUG: SUMMARY NODE CLEANUP ---")
     for m in messages_to_check:
         should_remove = False
         
@@ -128,15 +127,11 @@ def summary_node(state: dict) -> dict:
             
         if should_remove:
             if m.id:
-                print(f"Removing message: {type(m).__name__} (ID: {m.id})")
                 messages_to_return.append(RemoveMessage(id=m.id))
-            else:
-                print(f"WARNING: Wanted to remove {type(m).__name__} but it has NO ID!")
         else:
             # Once we hit a message that doesn't fit the "execution sequence" pattern (e.g. the user's original command),
             # we stop cleaning to preserve history.
             break
-    print("-----------------------------------")
         
     # Append the summary message as the latest agent response
     if not final_message or not final_message.strip():
