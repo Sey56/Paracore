@@ -1,14 +1,23 @@
 from langchain_core.messages import HumanMessage
+from .working_set_utils import validate_working_set
 
 def start_node(state: dict) -> dict:
     """
-    This is the entry point of the graph. It checks if this is the start of a new,
-    unrelated user query and, if so, clears task-specific state.
+    This is the entry point of the graph. It performs two key functions:
+    1. MANDATORY: Synchronizes and validates the agent's working_set state with Revit.
+    2. Checks if this is the start of a new, unrelated user query and, if so,
+       clears other task-specific state.
     """
-    last_message = state["messages"][-1]
+    # 1. Always validate the working set at the beginning of a turn.
+    current_working_set = state.get('working_set', {})
+    validated_working_set = validate_working_set(current_working_set)
+    
+    state_update = {
+        "working_set": validated_working_set
+    }
 
-    # A new query is a HumanMessage that is NOT part of an ongoing parameter confirmation.
-    # The 'confirm_execution' action is set when the agent is waiting for parameter feedback.
+    # 2. Check if this is a new, unrelated query to clear other state.
+    last_message = state["messages"][-1]
     is_continuing_parameter_confirmation = state.get("next_conversational_action") == "confirm_execution"
     
     is_new_unrelated_query = (
@@ -18,9 +27,8 @@ def start_node(state: dict) -> dict:
     )
 
     if is_new_unrelated_query:
-        # This is a fresh start on a new topic. Clear state related to script selection
-        # and execution, but preserve parameter definitions and UI values if we are in that loop.
-        return {
+        # This is a fresh start. Clear state related to a previous script execution flow.
+        state_update.update({
             "identified_scripts_for_choice": None,
             "selected_script_metadata": None,
             "script_selected_for_params": None,
@@ -29,8 +37,7 @@ def start_node(state: dict) -> dict:
             "execution_summary": None,
             "raw_output_for_summary": None,
             "current_task_description": last_message.content,
-        }
-    
-    # If it's not a new unrelated query (i.e., a system message or a parameter confirmation response),
-    # let the state pass through as-is for the next node to handle.
-    return {}
+        })
+
+    return state_update
+

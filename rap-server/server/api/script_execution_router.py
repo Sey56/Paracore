@@ -57,9 +57,9 @@ async def run_script(
         # --- WORKING SET INJECTION LOGIC ---
         if thread_id:
             try:
-                app_instance = get_app()
+                app_instance = await get_app()
                 config = {"configurable": {"thread_id": thread_id}}
-                latest_state = app_instance.get_state(config)
+                latest_state = await app_instance.aget_state(config)
                 working_set = latest_state.values.get('working_set') if latest_state else None
                 
                 if working_set:
@@ -80,7 +80,7 @@ async def run_script(
                     csharp_list_code = f"List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> {{ {element_id_initializers} }};"
 
                     # Placeholder to look for in the script content
-                    placeholder_line = "List<ElementId> targetWallIds; // __INJECT_WORKING_SET__"
+                    placeholder_line = "List<ElementId>? targetWallIds = null; // __INJECT_WORKING_SET__"
 
                     for script_file in script_files_payload:
                         if placeholder_line in script_file["Content"]:

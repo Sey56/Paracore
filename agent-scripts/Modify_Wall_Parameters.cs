@@ -17,7 +17,7 @@ UsageExamples:
 
 // This is NOT a user parameter. The backend will replace this line
 // with C# code that initializes 'targetWallIds' with the actual working set Element IDs.
-List<ElementId> targetWallIds; // __INJECT_WORKING_SET__
+List<ElementId>? targetWallIds = null; // __INJECT_WORKING_SET__
 
 // [Parameter]
 string parameterName = "WALL_USER_HEIGHT_PARAM"; // Built-in parameter name or a string parameter name

@@ -11,6 +11,7 @@ service CoreScriptRunner {
   rpc GetContext (GetContextRequest) returns (GetContextResponse);
   rpc CreateAndOpenWorkspace (CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
   rpc GetScriptManifest (GetScriptManifestRequest) returns (GetScriptManifestResponse);
+  rpc ValidateWorkingSet (ValidateWorkingSetRequest) returns (ValidateWorkingSetResponse);
 }
 
 message CreateWorkspaceRequest {
@@ -148,4 +149,12 @@ message GetScriptManifestRequest {
 message GetScriptManifestResponse {
   string manifest_json = 1;
   string error_message = 2;
+}
+
+message ValidateWorkingSetRequest {
+  repeated int64 element_ids = 1;
+}
+
+message ValidateWorkingSetResponse {
+  repeated int64 valid_element_ids = 1;
 }

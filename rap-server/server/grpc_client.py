@@ -167,3 +167,22 @@ def get_context():
     except Exception as e:
         print(f"DEBUG: grpc_client.get_context exception: {e}")
         raise e
+
+def validate_working_set_grpc(element_ids: list[int]) -> list[int]:
+    """
+    Calls the gRPC service to validate a list of element IDs against the active Revit document.
+    """
+    logging.info(f"Attempting to validate {len(element_ids)} element IDs via gRPC.")
+    try:
+        with get_rscript_runner_stub() as stub:
+            request = corescript_pb2.ValidateWorkingSetRequest(element_ids=element_ids)
+            response = stub.ValidateWorkingSet(request)
+            valid_ids = list(response.valid_element_ids)
+            logging.info(f"gRPC ValidateWorkingSet call successful. {len(valid_ids)} IDs are valid.")
+            return valid_ids
+    except grpc.RpcError as e:
+        logging.error(f"gRPC ValidateWorkingSet call failed: {e.code()} - {e.details()}")
+        return [] # Return empty list on error
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during gRPC ValidateWorkingSet call: {e}")
+        return [] # Return empty list on error

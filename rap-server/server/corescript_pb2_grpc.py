@@ -74,6 +74,11 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.GetScriptManifestRequest.SerializeToString,
                 response_deserializer=corescript__pb2.GetScriptManifestResponse.FromString,
                 _registered_method=True)
+        self.ValidateWorkingSet = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/ValidateWorkingSet',
+                request_serializer=corescript__pb2.ValidateWorkingSetRequest.SerializeToString,
+                response_deserializer=corescript__pb2.ValidateWorkingSetResponse.FromString,
+                _registered_method=True)
 
 
 class CoreScriptRunnerServicer(object):
@@ -127,6 +132,12 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ValidateWorkingSet(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreScriptRunnerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -169,6 +180,11 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.GetScriptManifest,
                     request_deserializer=corescript__pb2.GetScriptManifestRequest.FromString,
                     response_serializer=corescript__pb2.GetScriptManifestResponse.SerializeToString,
+            ),
+            'ValidateWorkingSet': grpc.unary_unary_rpc_method_handler(
+                    servicer.ValidateWorkingSet,
+                    request_deserializer=corescript__pb2.ValidateWorkingSetRequest.FromString,
+                    response_serializer=corescript__pb2.ValidateWorkingSetResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -387,6 +403,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/GetScriptManifest',
             corescript__pb2.GetScriptManifestRequest.SerializeToString,
             corescript__pb2.GetScriptManifestResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ValidateWorkingSet(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/ValidateWorkingSet',
+            corescript__pb2.ValidateWorkingSetRequest.SerializeToString,
+            corescript__pb2.ValidateWorkingSetResponse.FromString,
             options,
             channel_credentials,
             insecure,

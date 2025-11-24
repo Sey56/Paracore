@@ -509,38 +509,262 @@ namespace RServer.Addin.Services
             }
         }
 
-        private bool IsMultiFileScript(string dirPath, out string metadataSourceContent)
-        {
-            metadataSourceContent = "";
-            var files = System.IO.Directory.GetFiles(dirPath, "*.cs", System.IO.SearchOption.TopDirectoryOnly);
-            
-            if (files.Length == 0) 
-            {
-                 return false; 
-            }
+                private bool IsMultiFileScript(string dirPath, out string metadataSourceContent)
 
-            var scriptFiles = files.Select(f => new CoreScript.Engine.Models.ScriptFile 
-            { 
-                FileName = System.IO.Path.GetFileName(f), 
-                Content = System.IO.File.ReadAllText(f) 
-            }).ToList();
+                {
 
-            // Use the engine's logic to find the main script file (where metadata usually lives)
-            var topLevelScript = CoreScript.Engine.Core.ScriptParser.IdentifyTopLevelScript(scriptFiles);
+                    metadataSourceContent = "";
 
-            if (topLevelScript != null)
-            {
-                metadataSourceContent = topLevelScript.Content;
-            }
-            else
-            {
-                // Fallback: If no top-level script is clearly identified (e.g. all classes),
-                // we might just use the first file or combine them.
-                // For metadata purposes, let's try the combined version as a fallback.
-                metadataSourceContent = CoreScript.Engine.Core.SemanticCombinator.Combine(scriptFiles);
-            }
+                    var files = System.IO.Directory.GetFiles(dirPath, "*.cs", System.IO.SearchOption.TopDirectoryOnly);
 
-            return true;
-        }
-    }
-}
+                    
+
+                    if (files.Length == 0) 
+
+                    {
+
+                         return false; 
+
+                    }
+
+        
+
+                    var scriptFiles = files.Select(f => new CoreScript.Engine.Models.ScriptFile 
+
+                    { 
+
+                        FileName = System.IO.Path.GetFileName(f), 
+
+                        Content = System.IO.File.ReadAllText(f) 
+
+                    }).ToList();
+
+        
+
+                    // Use the engine's logic to find the main script file (where metadata usually lives)
+
+                    var topLevelScript = CoreScript.Engine.Core.ScriptParser.IdentifyTopLevelScript(scriptFiles);
+
+        
+
+                    if (topLevelScript != null)
+
+                    {
+
+                        metadataSourceContent = topLevelScript.Content;
+
+                    }
+
+                    else
+
+                    {
+
+                        // Fallback: If no top-level script is clearly identified (e.g. all classes),
+
+                        // we might just use the first file or combine them.
+
+                        // For metadata purposes, let's try the combined version as a fallback.
+
+                        metadataSourceContent = CoreScript.Engine.Core.SemanticCombinator.Combine(scriptFiles);
+
+                    }
+
+        
+
+                    return true;
+
+                }
+
+        
+
+                        public override async Task<ValidateWorkingSetResponse> ValidateWorkingSet(ValidateWorkingSetRequest request, ServerCallContext context)
+
+        
+
+                        {
+
+        
+
+                            var response = new ValidateWorkingSetResponse();
+
+        
+
+                            if (_uiApp == null)
+
+        
+
+                            {
+
+        
+
+                                _logger.Log("[CoreScriptRunnerService] ValidateWorkingSet: UIApplication is null.", LogLevel.Warning);
+
+        
+
+                                return response;
+
+        
+
+                            }
+
+        
+
+                
+
+        
+
+                            try
+
+        
+
+                            {
+
+        
+
+                                var validIds = await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
+
+        
+
+                                {
+
+        
+
+                                    var uidoc = _uiApp.ActiveUIDocument;
+
+        
+
+                                    if (uidoc == null)
+
+        
+
+                                    {
+
+        
+
+                                        _logger.Log("[CoreScriptRunnerService] ValidateWorkingSet: ActiveUIDocument is null.", LogLevel.Warning);
+
+        
+
+                                        return new List<long>(); // Return empty list on failure
+
+        
+
+                                    }
+
+        
+
+                
+
+        
+
+                                    var doc = uidoc.Document;
+
+        
+
+                                    var currentlyValidIds = new List<long>();
+
+        
+
+                                    foreach (var id in request.ElementIds)
+
+        
+
+                                    {
+
+        
+
+                                        var element = doc.GetElement(new ElementId(id));
+
+        
+
+                                        if (element != null)
+
+        
+
+                                        {
+
+        
+
+                                            currentlyValidIds.Add(id);
+
+        
+
+                                        }
+
+        
+
+                                    }
+
+        
+
+                                    return currentlyValidIds;
+
+        
+
+                                });
+
+        
+
+                
+
+        
+
+                                if (validIds != null)
+
+        
+
+                                {
+
+        
+
+                                    response.ValidElementIds.AddRange(validIds);
+
+        
+
+                                }
+
+        
+
+                            }
+
+        
+
+                            catch (Exception ex)
+
+        
+
+                            {
+
+        
+
+                                _logger.LogError($"[CoreScriptRunnerService] Error in ValidateWorkingSet: {ex.Message}");
+
+        
+
+                            }
+
+        
+
+                
+
+        
+
+                            return response;
+
+        
+
+                        }
+
+        
+
+                    }
+
+        
+
+                }
+
+        
+
+                
+
+        

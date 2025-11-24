@@ -231,3 +231,15 @@ class GetScriptManifestResponse(_message.Message):
     manifest_json: str
     error_message: str
     def __init__(self, manifest_json: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
+
+class ValidateWorkingSetRequest(_message.Message):
+    __slots__ = ("element_ids",)
+    ELEMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    element_ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, element_ids: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class ValidateWorkingSetResponse(_message.Message):
+    __slots__ = ("valid_element_ids",)
+    VALID_ELEMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    valid_element_ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, valid_element_ids: _Optional[_Iterable[int]] = ...) -> None: ...
