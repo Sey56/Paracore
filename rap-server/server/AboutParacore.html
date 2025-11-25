@@ -1,0 +1,95 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>About Paracore</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.1.0/github-markdown.min.css">
+    <style>
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+        @media (max-width: 767px) {
+            .markdown-body {
+                padding: 15px;
+            }
+        }
+        /* Basic emoji styling for better visibility across systems */
+        .markdown-body img.emoji {
+            height: 1.2em;
+            width: 1.2em;
+            margin: 0 .05em 0 .1em;
+            vertical-align: -0.1em;
+        }
+    </style>
+</head>
+<body class="markdown-body">
+    <h1>About Paracore &amp; The Revit Automation Platform (RAP) 🤖⚙️</h1>
+<p>The Revit Automation Platform (RAP) is an ecosystem ✨ that supercharges how AEC professionals automate tasks in Autodesk Revit. While traditional add-in development can be slow and cumbersome, RAP introduces a dynamic, interactive scripting environment that provides immediate feedback.</p>
+<p>This doesn't just replace the old way of working; it augments it. For developers 👩‍💻, RAP is a powerful prototyping tool. The ability to write and test C# code that executes instantly in Revit with the click of a button ▶️ makes the development of complex add-ins faster and more predictable. For the entire team 🤝, it unlocks the power of the full Revit API in an accessible, script-based workflow.</p>
+<p>The ecosystem provides multiple ways to interact with Revit, catering to different users and workflows:<br />
+- <strong>Paracore</strong> (<code>rap-web</code>): 🖥️ A feature-rich desktop application for end-users and script managers.<br />
+- <strong>CoreScript for VSCode</strong> (<code>corescript-vscode</code>): 💻 A lightweight extension for developers who want to write and execute scripts directly from their code editor.<br />
+- <strong>The Paracore Agent</strong>: 🤖 A conversational AI, integrated into Paracore, that uses natural language to drive automation.</p>
+<p>At its core, the platform allows C# scripts to be executed directly in Revit from outside applications, offering unparalleled flexibility and speed 🚀.</p>
+<h2>The RAP Ecosystem Components 🧩</h2>
+<p>The platform is comprised of several key components working in concert:</p>
+<ul>
+<li>
+<p><strong><code>Paracore</code></strong> (<code>rap-web</code>): 🖥️ The primary user-facing desktop application. Built with React and Tauri, it provides a polished UI to browse, manage, and execute a library of automation scripts. Users can edit script parameters, save presets, use Git for collaboration, and view rich, structured output from their scripts.</p>
+</li>
+<li>
+<p><strong><code>CoreScript for VSCode</code></strong> (<code>corescript-vscode</code>): 💻 A VSCode extension that allows developers to execute C# scripts in Revit directly from the editor with a simple command (<code>Ctrl+Shift+R</code>). It offers a lightweight, code-focused workflow with full IntelliSense, making it ideal for rapid prototyping and testing of automation logic.</p>
+</li>
+<li>
+<p><strong><code>rap-server</code></strong>: 🌐 A local backend server that acts as the central orchestrator. It communicates with both the Paracore frontend and the Revit add-in, handling file system access, workspace management, and agent logic.</p>
+</li>
+<li>
+<p><strong><code>RServer.Addin</code></strong>: 🔌 A crucial add-in that runs inside Revit. It hosts a secure gRPC server, exposing the Revit API to the entire RAP ecosystem. It is the single point of execution, receiving commands from both Paracore and the VSCode extension and ensuring they are run safely in Revit's main UI thread.</p>
+</li>
+<li>
+<p><strong><code>CoreScript.Engine</code></strong>: 🧠 The powerful heart of the system. This .NET library, used by <code>RServer.Addin</code>, dynamically compiles and executes C# scripts at runtime using the Roslyn compiler. It intelligently injects parameters and provides a sandboxed environment for each script run.</p>
+</li>
+</ul>
+<h2>What Makes the RAP Ecosystem Unique? ✨</h2>
+<ol>
+<li>
+<p><strong>Multiple Workflows, One Engine:</strong> 🔄 Whether using the rich UI of Paracore or the directness of the VSCode extension, all scripts are executed by the same robust <code>CoreScript.Engine</code> via the same <code>RServer.Addin</code>. This guarantees that a script written and tested in VSCode will work identically in Paracore, ensuring 100% compatibility.</p>
+</li>
+<li>
+<p><strong>Live C# Scripting with Full IntelliSense:</strong> ⚡ The most significant innovation is the ability to write and edit C# scripts in a modern IDE with full, rich IntelliSense for the Revit API, and execute them instantly in Revit without any recompilation or manual deployment.</p>
+</li>
+<li>
+<p><strong>Separation of Logic and Execution:</strong> 🎯 Developers can create powerful scripts, and non-programmers can easily execute them through Paracore without ever seeing the code. The <code>ScriptInspector</code> in Paracore automatically generates a user-friendly form for all script parameters, democratizing automation.</p>
+</li>
+<li>
+<p><strong>Rich, Structured Data Output:</strong> 📊 Unlike simple console logging, RAP allows scripts to return complex data structures. Paracore renders tables in a dedicated "Table" tab, providing a clean, organized view of the data that can be exported to CSV for further analysis. This provides far more insight than plain text.</p>
+</li>
+</ol>
+<h2>The Paracore Agent: A Smarter Way to Automate 🤖💬</h2>
+<p>Building on this powerful foundation, Paracore includes the <strong>Paracore Agent</strong>—a conversational AI that streamlines the path to automation. The agent's strength lies in understanding a user's <em>intent</em> and finding the right tool for the job.</p>
+<p>The workflow is simple and powerful:</p>
+<ol>
+<li>
+<p><strong>State Your Goal:</strong> 🤔 The user tells the agent <em>what</em> they want to do, not necessarily <em>how</em>. Instead of a long, complex prompt, they can simply say:<br />
+    &gt; "I need to create a wall."<br />
+    or<br />
+    &gt; "Show me how to modify wall heights."</p>
+</li>
+<li>
+<p><strong>The Agent Finds the Script:</strong> 🔎 The agent searches the entire script library and selects the most appropriate one for the task (e.g., <code>Create_Wall.cs</code>).</p>
+</li>
+<li>
+<p><strong>The User Configures the Details:</strong> 🔧 The agent then presents this script in Paracore's <strong>Script Inspector</strong>. This is where the real power lies. The user can now navigate to the "Parameters" tab and use a structured UI to configure dozens of complex parameters—like <code>Level</code>, <code>Height</code>, <code>Length</code>, <code>Wall Type</code>, <code>Top Constraint</code>, and more—far more easily and robustly than typing them into a chat prompt.</p>
+</li>
+<li>
+<p><strong>Execute with Confidence:</strong> ✅ Once the parameters are set in the UI, the user tells the agent to proceed with a command like "run it." The agent then syncs the latest parameters from the UI, applies any final overrides from the chat (e.g., "...but change the level name to Level 2"), and presents a final confirmation showing all parameters before execution. This ensures the user has ultimate control and clarity.</p>
+</li>
+</ol>
+<p>This unique human-in-the-loop approach combines the simplicity of natural language for action identification with the power and precision of a graphical UI for detailed parameter control, making even the most complex automations accessible and manageable.</p>
+</body>
+</html>

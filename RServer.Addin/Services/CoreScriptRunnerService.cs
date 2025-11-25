@@ -3,10 +3,10 @@ using Autodesk.Revit.DB;
 using Google.Protobuf;
 using Grpc.Core;
 using CoreScript;
-using CoreScript.Engine.Core; // Added for ParameterExtractor
+using CoreScript.Engine.Core;
 using CoreScript.Engine.Logging;
 using RServer.Addin.Context;
-using RServer.Addin.Helpers; // Added for EphemeralWorkspaceManager
+using RServer.Addin.Helpers;
 using RServer.Addin.ViewModels;
 using System;
 using System.Linq;
@@ -35,7 +35,6 @@ namespace RServer.Addin.Services
         public override Task<GetStatusResponse> GetStatus(GetStatusRequest request, ServerCallContext context)
         {
             _logger.Log("[CoreScriptRunnerService] Entering GetStatus.", LogLevel.Debug);
-
             bool revitOpen = _uiApp != null;
             string? revitVersion = revitOpen ? _uiApp.Application?.VersionNumber : null;
             bool documentOpen = revitOpen && _uiApp.ActiveUIDocument != null;
@@ -86,7 +85,6 @@ namespace RServer.Addin.Services
             }
             var serverContext = new ServerContext(_uiApp);
             _logger.Log("[CoreScriptRunnerService] ServerContext created.", LogLevel.Debug);
-
             string scriptContentStr = request.ScriptContent;
             string parametersJsonStr = request.ParametersJson.ToStringUtf8();
 
@@ -110,11 +108,9 @@ namespace RServer.Addin.Services
                     var completionSource = new TaskCompletionSource<ExecutionResult>();
                     handler = result => completionSource.TrySetResult(result);
                     ServerViewModel.Instance.OnExecutionComplete += handler;
-
                     ServerViewModel.Instance.LastClientSource = request.Source;
                     ServerViewModel.Instance.DispatchScript(scriptContentStr, parametersJsonStr, serverContext);
                     _logger.Log("[CoreScriptRunnerService] DispatchScript called. Waiting for completion.", LogLevel.Debug);
-
                     var timeoutTask = Task.Delay(TimeSpan.FromSeconds(45), context.CancellationToken);
                     var finishedTask = await Task.WhenAny(completionSource.Task, timeoutTask);
 
@@ -149,7 +145,6 @@ namespace RServer.Addin.Services
 
             var outputMessages = serverContext?.PrintLog ?? new List<string>();
             var errorMessages = serverContext?.ErrorLog ?? new List<string>();
-
             var response = new ExecuteScriptResponse
             {
                 IsSuccess = finalResult.IsSuccess,
@@ -170,9 +165,7 @@ namespace RServer.Addin.Services
                     response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { Type = item.Type, Data = item.Data });
                 }
             }
-
             response.InternalData = finalResult.InternalData ?? "";
-
             return response;
         }
 
@@ -186,7 +179,6 @@ namespace RServer.Addin.Services
                     FileName = f.FileName,
                     Content = f.Content
                 }).ToList();
-
                 string combinedScript = CoreScript.Engine.Core.SemanticCombinator.Combine(scriptFiles);
                 var extractedMetadata = _metadataExtractor.ExtractMetadata(combinedScript);
 
@@ -221,14 +213,12 @@ namespace RServer.Addin.Services
                     FileName = f.FileName,
                     Content = f.Content
                 }).ToList();
-
                 var topLevelScript = CoreScript.Engine.Core.ScriptParser.IdentifyTopLevelScript(scriptFiles);
 
                 if (topLevelScript == null)
                 {
                     return Task.FromResult(response);
                 }
-
                 var extractedParams = _parameterExtractor.ExtractParameters(topLevelScript.Content);
                 foreach (var p in extractedParams)
                 {
@@ -260,7 +250,6 @@ namespace RServer.Addin.Services
                     FileName = f.FileName,
                     Content = f.Content
                 }).ToList();
-
                 string combinedScript = CoreScript.Engine.Core.SemanticCombinator.Combine(scriptFiles);
                 response.CombinedScript = combinedScript;
             }
@@ -275,7 +264,6 @@ namespace RServer.Addin.Services
         public override async Task<GetContextResponse> GetContext(GetContextRequest request, ServerCallContext context)
         {
             _logger.Log("[CoreScriptRunnerService] Entering GetContext.", LogLevel.Debug);
-
             if (_uiApp == null)
             {
                 _logger.Log("[CoreScriptRunnerService] UIApplication is null.", LogLevel.Warning);
@@ -299,7 +287,6 @@ namespace RServer.Addin.Services
                     response.ActiveViewType = uidoc.ActiveView?.ViewType.ToString() ?? "Unknown";
                     response.ActiveViewScale = uidoc.ActiveView?.Scale ?? 0;
                     response.ActiveViewDetailLevel = uidoc.ActiveView?.DetailLevel.ToString() ?? "Unknown";
-                    
                     var selection = uidoc.Selection.GetElementIds();
                     response.SelectionCount = selection.Count;
                     response.SelectedElementIds.AddRange(selection.Select(id => (int)id.Value));
@@ -370,7 +357,6 @@ namespace RServer.Addin.Services
                 }
 
                 var scriptMetadataList = new List<CoreScript.ScriptMetadata>();
-                
                 // Level 1: Domains (e.g. Architectural, Documentation)
                 var domainDirectories = System.IO.Directory.GetDirectories(rootPath);
 
@@ -378,26 +364,24 @@ namespace RServer.Addin.Services
                 {
                     if (System.IO.Path.GetFileName(domainDir).StartsWith(".")) continue;
                     if (domainDir.EndsWith("bin") || domainDir.EndsWith("obj")) continue;
-
                     // Level 2: Script Sources (e.g. Walls, Sheets)
                     var sourceDirectories = System.IO.Directory.GetDirectories(domainDir);
 
                     foreach (var sourceDir in sourceDirectories)
                     {
                         if (System.IO.Path.GetFileName(sourceDir).StartsWith(".")) continue;
-                        
                         // Level 3: Scripts (Single-file or Multi-file) inside the Script Source
                         ScanScriptSource(sourceDir, rootPath, scriptMetadataList);
                     }
                 }
 
                 // Serialize to JSON matching the legacy format expected by frontend/agent
-                var dictList = scriptMetadataList.Select(m => new 
+                var dictList = scriptMetadataList.Select(m => new
                 {
                     name = m.Name,
                     type = m.ScriptType,
                     absolutePath = System.IO.Path.Combine(rootPath, m.FilePath), // Reconstruct absolute path
-                    metadata = new 
+                    metadata = new
                     {
                         description = m.Description,
                         displayName = m.Name,
@@ -409,7 +393,6 @@ namespace RServer.Addin.Services
                         lastRun = m.LastRun
                     }
                 }).ToList();
-
                 response.ManifestJson = JsonSerializer.Serialize(dictList);
             }
             catch (Exception ex)
@@ -429,15 +412,14 @@ namespace RServer.Addin.Services
                 foreach (var filePath in csFiles)
                 {
                     if (System.IO.Path.GetFileName(filePath).StartsWith(".")) continue;
-                    
+
                     try
                     {
                         string content = System.IO.File.ReadAllText(filePath);
                         var metadata = _metadataExtractor.ExtractMetadata(content);
-                        
+
                         if (string.IsNullOrEmpty(metadata.Name))
                             metadata.Name = System.IO.Path.GetFileNameWithoutExtension(filePath);
-
                         string relativePath = System.IO.Path.GetRelativePath(rootPath, filePath);
 
                         scripts.Add(new CoreScript.ScriptMetadata
@@ -467,7 +449,6 @@ namespace RServer.Addin.Services
                 {
                     if (System.IO.Path.GetFileName(dir).StartsWith(".")) continue;
                     if (dir.EndsWith("bin") || dir.EndsWith("obj")) continue;
-
                     // Any folder here is treated as a Multi-file Script
                     // We try to combine its contents to extract metadata
                     if (IsMultiFileScript(dir, out var metadataSourceContent))
@@ -475,10 +456,9 @@ namespace RServer.Addin.Services
                         try
                         {
                             var metadata = _metadataExtractor.ExtractMetadata(metadataSourceContent);
-                            
+
                             if (string.IsNullOrEmpty(metadata.Name))
                                 metadata.Name = System.IO.Path.GetFileName(dir);
-
                             string relativePath = System.IO.Path.GetRelativePath(rootPath, dir);
 
                             scripts.Add(new CoreScript.ScriptMetadata
@@ -509,262 +489,81 @@ namespace RServer.Addin.Services
             }
         }
 
-                private bool IsMultiFileScript(string dirPath, out string metadataSourceContent)
+        private bool IsMultiFileScript(string dirPath, out string metadataSourceContent)
+        {
+            metadataSourceContent = "";
+            var files = System.IO.Directory.GetFiles(dirPath, "*.cs", System.IO.SearchOption.TopDirectoryOnly);
 
+            if (files.Length == 0)
+            {
+                return false;
+            }
+            var scriptFiles = files.Select(f => new CoreScript.Engine.Models.ScriptFile
+            {
+                FileName = System.IO.Path.GetFileName(f),
+                Content = System.IO.File.ReadAllText(f)
+            }).ToList();
+
+            // Use the engine's logic to find the main script file (where metadata usually lives)
+            var topLevelScript = CoreScript.Engine.Core.ScriptParser.IdentifyTopLevelScript(scriptFiles);
+
+            if (topLevelScript != null)
+            {
+                metadataSourceContent = topLevelScript.Content;
+            }
+            else
+            {
+                // Fallback: If no top-level script is clearly identified (e.g. all classes),
+                // we might just use the first file or combine them.
+                // For metadata purposes, let's try the combined version as a fallback.
+                metadataSourceContent = CoreScript.Engine.Core.SemanticCombinator.Combine(scriptFiles);
+            }
+            return true;
+        }
+
+        public override async Task<ValidateWorkingSetResponse> ValidateWorkingSet(ValidateWorkingSetRequest request, ServerCallContext context)
+        {
+            var response = new ValidateWorkingSetResponse();
+            if (_uiApp == null)
+            {
+                _logger.Log("[CoreScriptRunnerService] ValidateWorkingSet: UIApplication is null.", LogLevel.Warning);
+                return response;
+            }
+
+            try
+            {
+                var validIds = await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
                 {
-
-                    metadataSourceContent = "";
-
-                    var files = System.IO.Directory.GetFiles(dirPath, "*.cs", System.IO.SearchOption.TopDirectoryOnly);
-
-                    
-
-                    if (files.Length == 0) 
-
+                    var uidoc = _uiApp.ActiveUIDocument;
+                    if (uidoc == null)
                     {
-
-                         return false; 
-
+                        _logger.Log("[CoreScriptRunnerService] ValidateWorkingSet: ActiveUIDocument is null.", LogLevel.Warning);
+                        return new List<long>(); // Return empty list on failure
                     }
 
-        
-
-                    var scriptFiles = files.Select(f => new CoreScript.Engine.Models.ScriptFile 
-
-                    { 
-
-                        FileName = System.IO.Path.GetFileName(f), 
-
-                        Content = System.IO.File.ReadAllText(f) 
-
-                    }).ToList();
-
-        
-
-                    // Use the engine's logic to find the main script file (where metadata usually lives)
-
-                    var topLevelScript = CoreScript.Engine.Core.ScriptParser.IdentifyTopLevelScript(scriptFiles);
-
-        
-
-                    if (topLevelScript != null)
-
+                    var doc = uidoc.Document;
+                    var currentlyValidIds = new List<long>();
+                    foreach (var id in request.ElementIds)
                     {
-
-                        metadataSourceContent = topLevelScript.Content;
-
-                    }
-
-                    else
-
-                    {
-
-                        // Fallback: If no top-level script is clearly identified (e.g. all classes),
-
-                        // we might just use the first file or combine them.
-
-                        // For metadata purposes, let's try the combined version as a fallback.
-
-                        metadataSourceContent = CoreScript.Engine.Core.SemanticCombinator.Combine(scriptFiles);
-
-                    }
-
-        
-
-                    return true;
-
-                }
-
-        
-
-                        public override async Task<ValidateWorkingSetResponse> ValidateWorkingSet(ValidateWorkingSetRequest request, ServerCallContext context)
-
-        
-
+                        var element = doc.GetElement(new ElementId(id));
+                        if (element != null)
                         {
-
-        
-
-                            var response = new ValidateWorkingSetResponse();
-
-        
-
-                            if (_uiApp == null)
-
-        
-
-                            {
-
-        
-
-                                _logger.Log("[CoreScriptRunnerService] ValidateWorkingSet: UIApplication is null.", LogLevel.Warning);
-
-        
-
-                                return response;
-
-        
-
-                            }
-
-        
-
-                
-
-        
-
-                            try
-
-        
-
-                            {
-
-        
-
-                                var validIds = await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
-
-        
-
-                                {
-
-        
-
-                                    var uidoc = _uiApp.ActiveUIDocument;
-
-        
-
-                                    if (uidoc == null)
-
-        
-
-                                    {
-
-        
-
-                                        _logger.Log("[CoreScriptRunnerService] ValidateWorkingSet: ActiveUIDocument is null.", LogLevel.Warning);
-
-        
-
-                                        return new List<long>(); // Return empty list on failure
-
-        
-
-                                    }
-
-        
-
-                
-
-        
-
-                                    var doc = uidoc.Document;
-
-        
-
-                                    var currentlyValidIds = new List<long>();
-
-        
-
-                                    foreach (var id in request.ElementIds)
-
-        
-
-                                    {
-
-        
-
-                                        var element = doc.GetElement(new ElementId(id));
-
-        
-
-                                        if (element != null)
-
-        
-
-                                        {
-
-        
-
-                                            currentlyValidIds.Add(id);
-
-        
-
-                                        }
-
-        
-
-                                    }
-
-        
-
-                                    return currentlyValidIds;
-
-        
-
-                                });
-
-        
-
-                
-
-        
-
-                                if (validIds != null)
-
-        
-
-                                {
-
-        
-
-                                    response.ValidElementIds.AddRange(validIds);
-
-        
-
-                                }
-
-        
-
-                            }
-
-        
-
-                            catch (Exception ex)
-
-        
-
-                            {
-
-        
-
-                                _logger.LogError($"[CoreScriptRunnerService] Error in ValidateWorkingSet: {ex.Message}");
-
-        
-
-                            }
-
-        
-
-                
-
-        
-
-                            return response;
-
-        
-
+                            currentlyValidIds.Add(id);
                         }
-
-        
-
                     }
+                    return currentlyValidIds;
+                });
 
-        
-
+                if (validIds != null)
+                {
+                    response.ValidElementIds.AddRange(validIds);
                 }
-
-        
-
-                
-
-        
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[CoreScriptRunnerService] Error in ValidateWorkingSet: {ex.Message}");
+            }
+            return response;
+        }
+    }
+}

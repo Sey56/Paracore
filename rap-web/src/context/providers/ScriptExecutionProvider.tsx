@@ -7,7 +7,7 @@ import { useScripts } from '@/hooks/useScripts';
 import { useAuth } from '@/hooks/useAuth';
 import { useUI } from '@/hooks/useUI';
 import api from '@/api/axios';
-import { getFolderNameFromPath } from '@/components/layout/Sidebar/Sidebar';
+import { getFolderNameFromPath } from '@/utils/pathHelpers';
 import { Workspace } from '@/types';
 
 interface RawScriptParameterData {
@@ -274,7 +274,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setCombinedScriptContent("// Loading script content...");
     setPresets([]);
     setExecutionResult(null);
-    
+
     try {
       const promises = [];
 

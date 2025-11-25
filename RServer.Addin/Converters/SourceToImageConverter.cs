@@ -13,7 +13,7 @@ namespace RServer.Addin.Converters
             {
                 switch (sourceString.ToUpperInvariant())
                 {
-                    case "PARACOR":
+                    case "PARACORE":
                         return null;
                     case "VSCODE":
                         return null;

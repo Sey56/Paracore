@@ -16,7 +16,7 @@ import WorkingSetPanel from './WorkingSetPanel'; // Import the new component
 // It will be created in a subsequent step. For now, we define the props.
 interface HITLModalProps {
   toolCall: ToolCall;
-  onApprove: (parameters: any) => void;
+  onApprove: (parameters: Record<string, any>) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   onReject: () => void;
 }
 
@@ -50,7 +50,7 @@ export const AgentView: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: any; raw_output?: any }) => {
+  const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: string | null; raw_output?: Record<string, any> | null }) => { // eslint-disable-line @typescript-eslint/no-explicit-any
     setIsLoading(true);
 
     // Optimistically add the user's message to the UI for responsiveness, but only if it's not internal
@@ -74,7 +74,7 @@ export const AgentView: React.FC = () => {
         currentParamsArray.reduce((acc, param) => {
           acc[param.name] = param.value;
           return acc;
-        }, {} as Record<string, any>) : undefined;
+        }, {} as Record<string, any>) : undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
 
       const response = await api.post("/agent/chat", {
         thread_id: threadId,
@@ -192,7 +192,7 @@ export const AgentView: React.FC = () => {
         showNotification("Received unexpected response from agent.", "warning");
       }
 
-    } catch (error: any) { // Explicitly type error as any for easier access to properties
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error("Agent invoke error:", error);
       // Add detailed logging for the error object
       if (error.response) {
@@ -210,7 +210,7 @@ export const AgentView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [threadId, activeScriptSource, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, allScriptsFromScriptProvider, setSelectedScript]);
+  }, [threadId, activeScriptSource, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, setSelectedScript, clearExecutionResult, setActiveInspectorTab]);
 
   // Listen for execution results from agent-led runs
   useEffect(() => {
@@ -299,7 +299,7 @@ export const AgentView: React.FC = () => {
     localStorage.removeItem(LOCAL_STORAGE_KEY_MESSAGES);
     localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
     showNotification('Chat history cleared.', 'info');
-  }, [setMessages, setThreadId]);
+  }, [setMessages, setThreadId, showNotification]);
 
   // --- Derived State for Rendering ---
 
@@ -327,7 +327,7 @@ export const AgentView: React.FC = () => {
 
   // --- Rendering ---
 
-  const renderMessageContent = (msg: any) => {
+  const renderMessageContent = (msg: Message) => {
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       const toolCall = msg.tool_calls[0];
       const isPending = activePendingToolCall?.id === toolCall.id;
@@ -365,7 +365,7 @@ export const AgentView: React.FC = () => {
     } else if (Array.isArray(msg.content)) {
       // It's an array of content blocks
       contentToRender = msg.content
-        .map((item: any) => (typeof item === 'object' && item.text ? item.text : ''))
+        .map((item: any) => (typeof item === 'object' && item.text ? item.text : '')) // eslint-disable-line @typescript-eslint/no-explicit-any
         .join('\n');
     } else if (typeof msg.content === 'object' && msg.content !== null) {
       // It's a single content block object
@@ -396,7 +396,7 @@ export const AgentView: React.FC = () => {
       {/* Scrollable Chat History */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Messages */}
-        {messages.map((msg: any, index: number) => {
+        {messages.map((msg: Message, index: number) => {
           const sender = msg.type === 'human' ? 'user' : 'agent';
           // We don't render tool messages directly
           if (msg.type === 'tool') return null;

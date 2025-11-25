@@ -10,14 +10,14 @@ export type ActiveScriptSource =
 
 export type ToolCall = {
   name: string;
-  args: { [key: string]: any };
+  args: { [key: string]: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
   id: string;
 };
 
 // This defines the shape of messages coming directly from the LangGraph state
 export type Message = {
   type: 'human' | 'ai' | 'tool';
-  content: string;
+  content: string | any; // eslint-disable-line @typescript-eslint/no-explicit-any
   tool_calls?: ToolCall[];
   tool_call_id?: string;
   id?: string; // Langchain message ID

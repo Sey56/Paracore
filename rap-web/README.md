@@ -1,6 +1,6 @@
 # rap-web - Revit Automation Platform (RAP) Frontend (Public-facing product name: Paracore)
 
-`rap-web` is the primary user interface for the Revit Automation Platform (RAP). It is a modern, responsive desktop application built with React and TypeScript, and packaged as a native application using Tauri. It provides a rich and intuitive environment for users to browse, manage, inspect, and execute Revit automation scripts.
+`rap-web` (public-facing name: Paracore) is the primary user interface for the Revit Automation Platform (RAP), an ecosystem that also includes a lightweight extension for direct script execution from VSCode. Paracore is a modern, responsive desktop application built with React and TypeScript, and packaged as a native application using Tauri. It provides a rich and intuitive environment for users to browse, manage, inspect, and execute Revit automation scripts.
 
 ## Core Features
 
@@ -86,3 +86,16 @@ To launch the Tauri desktop application for development:
 ```bash
 npm run tauri dev
 ```
+
+## The Paracore Agent: Conversational AI for Revit Automation
+
+Building on the powerful script execution engine, Paracore now features the **Paracore Agent**, a conversational AI assistant that brings natural language automation to Revit.
+
+The agent provides a chat-based interface where users can describe the task they want to perform. The agent leverages the entire RAP ecosystem to:
+
+1.  **Understand User Intent:** Parses natural language to determine the user's goal.
+2.  **Discover Relevant Scripts:** Searches the existing script library to find the right tool for the job.
+3.  **Extract Parameters:** Identifies and extracts necessary parameters from the conversation (e.g., "a wall 30 feet long").
+4.  **Confirm and Execute:** Presents the chosen script and parameters to the user for approval via the `ScriptInspector` before running the automation in Revit.
+
+This feature makes Revit automation more accessible than ever, allowing users to perform complex tasks without needing to find and configure scripts manually.

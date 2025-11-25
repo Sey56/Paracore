@@ -65,13 +65,9 @@ export const deleteRegisteredWorkspace = async (
   workspaceId: number,
   token: string
 ): Promise<void> => {
-  try {
-    await axios.delete(`${AUTH_SERVER_URL}/api/workspaces/${workspaceId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch (error) {
-    throw error;
-  }
+  await axios.delete(`${AUTH_SERVER_URL}/api/workspaces/${workspaceId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 };
 
 /**

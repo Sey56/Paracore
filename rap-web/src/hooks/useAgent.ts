@@ -11,7 +11,7 @@ export interface AgentMessage {
 // Define the structure of a pending tool call that needs approval
 export interface PendingToolCall {
   name: string;
-  arguments: any;
+  arguments: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 const API_BASE_URL = 'http://127.0.0.1:8000';

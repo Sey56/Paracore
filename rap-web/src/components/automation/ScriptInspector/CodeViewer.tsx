@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import csharp from 'react-syntax-highlighter/dist/esm/languages/prism/csharp';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -21,37 +21,80 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
 
   const syntaxHighlighterStyle = theme === 'dark' ? vscDarkPlus : vs;
 
+  const fetchSourceCode = useCallback(async (silent = false) => {
+    if (!script.sourcePath) return;
+
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
+
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`http://localhost:8000/api/script-content?scriptPath=${encodeURIComponent(script.sourcePath)}&type=${script.type}&_t=${timestamp}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      // console.log("Fetched script content:", data.sourceCode.substring(0, 50) + "..."); 
+      setSourceCode(data.sourceCode);
+      if (!silent) setError(null);
+    } catch (err) {
+      console.error("Failed to fetch script content:", err);
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      }
+    } finally {
+      if (!silent) {
+        setIsLoading(false);
+      }
+    }
+  }, [script.sourcePath, script.type]);
+
   useEffect(() => {
-    // If combinedScriptContent is available, use it directly
-    if (combinedScriptContent !== null) {
+    // If combinedScriptContent is available AND we are not in live update mode, use it directly
+    // Ideally we should have a prop for this, but for now, let's assume if we are here, we want live updates if the script is open.
+    // Actually, the user wants live updates specifically for the FloatingCodeViewer.
+    // Let's check if we can infer it or just always fetch if we are polling.
+
+    // If we are just viewing in the main inspector, we might want the cached content.
+    // But for FloatingCodeViewer, we want the file content.
+
+    // For now, let's prioritize the fetch if we have a focus listener or polling set up.
+    // But wait, the polling is set up in the SAME useEffect.
+
+    // Let's change the logic:
+    // If combinedScriptContent is present, we set it initially.
+    // BUT, we still set up the polling/focus listener to OVERWRITE it if the file changes.
+
+    if (combinedScriptContent !== null && !sourceCode) {
       setSourceCode(combinedScriptContent);
       setIsLoading(false);
       setError(null);
-      return; // Exit early, no need to fetch
     }
 
-    // Fallback to fetching single script content if combined is not available
-    if (!script.sourcePath) return;
+    // Always fetch initially if sourceCode is null (and combined didn't fill it), OR if we want to ensure freshness.
+    // Actually, if combinedScriptContent is set, we might show it first, then fetch.
 
-    const fetchSourceCode = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(`http://localhost:8000/api/script-content?scriptPath=${encodeURIComponent(script.sourcePath)}&type=${script.type}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setSourceCode(data.sourceCode);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      } finally {
-        setIsLoading(false);
-      }
+    if (!sourceCode && combinedScriptContent === null) {
+      fetchSourceCode();
+    }
+
+    // Set up polling and focus listener
+    const handleFocus = () => {
+      fetchSourceCode(true);
     };
 
-    fetchSourceCode();
-  }, [script.sourcePath, combinedScriptContent, script.type]); // Add combinedScriptContent to dependency array
+    window.addEventListener('focus', handleFocus);
+    const intervalId = setInterval(() => {
+      fetchSourceCode(true);
+    }, 2000); // Poll every 2 seconds
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
+    };
+  }, [fetchSourceCode, combinedScriptContent]);
 
   if (isLoading) {
     return <div className="text-center py-10">Loading code...</div>;

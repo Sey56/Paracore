@@ -97,16 +97,16 @@ const dateFilterHelper = (dateString: string | undefined, filterValue: string): 
   let datePart = filterValue;
 
   if (filterValue.startsWith('>=')) {
-    operator = ' >= '; 
+    operator = ' >= ';
     datePart = filterValue.substring(2);
   } else if (filterValue.startsWith('<=')) {
-    operator = ' <= '; 
+    operator = ' <= ';
     datePart = filterValue.substring(2);
   } else if (filterValue.startsWith('>')) {
-    operator = ' > '; 
+    operator = ' > ';
     datePart = filterValue.substring(1);
   } else if (filterValue.startsWith('<')) {
-    operator = ' < '; 
+    operator = ' < ';
     datePart = filterValue.substring(1);
   }
 
@@ -168,7 +168,7 @@ export const ScriptGallery: React.FC = () => {
       });
     });
     return map;
-  }, [scripts, allScripts]);
+  }, [scripts]);
 
   const allCategories = useMemo(() => {
     const defaultCategories = ["Architectural", "Structural", "MEP"];
@@ -198,8 +198,8 @@ export const ScriptGallery: React.FC = () => {
 
     const filteredByDefaultCategories = selectedDefaultCategories.length > 0
       ? filteredBySidebarCategory.filter(script =>
-          selectedDefaultCategories.every(cat => (script.metadata?.categories || []).includes(cat))
-        )
+        selectedDefaultCategories.every(cat => (script.metadata?.categories || []).includes(cat))
+      )
       : filteredBySidebarCategory;
 
     let searchedScripts = filteredByDefaultCategories;
@@ -310,7 +310,7 @@ export const ScriptGallery: React.FC = () => {
   };
 
   return (
-    <div className={`p-4`}> {/* This is a template literal, so the backticks are correct */} 
+    <div className={`p-4`}> {/* This is a template literal, so the backticks are correct */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-3">
           <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">
@@ -360,7 +360,7 @@ export const ScriptGallery: React.FC = () => {
             disabled={!isAuthenticated}
           />
         </div>
-        
+
         <div className="relative">
           <select
             className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
@@ -399,7 +399,7 @@ export const ScriptGallery: React.FC = () => {
       )}
 
       {favoriteScripts.length > 0 && otherScripts.length > 0 && (
-         <div className="border-t border-gray-200 dark:border-gray-700 my-8"></div>
+        <div className="border-t border-gray-200 dark:border-gray-700 my-8"></div>
       )}
 
       {selectedFolder && (
@@ -412,8 +412,8 @@ export const ScriptGallery: React.FC = () => {
             </div>
             {canCreateScripts && (
               <div className="relative" title={getNewScriptButtonTooltip()}>
-                <button 
-                  onClick={handleOpenNewScriptModal} 
+                <button
+                  onClick={handleOpenNewScriptModal}
                   className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!isAuthenticated || isRServerDisconnected || !activeScriptSource}
                 >
@@ -427,14 +427,14 @@ export const ScriptGallery: React.FC = () => {
 
       {otherScripts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {otherScripts.filter(Boolean).map((script) => (
+          {otherScripts.filter(Boolean).map((script) => (
             <ScriptCard
-            key={script.id}
-            script={script}
-            onSelect={() => handleScriptSelect(script)}
-            isFromActiveWorkspace={isFromActiveWorkspace(script)}
+              key={script.id}
+              script={script}
+              onSelect={() => handleScriptSelect(script)}
+              isFromActiveWorkspace={isFromActiveWorkspace(script)}
             />
-        ))}
+          ))}
         </div>
       )}
 
@@ -446,18 +446,18 @@ export const ScriptGallery: React.FC = () => {
               ? "To load scripts from a source open Revit and toggle on the RServer."
               : searchTerm
                 ? 'No scripts match your search.'
-                : (activeScriptSource 
-                  ? 'No scripts found in this source. Why not create one?' 
+                : (activeScriptSource
+                  ? 'No scripts found in this source. Why not create one?'
                   : 'Add or select a script source in the sidebar to get started.')
           }
         </div>
       )}
 
       {selectedFolder && (
-        <NewScriptModal 
-          isOpen={isNewScriptModalOpen} 
-          onClose={closeNewScriptModal} 
-          selectedFolder={selectedFolder as string} 
+        <NewScriptModal
+          isOpen={isNewScriptModalOpen}
+          onClose={closeNewScriptModal}
+          selectedFolder={selectedFolder as string}
         />
       )}
     </div>

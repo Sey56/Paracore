@@ -27,27 +27,19 @@ router = APIRouter()
 # --- Template for new scripts ---
 CSHARP_TEMPLATE = """
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Architecture;
-using Autodesk.Revit.DB.Structure;
-using Autodesk.Revit.UI;
 
 /*
 DocumentType: Project
 Categories: Architectural, Structural, MEP
 Author: Seyoum Hagos
-Version: 1.0.0
-LastRun: null
-IsDefault: true
-Dependencies: RevitAPI 2025, RScript.Engine, RServer.Addin
-
+Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
 
 Description:
 This is a template script that creates a simple wall in a Revit project document.
 Doc, UIDoc, UIApp, Transact, Print and Show are available in the global scope.
 
-History:
-- 2025-07-01: Initial release
-- 2025-08-10: Added height parameter
+UsageExamples:
+- "Create a wall"
 */
 
 
@@ -83,6 +75,8 @@ Transact("Create Wall", () =>
     Wall wall = Wall.Create(Doc, wallLine, level.Id, false);
     wall.get_Parameter(BuiltInParameter.WALL_USER_HEIGHT_PARAM)?.Set(heightFt);
 });
+
+Println($"Created a wall of length {wallLengthMeters} meters and height {wallHeightMeters} meters at level '{levelName}'.");
 """
 
 # --- Pydantic Models for New Script Creation ---

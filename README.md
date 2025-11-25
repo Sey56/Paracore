@@ -1,6 +1,6 @@
 # Revit Automation Platform (RAP)
 
-The Revit Automation Platform (RAP) is a comprehensive ecosystem of tools designed to enable powerful, dynamic C# script execution for automating tasks in Autodesk Revit. It uses a modern, decoupled architecture with a web-based UI and a local execution environment, providing a flexible and user-friendly alternative to traditional in-process Revit add-ins.
+The Revit Automation Platform (RAP or just Paracore) is a comprehensive ecosystem of tools designed to enable powerful, dynamic C# script execution for automating tasks in Autodesk Revit. It uses a modern, decoupled architecture with a web-based UI and a local execution environment, providing a flexible and user-friendly alternative to traditional in-process Revit add-ins.
 
 ## Architecture: The Hybrid Model
 

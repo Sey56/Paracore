@@ -54,6 +54,7 @@ try {
             "--nofollow-import-to=sqlalchemy.dialects.oracle",
             "--nofollow-import-to=sqlalchemy.dialects.mssql",
             "--nofollow-import-to=nuitka",
+            "--nofollow-import-to=markdown",
             "--include-package=langchain_core",
             "--include-package=langgraph",
             "--include-module=main",
