@@ -59,10 +59,11 @@ def agent_node(state: dict):
         working_set_context = ""
         if working_set:
             working_set_context = f"""
-CONTEXT: You have access to a 'working set', which is a list of Revit Element IDs.
+CONTEXT UPDATE: You have access to a 'working set', which is a list of Revit Element IDs.
 The current working set is: {working_set}.
 When the user refers to 'it', 'them', or 'these', they are referring to the elements in this working set.
 If the user asks for information directly available in this context (like the IDs themselves), you can answer directly.
+CRITICAL: Always use the 'current working set' provided above as the source of truth. Ignore any previous counts or lists mentioned in the conversation history, as the working set may have changed (e.g. elements deleted in Revit).
 IMPORTANT: If you need to pass these IDs to a script parameter, you MUST format them as a single, comma-separated string (e.g., "12345,67890").
 """
         
@@ -70,11 +71,18 @@ IMPORTANT: If you need to pass these IDs to a script parameter, you MUST format 
             llm_with_tools = llm.bind_tools(tools)
             chain = prompt | llm_with_tools
             
+            # Inject the working set context as a SystemMessage at the END of the history
+            # to ensure it overrides any stale history.
+            messages_with_context = list(state["messages"])
+            if working_set_context:
+                from langchain_core.messages import SystemMessage
+                messages_with_context.append(SystemMessage(content=working_set_context))
+
             response = chain.invoke({
-                "messages": state["messages"],
+                "messages": messages_with_context,
                 "agent_scripts_path": state.get("agent_scripts_path"),
                 "current_task_description": state.get("current_task_description"),
-                "working_set_context": working_set_context
+                "working_set_context": "" # Clear the template variable since we added it as a message
             })
             return {"messages": [response]}
         except Exception as e:

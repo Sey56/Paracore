@@ -11,8 +11,9 @@ def run_server():
     """
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        if script_dir not in sys.path:
-            sys.path.insert(0, script_dir)
+        server_dir = os.path.join(script_dir, "server") # The actual project root
+        if server_dir not in sys.path:
+            sys.path.insert(0, server_dir)
 
         # --- Setup Application Directories ---
         log_dir = os.path.join(os.getenv('APPDATA'), 'paracore-data', 'logs')
@@ -49,7 +50,7 @@ def run_server():
         logging.info("--- Starting Python Server ---")
 
         # --- Start Uvicorn Server ---
-        app_str = "server.main:app"
+        app_str = "main:app" # Corrected application string
         port = 8000  # Hardcode the port to 8000
         uvicorn.run(
             app_str,

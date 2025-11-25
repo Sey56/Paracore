@@ -1,0 +1,23 @@
+
+seyou@SH MINGW64 ~/RAP/corescript-vscode (feature/revit-agent)
+$ npx grpc_tools_node_protoc --ts_out=grpc_js:./src --js_out=import_style=commonjs,binary:./src --grpc_out=grpc_js:./src -I ./prot ./proto/corescript.proto
+Need to install the following packages:
+grpc_tools_node_protoc@1.0.0
+Ok to proceed? (y) Y
+
+❌ Oops! You're trying to run a package that should be provided by a local binary, but isn't. This is a misconfiguration.
+
+🚫 This is a placeholder published to prevent dependency confusion.
+🔒 It does not contain any usable code.
+
+🧠 Double-check your dependencies or installation instructions.
+
+🔎 Learn more at https://intel.aikido.dev
+
+seyou@SH MINGW64 ~/RAP/corescript-vscode (feature/revit-agent)
+$ ^C
+
+seyou@SH MINGW64 ~/RAP/corescript-vscode (feature/revit-agent)
+$ ^C
+
+seyou@SH MINGW64 ~/RAP/corescript-vscode (feature/revit-agent)

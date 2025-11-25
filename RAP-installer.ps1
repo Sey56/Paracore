@@ -23,7 +23,8 @@ Write-Host "`n[1/2] Building rap-web..."
 Push-Location $webDir
 
 # --- Compile Python Server (Conditional Build) ---
-$tauriConfigPath = 'src-tauri\tauri.conf.json'
+# Use absolute path to avoid issues in finally block
+$tauriConfigPath = Join-Path -Path $webDir -ChildPath 'src-tauri\tauri.conf.json'
 $originalConfig = Get-Content -Path $tauriConfigPath -Raw
 $configObject = $originalConfig | ConvertFrom-Json
 
@@ -37,9 +38,14 @@ try {
         # --- RELEASE BUILD: Standalone Executable (Slow) ---
         Write-Host "Compiling Python server into a standalone distribution (Release Mode)..." -ForegroundColor Yellow
         Push-Location (Join-Path -Path $ProjectRoot -ChildPath 'rap-server')
-        . .\server\.venv\Scripts\Activate.ps1
+        
+        # Add 'server' directory to PYTHONPATH so Nuitka can find 'main' module
+        $env:PYTHONPATH = (Join-Path -Path (Get-Location) -ChildPath 'server')
 
         $nuitkaArgs = @(
+            "run",
+            "--project", "server",
+            "python",
             "-m", "nuitka",
             "--standalone",
             "--windows-console-mode=disable",
@@ -47,12 +53,24 @@ try {
             "--nofollow-import-to=sqlalchemy.dialects.postgresql",
             "--nofollow-import-to=sqlalchemy.dialects.oracle",
             "--nofollow-import-to=sqlalchemy.dialects.mssql",
+            "--nofollow-import-to=nuitka",
+            "--include-package=langchain_core",
+            "--include-package=langgraph",
+            "--include-module=main",
             "--output-dir=$distDir",
             "--output-filename=bootstrap",
-            "--include-package=server",
             "bootstrap.py"
         )
-        python @nuitkaArgs
+        
+        # Use 'uv' to run the command in the project environment
+        uv @nuitkaArgs
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Nuitka compilation failed with exit code $LASTEXITCODE"
+        }
+
+        # Clean up PYTHONPATH
+        $env:PYTHONPATH = ""
 
         Pop-Location
         Write-Host 'Python server has been compiled for release.' -ForegroundColor Green

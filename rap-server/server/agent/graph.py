@@ -43,7 +43,16 @@ graph_builder.add_edge("get_parameters_node", "tool_node")
 
 # Compile the graph
 # Use a persistent SQLite database for checkpoints
-db_path = "checkpoints.sqlite"
+import os
+app_data = os.getenv('APPDATA')
+if app_data:
+    data_dir = os.path.join(app_data, 'paracore-data')
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    db_path = os.path.join(data_dir, "checkpoints.sqlite")
+else:
+    # Fallback for dev/other envs if APPDATA not set
+    db_path = "checkpoints.sqlite"
 
 _app = None
 _connection = None

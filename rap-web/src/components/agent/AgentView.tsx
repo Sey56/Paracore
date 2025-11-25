@@ -293,6 +293,7 @@ export const AgentView: React.FC = () => {
   const handleClearChat = useCallback(() => {
     setMessages([]); // Set to an empty array
     setThreadId(null);
+    setWorkingSet({}); // Clear the working set state
     setInput('');
     setIsClearChatModalOpen(false);
     localStorage.removeItem(LOCAL_STORAGE_KEY_MESSAGES);

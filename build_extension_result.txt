@@ -1,0 +1,67 @@
+seyou@SH MINGW64 ~/RAP (feature/revit-agent)
+$ ./build_extension.sh
+--- Starting CoreScript Extension Build & Deployment ---
+📦 Packaging VS Code extension...
+Executing prepublish script 'npm run vscode:prepublish'...
+
+> corescript@0.0.1 vscode:prepublish
+> npm run package
+
+
+> corescript@0.0.1 package
+> webpack --mode production --devtool hidden-source-map
+
+    [webpack-cli] Compiler starting...
+    [webpack-cli] Compiler is using config: 'C:\Users\seyou\RAP\corescript-vscode\webpack.config.js'
+    [webpack-cli] Compiler finished
+asset extension.js 543 KiB [compared for emit] [minimized] (name: main) 2 related assets
+runtime modules 793 bytes 4 modules
+modules by path ./node_modules/@grpc/ 1.19 MiB
+  modules by path ./node_modules/@grpc/grpc-js/ 979 KiB 106 modules
+  modules by path ./node_modules/@grpc/proto-loader/ 238 KiB 35 modules
+modules by path ./node_modules/@protobufjs/ 33.4 KiB
+  ./node_modules/@protobufjs/codegen/index.js 3.79 KiB [built] [code generated]
+  ./node_modules/@protobufjs/fetch/index.js 3.92 KiB [built] [code generated]
+  ./node_modules/@protobufjs/path/index.js 2 KiB [built] [code generated]
+  ./node_modules/@protobufjs/aspromise/index.js 1.55 KiB [built] [code generated]
+  + 6 modules
+modules by path ./src/*.ts 16.3 KiB
+  ./src/extension.ts 13.7 KiB [built] [code generated]
+  ./src/grpcClient.ts 2.56 KiB [built] [code generated]
++ 20 modules
+webpack 5.103.0 compiled successfully in 9176 ms
+ WARNING  A 'repository' field is missing from the 'package.json' manifest file.
+Do you want to continue? [y/N] y
+ WARNING  LICENSE.md, LICENSE.txt or LICENSE not found
+Do you want to continue? [y/N] y
+ DONE  Packaged: C:\Users\seyou\RAP\corescript-vscode\corescript-0.0.1.vsix (9 files, 160.74KB)
+✅ Extension packaged: ./corescript-0.0.1.vsix
+🔁 Installing VS Code extension...
+Uninstalling Paras Codarch (Ethiopia).corescript...
+Extension 'Paras Codarch (Ethiopia).corescript' was successfully uninstalled!
+Installing extensions...
+Extension 'corescript-0.0.1.vsix' was successfully installed.
+FATAL ERROR: v8::ToLocalChecked Empty MaybeLocal
+----- Native stack trace -----
+
+ 1: 00007FF6D863C8EA llhttp_get_upgrade+41818
+ 2: 00007FF6D8717EE2 node::OnFatalError+290
+ 3: 00007FF6DDACB46C v8::Function::NewInstance+540
+ 4: 00007FF6DDACB9A4 v8::api_internal::ToLocalEmpty+20
+ 5: 00007FF6D879022C uv_loop_fork+454748
+ 6: 00007FF6D8794136 uv_loop_fork+470886
+ 7: 00007FF6DC5C45F4 v8::internal::compiler::CompilationDependencies::FieldTypeDependencyOffTheRecord+2220916
+ 8: 00007FF6B731E798
+
+----- JavaScript stack trace -----
+
+1: getPackageScopeConfig (node:internal/modules/package_json_reader:160:33)
+2: getPackageJSONURL (node:internal/modules/package_json_reader:236:25)
+3: packageResolve (node:internal/modules/esm/resolve:779:81)
+4: moduleResolve (node:internal/modules/esm/resolve:865:18)
+5: defaultResolve (node:internal/modules/esm/resolve:995:11)
+6: nextResolve (node:internal/modules/esm/hooks:748:28)
+7: resolve (data:text/javascript;base64,CglleHBvcnQgYXN5bmMgZnVuY3Rpb24gcmVzb2x2ZShzcGVjaWZpZXIsIGNvbnRleHQsIG5leHRSZXNvbHZlKSB7CgkJaWYgKHNwZWNpZmllciA9PT0gJ2ZzJykgewoJCQlyZXR1cm4gewoJCQkJZm9ybWF0OiAnYnVpbHRpbicsCgkJCQlzaG9ydENpcmN1aXQ6IHRydWUsCgkJCQl1cmw6ICdub2RlOm9yaWdpbmFsLWZzJwoJCQl9OwoJCX0KCgkJLy8gRGVmZXIgdG8gdGhlIG5leHQgaG9vayBpbiB0aGUgY2hhaW4sIHdoaWNoIHdvdWxkIGJlIHRoZQoJCS8vIE5vZGUuanMgZGVmYXVsdCByZXNvbHZlIGlmIHRoaXMgaXMgdGhlIGxhc3QgdXNlci1zcGVjaWZpZWQgbG9hZGVyLgoJCXJldHVybiBuZXh0UmVzb2x2ZShzcGVjaWZpZXIsIGNvbnRleHQpOwoJfQ==:13:10)
+8: nextResolve (node:internal/modules/esm/hooks:748:28)
+9: resolve (node:internal/modules/esm/hooks:240:30)
+10: handleMessage (node:internal/modules/esm/worker:199:24)
