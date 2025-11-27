@@ -58,6 +58,19 @@
 ├── 📁 Transaction_Helpers/
 └── 📁 Error_Handling/
 
+9. Family Creation 👨‍👩‍👧‍👦
+📁 09_Family_Creation/
+├── 📁 Family_Document_Setup/
+├── 📁 Geometry_Form_Creation/
+├── 📁 Family_Types_Manager/
+└── 📁 Nested_Families/
+
+10. Worksharing & Collaboration 🤝
+📁 10_Worksharing_Collaboration/
+├── 📁 Worksets/
+├── 📁 Synchronization/
+└── 📁 Element_Ownership/
+
 
 📋 Essential Script Metadata
 /*
