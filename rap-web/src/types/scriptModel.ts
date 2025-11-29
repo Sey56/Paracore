@@ -4,7 +4,9 @@ export interface ScriptParameter {
   value?: string | number | boolean;
   defaultValue?: string | number | boolean;
   options?: string[];
+  multiSelect?: boolean;
   description?: string;
+  visibleWhen?: string;
 }
 
 export interface RawScriptParameterData {
@@ -13,6 +15,8 @@ export interface RawScriptParameterData {
   defaultValueJson: string;
   description: string;
   options: string[];
+  multiSelect?: boolean;
+  visibleWhen?: string;
 }
 
 export interface StructuredOutput {
@@ -86,10 +90,10 @@ export interface Script {
   name: string;
   type: "single-file" | "multi-file";
   sourcePath: string;
-  absolutePath: string; // ← Add here
+  absolutePath: string;
   parameters: ScriptParameter[];
   metadata: ScriptMetadata;
   isFavorite?: boolean;
-  metadataError?: boolean; // Added this line
+  metadataError?: boolean;
   sourceType?: 'local' | 'workspace';
 }

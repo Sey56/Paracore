@@ -4,6 +4,7 @@ import glob
 import grpc
 import shutil
 import subprocess
+import logging
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse

@@ -86,17 +86,23 @@ def get_script_parameters(script_files):
         grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
         request = corescript_pb2.GetScriptParametersRequest(script_files=grpc_script_files)
         response = stub.GetScriptParameters(request)
-    
+
+    # Manually construct the dictionary to avoid potential issues with MessageToDict
+    params_to_return = []
+    for p in response.parameters:
+        param_dict = {
+            "name": p.name,
+            "type": p.type,
+            "defaultValueJson": p.default_value_json,
+            "description": p.description,
+            "options": list(p.options),
+            "multiSelect": p.multi_select,
+            "visibleWhen": p.visible_when
+        }
+        params_to_return.append(param_dict)
+
     return {
-        "parameters": [
-            {
-                "name": p.name,
-                "type": p.type,
-                "defaultValueJson": p.default_value_json,
-                "description": p.description,
-                "options": list(p.options)
-            } for p in response.parameters
-        ],
+        "parameters": params_to_return,
         "error_message": response.error_message
     }
 

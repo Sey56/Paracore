@@ -55,7 +55,23 @@ namespace CoreScript.Engine.Core
                                 object value = null;
                                 switch (param.Type)
                                 {
-                                    case "string": value = param.Value.GetString(); break;
+                                    case "string": 
+                                        if (param.MultiSelect && param.Value.ValueKind == JsonValueKind.String)
+                                        {
+                                            try
+                                            {
+                                                value = JsonSerializer.Deserialize<List<string>>(param.Value.GetString());
+                                            }
+                                            catch
+                                            {
+                                                value = param.Value.GetString();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            value = param.Value.GetString();
+                                        }
+                                        break;
                                     case "number":
                                         if (param.Value.ValueKind == JsonValueKind.Number)
                                         {
@@ -194,7 +210,7 @@ namespace CoreScript.Engine.Core
             }
             catch (AggregateException ex)
             {
-                var errs = ex.InnerExceptions.Select(e => e.ToString()).ToArray();
+                var errs = ex.InnerExceptions.Select(e => GetFilteredExceptionString(e)).ToArray();
                 string failureMessage = "❌ Script execution failed | " + timestamp;
                 context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
@@ -211,7 +227,7 @@ namespace CoreScript.Engine.Core
 
                 string failureMessage = isEngineError 
                     ? $"⚠️ Internal engine error occurred | {timestamp}" 
-                    : $"❌ Runtime error: {ex.Message} | {timestamp}";
+                    : $"❌ Runtime error: {GetFilteredExceptionString(ex)} | {timestamp}";
                 
                 context.Println(failureMessage);
                 var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
@@ -223,6 +239,19 @@ namespace CoreScript.Engine.Core
                 alc.Unload();
                 FileLogger.Log("🟣 Unloaded script AssemblyLoadContext and cleared context.");
             }
+        }
+
+        private string GetFilteredExceptionString(Exception ex)
+        {
+            var lines = ex.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var filteredLines = lines.Where(line => 
+                !line.Contains("CoreScript.Engine") &&
+                !line.Contains("Microsoft.CodeAnalysis") &&
+                !line.Contains("System.Runtime.CompilerServices") &&
+                !line.Contains("<<Initialize>>") && 
+                !line.Contains("System.Threading.Tasks")
+            );
+            return string.Join(Environment.NewLine, filteredLines);
         }
 
         private static bool IsManagedAssembly(string path)
@@ -241,13 +270,13 @@ namespace CoreScript.Engine.Core
         {
             if (node.Initializer != null && _parameters.TryGetValue(node.Identifier.Text, out object newValue))
             {
-                ExpressionSyntax newLiteral = CreateLiteralExpression(newValue);
+                ExpressionSyntax newLiteral = CreateExpression(newValue);
                 return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral).WithLeadingTrivia(node.Initializer.EqualsToken.LeadingTrivia).WithTrailingTrivia(node.Initializer.Value.GetTrailingTrivia()));
             }
             return base.VisitVariableDeclarator(node);
         }
 
-        private ExpressionSyntax CreateLiteralExpression(object value)
+        private ExpressionSyntax CreateExpression(object value)
         {
             return value switch
             {
@@ -255,6 +284,15 @@ namespace CoreScript.Engine.Core
                 bool b => SyntaxFactory.LiteralExpression(b ? SyntaxKind.TrueLiteralExpression : SyntaxKind.FalseLiteralExpression),
                 int i => SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(i)),
                 double d => SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(d)),
+                List<string> list => SyntaxFactory.ObjectCreationExpression(
+                    SyntaxFactory.GenericName(SyntaxFactory.Identifier("List"))
+                        .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
+                            SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))))))
+                    .WithArgumentList(SyntaxFactory.ArgumentList())
+                    .WithInitializer(SyntaxFactory.InitializerExpression(
+                        SyntaxKind.CollectionInitializerExpression,
+                        SyntaxFactory.SeparatedList<ExpressionSyntax>(
+                            list.Select(s => SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(s)))))),
                 _ => SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
             };
         }

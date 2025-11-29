@@ -228,7 +228,9 @@ namespace RServer.Addin.Services
                         Type = p.Type,
                         DefaultValueJson = p.DefaultValueJson,
                         Description = p.Description,
-                        Options = { p.Options }
+                        Options = { p.Options },
+                        MultiSelect = p.MultiSelect,
+                        VisibleWhen = p.VisibleWhen ?? ""
                     });
                 }
             }

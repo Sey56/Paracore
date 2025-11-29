@@ -16,13 +16,13 @@ def handle_present_parameters(state: dict) -> dict:
 
     # Check if there are any parameters to present
     if parameters:
-        param_summary = f"Here are the parameters for **{script_name}**:\n"
+        param_summary = f"Here are the parameters for {script_name}:\n"
         for param in parameters:
-            param_summary += f"- **{param.get('name')}**: Type={param.get('type')}, Default={param.get('defaultValueJson')}\n"
+            param_summary += f"- {param.get('name')}: Type={param.get('type')}, Default={param.get('defaultValueJson')}\n"
         param_summary += "\nDo you want to run it with these parameters, or would you like to change any parameter values?"
     else:
         # If there are no parameters, provide a more direct confirmation message
-        param_summary = f"The script **{script_name}** doesn't require any parameters.\n\nDo you want to run it?"
+        param_summary = f"The script {script_name} doesn't require any parameters.\n\nDo you want to run it?"
     
     return {
         "messages": [AIMessage(content=param_summary)],
@@ -208,7 +208,7 @@ Does this message contain an explicit command to run the script? Respond with a 
         for param in updated_params_list:
             # We need to use 'value' to show the current setting, not 'defaultValueJson'
             # The value is already formatted correctly by the LLM, so we don't need json.dumps
-            param_summary += f"- **{param.get('name')}**: {param.get('value')}\n"
+            param_summary += f"- {param.get('name')}: {param.get('value')}\n"
         param_summary += "\nDo you want to run the script with these settings, or make more changes?"
 
         return {

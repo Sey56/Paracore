@@ -1,0 +1,146 @@
+--- a/RServer.Addin/Services/CoreScriptRunnerService.cs
++++ b/RServer.Addin/Services/CoreScriptRunnerService.cs
+@@ -347,57 +347,122 @@ namespace RServer.Addin.Services
+         public override Task<GetScriptManifestResponse> GetScriptManifest(GetScriptManifestRequest request, ServerCallContext context)
+         {
+             var response = new GetScriptManifestResponse();
+             try
+             {
+-                string rootPath = request.ScriptPath;
+-                if (!System.IO.Directory.Exists(rootPath))
++                // Parse "ROOT|path1,path2" format
++                string rootPath = request.ScriptPath;
++                List<string> pathsToScan = new List<string>();
++
++                if (request.ScriptPath.Contains("|"))
+                 {
+-                    response.ErrorMessage = $"Script path does not exist: {rootPath}";
+-                    return Task.FromResult(response);
++                    var parts = request.ScriptPath.Split('|');
++                    rootPath = parts[0];
++                    pathsToScan = parts[1].Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
++                                          .Select(p => p.Trim())
++                                          .ToList();
+                 }
+-
+-                var scriptMetadataList = new List<CoreScript.ScriptMetadata>();
+-                // Level 1: Domains (e.g. Architectural, Documentation)
+-                var domainDirectories = System.IO.Directory.GetDirectories(rootPath);
+-
+-                foreach (var domainDir in domainDirectories)
++                else
+                 {
+-                    if (System.IO.Path.GetFileName(domainDir).StartsWith(".")) continue;
+-                    if (domainDir.EndsWith("bin") || domainDir.EndsWith("obj")) continue;
+-                    // Level 2: Script Sources (e.g. Walls, Sheets)
+-                    var sourceDirectories = System.IO.Directory.GetDirectories(domainDir);
+-
+-                    foreach (var sourceDir in sourceDirectories)
+-                    {
+-                        if (System.IO.Path.GetFileName(sourceDir).StartsWith(".")) continue;
+-                        // Level 3: Scripts (Single-file or Multi-file) inside the Script Source
+-                        ScanScriptSource(sourceDir, rootPath, scriptMetadataList);
+-                    }
++                    // Fallback: Assume entire path is Root and we scan everything from there
++                    pathsToScan.Add(rootPath);
++                }
++
++                if (!System.IO.Directory.Exists(rootPath))
++                {
++                    response.ErrorMessage = $"Root script path does not exist: {rootPath}";
++                    return Task.FromResult(response);
++                }
++
++                var scriptMetadataList = new List<CoreScript.ScriptMetadata>();
++                var processedSources = new HashSet<string>();
++
++                foreach (var path in pathsToScan)
++                {
++                    if (!System.IO.Directory.Exists(path)) continue;
++
++                    // Flexible Entry Point Logic
++                    AnalyzeAndScan(path, rootPath, scriptMetadataList, processedSources);
+                 }
+
+                 // Serialize to JSON matching the legacy format expected by frontend/agent
+                 var dictList = scriptMetadataList.Select(m => new
+                 {
+                     name = m.Name,
+                     type = m.ScriptType,
+                     absolutePath = System.IO.Path.Combine(rootPath, m.FilePath), // Reconstruct absolute path
+                     metadata = new
+                     {
+                         description = m.Description,
+                         displayName = m.Name,
+                         author = m.Author,
+                         categories = m.Categories,
+                         usage_examples = m.UsageExamples,
+                         dependencies = m.Dependencies,
+                         document_type = m.DocumentType,
+                         lastRun = m.LastRun
+                     }
+                 }).ToList();
+                 response.ManifestJson = JsonSerializer.Serialize(dictList);
+             }
+             catch (Exception ex)
+             {
+                 _logger.LogError($"[CoreScriptRunnerService] Error in GetScriptManifest: {ex.Message}");
+                 response.ErrorMessage = $"Failed to generate manifest: {ex.Message}";
+             }
+             return Task.FromResult(response);
+         }
++
++        private void AnalyzeAndScan(string path, string rootPath, List<CoreScript.ScriptMetadata> scripts, HashSet<string> processedSources)
++        {
++            try
++            {
++                var dirInfo = new System.IO.DirectoryInfo(path);
++                if (dirInfo.Name.StartsWith(".")) return;
++                if (path.EndsWith("bin") || path.EndsWith("obj")) return;
++
++                // Heuristic 1: Is it a Category? (Starts with 2 digits like "01_")
++                // Or is it the Root? (Contains Categories)
++                
++                bool isCategory = System.Text.RegularExpressions.Regex.IsMatch(dirInfo.Name, @"^\d{2}[._]");
++                
++                // Check if it's Root by looking for children that are Categories
++                bool isRoot = !isCategory && dirInfo.GetDirectories().Any(d => System.Text.RegularExpressions.Regex.IsMatch(d.Name, @"^\d{2}[._]"));
++
++                if (isRoot)
++                {
++                    // Level 1: Root -> Iterate Categories
++                    foreach (var subDir in System.IO.Directory.GetDirectories(path))
++                    {
++                        AnalyzeAndScan(subDir, rootPath, scripts, processedSources);
++                    }
++                }
++                else if (isCategory)
++                {
++                    // Level 2: Category -> Iterate Sources (Sub-Categories)
++                    foreach (var subDir in System.IO.Directory.GetDirectories(path))
++                    {
++                        // We treat all children of a Category as Script Sources
++                        ScanScriptSourceSafe(subDir, rootPath, scripts, processedSources);
++                    }
++                }
++                else
++                {
++                    // Level 3: Script Source (or just a folder we want to scan directly)
++                    ScanScriptSourceSafe(path, rootPath, scripts, processedSources);
++                }
++            }
++            catch (Exception ex)
++            {
++                _logger.Log($"[CoreScriptRunnerService] Error analyzing path {path}: {ex.Message}", LogLevel.Warning);
++            }
++        }
++
++        private void ScanScriptSourceSafe(string sourcePath, string rootPath, List<CoreScript.ScriptMetadata> scripts, HashSet<string> processedSources)
++        {
++            if (processedSources.Contains(sourcePath)) return;
++            processedSources.Add(sourcePath);
++            ScanScriptSource(sourcePath, rootPath, scripts);
++        }
+
+         private void ScanScriptSource(string sourcePath, string rootPath, List<CoreScript.ScriptMetadata> scripts)
+         {

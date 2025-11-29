@@ -112,12 +112,12 @@ namespace RServer.Addin.Helpers
                 if (scriptType == "single-file")
                 {
                     // scriptToOpenPath is the path in the workspace
-                    StartFileWatcher(scriptToOpenPath, originalScriptPath); 
+                    StartFileWatcher(scriptToOpenPath, originalScriptPath);
                 }
                 else
                 {
                     // For multi-file scripts, scriptToOpenPath is the original folder path
-                    string originalFolderPath = originalScriptPath; 
+                    string originalFolderPath = originalScriptPath;
 
                     string scriptsPath = Path.Combine(workspaceFolder, "Scripts");
                     foreach (var fileInWorkspace in Directory.GetFiles(scriptsPath, "*.cs", SearchOption.TopDirectoryOnly))
@@ -130,9 +130,9 @@ namespace RServer.Addin.Helpers
                     }
                 }
 
-                                string arguments = scriptType == "single-file"
-                    ? string.Format("{0}", workspaceFolder) // Only open the workspace folder
-                    : string.Format("{0}", workspaceFolder);
+                string arguments = scriptType == "single-file"
+    ? string.Format("{0}", workspaceFolder) // Only open the workspace folder
+    : string.Format("{0}", workspaceFolder);
 
                 FileLogger.Log($"Launching VS Code with arguments: {arguments}");
                 FileLogger.Log($"Full VS Code launch command: cmd.exe /c code {arguments}");

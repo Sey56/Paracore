@@ -1,6 +1,6 @@
 🗂️ Practical Script Organization for Paracore Agent
 
-1. Element Creation & Management ⚡
+01. Element Creation & Management ⚡
 📁 01_Element_Creation/
 ├── 📁 Walls/
 ├── 📁 Floors_Slabs/
@@ -9,7 +9,7 @@
 ├── 📁 Structural/
 └── 📁 MEP_Elements/
 
-2. Geometry & Modeling 📐
+02. Geometry & Modeling 📐
 📁 02_Geometry_Modeling/
 ├── 📁 Generative_Design/
 ├── 📁 Curve_Surface/
@@ -23,53 +23,53 @@
 ├── 📁 Annotation/
 └── 📁 Schedules/
 
-4. Data & Parameters 🗃️
+04. Data & Parameters 🗃️
 📁 04_Data_Parameters/
 ├── 📁 Parameter_Management/
 ├── 📁 Data_Export_Import/
 ├── 📁 Shared_Parameters/
 └── 📁 Calculations/
 
-5. Analysis & Validation 🔍
+05. Analysis & Validation 🔍
 📁 05_Analysis_Validation/
 ├── 📁 Model_Checking/
 ├── 📁 Clash_Detection/
 ├── 📁 Quantity_Takeoff/
 └── 📁 Standards_Compliance/
 
-6. Selection & Filtering 🎯
+06. Selection & Filtering 🎯
 📁 06_Selection_Filtering/
 ├── 📁 Element_Collectors/
 ├── 📁 Category_Filters/
 ├── 📁 Parameter_Filters/
 └── 📁 Spatial_Queries/
 
-7. Modification & Editing ✏️
+07. Modification & Editing ✏️
 📁 07_Modification_Editing/
 ├── 📁 Geometry_Editing/
 ├── 📁 Parameter_Updates/
 ├── 📁 Type_Management/
 └── 📁 Batch_Processing/
 
-8. Utilities & Tools 🛠️
-📁 08_Utilities_Tools/
-├── 📁 Unit_Conversion/
-├── 📁 Coordinate_Systems/
-├── 📁 Transaction_Helpers/
-└── 📁 Error_Handling/
-
-9. Family Creation 👨‍👩‍👧‍👦
-📁 09_Family_Creation/
+08. Family Creation 👨‍👩‍👧‍👦
+📁 08_Family_Creation/
 ├── 📁 Family_Document_Setup/
 ├── 📁 Geometry_Form_Creation/
 ├── 📁 Family_Types_Manager/
 └── 📁 Nested_Families/
 
-10. Worksharing & Collaboration 🤝
-📁 10_Worksharing_Collaboration/
+09. Worksharing & Collaboration 🤝
+📁 09_Worksharing_Collaboration/
 ├── 📁 Worksets/
 ├── 📁 Synchronization/
 └── 📁 Element_Ownership/
+
+10. Utilities & Tools 🛠️
+📁 10_Utilities_Tools/
+├── 📁 Unit_Conversion/
+├── 📁 Coordinate_Systems/
+├── 📁 Transaction_Helpers/
+└── 📁 Error_Handling/
 
 
 📋 Essential Script Metadata

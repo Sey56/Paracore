@@ -141,18 +141,22 @@ class GetScriptParametersResponse(_message.Message):
     def __init__(self, parameters: _Optional[_Iterable[_Union[ScriptParameter, _Mapping]]] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class ScriptParameter(_message.Message):
-    __slots__ = ("name", "type", "default_value_json", "description", "options")
+    __slots__ = ("name", "type", "default_value_json", "description", "options", "multi_select", "visible_when")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_VALUE_JSON_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    MULTI_SELECT_FIELD_NUMBER: _ClassVar[int]
+    VISIBLE_WHEN_FIELD_NUMBER: _ClassVar[int]
     name: str
     type: str
     default_value_json: str
     description: str
     options: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., default_value_json: _Optional[str] = ..., description: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ...) -> None: ...
+    multi_select: bool
+    visible_when: str
+    def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., default_value_json: _Optional[str] = ..., description: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ..., multi_select: bool = ..., visible_when: _Optional[str] = ...) -> None: ...
 
 class GetCombinedScriptRequest(_message.Message):
     __slots__ = ("script_files", "script_path")

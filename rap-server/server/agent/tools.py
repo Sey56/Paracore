@@ -12,15 +12,27 @@ from utils import resolve_script_path
 
 class SearchScriptsArgs(BaseModel):
     query: str = Field(..., description="The user's task description or query to find relevant scripts.")
-    agent_scripts_path: str = Field(..., description="The absolute path to the directory containing agent scripts.")
+    search_paths: List[str] = Field(default=[], description="Optional list of specific folder paths to search (e.g. ['01_Element_Creation/Walls']). If empty, searches the entire library.")
+    agent_scripts_path: str = Field(..., description="The root path of the agent script library.")
 
 @tool(args_schema=SearchScriptsArgs)
-def search_scripts_tool(query: str, agent_scripts_path: str) -> list:
+def search_scripts_tool(query: str, agent_scripts_path: str, search_paths: List[str] = []) -> list:
     """
-    Searches for relevant C# Revit automation scripts based on a user query within the specified agent scripts path.
+    Searches for relevant C# Revit automation scripts based on a user query.
+    Can search specific sub-folders (search_paths) or the entire library.
     """
     from .api_helpers import read_local_script_manifest
-    full_manifest = read_local_script_manifest(agent_scripts_path=agent_scripts_path)
+    
+    # If specific paths are provided, format as "ROOT|path1,path2"
+    # This allows the backend to know the Root (for relative paths) AND the specific targets
+    target_path = agent_scripts_path
+    if search_paths:
+        # Construct absolute paths for the backend
+        abs_search_paths = [os.path.join(agent_scripts_path, p) for p in search_paths]
+        # Format: ROOT|path1,path2
+        target_path = f"{agent_scripts_path}|{','.join(abs_search_paths)}"
+        
+    full_manifest = read_local_script_manifest(agent_scripts_path=target_path)
     return full_manifest
 
 class GetScriptParametersArgs(BaseModel):

@@ -103,6 +103,8 @@ message ScriptParameter {
   string default_value_json = 3;
   string description = 4;
   repeated string options = 5;
+  bool multi_select = 6;
+  string visible_when = 7;
 }
 
 message GetCombinedScriptRequest {

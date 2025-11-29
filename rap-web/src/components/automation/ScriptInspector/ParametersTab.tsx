@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { filterVisibleParameters } from '@/utils/parameterVisibility';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheckCircle,
@@ -18,8 +19,8 @@ import { ParameterInput } from "./ParameterInput";
 import { NewPresetNameModal } from './NewPresetNameModal';
 import { ConfirmActionModal } from './ConfirmActionModal';
 import { InfoModal } from './InfoModal';
-import { useAuth } from '@/hooks/useAuth'; // Import useAuth
-import { Role } from '@/context/authTypes'; // Import Role
+import { useAuth } from '@/hooks/useAuth';
+import { Role } from '@/context/authTypes';
 
 interface ParametersTabProps {
   script: Script;
@@ -34,8 +35,8 @@ const initializeParameters = (params: ScriptParameter[]): ScriptParameter[] => {
 
 export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab, activeMainView } = useUI();
-  const { activeRole } = useAuth(); // Get activeRole
-  const { 
+  const { activeRole } = useAuth();
+  const {
     runScript,
     runningScriptPath,
     executionResult,
@@ -54,24 +55,27 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     setEditedParameters(script.parameters || []);
   }, [script.id, script.parameters]);
 
+  // Memoize visible parameters to prevent unnecessary re-renders
+  const visibleParameters = useMemo(() => {
+    return filterVisibleParameters(editedParameters);
+  }, [editedParameters]);
+
   const [selectedPreset, setSelectedPreset] = useState("<Default Parameters>");
 
   const [isNewPresetModalOpen, setIsNewPresetModalOpen] = useState(false);
   const [isRenamePresetModalOpen, setIsRenamePresetModalOpen] = useState(false);
   const [isDeletePresetModalOpen, setIsDeletePresetModalOpen] = useState(false);
   const [presetToDelete, setPresetToDelete] = useState('');
-  const [isUpdatePresetModalOpen, setIsUpdatePresetModalOpen] = useState(false); // New state for update modal
+  const [isUpdatePresetModalOpen, setIsUpdatePresetModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [infoModalMessage, setInfoModalMessage] = useState('');
-  
+
 
   const isRunning = runningScriptPath === script.id;
 
   useEffect(() => {
     setSelectedPreset("<Default Parameters>");
   }, [script.id]);
-
-  
 
   const handleParameterChange = (
     index: number,
@@ -110,27 +114,24 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   };
 
   const handleUpdatePreset = () => {
-    setIsUpdatePresetModalOpen(true); // Open the update preset modal
+    setIsUpdatePresetModalOpen(true);
   };
 
   const handleUpdatePresetConfirm = () => {
     const result = updatePreset(selectedPreset, { name: selectedPreset, parameters: editedParameters });
     if (result.success) {
-      // No need to open InfoModal, notification is handled by ScriptExecutionProvider
+      // No need to open InfoModal
     } else {
       setInfoModalMessage(result.message);
       setIsInfoModalOpen(true);
 
-      // Explicitly re-select the current preset to force a UI revert
-      // This will trigger the select's onChange, which re-initializes editedParameters
-      // from the stored preset values.
-      const currentPresetName = selectedPreset; // Store current selected preset name
-      setSelectedPreset("<Default Parameters>"); // Temporarily set to default to force re-render
-      setTimeout(() => { // Use setTimeout to allow a re-render cycle
-        setSelectedPreset(currentPresetName); // Re-select the original preset
+      const currentPresetName = selectedPreset;
+      setSelectedPreset("<Default Parameters>");
+      setTimeout(() => {
+        setSelectedPreset(currentPresetName);
       }, 0);
     }
-    setIsUpdatePresetModalOpen(false); // Close the modal after action
+    setIsUpdatePresetModalOpen(false);
   };
 
   const handleDeletePreset = () => {
@@ -141,7 +142,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const handleDeletePresetConfirm = () => {
     const result = deletePreset(presetToDelete);
     if (result.success) {
-      // No need to open InfoModal, notification is handled by ScriptExecutionProvider
+      // No need to open InfoModal
     } else {
       setInfoModalMessage(result.message);
       setIsInfoModalOpen(true);
@@ -171,7 +172,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   return (
     <div className={`tab-content p-4`}>
-      <div className="space-y-6">
+      <div className="space-y-3">
         {/* Preset Selector + Actions */}
         {activeMainView === 'scripts' && script.parameters && script.parameters.length > 0 && (
           <div className="relative flex items-center justify-end">
@@ -216,9 +217,18 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         )}
 
         {/* Parameter Inputs */}
-        {editedParameters.map((param, index) => (
-          <ParameterInput key={index} param={param} index={index} onChange={handleParameterChange} disabled={!isActionable} />
-        ))}
+        {visibleParameters.map((param) => {
+          const originalIndex = editedParameters.findIndex(p => p.name === param.name);
+          return (
+            <ParameterInput
+              key={originalIndex}
+              param={param}
+              index={originalIndex}
+              onChange={handleParameterChange}
+              disabled={!isActionable}
+            />
+          );
+        })}
 
         {/* Run Script Button */}
         {activeMainView === 'scripts' && (
@@ -233,27 +243,27 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 {isRunning ? "Running..." : "Run Script"}
               </button>
               {showStatusIcon && (
-                <div 
-                  className="absolute -right-12 cursor-pointer p-1" 
+                <div
+                  className="absolute -right-12 cursor-pointer p-1"
                   onClick={handleStatusIconClick}
                   title={activeInspectorTab === 'console' ? "Go to Parameters" : "Go to Console"}
                 >
-                  <FontAwesomeIcon 
-                    icon={runSucceeded ? faCheckCircle : faTimesCircle} 
+                  <FontAwesomeIcon
+                    icon={runSucceeded ? faCheckCircle : faTimesCircle}
                     className={`${runSucceeded ? 'text-green-500' : 'text-red-500'} text-2xl`}
                   />
                 </div>
               )}
             </div>
-              {activeRole !== Role.User && (
-                <button
-                  title="View Code in New Window"
-                  className="text-gray-600 dark:text-gray-300 hover:text-blue-600"
-                  onClick={onViewCodeClick}
-                >
-                  <FontAwesomeIcon icon={faExternalLinkAlt} />
-                </button>
-              )}
+            {activeRole !== Role.User && (
+              <button
+                title="View Code in New Window"
+                className="text-gray-600 dark:text-gray-300 hover:text-blue-600"
+                onClick={onViewCodeClick}
+              >
+                <FontAwesomeIcon icon={faExternalLinkAlt} />
+              </button>
+            )}
           </div>
         )}
       </div>

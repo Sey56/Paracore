@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ScriptExecutionContext } from './ScriptExecutionContext';
-import type { Script, ScriptParameter } from '@/types/scriptModel';
+import type { Script, ScriptParameter, RawScriptParameterData } from '@/types/scriptModel';
 import type { ExecutionResult, ParameterPreset } from '@/types/common';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScripts } from '@/hooks/useScripts';
@@ -10,13 +10,7 @@ import api from '@/api/axios';
 import { getFolderNameFromPath } from '@/utils/pathHelpers';
 import { Workspace } from '@/types';
 
-interface RawScriptParameterData {
-  name: string;
-  type: string;
-  defaultValueJson: string;
-  description: string;
-  options: string[];
-}
+
 
 // Helper function for deep comparison of parameters
 const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter[]): boolean => {
@@ -206,7 +200,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         promises.push(fetchScriptContent(script));
 
         const [paramsResult, contentResult] = await Promise.all(promises);
-        console.log("[setSelectedScript] API results - paramsResult:", paramsResult, "contentResult:", contentResult);
+        console.log("[setSelectedScript] API results - paramsResult:", paramsResult);
 
         let finalParameters: ScriptParameter[] = [];
         if (paramsResult.error) {
@@ -219,7 +213,19 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             } catch { /* Ignore if not JSON */ }
             if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
             else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
-            return { ...p, value, defaultValue: value };
+
+            // Manually construct the object to ensure all fields are carried over
+            const newParamObject: ScriptParameter = {
+              name: p.name,
+              type: p.type as any,
+              description: p.description,
+              options: p.options,
+              multiSelect: p.multiSelect,
+              visibleWhen: p.visibleWhen,
+              value: value,
+              defaultValue: value
+            };
+            return newParamObject;
           });
         }
         const updatedScript = { ...script, parameters: finalParameters };
@@ -292,7 +298,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       fetchScriptMetadata(script.id);
 
       const [paramsResult, contentResult] = await Promise.all(promises);
-      console.log("[setSelectedScript] API results (user source) - paramsResult:", paramsResult, "contentResult:", contentResult);
+      console.log("[setSelectedScript] API results (user source) - paramsResult:", paramsResult);
 
       let finalParameters: ScriptParameter[] = [];
       if (paramsResult.error) {
@@ -305,7 +311,19 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           } catch { /* Ignore if not JSON */ }
           if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
           else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
-          return { ...p, value, defaultValue: value }; // Also set defaultValue for preset comparison
+          
+          // Manually construct the object to ensure all fields are carried over
+          const newParamObject: ScriptParameter = {
+            name: p.name,
+            type: p.type as any,
+            description: p.description,
+            options: p.options,
+            multiSelect: p.multiSelect,
+            visibleWhen: p.visibleWhen,
+            value: value,
+            defaultValue: value
+          };
+          return newParamObject;
         });
       }
 
