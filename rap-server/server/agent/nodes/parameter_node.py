@@ -6,6 +6,63 @@ import uuid
 
 from .utils import get_llm
 
+def evaluate_visible_when(condition: str, all_params: List[Dict]) -> bool:
+    """
+    Evaluates a visibleWhen condition for a parameter.
+    Returns True if the parameter should be visible, False otherwise.
+    """
+    if not condition:
+        return True
+    
+    # Support == and != operators
+    operators = ['==', '!=']
+    operator = None
+    for op in operators:
+        if op in condition:
+            operator = op
+            break
+    
+    if not operator:
+        return True
+    
+    parts = condition.split(operator)
+    if len(parts) != 2:
+        return True
+    
+    param_name = parts[0].strip()
+    expected_value_str = parts[1].strip()
+    
+    # Remove quotes from expected value
+    if (expected_value_str.startswith("'") and expected_value_str.endswith("'")) or \
+       (expected_value_str.startswith('"') and expected_value_str.endswith('"')):
+        expected_value_str = expected_value_str[1:-1]
+    
+    # Find the parameter
+    param = next((p for p in all_params if p.get('name') == param_name), None)
+    if not param:
+        return True
+    
+    actual_value = param.get('value', param.get('defaultValueJson'))
+    
+    # Evaluate condition
+    if operator == '==':
+        return str(actual_value) == str(expected_value_str)
+    elif operator == '!=':
+        return str(actual_value) != str(expected_value_str)
+    
+    return True
+
+def filter_visible_parameters(params: List[Dict]) -> List[Dict]:
+    """
+    Filters parameters based on their visibleWhen conditions.
+    Returns only the visible parameters.
+    """
+    visible = []
+    for param in params:
+        if evaluate_visible_when(param.get('visibleWhen'), params):
+            visible.append(param)
+    return visible
+
 def handle_present_parameters(state: dict) -> dict:
     """
     Handles the logic for presenting script parameters to the user.
@@ -14,12 +71,25 @@ def handle_present_parameters(state: dict) -> dict:
     parameters = state.get('script_parameters_definitions')
     script_name = selected_script.get('name', 'the selected script')
 
+    # Check if this script has parameter sets (Mode parameter)
+    has_parameter_set = False
+    if isinstance(parameters, list):
+        for param in parameters:
+            if isinstance(param, dict) and param.get('visibleWhen'):
+                has_parameter_set = True
+                break
+
     # Check if there are any parameters to present
     if parameters:
-        param_summary = f"Here are the parameters for {script_name}:\n"
-        for param in parameters:
-            param_summary += f"- {param.get('name')}: Type={param.get('type')}, Default={param.get('defaultValueJson')}\n"
-        param_summary += "\nDo you want to run it with these parameters, or would you like to change any parameter values?"
+        if has_parameter_set:
+            # For scripts with parameter sets, ask user to select the mode first
+            param_summary = f"I've selected the script **{script_name}**.\n\nThis script has multiple parameter sets (modes). Please select the mode in the Parameters tab, then type 'proceed' to continue."
+        else:
+            # For regular scripts, list all parameters
+            param_summary = f"Here are the parameters for {script_name}:\n"
+            for param in parameters:
+                param_summary += f"- {param.get('name')}: Type={param.get('type')}, Default={param.get('defaultValueJson')}\n"
+            param_summary += "\nDo you want to run it with these parameters, or would you like to change any parameter values?"
     else:
         # If there are no parameters, provide a more direct confirmation message
         param_summary = f"The script {script_name} doesn't require any parameters.\n\nDo you want to run it?"
@@ -85,6 +155,52 @@ def handle_parameter_modification(state: dict, llm) -> dict:
                 "script_execution_queue": None,
             }
 
+    # Check if this script has parameter sets
+    has_parameter_set = False
+    if isinstance(current_params, list):
+        for param in current_params:
+            if isinstance(param, dict) and param.get('visibleWhen'):
+                has_parameter_set = True
+                break
+
+    # For parameter set scripts, check if user is saying "proceed" after mode selection
+    # CRITICAL: Only apply this logic if we're in the confirm_execution state
+    if has_parameter_set and state.get('next_conversational_action') == 'confirm_execution':
+        proceed_keywords = ["proceed", "continue", "go ahead", "next"]
+        is_simple_proceed = any(kw in current_human_message.content.lower() for kw in proceed_keywords)
+        
+        if is_simple_proceed and len(current_human_message.content.split()) <= 3:
+            # User selected mode and said "proceed" - present filtered parameters
+            selected_script = state.get('selected_script_metadata')
+            script_name = selected_script.get('name', 'the selected script')
+            
+            # Apply UI parameters (mode selection)
+            ui_params = state.get('ui_parameters', {})
+            params_dict = {str(p['name']): p for p in current_params if 'name' in p and isinstance(p['name'], str)}
+            
+            if ui_params:
+                for param_name, param_value in ui_params.items():
+                    if param_name in params_dict:
+                        params_dict[param_name]['value'] = param_value
+            
+            updated_params_list = list(params_dict.values())
+            
+            # Filter to only visible parameters
+            visible_params = filter_visible_parameters(updated_params_list)
+            
+            # Present only visible parameters
+            param_summary = f"Here are the parameters for {script_name}:\n"
+            for param in visible_params:
+                value = param.get('value', param.get('defaultValueJson'))
+                param_summary += f"- {param.get('name')}: {value}\n"
+            param_summary += "\nDo you want to run it with these parameters, or would you like to change any parameter values?"
+            
+            return {
+                "messages": [AIMessage(content=param_summary)],
+                "script_parameters_definitions": updated_params_list,
+                "next_conversational_action": "confirm_execution"
+            }
+
     # --- Existing logic for scripts WITH parameters ---
     class ParameterUpdate(BaseModel):
         """A single parameter update."""
@@ -96,8 +212,6 @@ def handle_parameter_modification(state: dict, llm) -> dict:
         updates: List[ParameterUpdate] = Field(description="A list of parameter updates.")
 
     extraction_llm = llm.with_structured_output(ParameterUpdates)
-    
-    current_params = state.get('script_parameters_definitions', [])
     
     # Create a simplified representation of parameters for the prompt
     param_context = [
@@ -204,11 +318,14 @@ Does this message contain an explicit command to run the script? Respond with a 
 
     else:
         # Just respond with the updated parameters for confirmation
+        # Filter to only visible parameters
+        visible_params = filter_visible_parameters(updated_params_list)
+        
         param_summary = "I've updated the parameters. Here is the new configuration:\n"
-        for param in updated_params_list:
+        for param in visible_params:
             # We need to use 'value' to show the current setting, not 'defaultValueJson'
-            # The value is already formatted correctly by the LLM, so we don't need json.dumps
-            param_summary += f"- {param.get('name')}: {param.get('value')}\n"
+            value = param.get('value', param.get('defaultValueJson'))
+            param_summary += f"- {param.get('name')}: {value}\n"
         param_summary += "\nDo you want to run the script with these settings, or make more changes?"
 
         return {

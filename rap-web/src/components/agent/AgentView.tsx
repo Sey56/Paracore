@@ -7,6 +7,7 @@ import { faPaperPlane, faRobot, faUser, faCheckCircle, faTimesCircle, faSpinner,
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { useScripts } from '@/hooks/useScripts';
+import { filterVisibleParameters } from '@/utils/parameterVisibility';
 
 import type { Message, ToolCall } from '@/context/providers/UIContext';
 import { Modal } from '@/components/common/Modal';
@@ -331,11 +332,36 @@ export const AgentView: React.FC = () => {
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       const toolCall = msg.tool_calls[0];
       const isPending = activePendingToolCall?.id === toolCall.id;
+
+      // Filter parameters to show only visible ones
+      let displayArgs = toolCall.args;
+      if (toolCall.name === 'run_script_by_name' && toolCall.args.parameters && selectedScript) {
+        // Convert parameters object to array format for filtering
+        const paramsArray = selectedScript.parameters.map(p => ({
+          ...p,
+          value: toolCall.args.parameters[p.name] ?? p.value
+        }));
+
+        // Filter to only visible parameters
+        const visibleParams = filterVisibleParameters(paramsArray);
+
+        // Convert back to object format for display
+        const filteredParameters: Record<string, any> = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
+        visibleParams.forEach(p => {
+          filteredParameters[p.name] = toolCall.args.parameters[p.name];
+        });
+
+        displayArgs = {
+          ...toolCall.args,
+          parameters: filteredParameters
+        };
+      }
+
       return (
         <div>
           <p className="font-semibold">Tool Call Request:</p>
           <p><strong>Name:</strong> {toolCall.name}</p>
-          <p><strong>Arguments:</strong> {JSON.stringify(toolCall.args, null, 2)}</p>
+          <p><strong>Arguments:</strong> {JSON.stringify(displayArgs, null, 2)}</p>
           {isPending && (
             <div className="flex space-x-2 mt-2">
               <button
