@@ -4,7 +4,8 @@ from ..state import AgentState
 from ..tools import (
     search_scripts_tool, run_script_by_name, get_working_set_details, 
     clear_working_set, set_working_set, add_to_working_set, 
-    remove_from_working_set, get_revit_context_tool, set_active_script_tool
+    remove_from_working_set, get_revit_context_tool, set_active_script_tool,
+    validate_working_set as validate_working_set_tool
 )
 from ..api_helpers import read_local_script_manifest
 from .working_set_utils import process_working_set_output, validate_working_set
@@ -59,6 +60,20 @@ def tool_node(state: AgentState):
                 result_str = "The current working set is empty."
             else:
                 result_str = f"The current working set contains: {json.dumps(clean_ws)}"
+            results.append(ToolMessage(content=result_str, tool_call_id=tool_call_id))
+
+        elif tool_name == validate_working_set_tool.name:
+            # This tool just validates and reports back.
+            current_ws = state.get('working_set', {})
+            elements_before = sum(len(ids) for ids in current_ws.values())
+
+            clean_ws, validation_update = get_and_validate_working_set(state)
+            master_state_update.update(validation_update)
+
+            elements_after = sum(len(ids) for ids in clean_ws.values())
+            removed_count = elements_before - elements_after
+            
+            result_str = f"Working set validated. {removed_count} missing element(s) were removed."
             results.append(ToolMessage(content=result_str, tool_call_id=tool_call_id))
 
         elif tool_name in tool_map:

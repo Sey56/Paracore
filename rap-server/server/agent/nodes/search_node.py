@@ -28,6 +28,7 @@ def handle_semantic_search(state: dict, llm) -> dict:
     try:
         structured_llm = llm.with_structured_output(RelevantScripts)
         scripts_for_llm = [script for script in full_manifest if script.get('name') != 'manifest.json']
+        
         filtering_prompt = f"""You are a script filter. Your task is to identify all scripts that EXACTLY match the user's requested action.
 User Query: "{query}"
 Review the "Available Scripts" below. For each script, check if its `description` indicates that it performs the user's requested action.

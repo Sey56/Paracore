@@ -8,13 +8,9 @@ def start_node(state: dict) -> dict:
     2. Checks if this is the start of a new, unrelated user query and, if so,
        clears other task-specific state.
     """
-    # 1. Always validate the working set at the beginning of a turn.
-    current_working_set = state.get('working_set', {})
-    validated_working_set = validate_working_set(current_working_set)
-    
-    state_update = {
-        "working_set": validated_working_set
-    }
+    # 1. No longer validate working set here. Validation is now handled on-demand in tool_node.py.
+    # This prevents unnecessary gRPC calls on every turn.
+    state_update = {}
 
     # 2. Check if this is a new, unrelated query to clear other state.
     last_message = state["messages"][-1]

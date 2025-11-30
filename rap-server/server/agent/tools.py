@@ -205,6 +205,17 @@ def get_working_set_details() -> str:
 
 
 @tool
+def validate_working_set() -> str:
+    """
+    Validates the current working set against the active Revit model, removing any elements that have been deleted.
+    Use this when the user asks to "update", "validate", or "synchronize" the working set.
+    """
+    # The implementation of this tool is handled directly in the tool_node
+    # as it needs access to the agent's state and must perform a gRPC call.
+    pass
+
+
+@tool
 def get_revit_context_tool() -> dict:
     """
     Retrieves the current Revit context, including the active view name, the number of selected elements,
@@ -247,5 +258,6 @@ tools = [
     add_to_working_set,
     remove_from_working_set,
     get_working_set_details,
+    validate_working_set,
     get_revit_context_tool
 ]

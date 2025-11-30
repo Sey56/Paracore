@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 import models, schemas
 from database_config import get_db
-from grpc_client import execute_script
+from grpc_client import execute_script, validate_working_set_grpc
 from utils import get_or_create_script, resolve_script_path
 from auth import get_current_user, CurrentUser
 from agent.graph import get_app # Import agent app
@@ -55,7 +55,11 @@ async def run_script(
             raise HTTPException(status_code=404, detail="No script files found.")
 
         # --- WORKING SET INJECTION LOGIC ---
-        if thread_id:
+        # Check if any file actually needs injection before doing expensive state lookups and validation
+        placeholder_line = "List<ElementId>? targetWallIds = null; // __INJECT_WORKING_SET__"
+        needs_injection = any(placeholder_line in sf["Content"] for sf in script_files_payload)
+
+        if thread_id and needs_injection:
             try:
                 app_instance = await get_app()
                 config = {"configurable": {"thread_id": thread_id}}
@@ -73,14 +77,17 @@ async def run_script(
                     # Deduplicate
                     all_ids = list(set(all_ids))
 
+                    # VALIDATION STEP: Ensure we only inject IDs that actually exist in the document
+                    if all_ids:
+                        valid_ids = validate_working_set_grpc(all_ids)
+                        # print(f"DEBUG: Validated working set for injection. {len(all_ids)} -> {len(valid_ids)} valid IDs.")
+                        all_ids = valid_ids
+
                     # Construct the C# code for List<ElementId> initialization
                     # Example: List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> { new ElementId(123L), new ElementId(456L) };
                     # Ensure IDs are integers to avoid "365799.0L" syntax errors
                     element_id_initializers = ", ".join([f"new Autodesk.Revit.DB.ElementId({int(eid)}L)" for eid in all_ids])
                     csharp_list_code = f"List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> {{ {element_id_initializers} }};"
-
-                    # Placeholder to look for in the script content
-                    placeholder_line = "List<ElementId>? targetWallIds = null; // __INJECT_WORKING_SET__"
 
                     for script_file in script_files_payload:
                         if placeholder_line in script_file["Content"]:
