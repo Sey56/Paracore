@@ -34,8 +34,9 @@ def generate_summary(raw_execution_result: dict) -> dict | None:
     # --- Priority 2: Console Summary (from 'Println' global) ---
     if console_output and isinstance(console_output, str):
         lines = console_output.strip().split('\n')
-        # Relevant lines are those not starting with the default success/failure markers
-        relevant_lines = [line for line in lines if not line.startswith("✅") and not line.startswith("❌")]
+        
+        # Filter out the timestamp line only
+        relevant_lines = [line for line in lines if not line.startswith("✅ Code executed") and not line.startswith("❌ Code execution")]
         
         if relevant_lines:
             summary = {'type': 'console', 'line_count': len(relevant_lines)}
@@ -47,8 +48,14 @@ def generate_summary(raw_execution_result: dict) -> dict | None:
                 summary_text = " ".join([line.replace("SUMMARY:", "").strip() for line in summary_lines])
                 summary['summary_text'] = summary_text
             else:
-                # Preview first 2 lines
-                summary['preview'] = relevant_lines[:2]
+                # Prioritize lines with ✅ or ❌ (result messages), otherwise take first line
+                result_lines = [line for line in relevant_lines if line.startswith("✅") or line.startswith("❌")]
+                if result_lines:
+                    # Use the first result line as the summary
+                    summary['preview'] = [result_lines[0]]
+                else:
+                    # Fallback to first line if no result markers found
+                    summary['preview'] = relevant_lines[:1]
             
             return summary
 

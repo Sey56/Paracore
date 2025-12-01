@@ -65,17 +65,10 @@ def summary_node(state: dict) -> dict:
         if summary_type == 'table':
             row_count = summary_data.get('row_count', 0)
             headers = summary_data.get('headers', [])
-            preview = summary_data.get('preview', [])
             
             final_message = f"A table with {row_count} row{'s' if row_count != 1 else ''} was generated."
             if headers:
                 final_message += f" Columns: {', '.join(headers)}."
-            if preview:
-                # Convert preview rows to string and truncate if too long
-                preview_str = str(preview)
-                if len(preview_str) > 200:
-                    preview_str = preview_str[:200] + "..."
-                final_message += f" Preview: {preview_str}"
             final_message += " See the Table tab for full output."
 
         elif summary_type == 'console':

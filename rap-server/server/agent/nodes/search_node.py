@@ -27,7 +27,21 @@ def handle_semantic_search(state: dict, llm) -> dict:
 
     try:
         structured_llm = llm.with_structured_output(RelevantScripts)
-        scripts_for_llm = [script for script in full_manifest if script.get('name') != 'manifest.json']
+        # Create a lightweight manifest for the LLM to reduce token count and latency
+        scripts_for_llm = []
+        for script in full_manifest:
+            if script.get('name') == 'manifest.json':
+                continue
+            
+            # Extract only essential fields for semantic search
+            # We strip out author, website, lastRun, usage_examples, etc.
+            lightweight_script = {
+                "name": script.get("name"),
+                "description": script.get("metadata", {}).get("description", "No description"),
+                "categories": script.get("metadata", {}).get("categories", []),
+                "absolutePath": script.get("absolutePath") # Needed for matching logic
+            }
+            scripts_for_llm.append(lightweight_script)
         
         filtering_prompt = f"""You are a script filter. Your task is to identify all scripts that EXACTLY match the user's requested action.
 User Query: "{query}"
@@ -41,7 +55,10 @@ Identify ALL scripts that are a direct match for the user's query and return the
 """
         response_obj = structured_llm.invoke([HumanMessage(content=filtering_prompt)])
         matching_paths = response_obj.script_paths
-        semantically_relevant_scripts = [s for s in scripts_for_llm if s.get('absolutePath') in matching_paths]
+        
+        # CRITICAL FIX: Retrieve the FULL script objects from the full_manifest, not the lightweight ones.
+        # The lightweight objects are missing 'type' and other fields needed for execution.
+        semantically_relevant_scripts = [s for s in full_manifest if s.get('absolutePath') in matching_paths]
 
         if not semantically_relevant_scripts:
             return {"messages": [AIMessage(content="I couldn't find any relevant scripts for your task.")]}

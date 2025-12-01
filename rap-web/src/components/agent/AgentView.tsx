@@ -409,6 +409,31 @@ export const AgentView: React.FC = () => {
         <div className="flex space-x-2">
 
           <button
+            onClick={async () => {
+              if (toolLibraryPath) {
+                try {
+                  showNotification("Regenerating script manifest...", "info");
+                  const response = await fetch('http://localhost:8000/api/manifest/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent_scripts_path: toolLibraryPath })
+                  });
+                  const data = await response.json();
+                  showNotification(`Manifest regenerated successfully! Found ${data.count} scripts.`, "success");
+                } catch (error) {
+                  showNotification("Failed to regenerate manifest.", "error");
+                }
+              } else {
+                showNotification("Agent scripts path not set.", "error");
+              }
+            }}
+            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            title="Regenerate Script Manifest"
+            disabled={isLoading}
+          >
+            <FontAwesomeIcon icon={faSyncAlt} />
+          </button>
+          <button
             onClick={() => setIsClearChatModalOpen(true)}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             title="Clear Chat History"

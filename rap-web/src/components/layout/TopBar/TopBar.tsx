@@ -3,29 +3,51 @@ import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleLis
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
+import { useNotifications } from '@/hooks/useNotifications';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useScripts } from '@/hooks/useScripts';
 import React, { useState, useRef, useEffect } from 'react';
 import { UserMenu } from './UserMenu';
 import { Workspace } from '@/types';
-import { Modal } from '@/components/common/Modal'; // Import Modal component
-import { shell } from '@tauri-apps/api'; // Import shell
+import { Modal } from '@/components/common/Modal';
+import { shell } from '@tauri-apps/api';
 
 export const TopBar: React.FC = () => {
   const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView } = useUI();
   const { rserverConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, logout, activeTeam } = useAuth();
-  const { loadScriptsForFolder } = useScripts();
+  const { loadScriptsForFolder, toolLibraryPath } = useScripts();
+  const { showNotification } = useNotifications();
 
   const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const helpDropdownRef = useRef<HTMLDivElement>(null);
+  const [hasGeneratedManifest, setHasGeneratedManifest] = useState(false);
 
-  const handleAgentModeClick = () => {
+  const handleAgentModeClick = async () => {
     setActiveMainView('agent');
-
+    
+    // Trigger manifest generation only once per session when entering Agent Mode
+    if (!hasGeneratedManifest && toolLibraryPath) {
+      try {
+        console.log("Triggering manifest generation...");
+        showNotification("Generating script manifest...", "info");
+        const response = await fetch('http://localhost:8000/api/manifest/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_scripts_path: toolLibraryPath })
+        });
+        const data = await response.json();
+        console.log("Manifest generation triggered successfully.");
+        showNotification(`Script manifest generated successfully! Found ${data.count} scripts.`, "success");
+        setHasGeneratedManifest(true);
+      } catch (error) {
+        console.error("Failed to trigger manifest generation:", error);
+        showNotification("Failed to generate manifest.", "error");
+      }
+    }
   };
 
   useEffect(() => {

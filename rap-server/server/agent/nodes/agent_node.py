@@ -23,6 +23,30 @@ def agent_node(state: dict):
             current_human_message = msg
             break
 
+    # --- 0. Global Cancellation Check ---
+    if current_human_message:
+        content_lower = current_human_message.content.lower().strip()
+        cancellation_keywords = ["cancel", "stop", "exit", "abort"]
+        if content_lower in cancellation_keywords:
+            from langchain_core.messages import AIMessage
+            return {
+                "messages": [AIMessage(content="Action cancelled. I've cleared the current task state. What would you like to do next?")],
+                # Clear ALL script-related state
+                "selected_script_metadata": None,
+                "script_parameters_definitions": None,
+                "script_selected_for_params": False,
+                "user_provided_param_modifications": None,
+                "ui_parameters": None,
+                "final_parameters_for_execution": None,
+                "identified_scripts_for_choice": None,
+                "next_conversational_action": None,
+                "parameter_set_options": None,
+                "selected_parameter_set_value": None,
+                "current_task_description": None,
+                "script_execution_queue": None,
+                # PRESERVE working_set
+            }
+
     previous_conversational_action = state.get("next_conversational_action")
 
     # --- Route to the correct handler based on state ---
