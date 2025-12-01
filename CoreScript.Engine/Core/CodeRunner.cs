@@ -56,20 +56,32 @@ namespace CoreScript.Engine.Core
                                 switch (param.Type)
                                 {
                                     case "string": 
-                                        if (param.MultiSelect && param.Value.ValueKind == JsonValueKind.String)
+                                        if (param.MultiSelect)
                                         {
-                                            try
+                                            if (param.Value.ValueKind == JsonValueKind.Array)
                                             {
-                                                value = JsonSerializer.Deserialize<List<string>>(param.Value.GetString());
+                                                value = JsonSerializer.Deserialize<List<string>>(param.Value.GetRawText());
                                             }
-                                            catch
+                                            else if (param.Value.ValueKind == JsonValueKind.String)
                                             {
-                                                value = param.Value.GetString();
+                                                try { value = JsonSerializer.Deserialize<List<string>>(param.Value.GetString()); }
+                                                catch { value = param.Value.GetString(); }
+                                            }
+                                            else
+                                            {
+                                                value = param.Value.ToString();
                                             }
                                         }
                                         else
                                         {
-                                            value = param.Value.GetString();
+                                            if (param.Value.ValueKind == JsonValueKind.String)
+                                            {
+                                                value = param.Value.GetString();
+                                            }
+                                            else
+                                            {
+                                                value = param.Value.GetRawText();
+                                            }
                                         }
                                         break;
                                     case "number":
@@ -278,23 +290,23 @@ namespace CoreScript.Engine.Core
 
         private ExpressionSyntax CreateExpression(object value)
         {
-            return value switch
+            switch (value)
             {
-                string s => SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(s)),
-                bool b => SyntaxFactory.LiteralExpression(b ? SyntaxKind.TrueLiteralExpression : SyntaxKind.FalseLiteralExpression),
-                int i => SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(i)),
-                double d => SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(d)),
-                List<string> list => SyntaxFactory.ObjectCreationExpression(
-                    SyntaxFactory.GenericName(SyntaxFactory.Identifier("List"))
-                        .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
-                            SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))))))
-                    .WithArgumentList(SyntaxFactory.ArgumentList())
-                    .WithInitializer(SyntaxFactory.InitializerExpression(
-                        SyntaxKind.CollectionInitializerExpression,
-                        SyntaxFactory.SeparatedList<ExpressionSyntax>(
-                            list.Select(s => SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(s)))))),
-                _ => SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression),
-            };
+                case string s:
+                    return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(s));
+                case bool b:
+                    return SyntaxFactory.LiteralExpression(b ? SyntaxKind.TrueLiteralExpression : SyntaxKind.FalseLiteralExpression);
+                case int i:
+                    return SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(i));
+                case double d:
+                    return SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(d));
+                case List<string> list:
+                    var stringLiterals = string.Join(", ", list.Select(s => $"\"{s.Replace("\"", "\\\"")}\""));
+                    var listInitializerString = $"new System.Collections.Generic.List<string> {{ {stringLiterals} }}";
+                    return SyntaxFactory.ParseExpression(listInitializerString);
+                default:
+                    return SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression);
+            }
         }
     }
 }

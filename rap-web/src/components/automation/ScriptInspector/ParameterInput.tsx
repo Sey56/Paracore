@@ -11,13 +11,21 @@ interface ParameterInputProps {
 export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, disabled }) => {
   // Helper to parse multi-select value safely
   const getMultiSelectValues = (): string[] => {
+    console.log(`DEBUG: MultiSelect value for '${param.name}':`, param.value, `(type: ${typeof param.value})`);
     try {
+      // Case 1: Value is already a valid array
+      if (Array.isArray(param.value)) {
+        return param.value;
+      }
+      // Case 2: Value is a JSON string
       if (typeof param.value === 'string') {
         const parsed = JSON.parse(param.value);
         return Array.isArray(parsed) ? parsed : [];
       }
+      // Fallback for any other unexpected type
       return [];
     } catch {
+      // Handles JSON.parse errors if the string is not valid JSON
       return [];
     }
   };
