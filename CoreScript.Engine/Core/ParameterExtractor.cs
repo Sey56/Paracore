@@ -172,9 +172,20 @@ namespace CoreScript.Engine.Core
 
                         var initializerExpression = declarator.Initializer.Value;
 
-                        // Handle List<string>
-                        if (initializerExpression is ImplicitObjectCreationExpressionSyntax implicitObjCreation && 
-                            implicitObjCreation.Initializer != null)
+                        // Handle List<string> with new C# 9+ collection expression syntax (e.g., `List<string> x = ["A", "B"];`)
+                        if (initializerExpression is CollectionExpressionSyntax collectionExpression)
+                        {
+                            var values = collectionExpression.Elements
+                                .OfType<ExpressionElementSyntax>()
+                                .Select(e => e.Expression)
+                                .OfType<LiteralExpressionSyntax>()
+                                .Select(l => l.Token.ValueText)
+                                .ToList();
+                            defaultValueJson = JsonSerializer.Serialize(values);
+                            multiSelect = true; // Collection expressions for list parameters imply multi-select
+                        }
+                        else if (initializerExpression is ImplicitObjectCreationExpressionSyntax implicitObjCreation && 
+                                 implicitObjCreation.Initializer != null)
                         {
                              // Assuming List<string> for now if it has collection initializer
                              type = "string"; // We treat List<string> as string type in proto for now, but with MultiSelect=true? 
