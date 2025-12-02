@@ -82,6 +82,28 @@ async def chat_with_agent(request: ChatRequest):
         if isinstance(last_message, AIMessage) and last_message.tool_calls:
             # This is a tool call, likely for the HITL modal
             tool_call = last_message.tool_calls[0]
+            
+            # --- Start Parameter Formatting for HITL Display ---
+            if tool_call['name'] == 'run_script_by_name' and 'parameters' in tool_call['args']:
+                formatted_args = tool_call['args'].copy()
+                params = formatted_args.get('parameters', {})
+                
+                for key, value in params.items():
+                    if isinstance(value, str):
+                        try:
+                            # Check if the string is a JSON array
+                            if value.strip().startswith('[') and value.strip().endswith(']'):
+                                parsed_list = json.loads(value)
+                                if isinstance(parsed_list, list):
+                                    # Reformat as a simple comma-separated string for display
+                                    params[key] = ', '.join(map(str, parsed_list))
+                        except (json.JSONDecodeError, TypeError):
+                            # Not a valid JSON array string, leave it as is
+                            pass
+                formatted_args['parameters'] = params
+                tool_call['args'] = formatted_args
+            # --- End Parameter Formatting ---
+
             return Response(content=json.dumps({
                 "thread_id": thread_id,
                 "status": "interrupted",

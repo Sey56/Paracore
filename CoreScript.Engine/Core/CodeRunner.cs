@@ -55,7 +55,7 @@ namespace CoreScript.Engine.Core
                                 object value = null;
                                 switch (param.Type)
                                 {
-                                    case "string": 
+                                    case "string":
                                         if (param.MultiSelect)
                                         {
                                             if (param.Value.ValueKind == JsonValueKind.Array)
@@ -64,8 +64,16 @@ namespace CoreScript.Engine.Core
                                             }
                                             else if (param.Value.ValueKind == JsonValueKind.String)
                                             {
-                                                try { value = JsonSerializer.Deserialize<List<string>>(param.Value.GetString()); }
-                                                catch { value = param.Value.GetString(); }
+                                                string stringValue = param.Value.GetString();
+                                                if (stringValue.Trim().StartsWith("[") && stringValue.Trim().EndsWith("]"))
+                                                {
+                                                    try { value = JsonSerializer.Deserialize<List<string>>(stringValue); }
+                                                    catch { value = new List<string> { stringValue }; } 
+                                                }
+                                                else
+                                                {
+                                                    value = stringValue.Split(',').Select(s => s.Trim()).ToList();
+                                                }
                                             }
                                             else
                                             {
