@@ -283,7 +283,8 @@ namespace RServer.Addin.Helpers
         private static void WriteEditorConfig(string folderPath)
         {
             File.WriteAllText(Path.Combine(folderPath, ".editorconfig"),
-                "[*.{cs,vb}]\n");
+                "[*.{cs,vb}]\n" +
+                "dotnet_diagnostic.CA1050.severity = none");
         }
     }
 }
