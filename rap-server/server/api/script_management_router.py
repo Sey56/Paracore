@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 import models, schemas
 from database_config import get_db
+import asyncio
 from grpc_client import (
     get_script_metadata,
     get_script_parameters,
@@ -369,7 +370,69 @@ async def edit_script(request: Request, current_user: CurrentUser = Depends(get_
         response = create_and_open_workspace(script_path, script_type)
         if response.get("error_message"):
             raise HTTPException(status_code=500, detail=response.get("error_message") )
-        return JSONResponse(content={"message": f"Successfully created workspace at {response.get('workspace_path')}"})
+        
+        workspace_path = response.get('workspace_path')
+        
+        # FORCE SYNC: Manually copy the script to the workspace to ensure it's updated
+        # The C# service might not refresh the file if the workspace already exists
+        # Add delay to avoid race condition with C# process creating/locking the file
+        await asyncio.sleep(0.5)
+        
+        if workspace_path and os.path.isdir(workspace_path):
+            try:
+                if script_type == 'single-file':
+                    script_filename = os.path.basename(script_path)
+                    dest_path = os.path.join(workspace_path, 'Scripts', script_filename)
+                    
+                    # Only copy if source exists (it should)
+                    if os.path.exists(script_path):
+                        # Ensure Scripts folder exists
+                        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                        
+                        # Read content from source
+                        with open(script_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            
+                        # Verify content isn't empty/garbage
+                        if not content:
+                            print(f"[EditScript] Warning: Source script is empty: {script_path}")
+                        else:
+                            # ROBUST WRITE: Retry loop with flush/fsync
+                            # Windows locking can prevent atomic replace, so we use direct write with retries
+                            success = False
+                            for attempt in range(3):
+                                try:
+                                    # 1. Try to remove file first (clears some locks)
+                                    if os.path.exists(dest_path):
+                                        try:
+                                            os.remove(dest_path)
+                                        except OSError:
+                                            pass # File might be locked/open, proceed to write
+                                    
+                                    # 2. Write with direct flush and sync
+                                    with open(dest_path, 'w', encoding='utf-8') as f:
+                                        f.write(content)
+                                        f.flush()
+                                        os.fsync(f.fileno()) # Force write to disk
+                                    
+                                    print(f"[EditScript] Write successful on attempt {attempt+1}: {dest_path}")
+                                    success = True
+                                    break
+                                except Exception as e:
+                                    print(f"[EditScript] Write attempt {attempt+1} failed: {e}")
+                                    await asyncio.sleep(0.2)
+                            
+                            if not success:
+                                print(f"[EditScript] Error: Failed to update script after 3 attempts")
+                            
+            except Exception as sync_error:
+                print(f"[EditScript] Warning: Failed to force-sync script: {sync_error}")
+                # Don't fail the request, VSCode might still open
+                
+        return JSONResponse(content={
+            "message": f"Successfully created workspace at {workspace_path}",
+            "workspace_path": workspace_path
+        })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

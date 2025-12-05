@@ -109,16 +109,25 @@ async def save_temp_script(request: Request):
     try:
         data = await request.json()
         script_code = data.get("script_code")
+        requested_filename = data.get("filename")
         
         if not script_code:
             raise HTTPException(status_code=400, detail="No script code provided")
         
-        # Create temp directory if it doesn't exist
-        temp_dir = os.path.join(os.getcwd(), "src", "data", "__generated__")
-        os.makedirs(temp_dir, exist_ok=True)
+        # Use AppData directory instead of project directory
+        app_data_dir = os.path.join(os.getenv('APPDATA'), 'paracore-data', 'generated-scripts')
+        os.makedirs(app_data_dir, exist_ok=True)
         
-        # Fixed temp file path
-        temp_file_path = os.path.join(temp_dir, "temp_generated_script.cs")
+        # Use provided filename or generate unique one
+        if requested_filename:
+            filename = requested_filename
+            # Security check: ensure simple filename
+            filename = os.path.basename(filename)
+        else:
+            timestamp = int(asyncio.get_event_loop().time() * 1000)
+            filename = f"generated_script_{timestamp}.cs"
+            
+        temp_file_path = os.path.join(app_data_dir, filename)
         
         # Write the script code to the temp file
         with open(temp_file_path, 'w', encoding='utf-8') as f:
@@ -126,12 +135,9 @@ async def save_temp_script(request: Request):
         
         print(f"[Generation] Saved temp script to: {temp_file_path}")
         
-        # Return relative path for the edit-script endpoint
-        relative_path = "__generated__/temp_generated_script.cs"
-        
         return {
             "success": True,
-            "path": relative_path,
+            "path": temp_file_path,  # Return absolute path for edit-script endpoint
             "absolute_path": temp_file_path
         }
         

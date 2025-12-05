@@ -22,6 +22,7 @@ export const GenerationView: React.FC = () => {
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionOutput, setExecutionOutput] = useState('');
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [isEditingInVSCode, setIsEditingInVSCode] = useState(false);
 
     const syntaxHighlighterStyle = theme === 'dark' ? vscDarkPlus : vs;
 
@@ -49,6 +50,56 @@ export const GenerationView: React.FC = () => {
         localStorage.setItem('generation_executionOutput', executionOutput);
     }, [executionOutput]);
 
+    // Auto-reload generated code from temp file (ONLY when actively editing in VSCode)
+    React.useEffect(() => {
+        if (!isEditingInVSCode) return;
+
+        const fetchUpdatedCode = async (silent = false) => {
+            // Always get the latest path from storage (it changes from source -> workspace)
+            const currentPath = localStorage.getItem('generation_tempFilePath');
+            if (!currentPath) return;
+
+            try {
+                const timestamp = new Date().getTime();
+                const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(currentPath)}&type=single-file&_t=${timestamp}`);
+
+                const updatedCode = response.data.sourceCode;
+
+                // Safety check: ignore if code looks corrupted (contains null bytes)
+                if (updatedCode && updatedCode.includes('\0')) {
+                    console.warn('Auto-reload ignored: Detected possible file corruption/binary content');
+                    return;
+                }
+
+                if (updatedCode && updatedCode !== generatedCode) {
+                    setGeneratedCode(updatedCode);
+                    if (!silent) {
+                        showNotification('Code updated from VSCode', 'info');
+                    }
+                }
+            } catch (error) {
+                // Silently fail - file might not exist yet or be temporarily locked
+                console.debug('Auto-reload check:', error);
+            }
+        };
+
+        // Poll every 2 seconds
+        const intervalId = setInterval(() => {
+            fetchUpdatedCode(true);
+        }, 2000);
+
+        // Also reload on window focus
+        const handleFocus = () => {
+            fetchUpdatedCode(true);
+        };
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            clearInterval(intervalId);
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, [isEditingInVSCode, generatedCode, showNotification]);
+
     const handleGenerate = async () => {
         if (!taskDescription.trim()) {
             showNotification('Please enter a task description', 'error');
@@ -58,6 +109,7 @@ export const GenerationView: React.FC = () => {
         setIsGenerating(true);
         setGeneratedCode('');
         setExecutionOutput('');
+        setIsEditingInVSCode(false); // Disable auto-reload for new generation
 
         try {
             const llmProvider = localStorage.getItem('llmProvider');
@@ -163,15 +215,27 @@ export const GenerationView: React.FC = () => {
         }
 
         try {
+            // Generate a unique filename to bypass VSCode file locking on Windows
+            // Use simple 2-digit random number (00-99) for cleaner display
+            const randomId = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+            const uniqueFilename = `generated_script_${randomId}.cs`;
+
             // First, save the generated code to a temp file
             const saveResponse = await api.post('/generation/save_temp_script', {
                 script_code: generatedCode,
+                filename: uniqueFilename
             });
 
             const tempScriptPath = saveResponse.data.path;
 
+            // Store the temp file path for auto-reload
+            localStorage.setItem('generation_tempFilePath', tempScriptPath);
+
+            // Enable auto-reload
+            setIsEditingInVSCode(true);
+
             // Then, call the existing edit-script endpoint
-            await api.post('/api/edit-script', {
+            const editResponse = await api.post('/api/edit-script', {
                 scriptPath: tempScriptPath,
                 type: 'single-file',
             }, {
@@ -179,6 +243,18 @@ export const GenerationView: React.FC = () => {
                     'Authorization': `Bearer ${cloudToken}`,
                 },
             });
+
+            // CRITICAL: Update the auto-reload path to point to the WORKSPACE file
+            // VSCode edits the file inside the workspace, not the source file
+            const workspacePath = editResponse.data.workspace_path;
+            if (workspacePath) {
+                // Construct path: workspace/Scripts/filename.cs
+                // Handle both slash types just in case, but usually backslashes on Windows
+                const separator = workspacePath.includes('/') ? '/' : '\\';
+                const workspaceScriptPath = `${workspacePath}${separator}Scripts${separator}${uniqueFilename}`;
+                localStorage.setItem('generation_tempFilePath', workspaceScriptPath);
+                console.log('Auto-reload synced to workspace file:', workspaceScriptPath);
+            }
 
             showNotification('Opening in VSCode...', 'success');
         } catch (error: any) {

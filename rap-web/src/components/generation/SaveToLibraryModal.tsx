@@ -12,6 +12,10 @@ interface SaveToLibraryModalProps {
     onSaveSuccess: () => void;
 }
 
+import { Modal } from '../common/Modal';
+
+// ... other imports ...
+
 export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
     isOpen,
     onClose,
@@ -31,6 +35,8 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
     const [usageExamples, setUsageExamples] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
+    // ... (logic remains same) ...
+    // Copy the logic from lines 34-129 exactly
     // Available categories (from Agent-Library structure)
     const availableCategories = [
         '01_Element_Creation',
@@ -128,134 +134,122 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
         }
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} rounded-lg shadow-xl w-[600px] max-h-[90vh] overflow-y-auto`}>
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-300 dark:border-gray-700">
-                    <h2 className="text-xl font-bold">Save Script to Library</h2>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                        <FontAwesomeIcon icon={faTimes} />
-                    </button>
+        <Modal isOpen={isOpen} onClose={onClose} title="Save Script to Library" size="2xl">
+            {/* Body */}
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                {/* Script Name */}
+                <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-gray-300">Script Name:</label>
+                    <input
+                        type="text"
+                        value={scriptName}
+                        onChange={(e) => setScriptName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm dark:text-white"
+                        placeholder="MyScript.cs"
+                    />
                 </div>
 
-                {/* Body */}
-                <div className="p-6 space-y-4">
-                    {/* Script Name */}
+                {/* Location */}
+                <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Script Name:</label>
+                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Category:</label>
+                        <select
+                            value={category}
+                            onChange={(e) => {
+                                setCategory(e.target.value);
+                                setSubCategory('');
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm dark:text-white"
+                        >
+                            {availableCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Sub-Category (Optional):</label>
+                        <select
+                            value={subCategory}
+                            onChange={(e) => setSubCategory(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm dark:text-white"
+                        >
+                            <option value="">None</option>
+                            {(subCategories[category] || []).map(sub => (
+                                <option key={sub} value={sub}>{sub}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Metadata Section */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <h3 className="text-sm font-bold mb-3 dark:text-white">Metadata</h3>
+
+                    {/* Document Type */}
+                    <div className="mb-3">
+                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Document Type:</label>
+                        <select
+                            value={documentType}
+                            onChange={(e) => setDocumentType(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm dark:text-white"
+                        >
+                            <option value="Project">Project</option>
+                            <option value="Family">Family</option>
+                        </select>
+                    </div>
+
+                    {/* Categories */}
+                    <div className="mb-3">
+                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Categories (comma-separated):</label>
                         <input
                             type="text"
-                            value={scriptName}
-                            onChange={(e) => setScriptName(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
-                            placeholder="MyScript.cs"
+                            value={categories}
+                            onChange={(e) => setCategories(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm dark:text-white"
+                            placeholder="Architectural, Structural"
                         />
                     </div>
 
-                    {/* Location */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Category:</label>
-                            <select
-                                value={category}
-                                onChange={(e) => {
-                                    setCategory(e.target.value);
-                                    setSubCategory('');
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
-                            >
-                                {availableCategories.map(cat => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Sub-Category (Optional):</label>
-                            <select
-                                value={subCategory}
-                                onChange={(e) => setSubCategory(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
-                            >
-                                <option value="">None</option>
-                                {(subCategories[category] || []).map(sub => (
-                                    <option key={sub} value={sub}>{sub}</option>
-                                ))}
-                            </select>
-                        </div>
+                    {/* Author */}
+                    <div className="mb-3">
+                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Author:</label>
+                        <input
+                            type="text"
+                            value={author}
+                            onChange={(e) => setAuthor(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm dark:text-white"
+                            placeholder="Your Name"
+                        />
                     </div>
 
-                    {/* Metadata Section */}
-                    <div className="border-t border-gray-300 dark:border-gray-700 pt-4">
-                        <h3 className="text-sm font-bold mb-3">Metadata</h3>
+                    {/* Description */}
+                    <div className="mb-3">
+                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Description:</label>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm resize-none dark:text-white"
+                            rows={3}
+                            placeholder="Describe what this script does..."
+                        />
+                    </div>
 
-                        {/* Document Type */}
-                        <div className="mb-3">
-                            <label className="block text-sm font-medium mb-1">Document Type:</label>
-                            <select
-                                value={documentType}
-                                onChange={(e) => setDocumentType(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
-                            >
-                                <option value="Project">Project</option>
-                                <option value="Family">Family</option>
-                            </select>
-                        </div>
-
-                        {/* Categories */}
-                        <div className="mb-3">
-                            <label className="block text-sm font-medium mb-1">Categories (comma-separated):</label>
-                            <input
-                                type="text"
-                                value={categories}
-                                onChange={(e) => setCategories(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
-                                placeholder="Architectural, Structural"
-                            />
-                        </div>
-
-                        {/* Author */}
-                        <div className="mb-3">
-                            <label className="block text-sm font-medium mb-1">Author:</label>
-                            <input
-                                type="text"
-                                value={author}
-                                onChange={(e) => setAuthor(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
-                                placeholder="Your Name"
-                            />
-                        </div>
-
-                        {/* Description */}
-                        <div className="mb-3">
-                            <label className="block text-sm font-medium mb-1">Description:</label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm resize-none"
-                                rows={3}
-                                placeholder="Describe what this script does..."
-                            />
-                        </div>
-
-                        {/* Usage Examples */}
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Usage Examples (one per line):</label>
-                            <textarea
-                                value={usageExamples}
-                                onChange={(e) => setUsageExamples(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm resize-none"
-                                rows={3}
-                                placeholder="Create a 10x20 house&#10;Generate rectangular building"
-                            />
-                        </div>
+                    {/* Usage Examples */}
+                    <div>
+                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Usage Examples (one per line):</label>
+                        <textarea
+                            value={usageExamples}
+                            onChange={(e) => setUsageExamples(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm resize-none dark:text-white"
+                            rows={3}
+                            placeholder="Create a 10x20 house&#10;Generate rectangular building"
+                        />
                     </div>
                 </div>
 
-                {/* Footer */}
-                <div className="flex justify-end space-x-3 p-4 border-t border-gray-300 dark:border-gray-700">
+                {/* Footer Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                         onClick={onClose}
                         className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
@@ -272,6 +266,6 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
