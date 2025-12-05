@@ -89,11 +89,11 @@ paracore-help/
 rap-web/server-modules/
 installer_staging/
 installers/
-RAssistant/
 rap-web/analyse.html
 frontend-console-log.txt
 rap-server/server/temp-agent/
 temp-agent.tar
 
 rap-web/src-tauri/server-release/
+RAssistant/
 Agent-Library/

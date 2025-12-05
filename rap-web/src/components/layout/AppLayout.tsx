@@ -18,7 +18,8 @@ import TeamManagementModal from '@/components/settings/TeamManagementModal'; // 
 import { NewScriptModal } from '@/components/common/NewScriptModal'; // Import NewScriptModal
 import { AddFolderModal } from '@/components/common/AddFolderModal'; // Import AddFolderModal
 import { AddCategoryModal } from '@/components/common/AddCategoryModal'; // Import AddCategoryModal
-import { AgentView } from "@/components/agent/AgentView"; // Import AgentView
+import { AgentView } from "@/components/agent/AgentView";
+import { GenerationView } from "@/components/generation/GenerationView";
 
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
@@ -34,7 +35,7 @@ export const AppLayout: React.FC = () => {
     closeNewScriptModal,
     isTeamManagementModalOpen, // Access isTeamManagementModalOpen
     closeTeamManagementModal, // Access closeTeamManagementModal
-    
+
     activeScriptSource, // Access activeScriptSource
     isFloatingCodeViewerOpen,
     closeFloatingCodeViewer,
@@ -69,7 +70,7 @@ export const AppLayout: React.FC = () => {
     const maxInspectorWidth = 0.7;
 
     if (newGalleryWidth >= minGalleryWidth && newGalleryWidth <= maxGalleryWidth &&
-        newInspectorWidth >= minInspectorWidth && newInspectorWidth <= maxInspectorWidth) {
+      newInspectorWidth >= minInspectorWidth && newInspectorWidth <= maxInspectorWidth) {
       setGalleryWidth(newGalleryWidth);
       setInspectorWidth(newInspectorWidth);
     }
@@ -98,7 +99,7 @@ export const AppLayout: React.FC = () => {
       <SettingsModal />
       <NewScriptModal isOpen={isNewScriptModalOpen} onClose={closeNewScriptModal} selectedFolder="" /> {/* Render NewScriptModal */}
       <TeamManagementModal />
-      
+
       {selectedScript && (
         <FloatingCodeViewer
           script={selectedScript}
@@ -127,24 +128,29 @@ export const AppLayout: React.FC = () => {
         >
           <div className="flex flex-1 overflow-hidden">
             {/* Main Content based on activeMainView */}
-            <div style={{ flex: galleryWidth }} className={`overflow-y-auto p-4 lg:p-6 ${isMobile ? 'pt-4' : ''}`}>
+            <div style={{ flex: activeMainView === 'generation' ? 1 : galleryWidth }} className={`overflow-y-auto ${activeMainView === 'generation' ? '' : 'p-4 lg:p-6'} ${isMobile ? 'pt-4' : ''}`}>
               {activeMainView === 'scripts' && <ScriptGallery />}
               {activeMainView === 'agent' && <AgentView />}
+              {activeMainView === 'generation' && <GenerationView />}
             </div>
 
-            {/* Resizer */}
-            <div
-              className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
-              onMouseDown={handleMouseDown}
-            ></div>
+            {/* Resizer - Hidden in Generation Mode */}
+            {activeMainView !== 'generation' && (
+              <div
+                className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
+                onMouseDown={handleMouseDown}
+              ></div>
+            )}
 
-            {/* Inspector Panel (Desktop) */}
-            <div style={{ flex: inspectorWidth }} className="hidden lg:block p-6 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto overflow-hidden min-w-0">
-              <ScriptInspector />
-            </div>
-                    </div>
-                    {activeScriptSource?.type === 'workspace' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}
-                  </div>
+            {/* Inspector Panel (Desktop) - Hidden in Generation Mode */}
+            {activeMainView !== 'generation' && (
+              <div style={{ flex: inspectorWidth }} className="hidden lg:block p-6 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto overflow-hidden min-w-0">
+                <ScriptInspector />
+              </div>
+            )}
+          </div>
+          {activeScriptSource?.type === 'workspace' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}
+        </div>
         {/* Mobile Inspector */}
         {isMobile && selectedScript && (
           <div

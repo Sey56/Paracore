@@ -19,12 +19,12 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [isNewScriptModalOpen, setIsNewScriptModalOpen] = useState(false);
   const [isTeamManagementModalOpen, setIsTeamManagementModalOpen] = useState(false);
-  
+
   const [isFloatingCodeViewerOpen, setFloatingCodeViewerOpen] = useState(false);
   const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>("parameters");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
-  
+
   const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(null);
 
   // Agent related state
@@ -49,7 +49,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAwaitingApproval, setIsAwaitingApproval] = useState<boolean>(false);
   const [pendingToolCall, setPendingToolCall] = useState<ToolCall | null>(null);
   const [agentSelectedScriptPath, setAgentSelectedScriptPath] = useState<string | null>(null);
-  
+
   // Effect to save messages and threadId to localStorage whenever they change
   useEffect(() => {
     try {
@@ -70,14 +70,14 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Failed to save threadId to localStorage:", error);
     }
   }, [threadId]);
-  
+
   // Main View Toggle
-  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent'>('scripts'); // Default to 'scripts'
-  
+  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'generation'>('scripts'); // Default to 'scripts'
+
   // Effect to initialize activeScriptSource from localStorage and validate it
   useEffect(() => {
     if (!userWorkspacesLoaded || !user) return; // Wait for user workspaces to load and user to be available
-  
+
     const storedSource = localStorage.getItem("activeScriptSource");
     if (storedSource) {
       try {
@@ -106,20 +106,20 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [user, userWorkspacesLoaded, userWorkspacePaths]); // Re-run when user or userWorkspaces change
-  
+
   const openSettingsModal = () => setSettingsModalOpen(true);
   const closeSettingsModal = () => setSettingsModalOpen(false);
-  
+
   const openNewScriptModal = () => setIsNewScriptModalOpen(true);
   const closeNewScriptModal = () => setIsNewScriptModalOpen(false);
-  
+
   const openTeamManagementModal = () => setIsTeamManagementModalOpen(true);
   const closeTeamManagementModal = () => setIsTeamManagementModalOpen(false);
-  
+
   const openFloatingCodeViewer = () => setFloatingCodeViewerOpen(true);
   const closeFloatingCodeViewer = () => setFloatingCodeViewerOpen(false);
   const toggleFloatingCodeViewer = () => setFloatingCodeViewerOpen(prev => !prev);
-  
+
   // Effect to load custom categories
   useEffect(() => {
     const storedCategories = localStorage.getItem("customCategories");
@@ -129,8 +129,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
         if (
           Array.isArray(parsed) &&
           parsed.every((item) => typeof item === "string")
-        )
-        {
+        ) {
           setCustomCategories(parsed);
         }
       } catch (e) {
@@ -139,7 +138,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [showNotification]);
-  
+
   // Effect to save activeScriptSource to localStorage whenever it changes
   useEffect(() => {
     if (activeScriptSource) {
@@ -148,8 +147,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem("activeScriptSource");
     }
   }, [activeScriptSource]);
-  
-  
+
+
   const addCustomCategory = (categoryName: string) => {
     if (!customCategories.includes(categoryName)) {
       const newCategories = [...customCategories, categoryName];
@@ -160,7 +159,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
       showNotification(`Category already exists: ${categoryName}.`, "info");
     }
   };
-  
+
   const removeCustomCategory = (categoryName: string) => {
     if (selectedCategory === categoryName) {
       setSelectedCategory(null);
@@ -172,15 +171,15 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("customCategories", JSON.stringify(newCategories));
     showNotification(`Removed custom category: ${categoryName}.`, "info");
   };
-  
+
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
-  
+
   const toggleInspector = useCallback(() => {
     setInspectorOpen((prev) => !prev);
   }, []);
-  
+
   const contextValue = {
     isSidebarOpen,
     toggleSidebar,
@@ -198,23 +197,23 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isSettingsModalOpen,
     openSettingsModal,
     closeSettingsModal,
-  
+
     isTeamManagementModalOpen,
     openTeamManagementModal,
     closeTeamManagementModal,
-  
+
     isNewScriptModalOpen,
     openNewScriptModal,
     closeNewScriptModal,
-  
+
     isFloatingCodeViewerOpen,
     openFloatingCodeViewer,
     closeFloatingCodeViewer,
     toggleFloatingCodeViewer,
-  
+
     activeScriptSource,
     setActiveScriptSource,
-  
+
     messages,
     setMessages,
     threadId,
