@@ -108,7 +108,13 @@ def tool_node(state: AgentState):
             return {} 
         
         elif tool_name == set_active_script_tool.name:
-            script_name = tool_args.get('script_metadata', {}).get('name', 'Unknown')
+            script_metadata = tool_args.get('script_metadata', {})
+            script_name = script_metadata.get('name', 'Unknown')
+            
+            # CRITICAL FIX: Update the state so the frontend receives the active script
+            current_loop_state_update['selected_script_metadata'] = script_metadata
+            current_loop_state_update['script_selected_for_params'] = True
+            
             results.append(ToolMessage(content=f"Active script set to: {script_name}", tool_call_id=tool_call_id))
 
         elif tool_name == get_revit_context_tool.name:
