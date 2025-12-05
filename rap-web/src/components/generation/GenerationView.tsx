@@ -190,7 +190,25 @@ export const GenerationView: React.FC = () => {
                 generated_code: generatedCode,
             });
 
-            const output = response.data.output || '';
+            let output = response.data.output || '';
+
+            // Handle Structured Output (e.g. Tables from Show("table", ...))
+            // These are returned in a separate list, so we append them as JSON lines
+            // for the renderer to detect and display.
+            if (response.data.structured_output && Array.isArray(response.data.structured_output)) {
+                response.data.structured_output.forEach((item: any) => {
+                    try {
+                        // item.data is a JSON string (serialized in C#)
+                        // We parse it first to ensure we re-serialize a clean object
+                        const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+                        const jsonLine = JSON.stringify({ type: item.type, data: parsedData });
+                        output += `\n${jsonLine}\n`;
+                    } catch (e) {
+                        console.warn('Failed to parse structured output:', item);
+                    }
+                });
+            }
+
             const error = response.data.error_message || '';
             setExecutionOutput(output + (error ? `\n\nERROR:\n${error}` : ''));
 
@@ -277,8 +295,8 @@ export const GenerationView: React.FC = () => {
 
     return (
         <div className="h-full flex bg-gray-50 dark:bg-gray-900">
-            {/* Left Panel: Input & Output - 440px width */}
-            <div className="w-[440px] flex flex-col p-6 border-r border-gray-300 dark:border-gray-700">
+            {/* Left Panel: Input & Output - 1/3 width */}
+            <div className="w-1/3 min-w-[350px] flex flex-col p-6 border-r border-gray-300 dark:border-gray-700">
                 <div className="mb-4">
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center">
                         <FontAwesomeIcon icon={faCode} className="mr-3" />
@@ -324,16 +342,82 @@ export const GenerationView: React.FC = () => {
                     <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                         Execution Output
                     </h3>
-                    <div className="flex-1 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-auto">
-                        {executionOutput ? (
-                            <pre className="text-xs text-gray-800 dark:text-green-400 font-mono whitespace-pre-wrap">
-                                {executionOutput}
-                            </pre>
-                        ) : (
-                            <p className="text-xs text-gray-500 italic">
-                                No output yet. Click "Run Code" to execute the generated script.
-                            </p>
-                        )}
+                    <div className="flex-1 p-0 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden flex flex-col">
+                        {(() => {
+                            if (!executionOutput) {
+                                return (
+                                    <div className="p-3">
+                                        <p className="text-xs text-gray-500 italic">
+                                            No output yet. Click "Run Code" to execute the generated script.
+                                        </p>
+                                    </div>
+                                );
+                            }
+
+                            // Try to parse JSON table
+                            // Only if a line starts with explicit JSON structure for 'table'
+                            try {
+                                const lines = executionOutput.split('\n');
+                                for (const line of lines) {
+                                    const trimmed = line.trim();
+                                    // Look for specific signature: {"type": ... "data": ...}
+                                    if (trimmed.startsWith('{') && trimmed.includes('"type"') && trimmed.includes('"data"')) {
+                                        const json = JSON.parse(trimmed);
+                                        // Prioritize Table View
+                                        if (json.type === 'table' && Array.isArray(json.data) && json.data.length > 0) {
+                                            const headers = Object.keys(json.data[0]);
+                                            return (
+                                                <div className="flex-1 overflow-auto bg-white dark:bg-gray-900">
+                                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-collapse">
+                                                        <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
+                                                            <tr>
+                                                                {headers.map(h => (
+                                                                    <th key={h} className="px-4 py-2 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+                                                                        {h}
+                                                                    </th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
+                                                            {json.data.map((row: any, i: number) => (
+                                                                <tr key={i} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
+                                                                    {headers.map(h => (
+                                                                        <td key={h} className="px-4 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800">
+                                                                            {row[h] !== null ? String(row[h]) : '-'}
+                                                                        </td>
+                                                                    ))}
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            );
+                                        }
+                                        // Handle 'message' type or others if needed in future
+                                        if (json.type === 'message') {
+                                            return (
+                                                <div className="p-3">
+                                                    <pre className="text-xs text-gray-800 dark:text-green-400 font-mono whitespace-pre-wrap">
+                                                        {json.data}
+                                                    </pre>
+                                                </div>
+                                            );
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                // Fallback to raw output if parse fails
+                            }
+
+                            // Default: Raw Output
+                            return (
+                                <div className="p-3 overflow-auto h-full">
+                                    <pre className="text-xs text-gray-800 dark:text-green-400 font-mono whitespace-pre-wrap">
+                                        {executionOutput}
+                                    </pre>
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     {/* Regenerate button - only show if there's an error in execution output */}
@@ -359,8 +443,8 @@ export const GenerationView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Right Panel: Code & Actions */}
-            <div className="flex-1 flex flex-col p-6">
+            {/* Right Panel: Code & Actions - 2/3 width */}
+            <div className="w-2/3 flex flex-col p-6">
                 {generatedCode ? (
                     <>
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">

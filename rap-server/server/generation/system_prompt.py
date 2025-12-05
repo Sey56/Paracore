@@ -41,26 +41,45 @@ RULES:
 
 GLOBALS (via using static CoreScript.Engine.Globals.ScriptApi):
 - Doc, UIDoc, UIApp (Revit API access)
-- Println(string), Print(string), Show(type, data)
+- Println(string), Print(string)
+- Show(string type, object data): Use this for rich output.
+    - type: "table", "message"
+    - data: List of objects (for table) or string (for message)
 - Transact(string name, Action action)
 
 REQUIRED IMPORTS:
 using Autodesk.Revit.DB;
 using System.Linq;
+using System.Collections.Generic;
 
 EXAMPLES:
 
-Read-only:
+Read-only (Table Output):
 ```csharp
 using Autodesk.Revit.DB;
 using System.Linq;
+using System.Collections.Generic;
 
 var walls = new FilteredElementCollector(Doc)
     .OfClass(typeof(Wall))
     .Cast<Wall>()
+    .Select(w => new {{ 
+        Id = w.Id.ToString(), 
+        Name = w.Name, 
+        Type = w.WallType.Name 
+    }})
     .ToList();
 
-Println($"Found {{walls.Count}} walls.");
+// Use Show("table", ...) for data lists instead of Println loops
+if (walls.Any())
+{{
+    Show("table", walls);
+    Println($"✅ Found {{walls.Count}} walls.");
+}}
+else
+{{
+    Println("No walls found.");
+}}
 ```
 
 Write operation:
