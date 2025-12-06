@@ -271,8 +271,12 @@ Return a list of all identified parameter updates with values formatted to match
                 current_value = params_dict[param_name].get('value')
                 default_value = params_dict[param_name].get('defaultValueJson')
                 
+                # Normalize to strings for comparison to handle type mismatches (e.g., False vs "false")
+                current_str = str(current_value).lower() if current_value is not None else None
+                default_str = str(default_value).lower() if default_value is not None else None
+                
                 # Apply UI update if: no value set yet, OR value is still the default
-                if current_value is None or current_value == default_value:
+                if current_value is None or current_str == default_str:
                     params_dict[param_name]['value'] = param_value
                     print(f"[parameter_node] Applied UI update: {param_name} = {param_value}")
                 else:
