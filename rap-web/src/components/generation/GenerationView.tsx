@@ -294,7 +294,7 @@ export const GenerationView: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex bg-gray-50 dark:bg-gray-900">
+        <div className="w-full h-full flex bg-gray-50 dark:bg-gray-900 overflow-hidden">
             {/* Left Panel: Input & Output - 1/3 width */}
             <div className="w-1/3 min-w-[350px] flex flex-col p-6 border-r border-gray-300 dark:border-gray-700">
                 <div className="mb-4">
@@ -443,8 +443,8 @@ export const GenerationView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Right Panel: Code & Actions - 2/3 width */}
-            <div className="w-2/3 flex flex-col p-6">
+            {/* Right Panel: Code & Actions - Takes remaining space */}
+            <div className="flex-1 min-w-0 w-0 flex flex-col p-6">
                 {generatedCode ? (
                     <>
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">

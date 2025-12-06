@@ -30,23 +30,26 @@ Fix the error and regenerate.
     
     return f"""Generate Revit API 2025 C# code for CoreScript.Engine.
 
-RULES:
-1. Single-file .cs with top-level statements only
-2. Use Transact(name, action) for write operations (create/modify/delete)
-3. NO Transact for read operations (filtering/queries)
-4. NO return statements in TOP-LEVEL code (only allowed inside methods/classes)
-5. User-defined classes must come AFTER all top-level statements
-6. Wrap code in ```csharp markers
+CORE RULES:
+1. **Structure**: Single-file .cs with Top-Level Statements.
+2. **Classes**: User-defined classes must come AFTER all top-level statements.
+3. **Execution**: No `return` statements in top-level code (allowed inside methods/classes).
+4. **Casting**: ALWAYS use `.Cast<Type>()` after `FilteredElementCollector.OfClass(typeof(Type))`.
+5. **Parameters**: Extract hardcoded values (names, sizes, counts) into top-level variables for easy user modification.
 
-{retry_context}
+TRANSACTION RULES:
+1. **Scope**: Use EXACTLY ONE `Transact(name, action)` block for ALL DB modifications.
+2. **Placement**: Never place `Transact` inside loops.
+3. **Efficiency**: Prepare non-DB objects (Geometry, Filters, Calculations) OUTSIDE `Transact`.
+4. **Forbidden**: NO `Transact` for read-only operations (filtering/queries).
 
 GLOBALS (via using static CoreScript.Engine.Globals.ScriptApi):
-- Doc, UIDoc, UIApp (Revit API access)
-- Println(string), Print(string)
-- Show(string type, object data): Use this for rich output.
-    - type: "table", "message"
-    - data: List of objects (for table) or string (for message)
-- Transact(string name, Action action)
+- `Doc`, `UIDoc`, `UIApp`: Revit API access.
+- `Println(string)`: Console output.
+- `Show(string type, object data)`: Rich output.
+    - type: "table" -> data: `List<object>` (for data grids)
+    - type: "message" -> data: `string`
+- `Transact(string name, Action action)`: Database write transaction.
 
 REQUIRED IMPORTS:
 using Autodesk.Revit.DB;
@@ -54,138 +57,171 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
+{retry_context}
+
 EXAMPLES:
 
-Read-only (Table Output - List Parameters):
+1. Read-Only (Listing Parameters):
 ```csharp
 using Autodesk.Revit.DB;
 using System.Linq;
 using System.Collections.Generic;
 
 // Top-Level Statements
-// Find the first wall in the document
 Wall? wall = new FilteredElementCollector(Doc)
     .OfClass(typeof(Wall))
-    .Cast<Wall>()
+    .Cast<Wall>() // Rule 4: Explicit Cast
     .FirstOrDefault();
 
 if (wall != null)
 {{
-    // Collect parameters
     List<object> paramData = [];
     foreach (Parameter param in wall.Parameters)
     {{
-        string paramName = param.Definition.Name;
-        string paramValue = param.AsValueString() ?? param.AsString() ?? "(null)";
-        string paramType = param.StorageType.ToString();
-
         paramData.Add(new
         {{
-            Name = paramName,
-            Value = paramValue,
-            Type = paramType
+            Name = param.Definition.Name,
+            Value = param.AsValueString() ?? param.AsString() ?? "(null)",
+            Type = param.StorageType.ToString()
         }});
     }}
 
-    Println($"✅ Listed {{paramData.Count}} parameters from the first wall.");
-    // Display in table format
+    Println($"✅ Listed {{paramData.Count}} parameters.");
     Show("table", paramData);
 }}
 else
 {{
-    Println("No wall found in the document.");
-    Show("message", "No wall found in the document.");
+    Show("message", "No wall found.");
 }}
 ```
 
-Write operation (Simple):
+2. Standard Creation (Clean Transaction):
 ```csharp
 using Autodesk.Revit.DB;
 using System.Linq;
 
+// 1. Preparation (Outside Transaction)
 var level = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
+    .Cast<Level>() // Explicit Cast
     .FirstOrDefault(l => l.Name == "Level 1");
 
-if (level == null)
+var wallType = new FilteredElementCollector(Doc)
+    .OfClass(typeof(WallType))
+    .Cast<WallType>()
+    .FirstOrDefault();
+
+if (level == null || wallType == null)
 {{
-    Println("❌ Level not found.");
+    Println("❌ Missing Level 1 or WallType.");
 }}
 else
 {{
+    // Geometry calculation (Outside Transaction)
+    var line = Line.CreateBound(new XYZ(0,0,0), new XYZ(10,0,0));
+
+    // 2. Execution (Single Transaction)
     Transact("Create Wall", () =>
     {{
-        var line = Line.CreateBound(new XYZ(0,0,0), new XYZ(10,0,0));
-        var wallType = new FilteredElementCollector(Doc)
-            .OfClass(typeof(WallType))
-            .FirstOrDefault();
-        if (wallType != null)
-            Wall.Create(Doc, line, wallType.Id, level.Id, 10, 0, false, false);
+        Wall.Create(Doc, line, wallType.Id, level.Id, 10, 0, false, false);
     }});
+    
+    Println("✅ Wall created.");
 }}
 ```
 
-Advanced (Class Support - Class must be at bottom):
+3. Complex Logic (Class Support - Spiral House):
 ```csharp
 using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-// 1. Top-Level Statements FIRST
+// 1. Top-Level Statements
 string levelName = "Level 1";
-int numTurns = 3;
-double radiusMeters = 5.0;
+string wallTypeName = "Generic - 200mm"; // Extract parameters for easy modification!
+double widthMeters = 10.0;
+double depthMeters = 20.0;
+double rotationIncrementDegrees = 5.0;
 
-var level = new FilteredElementCollector(Doc)
+// Prepare Levels Check
+var levels = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
-    .FirstOrDefault(l => l.Name == levelName);
+    .Cast<Level>()
+    .OrderBy(l => l.Elevation)
+    .ToList();
 
-if (level == null)
+if (levels.Count == 0)
 {{
-    Println($"❌ Level '{{levelName}}' not found.");
+    Println("❌ No levels found in the document.");
 }}
 else
 {{
-    Transact("Create Spiral", () =>
-    {{
-        // 2. Use the Class
-        var creator = new SpiralCreator();
-        creator.CreateSpiralWalls(Doc, (Level)level, radiusMeters, numTurns);
-    }});
+    // Logic: Calculate Geometry First -> Then Transact
+    var houseCreator = new HouseCreator();
+    houseCreator.CreateSpiralHouse(Doc, levels, wallTypeName, widthMeters, depthMeters, rotationIncrementDegrees);
     
-    Println("✅ Spiral created.");
+    Println("✅ Spiral house created.");
 }}
 
-// 3. Class Definition LAST
-public class SpiralCreator
+// 2. Class Definition (Must be at bottom)
+public class HouseCreator
 {{
-    public void CreateSpiralWalls(Document doc, Level level, double radiusMeters, int turns)
+    public void CreateSpiralHouse(Document doc, List<Level> levels, string wallTypeName, double width, double depth, double rotationInc)
     {{
-        // Return IS allowed inside methods
-        if (doc == null) return;
-
-        double radiusFt = UnitUtils.ConvertToInternalUnits(radiusMeters, UnitTypeId.Meters);
-        XYZ center = XYZ.Zero;
+        double widthFt = UnitUtils.ConvertToInternalUnits(width, UnitTypeId.Meters);
+        double depthFt = UnitUtils.ConvertToInternalUnits(depth, UnitTypeId.Meters);
         
-        // Example Logic
-        for (int i = 0; i < turns * 10; i++)
-        {{
-             // ... math logic ...
-        }}
-
-        // Get WallType
+        // Get WallType (Read operation)
         WallType wt = new FilteredElementCollector(doc)
             .OfClass(typeof(WallType))
             .Cast<WallType>()
-            .FirstOrDefault(w => w.Kind == WallKind.Basic);
-            
-        if (wt != null)
+            .FirstOrDefault(w => w.Name == wallTypeName); // Use parameter
+
+        if (wt == null)
         {{
-            // Wall.Create(doc, line, wt.Id, level.Id, 10, 0, false, false);
+            wt = new FilteredElementCollector(doc)
+                .OfClass(typeof(WallType))
+                .Cast<WallType>()
+                .FirstOrDefault(w => w.Kind == WallKind.Basic);
+            Println($"⚠️ Wall Type '{{wallTypeName}}' not found. Using default '{{wt?.Name}}'");
         }}
-        
-        Println($"Created {{turns}} turns.");
+
+        if (wt != null && levels.Any())
+        {{
+            // Execution: Single Transaction for Loop
+            Transact("Create Spiral House", () =>
+            {{
+                double currentRotation = 0.0;
+
+                foreach (var level in levels)
+                {{
+                    // Calculate Corners for Current Level
+                    XYZ p1 = RotatePoint(new XYZ(-widthFt/2, -depthFt/2, 0), currentRotation);
+                    XYZ p2 = RotatePoint(new XYZ(widthFt/2, -depthFt/2, 0), currentRotation);
+                    XYZ p3 = RotatePoint(new XYZ(widthFt/2, depthFt/2, 0), currentRotation);
+                    XYZ p4 = RotatePoint(new XYZ(-widthFt/2, depthFt/2, 0), currentRotation);
+
+                    Line[] lines = 
+                    [
+                        Line.CreateBound(p1, p2), Line.CreateBound(p2, p3),
+                        Line.CreateBound(p3, p4), Line.CreateBound(p4, p1)
+                    ];
+
+                    foreach(var line in lines)
+                        Wall.Create(doc, line, wt.Id, level.Id, 10, 0, false, false);
+
+                    currentRotation += rotationInc * (Math.PI / 180.0);
+                }}
+            }});
+        }}
+    }}
+    
+    private XYZ RotatePoint(XYZ point, double angle)
+    {{
+        double x = point.X * Math.Cos(angle) - point.Y * Math.Sin(angle);
+        double y = point.X * Math.Sin(angle) + point.Y * Math.Cos(angle);
+        return new XYZ(x, y, point.Z);
     }}
 }}
 ```
