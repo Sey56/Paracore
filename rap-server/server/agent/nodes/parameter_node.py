@@ -221,16 +221,22 @@ def handle_parameter_modification(state: dict, llm) -> dict:
 
     extraction_prompt = f"""The user wants to modify parameters for a script. Their request is: "{current_human_message.content}"
     
-Here are the available parameters and their default values, which you should use as a formatting guide:
+Here are the available parameters and their default values:
 {json.dumps(param_context, indent=2)}
     
 Your task is to extract the parameter names and their new values from the user's request.
     - The user might refer to parameters by their exact name or a close variation (e.g., "level" for "levelName").
-    - The value could be a string, a number, or a boolean.
-    - **Crucially, you must format the new value to match the style of the default value.** For example, if the default is "Level 1" and the user says "set level to 2", the new value must be "Level 2".
+    - **CRITICAL: Use the user's value, but format it to match the pattern of the default value.**
+    - Examples:
+      * If default is "Level 1" and user says "change level to 3", the new value should be "Level 3" (matching the "Level X" pattern).
+      * If default is "Generic - 200mm" and user says "change wall type to 300mm", the new value should be "Generic - 300mm".
+      * If default is "True" and user says "set it to false", the new value should be "False" (matching the capitalization).
+      * If default is "true" and user says "set it to False", the new value should be "false" (matching lowercase).
+      * If default is a number like 5 and user says "set to 10", the new value should be 10 (number).
+    - **DO NOT fabricate or hallucinate values.** Only use what the user explicitly provided.
     - If a parameter name from the user's request does not closely match any of the available parameter names, ignore it.
     
-Return a list of all identified parameter updates.
+Return a list of all identified parameter updates with values formatted to match the default pattern.
     """
     
     try:
@@ -240,27 +246,46 @@ Return a list of all identified parameter updates.
         print(f"parameter_node: Could not extract parameter updates from user message: {e}")
         chat_updates = {}
 
-    # Merge parameters: UI changes first, then chat changes
-    ui_params = state.get('ui_parameters') # This is a dict of {name: value} 
+    # Merge parameters: UI changes first, then chat changes (chat takes precedence)
+    ui_params = state.get('ui_parameters', {}) # This is a dict of {name: value}
+    
+    print(f"[parameter_node] UI parameters from state: {ui_params}")
+    print(f"[parameter_node] Chat updates extracted: {chat_updates}")
     
     # Create a dictionary of current parameters for easy lookup
     params_dict = {str(p['name']): p for p in current_params if 'name' in p and isinstance(p['name'], str)}
+    
+    # DEBUG: Show current parameter values BEFORE merging
+    print(f"[parameter_node] Current params BEFORE merging:")
+    for name, param in params_dict.items():
+        current_val = param.get('value')
+        default_val = param.get('defaultValueJson')
+        print(f"  {name}: value={current_val}, default={default_val}")
 
-    # Apply UI updates
+    # Apply UI updates ONLY if the parameter doesn't already have a 'value' from previous chat updates
+    # This prevents UI from overwriting chat updates when user says "run it"
     if ui_params:
         for param_name, param_value in ui_params.items():
             if param_name in params_dict:
-                params_dict[param_name]['value'] = param_value
-                # CRITICAL FIX: DO NOT update defaultValueJson here. It must retain the original default.
+                # Only apply UI value if there's no existing 'value' (or if value equals defaultValueJson)
+                current_value = params_dict[param_name].get('value')
+                default_value = params_dict[param_name].get('defaultValueJson')
+                
+                # Apply UI update if: no value set yet, OR value is still the default
+                if current_value is None or current_value == default_value:
+                    params_dict[param_name]['value'] = param_value
+                    print(f"[parameter_node] Applied UI update: {param_name} = {param_value}")
+                else:
+                    print(f"[parameter_node] Skipped UI update for {param_name} (has chat value: {current_value})")
 
-    # Apply chat updates (these take precedence)
+    # Apply chat updates (these OVERRIDE everything, including UI values)
     if chat_updates:
         for param_name, param_value in chat_updates.items():
             # Find the correct parameter name (case-insensitive)
             for p_name in params_dict.keys():
                 if p_name.lower() == param_name.lower():
                     params_dict[p_name]['value'] = param_value
-                    # CRITICAL FIX: DO NOT update defaultValueJson here. It must retain the original default.
+                    print(f"[parameter_node] Applied chat update: {p_name} = {param_value}")
                     break
 
     updated_params_list = list(params_dict.values())
@@ -285,7 +310,8 @@ Does this message contain an explicit command to run the script? Respond with a 
             if 'name' not in p or not isinstance(p['name'], str):
                 continue
             name = str(p['name'])
-            val = p.get('value')
+            # CRITICAL: Use 'value' if set, otherwise fall back to 'defaultValueJson'
+            val = p.get('value') if 'value' in p else p.get('defaultValueJson')
             # If value is a dict/list, send JSON string
             if isinstance(val, (dict, list)):
                 final_params[name] = json.dumps(val)
@@ -297,7 +323,8 @@ Does this message contain an explicit command to run the script? Respond with a 
                     final_params[name] = val
             else:
                 # For numbers/bools/None, convert to plain string
-                final_params[name] = str(val)
+                final_params[name] = str(val) if val is not None else ""
+        
         
         tool_call = {
             "name": "run_script_by_name",
