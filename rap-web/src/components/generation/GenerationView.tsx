@@ -23,6 +23,8 @@ export const GenerationView: React.FC = () => {
     const [executionOutput, setExecutionOutput] = useState('');
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isEditingInVSCode, setIsEditingInVSCode] = useState(false);
+    const [retryHistory, setRetryHistory] = useState<Array<{ code: string, error: string }>>([]);
+    const [useWebSearch, setUseWebSearch] = useState(false);
 
     const syntaxHighlighterStyle = theme === 'dark' ? vscDarkPlus : vs;
 
@@ -110,6 +112,7 @@ export const GenerationView: React.FC = () => {
         setGeneratedCode('');
         setExecutionOutput('');
         setIsEditingInVSCode(false); // Disable auto-reload for new generation
+        setRetryHistory([]); // Clear retry history for new task
 
         try {
             const llmProvider = localStorage.getItem('llmProvider');
@@ -119,6 +122,7 @@ export const GenerationView: React.FC = () => {
 
             const response = await api.post('/generation/generate_script', {
                 task_description: taskDescription,
+                use_web_search: useWebSearch,
                 llm_provider: llmProvider,
                 llm_model: llmModel,
                 llm_api_key_name: llmApiKeyName,
@@ -140,6 +144,13 @@ export const GenerationView: React.FC = () => {
         const previousCode = generatedCode;
         const errorMessage = executionOutput;
 
+        // Add current failure to retry history
+        const updatedHistory = [
+            ...retryHistory,
+            { code: previousCode, error: errorMessage }
+        ];
+        setRetryHistory(updatedHistory);
+
         try {
             const llmProvider = localStorage.getItem('llmProvider');
             const llmModel = localStorage.getItem('llmModel');
@@ -148,8 +159,8 @@ export const GenerationView: React.FC = () => {
 
             const response = await api.post('/generation/generate_script', {
                 task_description: taskDescription,
-                failed_code: previousCode,
-                error_message: errorMessage,
+                previous_attempts: updatedHistory,  // Send full history
+                use_web_search: useWebSearch,
                 llm_provider: llmProvider,
                 llm_model: llmModel,
                 llm_api_key_name: llmApiKeyName,
@@ -211,16 +222,6 @@ export const GenerationView: React.FC = () => {
 
             const error = response.data.error_message || '';
             setExecutionOutput(output + (error ? `\n\nERROR:\n${error}` : ''));
-
-            if (response.data.is_success) {
-                showNotification('Script executed successfully!', 'success');
-            } else {
-                showNotification('Script execution failed', 'error');
-            }
-        } catch (error: any) {
-            console.error('Execution error:', error);
-            showNotification(error.response?.data?.detail || 'Failed to execute script', 'error');
-            setExecutionOutput(`ERROR: ${error.message}`);
         } finally {
             setIsExecuting(false);
         }
@@ -297,14 +298,34 @@ export const GenerationView: React.FC = () => {
         <div className="w-full h-full flex bg-gray-50 dark:bg-gray-900 overflow-hidden">
             {/* Left Panel: Input & Output - 1/3 width */}
             <div className="w-1/3 min-w-[350px] flex flex-col p-6 border-r border-gray-300 dark:border-gray-700">
-                <div className="mb-4">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center">
-                        <FontAwesomeIcon icon={faCode} className="mr-3" />
-                        AI Script Generation
-                    </h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Describe your task in natural language
-                    </p>
+                <div className="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center">
+                            <FontAwesomeIcon icon={faCode} className="mr-3" />
+                            AI Script Generation
+                        </h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Describe your task in natural language
+                        </p>
+                    </div>
+
+                    {/* Web Search Toggle */}
+                    <div className="flex items-center space-x-2">
+                        <label className="text-xs text-gray-600 dark:text-gray-400">
+                            Web Search
+                        </label>
+                        <button
+                            onClick={() => setUseWebSearch(!useWebSearch)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useWebSearch ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                                }`}
+                            title={useWebSearch ? 'Web search enabled - LLM can search for Revit API docs' : 'Web search disabled - uses base knowledge only'}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useWebSearch ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                            />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="mb-4">

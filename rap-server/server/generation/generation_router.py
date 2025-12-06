@@ -5,9 +5,10 @@ Handles code generation and execution for Generation Mode.
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict
 import os
 import re
+import asyncio
 
 from auth import get_current_user, CurrentUser
 from generation.gemini_client import generate_code_with_gemini
@@ -17,8 +18,8 @@ router = APIRouter(prefix="/generation", tags=["Generation"])
 
 class GenerateScriptRequest(BaseModel):
     task_description: str
-    failed_code: Optional[str] = None
-    error_message: Optional[str] = None
+    previous_attempts: Optional[List[Dict[str, str]]] = None  # List of {"code": ..., "error": ...}
+    use_web_search: bool = False  # Enable Google Search for Revit API docs
     llm_provider: str = "gemini"
     llm_model: str = "gemini-2.0-flash-exp"
     llm_api_key_name: Optional[str] = None
@@ -66,8 +67,8 @@ async def generate_script(
         # Generate code using Gemini (or other LLM)
         raw_response = await generate_code_with_gemini(
             task_description=request.task_description,
-            failed_code=request.failed_code,
-            error_message=request.error_message,
+            previous_attempts=request.previous_attempts,
+            use_web_search=request.use_web_search,
             llm_model=request.llm_model,
             llm_api_key_name=request.llm_api_key_name,
             llm_api_key_value=request.llm_api_key_value
@@ -224,6 +225,3 @@ async def save_to_library(request: Request):
     except Exception as e:
         print(f"[Generation] Save to library error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-

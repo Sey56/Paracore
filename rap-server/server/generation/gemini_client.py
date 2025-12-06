@@ -7,15 +7,15 @@ import os
 import httpx
 import json
 import asyncio
-from typing import Optional
+from typing import Optional, List, Dict
 
 from generation.system_prompt import get_corescript_generation_prompt
 
 
 async def generate_code_with_gemini(
     task_description: str,
-    failed_code: Optional[str] = None,
-    error_message: Optional[str] = None,
+    previous_attempts: Optional[List[Dict[str, str]]] = None,
+    use_web_search: bool = False,
     llm_model: str = "gemini-2.0-flash-exp",
     llm_api_key_name: Optional[str] = None,
     llm_api_key_value: Optional[str] = None,
@@ -26,8 +26,8 @@ async def generate_code_with_gemini(
     
     Args:
         task_description: User's natural language task
-        failed_code: Optional code from previous failed attempt
-        error_message: Optional error from previous attempt
+        previous_attempts: Optional list of previous failed attempts, each with 'code' and 'error'
+        use_web_search: Enable Google Search for Revit API documentation
         llm_model: Gemini model name
         llm_api_key_name: Environment variable name for API key
         llm_api_key_value: Direct API key value (takes precedence)
@@ -50,8 +50,7 @@ async def generate_code_with_gemini(
     # Build prompt
     prompt = get_corescript_generation_prompt(
         user_task=task_description,
-        failed_code=failed_code,
-        error_message=error_message
+        previous_attempts=previous_attempts
     )
     
     # Prepare request
@@ -64,6 +63,17 @@ async def generate_code_with_gemini(
             }
         ]
     }
+    
+    # Add Google Search tool if web search is enabled
+    if use_web_search:
+        request_body["tools"] = [
+            {
+                "google_search": {}
+            }
+        ]
+        print("[Generation] Web search enabled - LLM can search for Revit API docs")
+    
+    
     
     # Retry logic for transient errors
     delay_ms = 1000
