@@ -365,77 +365,81 @@ export const Sidebar = () => {
           )}
         </div>
 
-        {/* Workspaces */}
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center space-x-4">
-            <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-              <FontAwesomeIcon icon={faCodeBranch} className="mr-2 text-green-500" />
-              Local Workspaces
-            </h3>
-            {activeRole === Role.User && (
-              <button
-                onClick={() => {
-                  if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
-                    pullWorkspace(activeScriptSource.path);
+        {/* Local Workspaces */}
+        {activeTeam && activeTeam.team_id !== 0 && (
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center space-x-4">
+                <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+                  <FontAwesomeIcon icon={faCodeBranch} className="mr-2 text-green-500" />
+                  Local Workspaces
+                </h3>
+                {activeRole === Role.User && (
+                  <button
+                    onClick={() => {
+                      if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
+                        pullWorkspace(activeScriptSource.path);
+                      }
+                    }}
+                    disabled={activeScriptSource?.type !== 'workspace'}
+                    className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
+                    title="Update Workspace"
+                  >
+                    <FontAwesomeIcon icon={faSync} />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center">
+                <button
+                  className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                  onClick={() => {
+                    console.log("Step 1: Remove button clicked. Active source:", activeScriptSource);
+                    if (activeScriptSource?.type === 'workspace' && activeScriptSource.id && userWorkspacePaths[Number(activeScriptSource.id)]?.path) { // Check for path existence
+                      const wsToRemove: Workspace & { path?: string } = {
+                        id: Number(activeScriptSource.id),
+                        name: getFolderNameFromPath(userWorkspacePaths[Number(activeScriptSource.id)]!.path),
+                        repo_url: userWorkspacePaths[Number(activeScriptSource.id)]?.repo_url || '',
+                        path: userWorkspacePaths[Number(activeScriptSource.id)]!.path // Add path here
+                      };
+                      handleOpenRemoveModal(wsToRemove);
+                    } else {
+                      console.error("Remove button clicked, but active source is not a valid workspace.", activeScriptSource);
+                    }
+                  }}
+                  disabled={activeScriptSource?.type !== 'workspace'}
+                  title={`Remove local workspace`}
+                >
+                  <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                </button>
+              </div>
+            </div>
+            <div className="relative">
+              <select
+                value={activeScriptSource?.type === 'workspace' ? String(activeScriptSource.id) : ''} // Convert to string for value
+                onChange={(e) => {
+                  const selectedId = Number(e.target.value); // Convert to number
+                  const workspace = localWorkspaces.find(ws => ws.id === selectedId);
+                  const localPath = userWorkspacePaths[selectedId]?.path;
+                  if (workspace && localPath) {
+                    setActiveScriptSource({ type: 'workspace', id: String(selectedId), path: localPath, }); // Convert to string
                   }
                 }}
-                disabled={activeScriptSource?.type !== 'workspace'}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
-                title="Update Workspace"
+                className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
               >
-                <FontAwesomeIcon icon={faSync} />
-              </button>
-            )}
+                <option value="" disabled>Select a workspace...</option>
+                {localWorkspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name} {workspace.isOrphaned ? '(orphaned)' : ''}
+                  </option>
+                ))}
+              </select>
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
+              />
+            </div>
           </div>
-          <div className="flex items-center">
-            <button
-              className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
-              onClick={() => {
-                console.log("Step 1: Remove button clicked. Active source:", activeScriptSource);
-                if (activeScriptSource?.type === 'workspace' && activeScriptSource.id && userWorkspacePaths[Number(activeScriptSource.id)]?.path) { // Check for path existence
-                  const wsToRemove: Workspace & { path?: string } = {
-                    id: Number(activeScriptSource.id),
-                    name: getFolderNameFromPath(userWorkspacePaths[Number(activeScriptSource.id)]!.path),
-                    repo_url: userWorkspacePaths[Number(activeScriptSource.id)]?.repo_url || '',
-                    path: userWorkspacePaths[Number(activeScriptSource.id)]!.path // Add path here
-                  };
-                  handleOpenRemoveModal(wsToRemove);
-                } else {
-                  console.error("Remove button clicked, but active source is not a valid workspace.", activeScriptSource);
-                }
-              }}
-              disabled={activeScriptSource?.type !== 'workspace'}
-              title={`Remove local workspace`}
-            >
-              <FontAwesomeIcon icon={faTrash} className="text-xs" />
-            </button>
-          </div>
-        </div>
-        <div className="relative">
-          <select
-            value={activeScriptSource?.type === 'workspace' ? String(activeScriptSource.id) : ''} // Convert to string for value
-            onChange={(e) => {
-              const selectedId = Number(e.target.value); // Convert to number
-              const workspace = localWorkspaces.find(ws => ws.id === selectedId);
-              const localPath = userWorkspacePaths[selectedId]?.path;
-              if (workspace && localPath) {
-                setActiveScriptSource({ type: 'workspace', id: String(selectedId), path: localPath, }); // Convert to string
-              }
-            }}
-            className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
-          >
-            <option value="" disabled>Select a workspace...</option>
-            {localWorkspaces.map((workspace) => (
-              <option key={workspace.id} value={workspace.id}>
-                {workspace.name} {workspace.isOrphaned ? '(orphaned)' : ''}
-              </option>
-            ))}
-          </select>
-          <FontAwesomeIcon
-            icon={faChevronDown}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
-          />
-        </div>
+        )}
 
         {/* Local Folders */}
         {isPersonalTeamActive && (
@@ -582,7 +586,7 @@ export const Sidebar = () => {
           </ul>
         </div>
 
-        {activeTeam?.team_id !== 0 && (
+        {activeTeam && activeTeam.team_id !== 0 && (
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center space-x-4">
