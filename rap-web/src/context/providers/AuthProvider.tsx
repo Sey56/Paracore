@@ -200,6 +200,65 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   };
 
+  const loginLocal = async () => {
+    console.log("Starting Local Login...");
+    const localToken = "rap-local-token"; // Special token recognized by backend for bypass
+
+    const localUser: User = {
+      id: "0", // Changed to "0" to match owner_id: 0 for Number() conversion in Sidebar
+      email: "local@paracore.app",
+      name: "Local User",
+      picture_url: undefined, // Or a local asset placeholder
+      memberships: [
+        {
+          team_id: 0,
+          team_name: "Local Team",
+          role: Role.Admin, // Full permissions locally
+          owner_id: 0,
+        }
+      ]
+    };
+
+    const now = new Date().getTime();
+    localStorage.setItem('rap_cloud_token', localToken); // Store as cloud token for seamless API compat
+    localStorage.setItem('rap_user', JSON.stringify(localUser));
+    localStorage.setItem('rap_session_start_time', String(now));
+
+    setCloudToken(localToken);
+    setUser(localUser);
+    setIsAuthenticated(true);
+    setSessionStartTime(now);
+
+    // Auto-set the "Local Team"
+    const initialTeam = localUser.memberships[0];
+    localStorage.setItem('rap_active_team', JSON.stringify(initialTeam));
+    setActiveTeamState(initialTeam);
+    setActiveRole(initialTeam.role);
+
+    // Sync user profile to local rap-server immediately
+    // Note: Backend handles creation of this user on the fly if needed
+    const profilePayload: UserProfileSyncPayload = {
+      user_id: 0, // Matches the backend's dummy ID logic if possible, or just used for profile sync
+      email: localUser.email,
+      memberships: localUser.memberships,
+      activeTeam: initialTeam.team_id,
+      activeRole: initialTeam.role,
+    };
+    try {
+      // We use '0' as ID for sync; backend auth layer resolves "rap-local-token" to proper DB ID
+      // But here we might be sending a payload that expects an ID. 
+      // Sync endpoint uses `req.user_id`. Let's pass 0, assuming backend handles the profile or we just rely on the token auth to create the User row first.
+      // Actually, `sync_user_profile` endpoint logic might need to ensure the user exists first.
+      // But since `loginLocal` sets the token, subsequent requests (including this sync) use that token.
+      // The backend's `get_current_user` creates the user if missing.
+      // So this sync call is safe.
+      await syncUserProfile(profilePayload);
+      console.log("Local User profile synced.");
+    } catch (syncError) {
+      console.error("Failed to sync local user profile to local rap-server:", syncError);
+    }
+  };
+
   const handleTeamSelectionCancel = useCallback(() => {
     setShowTeamSelectionModal(false);
     setPendingUser(null);
@@ -210,7 +269,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const memoizedUser = React.useMemo(() => user, [user]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user: memoizedUser, cloudToken, localToken, login, logout, sessionStartTime, activeTeam, activeRole }}>
+    <AuthContext.Provider value={{ isAuthenticated, user: memoizedUser, cloudToken, localToken, login, loginLocal, logout, sessionStartTime, activeTeam, activeRole }}>
       {children}
       {pendingUser && (
         <TeamSelectionModal

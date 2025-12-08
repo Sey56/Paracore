@@ -84,7 +84,15 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
-      const workspaces = await getTeamWorkspaces(activeTeam.team_id, cloudToken);
+      let workspaces: Workspace[] = [];
+      // Local Mode Check (Team ID 0)
+      if (activeTeam.team_id === 0) {
+        const response = await api.get(`/api/workspaces/registered/${activeTeam.team_id}`);
+        workspaces = response.data;
+      } else {
+        workspaces = await getTeamWorkspaces(activeTeam.team_id, cloudToken);
+      }
+
       setTeamWorkspaces(prev => ({
         ...prev,
         [activeTeam.team_id]: workspaces
@@ -299,7 +307,19 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
-      const registeredWorkspace = await registerWorkspace(teamId, workspace.name, workspace.repo_url, cloudToken);
+      let registeredWorkspace;
+      if (teamId === 0) {
+        // Local Mode
+        const response = await api.post("/api/workspaces/register", {
+          team_id: teamId,
+          name: workspace.name,
+          repo_url: workspace.repo_url
+        });
+        registeredWorkspace = response.data;
+      } else {
+        registeredWorkspace = await registerWorkspace(teamId, workspace.name, workspace.repo_url, cloudToken);
+      }
+
       setTeamWorkspaces(prev => ({
         ...prev,
         [teamId]: [...(prev[teamId] || []), registeredWorkspace]
@@ -323,7 +343,12 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
-      await deleteRegisteredWorkspace(workspaceId, cloudToken);
+      if (teamId === 0) {
+        await api.delete(`/api/workspaces/registered/${workspaceId}`);
+      } else {
+        await deleteRegisteredWorkspace(workspaceId, cloudToken);
+      }
+
       setTeamWorkspaces(prev => ({
         ...prev,
         [teamId]: (prev[teamId] || []).filter(w => w.id !== workspaceId)
@@ -342,7 +367,20 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
-      const updatedWorkspace = await updateRegisteredWorkspace(workspaceId, name, repoUrl, cloudToken);
+      let updatedWorkspace;
+      if (teamId === 0) {
+        // Local Mode - Update not implemented in router yet?
+        // I didn't see an update endpoint in workspace_router.py. 
+        // Let's assume it's NOT supported locally for now or fallback to error.
+        // Or just do nothing.
+        // Wait, user might validly try to rename. 
+        // Since I didn't see PUT in workspace_router.py, let's warn.
+        showNotification("Updating workspace details not supported in Local Mode yet.", "warning");
+        return;
+      } else {
+        updatedWorkspace = await updateRegisteredWorkspace(workspaceId, name, repoUrl, cloudToken);
+      }
+
       setTeamWorkspaces(prev => ({
         ...prev,
         [teamId]: (prev[teamId] || []).map(w => w.id === updatedWorkspace.id ? updatedWorkspace : w)

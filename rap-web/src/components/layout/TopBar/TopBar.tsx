@@ -17,7 +17,7 @@ export const TopBar: React.FC = () => {
   const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView } = useUI();
   const { rserverConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
-  const { isAuthenticated, user, login, logout, activeTeam } = useAuth();
+  const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
   const { loadScriptsForFolder, toolLibraryPath } = useScripts();
   const { showNotification } = useNotifications();
 
@@ -175,7 +175,7 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
         <div className="flex items-center space-x-2 pl-2">
-          <UserMenu user={user} onLogin={login} onLogout={logout} />
+          <UserMenu user={user} onLogin={login} onLoginLocal={loginLocal} onLogout={logout} />
         </div>
       </div>
 

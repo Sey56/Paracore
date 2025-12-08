@@ -37,6 +37,7 @@ export interface AuthContextType {
   activeTeam: TeamMembership | null;
   activeRole: Role | null;
   login: () => void;
+  loginLocal: () => void;
   logout: () => void;
 
 }

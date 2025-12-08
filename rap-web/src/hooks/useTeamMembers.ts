@@ -16,6 +16,13 @@ export const useTeamMembers = () => {
       return;
     }
 
+    // LOCAL MODE BYPASS
+    if (activeTeam.team_id === 0) {
+      setMembers([{ id: 0, name: "Local User", email: "local@paracore.app", role: Role.Admin }]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -44,7 +51,7 @@ export const useTeamMembers = () => {
     }
     try {
       const updatedMember = await updateTeamMemberRole(activeTeam.team_id, userId, newRole, cloudToken);
-      setMembers(prevMembers => 
+      setMembers(prevMembers =>
         prevMembers.map(member => (member.id === updatedMember.id ? updatedMember : member))
       );
       return updatedMember;

@@ -12,6 +12,7 @@ interface User {
 interface UserMenuProps {
   user: User | null;
   onLogin: () => void;
+  onLoginLocal: () => void;
   onLogout: () => void;
 }
 
@@ -29,7 +30,7 @@ const getUserInitials = (name: string | undefined, email: string | undefined) =>
   return '';
 };
 
-export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogin, onLogout }) => {
+export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogin, onLoginLocal, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -60,12 +61,20 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogin, onLogout }) =
           )}
         </button>
       ) : (
-        <button
-          onClick={onLogin}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-        >
-          Sign in with Google
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={onLoginLocal}
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none text-sm font-medium transition-colors duration-200"
+          >
+            Continue Offline
+          </button>
+          <button
+            onClick={onLogin}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 text-sm font-medium transition-colors duration-200"
+          >
+            Sign in with Google
+          </button>
+        </div>
       )}
 
       {isOpen && user && (

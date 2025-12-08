@@ -23,7 +23,7 @@ interface TabItem {
 
 const SettingsModal: React.FC = () => {
   const { isSettingsModalOpen, closeSettingsModal, openTeamManagementModal } = useUI();
-  const { isAuthenticated, user, activeRole } = useAuth();
+  const { isAuthenticated, user, activeRole, activeTeam } = useAuth();
 
   const coreFeaturesTabs = useMemo(() => {
     const tabs: TabItem[] = [];
@@ -37,7 +37,7 @@ const SettingsModal: React.FC = () => {
     tabs.push({
       name: 'Team Management',
       component: NoopComponent, // This tab opens a modal, so it doesn't render a component in the main view
-      disabled: activeRole !== Role.Admin,
+      disabled: activeRole !== Role.Admin || (activeTeam?.team_id === 0), // Disabled if not admin OR if in Local Mode
       onClick: () => { openTeamManagementModal(); } // Corrected: Does not close the settings modal
     });
 
@@ -77,13 +77,11 @@ const SettingsModal: React.FC = () => {
                   key={tab.name}
                   onClick={tab.onClick || (() => setActiveTab(tab.name))}
                   disabled={tab.disabled}
-                  className={`px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-colors ${
-                    activeTab === tab.name && !tab.onClick
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  } ${
-                    tab.disabled ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                  className={`px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-colors ${activeTab === tab.name && !tab.onClick
+                    ? 'bg-blue-500 text-white'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    } ${tab.disabled ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                 >
                   {tab.name}
                 </button>
