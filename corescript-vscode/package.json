@@ -37,7 +37,7 @@
       },
       {
         "command": "corescript.runScript",
-        "title": "CoreScript: Send Script"
+        "title": "CoreScript: Run in Revit"
       }
     ],
     "keybindings": [

@@ -211,7 +211,7 @@ public class SpiralCreator
       outputChannel.clear();
       outputChannel.show(true);
       vscode.window.setStatusBarMessage(
-        "$(rocket) Sending script to Revit...",
+        "$(rocket) Running script in Revit...",
         3000
       );
 
@@ -360,4 +360,4 @@ public class SpiralCreator
   context.subscriptions.push(runScript);
 }
 
-export function deactivate() {}
+export function deactivate() { }
