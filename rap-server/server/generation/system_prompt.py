@@ -39,7 +39,7 @@ CORE RULES:
    - If the user says "list X" without mentioning "table", use `Println()` only.
 2. **Structure**: Single-file .cs with Top-Level Statements.
 3. **Classes**: User-defined classes must come AFTER all top-level statements.
-4. **Execution**: No `return` statements in top-level code (allowed inside methods/classes).
+4. **Execution**: Use `return` for early exits if needed (e.g., if input validation fails).
 5. **Casting**: ALWAYS use `.Cast<Type>()` after `FilteredElementCollector.OfClass(typeof(Type))`.
 6. **Parameters**: Extract hardcoded values (names, sizes, counts) into top-level variables for easy user modification.
 
@@ -140,6 +140,8 @@ using Autodesk.Revit.DB;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Structure;
 
 {retry_context}
 
@@ -208,7 +210,7 @@ var wallType = new FilteredElementCollector(Doc)
 
 if (level == null || wallType == null)
 {{
-    Println("❌ Missing Level 1 or WallType.");
+    Println("🚫 Missing Level 1 or WallType.");
 }}
 else
 {{
@@ -248,7 +250,7 @@ var levels = new FilteredElementCollector(Doc)
 
 if (levels.Count == 0)
 {{
-    Println("❌ No levels found in the document.");
+    Println("🚫 No levels found in the document.");
 }}
 else
 {{
@@ -340,7 +342,7 @@ var level = new FilteredElementCollector(Doc)
 
 if (level == null)
 {{
-    Println($"❌ Level '{{levelName}}' not found.");
+    Println($"🚫 Level '{{levelName}}' not found.");
 }}
 else
 {{
@@ -368,7 +370,7 @@ else
     
     if (roofType == null)
     {{
-        Println("❌ No RoofType found.");
+        Println("🚫 No RoofType found.");
     }}
     else
     {{

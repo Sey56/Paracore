@@ -41,6 +41,40 @@ async def get_current_user(
         )
 
     try:
+        # LOCAL MODE BYPASS
+        if token == "rap-local-token":
+            local_email = "local@paracore.app"
+            local_user = db.query(models.User).filter(models.User.email == local_email).first()
+            
+            if not local_user:
+                # Create the local user if it doesn't exist
+                # Use a specific ID range or let DB handle it. Since sqlite is local, auto-increment is fine.
+                local_user = models.User(email=local_email)
+                db.add(local_user)
+                db.commit()
+                db.refresh(local_user)
+
+            # Check for existing profile or create one
+            local_profile = db.query(models.LocalUserProfile).filter(models.LocalUserProfile.user_id == local_user.id).first()
+            if not local_profile:
+                local_profile = models.LocalUserProfile(
+                    user_id=local_user.id,
+                    active_role="owner",
+                    active_team_id=0, # Dummy team ID
+                    memberships_json='[{"team_id": 0, "team_name": "Local Team", "role": "owner", "owner_id": 0}]'
+                )
+                db.add(local_profile)
+                db.commit()
+
+            return CurrentUser(
+                id=local_user.id,
+                email=local_email,
+                memberships=[Membership(team_id=0, team_name="Local Team", role="owner", owner_id=0)],
+                activeTeam=0,
+                activeRole="owner"
+            )
+
+        # STANDARD CLOUD VALIDATION
         payload = jwt.decode(
             token,
             settings.JWT_PUBLIC_KEY,
