@@ -31,15 +31,17 @@ interface ApiResponseError {
 
 interface WorkspaceSettingsProps {
   isAuthenticated: boolean;
+  isReadOnly?: boolean;
 }
 
-const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }) => {
+const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated, isReadOnly = false }) => {
   const { activeTeam, activeRole } = useAuth();
   const { teamWorkspaces, addTeamWorkspace, removeTeamWorkspace, updateTeamWorkspace, clearScriptsForWorkspace } = useScripts();
   const { activeScriptSource, setActiveScriptSource } = useUI();
   const { showNotification } = useNotifications();
   const { userWorkspacePaths, removeWorkspacePath } = useUserWorkspaces();
 
+  // ... (existing state) ...
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [workspaceToEdit, setWorkspaceToEdit] = useState<Workspace | null>(null);
@@ -50,6 +52,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
 
   const canManageWorkspaces = useMemo(() => activeRole === Role.Admin, [activeRole]);
 
+  // ... (existing memo and handlers) ...
   const teamWorkspacesWithLocalPaths = useMemo(() => {
     return (activeTeam && teamWorkspaces[activeTeam.team_id] || []).map((ws: Workspace) => ({
       ...ws,
@@ -58,7 +61,9 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
   }, [activeTeam, teamWorkspaces, userWorkspacePaths]);
 
   const handleRegisterSubmit = useCallback(async (name: string, repoUrl: string) => {
+    if (isReadOnly) return; // Prevent action in read-only mode
     if (!activeTeam) {
+      // ...
       showNotification('No active team selected.', 'error');
       return;
     }
@@ -79,9 +84,11 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     } finally {
       setIsLoading(false);
     }
-  }, [activeTeam, addTeamWorkspace, showNotification]);
+  }, [activeTeam, addTeamWorkspace, showNotification, isReadOnly]);
 
   const handleUpdateSubmit = useCallback(async (name: string, repoUrl: string) => {
+    if (isReadOnly) return;
+    // ...
     if (!activeTeam || !workspaceToEdit) {
       showNotification('No active team or workspace selected for update.', 'error');
       return;
@@ -101,9 +108,11 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     } finally {
       setIsLoading(false);
     }
-  }, [activeTeam, workspaceToEdit, updateTeamWorkspace, showNotification]);
+  }, [activeTeam, workspaceToEdit, updateTeamWorkspace, showNotification, isReadOnly]);
 
   const handleRemove = useCallback(async (workspaceToRemove: Workspace) => {
+    if (isReadOnly) return;
+    // ...
     if (!activeTeam) {
       showNotification('No active team selected.', 'error');
       return;
@@ -124,12 +133,13 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
     } finally {
       setIsLoading(false);
     }
-  }, [activeTeam, removeTeamWorkspace, showNotification]);
+  }, [activeTeam, removeTeamWorkspace, showNotification, isReadOnly]);
 
   const handleEditClick = useCallback((workspace: Workspace) => {
+    if (isReadOnly) return;
     setWorkspaceToEdit(workspace);
     setIsEditModalOpen(true);
-  }, []);
+  }, [isReadOnly]);
 
   return (
     <div className="overflow-y-auto">
@@ -153,6 +163,13 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
           Manage your Git-connected workspaces for the team: <span className="font-semibold">{activeTeam?.team_name || 'N/A'}</span>.
         </p>
+
+        {isReadOnly && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded mb-4 text-sm dark:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-200">
+            Team Workspace features are read-only in the Free Personal Edition.
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
             <strong className="font-bold">Error: </strong>
@@ -162,12 +179,13 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
         <div className="space-y-6">
           {canManageWorkspaces && (
             <button
-                onClick={() => setIsRegisterModalOpen(true)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-                disabled={isLoading || !isAuthenticated || !activeTeam}
-              >
-                {isLoading ? 'Registering...' : 'Register Workspace'}
-              </button>
+              onClick={() => setIsRegisterModalOpen(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !isAuthenticated || !activeTeam || isReadOnly}
+              title={isReadOnly ? "Available in Enterprise Edition" : "Register new workspace"}
+            >
+              {isLoading ? 'Registering...' : 'Register Workspace'}
+            </button>
           )}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Team Workspaces</h3>
@@ -193,7 +211,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setActiveScriptSource({ type: 'workspace', id: String(ws.id), path: ws.localPath!.path })}
-                        disabled={!ws.localPath}
+                        disabled={!ws.localPath} // Note: We allow switching even in read-only if it's already set up, but let's assume 'Manage' implies mutation. Actually, switching active source is a local action, so we keep it enabled unless local path is missing.
                         className={`px-3 py-1 text-sm rounded-md ${activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === ws.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
                         {activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === ws.id ? 'Active' : 'Set Active'}
@@ -201,8 +219,9 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
                       {canManageWorkspaces && (
                         <button
                           onClick={() => handleEditClick(ws)}
-                          className="p-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md"
+                          className="p-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"
                           title="Edit workspace"
+                          disabled={isReadOnly}
                         >
                           <PencilIcon className="h-5 w-5" />
                         </button>
@@ -210,8 +229,9 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({ isAuthenticated }
                       {canManageWorkspaces && (
                         <button
                           onClick={() => handleRemove(ws)}
-                          className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-md"
+                          className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-md disabled:opacity-30 disabled:cursor-not-allowed"
                           title="Un-register this workspace for the team"
+                          disabled={isReadOnly}
                         >
                           <TrashIcon className="h-5 w-5" />
                         </button>

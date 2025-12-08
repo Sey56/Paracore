@@ -131,16 +131,22 @@ export const TopBar: React.FC = () => {
           <FontAwesomeIcon icon={faRectangleList} />
         </button>
         <button
-          onClick={() => setActiveMainView('generation')}
-          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'generation' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-          title="Generation Mode"
+          onClick={() => {
+            if (activeTeam && activeTeam.team_id !== 0) setActiveMainView('generation');
+          }}
+          disabled={!activeTeam || activeTeam.team_id === 0}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'generation' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "AI Script Generation (Enterprise Feature)" : "Generation Mode"}
         >
           <FontAwesomeIcon icon={faCode} />
         </button>
         <button
-          onClick={handleAgentModeClick}
-          className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-          title="Agent Mode"
+          onClick={() => {
+            if (activeTeam && activeTeam.team_id !== 0) handleAgentModeClick();
+          }}
+          disabled={!activeTeam || activeTeam.team_id === 0}
+          className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "Agentic Mode (Enterprise Feature)" : "Agent Mode"}
         >
           <FontAwesomeIcon icon={faRobot} />
         </button>
@@ -170,9 +176,11 @@ export const TopBar: React.FC = () => {
               </div>
             )}
           </div>
-          <button onClick={openSettingsModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-            <FontAwesomeIcon icon={faCog} />
-          </button>
+          {activeTeam && activeTeam.team_id !== 0 && (
+            <button onClick={openSettingsModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+              <FontAwesomeIcon icon={faCog} />
+            </button>
+          )}
         </div>
         <div className="flex items-center space-x-2 pl-2">
           <UserMenu user={user} onLogin={login} onLoginLocal={loginLocal} onLogout={logout} />

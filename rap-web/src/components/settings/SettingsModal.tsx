@@ -10,6 +10,7 @@ import { Role } from '@/context/authTypes';
 
 interface TabComponentProps {
   isAuthenticated: boolean;
+  isReadOnly?: boolean;
 }
 
 const NoopComponent: React.FC<TabComponentProps> = () => null;
@@ -29,6 +30,7 @@ const SettingsModal: React.FC = () => {
     const tabs: TabItem[] = [];
 
     // Only add Workspaces tab if the user has the appropriate role
+    // REMOVED: && activeTeam?.team_id !== 0 check to allow viewing in Read-Only mode
     if (activeRole !== Role.User) {
       tabs.push({ name: 'Workspaces', component: WorkspaceSettings });
     }
@@ -37,7 +39,8 @@ const SettingsModal: React.FC = () => {
     tabs.push({
       name: 'Team Management',
       component: NoopComponent, // This tab opens a modal, so it doesn't render a component in the main view
-      disabled: activeRole !== Role.Admin || (activeTeam?.team_id === 0), // Disabled if not admin OR if in Local Mode
+      // REMOVED: || (activeTeam?.team_id === 0) check to allow viewing in Read-Only mode
+      disabled: activeRole !== Role.Admin,
       onClick: () => { openTeamManagementModal(); } // Corrected: Does not close the settings modal
     });
 
@@ -54,13 +57,14 @@ const SettingsModal: React.FC = () => {
     });
 
     return tabs;
-  }, [activeRole, openTeamManagementModal]);
+  }, [activeRole, openTeamManagementModal, activeTeam]); // Added activeTeam dependency
 
   const [activeTab, setActiveTab] = useState<string | null>(
     coreFeaturesTabs.length > 0 ? coreFeaturesTabs[0].name : null
   );
 
   const ActiveComponent = coreFeaturesTabs.find(tab => tab.name === activeTab)?.component;
+  const isReadOnly = activeTeam?.team_id === 0;
 
   return (
     <Modal isOpen={isSettingsModalOpen} onClose={closeSettingsModal} title="Settings" size="2xl">
@@ -91,7 +95,7 @@ const SettingsModal: React.FC = () => {
         </div>
 
         <div className="flex-1 p-8 overflow-y-auto">
-          {ActiveComponent && <ActiveComponent isAuthenticated={isAuthenticated} />}
+          {ActiveComponent && <ActiveComponent isAuthenticated={isAuthenticated} isReadOnly={isReadOnly} />}
         </div>
       </div>
     </Modal>

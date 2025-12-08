@@ -152,6 +152,21 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         memberships: cloudUserData.memberships.map(m => ({ ...m, owner_id: m.owner_id || 0 })), // Ensure owner_id is always present
       };
 
+      // --- RESTRICTION: EMAIL ALLOWLIST ---
+      const ALLOWED_EMAILS = [
+        "seyoumhgs@gmail.com",
+        "seyash98@gmail.com",
+        "codarch46@gmail.com",
+        "assash98@gmail.com"
+      ];
+
+      if (appUser.email && !ALLOWED_EMAILS.includes(appUser.email)) {
+        alert("Access Restricted: This version of Paracore is currently in Private Beta.\n\nPlease use the 'Continue Offline' option to use the Free Personal Edition.");
+        logout();
+        return;
+      }
+      // ------------------------------------
+
       const now = new Date().getTime();
       localStorage.setItem('rap_cloud_token', newCloudToken);
       localStorage.setItem('rap_user', JSON.stringify(appUser));

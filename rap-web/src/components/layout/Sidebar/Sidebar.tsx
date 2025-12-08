@@ -345,21 +345,23 @@ export const Sidebar = () => {
         />
 
         <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400 mb-2">
-            <FontAwesomeIcon icon={faUsers} className="mr-2 text-blue-500" />
-            Active Team
-          </h3>
-          {activeTeam && (
-            <div className="flex items-center space-x-2">
-              <span className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                {activeTeam.team_name}
-              </span>
-              {activeRole && (
-                <span className="px-2 py-0.5 text-xs font-semibold text-white bg-blue-500 rounded-full">
-                  {activeRole}
+          {activeTeam && activeTeam.team_id !== 0 && (
+            <>
+              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400 mb-2">
+                <FontAwesomeIcon icon={faUsers} className="mr-2 text-blue-500" />
+                Active Team
+              </h3>
+              <div className="flex items-center space-x-2">
+                <span className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                  {activeTeam.team_name}
                 </span>
-              )}
-            </div>
+                {activeRole && (
+                  <span className="px-2 py-0.5 text-xs font-semibold text-white bg-blue-500 rounded-full">
+                    {activeRole}
+                  </span>
+                )}
+              </div>
+            </>
           )}
         </div>
 
@@ -580,49 +582,51 @@ export const Sidebar = () => {
           </ul>
         </div>
 
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center space-x-4">
-              <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
-                <FontAwesomeIcon icon={faGlobe} className="mr-2 text-red-500" />
-                Registered Workspaces
-              </h3>
-              <button
-                onClick={() => fetchTeamWorkspaces()} // Add this button
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
-                title="Refresh Registered Workspaces"
-              >
-                <FontAwesomeIcon icon={faSync} />
-              </button>
+        {activeTeam?.team_id !== 0 && (
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center space-x-4">
+                <h3 className="font-medium text-sm uppercase text-gray-500 dark:text-gray-400">
+                  <FontAwesomeIcon icon={faGlobe} className="mr-2 text-red-500" />
+                  Registered Workspaces
+                </h3>
+                <button
+                  onClick={() => fetchTeamWorkspaces()} // Add this button
+                  className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white"
+                  title="Refresh Registered Workspaces"
+                >
+                  <FontAwesomeIcon icon={faSync} />
+                </button>
+              </div>
+              {selectedUnclonedWorkspaceId !== null && !userWorkspacePaths[selectedUnclonedWorkspaceId] && (
+                <button
+                  className="text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded"
+                  onClick={handleCloneClick}
+                >
+                  Clone
+                </button>
+              )}
             </div>
-            {selectedUnclonedWorkspaceId !== null && !userWorkspacePaths[selectedUnclonedWorkspaceId] && (
-              <button
-                className="text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded"
-                onClick={handleCloneClick}
+            <div className="relative">
+              <select
+                value={selectedUnclonedWorkspaceId ?? ''}
+                onChange={(e) => setSelectedUnclonedWorkspaceId(e.target.value === '' ? null : Number(e.target.value))} // Convert to number
+                className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
               >
-                Clone
-              </button>
-            )}
+                <option value="" disabled>Select to clone...</option>
+                {currentTeamWorkspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))}
+              </select>
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
+              />
+            </div>
           </div>
-          <div className="relative">
-            <select
-              value={selectedUnclonedWorkspaceId ?? ''}
-              onChange={(e) => setSelectedUnclonedWorkspaceId(e.target.value === '' ? null : Number(e.target.value))} // Convert to number
-              className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
-            >
-              <option value="" disabled>Select to clone...</option>
-              {currentTeamWorkspaces.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))}
-            </select>
-            <FontAwesomeIcon
-              icon={faChevronDown}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-300 pointer-events-none"
-            />
-          </div>
-        </div>
+        )}
 
       </div> {/* Closes p-4 div */}
     </div>
