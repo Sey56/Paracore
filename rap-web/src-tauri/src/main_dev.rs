@@ -3,6 +3,7 @@ use tokio::sync::oneshot;
 use url::{form_urlencoded, Url};
 use rand::Rng;
 use tiny_http::{Response, Server};
+use tauri::Manager;
 
 
 // Google OAuth client ID for desktop app
@@ -68,6 +69,12 @@ pub fn main() {
             google_oauth_login,
             get_rap_server_url
         ])
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            let window = app.get_window("main").unwrap();
+            window.set_focus().unwrap();
+            window.unminimize().unwrap();
+            window.show().unwrap();
+        }))
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app_handle, event| {

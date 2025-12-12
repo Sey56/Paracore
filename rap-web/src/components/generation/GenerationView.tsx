@@ -469,7 +469,7 @@ export const GenerationView: React.FC = () => {
                 {generatedCode ? (
                     <>
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
-                            Generated Code
+                            Generated Script
                         </h3>
                         {/* Code viewer takes all available space */}
                         <div className="flex-1 overflow-auto bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 min-h-0">
@@ -510,7 +510,7 @@ export const GenerationView: React.FC = () => {
                                 ) : (
                                     <>
                                         <FontAwesomeIcon icon={faPlay} className="mr-2" />
-                                        Run Code
+                                        Run Script
                                     </>
                                 )}
                             </button>

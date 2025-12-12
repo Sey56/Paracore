@@ -146,6 +146,12 @@ pub fn main() {
             py_process: Mutex::new(None),
             server_port: Mutex::new(None),
         })
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            let window = app.get_window("main").unwrap();
+            window.set_focus().unwrap();
+            window.unminimize().unwrap();
+            window.show().unwrap();
+        }))
         .setup(|app| {
             info!("RAP application starting up...");
             let state = app.state::<AppState>();

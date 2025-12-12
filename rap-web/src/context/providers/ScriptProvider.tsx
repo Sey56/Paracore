@@ -128,6 +128,35 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     setActiveScriptSource(null);
   }, [activeTeam, setActiveScriptSource]);
 
+  // Persist activeScriptSource whenever it changes
+  useEffect(() => {
+    if (activeTeam && activeScriptSource) {
+      const key = `rap_lastActiveSource_${activeTeam.team_id}`;
+      localStorage.setItem(key, JSON.stringify(activeScriptSource));
+    }
+  }, [activeTeam, activeScriptSource]);
+
+  // Restore activeScriptSource when activeTeam changes (and no source is selected yet)
+  useEffect(() => {
+    // We wait for activeTeam to be present.
+    // The clean-up effect above sets activeScriptSource to null on team change.
+    // So we check if activeScriptSource is null before restoring.
+    if (activeTeam && !activeScriptSource) {
+      const key = `rap_lastActiveSource_${activeTeam.team_id}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          console.log(`[ScriptProvider] Restoring active source for team ${activeTeam.team_id}:`, parsed);
+          setActiveScriptSource(parsed);
+        } catch (e) {
+          console.error("Failed to parse saved active script source:", e);
+        }
+      }
+    }
+  }, [activeTeam]); // Intentionally not including activeScriptSource to avoid loops, though logic prevents it.
+
+
   const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false) => {
     if (!folderPath) {
       setScripts([]);

@@ -105,7 +105,7 @@ export const TopBar: React.FC = () => {
         </button>
         <div className="flex items-center space-x-1">
           <img src="/RAP.png" alt="Paracore Logo" className="h-8 w-auto" />
-          <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">Paracore</h1>
+          <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">Paracore - 1.0.0</h1>
         </div>
         <button
           onClick={toggleTheme}
@@ -202,6 +202,10 @@ export const TopBar: React.FC = () => {
             <div className="flex justify-between">
               <span className="font-medium text-gray-700 dark:text-gray-300">Developer:</span>
               <span className="text-gray-600 dark:text-gray-400">Paras Codarch (Ethiopia)</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Contact:</span>
+              <span className="text-gray-600 dark:text-gray-400">codarch46@gmail.com</span>
             </div>
           </div>
           <div className="pt-4 text-center">

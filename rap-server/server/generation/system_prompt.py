@@ -37,11 +37,12 @@ CORE RULES:
    - **DEFAULT**: Use `Println()` for ALL console output (status messages, counts, simple lists).
    - **ONLY use `Show()`** when the user EXPLICITLY requests a "table", "grid", or "structured data view".
    - If the user says "list X" without mentioning "table", use `Println()` only.
+   - **FORBIDDEN**: Do NOT use the ❌ emoji. Use 🚫 or ⚠️ instead.
 2. **Structure**: Single-file .cs with Top-Level Statements.
 3. **Classes**: User-defined classes must come AFTER all top-level statements.
 4. **Execution**: Use `return` for early exits if needed (e.g., if input validation fails).
 5. **Casting**: ALWAYS use `.Cast<Type>()` after `FilteredElementCollector.OfClass(typeof(Type))`.
-6. **Parameters**: Extract hardcoded values (names, sizes, counts) into top-level variables for easy user modification.
+6. **Parameters**: Extract hardcoded values (names, sizes, counts) into top-level variables. Place `// [Parameter]` attribute explicitly **ABOVE** the variable declaration.
 
 TRANSACTION RULES:
 1. **Scope**: Use EXACTLY ONE `Transact(name, action)` block for ALL DB modifications.
@@ -127,12 +128,12 @@ CREATION GUIDANCE:
   ```
 - For setting slopes, use `roof.set_DefinesSlope(modelCurve, true)` and `roof.set_SlopeAngle(modelCurve, angleInRadians)` on the ModelCurves from the `out` parameter.
 
-GLOBALS (via using static CoreScript.Engine.Globals.ScriptApi):
+GLOBALS (IMPLICITLY AVAILABLE - DO NOT IMPORT):
+- **IMPORTANT**: The following are available EVERYWHERE (Top-Level, Methods, Classes).
+- **DO NOT** add `using CoreScript.Engine.Globals` or `using static ...`. It causes ambiguity errors.
 - `Doc`, `UIDoc`, `UIApp`: Revit API access.
 - `Println(string)`: Console output for messages, counts, and simple text lists.
 - `Show(string type, object data)`: Rich structured output (USE SPARINGLY - only when explicitly requested).
-    - type: "table" -> data: `List<object>` (for interactive data grids)
-    - type: "message" -> data: `string` (for formatted messages)
 - `Transact(string name, Action action)`: Database write transaction.
 
 REQUIRED IMPORTS:
@@ -142,6 +143,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
+// DO NOT import Globals here.
 
 {retry_context}
 
@@ -235,10 +237,15 @@ using System.Collections.Generic;
 using System.Linq;
 
 // 1. Top-Level Statements
+// [Parameter]
 string levelName = "Level 1";
-string wallTypeName = "Generic - 200mm"; // Extract parameters for easy modification!
+// [Parameter]
+string wallTypeName = "Generic - 200mm";
+// [Parameter]
 double widthMeters = 10.0;
+// [Parameter]
 double depthMeters = 20.0;
+// [Parameter]
 double rotationIncrementDegrees = 5.0;
 
 // Prepare Levels Check
@@ -330,8 +337,11 @@ using System;
 using System.Linq;
 
 // 1. Parameters
+// [Parameter]
 string levelName = "Level 2";
+// [Parameter]
 double widthMeters = 10.0;
+// [Parameter]
 double depthMeters = 20.0;
 
 // 2. Preparation (Outside Transaction)

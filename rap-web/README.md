@@ -1,70 +1,76 @@
-# rap-web - Revit Automation Platform (RAP) Frontend (Public-facing product name: Paracore)
+# Paracore (formerly rap-web) - The UI for the Revit Automation Platform
 
-`rap-web` (public-facing name: Paracore) is the primary user interface for the Revit Automation Platform (RAP), an ecosystem that also includes a lightweight extension for direct script execution from VSCode. Paracore is a modern, responsive desktop application built with React and TypeScript, and packaged as a native application using Tauri. It provides a rich and intuitive environment for users to browse, manage, inspect, and execute Revit automation scripts.
+**Paracore** is the modern desktop interface for the **Revit Automation Platform (RAP)**, a complete ecosystem for creating, managing, and executing C# automation scripts for Autodesk Revit. Built with React and Tauri, Paracore provides a rich, intuitive, and multi-modal environment that caters to everyone from daily Revit users to advanced automation engineers.
 
-## Core Features
+## The Revit Automation Platform Ecosystem
 
--   **Script Gallery:**
-    -   **Folder-Based Management:** Users can add multiple local folders where their scripts are stored.
-    -   **Rich Filtering and Sorting:** Easily search scripts by name, description, or tags. Sort scripts by name or last run date.
-    -   **Categorization:** View scripts grouped by favorites, categories defined in the script metadata, or by folder.
+Paracore is the user-facing component of a decoupled, robust architecture:
 
--   **Script Inspector:**
-    -   **Parameter Editing:** When a script is selected, its parameters are automatically parsed and displayed in a user-friendly form, allowing for easy editing before execution.
-    -   **Parameter Presets:** Save and load different sets of parameter values as named presets, streamlining repeated workflows.
-    -   **Code Viewer:** Inspect the full source code of the selected script in a read-only view using `react-syntax-highlighter`.
+-   **Paracore (`rap-web`):** The React & Tauri desktop frontend. It provides the user interface for all three automation modes and communicates with the local backend via HTTP.
+-   **Local Backend (`rap-server`):** A local Python/FastAPI server that acts as a gateway. It manages file system access and translates frontend requests into secure gRPC calls to the Revit add-in.
+-   **Revit Add-in (`RServer.Addin`):** A C# add-in hosting a gRPC server inside Revit. It is the only component that directly and safely interacts with the Revit API, using `ExternalEvent` handlers for thread-safe execution.
+-   **Script Engine (`CoreScript.Engine`):** A powerful Roslyn-based C# compiler, hosted by the add-in, that dynamically executes scripts with full support for parameter injection and isolated execution contexts.
+-   **Authentication Server (`rap-auth-server`):** A cloud-based service for managing user accounts, teams, roles, and licenses for premium features.
 
--   **Execution and Output:**
+## Three Modes of Automation
 
-    -   **Run Scripts:** Execute scripts in Revit with a single click, sending the user-defined parameters to the execution engine.
-    -   **Console Output:** View real-time print messages and error logs from the script execution in a dedicated console tab.
-    -   **Structured Summary:** A dedicated "Summary" tab renders structured data (e.g., tables, lists, or other objects) returned from the script, providing a much richer output than plain text.
+Paracore offers three distinct modes, making automation accessible to all skill levels.
 
--   **Integrated VSCode Editing:**
-    -   **Ephemeral Workspaces:** Instead of building a custom editor, RAP leverages the power of VSCode. Clicking "Edit Script" dynamically creates a temporary, ephemeral workspace on disk.
-    -   **IntelliSense Ready:** This workspace is automatically scaffolded with a `.csproj` file containing all necessary references to the Revit API and `CoreScript.Engine`, providing full IntelliSense and code completion in VSCode.
-    -   **Live Sync:** The original script files are copied to the workspace, and a `FileSystemWatcher` is initiated. Any saves made in the VSCode workspace are automatically and instantly synced back to the original script files.
-    -   **Automatic Cleanup:** The temporary workspace folders are automatically deleted when Revit is closed.
+### 1. Manual Automation (The Core Experience)
 
-    -   **Git Integration:** Users can clone scripts from Git repositories, work on them locally, and commit/sync changes to the remote repository directly from within RAP-Web.
--   **Authentication:**
-    -   **Google OAuth:** Implements user authentication using Google OAuth, handled by the `@react-oauth/google` library.
+This is the foundational mode of Paracore, designed for scripters and the users they support. It provides a complete, end-to-end workflow for managing and running a library of C# scripts.
 
--   **Desktop Experience:**
-    -   **Native Application:** Packaged with Tauri, it runs as a lightweight, native desktop application on Windows.
-    -   **Local File Access:** Interacts directly with the `rap-server` backend to access local script files and folders.
-    -   **Notifications:** Provides system notifications for key events like script execution success or failure.
+-   **Script Gallery:** Browse and manage scripts stored in local folders or cloned from Git repositories.
+-   **Script Inspector:** Select a script to instantly see its documentation and have its parameters rendered in a clean UI for easy input.
+-   **Parameter Presets:** Save and load multiple parameter configurations for scripts that are used often with different settings.
+-   **Rich Output:** View script results not just as text in a console, but as structured data like tables in a dedicated "Summary" tab.
+-   **VS Code Integration:** Edit scripts with full C# IntelliSense in VS Code. Paracore automatically creates a temporary, pre-configured `.csproj` workspace and live-syncs any changes back to your original file.
 
-## Architecture
+### 2. AI Script Generation
+
+For developers looking to accelerate their workflow, this mode uses AI to generate new scripts from a natural language prompt.
+
+-   **Prompt-Based Creation:** Describe the tool you need (e.g., "Create a script that renumbers all selected doors based on the room they are in").
+-   **AI-Powered Generation:** Paracore sends the request to the backend, which leverages a large language model to generate the C# code.
+-   **Save to Library:** The generated script can be immediately saved to your script library and used in the Manual Automation mode.
+
+### 3. Agentic Automation (The Paracore Agent)
+
+The most accessible mode, designed for all Revit users, regardless of technical skill. The Paracore Agent provides a conversational interface to the entire script library.
+
+-   **Natural Language Commands:** Simply chat with the agent about what you want to do (e.g., "I need to create a bunch of foundation walls").
+-   **Automated Script Discovery:** The agent understands your intent, finds the appropriate script from your library, and presents it to you.
+-   **Conversational Parameter-Assistance:** The agent will ask follow-up questions to fill in the script's parameters ("What level should they be on? What wall type?").
+-   **User-in-the-Loop:** Before execution, the agent shows you the selected script and the final parameters in the `ScriptInspector` for final review and approval.
+
+## Free vs. Paid Tiers
+
+Paracore operates on a hybrid model, offering powerful core features for free with premium features available for professionals and teams.
+
+-   **Free ("Continue Offline"):**
+    -   Full access to the **Manual Automation** mode.
+    -   Create, edit, manage, and run unlimited C# scripts.
+    -   Full parameter and preset management.
+    -   Ideal for individual users or those working in offline environments.
+
+-   **Pro / Enterprise ("Sign in with Google"):**
+    -   Includes all free features.
+    -   **AI Script Generation**
+    -   **Agentic Automation (Paracore Agent)**
+    -   **Team Management:** Create teams and manage user roles (`Admin`, `Developer`, `User`).
+    -   **Git-Based Collaboration:** Connect team script libraries to shared Git repositories for version control and collaborative development.
+
+
+## Architecture & Technology
 
 `rap-web` is a single-page application (SPA) that serves as the client-side frontend for the RAP ecosystem.
 
-### Technology Stack
-
--   **React:** For building the component-based user interface.
--   **TypeScript:** For type-safe development.
--   **Vite:** As the fast build tool and development server.
--   **Tailwind CSS:** For utility-first styling and rapid UI development.
--   **Tauri:** For packaging the web application into a native desktop executable.
--   **FontAwesome:** For icons.
-
-### Component Structure
-
-The `src/components` directory is organized by feature, promoting modularity and maintainability:
--   **`automation`**: Components related to script management and execution.
--   **`common`**: Reusable components like buttons, modals, and inputs.
--   **`layout`**: Main application structure, including the sidebar and header.
--   **`settings`**: Components for the application settings page.
-
-### State Management
-
-The application uses a modular state management approach based on **React's Context API**. Global state is divided into logical, feature-based providers (e.g., `ScriptProvider`, `ScriptExecutionProvider`, `UIProvider`), which are combined in a central `AppProvider`. This keeps state management clean, decoupled, and easy to maintain.
-
-### API Interaction
-
-All communication with the local backend is handled via the `rap-server` API. A pre-configured `axios` instance (`rapApiClient` in `src/api/axios.ts`) makes HTTP requests to the FastAPI backend (running on `http://localhost:8000`). The API layer is organized by resource:
--   **`scripts.ts`**: Functions for script management and execution.
--   **`workspaces.ts`**: Functions for working with Git repositories in RAP-Web (cloning, committing, syncing).
+-   **React & TypeScript:** For a modern, type-safe component-based UI.
+-   **Vite:** For fast development builds and bundling.
+-   **Tauri:** To package the web app into a lightweight, native desktop executable.
+-   **Tailwind CSS:** For utility-first styling.
+-   **React Context API:** For clean, decoupled global state management.
+-   **Axios:** For communicating with the `rap-server` REST API.
 
 ## Development
 
@@ -86,16 +92,3 @@ To launch the Tauri desktop application for development:
 ```bash
 npm run tauri dev
 ```
-
-## The Paracore Agent: Conversational AI for Revit Automation
-
-Building on the powerful script execution engine, Paracore now features the **Paracore Agent**, a conversational AI assistant that brings natural language automation to Revit.
-
-The agent provides a chat-based interface where users can describe the task they want to perform. The agent leverages the entire RAP ecosystem to:
-
-1.  **Understand User Intent:** Parses natural language to determine the user's goal.
-2.  **Discover Relevant Scripts:** Searches the existing script library to find the right tool for the job.
-3.  **Extract Parameters:** Identifies and extracts necessary parameters from the conversation (e.g., "a wall 30 feet long").
-4.  **Confirm and Execute:** Presents the chosen script and parameters to the user for approval via the `ScriptInspector` before running the automation in Revit.
-
-This feature makes Revit automation more accessible than ever, allowing users to perform complex tasks without needing to find and configure scripts manually.
