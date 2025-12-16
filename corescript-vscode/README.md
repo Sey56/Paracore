@@ -37,9 +37,34 @@ Before using this extension, you must have the `RServer.Addin` for Revit install
 
 ## Usage
 
-1.  **Initialize Workspace**: Open a new folder in VS Code and run the `CoreScript: Initialize Workspace` command (`Ctrl+Shift+S`) from the command palette. This sets up the basic project structure.
-2.  **Write Script**: Write your C# script in the created `.cs` files.
-3.  **Run Script**: With a C# script open and a Revit instance running with the RServer active, run the `CoreScript: Send Script` command (`Ctrl+Shift+R`) to execute it directly in Revit.
+1.  **Create Workspace**: Create an empty folder (e.g., `TestWorkspace`) and run VS Code in it.
+2.  **Initialize**: Open the Command Palette and select **CoreScript: Initialize Workspace** (or press `Ctrl+Shift+S`).
+    *   This will scaffold the workspace with necessary files for Revit API IntelliSense and custom globals.
+    *   **Important**: Wait for the workspace to be fully generated. It is complete when the `obj` and `bin` folders are created.
+3.  **Write Scripts**: Navigate to the `Scripts` folder. The entry point is `Main.cs`. You can create additional scripts in this folder and reference them in `Main.cs`.
+4.  **Run**: To execute your script, use the command **CoreScript: Run in Revit** (or press `Ctrl+Shift+R`).
+
+## Execution Output
+
+Results from your script execution are displayed in the **VS Code Output** channel.
+
+*   **Print Statements**: Any `Print()` or `Println()` calls in your script will appear here.
+*   **Status Messages**: Even if your script has no output, the engine provides a status message for every execution.
+
+### Success
+
+```text
+✅ Code executed successfully | Tuesday 16, December 2025 | 03:45:22 PM
+```
+
+### Failure
+
+If an error occurs, the output will show the failure status and the exception details:
+
+```text
+❌ Script execution failed | Tuesday 16, December 2025 | 04:15:39 PM
+[ERROR] Autodesk.Revit.Exceptions.ArgumentNullException: The input argument "curve" of...
+```
 
 ## Architecture
 

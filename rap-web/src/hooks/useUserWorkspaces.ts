@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/api/axios'; // Correctly import the configured api instance
 
@@ -18,10 +18,14 @@ export const useUserWorkspaces = () => {
   const [userWorkspacePaths, setUserWorkspacePaths] = useState<UserWorkspacePaths>({});
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const loadedUserIdRef = useRef<string | null>(null);
+  const currentUserId = user ? String(user.id) : null;
+
   // Load paths from localStorage on initial render or when user/key changes
   useEffect(() => {
     if (!user) { // If no user, clear paths and mark as loaded
       setUserWorkspacePaths({});
+      loadedUserIdRef.current = null; // Reset ref
       setIsLoaded(true);
       return;
     }
@@ -38,6 +42,7 @@ export const useUserWorkspaces = () => {
       console.error("Failed to load workspace paths from localStorage", error);
       setUserWorkspacePaths({}); // On error, initialize to empty
     } finally {
+      loadedUserIdRef.current = String(user.id);
       setIsLoaded(true);
     }
   }, [user, STORAGE_KEY]); // Re-run effect when user or STORAGE_KEY changes
@@ -66,5 +71,8 @@ export const useUserWorkspaces = () => {
     });
   }, [STORAGE_KEY]);
 
-  return { userWorkspacePaths, setWorkspacePath, removeWorkspacePath, isLoaded };
+  // Derived loading state that ensures we match the current user
+  const isLoadedCorrectly = isLoaded && loadedUserIdRef.current === currentUserId;
+
+  return { userWorkspacePaths, setWorkspacePath, removeWorkspacePath, isLoaded: isLoadedCorrectly };
 };

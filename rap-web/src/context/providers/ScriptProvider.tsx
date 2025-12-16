@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ScriptContext, ScriptContextProps } from './ScriptContext';
 import type { Script, RawScriptFromApi } from '@/types/scriptModel';
 import { Workspace } from '@/types/index';
@@ -28,7 +28,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { activeScriptSource, setActiveScriptSource } = useUI();
   const { user, isAuthenticated, activeTeam, cloudToken } = useAuth();
   const rapServerUrl = useRapServerUrl();
-  const { userWorkspacePaths } = useUserWorkspaces();
+  const { userWorkspacePaths, isLoaded: userWorkspacesLoaded } = useUserWorkspaces();
 
   const [scripts, setScripts] = useState<Script[]>([]);
   const [allScripts, setAllScripts] = useState<Script[]>([]);
@@ -121,40 +121,64 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     return activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
   }, [activeTeam, teamWorkspaces]);
 
+  const ignorePersistRef = useRef(false);
+
   useEffect(() => {
     setScripts([]);
     setCurrentDisplayPath(null);
     setSelectedFolder(null);
+    ignorePersistRef.current = true;
     setActiveScriptSource(null);
   }, [activeTeam, setActiveScriptSource]);
 
   // Persist activeScriptSource whenever it changes
   useEffect(() => {
-    if (activeTeam && activeScriptSource) {
+    if (activeTeam) {
+      if (ignorePersistRef.current && activeScriptSource === null) {
+        ignorePersistRef.current = false;
+        return;
+      }
+
       const key = `rap_lastActiveSource_${activeTeam.team_id}`;
-      localStorage.setItem(key, JSON.stringify(activeScriptSource));
+      if (activeScriptSource) {
+        localStorage.setItem(key, JSON.stringify(activeScriptSource));
+      } else {
+        localStorage.removeItem(key);
+      }
     }
   }, [activeTeam, activeScriptSource]);
 
   // Restore activeScriptSource when activeTeam changes (and no source is selected yet)
   useEffect(() => {
-    // We wait for activeTeam to be present.
-    // The clean-up effect above sets activeScriptSource to null on team change.
-    // So we check if activeScriptSource is null before restoring.
-    if (activeTeam && !activeScriptSource) {
+    // We wait for activeTeam to be present and user workspaces to be loaded.
+    if (activeTeam && !activeScriptSource && userWorkspacesLoaded) {
       const key = `rap_lastActiveSource_${activeTeam.team_id}`;
       const saved = localStorage.getItem(key);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          console.log(`[ScriptProvider] Restoring active source for team ${activeTeam.team_id}:`, parsed);
-          setActiveScriptSource(parsed);
+          if (parsed.type === 'workspace') {
+            // Validate that the workspace still exists in our local paths
+            // Note: parsed.id is a string based on usage in Sidebar/UIContext
+            if (userWorkspacePaths[parsed.id]) {
+              console.log(`[ScriptProvider] Restoring active workspace for team ${activeTeam.team_id}:`, parsed);
+              setActiveScriptSource(parsed);
+            } else {
+              console.log(`[ScriptProvider] Stored active workspace ${parsed.id} not found in user paths. Clearing.`);
+              localStorage.removeItem(key);
+              // Do not call setActiveScriptSource(null) here as it is already null or controlled by other logic
+            }
+          } else {
+            // For local folders or published scripts, restore directly
+            console.log(`[ScriptProvider] Restoring active source for team ${activeTeam.team_id}:`, parsed);
+            setActiveScriptSource(parsed);
+          }
         } catch (e) {
           console.error("Failed to parse saved active script source:", e);
         }
       }
     }
-  }, [activeTeam]); // Intentionally not including activeScriptSource to avoid loops, though logic prevents it.
+  }, [activeTeam, userWorkspacesLoaded, userWorkspacePaths]); // Intentionally not including activeScriptSource to avoid loops
 
 
   const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false) => {
