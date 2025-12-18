@@ -5,7 +5,7 @@ namespace CoreScript.Engine.Core
 {
     /// <summary>
     /// Represents an abstract contract for executing C# scripts dynamically.
-    /// Used by consumers like Paracore and RScript Toolkit.
+    /// Used by consumers like Paracore and CoreScript Toolkit.
     /// </summary>
     public interface ICodeRunner
     {

@@ -16,18 +16,17 @@ namespace CoreScript.Engine.Tests
         public IReadOnlyList<string> PrintLog => _printMessages;
         public IReadOnlyList<string> ShowOutputLog => _showOutputMessages;
         public string? InternalDataLog => _internalData;
-
         public UIApplication UIApp { get; }
-
         public UIDocument UIDoc => UIApp?.ActiveUIDocument;
-
         public Document Doc => UIDoc?.Document;
+        public bool IsReadOnly { get; }
 
         public Action<string>? PrintCallback { get; }
 
-        public TestScriptContext(UIApplication app)
+        public TestScriptContext(UIApplication app, bool isReadOnly = false)
         {
             UIApp = app;
+            IsReadOnly = isReadOnly;
             PrintCallback = msg =>
             {
                 _printMessages.Add(msg);

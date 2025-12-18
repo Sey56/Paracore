@@ -79,7 +79,7 @@ namespace RServer.Addin.App
             // Register dockable pane
             var dpid = new DockablePaneId(DashboardPaneId);
             var dp = new DashboardView();
-            application.RegisterDockablePane(dpid, "RServer Dashboard", dp);
+            application.RegisterDockablePane(dpid, "Paracore Dashboard", dp);
 
             // Ensure the server is marked as not running on startup
             ServerViewModel.Instance.IsServerRunning = false;
@@ -96,11 +96,11 @@ namespace RServer.Addin.App
         {
             PushButtonData toggleServerButton = new(
                 "ToggleCoreScriptServer",
-                "RServer\n(Off)",
+                "Paracore\n(Off)",
                 typeof(RServerApp).Assembly.Location,
                 typeof(ToggleServerCommand).FullName)
             {
-                ToolTip = "Toggle the RScript server to run scripts from VS Code.",
+                ToolTip = "Toggle the CoreScript server to run scripts from VS Code.",
                 LargeImage = new BitmapImage(
                     new Uri("pack://application:,,,/RServer.Addin;component/Images/RServer.png"))
             };
@@ -113,7 +113,7 @@ namespace RServer.Addin.App
                 typeof(RServerApp).Assembly.Location,
                 typeof(ToggleDashboardCommand).FullName)
             {
-                ToolTip = "Toggle the RScript dashboard.",
+                ToolTip = "Toggle the CoreScript dashboard.",
                 LargeImage = new BitmapImage(
                     new Uri("pack://application:,,,/RServer.Addin;component/Images/RServer.png"))
             };
@@ -164,7 +164,7 @@ namespace RServer.Addin.App
             {
                 ActiveWorkspaces.Clear();
                 FileLogger.Log("ActiveWorkspaces cleared");
-                FileLogger.Log("=== RToolkit Shutdown Complete ===");
+                FileLogger.Log("=== Paracore Shutdown Complete ===");
             }
             return Result.Succeeded;
         }
@@ -185,7 +185,7 @@ namespace RServer.Addin.App
         {
             if (_toggleButton != null)
             {
-                _toggleButton.ItemText = _serverRunning ? "RServer\n(On)" : "RServer\n(Off)";
+                _toggleButton.ItemText = _serverRunning ? "Paracore\n(On)" : "Paracore\n(Off)";
                 _toggleButton.ToolTip = _serverRunning
                     ? "Server is running. Click to stop."
                     : "Server is stopped. Click to start.";

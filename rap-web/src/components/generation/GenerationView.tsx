@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import api from '@/api/axios';
+import axios from 'axios';
 import { SaveToLibraryModal } from './SaveToLibraryModal';
 
 export const GenerationView: React.FC = () => {
@@ -131,9 +132,13 @@ export const GenerationView: React.FC = () => {
 
             setGeneratedCode(response.data.generated_code);
             showNotification('Code generated successfully!', 'success');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Generation error:', error);
-            showNotification(error.response?.data?.detail || 'Failed to generate code', 'error');
+            if (axios.isAxiosError(error)) {
+                showNotification(error.response?.data?.detail || 'Failed to generate code', 'error');
+            } else {
+                showNotification('Failed to generate code', 'error');
+            }
         } finally {
             setIsGenerating(false);
         }
@@ -170,9 +175,13 @@ export const GenerationView: React.FC = () => {
             setGeneratedCode(response.data.generated_code);
             setExecutionOutput(''); // Clear error after regeneration
             showNotification('Code regenerated successfully!', 'success');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Regeneration error:', error);
-            showNotification(error.response?.data?.detail || 'Failed to regenerate code', 'error');
+            if (axios.isAxiosError(error)) {
+                showNotification(error.response?.data?.detail || 'Failed to regenerate code', 'error');
+            } else {
+                showNotification('Failed to regenerate code', 'error');
+            }
         } finally {
             setIsGenerating(false);
         }
@@ -207,7 +216,7 @@ export const GenerationView: React.FC = () => {
             // These are returned in a separate list, so we append them as JSON lines
             // for the renderer to detect and display.
             if (response.data.structured_output && Array.isArray(response.data.structured_output)) {
-                response.data.structured_output.forEach((item: any) => {
+                response.data.structured_output.forEach((item: { type: string; data: string | object }) => {
                     try {
                         // item.data is a JSON string (serialized in C#)
                         // We parse it first to ensure we re-serialize a clean object
@@ -276,9 +285,13 @@ export const GenerationView: React.FC = () => {
             }
 
             showNotification('Opening in VSCode...', 'success');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('VSCode open error:', error);
-            showNotification(error.response?.data?.detail || 'Failed to open in VSCode', 'error');
+            if (axios.isAxiosError(error)) {
+                showNotification(error.response?.data?.detail || 'Failed to open in VSCode', 'error');
+            } else {
+                showNotification('Failed to open in VSCode', 'error');
+            }
         }
     };
 
@@ -400,7 +413,7 @@ export const GenerationView: React.FC = () => {
                                                             </tr>
                                                         </thead>
                                                         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
-                                                            {json.data.map((row: any, i: number) => (
+                                                            {json.data.map((row: Record<string, unknown>, i: number) => (
                                                                 <tr key={i} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
                                                                     {headers.map(h => (
                                                                         <td key={h} className="px-4 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800">

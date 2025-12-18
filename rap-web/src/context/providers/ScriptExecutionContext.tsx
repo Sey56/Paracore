@@ -18,6 +18,8 @@ export interface ScriptExecutionContextProps {
   updatePreset: (name: string, preset: ParameterPreset) => { success: boolean; message: string };
   deletePreset: (name: string) => { success: boolean; message: string };
   renamePreset: (oldName: string, newName: string) => { success: boolean; message: string };
+  computeParameterOptions: (script: Script, parameterName: string) => Promise<void>;
+  isComputingOptions: Record<string, boolean>;
 }
 
 export const ScriptExecutionContext = createContext<ScriptExecutionContextProps | undefined>(undefined);

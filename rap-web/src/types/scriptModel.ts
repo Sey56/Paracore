@@ -7,6 +7,14 @@ export interface ScriptParameter {
   multiSelect?: boolean;
   description?: string;
   visibleWhen?: string;
+  numericType?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  isRevitElement?: boolean;
+  revitElementType?: string;
+  revitElementCategory?: string;
+  requiresCompute?: boolean;
 }
 
 export interface RawScriptParameterData {
@@ -17,6 +25,14 @@ export interface RawScriptParameterData {
   options: string[];
   multiSelect?: boolean;
   visibleWhen?: string;
+  numericType?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  isRevitElement?: boolean;
+  revitElementType?: string;
+  revitElementCategory?: string;
+  requiresCompute?: boolean;
 }
 
 export interface StructuredOutput {

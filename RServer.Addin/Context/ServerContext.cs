@@ -28,13 +28,15 @@ namespace RServer.Addin.Context
         public IReadOnlyList<string> ErrorLog => _errorMessages;
         public IReadOnlyList<StructuredOutputItem> StructuredOutputLog => _structuredOutputItems; // New property
         public string? InternalDataLog { get; private set; } // Property for CodeRunner to access via reflection
+        public bool IsReadOnly { get; }
 
         // ✅ Backing delegate for script printing
         public Action<string>? PrintCallback { get; private set; }
 
-        public ServerContext(UIApplication uiApp)
+        public ServerContext(UIApplication uiApp, bool isReadOnly = false)
         {
             UIApp = uiApp;
+            IsReadOnly = isReadOnly;
             PrintCallback = msg =>
             {
                 // ✅ Drop debug trace to disk

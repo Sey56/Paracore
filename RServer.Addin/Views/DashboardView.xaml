@@ -18,7 +18,7 @@
             <StackPanel Orientation="Vertical" Margin="0">
                 <!-- Header -->
                 <StackPanel Orientation="Horizontal" Margin="20,20,20,10" VerticalAlignment="Top">
-                    <TextBlock Text="RServer Dashboard" FontSize="16" FontWeight="Bold" Foreground="#F8F8F2"/>
+                    <TextBlock Text="Paracore Dashboard" FontSize="16" FontWeight="Bold" Foreground="#F8F8F2"/>
                     <Ellipse x:Name="HeartbeatEllipse" Width="16" Height="16" Margin="16,0,0,0">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">

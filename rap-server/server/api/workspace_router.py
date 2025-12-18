@@ -79,6 +79,8 @@ async def get_team_registered_workspaces(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user) # Ensure user is authenticated
 ):
+    if team_id == 0:
+        return []
     logging.info(f"Fetching registered workspaces for team_id: {team_id}")
     """
     Retrieves all workspaces registered for a specific team.

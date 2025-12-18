@@ -1,14 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSync, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import type { ScriptParameter } from "@/types/scriptModel";
 
 interface ParameterInputProps {
   param: ScriptParameter;
   index: number;
   onChange: (index: number, value: string | number | boolean) => void;
+  onCompute?: (paramName: string) => void;
+  isComputing?: boolean;
   disabled?: boolean;
 }
 
-export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, disabled }) => {
+export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, isComputing, disabled }) => {
   // Helper to parse multi-select value safely
   const getMultiSelectValues = (): string[] => {
     console.log(`DEBUG: MultiSelect value for '${param.name}':`, param.value, `(type: ${typeof param.value})`);
@@ -77,11 +81,12 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
 
     // Case 3: Boolean
     if (param.type === "boolean") {
+      const isChecked = param.value === true || (typeof param.value === 'string' && param.value.toLowerCase() === 'true');
       return (
         <label className="inline-flex items-center cursor-pointer">
           <input
             type="checkbox"
-            checked={Boolean(param.value)}
+            checked={isChecked}
             onChange={(e) => onChange(index, e.target.checked)}
             className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
             disabled={disabled}
@@ -95,10 +100,56 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
 
     // Case 4: Number
     if (param.type === "number") {
+      const isDecimal = param.numericType === 'double';
+      const step = param.step || (isDecimal ? 0.1 : 1);
+      const min = param.min !== undefined ? param.min : undefined;
+      const max = param.max !== undefined ? param.max : undefined;
+
+      const hasSlider = min !== undefined && max !== undefined && max > min;
+
+      if (hasSlider) {
+        return (
+          <div className="flex flex-col space-y-1 w-full">
+            <div className="flex items-center space-x-3">
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={Number(param.value) || 0}
+                onChange={(e) => onChange(index, parseFloat(e.target.value))}
+                className="flex-grow h-2 rounded-lg cursor-pointer accent-blue-600"
+                disabled={disabled}
+              />
+              <input
+                type="number"
+                value={typeof param.value === 'number' || typeof param.value === 'string' ? param.value : ''}
+                min={min}
+                max={max}
+                step={step}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                  onChange(index, val);
+                }}
+                className="w-24 border border-gray-300 dark:border-gray-600 rounded px-2 py-0.5 text-xs font-mono bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={disabled}
+              />
+            </div>
+            <div className="flex justify-between px-1">
+              <span className="text-[10px] text-gray-400 font-mono">{min}</span>
+              <span className="text-[10px] text-gray-400 font-mono">{max}</span>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <input
           type="number"
           value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
+          min={min}
+          max={max}
+          step={step}
           onChange={(e) => {
             const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
             onChange(index, val);
@@ -133,7 +184,24 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           </span>
         )}
       </div>
-      {renderInput()}
+      <div className="flex gap-2 items-center">
+        <div className="flex-grow">
+          {renderInput()}
+        </div>
+        {param.requiresCompute && onCompute && (
+          <button
+            onClick={() => onCompute(param.name)}
+            disabled={disabled || isComputing}
+            className={`flex-shrink-0 p-2 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isComputing ? 'animate-pulse' : ''}`}
+            title="Compute options from Revit"
+          >
+            <FontAwesomeIcon
+              icon={isComputing ? faSpinner : faSync}
+              className={`${isComputing ? 'animate-spin' : ''} text-blue-600 dark:text-blue-400`}
+            />
+          </button>
+        )}
+      </div>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSave } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '@/context/ThemeContext';
 import api from '@/api/axios';
+import axios from 'axios';
 
 interface SaveToLibraryModalProps {
     isOpen: boolean;
@@ -126,9 +127,13 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
 
             onSaveSuccess();
             onClose();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Save error:', error);
-            alert(error.response?.data?.detail || 'Failed to save script');
+            if (axios.isAxiosError(error)) {
+                alert(error.response?.data?.detail || 'Failed to save script');
+            } else {
+                alert('Failed to save script');
+            }
         } finally {
             setIsSaving(false);
         }

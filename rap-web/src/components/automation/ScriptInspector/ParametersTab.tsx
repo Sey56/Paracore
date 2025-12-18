@@ -47,6 +47,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     renamePreset,
     updateUserEditedParameters,
     setSelectedScript,
+    computeParameterOptions,
+    isComputingOptions,
   } = useScriptExecution();
 
   const [editedParameters, setEditedParameters] = useState<ScriptParameter[]>([]);
@@ -170,6 +172,13 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const showStatusIcon = !isRunning && executionResult;
   const runSucceeded = showStatusIcon && !executionResult?.error;
 
+  const needsCompute = editedParameters.some(p => p.requiresCompute && (!p.options || p.options.length === 0));
+  const isRunDisabled = !!runningScriptPath || !isActionable || needsCompute;
+
+  const finalTooltipMessage = needsCompute
+    ? "Please compute required parameters first."
+    : tooltipMessage;
+
   return (
     <div className={`tab-content p-4`}>
       <div className="space-y-3">
@@ -185,10 +194,12 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 if (presetName === "<Default Parameters>") {
                   const defaultParams = initializeParameters(script.parameters ?? []);
                   updateUserEditedParameters(script.id, defaultParams);
+                  setEditedParameters(defaultParams);
                 } else {
                   const preset = presets.find((p) => p.name === presetName);
                   if (preset) {
                     updateUserEditedParameters(script.id, preset.parameters);
+                    setEditedParameters(preset.parameters);
                   }
                 }
               }}
@@ -225,6 +236,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               param={param}
               index={originalIndex}
               onChange={handleParameterChange}
+              onCompute={(paramName) => computeParameterOptions(script, paramName)}
+              isComputing={isComputingOptions[param.name]}
               disabled={!isActionable}
             />
           );
@@ -233,11 +246,11 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         {/* Run Script Button */}
         {activeMainView === 'scripts' && (
           <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <div className="relative flex items-center" title={tooltipMessage}>
+            <div className="relative flex items-center" title={finalTooltipMessage}>
               <button
                 className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 text-base rounded-lg font-semibold flex items-center justify-center disabled:bg-blue-400 dark:disabled:bg-blue-800 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
                 onClick={handleRunScript}
-                disabled={!!runningScriptPath || !isActionable}
+                disabled={isRunDisabled}
               >
                 <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`mr-3 ${isRunning ? "animate-spin" : ""}`} />
                 {isRunning ? "Running..." : "Run Script"}

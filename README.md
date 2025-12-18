@@ -45,8 +45,8 @@ The platform is composed of several key projects that work together:
 *   **`RServer.Addin`**: A C# Revit add-in that hosts a gRPC server inside Revit. It is responsible for receiving commands and marshalling script execution requests to the main Revit thread, ensuring safe API access.
     *   [Details](./RServer.Addin/README.md)
 
-*   **`RScript.Engine`**: The core C# scripting engine in `RServer.Addin` that uses the Roslyn compiler to dynamically compile and execute C# code on-the-fly, manage parameter injection, and provide a rich execution context for scripts.
-    *   [Details](./RScript.Engine/README.md)
+*   **`CoreScript.Engine`**: The core C# scripting engine in `RServer.Addin` that uses the Roslyn compiler to dynamically compile and execute C# code on-the-fly, manage parameter injection, and provide a rich execution context for scripts.
+    *   [Details](./CoreScript.Engine/README.md)
 
 *   **`rap-auth-server`**: A planned cloud-based authentication service (Python/FastAPI) that will handle user identity, licensing, and other commercial features in the future.
     *   [Details](./rap-auth-server/server/README.md)

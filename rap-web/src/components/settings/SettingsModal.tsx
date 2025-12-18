@@ -57,7 +57,7 @@ const SettingsModal: React.FC = () => {
     });
 
     return tabs;
-  }, [activeRole, openTeamManagementModal, activeTeam]); // Added activeTeam dependency
+  }, [activeRole, openTeamManagementModal]); // Removed activeTeam dependency
 
   const [activeTab, setActiveTab] = useState<string | null>(
     coreFeaturesTabs.length > 0 ? coreFeaturesTabs[0].name : null

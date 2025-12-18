@@ -9,7 +9,7 @@ from google.protobuf import json_format
 import json
 
 @contextmanager
-def get_rscript_runner_stub():
+def get_corescript_runner_stub():
     """Provides a gRPC stub within a managed context."""
     channel = None
     try:
@@ -29,7 +29,7 @@ def get_rscript_runner_stub():
 def get_status():
     # logging.info("Attempting to get gRPC server status.")
     try:
-        with get_rscript_runner_stub() as stub:
+        with get_corescript_runner_stub() as stub:
             response = stub.GetStatus(corescript_pb2.GetStatusRequest())
         return response
     except grpc.RpcError as e:
@@ -41,7 +41,7 @@ def get_status():
 
 def execute_script(script_content, parameters_json):
     # logging.info("Attempting to execute script via gRPC.")
-    with get_rscript_runner_stub() as stub:
+    with get_corescript_runner_stub() as stub:
         request = corescript_pb2.ExecuteScriptRequest(
             script_content=script_content.encode('utf-8'),
             parameters_json=parameters_json.encode('utf-8'),
@@ -66,7 +66,7 @@ def execute_script(script_content, parameters_json):
             raise # Re-raise the gRPC error
 
 def get_script_metadata(script_files):
-    with get_rscript_runner_stub() as stub:
+    with get_corescript_runner_stub() as stub:
         grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
         request = corescript_pb2.GetScriptMetadataRequest(script_files=grpc_script_files)
         response = stub.GetScriptMetadata(request)
@@ -82,7 +82,7 @@ def get_script_metadata(script_files):
     }
 
 def get_script_parameters(script_files):
-    with get_rscript_runner_stub() as stub:
+    with get_corescript_runner_stub() as stub:
         grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
         request = corescript_pb2.GetScriptParametersRequest(script_files=grpc_script_files)
         response = stub.GetScriptParameters(request)
@@ -97,7 +97,15 @@ def get_script_parameters(script_files):
             "description": p.description,
             "options": list(p.options),
             "multiSelect": p.multi_select,
-            "visibleWhen": p.visible_when
+            "visibleWhen": p.visible_when,
+            "numericType": p.numeric_type,
+            "min": p.min,
+            "max": p.max,
+            "step": p.step,
+            "isRevitElement": p.is_revit_element,
+            "revitElementType": p.revit_element_type,
+            "revitElementCategory": p.revit_element_category,
+            "requiresCompute": p.requires_compute
         }
         params_to_return.append(param_dict)
 
@@ -107,7 +115,7 @@ def get_script_parameters(script_files):
     }
 
 def get_combined_script(script_files):
-    with get_rscript_runner_stub() as stub:
+    with get_corescript_runner_stub() as stub:
         grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
         request = corescript_pb2.GetCombinedScriptRequest(script_files=grpc_script_files)
         response = stub.GetCombinedScript(request)
@@ -118,7 +126,7 @@ def get_combined_script(script_files):
     }
 
 def create_and_open_workspace(script_path, script_type):
-    with get_rscript_runner_stub() as stub:
+    with get_corescript_runner_stub() as stub:
         request = corescript_pb2.CreateWorkspaceRequest(
             script_path=script_path,
             script_type=script_type
@@ -133,7 +141,7 @@ def get_script_manifest(script_path: str) -> str:
     """
     Calls the gRPC service to get a JSON manifest of scripts from a given path.
     """
-    with get_rscript_runner_stub() as stub:
+    with get_corescript_runner_stub() as stub:
         request = corescript_pb2.GetScriptManifestRequest(script_path=script_path)
         response = stub.GetScriptManifest(request)
         return response.manifest_json
@@ -144,7 +152,7 @@ def get_context():
     """
     print("DEBUG: grpc_client.get_context called")
     try:
-        with get_rscript_runner_stub() as stub:
+        with get_corescript_runner_stub() as stub:
             print("DEBUG: Stub created, sending GetContextRequest...")
             request = corescript_pb2.GetContextRequest()
             response = stub.GetContext(request)
@@ -180,7 +188,7 @@ def validate_working_set_grpc(element_ids: list[int]) -> list[int]:
     """
     logging.info(f"Attempting to validate {len(element_ids)} element IDs via gRPC.")
     try:
-        with get_rscript_runner_stub() as stub:
+        with get_corescript_runner_stub() as stub:
             request = corescript_pb2.ValidateWorkingSetRequest(element_ids=element_ids)
             response = stub.ValidateWorkingSet(request)
             valid_ids = list(response.valid_element_ids)
@@ -192,3 +200,35 @@ def validate_working_set_grpc(element_ids: list[int]) -> list[int]:
     except Exception as e:
         logging.error(f"An unexpected error occurred during gRPC ValidateWorkingSet call: {e}")
         return [] # Return empty list on error
+
+def compute_parameter_options(script_content: str, parameter_name: str):
+    """
+    Calls the gRPC service to execute the {parameter_name}_Options() function in Revit.
+    """
+    logging.info(f"Attempting to compute options for parameter '{parameter_name}' via gRPC.")
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.ComputeParameterOptionsRequest(
+                script_content=script_content,
+                parameter_name=parameter_name
+            )
+            response = stub.ComputeParameterOptions(request)
+            return {
+                "options": list(response.options),
+                "is_success": response.is_success,
+                "error_message": response.error_message
+            }
+    except grpc.RpcError as e:
+        logging.error(f"gRPC ComputeParameterOptions call failed: {e.code()} - {e.details()}")
+        return {
+            "options": [],
+            "is_success": False,
+            "error_message": f"gRPC error: {e.details()}"
+        }
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during gRPC ComputeParameterOptions call: {e}")
+        return {
+            "options": [],
+            "is_success": False,
+            "error_message": f"Unexpected error: {str(e)}"
+        }

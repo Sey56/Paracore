@@ -19,7 +19,8 @@ from grpc_client import (
     get_script_metadata,
     get_script_parameters,
     get_combined_script,
-    create_and_open_workspace
+    create_and_open_workspace,
+    compute_parameter_options
 )
 from utils import get_or_create_script, resolve_script_path
 from auth import get_current_user, CurrentUser
@@ -87,6 +88,11 @@ class NewScriptRequest(BaseModel):
     script_type: Literal['single', 'multi'] = Field(..., description="The type of script to create.")
     script_name: str = Field(..., description="The name of the .cs file to create.")
     folder_name: str | None = Field(None, description="The name of the folder for multi-script projects.")
+
+class ComputeOptionsRequest(BaseModel):
+    scriptPath: str
+    type: str
+    parameterName: str
 
 @router.post("/api/scripts/new", tags=["Script Management"])
 async def create_new_script(request: NewScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
@@ -497,5 +503,43 @@ async def get_script_log(script_path: str):
         return {"log": log_result}
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Failed to get git log: {e.stderr}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/compute-parameter-options", tags=["Script Management"])
+async def compute_parameter_options_endpoint(request: ComputeOptionsRequest):
+    try:
+        absolute_path = resolve_script_path(request.scriptPath)
+        
+        # We need the full script content to extract the options function
+        source_code = ""
+        if request.type == "single-file":
+            with open(absolute_path, 'r', encoding='utf-8-sig') as f:
+                source_code = f.read()
+        elif request.type == "multi-file":
+            if not os.path.isdir(absolute_path):
+                raise HTTPException(status_code=400, detail="Path for multi-file script must be a directory.")
+            
+            # For multi-file, we combine the scripts first
+            files = []
+            for file_path in glob.glob(os.path.join(absolute_path, "*.cs")):
+                with open(file_path, 'r', encoding='utf-8-sig') as f:
+                    files.append({"file_name": os.path.basename(file_path), "content": f.read()})
+            
+            combined_response = get_combined_script(files)
+            source_code = combined_response.get("combined_script", "")
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid script type: {request.type}")
+
+        if not source_code:
+            raise HTTPException(status_code=404, detail="Script content not found.")
+
+        response = compute_parameter_options(source_code, request.parameterName)
+        return JSONResponse(content=response)
+        
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except grpc.RpcError as e:
+        raise HTTPException(status_code=500, detail=f"gRPC Error: {e.details()}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -85,11 +85,8 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
     try {
       let workspaces: Workspace[] = [];
-      // Local Mode Check (Team ID 0)
-      if (activeTeam.team_id === 0) {
-        const response = await api.get(`/api/workspaces/registered/${activeTeam.team_id}`);
-        workspaces = response.data;
-      } else {
+      // registered workspaces are only applicable for cloud teams
+      if (activeTeam.team_id !== 0) {
         workspaces = await getTeamWorkspaces(activeTeam.team_id, cloudToken);
       }
 
@@ -178,7 +175,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     }
-  }, [activeTeam, userWorkspacesLoaded, userWorkspacePaths]); // Intentionally not including activeScriptSource to avoid loops
+  }, [activeTeam, userWorkspacesLoaded, userWorkspacePaths, activeScriptSource, setActiveScriptSource]);
 
 
   const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false) => {

@@ -54,6 +54,12 @@ namespace CoreScript.Engine.Globals
         // Old method for backward compatibility
         public void Transact(string name, Action<Document> action)
         {
+            if (_context.IsReadOnly)
+            {
+                _context.Println($"⚠️ Skipping transaction '{name}' because execution is in Read-Only mode (e.g., computing parameter options).");
+                return;
+            }
+
             if (Doc != null)
                 Tx.Transact(Doc, name, action);
         }
@@ -61,6 +67,12 @@ namespace CoreScript.Engine.Globals
         // New, preferred method
         public void Transact(string name, Action action)
         {
+            if (_context.IsReadOnly)
+            {
+                _context.Println($"⚠️ Skipping transaction '{name}' because execution is in Read-Only mode (e.g., computing parameter options).");
+                return;
+            }
+
             if (Doc != null)
                 Tx.Transact(Doc, name, action);
         }

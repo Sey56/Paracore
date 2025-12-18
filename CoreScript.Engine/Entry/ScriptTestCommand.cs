@@ -26,7 +26,7 @@ namespace CoreScript.Engine.Entry
             tester.RunWallCreationTest();
             // tester.RunReadOnlyTest();
 
-            TaskDialog.Show("RScript", "Test script executed.");
+            TaskDialog.Show("CoreScript", "Test script executed.");
             return Result.Succeeded;
         }
     }

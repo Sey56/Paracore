@@ -60,6 +60,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [userEditedScriptParameters, setUserEditedScriptParameters] = useState<Record<string, ScriptParameter[]>>({});
   const [presets, setPresets] = useState<ParameterPreset[]>([]);
+  const [isComputingOptions, setIsComputingOptions] = useState<Record<string, boolean>>({});
 
   const lastProcessedToolMessageIdRef = useRef<string | null>(null);
 
@@ -214,14 +215,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
             else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
 
-            // Manually construct the object to ensure all fields are carried over
             const newParamObject: ScriptParameter = {
-              name: p.name,
-              type: p.type as any,
-              description: p.description,
-              options: p.options,
-              multiSelect: p.multiSelect,
-              visibleWhen: p.visibleWhen,
+              ...p,
+              type: p.type as ScriptParameter['type'],
               value: value,
               defaultValue: value
             };
@@ -311,15 +307,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           } catch { /* Ignore if not JSON */ }
           if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
           else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
-          
-          // Manually construct the object to ensure all fields are carried over
+
           const newParamObject: ScriptParameter = {
-            name: p.name,
-            type: p.type as any,
-            description: p.description,
-            options: p.options,
-            multiSelect: p.multiSelect,
-            visibleWhen: p.visibleWhen,
+            ...p,
+            type: p.type as ScriptParameter['type'],
             value: value,
             defaultValue: value
           };
@@ -488,6 +479,61 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   };
 
+  const computeParameterOptions = useCallback(async (script: Script, parameterName: string) => {
+    setIsComputingOptions(prev => ({ ...prev, [parameterName]: true }));
+    try {
+      const response = await api.post("/api/compute-parameter-options", {
+        scriptPath: script.absolutePath,
+        type: script.type,
+        parameterName: parameterName
+      });
+
+      const { options, is_success, error_message } = response.data;
+
+      if (is_success) {
+        showNotification(`Computed ${options.length} options for ${parameterName}`, "success");
+
+        // Update the parameter with the new options
+        setUserEditedScriptParameters(prev => {
+          const params = prev[script.id] || script.parameters || [];
+          const updatedParams = params.map(p =>
+            p.name === parameterName
+              ? { ...p, options: options, requiresCompute: false }
+              : p
+          );
+
+          return {
+            ...prev,
+            [script.id]: updatedParams
+          };
+        });
+
+        // Also update selectedScript if it's the same script
+        if (selectedScript?.id === script.id) {
+          setSelectedScriptState(prev => {
+            if (!prev) return null;
+            const updatedParams = (prev.parameters || []).map(p =>
+              p.name === parameterName
+                ? { ...p, options: options, requiresCompute: false }
+                : p
+            );
+            return { ...prev, parameters: updatedParams };
+          });
+        }
+      } else {
+        showNotification(error_message || "Failed to compute options.", "error");
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        showNotification(err.message || "Failed to compute options.", "error");
+      } else {
+        showNotification("Failed to compute options.", "error");
+      }
+    } finally {
+      setIsComputingOptions(prev => ({ ...prev, [parameterName]: false }));
+    }
+  }, [selectedScript, showNotification]);
+
   const contextValue = {
     selectedScript,
     setSelectedScript,
@@ -503,6 +549,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     updatePreset,
     deletePreset,
     renamePreset,
+    computeParameterOptions,
+    isComputingOptions,
   };
 
   return (

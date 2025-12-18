@@ -20,6 +20,6 @@ namespace RServer.Addin.Commands
             _viewModel.ExecuteCodeInRevit(null);
         }
 
-        public string GetName() => "RScript Code Executor";
+        public string GetName() => "CoreScript Code Executor";
     }
 }

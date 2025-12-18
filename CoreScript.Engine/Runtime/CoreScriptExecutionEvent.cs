@@ -5,12 +5,12 @@ namespace CoreScript.Engine.Runtime
     /// <summary>
     /// Provides a wrapper around Revit's ExternalEvent system used to raise code execution requests.
     /// </summary>
-    public class RScriptExecutionEvent
+    public class CoreScriptExecutionEvent
     {
-        private readonly IRScriptActionHandler _handler;
+        private readonly ICoreScriptActionHandler _handler;
         public ExternalEvent ExternalEvent { get; }
 
-        public RScriptExecutionEvent(IRScriptActionHandler handler)
+        public CoreScriptExecutionEvent(ICoreScriptActionHandler handler)
         {
             _handler = handler;
             ExternalEvent = ExternalEvent.Create(_handler);

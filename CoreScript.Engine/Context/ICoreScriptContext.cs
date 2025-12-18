@@ -22,6 +22,8 @@ namespace CoreScript.Engine.Context
 
         Action<string>? PrintCallback { get; }
 
-        IReadOnlyList<string> PrintLog { get; } // ✅ New: expose print buffer to engine
+        IReadOnlyList<string> PrintLog { get; } 
+        
+        bool IsReadOnly { get; }
     }
 }

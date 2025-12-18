@@ -94,7 +94,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
       window.removeEventListener('focus', handleFocus);
       clearInterval(intervalId);
     };
-  }, [fetchSourceCode, combinedScriptContent]);
+  }, [fetchSourceCode, combinedScriptContent, sourceCode]);
 
   if (isLoading) {
     return <div className="text-center py-10">Loading code...</div>;

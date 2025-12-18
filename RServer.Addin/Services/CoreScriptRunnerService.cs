@@ -222,16 +222,28 @@ namespace RServer.Addin.Services
                 var extractedParams = _parameterExtractor.ExtractParameters(topLevelScript.Content);
                 foreach (var p in extractedParams)
                 {
-                    response.Parameters.Add(new CoreScript.ScriptParameter
+                    var protoParam = new CoreScript.ScriptParameter
                     {
                         Name = p.Name,
                         Type = p.Type,
                         DefaultValueJson = p.DefaultValueJson,
                         Description = p.Description,
-                        Options = { p.Options },
                         MultiSelect = p.MultiSelect,
-                        VisibleWhen = p.VisibleWhen ?? ""
-                    });
+                        VisibleWhen = p.VisibleWhen ?? "",
+                        NumericType = p.NumericType ?? "",
+                        IsRevitElement = p.IsRevitElement,
+                        RevitElementType = p.RevitElementType ?? "",
+                        RevitElementCategory = p.RevitElementCategory ?? "",
+                        RequiresCompute = p.RequiresCompute
+                    };
+                    
+                    protoParam.Options.AddRange(p.Options);
+                    
+                    if (p.Min.HasValue) protoParam.Min = p.Min.Value;
+                    if (p.Max.HasValue) protoParam.Max = p.Max.Value;
+                    if (p.Step.HasValue) protoParam.Step = p.Step.Value;
+                    
+                    response.Parameters.Add(protoParam);
                 }
             }
             catch (Exception ex)
@@ -565,6 +577,70 @@ namespace RServer.Addin.Services
             {
                 _logger.LogError($"[CoreScriptRunnerService] Error in ValidateWorkingSet: {ex.Message}");
             }
+            return response;
+        }
+
+        public override async Task<ComputeParameterOptionsResponse> ComputeParameterOptions(ComputeParameterOptionsRequest request, ServerCallContext context)
+        {
+            _logger.Log($"[CoreScriptRunnerService] Entering ComputeParameterOptions for parameter: {request.ParameterName}", LogLevel.Debug);
+            var response = new ComputeParameterOptionsResponse { IsSuccess = false };
+            
+            if (_uiApp == null)
+            {
+                response.ErrorMessage = "Revit UI Application is not available.";
+                return response;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScriptContent))
+            {
+                response.ErrorMessage = "Script content is empty.";
+                return response;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ParameterName))
+            {
+                response.ErrorMessage = "Parameter name is empty.";
+                return response;
+            }
+
+            try
+            {
+                var result = await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
+                {
+                    var serverContext = new ServerContext(_uiApp, isReadOnly: true);
+                    var optionsExecutor = new ParameterOptionsExecutor(_logger);
+                    
+                    // We call the async method synchronously here because ExecuteInUIContext 
+                    // handles the threading and we need the result before the Revit turn ends.
+                    var options = optionsExecutor.ExecuteOptionsFunction(
+                        request.ScriptContent,
+                        request.ParameterName,
+                        serverContext
+                    ).GetAwaiter().GetResult();
+                    
+                    return options;
+                });
+
+                if (result != null && result.Count > 0)
+                {
+                    response.Options.AddRange(result);
+                    response.IsSuccess = true;
+                    _logger.Log($"[CoreScriptRunnerService] Successfully computed {result.Count} options for {request.ParameterName}", LogLevel.Debug);
+                }
+                else
+                {
+                    response.IsSuccess = false;
+                    response.ErrorMessage = $"No options returned from {request.ParameterName}_Options() function.";
+                    _logger.Log($"[CoreScriptRunnerService] {response.ErrorMessage}", LogLevel.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[CoreScriptRunnerService] Error in ComputeParameterOptions: {ex.Message}");
+                response.IsSuccess = false;
+                response.ErrorMessage = $"Failed to compute options: {ex.Message}";
+            }
+
             return response;
         }
     }

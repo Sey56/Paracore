@@ -6,7 +6,7 @@ namespace CoreScript.Engine.Runtime
     /// Interface abstraction for handling Revit external events used to execute scripts safely within Revit's API context.
     /// Implementations should defer execution to the engine dispatcher.
     /// </summary>
-    public interface IRScriptActionHandler : IExternalEventHandler
+    public interface ICoreScriptActionHandler : IExternalEventHandler
     {
         /// <summary>
         /// Gets the name of the execution handler for diagnostic or debug purposes.

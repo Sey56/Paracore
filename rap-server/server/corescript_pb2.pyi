@@ -141,7 +141,7 @@ class GetScriptParametersResponse(_message.Message):
     def __init__(self, parameters: _Optional[_Iterable[_Union[ScriptParameter, _Mapping]]] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class ScriptParameter(_message.Message):
-    __slots__ = ("name", "type", "default_value_json", "description", "options", "multi_select", "visible_when")
+    __slots__ = ("name", "type", "default_value_json", "description", "options", "multi_select", "visible_when", "numeric_type", "min", "max", "step", "is_revit_element", "revit_element_type", "revit_element_category", "requires_compute")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_VALUE_JSON_FIELD_NUMBER: _ClassVar[int]
@@ -149,6 +149,14 @@ class ScriptParameter(_message.Message):
     OPTIONS_FIELD_NUMBER: _ClassVar[int]
     MULTI_SELECT_FIELD_NUMBER: _ClassVar[int]
     VISIBLE_WHEN_FIELD_NUMBER: _ClassVar[int]
+    NUMERIC_TYPE_FIELD_NUMBER: _ClassVar[int]
+    MIN_FIELD_NUMBER: _ClassVar[int]
+    MAX_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    IS_REVIT_ELEMENT_FIELD_NUMBER: _ClassVar[int]
+    REVIT_ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    REVIT_ELEMENT_CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_COMPUTE_FIELD_NUMBER: _ClassVar[int]
     name: str
     type: str
     default_value_json: str
@@ -156,7 +164,15 @@ class ScriptParameter(_message.Message):
     options: _containers.RepeatedScalarFieldContainer[str]
     multi_select: bool
     visible_when: str
-    def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., default_value_json: _Optional[str] = ..., description: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ..., multi_select: bool = ..., visible_when: _Optional[str] = ...) -> None: ...
+    numeric_type: str
+    min: float
+    max: float
+    step: float
+    is_revit_element: bool
+    revit_element_type: str
+    revit_element_category: str
+    requires_compute: bool
+    def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., default_value_json: _Optional[str] = ..., description: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ..., multi_select: bool = ..., visible_when: _Optional[str] = ..., numeric_type: _Optional[str] = ..., min: _Optional[float] = ..., max: _Optional[float] = ..., step: _Optional[float] = ..., is_revit_element: bool = ..., revit_element_type: _Optional[str] = ..., revit_element_category: _Optional[str] = ..., requires_compute: bool = ...) -> None: ...
 
 class GetCombinedScriptRequest(_message.Message):
     __slots__ = ("script_files", "script_path")
@@ -247,3 +263,21 @@ class ValidateWorkingSetResponse(_message.Message):
     VALID_ELEMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     valid_element_ids: _containers.RepeatedScalarFieldContainer[int]
     def __init__(self, valid_element_ids: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class ComputeParameterOptionsRequest(_message.Message):
+    __slots__ = ("script_content", "parameter_name")
+    SCRIPT_CONTENT_FIELD_NUMBER: _ClassVar[int]
+    PARAMETER_NAME_FIELD_NUMBER: _ClassVar[int]
+    script_content: str
+    parameter_name: str
+    def __init__(self, script_content: _Optional[str] = ..., parameter_name: _Optional[str] = ...) -> None: ...
+
+class ComputeParameterOptionsResponse(_message.Message):
+    __slots__ = ("options", "is_success", "error_message")
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    options: _containers.RepeatedScalarFieldContainer[str]
+    is_success: bool
+    error_message: str
+    def __init__(self, options: _Optional[_Iterable[str]] = ..., is_success: bool = ..., error_message: _Optional[str] = ...) -> None: ...

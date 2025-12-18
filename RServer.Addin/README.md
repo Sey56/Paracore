@@ -7,7 +7,7 @@
 -   **gRPC Server Hosting:** Hosts a high-performance gRPC server using Kestrel on `localhost:50051`. This server exposes the `CoreScriptRunner` service, enabling clients to check Revit's status, get script metadata, and execute code.
 
 -   **Revit UI Integration:**
-    -   **Ribbon Control:** Adds an "RScript" tab to the Revit ribbon with a toggle button to start and stop the gRPC server.
+    -   **Ribbon Control:** Adds a "CoreScript" tab to the Revit ribbon with a toggle button to start and stop the gRPC server.
     -   **Dockable Dashboard:** Provides a dockable WPF pane to monitor server status and view execution history.
 
 -   **Thread-Safe Revit API Execution:** Guarantees safe interaction with the Revit API by marshalling all script execution requests onto Revit's main UI thread. This is achieved using Revit's `ExternalEvent` mechanism, which is the only correct and stable way to handle calls into the API from external sources or background threads.
