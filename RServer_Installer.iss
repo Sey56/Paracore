@@ -43,14 +43,12 @@ Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2026\RServer"; 
 [Files]
 ; Install Add-in for Revit 2025
 Source: "RServer.Addin\bin\Release\net8.0-windows\win-x64\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025\RServer"; Tasks: Revit2025; Flags: recursesubdirs replacesameversion
-; Install Add-in for Revit 2025. Note: The destination folder for the addin itself remains RServer.
-Source: "RServer.Addin\bin\Release\net8.0-windows\win-x64\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025\RServer"; Tasks: Revit2025; Flags: recursesubdirs replacesameversion;
+
 Source: "RServer.Addin\bin\Release\net8.0-windows\win-x64\RServer.Addin.addin"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025"; Tasks: Revit2025; Flags: replacesameversion
 
 ; Install Add-in for Revit 2026
 Source: "RServer.Addin\bin\Release\net8.0-windows\win-x64\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026\RServer"; Tasks: Revit2026; Flags: recursesubdirs replacesameversion
-; Install Add-in for Revit 2026.
-Source: "RServer.Addin\bin\Release\net8.0-windows\win-x64\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026\RServer"; Tasks: Revit2026; Flags: recursesubdirs replacesameversion;
+
 Source: "RServer.Addin\bin\Release\net8.0-windows\win-x64\RServer.Addin.addin"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026"; Tasks: Revit2026; Flags: replacesameversion
 
 [Code]

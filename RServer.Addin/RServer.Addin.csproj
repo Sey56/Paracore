@@ -19,7 +19,7 @@
     <ProtoRoot>$(MSBuildProjectDirectory)\..\protos</ProtoRoot>
 
     <!-- Allow override via command line or environment -->
-    <RevitInstallPath Condition="'$(RevitInstallPath)' == ''">C:\Program Files\Autodesk\Revit 2025</RevitInstallPath>
+
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
@@ -33,15 +33,10 @@
   </ItemGroup>
 
   <!-- Revit API references -->
+  <!-- Nuget Revit API references -->
   <ItemGroup>
-    <Reference Include="RevitAPI">
-      <HintPath>$(RevitInstallPath)\RevitAPI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="RevitAPIUI">
-      <HintPath>$(RevitInstallPath)\RevitAPIUI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.*" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.*" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -16,7 +17,7 @@ namespace CoreScript.Engine.Core
             {
                 try
                 {
-                    string revitInstallPath = @"C:\Program Files\Autodesk\Revit 2025";
+                    string revitInstallPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
                     if (!Directory.Exists(revitInstallPath))
                     {
                         // Handle error: Revit not found

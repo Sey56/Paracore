@@ -22,6 +22,8 @@ namespace RServer.Addin.App
     {
         public static readonly Guid DashboardPaneId = new Guid("D7C95B7A-2E34-4A1E-8A6A-45A75D25E48B");
         public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        public static string RevitVersion { get; private set; } = "2025"; // Default fallback
+        public static string RevitInstallPath { get; private set; } = @"C:\Program Files\Autodesk\Revit 2025"; // Default fallback
         private static CoreScriptServer? _server;
         private static bool _serverRunning;
         private static PushButton? _toggleButton;
@@ -40,6 +42,11 @@ namespace RServer.Addin.App
         }
         public Result OnStartup(UIControlledApplication application)
         {
+            // Capture Revit version and install path
+            RevitVersion = application.ControlledApplication.VersionNumber;
+            RevitInstallPath = Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName) ?? RevitInstallPath;
+            FileLogger.Log($"Detected Revit {RevitVersion} at {RevitInstallPath}");
+
             // Initialize the custom assembly resolver
             CoreScript.Engine.Globals.CustomAssemblyResolver.Initialize();
 

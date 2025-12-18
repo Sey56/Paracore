@@ -11,7 +11,7 @@ namespace RServer.Addin.Helpers
 {
     public static class EphemeralWorkspaceManager
     {
-        private const string RevitVersion = "2025";
+
         private static readonly string WorkspaceRoot = Path.Combine(Path.GetTempPath(), "rap_workspace");
         private static readonly Dictionary<string, FileSystemWatcher> ActiveWatchers = new Dictionary<string, FileSystemWatcher>();
 
@@ -222,10 +222,10 @@ namespace RServer.Addin.Helpers
 
         private static void WriteCsproj(string folderPath, string projectName, List<string> scriptFileNames)
         {
-            string revitPath = $@"C:\Program Files\Autodesk\Revit {RevitVersion}";
+            string revitPath = RServerApp.RevitInstallPath;
             string enginePath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "Autodesk", "Revit", "Addins", RevitVersion, "RServer", "CoreScript.Engine.dll");
+                "Autodesk", "Revit", "Addins", RServerApp.RevitVersion, "RServer", "CoreScript.Engine.dll");
 
             var compileItems = string.Join("\n", scriptFileNames.Select(file => $"    <Compile Include=\"{file}\" />"));
 

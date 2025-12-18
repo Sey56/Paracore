@@ -9,6 +9,7 @@ using CoreScript.Engine.Logging;
 using CoreScript.Engine.Models;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -141,7 +142,7 @@ namespace CoreScript.Engine.Core
                 var executionGlobals = new ExecutionGlobals(context, parameters ?? new Dictionary<string, object>());
                 ExecutionGlobals.SetContext(executionGlobals);
 
-                string revitInstallPath = @"C:\Program Files\Autodesk\Revit 2025";
+                string revitInstallPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
                 if (!Directory.Exists(revitInstallPath))
                     return ExecutionResult.Failure($"Revit installation directory not found at {revitInstallPath}");
 

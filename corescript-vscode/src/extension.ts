@@ -47,12 +47,6 @@ export function activate(context: vscode.ExtensionContext) {
         fs.writeFileSync(path.join(rootPath, "global.json"), globalJson);
 
         // 📦 Create workspaceName.csproj
-        const rawPath = `${process.env["ProgramFiles"]}\\Autodesk\\Revit 2025`;
-        const revitDir = rawPath.replace(/\\/g, "/");
-
-        const appData = process.env.APPDATA || '';
-        const enginePath = path.join(appData, 'Autodesk', 'Revit', 'Addins', '2025', 'RServer', 'CoreScript.Engine.dll').replace(/\\/g, "/");
-
         const csproj = `
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -60,18 +54,8 @@ export function activate(context: vscode.ExtensionContext) {
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="RevitAPI">
-      <HintPath>${revitDir}/RevitAPI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="RevitAPIUI">
-      <HintPath>${revitDir}/RevitAPIUI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="CoreScript.Engine">
-      <HintPath>${enginePath}</HintPath>
-      <Private>False</Private>
-    </Reference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.*" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.*" />
   </ItemGroup>
 </Project>
 `.trim();
