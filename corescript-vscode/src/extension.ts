@@ -47,6 +47,22 @@ export function activate(context: vscode.ExtensionContext) {
         fs.writeFileSync(path.join(rootPath, "global.json"), globalJson);
 
         // 📦 Create workspaceName.csproj
+        const appData = process.env.APPDATA || '';
+        const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
+
+        // Try to find Revit installation (2026 first, then 2025)
+        let revitPath = path.join(programFiles, 'Autodesk', 'Revit 2026');
+        let revitVersion = '2026';
+        if (!fs.existsSync(revitPath)) {
+          revitPath = path.join(programFiles, 'Autodesk', 'Revit 2025');
+          revitVersion = '2025';
+        }
+        const revitPathFormatted = revitPath.replace(/\\/g, "/");
+
+        // CoreScript.Engine path based on detected version
+        const enginePath = path.join(appData, 'Autodesk', 'Revit', 'Addins', revitVersion, 'RServer', 'CoreScript.Engine.dll');
+        const enginePathFormatted = enginePath.replace(/\\/g, "/");
+
         const csproj = `
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -54,8 +70,18 @@ export function activate(context: vscode.ExtensionContext) {
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.*" />
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.*" />
+    <Reference Include="RevitAPI">
+      <HintPath>${revitPathFormatted}/RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>${revitPathFormatted}/RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="CoreScript.Engine">
+      <HintPath>${enginePathFormatted}</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
 </Project>
 `.trim();
@@ -79,7 +105,7 @@ dotnet_diagnostic.CA1050.severity = none
 
 global using static CoreScript.Engine.Globals.DesignTimeGlobals;
 `.trim();
-        fs.writeFileSync(path.join(scriptsPath, "Globals.cs"), globalsScript);
+        fs.writeFileSync(path.join(rootPath, "Globals.cs"), globalsScript);
 
         // 📝 Main.cs script
         const mainScript = `
@@ -90,7 +116,7 @@ Println("Starting spiral sketch...");
 Transact("Create Spiral", () =>
 {
     var spiral = new SpiralCreator();
-    spiral.CreateSpiral(Doc, "Level 1", 100, 10, 20);
+    spiral.CreateSpiral(Doc, "Level 1", 2400, 10, 20);
 });
 
 Println("Spiral sketch finished.");
