@@ -1,7 +1,7 @@
 {
   "name": "corescript",
-  "displayName": "CoreScript",
-  "description": "Write C# Revit API scripts with full IntelliSense, code completion, and access to custom global variables. Execute your code directly in Revit and see results instantly in the VS Code output tab. Requires the RServer.Addin (installed via RServer_Installer.exe). This extension is not needed for the Paracore application.",
+  "displayName": "corescript-vscode",
+  "description": "Write CoreScript (C# Revit API scripts with custom globals like Print, Println, Show, Transact, Doc) with full IntelliSense and code completion. Execute your scripts directly in Revit and see results instantly in the VS Code output tab. Requires the RServer.Addin (installed via RServer_Installer.exe). This extension is not needed for the Paracore application.",
   "version": "0.0.1",
   "license": "MIT",
   "author": {
