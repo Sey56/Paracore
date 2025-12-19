@@ -276,7 +276,8 @@ namespace RServer.Addin.Helpers
         private static void WriteGlobalsCs(string folderPath)
         {
             File.WriteAllText(Path.Combine(folderPath, "Globals.cs"),
-                "// This file enables IntelliSense for cutom globals.\n" +
+                "// This file enables IntelliSense for custom globals.\n" +
+                "global using CoreScript.Engine.Globals;\n" +
                 "global using static CoreScript.Engine.Globals.DesignTimeGlobals;");
         }
 

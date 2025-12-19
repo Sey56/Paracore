@@ -498,7 +498,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           const params = prev[script.id] || script.parameters || [];
           const updatedParams = params.map(p =>
             p.name === parameterName
-              ? { ...p, options: options, requiresCompute: false }
+              ? { ...p, options: options }
               : p
           );
 
@@ -514,7 +514,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             if (!prev) return null;
             const updatedParams = (prev.parameters || []).map(p =>
               p.name === parameterName
-                ? { ...p, options: options, requiresCompute: false }
+                ? { ...p, options: options }
                 : p
             );
             return { ...prev, parameters: updatedParams };

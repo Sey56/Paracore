@@ -105,7 +105,8 @@ def get_script_parameters(script_files):
             "isRevitElement": p.is_revit_element,
             "revitElementType": p.revit_element_type,
             "revitElementCategory": p.revit_element_category,
-            "requiresCompute": p.requires_compute
+            "requiresCompute": p.requires_compute,
+            "group": p.group
         }
         params_to_return.append(param_dict)
 

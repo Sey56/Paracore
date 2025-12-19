@@ -141,7 +141,7 @@ class GetScriptParametersResponse(_message.Message):
     def __init__(self, parameters: _Optional[_Iterable[_Union[ScriptParameter, _Mapping]]] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class ScriptParameter(_message.Message):
-    __slots__ = ("name", "type", "default_value_json", "description", "options", "multi_select", "visible_when", "numeric_type", "min", "max", "step", "is_revit_element", "revit_element_type", "revit_element_category", "requires_compute")
+    __slots__ = ("name", "type", "default_value_json", "description", "options", "multi_select", "visible_when", "numeric_type", "min", "max", "step", "is_revit_element", "revit_element_type", "revit_element_category", "requires_compute", "group")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_VALUE_JSON_FIELD_NUMBER: _ClassVar[int]
@@ -157,6 +157,7 @@ class ScriptParameter(_message.Message):
     REVIT_ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     REVIT_ELEMENT_CATEGORY_FIELD_NUMBER: _ClassVar[int]
     REQUIRES_COMPUTE_FIELD_NUMBER: _ClassVar[int]
+    GROUP_FIELD_NUMBER: _ClassVar[int]
     name: str
     type: str
     default_value_json: str
@@ -172,7 +173,8 @@ class ScriptParameter(_message.Message):
     revit_element_type: str
     revit_element_category: str
     requires_compute: bool
-    def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., default_value_json: _Optional[str] = ..., description: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ..., multi_select: bool = ..., visible_when: _Optional[str] = ..., numeric_type: _Optional[str] = ..., min: _Optional[float] = ..., max: _Optional[float] = ..., step: _Optional[float] = ..., is_revit_element: bool = ..., revit_element_type: _Optional[str] = ..., revit_element_category: _Optional[str] = ..., requires_compute: bool = ...) -> None: ...
+    group: str
+    def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., default_value_json: _Optional[str] = ..., description: _Optional[str] = ..., options: _Optional[_Iterable[str]] = ..., multi_select: bool = ..., visible_when: _Optional[str] = ..., numeric_type: _Optional[str] = ..., min: _Optional[float] = ..., max: _Optional[float] = ..., step: _Optional[float] = ..., is_revit_element: bool = ..., revit_element_type: _Optional[str] = ..., revit_element_category: _Optional[str] = ..., requires_compute: bool = ..., group: _Optional[str] = ...) -> None: ...
 
 class GetCombinedScriptRequest(_message.Message):
     __slots__ = ("script_files", "script_path")

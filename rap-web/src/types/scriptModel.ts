@@ -15,6 +15,7 @@ export interface ScriptParameter {
   revitElementType?: string;
   revitElementCategory?: string;
   requiresCompute?: boolean;
+  group?: string;
 }
 
 export interface RawScriptParameterData {
@@ -33,6 +34,7 @@ export interface RawScriptParameterData {
   revitElementType?: string;
   revitElementCategory?: string;
   requiresCompute?: boolean;
+  group?: string;
 }
 
 export interface StructuredOutput {

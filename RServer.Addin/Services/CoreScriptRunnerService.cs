@@ -234,7 +234,8 @@ namespace RServer.Addin.Services
                         IsRevitElement = p.IsRevitElement,
                         RevitElementType = p.RevitElementType ?? "",
                         RevitElementCategory = p.RevitElementCategory ?? "",
-                        RequiresCompute = p.RequiresCompute
+                        RequiresCompute = p.RequiresCompute,
+                        Group = p.Group ?? ""
                     };
                     
                     protoParam.Options.AddRange(p.Options);
@@ -608,6 +609,25 @@ namespace RServer.Addin.Services
                 var result = await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
                 {
                     var serverContext = new ServerContext(_uiApp, isReadOnly: true);
+                    // 1. Extract the parameter definition to check how to compute options
+                    var parameters = _parameterExtractor.ExtractParameters(request.ScriptContent);
+                    var targetParam = parameters.FirstOrDefault(p => p.Name == request.ParameterName);
+                    
+                    if (targetParam == null)
+                    {
+                        return new List<string>();
+                    }
+
+                    // 2. Strategy A: Automatic Revit Element Options
+                    if (targetParam.IsRevitElement && !string.IsNullOrEmpty(targetParam.RevitElementType))
+                    {
+                        var doc = _uiApp.ActiveUIDocument.Document;
+                        var optionsComputer = new ParameterOptionsComputer(doc);
+                        _logger.Log($"[CoreScriptRunnerService] Using Automatic ParameterOptionsComputer for {targetParam.Name} (Type: {targetParam.RevitElementType})", LogLevel.Debug);
+                        return optionsComputer.ComputeOptions(targetParam.RevitElementType, targetParam.RevitElementCategory);
+                    }
+
+                    // 3. Strategy B: Manual _Options() Function
                     var optionsExecutor = new ParameterOptionsExecutor(_logger);
                     
                     // We call the async method synchronously here because ExecuteInUIContext 

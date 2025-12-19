@@ -103,6 +103,7 @@ dotnet_diagnostic.CA1050.severity = none
 // This file enables IntelliSense for CoreScript.Engine helpers.
 // It's included in compilation but contains no runtime logic.
 
+global using CoreScript.Engine.Globals;
 global using static CoreScript.Engine.Globals.DesignTimeGlobals;
 `.trim();
         fs.writeFileSync(path.join(rootPath, "Globals.cs"), globalsScript);

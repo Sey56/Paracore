@@ -193,11 +193,11 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             onClick={() => onCompute(param.name)}
             disabled={disabled || isComputing}
             className={`flex-shrink-0 p-2 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isComputing ? 'animate-pulse' : ''}`}
-            title="Compute options from Revit"
+            title={param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options from Revit"}
           >
             <FontAwesomeIcon
               icon={isComputing ? faSpinner : faSync}
-              className={`${isComputing ? 'animate-spin' : ''} text-blue-600 dark:text-blue-400`}
+              className={`${isComputing ? 'animate-spin' : ''} ${param.options && param.options.length > 0 ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'}`}
             />
           </button>
         )}

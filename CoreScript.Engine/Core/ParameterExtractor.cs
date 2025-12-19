@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace CoreScript.Engine.Core
 {
@@ -27,355 +28,12 @@ namespace CoreScript.Engine.Core
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(scriptContent);
                 var root = tree.GetRoot() as CompilationUnitSyntax;
                 if (root == null) return parameters;
-
-                var potentialParameters = root.Members
-                    .OfType<GlobalStatementSyntax>()
-                    .Select(gs => gs.Statement)
-                    .OfType<LocalDeclarationStatementSyntax>();
-
-                foreach (var declaration in potentialParameters)
-                {
-                    // 1. Check for [Parameter] attribute
-                    var attributes = declaration.AttributeLists.SelectMany(al => al.Attributes);
-                    var parameterAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("Parameter"));
-                    var revitElementsAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("RevitElements"));
-                    
-                    bool hasAttribute = parameterAttribute != null;
-                    bool hasRevitElementsAttribute = revitElementsAttribute != null;
-                    
-                    // 2. Check for comment-based attributes (Backward Compatibility)
-                    var triviaList = declaration.GetLeadingTrivia();
-                    var parameterComment = triviaList
-                        .FirstOrDefault(trivia => trivia.IsKind(SyntaxKind.SingleLineCommentTrivia) &&
-                                       trivia.ToString().Contains("[Parameter"));
-                    var revitElementsComment = triviaList
-                        .FirstOrDefault(trivia => trivia.IsKind(SyntaxKind.SingleLineCommentTrivia) &&
-                                       trivia.ToString().Contains("[RevitElements"));
-
-                    bool hasComment = parameterComment.ToString() != null && !string.IsNullOrEmpty(parameterComment.ToString());
-                    bool hasRevitElementsComment = revitElementsComment.ToString() != null && !string.IsNullOrEmpty(revitElementsComment.ToString());
-
-                    if (!hasAttribute && !hasComment && !hasRevitElementsAttribute && !hasRevitElementsComment) continue;
-
-                    var options = new List<string>();
-                    bool multiSelect = false;
-                    string description = "";
-                    string visibleWhen = "";
-                    double? min = null;
-                    double? max = null;
-                    double? step = null;
-                    bool isRevitElement = false;
-                    string revitElementType = "";
-                    string revitElementCategory = "";
-
-                    if (hasAttribute)
-                    {
-                        if (parameterAttribute.ArgumentList != null)
-                        {
-                            foreach (var arg in parameterAttribute.ArgumentList.Arguments)
-                            {
-                                string argName = arg.NameEquals?.Name.Identifier.Text ?? arg.NameColon?.Name.Identifier.Text ?? "";
-                                if (argName == "Options" && arg.Expression is ImplicitArrayCreationExpressionSyntax arrayCreation)
-                                {
-                                    options = arrayCreation.Initializer.Expressions
-                                        .OfType<LiteralExpressionSyntax>()
-                                        .Select(l => l.Token.ValueText)
-                                        .ToList();
-                                }
-                                else if (argName == "Options" && arg.Expression is ArrayCreationExpressionSyntax explicitArrayCreation)
-                                {
-                                    options = explicitArrayCreation.Initializer.Expressions
-                                        .OfType<LiteralExpressionSyntax>()
-                                        .Select(l => l.Token.ValueText)
-                                        .ToList();
-                                }
-                                else if (argName == "MultiSelect" && arg.Expression is LiteralExpressionSyntax boolLiteral)
-                                {
-                                    multiSelect = (bool)boolLiteral.Token.Value;
-                                }
-                                else if (argName == "Description" && arg.Expression is LiteralExpressionSyntax descLiteral)
-                                {
-                                    description = descLiteral.Token.ValueText;
-                                }
-                                else if (argName == "VisibleWhen" && arg.Expression is LiteralExpressionSyntax visibleWhenLiteral)
-                                {
-                                    visibleWhen = visibleWhenLiteral.Token.ValueText;
-                                }
-                                else if (argName == "Min")
-                                {
-                                    if (arg.Expression is LiteralExpressionSyntax minLiteral && minLiteral.Token.Value is int minInt)
-                                        min = minInt;
-                                    else if (arg.Expression is LiteralExpressionSyntax minDoubleLiteral && minDoubleLiteral.Token.Value is double minDouble)
-                                        min = minDouble;
-                                }
-                                else if (argName == "Max")
-                                {
-                                    if (arg.Expression is LiteralExpressionSyntax maxLiteral && maxLiteral.Token.Value is int maxInt)
-                                        max = maxInt;
-                                    else if (arg.Expression is LiteralExpressionSyntax maxDoubleLiteral && maxDoubleLiteral.Token.Value is double maxDouble)
-                                        max = maxDouble;
-                                }
-                                else if (argName == "Step")
-                                {
-                                    if (arg.Expression is LiteralExpressionSyntax stepLiteral && stepLiteral.Token.Value is int stepInt)
-                                        step = stepInt;
-                                    else if (arg.Expression is LiteralExpressionSyntax stepDoubleLiteral && stepDoubleLiteral.Token.Value is double stepDouble)
-                                        step = stepDouble;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Parse RevitElements attribute or comment
-                    if (hasRevitElementsAttribute || hasRevitElementsComment)
-                    {
-                        isRevitElement = true;
-                        if (hasRevitElementsAttribute && revitElementsAttribute.ArgumentList != null)
-                        {
-                            foreach (var arg in revitElementsAttribute.ArgumentList.Arguments)
-                            {
-                                string argName = arg.NameEquals?.Name.Identifier.Text ?? arg.NameColon?.Name.Identifier.Text ?? "";
-                                if (argName == "Type" && arg.Expression is LiteralExpressionSyntax typeLiteral)
-                                {
-                                    revitElementType = typeLiteral.Token.ValueText;
-                                }
-                                else if (argName == "Category" && arg.Expression is LiteralExpressionSyntax categoryLiteral)
-                                {
-                                    revitElementCategory = categoryLiteral.Token.ValueText;
-                                }
-                            }
-                        }
-                        else if (hasRevitElementsComment)
-                        {
-                            string commentText = revitElementsComment.ToString();
-                            
-                            // Check for Type: "..." format in comment
-                            int typeIndex = commentText.IndexOf("Type:");
-                            if (typeIndex >= 0)
-                            {
-                                string temp = commentText.Substring(typeIndex + "Type:".Length).Trim();
-                                if (temp.StartsWith("\"")) {
-                                    int endQuote = temp.IndexOf("\"", 1);
-                                    if (endQuote > 0) revitElementType = temp.Substring(1, endQuote - 1);
-                                }
-                            }
-                            
-                            // Check for Category: "..." format in comment
-                            int catIndex = commentText.IndexOf("Category:");
-                            if (catIndex >= 0)
-                            {
-                                string temp = commentText.Substring(catIndex + "Category:".Length).Trim();
-                                if (temp.StartsWith("\"")) {
-                                    int endQuote = temp.IndexOf("\"", 1);
-                                    if (endQuote > 0) revitElementCategory = temp.Substring(1, endQuote - 1);
-                                }
-                            }
-                        }
-                    }
-                    else if (hasComment)
-                    {
-                        string commentText = parameterComment.ToString();
-                        
-                        // Parse new format: // [Parameter(Options: "A, B, C", MultiSelect: true, VisibleWhen: "creationMode == 'Grid'")]
-                        // Also support old format: // [Parameter] Options: A, B, C MultiSelect
-                        
-                        // Check for MultiSelect
-                        if (commentText.Contains("MultiSelect") && 
-                            (commentText.Contains("MultiSelect: true") || commentText.Contains("MultiSelect:true") || 
-                             !commentText.Contains("MultiSelect: false")))
-                        {
-                            multiSelect = true;
-                        }
-                        
-                        // Parse VisibleWhen
-                        int visibleWhenIndex = commentText.IndexOf("VisibleWhen:");
-                        if (visibleWhenIndex >= 0)
-                        {
-                            string temp = commentText.Substring(visibleWhenIndex + "VisibleWhen:".Length);
-                            int startQuote = temp.IndexOf('"');
-                            if (startQuote >= 0)
-                            {
-                                int endQuote = temp.IndexOf('"', startQuote + 1);
-                                if (endQuote > startQuote)
-                                {
-                                    visibleWhen = temp.Substring(startQuote + 1, endQuote - startQuote - 1);
-                                }
-                            }
-                        }
-
-                        // Parse Options - support both formats
-                        // New: Options: "A, B, C"
-                        // Old: Options: A, B, C
-                        int optionsIndex = commentText.IndexOf("Options:");
-                        if (optionsIndex >= 0)
-                        {
-                            string optionsString = commentText.Substring(optionsIndex + "Options:".Length).Trim();
-                            
-                            // Check if options are in quotes
-                            if (optionsString.StartsWith("\""))
-                            {
-                                int endQuote = optionsString.IndexOf("\"", 1);
-                                if (endQuote > 0)
-                                {
-                                    optionsString = optionsString.Substring(1, endQuote - 1);
-                                }
-                            }
-                            else
-                            {
-                                // Old format - read until end of line or comma before MultiSelect or VisibleWhen
-                                int endIndex = optionsString.IndexOfAny(new[] { '\r', '\n', ',' });
-                                
-                                // Check if comma is followed by known keys
-                                if (endIndex > 0)
-                                {
-                                     string remainder = optionsString.Substring(endIndex);
-                                     if (remainder.Contains("MultiSelect") || remainder.Contains("VisibleWhen"))
-                                     {
-                                         optionsString = optionsString.Substring(0, endIndex);
-                                     }
-                                }
-                            }
-                            
-                            options = optionsString.Split(',')
-                                .Select(o => o.Trim())
-                                .Where(o => !string.IsNullOrEmpty(o))
-                                .ToList();
-                        }
-                        
-                        // Parse Min, Max, Step
-                        int minIndex = commentText.IndexOf("Min:");
-                        if (minIndex >= 0) {
-                            string temp = commentText.Substring(minIndex + "Min:".Length).Trim();
-                            int end = temp.IndexOfAny(new[] { ',', ')', ' ', '\r', '\n' });
-                            if (end > 0) {
-                                if (double.TryParse(temp.Substring(0, end), out double val)) min = val;
-                            } else if (double.TryParse(temp, out double val)) min = val;
-                        }
-                        
-                        int maxIndex = commentText.IndexOf("Max:");
-                        if (maxIndex >= 0) {
-                            string temp = commentText.Substring(maxIndex + "Max:".Length).Trim();
-                            int end = temp.IndexOfAny(new[] { ',', ')', ' ', '\r', '\n' });
-                            if (end > 0) {
-                                if (double.TryParse(temp.Substring(0, end), out double val)) max = val;
-                            } else if (double.TryParse(temp, out double val)) max = val;
-                        }
-
-                        int strIndex = commentText.IndexOf("Step:");
-                        if (strIndex >= 0) {
-                            string temp = commentText.Substring(strIndex + "Step:".Length).Trim();
-                            int end = temp.IndexOfAny(new[] { ',', ')', ' ', '\r', '\n' });
-                            if (end > 0) {
-                                if (double.TryParse(temp.Substring(0, end), out double val)) step = val;
-                            } else if (double.TryParse(temp, out double val)) step = val;
-                        }
-                    }
-
-                    foreach (var declarator in declaration.Declaration.Variables)
-                    {
-                        if (declarator.Initializer == null) continue;
-
-                        string name = declarator.Identifier.Text;
-                        string defaultValueJson = "";
-                        string type = "string";
-                        string numericType = null;  // "int" or "double"
-                        
-                        // Detect C# type from declaration
-                        string csharpType = declaration.Declaration.Type.ToString();
-
-                        var initializerExpression = declarator.Initializer.Value;
-
-                        // Handle List<string> with new C# 9+ collection expression syntax (e.g., `List<string> x = ["A", "B"];`)
-                        if (initializerExpression is CollectionExpressionSyntax collectionExpression)
-                        {
-                            var values = collectionExpression.Elements
-                                .OfType<ExpressionElementSyntax>()
-                                .Select(e => e.Expression)
-                                .OfType<LiteralExpressionSyntax>()
-                                .Select(l => l.Token.ValueText)
-                                .ToList();
-                            defaultValueJson = JsonSerializer.Serialize(values);
-                            multiSelect = true; // Collection expressions for list parameters imply multi-select
-                        }
-                        else if (initializerExpression is ImplicitObjectCreationExpressionSyntax implicitObjCreation && 
-                                 implicitObjCreation.Initializer != null)
-                        {
-                             // Assuming List<string> for now if it has collection initializer
-                             type = "string"; // We treat List<string> as string type in proto for now, but with MultiSelect=true? 
-                             // Wait, proto has 'repeated string options'. But the VALUE type?
-                             // If MultiSelect is true, the frontend sends a JSON array string.
-                             // So type should be "string" (containing JSON) or we add a new type "list".
-                             // Existing logic uses "string" and parses JSON in CodeRunner.
-                             
-                             var values = implicitObjCreation.Initializer.Expressions
-                                .OfType<LiteralExpressionSyntax>()
-                                .Select(l => l.Token.ValueText)
-                                .ToList();
-                             defaultValueJson = JsonSerializer.Serialize(values);
-                             if (!hasAttribute) multiSelect = true; // Auto-detect multiselect for lists? Maybe not.
-                        }
-                        else if (initializerExpression is ObjectCreationExpressionSyntax objCreation && 
-                                 objCreation.Type.ToString().Contains("List") && 
-                                 objCreation.Initializer != null)
-                        {
-                             var values = objCreation.Initializer.Expressions
-                                .OfType<LiteralExpressionSyntax>()
-                                .Select(l => l.Token.ValueText)
-                                .ToList();
-                             defaultValueJson = JsonSerializer.Serialize(values);
-                        }
-                        else if (initializerExpression is LiteralExpressionSyntax literal)
-                        {
-                            switch (literal.Token.Value)
-                            {
-                                case string s: 
-                                    type = "string"; 
-                                    defaultValueJson = JsonSerializer.Serialize(s); 
-                                    break;
-                                case bool b: 
-                                    type = "boolean"; 
-                                    defaultValueJson = JsonSerializer.Serialize(b); 
-                                    break;
-                                case int i: 
-                                    type = "number"; 
-                                    numericType = "int";
-                                    defaultValueJson = JsonSerializer.Serialize(i); 
-                                    break;
-                                case double d: 
-                                    type = "number"; 
-                                    numericType = "double";
-                                    defaultValueJson = JsonSerializer.Serialize(d); 
-                                    break;
-                            }
-                        }
-                        
-                        // Also detect from C# type declaration if not already set
-                        if (numericType == null && type == "number")
-                        {
-                            if (csharpType == "int") numericType = "int";
-                            else if (csharpType == "double") numericType = "double";
-                        }
-
-                        parameters.Add(new ScriptParameter
-                        {
-                            Name = name,
-                            Type = type,
-                            DefaultValueJson = defaultValueJson,
-                            Description = description,
-                            Options = options,
-                            MultiSelect = multiSelect,
-                            VisibleWhen = visibleWhen,
-                            NumericType = numericType,
-                            Min = min,
-                            Max = max,
-                            Step = step,
-                            IsRevitElement = isRevitElement,
-                            RevitElementType = revitElementType,
-                            RevitElementCategory = revitElementCategory,
-                            RequiresCompute = isRevitElement && options.Count == 0  // Requires compute if it's a RevitElement with no predefined options
-                        });
-                    }
-                }
+                
+                // 1. Scan Top-Level Statements (Default/Backward Compatibility)
+                ExtractFromTopLevelStatements(root, parameters);
+                
+                // 2. Scan Classes (The "Pro" Pattern)
+                ExtractFromClasses(root, parameters);
 
                 _logger.Log($"[ParameterExtractor] Extracted {parameters.Count} parameters.", LogLevel.Debug);
             }
@@ -384,6 +42,246 @@ namespace CoreScript.Engine.Core
                 _logger.LogError($"[ParameterExtractor] Error extracting parameters: {ex.Message}");
             }
             return parameters;
+        }
+
+        private void ExtractFromTopLevelStatements(CompilationUnitSyntax root, List<ScriptParameter> parameters)
+        {
+            var potentialParameters = root.Members
+                .OfType<GlobalStatementSyntax>()
+                .Select(gs => gs.Statement)
+                .OfType<LocalDeclarationStatementSyntax>();
+
+            foreach (var declaration in potentialParameters)
+            {
+                var attributes = declaration.AttributeLists.SelectMany(al => al.Attributes);
+                var triviaList = declaration.GetLeadingTrivia();
+                
+                ProcessVariableDeclaration(declaration.Declaration, attributes, triviaList, parameters);
+            }
+        }
+
+        private void ExtractFromClasses(CompilationUnitSyntax root, List<ScriptParameter> parameters)
+        {
+            var classes = root.Members.OfType<ClassDeclarationSyntax>();
+            foreach (var @class in classes)
+            {
+                // Scan Fields
+                var fields = @class.Members.OfType<FieldDeclarationSyntax>();
+                foreach (var field in fields)
+                {
+                    var attributes = field.AttributeLists.SelectMany(al => al.Attributes);
+                    var triviaList = field.GetLeadingTrivia();
+                    ProcessVariableDeclaration(field.Declaration, attributes, triviaList, parameters);
+                }
+
+                // Scan Properties
+                var properties = @class.Members.OfType<PropertyDeclarationSyntax>();
+                foreach (var prop in properties)
+                {
+                    var attributes = prop.AttributeLists.SelectMany(al => al.Attributes);
+                    var triviaList = prop.GetLeadingTrivia();
+                    ProcessPropertyDeclaration(prop, attributes, triviaList, parameters);
+                }
+            }
+        }
+
+        private void ProcessVariableDeclaration(VariableDeclarationSyntax declaration, IEnumerable<AttributeSyntax> attributes, SyntaxTriviaList triviaList, List<ScriptParameter> parameters)
+        {
+            var parameterAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("ScriptParameter") || a.Name.ToString().Contains("Parameter"));
+            var revitElementsAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("RevitElements"));
+            
+            var parameterComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[(Parameter|ScriptParameter)"));
+            var revitElementsComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[RevitElements"));
+
+            if (parameterAttribute == null && revitElementsAttribute == null && 
+                string.IsNullOrEmpty(parameterComment.ToString()) && string.IsNullOrEmpty(revitElementsComment.ToString())) return;
+
+            var declarator = declaration.Variables.FirstOrDefault();
+            if (declarator == null || declarator.Initializer == null) return;
+
+            var param = ParseParameter(declarator.Identifier.Text, declaration.Type.ToString(), declarator.Initializer.Value, 
+                                     parameterAttribute, revitElementsAttribute, parameterComment, revitElementsComment);
+            
+            if (param != null) parameters.Add(param);
+        }
+
+        private void ProcessPropertyDeclaration(PropertyDeclarationSyntax prop, IEnumerable<AttributeSyntax> attributes, SyntaxTriviaList triviaList, List<ScriptParameter> parameters)
+        {
+            var parameterAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("ScriptParameter") || a.Name.ToString().Contains("Parameter"));
+            var revitElementsAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("RevitElements"));
+            
+            var parameterComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[(Parameter|ScriptParameter)"));
+            var revitElementsComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[RevitElements"));
+
+            if (parameterAttribute == null && revitElementsAttribute == null && 
+                string.IsNullOrEmpty(parameterComment.ToString()) && string.IsNullOrEmpty(revitElementsComment.ToString())) return;
+
+            if (prop.Initializer == null) return;
+
+            var param = ParseParameter(prop.Identifier.Text, prop.Type.ToString(), prop.Initializer.Value, 
+                                     parameterAttribute, revitElementsAttribute, parameterComment, revitElementsComment);
+            
+            if (param != null) parameters.Add(param);
+        }
+
+        private ScriptParameter ParseParameter(string name, string csharpType, ExpressionSyntax initializer, 
+                                              AttributeSyntax parameterAttr, AttributeSyntax revitAttr,
+                                              SyntaxTrivia parameterComment, SyntaxTrivia revitComment)
+        {
+            var options = new List<string>();
+            bool multiSelect = false;
+            string description = "";
+            string visibleWhen = "";
+            double? min = null;
+            double? max = null;
+            double? step = null;
+            bool isRevitElement = false;
+            string revitElementType = "";
+            string revitElementCategory = "";
+            string group = "";
+
+            if (parameterAttr != null && parameterAttr.ArgumentList != null)
+            {
+                foreach (var arg in parameterAttr.ArgumentList.Arguments)
+                {
+                    string argName = arg.NameEquals?.Name.Identifier.Text ?? arg.NameColon?.Name.Identifier.Text ?? "";
+                    if (argName == "Options") {
+                        if (arg.Expression is ImplicitArrayCreationExpressionSyntax imp) options = imp.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
+                        else if (arg.Expression is ArrayCreationExpressionSyntax exp) options = exp.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
+                        else if (arg.Expression is LiteralExpressionSyntax lit) options = lit.Token.ValueText.Split(',').Select(o => o.Trim()).Where(o => !string.IsNullOrEmpty(o)).ToList();
+                    }
+                    else if (argName == "MultiSelect" && arg.Expression is LiteralExpressionSyntax b) multiSelect = (bool)b.Token.Value;
+                    else if (argName == "Description" && arg.Expression is LiteralExpressionSyntax desc) description = desc.Token.ValueText;
+                    else if (argName == "VisibleWhen" && arg.Expression is LiteralExpressionSyntax v) visibleWhen = v.Token.ValueText;
+                    else if (argName == "Min") { if (arg.Expression is LiteralExpressionSyntax l && l.Token.Value is double dMin) min = dMin; else if (arg.Expression is LiteralExpressionSyntax i && i.Token.Value is int m) min = (double)m; }
+                    else if (argName == "Max") { if (arg.Expression is LiteralExpressionSyntax l && l.Token.Value is double dMax) max = dMax; else if (arg.Expression is LiteralExpressionSyntax i && i.Token.Value is int m) max = (double)m; }
+                    else if (argName == "Step") { if (arg.Expression is LiteralExpressionSyntax l && l.Token.Value is double dStep) step = dStep; else if (arg.Expression is LiteralExpressionSyntax i && i.Token.Value is int m) step = (double)m; }
+                    else if (argName == "Group" && arg.Expression is LiteralExpressionSyntax g) group = g.Token.ValueText;
+                }
+            }
+
+            if (revitAttr != null)
+            {
+                isRevitElement = true;
+                if (revitAttr.ArgumentList != null)
+                {
+                    foreach (var arg in revitAttr.ArgumentList.Arguments)
+                    {
+                        string argName = arg.NameEquals?.Name.Identifier.Text ?? arg.NameColon?.Name.Identifier.Text ?? "";
+                        if (argName == "Type" && arg.Expression is LiteralExpressionSyntax l) revitElementType = l.Token.ValueText;
+                        else if (argName == "Category" && arg.Expression is LiteralExpressionSyntax c) revitElementCategory = c.Token.ValueText;
+                        else if (argName == "Group" && arg.Expression is LiteralExpressionSyntax g) group = g.Token.ValueText;
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(parameterComment.ToString()))
+            {
+                var meta = ParseCommentMetadata(parameterComment.ToString());
+                if (meta.TryGetValue("MultiSelect", out string ms)) multiSelect = ms.ToLower() == "true";
+                if (meta.TryGetValue("Description", out string ds)) description = ds;
+                if (meta.TryGetValue("VisibleWhen", out string vw)) visibleWhen = vw;
+                if (meta.TryGetValue("Min", out string mi) && double.TryParse(mi, out double mid)) min = mid;
+                if (meta.TryGetValue("Max", out string ma) && double.TryParse(ma, out double mad)) max = mad;
+                if (meta.TryGetValue("Step", out string st) && double.TryParse(st, out double std)) step = std;
+                if (meta.TryGetValue("Options", out string op)) options = op.Split(',').Select(o => o.Trim()).Where(o => !string.IsNullOrEmpty(o)).ToList();
+                if (meta.TryGetValue("Group", out string gr)) group = gr;
+            }
+
+            if (!string.IsNullOrEmpty(revitComment.ToString()))
+            {
+                isRevitElement = true;
+                var meta = ParseCommentMetadata(revitComment.ToString());
+                if (meta.TryGetValue("Type", out string ty)) revitElementType = ty;
+                if (meta.TryGetValue("Category", out string ca)) revitElementCategory = ca;
+                if (meta.TryGetValue("Group", out string gr)) group = gr;
+            }
+
+            string defaultValueJson = "";
+            string type = "string";
+            string numericType = null;
+
+            if (initializer is LiteralExpressionSyntax literal)
+            {
+                switch (literal.Token.Value)
+                {
+                    case string s: type = "string"; defaultValueJson = JsonSerializer.Serialize(s); break;
+                    case bool b: type = "boolean"; defaultValueJson = JsonSerializer.Serialize(b); break;
+                    case int i: type = "number"; numericType = "int"; defaultValueJson = JsonSerializer.Serialize(i); break;
+                    case double d: type = "number"; numericType = "double"; defaultValueJson = JsonSerializer.Serialize(d); break;
+                }
+            }
+            else if (initializer is CollectionExpressionSyntax col)
+            {
+                var values = col.Elements.OfType<ExpressionElementSyntax>().Select(e => e.Expression).OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
+                defaultValueJson = JsonSerializer.Serialize(values);
+                multiSelect = true;
+            }
+            else if (initializer is ImplicitObjectCreationExpressionSyntax imp && imp.Initializer != null)
+            {
+                var values = imp.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
+                defaultValueJson = JsonSerializer.Serialize(values);
+                multiSelect = true;
+            }
+            else if (initializer is ObjectCreationExpressionSyntax obj && obj.Initializer != null)
+            {
+                var values = obj.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
+                defaultValueJson = JsonSerializer.Serialize(values);
+                multiSelect = true;
+            }
+
+            if (numericType == null && type == "number")
+            {
+                if (csharpType == "int") numericType = "int";
+                else if (csharpType == "double") numericType = "double";
+            }
+
+            bool requiresCompute = isRevitElement && options.Count == 0;
+
+            return new ScriptParameter
+            {
+                Name = name,
+                Type = type,
+                DefaultValueJson = defaultValueJson,
+                Description = description,
+                Options = options,
+                MultiSelect = multiSelect,
+                VisibleWhen = visibleWhen,
+                NumericType = numericType,
+                Min = min,
+                Max = max,
+                Step = step,
+                IsRevitElement = isRevitElement,
+                RevitElementType = revitElementType,
+                RevitElementCategory = revitElementCategory,
+                RequiresCompute = requiresCompute,
+                Group = group
+            };
+        }
+
+        private Dictionary<string, string> ParseCommentMetadata(string comment)
+        {
+            var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            
+            // Regex to find content inside [Attribute(...)]
+            var bracketMatch = Regex.Match(comment, @"\[\w+\((.*)\)\]");
+            string content = bracketMatch.Success ? bracketMatch.Groups[1].Value : comment;
+            
+            // Regex for Key: Value or Key = Value pairs
+            // Support optional quotes around the value
+            // Also supports standalone flags like "MultiSelect"
+            var kvRegex = new Regex(@"(\w+)(?:\s*[:=]\s*(?:""([^""]*)""|([^,)\s]+)))?", RegexOptions.IgnoreCase);
+            var matches = kvRegex.Matches(content);
+            
+            foreach (Match match in matches)
+            {
+                string key = match.Groups[1].Value;
+                string value = match.Groups[2].Success ? match.Groups[2].Value : 
+                               match.Groups[3].Success ? match.Groups[3].Value : "true"; // Default to "true" for standalone flags
+                metadata[key] = value;
+            }
+            
+            return metadata;
         }
     }
 }

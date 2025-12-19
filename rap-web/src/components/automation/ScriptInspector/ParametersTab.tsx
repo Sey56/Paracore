@@ -11,11 +11,14 @@ import {
   faSync,
   faTrash,
   faExternalLinkAlt,
+  faChevronDown,
+  faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/hooks/useScriptExecution";
 import { ParameterInput } from "./ParameterInput";
+import { ParameterGroupSection } from "./ParameterGroupSection";
 import { NewPresetNameModal } from './NewPresetNameModal';
 import { ConfirmActionModal } from './ConfirmActionModal';
 import { InfoModal } from './InfoModal';
@@ -172,12 +175,9 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const showStatusIcon = !isRunning && executionResult;
   const runSucceeded = showStatusIcon && !executionResult?.error;
 
-  const needsCompute = editedParameters.some(p => p.requiresCompute && (!p.options || p.options.length === 0));
-  const isRunDisabled = !!runningScriptPath || !isActionable || needsCompute;
+  const isRunDisabled = !!runningScriptPath || !isActionable;
 
-  const finalTooltipMessage = needsCompute
-    ? "Please compute required parameters first."
-    : tooltipMessage;
+  const finalTooltipMessage = tooltipMessage;
 
   return (
     <div className={`tab-content p-4`}>
@@ -227,21 +227,64 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
           </div>
         )}
 
-        {/* Parameter Inputs */}
-        {visibleParameters.map((param) => {
-          const originalIndex = editedParameters.findIndex(p => p.name === param.name);
+        {/* Parameter Inputs - Grouped */}
+        {(() => {
+          // 1. Group parameters
+          const groupedParams: { name: string; params: ScriptParameter[] }[] = [];
+          const ungroupedParams: ScriptParameter[] = [];
+          const groups: Record<string, ScriptParameter[]> = {};
+
+          visibleParameters.forEach(p => {
+            if (p.group && p.group.trim().length > 0) {
+              if (!groups[p.group]) groups[p.group] = [];
+              groups[p.group].push(p);
+            } else {
+              ungroupedParams.push(p);
+            }
+          });
+
+          // Sort groups alphabetically or keep insertion order? 
+          // Let's keep insertion order of the FIRST appearance of the group in the script to determine group order?
+          // Or just standard alphabetical? Let's do alphabetical for stability.
+          Object.keys(groups).sort().forEach(groupName => {
+            groupedParams.push({ name: groupName, params: groups[groupName] });
+          });
+
           return (
-            <ParameterInput
-              key={originalIndex}
-              param={param}
-              index={originalIndex}
-              onChange={handleParameterChange}
-              onCompute={(paramName) => computeParameterOptions(script, paramName)}
-              isComputing={isComputingOptions[param.name]}
-              disabled={!isActionable}
-            />
+            <>
+              {/* Render Ungrouped Parameters First */}
+              {ungroupedParams.map((param) => {
+                const originalIndex = editedParameters.findIndex(p => p.name === param.name);
+                return (
+                  <ParameterInput
+                    key={originalIndex}
+                    param={param}
+                    index={originalIndex}
+                    onChange={handleParameterChange}
+                    onCompute={(paramName) => computeParameterOptions(script, paramName)}
+                    isComputing={isComputingOptions[param.name]}
+                    disabled={!isActionable}
+                  />
+                );
+              })}
+
+              {/* Render Groups */}
+              {groupedParams.map((group) => (
+                <ParameterGroupSection
+                  key={group.name}
+                  groupName={group.name}
+                  parameters={group.params}
+                  allParameters={editedParameters}
+                  handleParameterChange={handleParameterChange}
+                  script={script}
+                  computeParameterOptions={computeParameterOptions}
+                  isComputingOptions={isComputingOptions}
+                  isActionable={isActionable}
+                />
+              ))}
+            </>
           );
-        })}
+        })()}
 
         {/* Run Script Button */}
         {activeMainView === 'scripts' && (
