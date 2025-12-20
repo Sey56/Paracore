@@ -36,32 +36,7 @@ const initializeParameters = (params: ScriptParameter[]): ScriptParameter[] => {
   return params.map(p => ({ ...p, value: p.value }));
 };
 
-/**
- * Deserializes preset parameters to ensure multi-select values are JSON arrays.
- * Presets may store multi-select values as comma-separated strings, but the UI expects JSON arrays.
- */
-const deserializePresetParameters = (presetParams: ScriptParameter[], scriptParams: ScriptParameter[]): ScriptParameter[] => {
-  return presetParams.map((presetParam) => {
-    const scriptParam = scriptParams.find(sp => sp.name === presetParam.name);
 
-    // If this is a multi-select parameter and the value is a string, convert it to an array
-    if (scriptParam?.multiSelect && typeof presetParam.value === 'string') {
-      try {
-        // Try parsing as JSON first (in case it's already a JSON string)
-        const parsed = JSON.parse(presetParam.value);
-        if (Array.isArray(parsed)) {
-          return { ...presetParam, value: JSON.stringify(parsed) };
-        }
-      } catch {
-        // If JSON parsing fails, treat it as a comma-separated string
-        const arrayValue = presetParam.value.split(',').map(v => v.trim()).filter(v => v.length > 0);
-        return { ...presetParam, value: JSON.stringify(arrayValue) };
-      }
-    }
-
-    return presetParam;
-  });
-};
 
 export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab, activeMainView } = useUI();
@@ -228,9 +203,35 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 } else {
                   const preset = presets.find((p) => p.name === presetName);
                   if (preset) {
-                    const deserializedParams = deserializePresetParameters(preset.parameters, script.parameters ?? []);
-                    updateUserEditedParameters(script.id, deserializedParams);
-                    setEditedParameters(deserializedParams);
+                    // CRITICAL FIX: Merge preset values into existing script parameters to preserve metadata (options, type, etc.)
+                    // Do NOT replace the parameter objects with the preset objects directly.
+                    const mergedParams = (script.parameters ?? []).map(scriptParam => {
+                      const presetParam = preset.parameters.find(p => p.name === scriptParam.name);
+
+                      if (presetParam) {
+                        let newValue = presetParam.value;
+
+                        // Handle Multi-Select deserialization (string -> array)
+                        if (scriptParam.multiSelect && typeof newValue === 'string') {
+                          try {
+                            const parsed = JSON.parse(newValue);
+                            if (Array.isArray(parsed)) newValue = JSON.stringify(parsed);
+                          } catch {
+                            const arrayValue = newValue.split(',').map(v => v.trim()).filter(v => v.length > 0);
+                            newValue = JSON.stringify(arrayValue);
+                          }
+                        }
+
+                        return { ...scriptParam, value: newValue };
+                      }
+
+                      // If param not in preset, keep current value or reset to default? 
+                      // Keeping current is safer, or resetting to default. Let's reset to default to be "clean".
+                      return { ...scriptParam, value: scriptParam.value };
+                    });
+
+                    updateUserEditedParameters(script.id, mergedParams);
+                    setEditedParameters(mergedParams);
                   }
                 }
               }}
