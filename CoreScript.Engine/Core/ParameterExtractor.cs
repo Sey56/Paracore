@@ -62,26 +62,29 @@ namespace CoreScript.Engine.Core
 
         private void ExtractFromClasses(CompilationUnitSyntax root, List<ScriptParameter> parameters)
         {
-            var classes = root.Members.OfType<ClassDeclarationSyntax>();
-            foreach (var @class in classes)
-            {
-                // Scan Fields
-                var fields = @class.Members.OfType<FieldDeclarationSyntax>();
-                foreach (var field in fields)
-                {
-                    var attributes = field.AttributeLists.SelectMany(al => al.Attributes);
-                    var triviaList = field.GetLeadingTrivia();
-                    ProcessVariableDeclaration(field.Declaration, attributes, triviaList, parameters);
-                }
+            // Only scan a class specifically named "Params" (the Pro Pattern)
+            var paramsClass = root.Members
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.Text == "Params");
+            
+            if (paramsClass == null) return;
 
-                // Scan Properties
-                var properties = @class.Members.OfType<PropertyDeclarationSyntax>();
-                foreach (var prop in properties)
-                {
-                    var attributes = prop.AttributeLists.SelectMany(al => al.Attributes);
-                    var triviaList = prop.GetLeadingTrivia();
-                    ProcessPropertyDeclaration(prop, attributes, triviaList, parameters);
-                }
+            // Scan Fields
+            var fields = paramsClass.Members.OfType<FieldDeclarationSyntax>();
+            foreach (var field in fields)
+            {
+                var attributes = field.AttributeLists.SelectMany(al => al.Attributes);
+                var triviaList = field.GetLeadingTrivia();
+                ProcessVariableDeclaration(field.Declaration, attributes, triviaList, parameters);
+            }
+
+            // Scan Properties
+            var properties = paramsClass.Members.OfType<PropertyDeclarationSyntax>();
+            foreach (var prop in properties)
+            {
+                var attributes = prop.AttributeLists.SelectMany(al => al.Attributes);
+                var triviaList = prop.GetLeadingTrivia();
+                ProcessPropertyDeclaration(prop, attributes, triviaList, parameters);
             }
         }
 

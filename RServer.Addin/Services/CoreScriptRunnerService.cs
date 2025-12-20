@@ -220,6 +220,21 @@ namespace RServer.Addin.Services
                     return Task.FromResult(response);
                 }
                 var extractedParams = _parameterExtractor.ExtractParameters(topLevelScript.Content);
+
+                // If no parameters found in top-level script, check other files for "class Params"
+                if (extractedParams.Count == 0 && scriptFiles.Count > 1)
+                {
+                   foreach (var file in scriptFiles.Where(f => f.FileName != topLevelScript.FileName))
+                   {
+                        var otherParams = _parameterExtractor.ExtractParameters(file.Content);
+                        if (otherParams.Count > 0)
+                        {
+                            extractedParams = otherParams;
+                             break; // Assume only one Params class definition exists
+                        }
+                   }
+                }
+
                 foreach (var p in extractedParams)
                 {
                     var protoParam = new CoreScript.ScriptParameter
