@@ -118,7 +118,7 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
                     author,
                     description,
                     usageExamples: examplesArray,
-                    dependencies: 'RevitAPI 2025, CoreScript.Engine, RServer.Addin',
+                    dependencies: 'RevitAPI 2025, CoreScript.Engine, Paracore.Addin',
                 },
             });
 

@@ -3,7 +3,7 @@ import { createContext } from 'react';
 import type { RevitStatus } from '@/types';
 
 export interface RevitContextProps {
-  rserverConnected: boolean;
+  ParacoreConnected: boolean;
   revitStatus: RevitStatus;
 }
 

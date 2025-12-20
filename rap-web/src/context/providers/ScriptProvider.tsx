@@ -277,7 +277,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [activeScriptSource, loadScriptsFromPath, setSelectedFolder, userWorkspacePaths, showNotification]);
 
-  const { rserverConnected } = useRevitStatus();
+  const { ParacoreConnected } = useRevitStatus();
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>('agentScriptsPath', null);
 
   const fetchScriptMetadata = useCallback(async (scriptId: string) => {

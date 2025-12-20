@@ -1,8 +1,8 @@
-﻿using Autodesk.Revit.UI;
-using RServer.Addin.ViewModels;
-using RServer.Addin.Context;
+using Autodesk.Revit.UI;
+using Paracore.Addin.ViewModels;
+using Paracore.Addin.Context;
 
-namespace RServer.Addin.Commands
+namespace Paracore.Addin.Commands
 {
     public class ServerActionHandler : IExternalEventHandler
     {

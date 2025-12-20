@@ -7,7 +7,7 @@ using System.Linq;
 DocumentType: Project
 Categories: Architectural, Generative, Walls
 Author: Paracore Team
-Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 Creates spiral walls on a specified level with user-defined parameters for turns, radius, and wall properties.

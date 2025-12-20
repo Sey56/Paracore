@@ -49,16 +49,16 @@
 <p><strong><code>rap-server</code></strong>: 🌐 A local backend server that acts as the central orchestrator. It communicates with both the Paracore frontend and the Revit add-in, handling file system access, workspace management, and agent logic.</p>
 </li>
 <li>
-<p><strong><code>RServer.Addin</code></strong>: 🔌 A crucial add-in that runs inside Revit. It hosts a secure gRPC server, exposing the Revit API to the entire RAP ecosystem. It is the single point of execution, receiving commands from both Paracore and the VSCode extension and ensuring they are run safely in Revit's main UI thread.</p>
+<p><strong><code>Paracore.Addin</code></strong>: 🔌 A crucial add-in that runs inside Revit. It hosts a secure gRPC server, exposing the Revit API to the entire RAP ecosystem. It is the single point of execution, receiving commands from both Paracore and the VSCode extension and ensuring they are run safely in Revit's main UI thread.</p>
 </li>
 <li>
-<p><strong><code>CoreScript.Engine</code></strong>: 🧠 The powerful heart of the system. This .NET library, used by <code>RServer.Addin</code>, dynamically compiles and executes C# scripts at runtime using the Roslyn compiler. It intelligently injects parameters and provides a sandboxed environment for each script run.</p>
+<p><strong><code>CoreScript.Engine</code></strong>: 🧠 The powerful heart of the system. This .NET library, used by <code>Paracore.Addin</code>, dynamically compiles and executes C# scripts at runtime using the Roslyn compiler. It intelligently injects parameters and provides a sandboxed environment for each script run.</p>
 </li>
 </ul>
 <h2>What Makes the RAP Ecosystem Unique? ✨</h2>
 <ol>
 <li>
-<p><strong>Multiple Workflows, One Engine:</strong> 🔄 Whether using the rich UI of Paracore or the directness of the VSCode extension, all scripts are executed by the same robust <code>CoreScript.Engine</code> via the same <code>RServer.Addin</code>. This guarantees that a script written and tested in VSCode will work identically in Paracore, ensuring 100% compatibility.</p>
+<p><strong>Multiple Workflows, One Engine:</strong> 🔄 Whether using the rich UI of Paracore or the directness of the VSCode extension, all scripts are executed by the same robust <code>CoreScript.Engine</code> via the same <code>Paracore.Addin</code>. This guarantees that a script written and tested in VSCode will work identically in Paracore, ensuring 100% compatibility.</p>
 </li>
 <li>
 <p><strong>Live C# Scripting with Full IntelliSense:</strong> ⚡ The most significant innovation is the ability to write and edit C# scripts in a modern IDE with full, rich IntelliSense for the Revit API, and execute them instantly in Revit without any recompilation or manual deployment.</p>

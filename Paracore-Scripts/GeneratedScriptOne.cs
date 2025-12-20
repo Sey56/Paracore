@@ -5,7 +5,7 @@ using Autodesk.Revit.DB;
 DocumentType: Project
 Categories: Architectural, Structural, MEP
 Author: Paracore Team
-Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 AI-generated script based on natural language description. Creates a spiral house by adding rectangular walls on each level of the Revit project, with each level rotated by a specified increment.

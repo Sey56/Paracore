@@ -17,17 +17,17 @@ interface FloatingCodeViewerProps {
 export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, isOpen, onClose }) => {
   const { theme } = useTheme();
   const { user, cloudToken } = useAuth(); // Get user and cloudToken from auth context
-  const { rserverConnected } = useRevitStatus(); // Get rserverConnected status
+  const { ParacoreConnected } = useRevitStatus(); // Get ParacoreConnected status
 
   if (!isOpen) {
     return null;
   }
 
-  const canEdit = !!user && rserverConnected;
+  const canEdit = !!user && ParacoreConnected;
 
   const getTitleMessage = () => {
     if (!user) return "You must be signed in to edit scripts";
-    if (!rserverConnected) return "RServer is disconnected. Please connect to Revit.";
+    if (!ParacoreConnected) return "Paracore is disconnected. Please connect to Revit.";
     return "Edit Script";
   };
 

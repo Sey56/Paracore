@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Reflection;
 
-namespace RServer.Addin.Helpers
+namespace Paracore.Addin.Helpers
 {
     public static class CustomAssemblyResolver
     {

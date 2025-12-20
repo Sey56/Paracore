@@ -52,10 +52,10 @@ interface ApiError {
 
 export const Sidebar = () => {
   const { user, activeTeam, activeRole } = useAuth();
-  const { rserverConnected } = useRevitStatus();
+  const { ParacoreConnected } = useRevitStatus();
   const { showNotification } = useNotifications();
 
-  const isDisabled = !user || !rserverConnected;
+  const isDisabled = !user || !ParacoreConnected;
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource } = useUI();
   const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace, fetchTeamWorkspaces, loadScriptsForFolder } = useScripts();

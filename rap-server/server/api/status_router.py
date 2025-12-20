@@ -19,7 +19,7 @@ async def get_status_endpoint():
         return JSONResponse(content=json.loads(json_format.MessageToJson(response)))
     except grpc.RpcError:
         return JSONResponse(content={
-            "rserverConnected": False,
+            "paracoreConnected": False,
             "revitOpen": False,
             "revitVersion": None,
             "documentOpen": False,

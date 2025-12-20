@@ -6,10 +6,16 @@ import { faClock } from '@fortawesome/free-solid-svg-icons';
 const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
 
 export const SessionTimer: React.FC = () => {
-  const { sessionStartTime, logout } = useAuth();
+  const { sessionStartTime, logout, localToken } = useAuth();
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
 
   useEffect(() => {
+    // If we are in "Offline Mode" (localToken is present), do not enforce expiration.
+    if (localToken) {
+      setRemainingTime(null);
+      return;
+    }
+
     if (!sessionStartTime) {
       setRemainingTime(null);
       return;

@@ -8,7 +8,7 @@ Paracore is the user-facing component of a decoupled, robust architecture:
 
 -   **Paracore (`rap-web`):** The React & Tauri desktop frontend. It provides the user interface for all three automation modes and communicates with the local backend via HTTP.
 -   **Local Backend (`rap-server`):** A local Python/FastAPI server that acts as a gateway. It manages file system access and translates frontend requests into secure gRPC calls to the Revit add-in.
--   **Revit Add-in (`RServer.Addin`):** A C# add-in hosting a gRPC server inside Revit. It is the only component that directly and safely interacts with the Revit API, using `ExternalEvent` handlers for thread-safe execution.
+-   **Revit Add-in (`Paracore.Addin`):** A C# add-in hosting a gRPC server inside Revit. It is the only component that directly and safely interacts with the Revit API, using `ExternalEvent` handlers for thread-safe execution.
 -   **Script Engine (`CoreScript.Engine`):** A powerful Roslyn-based C# compiler, hosted by the add-in, that dynamically executes scripts with full support for parameter injection and isolated execution contexts.
 -   **Authentication Server (`rap-auth-server`):** A cloud-based service for managing user accounts, teams, roles, and licenses for premium features.
 

@@ -15,7 +15,7 @@ export const GenerationView: React.FC = () => {
     const { theme } = useTheme();
     const { cloudToken } = useAuth();
     const { showNotification } = useNotifications();
-    const { rserverConnected } = useRevitStatus();
+    const { ParacoreConnected } = useRevitStatus();
 
     const [taskDescription, setTaskDescription] = useState('');
     const [generatedCode, setGeneratedCode] = useState('');
@@ -193,8 +193,8 @@ export const GenerationView: React.FC = () => {
             return;
         }
 
-        if (!rserverConnected) {
-            showNotification('RServer is not connected', 'error');
+        if (!ParacoreConnected) {
+            showNotification('Paracore is not connected', 'error');
             return;
         }
 
@@ -512,7 +512,7 @@ export const GenerationView: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleRun}
-                                disabled={isExecuting || !rserverConnected}
+                                disabled={isExecuting || !ParacoreConnected}
                                 className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                             >
                                 {isExecuting ? (

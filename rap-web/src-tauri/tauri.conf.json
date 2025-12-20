@@ -14,7 +14,7 @@
       "active": true,
       "publisher": "Paras Codarch",
       "targets": "all",
-      "identifier": "rap-data",
+      "identifier": "com.paracore.dev",
       "icon": [
         "icons/rap-icon-16.png",
         "icons/rap-icon-32.png",
@@ -87,57 +87,3 @@
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -55,7 +55,7 @@ message GetStatusRequest {
 }
 
 message GetStatusResponse {
-  bool rserver_connected = 1;
+  bool paracore_connected = 1;
   bool revit_open = 2;
   string revit_version = 3;
   bool document_open = 4;

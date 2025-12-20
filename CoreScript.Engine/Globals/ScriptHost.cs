@@ -1,4 +1,4 @@
-﻿// ❗️Only include this in the ENGINE if you want to expose a neutral alias.
+// ❗️Only include this in the ENGINE if you want to expose a neutral alias.
 // Otherwise, delete it and let TOOLKIT project define its own host wrapper.
 
 using CoreScript.Engine.Context;

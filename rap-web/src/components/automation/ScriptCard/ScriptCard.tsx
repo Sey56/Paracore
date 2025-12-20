@@ -27,14 +27,14 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
   const { selectedScript, runningScriptPath, runScript, setSelectedScript, userEditedScriptParameters } = useScriptExecution();
   const { toggleFavoriteScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
-  const { revitStatus, rserverConnected } = useRevitStatus();
+  const { revitStatus, ParacoreConnected } = useRevitStatus();
   const { isAuthenticated } = useAuth();
 
   const isSelected = selectedScript?.id === script.id;
   const isRunning = runningScriptPath === script.id;
 
   const isCompatibleWithDocument = React.useMemo(() => {
-    if (!rserverConnected || revitStatus.document === null) {
+    if (!ParacoreConnected || revitStatus.document === null) {
       return false;
     }
 
@@ -50,13 +50,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     }
 
     return scriptDocType === revitDocType;
-  }, [rserverConnected, revitStatus.document, revitStatus.documentType, script.metadata.documentType]);
+  }, [ParacoreConnected, revitStatus.document, revitStatus.documentType, script.metadata.documentType]);
 
-  const isRunButtonDisabled = !isAuthenticated || isRunning || !rserverConnected || !isCompatibleWithDocument;
+  const isRunButtonDisabled = !isAuthenticated || isRunning || !ParacoreConnected || !isCompatibleWithDocument;
 
   const getTooltipMessage = () => {
-    if (!rserverConnected) {
-      return "Toggle on RServer in Revit to enable scripts";
+    if (!ParacoreConnected) {
+      return "Toggle on Paracore in Revit to enable scripts";
     }
     
     if (!isAuthenticated) {
@@ -127,7 +127,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     <div
       className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${
         isSelected ? "ring-2 ring-blue-500" : ""
-      } ${isRunning ? "opacity-70" : ""} ${!rserverConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+      } ${isRunning ? "opacity-70" : ""} ${!ParacoreConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
       onClick={handleSelect}
     >
       <div className="p-4 flex-grow flex flex-col">

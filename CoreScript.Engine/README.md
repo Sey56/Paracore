@@ -23,7 +23,7 @@
 
 ## Architecture & Workflow
 
-`CoreScript.Engine` is designed to be consumed as a library by a host application (e.g., `RServer.Addin`). The typical execution workflow is as follows:
+`CoreScript.Engine` is designed to be consumed as a library by a host application (e.g., `Paracore.Addin`). The typical execution workflow is as follows:
 
 1.  **Receive Code and Parameters:** The host application provides the engine's `CodeRunner` with the C# script content (as a JSON string of file contents) and a set of parameters (also in JSON).
 
@@ -47,6 +47,6 @@
 
 `CoreScript.Engine` is a .NET library specifically designed for integration into Autodesk Revit applications. It provides dynamic script processing and execution capabilities tailored for the Revit API. It is not a standalone application.
 
-It is directly referenced by the `RServer.Addin` project. During the build process of `RServer.Addin`, the `dotnet publish` command automatically includes `CoreScript.Engine.dll` and all its necessary dependencies (including Roslyn components) into the `RServer.Addin`'s publish output directory. This ensures that `RServer.Addin` has access to all required assemblies at runtime.
+It is directly referenced by the `Paracore.Addin` project. During the build process of `Paracore.Addin`, the `dotnet publish` command automatically includes `CoreScript.Engine.dll` and all its necessary dependencies (including Roslyn components) into the `Paracore.Addin`'s publish output directory. This ensures that `Paracore.Addin` has access to all required assemblies at runtime.
 
-The `RServer-Installer.ps1` script then utilizes these published files from `RServer.Addin` to create the final `RServer_Installer.exe` using Inno Setup, which deploys the add-in to the appropriate Revit Addins folder.
+The `Paracore-installer.ps1` script then utilizes these published files from `Paracore.Addin` to create the final `Paracore_Installer.exe` using Inno Setup, which deploys the add-in to the appropriate Revit Addins folder.

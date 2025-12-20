@@ -1,5 +1,5 @@
 using CoreScript.Engine.Logging;
-using RServer.Addin.App;
+using Paracore.Addin.App;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 
-namespace RServer.Addin.Helpers
+namespace Paracore.Addin.Helpers
 {
     public static class EphemeralWorkspaceManager
     {
@@ -30,7 +30,7 @@ namespace RServer.Addin.Helpers
 
                 string workspacePath = Path.Combine(WorkspaceRoot, workspaceName);
 
-                if (RServerApp.ActiveWorkspaces.TryGetValue(scriptPath, out string existing) && Directory.Exists(existing))
+                if (ParacoreApp.ActiveWorkspaces.TryGetValue(scriptPath, out string existing) && Directory.Exists(existing))
                 {
                     FileLogger.Log($"Reusing existing workspace for {scriptPath}: {existing}");
                     OpenScriptInVsCode(existing, scriptPath, scriptType, scriptPath);
@@ -91,7 +91,7 @@ namespace RServer.Addin.Helpers
                 WriteGlobalsCs(workspacePath);
                 WriteEditorConfig(workspacePath);
 
-                RServerApp.RegisterWorkspace(scriptPath, workspacePath);
+                ParacoreApp.RegisterWorkspace(scriptPath, workspacePath);
 
                 OpenScriptInVsCode(workspacePath, primaryScriptPathInWorkspace, scriptType, scriptPath);
 
@@ -222,10 +222,10 @@ namespace RServer.Addin.Helpers
 
         private static void WriteCsproj(string folderPath, string projectName, List<string> scriptFileNames)
         {
-            string revitPath = RServerApp.RevitInstallPath;
+            string revitPath = ParacoreApp.RevitInstallPath;
             string enginePath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "Autodesk", "Revit", "Addins", RServerApp.RevitVersion, "RServer", "CoreScript.Engine.dll");
+                "Autodesk", "Revit", "Addins", ParacoreApp.RevitVersion, "Paracore", "CoreScript.Engine.dll");
 
             var compileItems = string.Join("\n", scriptFileNames.Select(file => $"    <Compile Include=\"{file}\" />"));
 

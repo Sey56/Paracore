@@ -7,7 +7,7 @@ using System.Linq;
 DocumentType: Project
 Categories: Architectural, Structural
 Author: Paracore Team
-Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 Comprehensive wall creation tool supporting multiple automation modes:

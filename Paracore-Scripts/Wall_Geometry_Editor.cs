@@ -7,7 +7,7 @@ using System.Linq;
 DocumentType: Project
 Categories: Architectural, Structural
 Author: Paracore Team
-Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 Edit wall geometry by adding sweeps or reveals to selected or all walls.

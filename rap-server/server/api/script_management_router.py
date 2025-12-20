@@ -35,7 +35,7 @@ using Autodesk.Revit.DB;
 DocumentType: Project
 Categories: Architectural, Structural, MEP
 Author: Seyoum Hagos
-Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 This is a template script that creates a simple wall in a Revit project document.

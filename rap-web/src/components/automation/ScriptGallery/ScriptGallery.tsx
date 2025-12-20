@@ -127,8 +127,8 @@ const dateFilterHelper = (dateString: string | undefined, filterValue: string): 
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 
 export const ScriptGallery: React.FC = () => {
-  const { revitStatus, rserverConnected } = useRevitStatus();
-  const isRServerDisconnected = !rserverConnected;
+  const { revitStatus, ParacoreConnected } = useRevitStatus();
+  const isParacoreDisconnected = !ParacoreConnected;
   const { scripts, allScripts, selectedFolder, teamWorkspaces } = useScripts();
   const { selectedCategory, customCategories, setInspectorOpen, openNewScriptModal, closeNewScriptModal, isNewScriptModalOpen, activeScriptSource } = useUI();
   const { setSelectedScript } = useScriptExecution();
@@ -151,7 +151,7 @@ export const ScriptGallery: React.FC = () => {
 
   const getNewScriptButtonTooltip = () => {
     if (!isAuthenticated) return "You must sign in to create scripts";
-    if (isRServerDisconnected) return "RServer is disconnected. Please connect to create scripts.";
+    if (isParacoreDisconnected) return "Paracore is disconnected. Please connect to create scripts.";
     if (!canCreateScripts) return "You do not have permission to create scripts.";
     return "";
   };
@@ -415,7 +415,7 @@ export const ScriptGallery: React.FC = () => {
                 <button
                   onClick={handleOpenNewScriptModal}
                   className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!isAuthenticated || isRServerDisconnected || !activeScriptSource}
+                  disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
                 >
                   New Script
                 </button>
@@ -442,8 +442,8 @@ export const ScriptGallery: React.FC = () => {
         <div className="text-gray-500 dark:text-gray-400 text-sm italic">
           {!isAuthenticated
             ? "Sign in to load scripts"
-            : isRServerDisconnected && !activeScriptSource
-              ? "To load scripts from a source open Revit and toggle on the RServer."
+            : isParacoreDisconnected && !activeScriptSource
+              ? "To load scripts from a source open Revit and toggle on the Paracore."
               : searchTerm
                 ? 'No scripts match your search.'
                 : (activeScriptSource

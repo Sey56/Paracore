@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.UI;
+using Autodesk.Revit.UI;
 using CoreScript.Engine.Context;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Logging;

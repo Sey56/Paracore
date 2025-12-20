@@ -4,7 +4,7 @@ using Autodesk.Revit.DB;
 DocumentType: Project
 Categories: Selection, Filtering
 Author: Paracore Team
-Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 Selects elements in the Revit UI from multiple categories based on user selection.

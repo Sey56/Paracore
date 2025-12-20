@@ -2,16 +2,16 @@ using Autodesk.Revit.UI;
 using CoreScript.Engine.Context;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Runtime;
-using RServer.Addin.Context;
+using Paracore.Addin.Context;
 using CoreScript.Engine.Logging; // Added for logging
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json; // Added for JSON parsing
 using System.Linq; // Added for LINQ
 using System.Windows.Input; // Added for ICommand
-using RServer.Addin.Helpers; // Added for RelayCommand
+using Paracore.Addin.Helpers; // Added for RelayCommand
 
-namespace RServer.Addin.ViewModels
+namespace Paracore.Addin.ViewModels
 {
     public class ServerViewModel : INotifyPropertyChanged
     {

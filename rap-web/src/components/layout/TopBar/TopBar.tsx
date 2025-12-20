@@ -15,7 +15,7 @@ import { shell } from '@tauri-apps/api';
 
 export const TopBar: React.FC = () => {
   const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView } = useUI();
-  const { rserverConnected, revitStatus } = useRevitStatus();
+  const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
   const { loadScriptsForFolder, toolLibraryPath } = useScripts();
@@ -74,10 +74,10 @@ export const TopBar: React.FC = () => {
   };
 
   const getConnectionStatusText = () => {
-    if (!rserverConnected) {
-      return "RServer Disconnected";
+    if (!ParacoreConnected) {
+      return "Paracore Disconnected";
     }
-    const parts = ["RServer Connected"];
+    const parts = ["Paracore Connected"];
     if (revitStatus.version) {
       parts.push(`Revit ${revitStatus.version}`);
     }
@@ -91,7 +91,7 @@ export const TopBar: React.FC = () => {
   };
 
   const getConnectionStatusColorClass = () => {
-    if (!rserverConnected) {
+    if (!ParacoreConnected) {
       return "bg-red-500";
     }
     return "bg-green-500";
@@ -116,7 +116,7 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* Connection Status - Hidden on mobile, shown on larger screens */}
-      <div className={`hidden md:flex items-center text-sm px-3 py-1.5 rounded-full ${!rserverConnected ? "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" : "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"}`}>
+      <div className={`hidden md:flex items-center text-sm px-3 py-1.5 rounded-full ${!ParacoreConnected ? "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" : "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"}`}>
         <span className={`w-2.5 h-2.5 rounded-full ${getConnectionStatusColorClass()} mr-2`}></span>
         <span className="font-medium">{getConnectionStatusText()}</span>
       </div>

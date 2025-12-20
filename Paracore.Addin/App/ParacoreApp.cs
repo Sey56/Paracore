@@ -5,20 +5,20 @@ using Microsoft.Extensions.DependencyInjection; // Added
 using Microsoft.Extensions.Logging;
 using CoreScript.Engine.Globals; // Added
 using CoreScript.Engine.Logging;
-using RServer.Addin.Commands;
-using RServer.Addin.Helpers; // Added for CustomAssemblyResolver
-using RServer.Addin.Services;
-using RServer.Addin.ViewModels;
-using RServer.Addin.Views;
+using Paracore.Addin.Commands;
+using Paracore.Addin.Helpers; // Added for CustomAssemblyResolver
+using Paracore.Addin.Services;
+using Paracore.Addin.ViewModels;
+using Paracore.Addin.Views;
 using System;
 using System.IO;
 using System.Windows.Media.Imaging;
 
-namespace RServer.Addin.App
+namespace Paracore.Addin.App
 {
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class RServerApp : IExternalApplication
+    public class ParacoreApp : IExternalApplication
     {
         public static readonly Guid DashboardPaneId = new Guid("D7C95B7A-2E34-4A1E-8A6A-45A75D25E48B");
         public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -96,27 +96,35 @@ namespace RServer.Addin.App
         {
             PushButtonData toggleServerButton = new(
                 "ToggleCoreScriptServer",
-                "Paracore\n(Off)",
-                typeof(RServerApp).Assembly.Location,
+                "(Off)",
+                typeof(ParacoreApp).Assembly.Location,
                 typeof(ToggleServerCommand).FullName)
             {
-                ToolTip = "Toggle the CoreScript server to run scripts from VS Code.",
+                ToolTip = "Toggle the Paracore server to run scripts from Paracore and VSCode.",
                 LargeImage = new BitmapImage(
-                    new Uri("pack://application:,,,/RServer.Addin;component/Images/RServer.png"))
+                    new Uri("pack://application:,,,/Paracore.Addin;component/Images/Paracore.png")),
+                Image = new BitmapImage(
+                    new Uri("pack://application:,,,/Paracore.Addin;component/Images/Paracore.png"))
             };
+
+            toggleServerButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://paracore-help.netlify.app/"));
 
             _toggleButton = panel.AddItem(toggleServerButton) as PushButton;
 
             PushButtonData toggleDashboardButton = new(
                 "ToggleDashboard",
                 "Dashboard",
-                typeof(RServerApp).Assembly.Location,
+                typeof(ParacoreApp).Assembly.Location,
                 typeof(ToggleDashboardCommand).FullName)
             {
-                ToolTip = "Toggle the CoreScript dashboard.",
+                ToolTip = "Toggle the Paracore dashboard.",
                 LargeImage = new BitmapImage(
-                    new Uri("pack://application:,,,/RServer.Addin;component/Images/RServer.png"))
+                    new Uri("pack://application:,,,/Paracore.Addin;component/Images/Dashboard.png")),
+                Image = new BitmapImage(
+                    new Uri("pack://application:,,,/Paracore.Addin;component/Images/Dashboard.png"))
             };
+
+            toggleDashboardButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://paracore-help.netlify.app/"));
 
             panel.AddItem(toggleDashboardButton);
         }
@@ -185,7 +193,7 @@ namespace RServer.Addin.App
         {
             if (_toggleButton != null)
             {
-                _toggleButton.ItemText = _serverRunning ? "Paracore\n(On)" : "Paracore\n(Off)";
+                _toggleButton.ItemText = _serverRunning ? "(On)" : "(Off)";
                 _toggleButton.ToolTip = _serverRunning
                     ? "Server is running. Click to stop."
                     : "Server is stopped. Click to start.";

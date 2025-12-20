@@ -1,4 +1,4 @@
-﻿using CoreScript.Engine.Context;
+using CoreScript.Engine.Context;
 using System.Collections.Concurrent;
 
 namespace CoreScript.Engine.Runtime

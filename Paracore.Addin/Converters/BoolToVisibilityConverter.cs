@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace RServer.Addin.Converters
+namespace Paracore.Addin.Converters
 {
     public class BoolToVisibilityConverter : IValueConverter
     {

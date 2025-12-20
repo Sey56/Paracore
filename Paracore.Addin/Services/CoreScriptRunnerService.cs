@@ -5,16 +5,16 @@ using Grpc.Core;
 using CoreScript;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Logging;
-using RServer.Addin.Context;
-using RServer.Addin.Helpers;
-using RServer.Addin.ViewModels;
+using Paracore.Addin.Context;
+using Paracore.Addin.Helpers;
+using Paracore.Addin.ViewModels;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Text.Json;
 
-namespace RServer.Addin.Services
+namespace Paracore.Addin.Services
 {
     public class CoreScriptRunnerService : CoreScriptRunner.CoreScriptRunnerBase
     {
@@ -63,7 +63,7 @@ namespace RServer.Addin.Services
 
             var status = new GetStatusResponse
             {
-                RserverConnected = true,
+                ParacoreConnected = true,
                 RevitOpen = revitOpen,
                 RevitVersion = revitVersion ?? "",
                 DocumentOpen = documentOpen,

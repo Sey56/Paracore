@@ -60,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
         const revitPathFormatted = revitPath.replace(/\\/g, "/");
 
         // CoreScript.Engine path based on detected version
-        const enginePath = path.join(appData, 'Autodesk', 'Revit', 'Addins', revitVersion, 'RServer', 'CoreScript.Engine.dll');
+        const enginePath = path.join(appData, 'Autodesk', 'Revit', 'Addins', revitVersion, 'Paracore', 'CoreScript.Engine.dll');
         const enginePathFormatted = enginePath.replace(/\\/g, "/");
 
         const csproj = `

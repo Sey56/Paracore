@@ -1,9 +1,9 @@
-﻿using Autodesk.Revit.UI;
+using Autodesk.Revit.UI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RServer.Addin.App;
+using Paracore.Addin.App;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -11,12 +11,12 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using CoreScript.Engine.Logging; // Added
 using CoreScript.Engine.Globals; // Added
 
-namespace RServer.Addin.Services
+namespace Paracore.Addin.Services
 {
     public class CoreScriptServer
     {
         private bool _running;
-        private readonly string _logPath = Path.Combine(RServerApp.HomePath, "CoreScriptServerLog.txt");
+        private readonly string _logPath = Path.Combine(ParacoreApp.HomePath, "CoreScriptServerLog.txt");
         private IHost? _webHost;
         private readonly UIApplication _uiApp;
         private readonly ILogger _logger; // Added

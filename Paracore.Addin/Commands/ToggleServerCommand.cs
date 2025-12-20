@@ -2,27 +2,27 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using CoreScript.Engine.Context;
-using RServer.Addin.App;
-using RServer.Addin.Context;
-using RServer.Addin.Services;
-using RServer.Addin.ViewModels;
+using Paracore.Addin.App;
+using Paracore.Addin.Context;
+using Paracore.Addin.Services;
+using Paracore.Addin.ViewModels;
 using System;
 using Microsoft.Extensions.DependencyInjection; // Added
 using CoreScript.Engine.Logging; // Added
 
-namespace RServer.Addin.Commands
+namespace Paracore.Addin.Commands
 {
     [Transaction(TransactionMode.Manual)]
     public class ToggleServerCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            if (!RServerApp.ServerRunning)
+            if (!ParacoreApp.ServerRunning)
             {
                 try
                 {
                     // Resolve ILogger from the ServiceProvider
-                    var logger = RServerApp.ServiceProvider.GetRequiredService<ILogger>();
+                    var logger = ParacoreApp.ServiceProvider.GetRequiredService<ILogger>();
 
                     // ✅ Inject context
                     var context = new ServerContext(commandData.Application);
@@ -35,8 +35,8 @@ namespace RServer.Addin.Commands
                     // ✅ Start server with standard dispatcher
                     var server = new CoreScriptServer(commandData.Application, logger); // Pass logger
                     server.Start();
-                    RServerApp.SetServer(server);
-                    RServerApp.SetServerRunning(true);
+                    ParacoreApp.SetServer(server);
+                    ParacoreApp.SetServerRunning(true);
                     ServerViewModel.Instance.IsServerRunning = true;
 
                     TaskDialog.Show("RServer", "RServer On! You can now execute RevitScripts from Paracore and Vscode. Listening on port 50051.");
@@ -51,9 +51,9 @@ namespace RServer.Addin.Commands
             {
                 try
                 {
-                    RServerApp.Server?.Stop();
-                    RServerApp.SetServer(null);
-                    RServerApp.SetServerRunning(false);
+                    ParacoreApp.Server?.Stop();
+                    ParacoreApp.SetServer(null);
+                    ParacoreApp.SetServerRunning(false);
                     ServerViewModel.Instance.IsServerRunning = false;
                     TaskDialog.Show("RServer", "RServer stopped!");
                 }
@@ -65,7 +65,7 @@ namespace RServer.Addin.Commands
             }
 
             // Ensure IsServerRunning is updated correctly
-            ServerViewModel.Instance.IsServerRunning = RServerApp.ServerRunning;
+            ServerViewModel.Instance.IsServerRunning = ParacoreApp.ServerRunning;
 
             return Result.Succeeded;
         }

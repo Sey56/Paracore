@@ -1,4 +1,4 @@
-# PowerShell Build Script for RServer.Addin Installer
+# PowerShell Build Script for Paracore.Addin Installer
 
 # Exit on any error
 $ErrorActionPreference = 'Stop'
@@ -54,14 +54,22 @@ if (-not $InnoSetupCompiler) {
 Write-Host "Found Inno Setup Compiler at: $InnoSetupCompiler" -ForegroundColor Green
 
 # --- 2. Build RServer.Addin (.NET) ---
-Write-Host "`n[2/3] Building RServer.Addin..."
-$addinDir = Join-Path -Path $ProjectRoot -ChildPath 'RServer.Addin'
+Write-Host "`n[2/3] Building Paracore.Addin..."
+$addinDir = Join-Path -Path $ProjectRoot -ChildPath 'Paracore.Addin'
 $publishDir = Join-Path -Path $addinDir -ChildPath 'bin\Release\net8.0-windows\win-x64'
 Push-Location $addinDir
+
+# Clean previous builds to ensure no stale DLLs (like RServer.Addin.dll) remain
+Write-Host "Cleaning previous builds..." -ForegroundColor Cyan
+dotnet clean -c Release
+if (Test-Path $publishDir) {
+    Remove-Item -Path $publishDir -Recurse -Force
+}
+
 # This command gathers all necessary DLLs for deployment.
 dotnet publish -c Release -o $publishDir
 Pop-Location
-Write-Host 'RServer.Addin publish complete.' -ForegroundColor Green
+Write-Host 'Paracore.Addin publish complete.' -ForegroundColor Green
 
 # --- Code Signing (Placeholder) ---
 # For a production build, you must sign the executables to avoid antivirus issues.
@@ -86,7 +94,7 @@ Write-Host "Installer output will be placed in: $finalInstallDir" -ForegroundCol
 # --- 3. Compile Installer ---
 Write-Host "`n[3/3] Compiling the installer with Inno Setup..."
 
-$rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'RServer_Installer.iss'
+$rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'Paracore_Installer.iss'
 $iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap-icon.ico'
 $appDataFolderName = 'Paracore-data'
 # Pass defines to the Inno Setup script
@@ -95,5 +103,5 @@ $appDataFolderName = 'Paracore-data'
 Write-Host "`n=================================" -ForegroundColor Cyan
 Write-Host '   Build Complete!   '
 Write-Host '=================================' -ForegroundColor Cyan
-$finalAddinInstaller = Join-Path -Path $finalInstallDir -ChildPath 'RServer_Installer.exe'
-Write-Host "RServer Installer created at: $finalAddinInstaller" -ForegroundColor Yellow
+$finalAddinInstaller = Join-Path -Path $finalInstallDir -ChildPath 'Paracore_Revit_Installer.exe'
+Write-Host "Paracore Installer created at: $finalAddinInstaller" -ForegroundColor Yellow

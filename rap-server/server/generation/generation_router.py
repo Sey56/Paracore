@@ -173,7 +173,7 @@ async def save_to_library(request: Request):
         metadata_header += f"DocumentType: {metadata.get('documentType', 'Project')}\n"
         metadata_header += f"Categories: {metadata.get('categories', 'Architectural')}\n"
         metadata_header += f"Author: {metadata.get('author', 'Unknown')}\n"
-        metadata_header += f"Dependencies: {metadata.get('dependencies', 'RevitAPI 2025, CoreScript.Engine, RServer.Addin')}\n"
+        metadata_header += f"Dependencies: {metadata.get('dependencies', 'RevitAPI 2025, CoreScript.Engine, Paracore.Addin')}\n"
         metadata_header += "\n"
         
         description = metadata.get('description', '')

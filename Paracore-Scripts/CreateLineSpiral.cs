@@ -4,7 +4,7 @@ using Autodesk.Revit.DB;
 DocumentType: Project
 Categories: Architectural, Prototyping
 Author: Paracore Team
-Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 Creates a spiral using model lines on a specified level with user-defined parameters

@@ -1,4 +1,4 @@
-﻿namespace CoreScript.Engine.Models
+namespace CoreScript.Engine.Models
 {
     public class ScriptFile
     {

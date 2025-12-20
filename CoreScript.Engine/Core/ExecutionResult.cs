@@ -1,4 +1,4 @@
-﻿namespace CoreScript.Engine.Core
+namespace CoreScript.Engine.Core
 {
     /// <summary>
     /// Standard return type for all script execution responses.

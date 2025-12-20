@@ -1,10 +1,10 @@
 using Autodesk.Revit.UI;
-using RServer.Addin.ViewModels;
+using Paracore.Addin.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 
-namespace RServer.Addin.Views
+namespace Paracore.Addin.Views
 {
     public partial class DashboardView : UserControl, IDockablePaneProvider
     {

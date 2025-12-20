@@ -4,7 +4,7 @@ using Autodesk.Revit.DB;
 DocumentType: Project
 Categories: Architectural, Structural, MEP
 Author: Paracore Team
-Dependencies: RevitAPI 2025, RScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, RScript.Engine, Paracore.Addin
 
 
 Description:

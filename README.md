@@ -12,7 +12,7 @@ The core of RAP runs entirely on the user's local machine, ensuring maximum perf
 
 1.  **`rap-web` (Desktop App):** The user interacts with the React-based desktop application. When a script is run, the UI sends a standard HTTP request to the local backend.
 2.  **`rap-server` (Local Backend):** This Python server acts as the central middleman. It receives the HTTP request from the UI and translates it into a highly efficient gRPC call.
-3.  **`RServer.Addin` (Revit Add-in):** The gRPC server running inside Revit receives the call and executes the C# script in-process, with direct access to the Revit API.
+3.  **`Paracore.Addin` (Revit Add-in):** The gRPC server running inside Revit receives the call and executes the C# script in-process, with direct access to the Revit API.
 
 ### Why This Model is Better
 
@@ -42,10 +42,10 @@ The platform is composed of several key projects that work together:
 *   **`rap-server`**: A local backend server built with Python and FastAPI. It acts as the bridge between the web UI and the Revit environment, handling API requests and filesystem operations.
     *   [Details](./rap-server/server/README.md)
 
-*   **`RServer.Addin`**: A C# Revit add-in that hosts a gRPC server inside Revit. It is responsible for receiving commands and marshalling script execution requests to the main Revit thread, ensuring safe API access.
-    *   [Details](./RServer.Addin/README.md)
+*   **`Paracore.Addin`**: A C# Revit add-in that hosts a gRPC server inside Revit. It is responsible for receiving commands and marshalling script execution requests to the main Revit thread, ensuring safe API access.
+    *   [Details](./Paracore.Addin/README.md)
 
-*   **`CoreScript.Engine`**: The core C# scripting engine in `RServer.Addin` that uses the Roslyn compiler to dynamically compile and execute C# code on-the-fly, manage parameter injection, and provide a rich execution context for scripts.
+*   **`CoreScript.Engine`**: The core C# scripting engine in `Paracore.Addin` that uses the Roslyn compiler to dynamically compile and execute C# code on-the-fly, manage parameter injection, and provide a rich execution context for scripts.
     *   [Details](./CoreScript.Engine/README.md)
 
 *   **`rap-auth-server`**: A planned cloud-based authentication service (Python/FastAPI) that will handle user identity, licensing, and other commercial features in the future.

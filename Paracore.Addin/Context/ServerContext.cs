@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace RServer.Addin.Context
+namespace Paracore.Addin.Context
 {
     public class StructuredOutputItem
     {

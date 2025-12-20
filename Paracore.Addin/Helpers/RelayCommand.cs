@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Windows.Input;
 
-namespace RServer.Addin.Helpers
+namespace Paracore.Addin.Helpers
 {
     public class RelayCommand : ICommand
     {

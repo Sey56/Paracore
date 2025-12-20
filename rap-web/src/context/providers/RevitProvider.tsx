@@ -12,7 +12,7 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
     document: null,
     documentType: null,
   }), []);
-  const [rserverConnected, setRserverConnected] = useState<boolean>(false);
+  const [ParacoreConnected, setParacoreConnected] = useState<boolean>(false);
   const [revitStatus, setRevitStatus] = useState<RevitStatus>(initialRevitStatus);
 
   useEffect(() => {
@@ -20,8 +20,8 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const response = await api.get("/api/status");
 
-        setRserverConnected(response.data.rserverConnected);
-        
+        setParacoreConnected(response.data.paracoreConnected);
+
         const newRevitStatus: RevitStatus = {
           isConnected: response.data.revitOpen,
           version: response.data.revitVersion || "",
@@ -30,19 +30,19 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
         };
         setRevitStatus(newRevitStatus);
 
-        if (!response.data.rserverConnected) {
-          // showNotification("RServer is not connected.", "warning", 3000);
+        if (!response.data.paracoreConnected) {
+          // showNotification("Paracore is not connected.", "warning", 3000);
         } else if (!response.data.revitOpen) {
           // showNotification("Revit is not open.", "warning", 3000);
         } else if (!response.data.documentOpen) {
           // showNotification("No Revit document is open.", "warning", 3000);
         } else {
-          // showNotification("RServer and Revit are connected.", "success", 3000);
+          // showNotification("Paracore and Revit are connected.", "success", 3000);
         }
       } catch (error) {
         console.error("[RAP] Failed to fetch status:", error);
-        showNotification("Failed to fetch RServer status.", "error");
-        setRserverConnected(false);
+        showNotification("Failed to fetch Paracore status.", "error");
+        setParacoreConnected(false);
         setRevitStatus(initialRevitStatus);
       }
     };
@@ -54,7 +54,7 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
   }, [initialRevitStatus, showNotification]);
 
   const contextValue = {
-    rserverConnected,
+    ParacoreConnected,
     revitStatus,
   };
 

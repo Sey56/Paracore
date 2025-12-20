@@ -6,7 +6,7 @@ using System.Linq;
 DocumentType: Project
 Categories: Architectural, Structural, MEP
 Author: Paracore Team
-Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 Creates a wall along the X-axis at a user-defined level with specified length and height.

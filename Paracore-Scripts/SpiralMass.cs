@@ -10,7 +10,7 @@ Author: Paracore Team
 Version: 1.0.0
 LastRun: null
 IsDefault: true
-Dependencies: RevitAPI 2025, RScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, RScript.Engine, Paracore.Addin
 
 Description:
 Creates a spiral lofted mass between two user-defined levels with customizable parameters including height, rotation, tapering, and a bulge/squeeze effect that preserves the base and top profiles. Ideal for conceptual architectural forms.

@@ -4,7 +4,7 @@ using Autodesk.Revit.DB;
 DocumentType: Project
 Categories: Architectural, Cleanup
 Author: Paracore Team
-Dependencies: RevitAPI 2025, RScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, RScript.Engine, Paracore.Addin
 
 Description:
 Deletes all wall elements in the active document. Useful for prototyping resets,
