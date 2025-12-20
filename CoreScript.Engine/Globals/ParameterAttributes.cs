@@ -34,7 +34,7 @@ namespace CoreScript.Engine.Globals
         public RevitElementsAttribute() { }
         
         // Constructor with optional parameters to support [RevitElements(Type: "Wall", Category: "Walls")]
-        public RevitElementsAttribute(string Type = "", string Category = "", bool MultiSelect = false, string Group = "") 
+        public RevitElementsAttribute(string Type = "", string Category = "", bool MultiSelect = false, string Group = "", string Description = "") 
         { 
         }
     }

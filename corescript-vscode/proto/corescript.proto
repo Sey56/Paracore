@@ -12,6 +12,7 @@ service CoreScriptRunner {
   rpc CreateAndOpenWorkspace (CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
   rpc GetScriptManifest (GetScriptManifestRequest) returns (GetScriptManifestResponse);
   rpc ValidateWorkingSet (ValidateWorkingSetRequest) returns (ValidateWorkingSetResponse);
+  rpc ComputeParameterOptions (ComputeParameterOptionsRequest) returns (ComputeParameterOptionsResponse);
 }
 
 message CreateWorkspaceRequest {
@@ -105,6 +106,19 @@ message ScriptParameter {
   repeated string options = 5;
   bool multi_select = 6;
   string visible_when = 7;
+  
+  // Enhanced Numeric Types
+  string numeric_type = 8;  // "int" or "double"
+  double min = 9;
+  double max = 10;
+  double step = 11;
+  
+  // Revit Element Selection
+  bool is_revit_element = 12;
+  string revit_element_type = 13;
+  string revit_element_category = 14;
+  bool requires_compute = 15;
+  string group = 16;
 }
 
 message GetCombinedScriptRequest {
@@ -159,4 +173,15 @@ message ValidateWorkingSetRequest {
 
 message ValidateWorkingSetResponse {
   repeated int64 valid_element_ids = 1;
+}
+
+message ComputeParameterOptionsRequest {
+  string script_content = 1;
+  string parameter_name = 2;
+}
+
+message ComputeParameterOptionsResponse {
+  repeated string options = 1;
+  bool is_success = 2;
+  string error_message = 3;
 }

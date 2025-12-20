@@ -495,7 +495,12 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
         // Update the parameter with the new options
         setUserEditedScriptParameters(prev => {
-          const params = prev[script.id] || script.parameters || [];
+          const params = prev[script.id];
+          if (!params) {
+            console.warn(`No cached parameters found for script ${script.id}`);
+            return prev;
+          }
+
           const updatedParams = params.map(p =>
             p.name === parameterName
               ? { ...p, options: options }

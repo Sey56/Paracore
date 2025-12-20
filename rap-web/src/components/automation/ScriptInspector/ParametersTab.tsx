@@ -36,6 +36,33 @@ const initializeParameters = (params: ScriptParameter[]): ScriptParameter[] => {
   return params.map(p => ({ ...p, value: p.value }));
 };
 
+/**
+ * Deserializes preset parameters to ensure multi-select values are JSON arrays.
+ * Presets may store multi-select values as comma-separated strings, but the UI expects JSON arrays.
+ */
+const deserializePresetParameters = (presetParams: ScriptParameter[], scriptParams: ScriptParameter[]): ScriptParameter[] => {
+  return presetParams.map((presetParam) => {
+    const scriptParam = scriptParams.find(sp => sp.name === presetParam.name);
+
+    // If this is a multi-select parameter and the value is a string, convert it to an array
+    if (scriptParam?.multiSelect && typeof presetParam.value === 'string') {
+      try {
+        // Try parsing as JSON first (in case it's already a JSON string)
+        const parsed = JSON.parse(presetParam.value);
+        if (Array.isArray(parsed)) {
+          return { ...presetParam, value: JSON.stringify(parsed) };
+        }
+      } catch {
+        // If JSON parsing fails, treat it as a comma-separated string
+        const arrayValue = presetParam.value.split(',').map(v => v.trim()).filter(v => v.length > 0);
+        return { ...presetParam, value: JSON.stringify(arrayValue) };
+      }
+    }
+
+    return presetParam;
+  });
+};
+
 export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab, activeMainView } = useUI();
   const { activeRole } = useAuth();
@@ -52,13 +79,16 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     setSelectedScript,
     computeParameterOptions,
     isComputingOptions,
+    userEditedScriptParameters,
   } = useScriptExecution();
 
   const [editedParameters, setEditedParameters] = useState<ScriptParameter[]>([]);
 
   useEffect(() => {
-    setEditedParameters(script.parameters || []);
-  }, [script.id, script.parameters]);
+    // Use cached user-edited parameters if available, otherwise fall back to script defaults
+    const cachedParams = userEditedScriptParameters[script.id];
+    setEditedParameters(cachedParams || script.parameters || []);
+  }, [script.id, userEditedScriptParameters, script.parameters]);
 
   // Memoize visible parameters to prevent unnecessary re-renders
   const visibleParameters = useMemo(() => {
@@ -198,8 +228,9 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 } else {
                   const preset = presets.find((p) => p.name === presetName);
                   if (preset) {
-                    updateUserEditedParameters(script.id, preset.parameters);
-                    setEditedParameters(preset.parameters);
+                    const deserializedParams = deserializePresetParameters(preset.parameters, script.parameters ?? []);
+                    updateUserEditedParameters(script.id, deserializedParams);
+                    setEditedParameters(deserializedParams);
                   }
                 }
               }}
