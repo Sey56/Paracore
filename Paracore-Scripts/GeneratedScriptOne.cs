@@ -4,7 +4,7 @@ using Autodesk.Revit.DB;
 /*
 DocumentType: Project
 Categories: Architectural, Structural, MEP
-Author: Seyoum Hagos
+Author: Paracore Team
 Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
 
 Description:

@@ -6,7 +6,7 @@ using System.Linq;
 /*
 DocumentType: ConceptualMass
 Categories: Architectural, Conceptual, Prototyping
-Author: Seyoum Hagos
+Author: Paracore Team
 Version: 1.0.0
 LastRun: null
 IsDefault: true

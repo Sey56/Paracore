@@ -57,7 +57,11 @@ namespace CoreScript.Engine.Core
                 throw new InvalidDataException("No valid script files to combine.");
 
             var allUsingDirectives = new HashSet<string>();
-            var allUserDefinedTypes = new HashSet<string>();
+            
+            // Use List to preserve order, and separate Params class
+            var otherUserDefinedTypes = new List<string>();
+            string paramsClassContent = null;
+            
             string mainScriptBody = null;
             
             var topLevelScriptFile = IdentifyTopLevelScript(scriptFiles);
@@ -82,8 +86,22 @@ namespace CoreScript.Engine.Core
                 var fileTypeDecls = root.DescendantNodes().OfType<MemberDeclarationSyntax>()
                     .Where(n => n is ClassDeclarationSyntax || n is StructDeclarationSyntax || n is EnumDeclarationSyntax || n is InterfaceDeclarationSyntax)
                     .ToList();
+                
                 foreach (var decl in fileTypeDecls)
-                    allUserDefinedTypes.Add(decl.ToFullString().Trim());
+                {
+                    string content = decl.ToFullString().Trim();
+                    
+                    // Check if this is the Params class
+                    if (decl is ClassDeclarationSyntax classDecl && classDecl.Identifier.Text == "Params")
+                    {
+                        paramsClassContent = content;
+                    }
+                    else
+                    {
+                        if (!otherUserDefinedTypes.Contains(content))
+                            otherUserDefinedTypes.Add(content);
+                    }
+                }
 
                 if (file == topLevelScriptFile)
                 {
@@ -121,11 +139,17 @@ namespace CoreScript.Engine.Core
             {
                 parts.Add(mainScriptBody);
             }
-
-            if (allUserDefinedTypes.Any())
+            
+            // Add Params class immediately after logic (Top Priority)
+            if (!string.IsNullOrEmpty(paramsClassContent))
             {
-                // Join user types with double newlines internally first
-                parts.Add(string.Join("\n\n", allUserDefinedTypes));
+                parts.Add(paramsClassContent);
+            }
+
+            if (otherUserDefinedTypes.Any())
+            {
+                // Join other user types with double newlines
+                parts.Add(string.Join("\n\n", otherUserDefinedTypes));
             }
 
             // Join all major parts with double newlines

@@ -6,7 +6,7 @@ using System.Linq;
 /*
 DocumentType: Project
 Categories: Architectural, Structural
-Author: Seyoum Hagos
+Author: Paracore Team
 Dependencies: RevitAPI 2025, CoreScript.Engine, RServer.Addin
 
 Description:
@@ -23,59 +23,18 @@ UsageExamples:
 - "Import walls from coordinates file"
 */
 
-// [ScriptParameter(Options: "RoomBoundaries, Grid, Coordinates, Perimeter")]
-string creationMode = "RoomBoundaries";
-
-
-
-// Common Parameters
-// [Parameter]
-string levelName = "Level 1";
-
-// [Parameter]
-string wallTypeName = "Generic - 200mm";
-
-// [Parameter]
-double wallHeightMeters = 3.0;
-
-// [Parameter]
-bool roomBounding = true;
-
-// Room Boundaries Mode Parameters
-// [ScriptParameter(VisibleWhen: "creationMode == 'RoomBoundaries'")]
-double wallOffsetMm = 0.0; // Offset from room boundary (positive = outward)
-
-// Grid Mode Parameters
-// [ScriptParameter(VisibleWhen: "creationMode == 'Grid'")]
-double gridSpacingXMeters = 3.0;
-// [ScriptParameter(VisibleWhen: "creationMode == 'Grid'")]
-double gridSpacingYMeters = 3.0;
-// [ScriptParameter(VisibleWhen: "creationMode == 'Grid'")]
-int gridCountX = 5;
-// [ScriptParameter(VisibleWhen: "creationMode == 'Grid'")]
-int gridCountY = 5;
-// [ScriptParameter(VisibleWhen: "creationMode == 'Grid'")]
-double gridOriginXMeters = 0.0;
-// [ScriptParameter(VisibleWhen: "creationMode == 'Grid'")]
-double gridOriginYMeters = 0.0;
-
-// Coordinates Mode Parameters
-// [ScriptParameter(VisibleWhen: "creationMode == 'Coordinates'")]
-string csvFilePath = ""; // Path to CSV file with wall coordinates
-
-// Perimeter Mode Parameters
-// [ScriptParameter(VisibleWhen: "creationMode == 'Perimeter'")]
-bool useModelLines = false; // Use existing model lines as perimeter
+// Initialize Parameters from separate file
+var p = new Params();
 
 // Get Level
 Level? level = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
     .Cast<Level>()
-    .FirstOrDefault(l => l.Name == levelName);
+    .FirstOrDefault(l => l.Name == p.levelName);
 
 if (level == null)
 {
-    Println($"❌ Level '{levelName}' not found.");
+    Println($"❌ Level '{p.levelName}' not found.");
     return;
 }
 
@@ -83,52 +42,52 @@ if (level == null)
 WallType? wallType = new FilteredElementCollector(Doc)
     .OfClass(typeof(WallType))
     .Cast<WallType>()
-    .FirstOrDefault(wt => wt.Name == wallTypeName);
+    .FirstOrDefault(wt => wt.Name == p.wallTypeName);
 
 if (wallType == null)
 {
-    Println($"❌ Wall type '{wallTypeName}' not found.");
+    Println($"❌ Wall type '{p.wallTypeName}' not found.");
     return;
 }
 
 int wallsCreated = 0;
 
-Transact($"Create Walls - {creationMode}", () =>
+Transact($"Create Walls - {p.creationMode}", () =>
 {
-    switch (creationMode)
+    switch (p.creationMode)
     {
         case "RoomBoundaries":
             wallsCreated = RoomBoundaryWalls.Create(
-                Doc, level, wallType, wallHeightMeters, 
-                roomBounding, wallOffsetMm);
+                Doc, level, wallType, p.wallHeightMeters, 
+                p.roomBounding, p.wallOffsetMm);
             break;
 
         case "Grid":
             wallsCreated = GridWalls.Create(
-                Doc, level, wallType, wallHeightMeters,
-                gridSpacingXMeters, gridSpacingYMeters,
-                gridCountX, gridCountY,
-                gridOriginXMeters, gridOriginYMeters,
-                roomBounding);
+                Doc, level, wallType, p.wallHeightMeters,
+                p.gridSpacingXMeters, p.gridSpacingYMeters,
+                p.gridCountX, p.gridCountY,
+                p.gridOriginXMeters, p.gridOriginYMeters,
+                p.roomBounding);
             break;
 
         case "Coordinates":
-            if (string.IsNullOrEmpty(csvFilePath))
+            if (string.IsNullOrEmpty(p.csvFilePath))
             {
                 Println("❌ CSV file path is required for Coordinates mode.");
                 return;
             }
             wallsCreated = CoordinateWalls.Create(
-                Doc, level, wallType, wallHeightMeters, csvFilePath, roomBounding);
+                Doc, level, wallType, p.wallHeightMeters, p.csvFilePath, p.roomBounding);
             break;
 
         case "Perimeter":
             wallsCreated = PerimeterWalls.Create(
-                Doc, level, wallType, wallHeightMeters, useModelLines, roomBounding);
+                Doc, level, wallType, p.wallHeightMeters, p.useModelLines, p.roomBounding);
             break;
 
         default:
-            Println($"❌ Unknown creation mode: {creationMode}");
+            Println($"❌ Unknown creation mode: {p.creationMode}");
             return;
     }
 });
@@ -136,7 +95,7 @@ Transact($"Create Walls - {creationMode}", () =>
 // Print result FIRST for agent summary
 if (wallsCreated > 0)
 {
-    Println($"✅ Successfully created {wallsCreated} walls using {creationMode} mode.");
+    Println($"✅ Successfully created {wallsCreated} walls using {p.creationMode} mode.");
 }
 else
 {
@@ -144,8 +103,8 @@ else
 }
 
 // Then print configuration details
-Println($"🔧 Wall Creation Mode: {creationMode}");
-Println($"📍 Level: {levelName}");
-Println($"🧱 Wall Type: {wallTypeName}");
-Println($"📏 Wall Height: {wallHeightMeters}m");
-Println($"🏠 Room Bounding: {roomBounding}");
+Println($"🔧 Wall Creation Mode: {p.creationMode}");
+Println($"📍 Level: {p.levelName}");
+Println($"🧱 Wall Type: {p.wallTypeName}");
+Println($"📏 Wall Height: {p.wallHeightMeters}m");
+Println($"🏠 Room Bounding: {p.roomBounding}");
