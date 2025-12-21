@@ -185,3 +185,48 @@ Based on a recursive analysis of the `src` directory and its subdirectories, the
 *   **Type Safety:** TypeScript's strong typing and the centralized `types` directory are invaluable for large, scalable applications, catching errors early and ensuring data consistency.
 
 In summary, the `rap-web` project exhibits a thoughtful and well-executed approach to folder and file organization, adhering to modern best practices for front-end development. This structure will undoubtedly contribute to the project's long-term success in terms of development efficiency, maintainability, and adaptability to future changes and growth.
+## Future Roadmap
+
+### Parameter System Enhancements
+
+#### Polish Existing Infrastructure
+- **Parameter Validation**: Add `Required`, `Min/Max`, `Pattern` attributes for inline validation
+- **EnabledWhen Attribute**: Disable parameters conditionally (vs. hiding with `VisibleWhen`)
+- **Parameter Units**: Automatic unit conversion and display (e.g., internal mm → display ft)
+- **Cascading Dropdowns**: Parameters that depend on other parameter values
+- **Large Option Lists**: Search/filter for dropdowns with 100+ items
+- **Async Compute**: Loading indicators and cancel buttons for long-running `_Options()` functions
+- **Rich Tooltips**: Enhanced help text with examples and formatting
+- **Inline Help Links**: Context-sensitive documentation links
+
+#### Additional UI Controls
+- **TextArea**: Multi-line text input for notes, JSON, long descriptions
+- **Date/Time Picker**: Schedule-based scripts, date range filtering
+- **Color Picker**: Material colors, annotation colors, view filters
+- **Range Slider**: Dual-handle slider for min/max value selection
+- **Radio Buttons**: Alternative to dropdowns for mutually exclusive options
+- **Password Input**: Secure input for API keys and credentials
+- **Numeric Stepper**: Increment/decrement buttons for number inputs
+- **Parameter Icons**: Visual cues for parameter purpose
+- **Parameter Search**: Filter parameters in scripts with many inputs
+
+### Testing Infrastructure
+- **Unit Tests**: Core engine components (ParameterExtractor, CodeRunner, ParameterOptionsComputer)
+- **Integration Tests**: Full stack parameter flow (C# → gRPC → Python → Frontend)
+- **UI Tests**: Automated browser tests for parameter controls and interactions
+- **Script Tests**: Validation suite for example scripts
+- **Edge Case Testing**: Empty documents, large datasets, invalid inputs, circular dependencies
+- **Performance Tests**: Large option lists, complex scripts, concurrent executions
+- **Regression Tests**: Prevent breaking changes to parameter system
+
+### Community & Marketplace
+- **Script Marketplace**: Share and discover automation scripts
+- **Script Templates**: Reusable parameter sets and common patterns
+- **AI Script Generation**: Enhanced LLM integration for script creation
+- **Collaboration Features**: Team script libraries, version control, code review
+
+## Getting Started
+
+To get started with RAP, see the [Installation Guide](./paracore-help/docs/getting-started/installation.md).
+
+For script development, check out the [CoreScript Documentation](./paracore-help/docs/user-guide/corescript-vscode.md).

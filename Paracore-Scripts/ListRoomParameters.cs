@@ -124,7 +124,7 @@ class Params
 
     public List<string> roomName_Options()
     {
-        return new FilteredElementCollector(Doc)
+        var rooms = new FilteredElementCollector(Doc)
             .OfCategory(BuiltInCategory.OST_Rooms)
             .WhereElementIsNotElementType()
             .Cast<Room>()
@@ -134,5 +134,10 @@ class Params
             .Distinct()
             .OrderBy(n => n)
             .ToList();
+
+        if (rooms.Count == 0)
+            throw new InvalidOperationException("No rooms found in the document. Please add rooms before running this script.");
+
+        return rooms;
     }
 }

@@ -646,15 +646,24 @@ namespace Paracore.Addin.Services
                     // 3. Strategy B: Manual _Options() Function
                     var optionsExecutor = new ParameterOptionsExecutor(_logger);
                     
-                    // We call the async method synchronously here because ExecuteInUIContext 
-                    // handles the threading and we need the result before the Revit turn ends.
-                    var options = optionsExecutor.ExecuteOptionsFunction(
-                        request.ScriptContent,
-                        request.ParameterName,
-                        serverContext
-                    ).GetAwaiter().GetResult();
-                    
-                    return options;
+                    try
+                    {
+                        // We call the async method synchronously here because ExecuteInUIContext 
+                        // handles the threading and we need the result before the Revit turn ends.
+                        var options = optionsExecutor.ExecuteOptionsFunction(
+                            request.ScriptContent,
+                            request.ParameterName,
+                            serverContext
+                        ).GetAwaiter().GetResult();
+                        
+                        return options;
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        // Custom error message from the script
+                        _logger.Log($"[CoreScriptRunnerService] Options function error: {ex.Message}", LogLevel.Warning);
+                        throw; // Re-throw to be caught by outer catch block
+                    }
                 });
 
                 if (result != null && result.Count > 0)
@@ -672,9 +681,17 @@ namespace Paracore.Addin.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[CoreScriptRunnerService] Error in ComputeParameterOptions: {ex.Message}");
+                // Extract the innermost exception message (unwrap AggregateException, etc.)
+                var innerException = ex;
+                while (innerException.InnerException != null)
+                {
+                    innerException = innerException.InnerException;
+                }
+                
+                string errorMessage = innerException.Message;
+                _logger.LogError($"[CoreScriptRunnerService] Error in ComputeParameterOptions: {errorMessage}");
                 response.IsSuccess = false;
-                response.ErrorMessage = $"Failed to compute options: {ex.Message}";
+                response.ErrorMessage = errorMessage;
             }
 
             return response;

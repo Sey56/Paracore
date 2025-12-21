@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState, useRef } from "react";
 import type { Script } from "@/types/scriptModel";
 import type { InspectorTab } from "@/context/providers/UIContext";
 import { useUI } from "@/hooks/useUI";
@@ -18,12 +18,41 @@ interface InspectorTabsProps {
 
 export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab } = useUI();
-  const { 
+  const {
     executionResult,
     clearExecutionResult,
   } = useScriptExecution();
 
+  const [hasUnviewedTableData, setHasUnviewedTableData] = useState(false);
+  const lastExecutionCountRef = useRef<number>(0);
+  const currentExecutionCountRef = useRef<number>(0);
+
   const allTabs = ["parameters", "console", "table", "metadata"] as const;
+
+  // Detect new execution with table data
+  useEffect(() => {
+    const hasTableData = executionResult?.structuredOutput &&
+      executionResult.structuredOutput.length > 0 &&
+      executionResult.structuredOutput.some(item => item.type === 'table');
+
+    if (hasTableData) {
+      // Increment execution count for each new result
+      currentExecutionCountRef.current++;
+
+      // Show badge if this is a new execution (count changed)
+      if (currentExecutionCountRef.current > lastExecutionCountRef.current) {
+        setHasUnviewedTableData(true);
+      }
+    }
+  }, [executionResult]);
+
+  // Mark as viewed when user visits the table tab
+  useEffect(() => {
+    if (activeInspectorTab === 'table' && hasUnviewedTableData) {
+      setHasUnviewedTableData(false);
+      lastExecutionCountRef.current = currentExecutionCountRef.current;
+    }
+  }, [activeInspectorTab, hasUnviewedTableData]);
 
   return (
     <div className={`tabs mb-6 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
@@ -31,14 +60,21 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
         {allTabs.map((tab: InspectorTab) => (
           <button
             key={tab}
-            className={`tab-button px-4 py-2 font-medium text-sm ${ 
-              activeInspectorTab === tab
-                ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
-            }`}
+            className={`tab-button px-4 py-2 font-medium text-sm relative ${activeInspectorTab === tab
+              ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
+              }`}
             onClick={() => setActiveInspectorTab(tab)}
           >
-            {tab === 'console' ? 'Console' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <span className="relative inline-flex items-center">
+              {tab === 'console' ? 'Console' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'table' && hasUnviewedTableData && (
+                <span className="absolute -top-2 -right-2 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                </span>
+              )}
+            </span>
           </button>
         ))}
       </div>
@@ -66,3 +102,4 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
     </div>
   );
 };
+

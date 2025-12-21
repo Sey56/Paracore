@@ -123,12 +123,19 @@ using System.Linq;
             {
                 _logger.LogError($"[ParameterOptionsExecutor] Compilation error: {ex.Message}");
                 _logger.LogError($"Diagnostics: {string.Join("\n", ex.Diagnostics)}");
-                return new List<string>();
+                throw new InvalidOperationException($"Failed to compile options function: {ex.Message}");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[ParameterOptionsExecutor] Error executing options function: {ex.Message}");
-                return new List<string>();
+                // Extract the most relevant error message
+                // If the script threw an exception, use that message
+                // Otherwise, use the outer exception message
+                string errorMessage = ex.InnerException?.Message ?? ex.Message;
+                
+                _logger.LogError($"[ParameterOptionsExecutor] Error executing options function: {errorMessage}");
+                
+                // Re-throw with the custom error message so it can be shown to the user
+                throw new InvalidOperationException(errorMessage);
             }
         }
 
