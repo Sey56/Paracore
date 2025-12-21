@@ -20,7 +20,9 @@ namespace CoreScript.Engine.Globals
             string Options = "", 
             bool MultiSelect = false, 
             string VisibleWhen = "",
-            string Group = "") 
+            string Group = "",
+            bool Computable = false,
+            string InputType = "") 
         { 
         }
     }

@@ -38,6 +38,7 @@ namespace CoreScript.Engine.Core
                 var parameters = new Dictionary<string, object>();
                 if (!string.IsNullOrWhiteSpace(parametersJson))
                 {
+
                     try
                     {
                         string unescapedParametersJson = parametersJson;
@@ -134,9 +135,15 @@ namespace CoreScript.Engine.Core
                 var topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
                 var combinedScriptContent = SemanticCombinator.Combine(scriptFiles);
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(combinedScriptContent);
+                
+
+
                 var rewriter = new ParameterRewriter(parameters);
                 SyntaxNode newRoot = rewriter.Visit(tree.GetRoot());
                 string modifiedUserCode = newRoot.ToFullString();
+                
+
+
                 var finalScriptCode = "using static CoreScript.Engine.Globals.ScriptApi;\n" + modifiedUserCode;
 
                 var executionGlobals = new ExecutionGlobals(context, parameters ?? new Dictionary<string, object>());

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSync, faSpinner } from "@fortawesome/free-solid-svg-icons";
+import { faSync, faSpinner, faFolderOpen } from "@fortawesome/free-solid-svg-icons";
+import { open, save } from "@tauri-apps/api/dialog";
 import type { ScriptParameter } from "@/types/scriptModel";
 
 interface ParameterInputProps {
@@ -15,26 +16,70 @@ interface ParameterInputProps {
 export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, isComputing, disabled }) => {
   // Helper to parse multi-select value safely
   const getMultiSelectValues = (): string[] => {
+    // ... (unchanged logic)
     console.log(`DEBUG: MultiSelect value for '${param.name}':`, param.value, `(type: ${typeof param.value})`);
     try {
-      // Case 1: Value is already a valid array
-      if (Array.isArray(param.value)) {
-        return param.value;
-      }
-      // Case 2: Value is a JSON string
+      if (Array.isArray(param.value)) return param.value;
       if (typeof param.value === 'string') {
         const parsed = JSON.parse(param.value);
         return Array.isArray(parsed) ? parsed : [];
       }
-      // Fallback for any other unexpected type
       return [];
-    } catch {
-      // Handles JSON.parse errors if the string is not valid JSON
-      return [];
+    } catch { return []; }
+  };
+
+  const handleFileBrowse = async () => {
+    try {
+      let selection: string | string[] | null = null;
+
+      if (param.inputType === 'SaveFile') {
+        selection = await save({
+          title: param.description || "Save File",
+          defaultPath: param.value as string || undefined,
+          filters: [{ name: 'CSV', extensions: ['csv'] }, { name: 'All Files', extensions: ['*'] }]
+        });
+      } else {
+        selection = await open({
+          multiple: false,
+          directory: param.inputType === 'Folder',
+          title: param.description || `Select ${param.inputType}`
+        });
+      }
+
+      if (selection && typeof selection === 'string') {
+        onChange(index, selection);
+      }
+    } catch (err) {
+      console.error("Failed to open file dialog:", err);
     }
   };
 
   const renderInput = () => {
+    console.log(`[DEBUG ParameterInput] Rendering '${param.name}': inputType='${param.inputType}', type='${param.type}'`);
+    // Case 0: File/Folder Picker (Native Dialog)
+    if (param.inputType === 'File' || param.inputType === 'Folder' || param.inputType === 'SaveFile') {
+      return (
+        <div className="flex gap-2 w-full">
+          <input
+            type="text"
+            value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
+            onChange={(e) => onChange(index, e.target.value)}
+            className="flex-grow border border-gray-300 dark:border-gray-600 rounded-l px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            disabled={disabled}
+            placeholder={param.inputType === 'Folder' ? "Select folder..." : (param.inputType === 'SaveFile' ? "Enter save path..." : "Select file...")}
+          />
+          <button
+            onClick={handleFileBrowse}
+            disabled={disabled}
+            className="px-3 py-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-r border border-l-0 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
+            title="Browse..."
+          >
+            <FontAwesomeIcon icon={faFolderOpen} />
+          </button>
+        </div>
+      );
+    }
+
     // Case 1: Dropdown (Single Select)
     if (param.options && param.options.length > 0 && !param.multiSelect) {
       return (
@@ -52,6 +97,8 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
         </select>
       );
     }
+
+    // ... (rest of renderInput cases: Checkbox, Boolean, Number, Default String)
 
     // Case 2: Multi-Select (Checkboxes)
     if (param.options && param.options.length > 0 && param.multiSelect) {

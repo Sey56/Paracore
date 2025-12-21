@@ -141,7 +141,10 @@ namespace CoreScript.Engine.Core
             bool isRevitElement = false;
             string revitElementType = "";
             string revitElementCategory = "";
+
             string group = "";
+            string inputType = "";
+            bool requiresCompute = false;
 
             if (parameterAttr != null && parameterAttr.ArgumentList != null)
             {
@@ -160,6 +163,8 @@ namespace CoreScript.Engine.Core
                     else if (argName == "Max") { if (arg.Expression is LiteralExpressionSyntax l && l.Token.Value is double dMax) max = dMax; else if (arg.Expression is LiteralExpressionSyntax i && i.Token.Value is int m) max = (double)m; }
                     else if (argName == "Step") { if (arg.Expression is LiteralExpressionSyntax l && l.Token.Value is double dStep) step = dStep; else if (arg.Expression is LiteralExpressionSyntax i && i.Token.Value is int m) step = (double)m; }
                     else if (argName == "Group" && arg.Expression is LiteralExpressionSyntax g) group = g.Token.ValueText;
+                    else if (argName == "Computable" && arg.Expression is LiteralExpressionSyntax c && c.Token.Value is bool bVal) requiresCompute = bVal;
+                    else if (argName == "InputType" && arg.Expression is LiteralExpressionSyntax it) inputType = it.Token.ValueText;
                 }
             }
 
@@ -239,7 +244,7 @@ namespace CoreScript.Engine.Core
                 else if (csharpType == "double") numericType = "double";
             }
 
-            bool requiresCompute = isRevitElement && options.Count == 0;
+            if (options.Count == 0 && isRevitElement) requiresCompute = true;
 
             return new ScriptParameter
             {
@@ -258,7 +263,9 @@ namespace CoreScript.Engine.Core
                 RevitElementType = revitElementType,
                 RevitElementCategory = revitElementCategory,
                 RequiresCompute = requiresCompute,
-                Group = group
+
+                Group = group,
+                InputType = inputType
             };
         }
 

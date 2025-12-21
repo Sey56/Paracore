@@ -119,6 +119,7 @@ message ScriptParameter {
   string revit_element_category = 14;
   bool requires_compute = 15;
   string group = 16;
+  string input_type = 17;
 }
 
 message GetCombinedScriptRequest {

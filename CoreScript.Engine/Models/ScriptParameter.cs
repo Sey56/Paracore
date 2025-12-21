@@ -26,6 +26,7 @@ namespace CoreScript.Engine.Models
         public string RevitElementCategory { get; set; } // Optional category filter (e.g., "Doors", "Windows")
         public bool RequiresCompute { get; set; } = false; // True if options need to be computed from Revit document
         public string Group { get; set; }
+        public string InputType { get; set; } // "File", "Folder", "Date", etc.
 
     }
 }

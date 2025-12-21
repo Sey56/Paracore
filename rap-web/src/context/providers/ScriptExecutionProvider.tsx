@@ -202,6 +202,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
         const [paramsResult, contentResult] = await Promise.all(promises);
         console.log("[setSelectedScript] API results - paramsResult:", paramsResult);
+        console.log("[DEBUG] Raw parameters from API:", paramsResult.parameters);
 
         let finalParameters: ScriptParameter[] = [];
         if (paramsResult.error) {
@@ -221,6 +222,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
               value: value,
               defaultValue: value
             };
+            console.log(`[DEBUG] Mapped parameter '${p.name}': inputType='${newParamObject.inputType}'`);
             return newParamObject;
           });
         }
@@ -295,6 +297,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
       const [paramsResult, contentResult] = await Promise.all(promises);
       console.log("[setSelectedScript] API results (user source) - paramsResult:", paramsResult);
+      console.log("[DEBUG] Raw parameters from API (user):", paramsResult.parameters);
 
       let finalParameters: ScriptParameter[] = [];
       if (paramsResult.error) {
@@ -314,6 +317,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             value: value,
             defaultValue: value
           };
+          console.log(`[DEBUG] Mapped parameter '${p.name}': inputType='${newParamObject.inputType}'`);
           return newParamObject;
         });
       }
@@ -493,19 +497,30 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (is_success) {
         showNotification(`Computed ${options.length} options for ${parameterName}`, "success");
 
-        // Update the parameter with the new options
-        setUserEditedScriptParameters(prev => {
-          const params = prev[script.id];
-          if (!params) {
-            console.warn(`No cached parameters found for script ${script.id}`);
-            return prev;
+        const updateParamWithOptions = (p: ScriptParameter) => {
+          if (p.name !== parameterName) return p;
+
+          // Auto-select logic:
+          // If we have options, and the current value is either empty or not in the new options list,
+          // auto-select the first option to ensure a valid state.
+          let newValue = p.value;
+          if (options.length > 0) {
+            const currentValueStr = String(p.value || "");
+            if (!currentValueStr || !options.includes(currentValueStr)) {
+              newValue = options[0];
+              // console.log(`[ScriptExecutionProvider] Auto-selecting first option for ${p.name}: ${newValue}`);
+            }
           }
 
-          const updatedParams = params.map(p =>
-            p.name === parameterName
-              ? { ...p, options: options }
-              : p
-          );
+          return { ...p, options: options, value: newValue };
+        };
+
+        // Update the parameter with the new options AND potentially new value
+        setUserEditedScriptParameters(prev => {
+          const params = prev[script.id];
+          if (!params) return prev;
+
+          const updatedParams = params.map(updateParamWithOptions);
 
           return {
             ...prev,
@@ -517,11 +532,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         if (selectedScript?.id === script.id) {
           setSelectedScriptState(prev => {
             if (!prev) return null;
-            const updatedParams = (prev.parameters || []).map(p =>
-              p.name === parameterName
-                ? { ...p, options: options }
-                : p
-            );
+            const updatedParams = (prev.parameters || []).map(updateParamWithOptions);
             return { ...prev, parameters: updatedParams };
           });
         }
