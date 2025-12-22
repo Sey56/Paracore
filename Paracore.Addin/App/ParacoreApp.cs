@@ -107,7 +107,7 @@ namespace Paracore.Addin.App
                     new Uri("pack://application:,,,/Paracore.Addin;component/Images/Paracore.png"))
             };
 
-            toggleServerButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://paracore-help.netlify.app/"));
+            toggleServerButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://sey56.github.io/paracore-help/"));
 
             _toggleButton = panel.AddItem(toggleServerButton) as PushButton;
 
@@ -124,7 +124,7 @@ namespace Paracore.Addin.App
                     new Uri("pack://application:,,,/Paracore.Addin;component/Images/Dashboard.png"))
             };
 
-            toggleDashboardButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://paracore-help.netlify.app/"));
+            toggleDashboardButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://sey56.github.io/paracore-help/"));
 
             panel.AddItem(toggleDashboardButton);
         }

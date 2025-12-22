@@ -64,7 +64,7 @@ export const TopBar: React.FC = () => {
   }, []);
 
   const handleHelpClick = async () => {
-    await shell.open('https://paracore-help.netlify.app');
+    await shell.open('https://sey56.github.io/paracore-help');
     setIsHelpDropdownOpen(false);
   };
 
@@ -209,7 +209,7 @@ export const TopBar: React.FC = () => {
             </div>
           </div>
           <div className="pt-4 text-center">
-            <a href="https://paracore-help.netlify.app" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+            <a href="https://sey56.github.io/paracore-help" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
               Online Documentation
             </a>
           </div>

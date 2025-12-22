@@ -64,11 +64,14 @@ if (builtInCategories.Count == 0)
 // Use an ElementMulticategoryFilter for efficient filtering
 var multicategoryFilter = new ElementMulticategoryFilter(builtInCategories);
 var collector = new FilteredElementCollector(Doc);
-var elementsToSelect = collector.WherePasses(multicategoryFilter).ToElementIds();
+var elementsToSelect = collector
+    .WherePasses(multicategoryFilter)
+    .WhereElementIsNotElementType() // Exclude types, only get instances
+    .ToElementIds();
 
 if (elementsToSelect.Count == 0)
 {
-    Println("ℹ️ No elements found for the selected categories in the current view.");
+    Println("ℹ️ No element instances found for the selected categories in the document.");
     return;
 }
 
