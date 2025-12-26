@@ -15,32 +15,32 @@ UsageExamples:
 - "Select elements from multiple categories":
 */
 
-// [ScriptParameter(Options: "Walls, Floors, Ceilings, Roofs, Doors, Windows, Stairs, Railings, Columns, StructuralFraming, Foundations, Furniture, Casework, GenericModel, CurtainWall, CurtainWallPanels, CurtainWallMullions, Areas, Rooms, Spaces, Mass, Topography, Site, Parking, Roads, Trees, PropertyLines, Ducts, DuctFitting, Pipes, PipeFitting, Conduits, CableTray, ElectricalFixtures, LightingFixtures, MechanicalEquipment, PlumbingFixtures, Sprinklers, FireAlarmDevices, TextNotes, Dimensions, DetailComponents, DetailLines, ModelLines, Grids, Levels, Views, Sheets, TitleBlocks, Tags, Materials", MultiSelect: true)]
-List<string> categoriesToSelect = ["Walls", "Doors"];
+
+var p = new Params();
 
 // --- Main Logic ---
 
-if (categoriesToSelect == null || categoriesToSelect.Count == 0)
+if (p.categories == null || p.categories.Count == 0)
 {
     Println("⚠️ No categories were selected. Nothing to do.");
     return;
 }
 
-Println($"▶️ Processing selection for: {string.Join(", ", categoriesToSelect)}");
+Println($"▶️ Processing selection for: {string.Join(", ", p.categories)}");
 
 var builtInCategories = new List<BuiltInCategory>();
 
-foreach (var categoryName in categoriesToSelect)
+foreach (var categoryName in p.categories)
 {
     try
     {
         // Revit's BuiltInCategory enum often uses the prefix "OST_".
         // We try parsing with and without it for flexibility.
-        if (Enum.TryParse<BuiltInCategory>("OST_" + categoryName, true, out var parsedCategory))
+        if (Enum.TryParse<BuiltInCategory>("OST_" + categoryName.Replace(" ", ""), true, out var parsedCategory))
         {
             builtInCategories.Add(parsedCategory);
         }
-        else if (Enum.TryParse<BuiltInCategory>(categoryName, true, out parsedCategory))
+        else if (Enum.TryParse<BuiltInCategory>(categoryName.Replace(" ", ""), true, out parsedCategory))
         {
             builtInCategories.Add(parsedCategory);
         }
@@ -80,3 +80,9 @@ UIDoc.Selection.SetElementIds(elementsToSelect);
 
 // Report result
 Println($"✅ Selected {elementsToSelect.Count} elements from {builtInCategories.Count} categories.");
+
+class Params
+{
+    [ScriptParameter(MultiSelect: true, Options: "Walls, Floors, Roofs, Doors, Windows, Stairs, Railings, Columns, Structural Columns, Structural Framing, Foundations, Furniture, Casework, Generic Models, Curtain Panels, Curtain Wall Mullions, Areas, Rooms, Mass, Topography, Site, Parking, Planting")]
+    public List<string> categories { get; set; } = ["Walls", "Doors"];
+}

@@ -36,8 +36,14 @@ bool enableLogging = true;
 // [ScriptParameter(VisibleWhen: "enableLogging == true", Description: "Only visible when Logging is enabled")]
 string logPrefix = "LOG_";
 
+// [ScriptParameter(Description: "Enter the full file path manually (Use Pro Pattern for File Pickers)")]
+string importPath = @"C:\data.csv";
+
+// [ScriptParameter(MultiSelect: true, Options: "A,B,C", Description: "Multi-select checkboxes")]
+List<string> manualMultiSelect = ["A", "B"];
+
 // [RevitElements(Type: "Level", Category: "Levels")]
-string levelToUse = "Level 1";
+string levelName = "Level 1";
 
 // =================================================================================
 // 2. PRO PATTERN (Class-Based)
@@ -61,7 +67,6 @@ Println($"Project: {projectName}");
 Println($"Wall Count: {wallCount}");
 Println($"Logging Prefix: {(enableLogging ? logPrefix : "N/A")}");
 Println($"Pro Description: {p.structuredDescription}");
-Println($"Pro Level: {p.targetLevel}");
 
 
 // =================================================================================
@@ -86,21 +91,21 @@ class Params {
     // By specifying Type="WallType", it automagically populates the list.
     // MultiSelect: true -> Renders as CHECKBOXES in the UI.
     [RevitElements(Type: "WallType", MultiSelect: true, Group: "Filtering")]
-    public List<string> wallTypeSelection = new() { "Generic - 200mm" };
+    public List<string> wallTypeNames = new() { "Generic - 200mm" };
 
     // AUTOMATIC (MAGIC) - SINGLE-SELECT
     // Same magic, but single selection.
     // MultiSelect: false (default) -> Renders as a DROPDOWN in the UI.
     [RevitElements(Type: "Level", Group: "Context")]
-    public string simpleLevelPicker = "Level 1";
+    public string simpleLevelName = "Level 1";
 
     // MANUAL (CUSTOM) - SINGLE-SELECT
     // For more control (e.g., custom filtering), defining a method ending in '_Options()'
     // overrides the automatic magic.
     [RevitElements(Group: "Context")]
-    public string targetLevel = "Level 1";
+    public string targetLevelName = "Level 1";
 
-    public List<string> targetLevel_Options() {
+    public List<string> targetLevelName_Options() {
         return new FilteredElementCollector(Doc)
             .OfClass(typeof(Level))
             .Select(l => l.Name)
@@ -113,15 +118,15 @@ class Params {
     // By specifying both Type and Category, we can filter elements.
     // Here we get all FamilySymbols (Types) that belong to the "Doors" category.
     [RevitElements(Type: "FamilySymbol", Category: "Doors", Group: "Filtering")]
-    public string doorType = "Single-Flush: 30\" x 84\"";
+    public string doorTypeName = "Single-Flush: 30\" x 84\"";
 
     // MANUAL (CUSTOM) - LISTING CATEGORIES
     // Since 'Category' is not an Element, we must list them manually.
     // This allows you to create generic scripts that work on ANY category (e.g. "Delete All X").
     [RevitElements(Group: "Filtering")]
-    public string targetCategory = "Walls";
+    public string targetCategoryName = "Walls";
 
-    public List<string> targetCategory_Options() {
+    public List<string> targetCategoryName_Options() {
         var categories = new List<string>();
         foreach (Category cat in Doc.Settings.Categories) {
             categories.Add(cat.Name);
@@ -129,4 +134,21 @@ class Params {
         categories.Sort();
         return categories;
     }
+
+    // CONDITIONAL VISIBILITY
+    [ScriptParameter(Group: "Advanced")]
+    public bool showAvailableOptions = false;
+
+    [ScriptParameter(VisibleWhen: "showAvailableOptions == true", Group: "Advanced", Description: "Only shown when above toggle is ON")]
+    public string extraOption = "Hidden by default";
+
+    // FILE PICKERS
+    [ScriptParameter(InputType: "Folder", Group: "Advanced", Description: "Pick a folder for export")]
+    public string exportFolder = @"C:\Temp";
+
+    [ScriptParameter(InputType: "File", Group: "Advanced", Description: "Pick a file to import")]
+    public string importFile = @"C:\Data\input.csv";
+
+    [ScriptParameter(InputType: "SaveFile", Group: "Advanced", Description: "Pick a file to save to")]
+    public string outputFile = @"C:\Data\output.csv";
 }

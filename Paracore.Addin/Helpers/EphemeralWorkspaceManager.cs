@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Paracore.Addin.Helpers
 {
@@ -14,6 +15,7 @@ namespace Paracore.Addin.Helpers
 
         private static readonly string WorkspaceRoot = Path.Combine(Path.GetTempPath(), "rap_workspace");
         private static readonly Dictionary<string, FileSystemWatcher> ActiveWatchers = new Dictionary<string, FileSystemWatcher>();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CancellationTokenSource> _debounceTokens = new();
 
         public static event Action<string> ScriptChanged;
 
@@ -33,11 +35,9 @@ namespace Paracore.Addin.Helpers
                 if (ParacoreApp.ActiveWorkspaces.TryGetValue(scriptPath, out string existing) && Directory.Exists(existing))
                 {
                     FileLogger.Log($"Reusing existing workspace for {scriptPath}: {existing}");
-                    OpenScriptInVsCode(existing, scriptPath, scriptType, scriptPath);
-                    return existing;
+                    workspacePath = existing;
                 }
-
-                if (Directory.Exists(workspacePath))
+                else if (Directory.Exists(workspacePath))
                 {
                     FileLogger.Log($"Deleting existing (stale) workspace directory: {workspacePath}");
                     try
@@ -66,9 +66,12 @@ namespace Paracore.Addin.Helpers
                 if (scriptType == "single-file")
                 {
                     string fileName = Path.GetFileName(scriptPath);
-                    string destScript = Path.Combine(scriptsPath, fileName); // Changed path
+                    string destScript = Path.Combine(scriptsPath, fileName);
+                    
+                    // Stop watching this file before we overwrite it to prevent loops
+                    StopWatcher(destScript);
+
                     File.Copy(scriptPath, destScript, true);
-                    scriptFileNames.Add(Path.Combine("Scripts", fileName)); // Add relative path
                     primaryScriptPathInWorkspace = destScript;
                     FileLogger.Log($"Copied single script to workspace: {destScript}");
                 }
@@ -77,9 +80,12 @@ namespace Paracore.Addin.Helpers
                     foreach (var file in Directory.GetFiles(scriptPath, "*.cs", SearchOption.TopDirectoryOnly))
                     {
                         string fileName = Path.GetFileName(file);
-                        string destScript = Path.Combine(scriptsPath, fileName); // Changed path
+                        string destScript = Path.Combine(scriptsPath, fileName);
+                        
+                        // Stop watching this file before we overwrite it
+                        StopWatcher(destScript);
+
                         File.Copy(file, destScript, true);
-                        scriptFileNames.Add(Path.Combine("Scripts", fileName)); // Add relative path
                         FileLogger.Log($"Copied multi-file script to workspace: {destScript}");
                     }
                     primaryScriptPathInWorkspace = scriptsPath; // The folder containing the scripts
@@ -152,33 +158,67 @@ namespace Paracore.Addin.Helpers
             }
         }
 
+        private static void StopWatcher(string sourcePath)
+        {
+            if (ActiveWatchers.TryGetValue(sourcePath, out var watcher))
+            {
+                try
+                {
+                    watcher.EnableRaisingEvents = false;
+                    watcher.Dispose();
+                }
+                catch { }
+                ActiveWatchers.Remove(sourcePath);
+            }
+        }
+
         private static void StartFileWatcher(string sourcePath, string targetPath)
         {
             try
             {
                 FileLogger.Log($"Starting file watcher: {sourcePath} -> {targetPath}");
 
-                if (ActiveWatchers.TryGetValue(sourcePath, out var existingWatcher))
-                {
-                    existingWatcher.Dispose();
-                    ActiveWatchers.Remove(sourcePath);
-                }
+                // Stop existing first
+                StopWatcher(sourcePath);
 
                 var watcher = new FileSystemWatcher(Path.GetDirectoryName(sourcePath))
                 {
                     Filter = Path.GetFileName(sourcePath),
-                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size,
+                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
                     EnableRaisingEvents = true,
                     IncludeSubdirectories = false
                 };
 
-                watcher.Changed += (s, e) => SyncOnChange(sourcePath, targetPath);
+                watcher.Changed += (s, e) => DebounceSync(sourcePath, targetPath);
+                watcher.Renamed += (s, e) => DebounceSync(sourcePath, targetPath);
+                
                 ActiveWatchers[sourcePath] = watcher;
             }
             catch (Exception ex)
             {
                 FileLogger.LogError($"StartFileWatcher: {ex.Message}");
             }
+        }
+
+        private static void DebounceSync(string sourcePath, string targetPath)
+        {
+            if (_debounceTokens.TryGetValue(sourcePath, out var existingTokenSource))
+            {
+                try { existingTokenSource.Cancel(); existingTokenSource.Dispose(); } catch { }
+            }
+
+            var newTokenSource = new CancellationTokenSource();
+            _debounceTokens[sourcePath] = newTokenSource;
+
+            Task.Delay(200, newTokenSource.Token).ContinueWith(t =>
+            {
+                if (t.IsCanceled) return;
+                
+                _debounceTokens.TryRemove(sourcePath, out _);
+                try { newTokenSource.Dispose(); } catch { }
+
+                SyncOnChange(sourcePath, targetPath);
+            });
         }
 
         private static void SyncOnChange(string sourcePath, string targetPath)
@@ -191,6 +231,9 @@ namespace Paracore.Addin.Helpers
                     {
                         if (File.Exists(sourcePath))
                         {
+                            // VSCode sometimes writes an empty file first
+                            if (new FileInfo(sourcePath).Length == 0) continue;
+
                             File.Copy(sourcePath, targetPath, true);
                             FileLogger.Log($"Synced changes to: {targetPath}");
                             ScriptChanged?.Invoke(targetPath);
@@ -227,8 +270,6 @@ namespace Paracore.Addin.Helpers
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "Autodesk", "Revit", "Addins", ParacoreApp.RevitVersion, "Paracore", "CoreScript.Engine.dll");
 
-            var compileItems = string.Join("\n", scriptFileNames.Select(file => $"    <Compile Include=\"{file}\" />"));
-
             // Corrected raw string literal with proper indentation
             string csprojContent =
                 $$"""
@@ -237,8 +278,9 @@ namespace Paracore.Addin.Helpers
                     <TargetFramework>net8.0-windows</TargetFramework>
                     <ImplicitUsings>enable</ImplicitUsings>
                     <Nullable>enable</Nullable>
-                    <OutputType>Exe</OutputType>
-                    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                    <OutputType>Library</OutputType>
+                    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+                    <RunAnalyzers>false</RunAnalyzers>
                   </PropertyGroup>
                   <ItemGroup>
                     <Reference Include="RevitAPI">
@@ -253,8 +295,6 @@ namespace Paracore.Addin.Helpers
                       <HintPath>{{enginePath}}</HintPath>
                       <Private>false</Private>
                     </Reference>
-                    <Compile Include="Globals.cs" />
-                    {{compileItems}}
                   </ItemGroup>
                 </Project>
                 """;

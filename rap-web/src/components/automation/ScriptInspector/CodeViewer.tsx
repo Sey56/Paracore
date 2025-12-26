@@ -88,7 +88,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
     window.addEventListener('focus', handleFocus);
     const intervalId = setInterval(() => {
       fetchSourceCode(true);
-    }, 2000); // Poll every 2 seconds
+    }, 1000); // Poll every 1 second (Responsiveness restored)
 
     return () => {
       window.removeEventListener('focus', handleFocus);
