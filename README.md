@@ -12,6 +12,11 @@
 - **[Video Guides](https://www.youtube.com/@Codarch46)** (YouTube)
 - **[Report Issues](https://github.com/Sey56/RAP/issues)**
 
+## 📚 Developer Resources
+- **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally
+- **[Cloud Features](CLOUD_FEATURES.md)** - AI Script Generation & Agentic Automation setup
+- **[Contributing](CONTRIBUTING.md)** - How to contribute to the project
+
 ## ✨ Why Paracore?
 
 Traditional Revit plugin development requires:
