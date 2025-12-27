@@ -4,7 +4,7 @@ This guide explains how to set up and develop Paracore locally. The project uses
 
 ## Prerequisites
 
-- **Revit 2024+** (for testing the add-in)
+- **Revit 2025+** (for testing the add-in)
 - **.NET 8 SDK** (for C# projects)
 - **Node.js 18+** and **npm** (for the web UI)
 - **Python 3.12+** (for the backend server)
