@@ -270,9 +270,9 @@ In summary, the `rap-web` project exhibits a thoughtful and well-executed approa
 
 ## Getting Started
 
-To get started with Paracore, see the [Installation Guide](https://sey56.github.io/paracore-help/getting-started/installation).
+To get started with Paracore, see the [Installation Guide](https://sey56.github.io/paracore-help/docs/getting-started/installation).
 
-For script development, check out the [CoreScript Documentation](https://sey56.github.io/paracore-help/user-guide/corescript-vscode).
+For script development, check out the [CoreScript Documentation](https://sey56.github.io/paracore-help/docs/user-guide/corescript-vscode).
 
 
 ---
