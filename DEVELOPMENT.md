@@ -19,7 +19,7 @@ This guide explains how to set up and develop Paracore locally. The project uses
 ## Project Structure
 
 ```
-RAP/
+Paracore/
 ├── rap-server/          # Python backend (FastAPI)
 ├── rap-web/             # React + TypeScript + Tauri desktop app
 ├── Paracore.Addin/      # C# Revit add-in
