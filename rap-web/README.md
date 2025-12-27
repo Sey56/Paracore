@@ -43,22 +43,6 @@ The most accessible mode, designed for all Revit users, regardless of technical 
 -   **Conversational Parameter-Assistance:** The agent will ask follow-up questions to fill in the script's parameters ("What level should they be on? What wall type?").
 -   **User-in-the-Loop:** Before execution, the agent shows you the selected script and the final parameters in the `ScriptInspector` for final review and approval.
 
-## Free vs. Paid Tiers
-
-Paracore operates on a hybrid model, offering powerful core features for free with premium features available for professionals and teams.
-
--   **Free ("Continue Offline"):**
-    -   Full access to the **Manual Automation** mode.
-    -   Create, edit, manage, and run unlimited C# scripts.
-    -   Full parameter and preset management.
-    -   Ideal for individual users or those working in offline environments.
-
--   **Pro / Enterprise ("Sign in with Google"):**
-    -   Includes all free features.
-    -   **AI Script Generation**
-    -   **Agentic Automation (Paracore Agent)**
-    -   **Team Management:** Create teams and manage user roles (`Admin`, `Developer`, `User`).
-    -   **Git-Based Collaboration:** Connect team script libraries to shared Git repositories for version control and collaborative development.
 
 
 ## Architecture & Technology
