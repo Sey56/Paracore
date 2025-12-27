@@ -31,6 +31,17 @@ Traditional Revit plugin development requires:
 - ✅ Use simple helpers like `Transact()`, `Println()`, and `Show()`
 - ✅ Auto-generate UIs from parameter definitions
 
+## 📊 Feature Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Core Automation** | ✅ Production Ready | Fully functional script execution, parameters, VS Code integration |
+| **Team Collaboration** | ✅ Production Ready | User roles, workspaces, Git integration |
+| **AI Script Generation** | ⚠️ Proof of Concept | Works with Gemini API, needs refinement |
+| **Agentic Automation** | ⚠️ Proof of Concept | LangGraph-based agent, functional but needs development |
+
+> See [CLOUD_FEATURES.md](CLOUD_FEATURES.md) for details on AI and agent features.
+
 ---
 
 

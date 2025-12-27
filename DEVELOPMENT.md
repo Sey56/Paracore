@@ -12,6 +12,9 @@ This guide explains how to set up and develop Paracore locally. The project uses
 - **Rust** (for Tauri desktop app)
 - **Git Bash** (for building the VS Code extension)
 - **PowerShell 7+** (for installer scripts)
+- **Inno Setup** (for creating Windows installers - [download here](https://jrsoftware.org/isdl.php))
+
+> **Note:** The AI Script Generation and Agentic Automation features are **proof-of-concept**. They work but need further development. See [CLOUD_FEATURES.md](CLOUD_FEATURES.md) for details.
 
 ## Project Structure
 
