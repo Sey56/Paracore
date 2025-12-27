@@ -70,10 +70,11 @@ This local-first approach provides three key advantages over a purely cloud-base
 The "hybrid" nature of the platform comes from its connection to a central cloud backend (`rap-auth-server`). While the core script execution is local, the platform uses the cloud for features that require a central source of truth, such as:
 
 *   User Authentication & Identity
-*   Licensing and Payments for future premium features
-*   Value-add services like AI Script Generation or a community Script Marketplace
+*   Team Management & Collaboration
+*   Workspace Registration & Access Control
+*   Optional AI Features (bring your own API key)
 
-This gives RAP the best of both worlds: the speed and security of a local desktop application, combined with the connectivity and commercial possibilities of a SaaS platform.
+This gives Paracore the best of both worlds: the speed and security of a local desktop application, combined with the connectivity and collaboration features of a cloud platform—**all free and open source forever.**
 
 ## Core Components
 
