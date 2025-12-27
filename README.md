@@ -1,4 +1,4 @@
-# Paracore: The Revit Automation Platform
+# Paracore: Dynamic C# Scripting for Revit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Revit 2024+](https://img.shields.io/badge/Revit-2024%2B-blue)](https://www.autodesk.com/products/revit/)
