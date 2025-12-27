@@ -7,10 +7,10 @@
 **Paracore** makes the Revit API accessible to architects, engineers, and BIM managers through dynamic C# scripting—no Visual Studio, no DLLs, no Revit restarts.
 
 ## 🚀 Quick Links
-- **[Download Installer](https://github.com/Sey56/RAP/releases)** (Windows)
+- **[Download Installer](https://github.com/Sey56/Paracore/releases)** (Windows)
 - **[Documentation](https://sey56.github.io/paracore-help/)** (Installation, Tutorials, API Reference)
 - **[Video Guides](https://www.youtube.com/@Codarch46)** (YouTube)
-- **[Report Issues](https://github.com/Sey56/RAP/issues)**
+- **[Report Issues](https://github.com/Sey56/Paracore/issues)**
 
 ## 📚 Developer Resources
 - **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally
@@ -289,7 +289,7 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 
 - **Documentation**: [sey56.github.io/paracore-help](https://sey56.github.io/paracore-help/)
 - **Video Tutorials**: [YouTube @Codarch46](https://www.youtube.com/@Codarch46)
-- **Issues**: [GitHub Issues](https://github.com/Sey56/RAP/issues)
+- **Issues**: [GitHub Issues](https://github.com/Sey56/Paracore/issues)
 - **Email**: codarch46@gmail.com
 
 > **Note**: If the documentation site is not accessible in your region, use a VPN (Opera browser has a free built-in VPN).
