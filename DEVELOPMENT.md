@@ -245,4 +245,4 @@ If you want to improve the development workflow:
 
 ---
 
-**Questions?** Open an issue on GitHub or contact the Paras Codarch Team (+251911544431).
+**Questions?** Open an issue on GitHub or email: codarch46@gmail.com

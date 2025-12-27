@@ -290,7 +290,7 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 - **Documentation**: [sey56.github.io/paracore-help](https://sey56.github.io/paracore-help/)
 - **Video Tutorials**: [YouTube @Codarch46](https://www.youtube.com/@Codarch46)
 - **Issues**: [GitHub Issues](https://github.com/Sey56/RAP/issues)
-- **Contact**: Paras Codarch Team (+251911544431)
+- **Email**: codarch46@gmail.com
 
 > **Note**: If the documentation site is not accessible in your region, use a VPN (Opera browser has a free built-in VPN).
 

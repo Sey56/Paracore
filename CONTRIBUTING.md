@@ -67,7 +67,7 @@ uvicorn server.main:app --reload
 
 ## Questions?
 - Open a discussion on GitHub
-- Contact: +251911544431
+- Email: codarch46@gmail.com
 - Documentation: https://sey56.github.io/paracore-help/
 
 ## Code of Conduct
