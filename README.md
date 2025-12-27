@@ -1,6 +1,33 @@
-# Revit Automation Platform (RAP)
+# Paracore: The Revit Automation Platform
 
-The Revit Automation Platform (RAP or just Paracore) is a comprehensive ecosystem of tools designed to enable powerful, dynamic C# script execution for automating tasks in Autodesk Revit. It uses a modern, decoupled architecture with a web-based UI and a local execution environment, providing a flexible and user-friendly alternative to traditional in-process Revit add-ins.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Revit 2024+](https://img.shields.io/badge/Revit-2024%2B-blue)](https://www.autodesk.com/products/revit/)
+[![Documentation](https://img.shields.io/badge/docs-live-brightgreen)](https://sey56.github.io/paracore-help/)
+
+**Paracore** makes the Revit API accessible to architects, engineers, and BIM managers through dynamic C# scripting—no Visual Studio, no DLLs, no Revit restarts.
+
+## 🚀 Quick Links
+- **[Download Installer](https://github.com/Sey56/RAP/releases)** (Windows)
+- **[Documentation](https://sey56.github.io/paracore-help/)** (Installation, Tutorials, API Reference)
+- **[Video Guides](https://www.youtube.com/@Codarch46)** (YouTube)
+- **[Report Issues](https://github.com/Sey56/RAP/issues)**
+
+## ✨ Why Paracore?
+
+Traditional Revit plugin development requires:
+- ❌ Visual Studio setup and `.csproj` configuration
+- ❌ Complex boilerplate code (`IExternalCommand`, transactions, manifests)
+- ❌ Restarting Revit for every code change
+- ❌ Building and deploying DLLs
+
+**Paracore lets you:**
+- ✅ Write scripts in VS Code with full IntelliSense
+- ✅ Execute them instantly in Revit (no restart)
+- ✅ Use simple helpers like `Transact()`, `Println()`, and `Show()`
+- ✅ Auto-generate UIs from parameter definitions
+
+---
+
 
 ## Architecture: The Hybrid Model
 
@@ -230,3 +257,29 @@ In summary, the `rap-web` project exhibits a thoughtful and well-executed approa
 To get started with RAP, see the [Installation Guide](./paracore-help/docs/getting-started/installation.md).
 
 For script development, check out the [CoreScript Documentation](./paracore-help/docs/user-guide/corescript-vscode.md).
+
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## 📞 Contact & Support
+
+- **Documentation**: [sey56.github.io/paracore-help](https://sey56.github.io/paracore-help/)
+- **Video Tutorials**: [YouTube @Codarch46](https://www.youtube.com/@Codarch46)
+- **Issues**: [GitHub Issues](https://github.com/Sey56/RAP/issues)
+- **Contact**: Paras Codarch Team (+251911544431)
+
+> **Note**: If the documentation site is not accessible in your region, use a VPN (Opera browser has a free built-in VPN).
+
+---
+
+**Built by architects, for architects.** 🏗️
+
+*Making Revit automation accessible to the entire AEC industry.*
