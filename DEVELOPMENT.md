@@ -53,10 +53,7 @@ uvicorn main:app --reload
 
 ```bash
 cd rap-server/server
-uv init .
-uv venv
-uv add fastapi uvicorn grpcio grpcio-tools python-dotenv
-# Add other dependencies as needed
+uv sync
 ```
 
 > **Note:** Use `uv add` instead of `uv pip install` to ensure dependencies are registered in `pyproject.toml`.
