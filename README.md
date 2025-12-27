@@ -53,9 +53,9 @@ RAP is built on a hybrid model that combines the power and security of local exe
 
 The core of RAP runs entirely on the user's local machine, ensuring maximum performance and security. The communication flow is designed for speed and stability:
 
-1.  **`rap-web` (Desktop App):** The user interacts with the React-based desktop application. When a script is run, the UI sends a standard HTTP request to the local backend.
-2.  **`rap-server` (Local Backend):** This Python server acts as the central middleman. It receives the HTTP request from the UI and translates it into a highly efficient gRPC call.
-3.  **`Paracore.Addin` (Revit Add-in):** The gRPC server running inside Revit receives the call and executes the C# script in-process, with direct access to the Revit API.
+1.  **Paracore (Desktop App):** The user interacts with the React-based desktop application. When a script is run, the UI sends a standard HTTP request to the local backend.
+2.  **rap-server (Local Backend):** This Python server acts as the central middleman. It receives the HTTP request from the UI and translates it into a highly efficient gRPC call.
+3.  **Paracore.Addin (Revit Add-in):** The gRPC server running inside Revit receives the call and executes the C# script in-process, with direct access to the Revit API.
 
 ### Why This Model is Better
 
@@ -63,7 +63,7 @@ This local-first approach provides three key advantages over a purely cloud-base
 
 *   **Speed:** All script execution happens locally, with no internet latency. This ensures that automations run as fast as possible, which is critical for a developer tool.
 *   **Security & Privacy:** Users' proprietary or sensitive scripts never leave their local machine. This eliminates a major security concern and makes the platform suitable for use in secure corporate environments.
-*   **Stability:** Because the UI (`rap-web`) is a separate process, any issue or crash in the user interface will not crash the main Revit application, protecting the user from losing their work.
+*   **Stability:** Because Paracore is a separate process, any issue or crash in the user interface will not crash the main Revit application, protecting the user from losing their work.
 
 ### Cloud-Connected Services
 
@@ -79,19 +79,19 @@ This gives RAP the best of both worlds: the speed and security of a local deskto
 
 The platform is composed of several key projects that work together:
 
-*   **`rap-web`**: The frontend user interface, built as a native desktop application using React, TypeScript, and Tauri. It provides the environment for browsing, managing, and running scripts.
+*   **Paracore (rap-web)**: The desktop user interface, built with React, TypeScript, and Tauri. This is the main application users interact with for browsing, managing, and running scripts.
     *   [Details](./rap-web/README.md)
 
-*   **`rap-server`**: A local backend server built with Python and FastAPI. It acts as the bridge between the web UI and the Revit environment, handling API requests and filesystem operations.
+*   **rap-server**: A local backend server built with Python and FastAPI. It acts as the bridge between Paracore and the Revit environment, handling API requests and filesystem operations.
     *   [Details](./rap-server/server/README.md)
 
-*   **`Paracore.Addin`**: A C# Revit add-in that hosts a gRPC server inside Revit. It is responsible for receiving commands and marshalling script execution requests to the main Revit thread, ensuring safe API access.
+*   **Paracore.Addin**: A C# Revit add-in that hosts a gRPC server inside Revit. It is responsible for receiving commands and marshalling script execution requests to the main Revit thread, ensuring safe API access.
     *   [Details](./Paracore.Addin/README.md)
 
-*   **`CoreScript.Engine`**: The core C# scripting engine in `Paracore.Addin` that uses the Roslyn compiler to dynamically compile and execute C# code on-the-fly, manage parameter injection, and provide a rich execution context for scripts.
+*   **CoreScript.Engine**: The core C# scripting engine in `Paracore.Addin` that uses the Roslyn compiler to dynamically compile and execute C# code on-the-fly, manage parameter injection, and provide a rich execution context for scripts.
     *   [Details](./CoreScript.Engine/README.md)
 
-*   **`rap-auth-server`**: A planned cloud-based authentication service (Python/FastAPI) that will handle user identity, licensing, and other commercial features in the future.
+*   **rap-auth-server**: A cloud-based authentication service (Python/FastAPI) that handles user identity, team management, and enables AI features.
     *   [Details](./rap-auth-server/server/README.md)
 
 ## Collaboration: A Git-Powered Approach
