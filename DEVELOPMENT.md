@@ -145,6 +145,8 @@ The cloud authentication service enables:
 - **Team Management** (Inviting members, assigning roles)
 - **Workspace Registration** (Defining Git repositories for teams)
 
+> **⚠️ Advanced Configuration:** This component is optional. Most developers can work entirely in **Offline Mode** without setting up this server. Only deploy this if you need multi-user team management or want to enable the AI features that are gated by authentication.
+
 > **Note:** AI Script Generation and Agentic Automation are **not** hosted by rap-auth-server. They are client-side features where the user provides their own API keys (e.g., Google Gemini) or connects to other providers. They do not require the cloud auth server to function in a local context, but team-based features do.
 
 **Setup:**

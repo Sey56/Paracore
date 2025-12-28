@@ -1,6 +1,7 @@
 # Cloud Features (AI & Agentic Automation)
 
 Paracore's cloud features (`rap-auth-server`) provide authentication, team management, and workspace registration. Features like AI Script Generation and Agentic Automation are client-side integrations where using your own API keys (e.g. Gemini) is required.
+> **⚠️ Advanced Setup Required:** Setting up the Cloud Authentication server (`rap-auth-server`) requires experience with cloud hosting (e.g., Railway, AWS) and OAuth configuration. We recommend most users start with the **Offline Mode** ("Continue Offline") to use the powerful Core Automation features immediately without this complexity.
 
 ## Features Overview
 
