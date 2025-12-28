@@ -86,6 +86,14 @@ try {
         $nuitkaOutputDir = Join-Path -Path $ProjectRoot -ChildPath "rap-server\$distDir\bootstrap.dist"
         Copy-Item -Path (Join-Path $nuitkaOutputDir '*') -Destination $serverReleaseDir -Recurse
 
+        # Copy the JWT key to the release folder as well, keeping the structure config.py expects
+        # config.py looks for ../../rap-auth-server/server/jwt_public.pem relative to itself.
+        # Nuitka layout can vary, but ensuring the file exists in the bundle is step 1.
+        # We will place it in a 'rap-auth-server/server' folder inside the release dir.
+        $releaseAuthDest = Join-Path -Path $serverReleaseDir -ChildPath 'rap-auth-server\server'
+        New-Item -ItemType Directory -Path $releaseAuthDest -Force | Out-Null
+        Copy-Item -Path "$ProjectRoot\rap-auth-server\server\jwt_public.pem" -Destination $releaseAuthDest -Force
+
         # Configure Tauri to bundle the server-release directory
         if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {
             Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'resources' -Value $null
@@ -158,6 +166,21 @@ import site
         Write-Host "Copying application source from $serverSourceDir to $bundleDir..."
         Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $bundleDir
         robocopy (Join-Path $serverSourceDir "server") (Join-Path $bundleDir "server") /E /XD .venv __pycache__
+
+        # 6. Copy the RAP Auth Server public key (Crucial for generic "relative path" config)
+        $authServerSource = Join-Path -Path $ProjectRoot -ChildPath 'rap-auth-server\server'
+        $authServerDest = Join-Path -Path $bundleDir -ChildPath 'rap-auth-server\server'
+        if (-not (Test-Path $authServerDest)) {
+            New-Item -ItemType Directory -Path $authServerDest -Force | Out-Null
+        }
+        $jwtKeyPath = Join-Path -Path $authServerSource -ChildPath 'jwt_public.pem'
+        
+        if (Test-Path $jwtKeyPath) {
+             Write-Host "Copying jwt_public.pem to bundle..."
+             Copy-Item -Path $jwtKeyPath -Destination $authServerDest -Force
+        } else {
+             Write-Warning "jwt_public.pem not found at $jwtKeyPath. The installed app may fail to authenticate tokens."
+        }
 
         # Configure Tauri to bundle the server-modules directory
         if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {
