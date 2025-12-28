@@ -8,6 +8,8 @@
 
 ## 🚀 Quick Links
 - **[Download Installer](https://github.com/Sey56/Paracore/releases)** (Windows)
+  > [!IMPORTANT]
+  > **Critical Update (Dec 28):** If you downloaded the installer before today, please **re-download and reinstall**. A critical bug causing "File Not Found" errors on start has been fixed in the latest release.
 - **[Documentation](https://sey56.github.io/paracore-help/)** (Installation, Tutorials, API Reference)
 - **[Video Guides](https://www.youtube.com/@Codarch46)** (YouTube)
 - **[Report Issues](https://github.com/Sey56/Paracore/issues)**
