@@ -70,7 +70,7 @@ The "hybrid" nature of the platform comes from its connection to a central cloud
 *   User Authentication & Identity
 *   Team Management & Collaboration
 *   Workspace Registration & Access Control
-*   Optional AI Features (bring your own API key)
+*   Optional AI Features (client-side integration with your own API key)
 
 This gives Paracore the best of both worlds: the speed and security of a local desktop application, combined with the connectivity and collaboration features of a cloud platform—**all free and open source forever.**
 
@@ -90,7 +90,7 @@ The platform is composed of several key projects that work together:
 *   **CoreScript.Engine**: The core C# scripting engine in `Paracore.Addin` that uses the Roslyn compiler to dynamically compile and execute C# code on-the-fly, manage parameter injection, and provide a rich execution context for scripts.
     *   [Details](./CoreScript.Engine/README.md)
 
-*   **rap-auth-server**: A cloud-based authentication service (Python/FastAPI) that handles user identity, team management, and enables AI features.
+*   **rap-auth-server**: A cloud-based authentication service (Python/FastAPI) that handles user identity, team management, and workspace registration.
     *   [Details](./rap-auth-server/server/README.md)
 
 ## Collaboration: A Git-Powered Approach

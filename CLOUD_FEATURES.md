@@ -1,13 +1,13 @@
 # Cloud Features (AI & Agentic Automation)
 
-Paracore's cloud features require hosting the `rap-auth-server` and configuring authentication.
+Paracore's cloud features (`rap-auth-server`) provide authentication, team management, and workspace registration. Features like AI Script Generation and Agentic Automation are client-side integrations where using your own API keys (e.g. Gemini) is required.
 
 ## Features Overview
 
 ### 1. AI Script Generation
 - **Status:** ✅ Functional (Gemini API only)
 - **Description:** Generate Revit automation scripts using natural language prompts
-- **Requirements:** Google Gemini API key (free tier available)
+- **Requirements:** Your own Google Gemini API key (free tier available) - Not hosted by Paracore auth server
 
 ### 2. Agentic Automation
 - **Status:** ⚠️ Functional but needs further development
@@ -85,7 +85,7 @@ This creates `jwt_private.pem` and `jwt_public.pem` (excluded from git).
 In the Paracore app:
 1. Click **"Sign in with Google"**
 2. Authenticate with your Google account
-3. Cloud features will be enabled
+3. Cloud-based Team features will be enabled. Enter your Gemini API key in settings for AI features.
 
 ---
 

@@ -14,7 +14,7 @@ This guide explains how to set up and develop Paracore locally. The project uses
 - **PowerShell 7+** (for installer scripts)
 - **Inno Setup** (for creating Windows installers - [download here](https://jrsoftware.org/isdl.php))
 
-> **Note:** The AI Script Generation and Agentic Automation features are **proof-of-concept**. They work but need further development. See [CLOUD_FEATURES.md](CLOUD_FEATURES.md) for details.
+> **Note:** The AI Script Generation and Agentic Automation features are **proof-of-concept**. They are client-side implementations where users provide their own API keys. See [CLOUD_FEATURES.md](CLOUD_FEATURES.md) for details.
 
 ## Project Structure
 
@@ -138,10 +138,14 @@ This script:
 
 ### rap-auth-server
 
+### rap-auth-server
+
 The cloud authentication service enables:
-- **AI Script Generation** (using Gemini LLM)
-- **Agentic Automation** (LangGraph-based agent with HITL approval)
-- **Team Collaboration** (shared workspaces, user management)
+- **User Authentication** (Google OAuth2)
+- **Team Management** (Inviting members, assigning roles)
+- **Workspace Registration** (Defining Git repositories for teams)
+
+> **Note:** AI Script Generation and Agentic Automation are **not** hosted by rap-auth-server. They are client-side features where the user provides their own API keys (e.g., Google Gemini) or connects to other providers. They do not require the cloud auth server to function in a local context, but team-based features do.
 
 **Setup:**
 
