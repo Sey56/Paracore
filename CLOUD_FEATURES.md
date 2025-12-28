@@ -85,7 +85,7 @@ This creates `jwt_private.pem` and `jwt_public.pem` (excluded from git).
 In the Paracore app:
 1. Click **"Sign in with Google"**
 2. Authenticate with your Google account
-3. Cloud-based Team features will be enabled. Enter your Gemini API key in settings for AI features.
+3. Cloud-based Team features will be enabled, and the "Generate" / "Agent" tabs will be unlocked. Enter your Gemini API key in settings for AI features.
 
 ---
 
