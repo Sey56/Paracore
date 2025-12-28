@@ -38,13 +38,16 @@ The server's functionality is organized into several routers:
 -   **SQLite**: For lightweight, local data storage of script runs and other metadata.
 -   **gRPC**: For efficient, low-latency communication with the `Paracore.Addin`.
 
-## Getting Started
+To run the `rap-server` for development:
 
-To run the `rap-server` for development, it is typically started via an npm script in the `rap-web` project.
+1. **Activate the virtual environment:**
+   ```powershell
+   .\.venv\Scripts\activate
+   ```
 
-```bash
-# In the rap-web directory
-npm run start-backend
-```
+2. **Start the server with Uvicorn:**
+   ```bash
+   uvicorn main:app --reload
+   ```
 
 This will launch the Uvicorn server, making the API available at `http://localhost:8000`.
