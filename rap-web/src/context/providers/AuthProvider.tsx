@@ -153,17 +153,14 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       };
 
       // --- RESTRICTION: EMAIL ALLOWLIST ---
-      const ALLOWED_EMAILS = [
-        "seyoumhgs@gmail.com",
-        "seyash98@gmail.com",
-        "codarch46@gmail.com",
-        "assash98@gmail.com"
-      ];
-
-      if (appUser.email && !ALLOWED_EMAILS.includes(appUser.email)) {
-        alert("Access Restricted: This version of Paracore is currently in Private Beta.\n\nPlease use the 'Continue Offline' option to use the Free Personal Edition.");
-        logout();
-        return;
+      const ALLOWED_EMAILS_STR = import.meta.env.VITE_ALLOWED_EMAILS || "";
+      if (ALLOWED_EMAILS_STR) {
+        const allowedEmails = ALLOWED_EMAILS_STR.split(",").map((e: string) => e.trim().toLowerCase());
+        if (appUser.email && !allowedEmails.includes(appUser.email.toLowerCase())) {
+          alert("Access Restricted: This version of Paracore is currently in Private Beta.\n\nPlease use the 'Continue Offline' option to use the Free Personal Edition.");
+          logout();
+          return;
+        }
       }
       // ------------------------------------
 

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID_DESKTOP: str
     GOOGLE_CLIENT_SECRET_DESKTOP: str
     REDIRECT_URI: str = "http://127.0.0.1:8001/auth/callback"
+    ALLOWED_EMAILS: str = "" # Comma-separated list of allowed emails. Empty means all are allowed.
 
     # 🗄️ Database
     DATABASE_URL: str

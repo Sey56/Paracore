@@ -95,6 +95,16 @@ async def verify_google_code(request: GoogleAuthCodeRequest, db: Session = Depen
         if not email:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email not found in Google token.")
 
+        # --- RESTRICTION: EMAIL ALLOWLIST ---
+        if settings.ALLOWED_EMAILS:
+            allowed_list = [e.strip().lower() for e in settings.ALLOWED_EMAILS.split(",") if e.strip()]
+            if email.lower() not in allowed_list:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access Restricted: This Paracore instance is currently in Private Beta. Please use the 'Continue Offline' option in the desktop app."
+                )
+        # ------------------------------------
+
         user = db.query(User).filter(User.email == email).first()
         if not user:
             # Create new user

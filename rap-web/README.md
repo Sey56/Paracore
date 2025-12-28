@@ -23,7 +23,7 @@ This is the foundational mode of rap-web, designed for scripters and the users t
 -   **Script Gallery:** Browse and manage scripts stored in local folders or cloned from Git repositories.
 -   **Script Inspector:** Select a script to instantly see its documentation and have its parameters rendered in a clean UI for easy input.
 -   **Parameter Presets:** Save and load multiple parameter configurations for scripts that are used often with different settings.
--   **Rich Output:** View script results not just as text in a console, but as structured data like tables in a dedicated "Summary" tab.
+-   **Rich Output:** View script results not just as text in a console, but as structured data like tables in a dedicated "Table" tab.
 -   **VS Code Integration:** Edit scripts with full C# IntelliSense in VS Code. rap-web automatically creates a temporary, pre-configured `.csproj` workspace and live-syncs any changes back to your original file.
 
 ### 2. AI Script Generation
