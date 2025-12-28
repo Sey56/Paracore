@@ -9,7 +9,7 @@
 -   **gRPC Client:** Acts as the client for the gRPC server hosted by `Paracore.Addin`. It communicates with the `CoreScriptRunnerService` exposed by the add-in, translating the frontend\'s HTTP requests into gRPC calls to be executed inside Revit.
 -   **Data Persistence:** Handles local data storage using an SQLite database for script run history and other metadata.
 -   **Workspace Orchestration:** Initiates the creation of ephemeral VSCode workspaces by calling the appropriate gRPC endpoint on the `Paracore.Addin`.
--   **Authentication:** Includes an authentication router (`auth_router`) to handle user authentication and authorization. For local development, it uses a hardcoded user ID.
+-   **Authentication:** Includes an authentication router (`auth_router`) to handle user authentication and authorization. Supports both cloud-based authentication (via `rap-auth-server`) and local offline mode for single-user usage.
 
 ## API Endpoints
 
