@@ -6,9 +6,19 @@ load_dotenv() # Load environment variables from .env file
 # --- Function to read the public key from file ---
 def load_public_key():
     try:
-        # Use a hardcoded absolute path for reliability
-        key_path = r'C:\Users\seyou\RAP\rap-auth-server\server\jwt_public.pem'
+        # Try to get from env var first
+        key_path = os.getenv("JWT_PUBLIC_KEY_PATH")
         
+        # If not set, look in the sibling directory (standard dev layout)
+        if not key_path:
+             # Go up two levels from config.py: server -> rap-server -> Paracore
+             base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+             key_path = os.path.join(base_dir, "rap-auth-server", "server", "jwt_public.pem")
+             
+        if not os.path.exists(key_path):
+            print(f"!!! WARNING: JWT Public Key not found at: {key_path}")
+            return None
+
         with open(key_path, 'r') as f:
             return f.read()
     except Exception as e:

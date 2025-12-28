@@ -204,6 +204,9 @@ npm install new-package
 ### Modifying the C# Engine
 
 ```bash
+# Open the `RAP.sln` file in Visual Studio (not VS Code) to work on the C# solution.
+# This solution includes both `Paracore.Addin` and `CoreScript.Engine`.
+
 # Edit files in CoreScript.Engine/ or Paracore.Addin/
 # Rebuild the add-in installer
 ./Paracore-installer.ps1
