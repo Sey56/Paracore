@@ -21,8 +21,11 @@ The server's functionality is organized into several routers:
 -   **`runs_router`**: Provides access to the script execution history.
 -   **`status_router`**: Checks the status of the Revit add-in.
 -   **`workspace_router`**: Manages the creation and opening of VSCode workspaces for script editing.
--   **`publish_router`**: Handles publishing scripts to a remote repository.
--   **`auth_router`**: Manages user authentication.
+-   **`manifest_router`**: Handles script manifest generation and retrieval, scanning script directories to build a collection of script metadata.
+-   **`user_settings_router`**: Manages user-specific settings, such as the path to agent scripts and other configuration preferences.
+-   **`agent_router`**: Powers the Paracore Agent, handling conversational interactions and orchestration of Revit automation tasks.
+-   **`generation_router`**: Provides endpoints for AI-powered script generation using LLMs.
+-   **`auth_router`**: Manages user authentication and team management.
 
 ## Architecture
 
