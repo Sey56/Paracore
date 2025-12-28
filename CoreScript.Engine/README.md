@@ -1,6 +1,6 @@
 # CoreScript.Engine - Dynamic C# Script Execution Engine
 
-`CoreScript.Engine` is a powerful C# library designed for the dynamic compilation and execution of C# scripts at runtime. It is the core of the Revit Automation Platform (RAP), leveraging the Roslyn compiler to provide a secure, flexible, and robust environment for running user-defined code within the Autodesk Revit application.
+`CoreScript.Engine` is a powerful C# library designed for the dynamic compilation and execution of C# scripts at runtime. It is the core of Paracore, leveraging the Roslyn compiler to provide a secure, flexible, and robust environment for running user-defined code within the Autodesk Revit application.
 
 ## Core Features
 

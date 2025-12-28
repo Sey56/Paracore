@@ -1,6 +1,6 @@
 # RServer.Addin - Revit gRPC Server Add-in
 
-`RServer.Addin` is a Revit add-in that acts as the essential in-process agent for the Revit Automation Platform (RAP). It hosts a gRPC server directly within the Revit environment, allowing external applications to communicate with and execute C# scripts inside Revit securely and efficiently.
+`RServer.Addin` is a Revit add-in that acts as the essential in-process agent for Paracore. It hosts a gRPC server directly within the Revit environment, allowing external applications to communicate with and execute C# scripts inside Revit securely and efficiently.
 
 ## Core Features
 
@@ -20,7 +20,7 @@
 
 ## Architecture & Workflow
 
-`RServer.Addin` is the critical bridge between the external RAP ecosystem and the internal Revit API. The request lifecycle is carefully designed to ensure thread safety and responsiveness.
+`RServer.Addin` is the critical bridge between the external Paracore ecosystem and the internal Revit API. The request lifecycle is carefully designed to ensure thread safety and responsiveness.
 
 1.  **Client Request:** An external client (like `rap-server`) sends a gRPC request (e.g., `ExecuteScript`) to the Kestrel server running inside Revit.
 

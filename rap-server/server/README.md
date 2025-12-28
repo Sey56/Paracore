@@ -1,6 +1,6 @@
 # rap-server - Local Backend Server
 
-`rap-server` is the local backend for the Revit Automation Platform (RAP). It is a lightweight FastAPI application that acts as a crucial intermediary, connecting the `rap-web` user interface with the `Paracore.Addin` running inside Revit.
+`rap-server` is the local backend for Paracore. It is a lightweight FastAPI application that acts as a crucial intermediary, connecting the `rap-web` user interface with the `Paracore.Addin` running inside Revit.
 
 ## Core Responsibilities
 
@@ -26,7 +26,7 @@ The server's functionality is organized into several routers:
 
 ## Architecture
 
-`rap-server` sits in the middle of the local RAP stack. It listens for REST API calls from the `rap-web` frontend, processes them, and communicates with the `Paracore.Addin` via gRPC to interact with Revit. This creates a clean separation of concerns, where the frontend doesn't need to know about gRPC, and the Revit add-in doesn't need to handle HTTP.
+`rap-server` sits in the middle of the local Paracore stack. It listens for REST API calls from the `rap-web` frontend, processes them, and communicates with the `Paracore.Addin` via gRPC to interact with Revit. This creates a clean separation of concerns, where the frontend doesn't need to know about gRPC, and the Revit add-in doesn't need to handle HTTP.
 
 ## Technology
 

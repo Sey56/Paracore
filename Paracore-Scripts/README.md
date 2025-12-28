@@ -8,8 +8,8 @@ These starter scripts demonstrate how to automate Revit using raw C# Revit API c
 ## 🚀 Quick Start (TL;DR)
 
 1. Install **Paracore_Revit_Installer.exe** → Open Revit → Toggle **Paracore (ON)** in the Paracore tab.  
-2. Install **Paracore_Installer.msi** → Launch Paracore (auto-connects to Revit).  
-3. Clone this repo → Add the folder in Paracore’s **Local Folders** sidebar.  
+2. Install **Paracore_Installer.msi** → Launch rap-web (Paracore UI, auto-connects to Revit).  
+3. Clone this repo → Add the folder in rap-web's **Local Folders** sidebar.  
 4. Open an empty Revit project → Run scripts from the gallery.  
 5. Experiment safely before applying to real projects.
 
@@ -22,26 +22,26 @@ All installers are available on the [Releases page](../../releases).
 
 1. **Download from Releases**  
    - Paracore_Installer.msi (v1.0.0)  
-   - RServer.Addin.exe (v1.0.0)  
+   - Paracore.Addin (v1.0.0)  
    - (Optional) corescript-0.0.1.vsix VSCode extension  
      → For developers who want to execute code directly from VSCode to Revit.  
-     → Paracore itself does not require this extension.
+     → rap-web itself does not require this extension.
 
 2. **Install the Revit Add-in**  
    - Run `Paracore_Revit_Installer.exe`.  
    - Open Revit.  
    - In the **Paracore tab**, toggle **Paracore (ON)**.
 
-3. **Install the Paracore App**  
+3. **Install rap-web (Paracore UI)**  
    - Run `Paracore_Installer.msi`.  
    - At the end of installation, check **Start Paracore**.  
-   - Paracore will launch and immediately connect to the active Revit session (make sure a document is open).
+   - rap-web will launch and immediately connect to the active Revit session (make sure a document is open).
 
 ---
 
-## 📂 Adding Scripts to Paracore
+## 📂 Adding Scripts to rap-web
 
-1. In the Paracore UI, click the **hamburger menu** (top left).  
+1. In the rap-web UI, click the **hamburger menu** (top left).  
 2. Open the **Sidebar**.  
 3. In the **Local Folders** section, click the **+ button** (Add Folder).  
 4. In the file explorer dialog, select the `Paracore-Scripts` folder you cloned from GitHub.  
@@ -59,7 +59,7 @@ All installers are available on the [Releases page](../../releases).
 
 ## 📜 Scripts Included
 
-All scripts appear as ScriptCards in the Paracore gallery.
+All scripts appear as ScriptCards in the rap-web gallery.
 
 ### 🔹 Single-file scripts
 - **Create_Wall.cs** → Build a wall with parameters for level, length, and height.  

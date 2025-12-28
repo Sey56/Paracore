@@ -1,6 +1,6 @@
-# RAP-Auth-Server: Authentication & Authorization for Revit Automation Platform
+# RAP-Auth-Server: Authentication & Authorization for Paracore
 
-The `rap-auth-server` is a robust, cloud-ready authentication and authorization service for the Revit Automation Platform (RAP) ecosystem. Built with Python and FastAPI, it handles user identity, team management, and access control, providing a secure foundation for all RAP services.
+The `rap-auth-server` is a robust, cloud-ready authentication and authorization service for the Paracore ecosystem. Built with Python and FastAPI, it handles user identity, team management, and access control, providing a secure foundation for all Paracore services.
 
 The server integrates with Google for authentication and uses a sophisticated team-based permission model to manage user access.
 
@@ -34,7 +34,7 @@ The server exposes several key endpoints:
 
 - **`GET /login/google`**: Initiates the Google OAuth2 login flow by redirecting the user to Google's authentication page.
 - **`GET /auth/callback`**: The callback URL that Google redirects to after successful authentication. The server exchanges the received code for user tokens and creates a local user session.
-- **`POST /auth/verify-google-token`**: An alternative, server-to-server flow where a frontend can send a Google ID token to be verified, returning a RAP-specific JWT.
+- **`POST /auth/verify-google-token`**: An alternative, server-to-server flow where a frontend can send a Google ID token to be verified, returning a Paracore-specific JWT.
 - **`GET /.well-known/jwks.json`**: Exposes the public key in JWK format for clients to verify JWT signatures.
 - **`GET /api/users/me/team`**: Retrieves detailed information about the current user's active team, including a list of members.
 - **`GET /api/teams/{team_id}/members`**: (Admin/Developer) Gets a list of all members in a specific team.

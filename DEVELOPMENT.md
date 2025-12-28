@@ -34,7 +34,7 @@ Paracore/
 
 ### 1. Running the Backend Server (rap-server)
 
-The backend server mediates between the Paracore UI and the Revit add-in.
+The backend server mediates between the rap-web UI and the Revit add-in.
 
 ```bash
 # Navigate to the server directory
@@ -60,7 +60,7 @@ uv sync
 
 ---
 
-### 2. Running the Paracore UI (rap-web)
+### 2. Running rap-web (Paracore UI)
 
 The desktop application built with React, TypeScript, and Tauri.
 
@@ -81,7 +81,7 @@ This starts the Tauri app with hot-reload enabled.
 The Revit add-in hosts the gRPC server inside Revit.
 
 ```bash
-# From the RAP root directory
+# From the Paracore root directory
 ./Paracore-installer.ps1
 ```
 
@@ -91,12 +91,12 @@ The Revit add-in hosts the gRPC server inside Revit.
 
 ---
 
-### 4. Building the Full Paracore App (Release)
+### 4. Building the Full Paracore Installer (Release)
 
-This compiles the complete Paracore desktop application, which manages the lifecycle of the rap-server.
+This compiles the complete Paracore desktop application package, which manages the lifecycle of the rap-server.
 
 ```bash
-# From the RAP root directory
+# From the Paracore root directory
 ./RAP-installer.ps1 -Release
 ```
 
@@ -109,10 +109,10 @@ This builds:
 
 ### 5. Building the VS Code Extension (corescript-vscode)
 
-The VS Code extension enables script execution directly from VS Code without installing Paracore.
+The VS Code extension enables script execution directly from VS Code without installing the Paracore UI.
 
 ```bash
-# From the RAP root directory (using Git Bash)
+# From the Paracore root directory (using Git Bash)
 ./build_extension.sh
 ```
 
@@ -129,7 +129,7 @@ This script:
 1. **Install the Revit Add-in** (using `Paracore-installer.ps1`)
 2. **Start Revit** and verify the Paracore add-in is loaded
 3. **Run the backend server** (`uvicorn main:app --reload`)
-4. **Run the Paracore UI** (`npm run tauri dev`)
+4. **Run the rap-web UI** (`npm run tauri dev`)
 5. **Test automation** by creating and executing a script
 
 ---

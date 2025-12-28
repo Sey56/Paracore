@@ -1,12 +1,12 @@
-# Paracore (formerly rap-web) - The UI for the Revit Automation Platform
+# rap-web (Paracore UI) - The UI for the Paracore Platform
 
-**Paracore** is the modern desktop interface for the **Revit Automation Platform (RAP)**, a complete ecosystem for creating, managing, and executing C# automation scripts for Autodesk Revit. Built with React and Tauri, Paracore provides a rich, intuitive, and multi-modal environment that caters to everyone from daily Revit users to advanced automation engineers.
+**rap-web (Paracore UI)** is the modern desktop interface for **Paracore**, a complete ecosystem for creating, managing, and executing C# automation scripts for Autodesk Revit. Built with React and Tauri, rap-web provides a rich, intuitive, and multi-modal environment that caters to everyone from daily Revit users to advanced automation engineers.
 
-## The Revit Automation Platform Ecosystem
+## The Paracore Ecosystem
 
 Paracore is the user-facing component of a decoupled, robust architecture:
 
--   **Paracore (`rap-web`):** The React & Tauri desktop frontend. It provides the user interface for all three automation modes and communicates with the local backend via HTTP.
+-   **rap-web (Paracore UI):** The React & Tauri desktop frontend. It provides the user interface for all three automation modes and communicates with the local backend via HTTP.
 -   **Local Backend (`rap-server`):** A local Python/FastAPI server that acts as a gateway. It manages file system access and translates frontend requests into secure gRPC calls to the Revit add-in.
 -   **Revit Add-in (`Paracore.Addin`):** A C# add-in hosting a gRPC server inside Revit. It is the only component that directly and safely interacts with the Revit API, using `ExternalEvent` handlers for thread-safe execution.
 -   **Script Engine (`CoreScript.Engine`):** A powerful Roslyn-based C# compiler, hosted by the add-in, that dynamically executes scripts with full support for parameter injection and isolated execution contexts.
@@ -14,24 +14,24 @@ Paracore is the user-facing component of a decoupled, robust architecture:
 
 ## Three Modes of Automation
 
-Paracore offers three distinct modes, making automation accessible to all skill levels.
+rap-web offers three distinct modes, making automation accessible to all skill levels.
 
 ### 1. Manual Automation (The Core Experience)
 
-This is the foundational mode of Paracore, designed for scripters and the users they support. It provides a complete, end-to-end workflow for managing and running a library of C# scripts.
+This is the foundational mode of rap-web, designed for scripters and the users they support. It provides a complete, end-to-end workflow for managing and running a library of C# scripts.
 
 -   **Script Gallery:** Browse and manage scripts stored in local folders or cloned from Git repositories.
 -   **Script Inspector:** Select a script to instantly see its documentation and have its parameters rendered in a clean UI for easy input.
 -   **Parameter Presets:** Save and load multiple parameter configurations for scripts that are used often with different settings.
 -   **Rich Output:** View script results not just as text in a console, but as structured data like tables in a dedicated "Summary" tab.
--   **VS Code Integration:** Edit scripts with full C# IntelliSense in VS Code. Paracore automatically creates a temporary, pre-configured `.csproj` workspace and live-syncs any changes back to your original file.
+-   **VS Code Integration:** Edit scripts with full C# IntelliSense in VS Code. rap-web automatically creates a temporary, pre-configured `.csproj` workspace and live-syncs any changes back to your original file.
 
 ### 2. AI Script Generation
 
 For developers looking to accelerate their workflow, this mode uses AI to generate new scripts from a natural language prompt.
 
 -   **Prompt-Based Creation:** Describe the tool you need (e.g., "Create a script that renumbers all selected doors based on the room they are in").
--   **AI-Powered Generation:** Paracore sends the request to the backend, which leverages a large language model to generate the C# code.
+-   **AI-Powered Generation:** rap-web sends the request to the backend, which leverages a large language model to generate the C# code.
 -   **Save to Library:** The generated script can be immediately saved to your script library and used in the Manual Automation mode.
 
 ### 3. Agentic Automation (The Paracore Agent)
@@ -47,7 +47,7 @@ The most accessible mode, designed for all Revit users, regardless of technical 
 
 ## Architecture & Technology
 
-`rap-web` is a single-page application (SPA) that serves as the client-side frontend for the RAP ecosystem.
+`rap-web` is a single-page application (SPA) that serves as the client-side frontend for the Paracore ecosystem.
 
 -   **React & TypeScript:** For a modern, type-safe component-based UI.
 -   **Vite:** For fast development builds and bundling.
