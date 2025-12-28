@@ -1,47 +1,71 @@
-# RServer.Addin - Revit gRPC Server Add-in
+# Paracore.Addin - Revit gRPC Server Add-in
 
-`RServer.Addin` is a Revit add-in that acts as the essential in-process agent for Paracore. It hosts a gRPC server directly within the Revit environment, allowing external applications to communicate with and execute C# scripts inside Revit securely and efficiently.
+`Paracore.Addin` is a Revit add-in that hosts the **Paracore Server** (a gRPC-based server) directly within the Revit environment. This server enables external applications (like the Paracore UI or VSCode) to communicate with Revit and execute C# scripts in-process.
 
 ## Core Features
 
--   **gRPC Server Hosting:** Hosts a high-performance gRPC server using Kestrel on `localhost:50051`. This server exposes the `CoreScriptRunner` service, enabling clients to check Revit's status, get script metadata, and execute code.
+-   **Paracore Server (gRPC):** Hosts a high-performance gRPC server (implemented in `CoreScriptServer.cs`) using Kestrel on `localhost:50051`. This server exposes the `CoreScriptRunner` service, enabling clients to check Revit's status, retrieve script metadata, and execute C# code.
 
 -   **Revit UI Integration:**
-    -   **Ribbon Control:** Adds a "CoreScript" tab to the Revit ribbon with a toggle button to start and stop the gRPC server.
-    -   **Dockable Dashboard:** Provides a dockable WPF pane to monitor server status and view execution history.
+    -   **Ribbon Control:** Adds a "Paracore" tab to the Revit ribbon with two toggle buttons:
+        -   **"Paracore"** - Starts/stops the gRPC server (must be ON for script execution)
+        -   **"Dashboard"** - Opens a dockable pane to monitor server status and execution history
+    -   **Dockable Dashboard:** Provides a WPF-based dockable pane for monitoring.
 
--   **Thread-Safe Revit API Execution:** Guarantees safe interaction with the Revit API by marshalling all script execution requests onto Revit's main UI thread. This is achieved using Revit's `ExternalEvent` mechanism, which is the only correct and stable way to handle calls into the API from external sources or background threads.
+-   **Thread-Safe Revit API Execution:** Guarantees safe interaction with the Revit API by marshalling all script execution requests onto Revit's main UI thread using Revit's `ExternalEvent` mechanism.
 
--   **Engine Integration:** Acts as the host for the `CoreScript.Engine`. It invokes the engine to perform the actual compilation and execution of the C# scripts.
+-   **CoreScript.Engine Integration:** Acts as the host for the `CoreScript.Engine`, which performs the actual compilation and execution of C# scripts using the Roslyn compiler.
 
--   **Context Provider:** Implements the `ICoreScriptContext` interface required by the `CoreScript.Engine`. It provides the engine with live Revit API objects (`UIApplication`, `UIDocument`, `Document`) and captures all script output (standard print messages and structured JSON data) for relay back to the client.
+-   **Context Provider:** Implements the `ICoreScriptContext` interface required by `CoreScript.Engine`. It provides live Revit API objects (`UIApplication`, `UIDocument`, `Document`) and captures all script output for relay back to the client.
 
--   **Singleton Execution:** Uses a `SemaphoreSlim` to ensure that only one script execution request is processed at a time, preventing race conditions and ensuring stable execution.
+-   **Singleton Execution:** Uses a `SemaphoreSlim` to ensure only one script execution request is processed at a time, preventing race conditions.
 
-## Architecture & Workflow
+## Architecture & Communication Flow
 
-`RServer.Addin` is the critical bridge between the external Paracore ecosystem and the internal Revit API. The request lifecycle is carefully designed to ensure thread safety and responsiveness.
+`Paracore.Addin` is the critical bridge between external clients and the Revit API. Here's how the system works:
 
-1.  **Client Request:** An external client (like `rap-server`) sends a gRPC request (e.g., `ExecuteScript`) to the Kestrel server running inside Revit.
+### The Three-Tier Architecture
 
-2.  **Service Reception:** The `CoreScriptRunnerService` receives the request on a background thread from the Kestrel thread pool.
+1.  **Paracore UI (rap-web)** - Desktop application (React + Tauri)
+2.  **rap-server** - Local Python FastAPI server (mediator on `localhost:8000`)
+3.  **Paracore Server** - gRPC server inside Revit (this add-in, on `localhost:50051`)
 
-3.  **Dispatch to Main Thread:** To interact with the Revit API safely, the service **does not** execute the script directly. Instead, it packages the script and parameters and hands them to the `ServerViewModel`, which then calls `ExternalEvent.Raise()`. This signals to Revit that there is work to be done on the main UI thread.
+### Request Lifecycle
 
-4.  **Safe API Context Execution:** Revit invokes the `ServerActionHandler` (an `IExternalEventHandler`) on the main UI thread. This handler now has a valid Revit API context.
-    -   It retrieves the script details from the `ServerViewModel`.
-    -   It creates a `ServerContext` object to provide the script with Revit objects and capture its output.
-    -   It calls the `CoreScript.Engine`'s `CodeRunner.Execute()` method, passing the script and the context.
+1.  **Client Request:** The Paracore UI or VSCode sends an HTTP request to `rap-server`.
 
-5.  **Result Propagation:**
-    -   Once the `CoreScript.Engine` finishes execution, the `ServerActionHandler` captures the `ExecutionResult`.
-    -   The result is passed back to the `CoreScriptRunnerService` on the background thread using a `TaskCompletionSource` that was being awaited.
-    -   The `RScriptRunnerService` packages the results (output, errors, structured data) into a gRPC response and sends it back to the original client.
+2.  **Mediation:** `rap-server` translates the HTTP request into a gRPC call and forwards it to the Paracore Server running inside Revit.
+
+3.  **Service Reception:** The `CoreScriptRunnerService` (in `Paracore.Addin`) receives the gRPC request on a background thread.
+
+4.  **Dispatch to Main Thread:** To safely interact with the Revit API, the service packages the script and parameters, then calls `ExternalEvent.Raise()` to signal Revit that work needs to be done on the main UI thread.
+
+5.  **Safe API Context Execution:** Revit invokes the `ServerActionHandler` (an `IExternalEventHandler`) on the main UI thread:
+    -   Creates a `ServerContext` to provide Revit objects and capture output
+    -   Calls `CoreScript.Engine`'s `CodeRunner.Execute()` method
+    -   The engine compiles and executes the C# script
+
+6.  **Result Propagation:**
+    -   The `ServerActionHandler` captures the `ExecutionResult`
+    -   Results are passed back to the gRPC service using a `TaskCompletionSource`
+    -   The service packages the results (output, errors, structured data) into a gRPC response
+    -   `rap-server` receives the gRPC response and forwards it to the client
 
 ## Technologies Used
 
--   **.NET & C#:** The core framework for the add-in.
--   **Revit API:** For all interactions with Revit.
--   **gRPC / Kestrel:** For hosting the high-performance, cross-platform API.
--   **WPF:** For the dockable dashboard UI.
--   **Microsoft.Extensions.DependencyInjection:** For managing services and dependencies.
+-   **.NET 8 & C#** - Core framework
+-   **Revit API** - For all interactions with Revit
+-   **gRPC / Kestrel** - High-performance server hosting
+-   **WPF** - Dockable dashboard UI
+-   **CoreScript.Engine** - Dynamic C# compilation and execution (Roslyn-based)
+-   **Microsoft.Extensions.DependencyInjection** - Service management
+
+## Usage
+
+1.  Install the add-in using `Paracore_Revit_Installer.exe`
+2.  Open Revit
+3.  Go to the **Paracore** tab in the ribbon
+4.  Click the **"Paracore"** button to start the server (it will turn green when active)
+5.  The server is now ready to receive script execution requests from the Paracore UI or VSCode
+
+> **Note:** The Paracore Server must be running (toggled ON) before you can execute scripts from any external client.
