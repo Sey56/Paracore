@@ -67,7 +67,21 @@ if (Test-Path $publishDir) {
 }
 
 # This command gathers all necessary DLLs for deployment.
-dotnet publish -c Release -o $publishDir
+# We use default publish path to avoid RID/framework conflicts with -o flag in some environments
+dotnet publish -c Release
+
+# Dynamically resolve the actual publish directory
+$resolvedPublishDir = Get-ChildItem -Path "$addinDir\bin\Release" -Recurse -Filter "Paracore.Addin.dll" | 
+                      Where-Object { $_.FullName -match 'publish' } | 
+                      Select-Object -First 1 -ExpandProperty DirectoryName
+
+if (-not $resolvedPublishDir -or -not (Test-Path (Join-Path $resolvedPublishDir "Paracore.Addin.addin"))) {
+    Write-Host "Error: Could not find valid publish directory or .addin manifest." -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+
+Write-Host "Resolved Publish Directory: $resolvedPublishDir" -ForegroundColor Cyan
 Pop-Location
 Write-Host 'Paracore.Addin publish complete.' -ForegroundColor Green
 
@@ -98,7 +112,7 @@ $rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'Paracore
 $iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap-icon.ico'
 $appDataFolderName = 'Paracore-data'
 # Pass defines to the Inno Setup script
-& $InnoSetupCompiler "/O$finalInstallDir" "/dIconPath=$iconPath" "/dAppDataFolderName=$appDataFolderName" $rserverAddinInstallerScript
+& $InnoSetupCompiler "/O$finalInstallDir" "/dIconPath=$iconPath" "/dAppDataFolderName=$appDataFolderName" "/dPublishDir=$resolvedPublishDir" $rserverAddinInstallerScript
 
 Write-Host "`n=================================" -ForegroundColor Cyan
 Write-Host '   Build Complete!   '

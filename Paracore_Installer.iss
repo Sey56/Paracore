@@ -5,6 +5,10 @@
   #define AppDataFolderName "rap-data"
 #endif
 
+#ifndef PublishDir
+  #define PublishDir "Paracore.Addin\bin\Release\net8.0-windows\win-x64\publish"
+#endif
+
 [Setup]
 AppId={{F22B529C-22A9-42A0-9243-A335A195A80C-ADDIN}}
 AppName=Paracore
@@ -49,14 +53,14 @@ Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2026\RServer"; 
 
 [Files]
 ; Install Add-in for Revit 2025
-Source: "Paracore.Addin\bin\Release\net8.0-windows\win-x64\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore"; Tasks: Revit2025; Flags: recursesubdirs replacesameversion
+Source: "{#PublishDir}\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore"; Tasks: Revit2025; Flags: recursesubdirs replacesameversion
 
-Source: "Paracore.Addin\bin\Release\net8.0-windows\win-x64\Paracore.Addin.addin"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025"; Tasks: Revit2025; Flags: replacesameversion
+Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025"; Tasks: Revit2025; Flags: replacesameversion
 
 ; Install Add-in for Revit 2026
-Source: "Paracore.Addin\bin\Release\net8.0-windows\win-x64\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore"; Tasks: Revit2026; Flags: recursesubdirs replacesameversion
+Source: "{#PublishDir}\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore"; Tasks: Revit2026; Flags: recursesubdirs replacesameversion
 
-Source: "Paracore.Addin\bin\Release\net8.0-windows\win-x64\Paracore.Addin.addin"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026"; Tasks: Revit2026; Flags: replacesameversion
+Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026"; Tasks: Revit2026; Flags: replacesameversion
 
 [Code]
 function IsRevitVersionInstalled(Version: string): Boolean;
