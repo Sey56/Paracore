@@ -8,7 +8,7 @@ $ProjectRoot = Get-Location
 
 # --- Banner ---
 Write-Host '=================================' -ForegroundColor Cyan
-Write-Host '   Building Paracore Installer   '
+Write-Host '   Building Paracore Addin Installer   '
 Write-Host '=================================' -ForegroundColor Cyan
 
 # --- 1. Prerequisite Check ---
