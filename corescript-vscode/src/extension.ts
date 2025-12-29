@@ -40,7 +40,8 @@ export function activate(context: vscode.ExtensionContext) {
         const globalJson = `
 {
   "sdk": {
-    "version": "8.0.411"
+    "version": "8.0.100",
+    "rollForward": "latestFeature"
   }
 }
         `.trim();

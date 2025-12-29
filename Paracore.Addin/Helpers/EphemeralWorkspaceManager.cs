@@ -308,7 +308,8 @@ namespace Paracore.Addin.Helpers
             File.WriteAllText(Path.Combine(folderPath, "global.json"),
                 "{\n" +
                 "    \"sdk\": {\n" +
-                "        \"version\": \"8.0.414\"\n" +
+                "        \"version\": \"8.0.100\",\n" +
+                "        \"rollForward\": \"latestFeature\"\n" +
                 "    }\n" +
                 "}");
         }
