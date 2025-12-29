@@ -39,11 +39,11 @@ namespace Paracore.Addin.Commands
                     ParacoreApp.SetServerRunning(true);
                     ServerViewModel.Instance.IsServerRunning = true;
 
-                    TaskDialog.Show("RServer", "RServer On! You can now execute RevitScripts from Paracore and Vscode. Listening on port 50051.");
+                    TaskDialog.Show("Paracore Server", "Paracore Server On! You can now execute CoreScripts from Paracore and VSCode. Listening on port 50051.");
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("CoreServer - Error", $"Failed to start CoreServer: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
+                    TaskDialog.Show("Paracore Server - Error", $"Failed to start Paracore Server: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
                     return Result.Failed;
                 }
             }
@@ -55,11 +55,11 @@ namespace Paracore.Addin.Commands
                     ParacoreApp.SetServer(null);
                     ParacoreApp.SetServerRunning(false);
                     ServerViewModel.Instance.IsServerRunning = false;
-                    TaskDialog.Show("RServer", "RServer stopped!");
+                    TaskDialog.Show("Paracore Server", "Paracore Server stopped!");
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("CoreServer - Error", $"Failed to stop CoreServer: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
+                    TaskDialog.Show("Paracore Server - Error", $"Failed to stop Paracore Server: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
                     return Result.Failed;
                 }
             }
