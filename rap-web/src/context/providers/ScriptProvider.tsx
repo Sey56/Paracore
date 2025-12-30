@@ -32,7 +32,8 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [scripts, setScripts] = useState<Script[]>([]);
   const [allScripts, setAllScripts] = useState<Script[]>([]);
-  const [customScriptFolders, setCustomScriptFolders] = useState<string[]>([]);
+  // Use useLocalStorage to persist custom folders across restarts
+  const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>('rap_customScriptFolders', []);
 
   const fetchCustomScriptFolders = useCallback(async () => {
     if (!user || !cloudToken || !rapServerUrl) return;
@@ -46,9 +47,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       setCustomScriptFolders(response.data.setting_value || []);
     } catch (error) {
       console.error("Failed to fetch custom script folders:", error);
-      setCustomScriptFolders([]);
+      // Do NOT clear on error - keep local cache
     }
-  }, [user, cloudToken, rapServerUrl]);
+  }, [user, cloudToken, rapServerUrl, setCustomScriptFolders]);
 
   const saveCustomScriptFolders = useCallback(async (folders: string[]) => {
     if (!user || !cloudToken || !rapServerUrl) return;
@@ -68,13 +69,20 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user, cloudToken, rapServerUrl]);
 
+  // Fetch folders on user change/login
   useEffect(() => {
-    if (!user) {
-      setCustomScriptFolders([]); // Clear folders if user logs out
-      return;
+    if (user) {
+      fetchCustomScriptFolders();
     }
-    fetchCustomScriptFolders();
   }, [user, fetchCustomScriptFolders]);
+
+  // Handle clearing on logout - only if truly logged out (no token in storage)
+  useEffect(() => {
+    const storedToken = localStorage.getItem('rap_cloud_token');
+    if (!isAuthenticated && !storedToken) {
+      setCustomScriptFolders([]);
+    }
+  }, [isAuthenticated, setCustomScriptFolders]);
 
   const [teamWorkspaces, setTeamWorkspaces] = useState<Record<number, Workspace[]>>({});
 
