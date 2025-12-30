@@ -419,6 +419,19 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [selectedScript, showNotification, isAuthenticated]);
 
+  // Clear selected script when user logs out
+  useEffect(() => {
+    if (!isAuthenticated && selectedScript) {
+      console.log("[ScriptExecutionProvider] User logged out, clearing selected script");
+      setSelectedScriptState(null);
+      setCombinedScriptContent(null);
+      setPresets([]);
+      setExecutionResult(null);
+      setUserEditedScriptParameters({});
+      setAgentSelectedScriptPath(null);
+    }
+  }, [isAuthenticated, selectedScript, setCombinedScriptContent, setAgentSelectedScriptPath]);
+
   const runScript = async (script: Script, parameters?: ScriptParameter[]) => {
     if (runningScriptPath) {
       showNotification("A script is already running. Please wait.", "warning");
