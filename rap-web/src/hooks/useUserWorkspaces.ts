@@ -23,12 +23,24 @@ export const useUserWorkspaces = () => {
 
   // Load paths from localStorage on initial render or when user/key changes
   useEffect(() => {
-    if (!user) { // If no user, clear paths and mark as loaded
+    // START FIX: Check for stored token to avoid clearing on transient startup
+    const storedToken = localStorage.getItem('rap_cloud_token');
+
+    if (!user && !storedToken) { // Only clear if truly logged out (no user AND no token)
       setUserWorkspacePaths({});
       loadedUserIdRef.current = null; // Reset ref
       setIsLoaded(true);
       return;
     }
+
+    // If we have a stored token but no user yet (startup), we should wait or keep existing if possible.
+    // However, the STORAGE_KEY depends on user.id.
+    // If user is null but token exists, we can't build the correct key yet.
+    // So we should just Return and effectively "wait" until user is loaded.
+    if (!user && storedToken) {
+      return;
+    }
+    // END FIX
 
     try {
       const item = window.localStorage.getItem(STORAGE_KEY);
@@ -42,7 +54,7 @@ export const useUserWorkspaces = () => {
       console.error("Failed to load workspace paths from localStorage", error);
       setUserWorkspacePaths({}); // On error, initialize to empty
     } finally {
-      loadedUserIdRef.current = String(user.id);
+      loadedUserIdRef.current = user ? String(user.id) : null;
       setIsLoaded(true);
     }
   }, [user, STORAGE_KEY]); // Re-run effect when user or STORAGE_KEY changes
@@ -51,13 +63,15 @@ export const useUserWorkspaces = () => {
     setUserWorkspacePaths(prev => {
       const newPaths = { ...prev, [workspaceId]: { path, repo_url } };
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(newPaths));
+        if (user) {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(newPaths));
+        }
       } catch (error) {
         console.error("Failed to save workspace path to localStorage", error);
       }
       return newPaths;
     });
-  }, [STORAGE_KEY]);
+  }, [STORAGE_KEY, user]);
 
   const removeWorkspacePath = useCallback(async (workspaceId: string) => {
     setUserWorkspacePaths(prev => {
