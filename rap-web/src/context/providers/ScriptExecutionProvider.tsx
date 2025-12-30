@@ -424,13 +424,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     if (!isAuthenticated && selectedScript) {
       console.log("[ScriptExecutionProvider] User logged out, clearing selected script");
       setSelectedScriptState(null);
-      setCombinedScriptContent(null);
-      setPresets([]);
-      setExecutionResult(null);
-      setUserEditedScriptParameters({});
       setAgentSelectedScriptPath(null);
     }
-  }, [isAuthenticated, selectedScript, setCombinedScriptContent, setAgentSelectedScriptPath]);
+  }, [isAuthenticated, selectedScript, setAgentSelectedScriptPath]);
 
   const runScript = async (script: Script, parameters?: ScriptParameter[]) => {
     if (runningScriptPath) {
