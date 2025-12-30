@@ -74,7 +74,7 @@ The "hybrid" nature of the platform comes from its connection to a central cloud
 *   Workspace Registration & Access Control
 *   Optional AI Features (client-side integration with your own API key)
 
-This gives Paracore the best of both worlds: the speed and security of a local desktop application, combined with the connectivity and collaboration features of a cloud platform—**all free and open source forever.**
+This gives Paracore the best of both worlds: the speed and security of a local desktop application, combined with the connectivity and collaboration features of a cloud platform—**all open source.**
 
 ## Core Components
 
