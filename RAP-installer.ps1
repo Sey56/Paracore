@@ -18,6 +18,20 @@ Write-Host '=================================' -ForegroundColor Cyan
 Write-Host '   Building Paracore Installer   '
 Write-Host '=================================' -ForegroundColor Cyan
 
+# --- Prerequisite Check ---
+Write-Host "`n[0/2] Checking for prerequisites..."
+
+# Check for uv
+$uvCommand = Get-Command uv -ErrorAction SilentlyContinue
+if (-not $uvCommand) {
+    Write-Host "Error: 'uv' is not installed or not in PATH." -ForegroundColor Red
+    Write-Host "Please install uv from https://docs.astral.sh/uv/getting-started/installation/" -ForegroundColor Red
+    Write-Host "Note: uv will automatically download Python 3.12+ if needed for the build." -ForegroundColor Yellow
+    exit 1
+}
+
+Write-Host "Found uv at: $($uvCommand.Source)" -ForegroundColor Green
+
 # --- 1. Build rap-web (Tauri) ---
 Write-Host "`n[1/2] Building rap-web..."
 Push-Location $webDir

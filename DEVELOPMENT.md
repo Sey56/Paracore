@@ -7,8 +7,8 @@ This guide explains how to set up and develop Paracore locally. The project uses
 - **Revit 2025+** (for testing the add-in)
 - **.NET 8 SDK** (for C# projects)
 - **Node.js 18+** and **npm** (for the web UI)
-- **Python 3.12+** (for the backend server)
 - **uv** (Python package manager - [install here](https://github.com/astral-sh/uv))
+  - **Note:** `uv` will automatically download and install Python 3.12+ if not already present
 - **Rust** (for Tauri desktop app)
 - **Git Bash** (for building the VS Code extension)
 - **PowerShell 7+** (for installer scripts)
