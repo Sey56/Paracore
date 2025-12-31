@@ -56,7 +56,8 @@ namespace CoreScript.Engine.Globals
         public static void Transact(string name, Action action) => throw DesignTimeOnlyException;
 
         /// <summary>
-        /// Displays data in a rich interactive format (e.g., table, chart) in the Output UI.
+        /// Renders data provided as a table in the Table tab.
+        /// <para>The data can be exported to CSV.</para>
         /// </summary>
         /// <param name="type">The type of display (e.g., "table").</param>
         /// <param name="data">The structured data object to display.</param>
