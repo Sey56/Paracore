@@ -28,58 +28,30 @@ from auth import get_current_user, CurrentUser
 router = APIRouter()
 
 # --- Template for new scripts ---
-CSHARP_TEMPLATE = """
-using Autodesk.Revit.DB;
+CSHARP_TEMPLATE = """using Autodesk.Revit.DB;
 
 /*
 DocumentType: Project
-Categories: Architectural, Structural, MEP
-Author: Seyoum Hagos
+Categories: Multi-Category
+Author: Paracore User
 Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
-This is a template script that creates a simple wall in a Revit project document.
-Doc, UIDoc, UIApp, Transact, Print and Show are available in the global scope.
+Basic template script. 
+Globals available: Doc, UIDoc, UIApp, Transact, Println, Show.
 
 UsageExamples:
-- "Create a wall"
+- "Run script"
 */
 
-
-// These first top level statements marked with // [Parameter] will be treated as input parameters in the UI
 // [Parameter]
-string levelName = "Level 1";
-// [Parameter]
-double wallLengthMeters = 6.0;
-// [Parameter]
-double wallHeightMeters = 3.0;
+string targetName = "Paracore";
 
-// Other Top-Level Statements
-double lengthFt = UnitUtils.ConvertToInternalUnits(wallLengthMeters, UnitTypeId.Meters);
-double heightFt = UnitUtils.ConvertToInternalUnits(wallHeightMeters, UnitTypeId.Meters);
-XYZ pt1 = new XYZ(-lengthFt / 2, 0, 0);
-XYZ pt2 = new XYZ(lengthFt / 2, 0, 0);
-Line wallLine = Line.CreateBound(pt1, pt2);
+// Use Println with string interpolation ($"...") for clear output
+Println($"Hello {targetName} from {Doc.Title}!");
 
-Level? level = new FilteredElementCollector(Doc)
-    .OfClass(typeof(Level))
-    .Cast<Level>()
-    .FirstOrDefault(l => l.Name == levelName);
-
-if (level == null)
-{
-    return;
-}
-
-
-// Write operations inside a transaction
-Transact("Create Wall", () =>
-{
-    Wall wall = Wall.Create(Doc, wallLine, level.Id, false);
-    wall.get_Parameter(BuiltInParameter.WALL_USER_HEIGHT_PARAM)?.Set(heightFt);
-});
-
-Println($"Created a wall of length {wallLengthMeters} meters and height {wallHeightMeters} meters at level '{levelName}'.");
+// Example: Using Show to display data in a table
+// Show("table", new { Name = targetName, Time = DateTime.Now });
 """
 
 # --- Pydantic Models for New Script Creation ---
