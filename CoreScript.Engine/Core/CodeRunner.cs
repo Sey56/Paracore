@@ -304,6 +304,19 @@ namespace CoreScript.Engine.Core
             return base.VisitVariableDeclarator(node);
         }
 
+        public override SyntaxNode VisitPropertyDeclaration(PropertyDeclarationSyntax node)
+        {
+            if (node.Initializer != null && _parameters.TryGetValue(node.Identifier.Text, out object newValue))
+            {
+                ExpressionSyntax newLiteral = CreateExpression(newValue);
+                return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral)
+                    .WithLeadingTrivia(node.Initializer.EqualsToken.LeadingTrivia)
+                    .WithTrailingTrivia(node.Initializer.Value.GetTrailingTrivia()))
+                    .WithSemicolonToken(node.SemicolonToken);
+            }
+            return base.VisitPropertyDeclaration(node);
+        }
+
         private ExpressionSyntax CreateExpression(object value)
         {
             switch (value)
