@@ -15,11 +15,18 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     const parsedData = JSON.parse(item.data);
 
     if (item.type === 'table') {
-      if (!Array.isArray(parsedData) || parsedData.length === 0) {
+      let tableData = parsedData;
+
+      // Handle single object: wrap in array
+      if (!Array.isArray(parsedData) && typeof parsedData === 'object' && parsedData !== null) {
+        tableData = [parsedData];
+      }
+
+      if (!Array.isArray(tableData) || tableData.length === 0) {
         return <p className="text-gray-600 dark:text-gray-400">No data for table.</p>;
       }
 
-      const headers = Object.keys(parsedData[0]);
+      const headers = Object.keys(tableData[0]);
 
       return (
         <div className="overflow-x-auto">
@@ -38,7 +45,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {parsedData.map((row: Record<string, string | number | boolean | null | undefined>, rowIndex: number) => (
+              {tableData.map((row: Record<string, string | number | boolean | null | undefined>, rowIndex: number) => (
                 <tr key={rowIndex}>
                   {headers.map((header, colIndex) => (
                     <td

@@ -24,10 +24,16 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
 
     if (tableDataItem) {
       try {
-        const tableData = JSON.parse(tableDataItem.data);
+        let tableData = JSON.parse(tableDataItem.data);
+
+        // Handle single object
+        if (!Array.isArray(tableData) && typeof tableData === 'object' && tableData !== null) {
+          tableData = [tableData];
+        }
+
         if (Array.isArray(tableData) && tableData.length > 0) {
           const headers = Object.keys(tableData[0]).join('\t');
-          const rows = tableData.map(row => 
+          const rows = tableData.map((row: any) =>
             Object.values(row).map(String).join('\t')
           );
           const textToCopy = [headers, ...rows].join('\n');
@@ -54,11 +60,17 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
 
     if (tableDataItem) {
       try {
-        const tableData = JSON.parse(tableDataItem.data);
+        let tableData = JSON.parse(tableDataItem.data);
+
+        // Handle single object
+        if (!Array.isArray(tableData) && typeof tableData === 'object' && tableData !== null) {
+          tableData = [tableData];
+        }
+
         if (Array.isArray(tableData) && tableData.length > 0) {
           const headers = Object.keys(tableData[0]).join(',');
-          const rows = tableData.map(row => 
-            Object.values(row).map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')
+          const rows = tableData.map((row: any) =>
+            Object.values(row).map((val: any) => `"${String(val).replace(/"/g, '""')}"`).join(',')
           );
           const csvContent = [headers, ...rows].join('\n');
 
