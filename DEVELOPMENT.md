@@ -6,7 +6,7 @@ This guide explains how to set up and develop Paracore locally. The project uses
 
 ## Release History
 
-### **v1.1.0 (Current)** - *The Developer Productivity Update*
+### **v1.1.1 (Current)** - *The Developer Productivity Update*
 
 #### **Core Features & Improvements**
 - **🚀 Live Parameter Sync**: Paracore now automatically re-extracts script parameters and metadata when the app window gains focus. **No more manual app refreshes** (right-click -> refresh) needed to see code changes. Just edit in VS Code and switch back to Paracore for an instant, seamless update.

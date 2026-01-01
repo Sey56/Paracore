@@ -197,7 +197,7 @@ export const TopBar: React.FC = () => {
           <div className="space-y-2 pt-2">
             <div className="flex justify-between">
               <span className="font-medium text-gray-700 dark:text-gray-300">Version:</span>
-              <span className="text-gray-600 dark:text-gray-400">1.1.0</span>
+              <span className="text-gray-600 dark:text-gray-400">1.1.1</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium text-gray-700 dark:text-gray-300">Developer:</span>

@@ -9,6 +9,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # --- Configuration ---
+
+# --- Auto-Sync Version ---
+$SyncScript = Join-Path (Get-Location) "scripts" "Set-Version.ps1"
+if (Test-Path $SyncScript) { & $SyncScript }
+
 $ProjectRoot = Get-Location
 $webDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-web'
 $distDir = "rap-server-dist" # Define distDir at a higher scope
@@ -265,7 +270,7 @@ Write-Host "Installer output will be placed in: $finalInstallDir" -ForegroundCol
 Write-Host "`n[2/2] Copying Tauri MSI to installers folder..."
 
 $buildMode = if ($Release) { 'release' } else { 'debug' }
-$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\$buildMode\bundle\msi\Paracore_1.1.0_x64_en-US.msi"
+$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\$buildMode\bundle\msi\Paracore_1.1.1_x64_en-US.msi"
 
 $tauriMsiDestination = Join-Path -Path $finalInstallDir -ChildPath 'Paracore_Installer.msi'
 Copy-Item -Path $tauriMsiSource -Destination $tauriMsiDestination -Force

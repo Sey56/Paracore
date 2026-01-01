@@ -316,8 +316,40 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         // If we reused passed parameters, they are already processed.
         // If we fetched from API, we need to map them.
         if (canReusePassedParameters) {
-          console.log(`[ScriptExecutionProvider] Reusing passed parameters for ${script.name} (${paramsResult.parameters?.length} params, first param has ${paramsResult.parameters?.[0]?.options?.length || 0} options)`);
-          finalParameters = paramsResult.parameters;
+          console.log(`[ScriptExecutionProvider] Smart Merging parameters for ${script.name}`);
+          const currentParams = userEditedScriptParameters[script.id] || [];
+
+          finalParameters = (paramsResult.parameters as ScriptParameter[]).map(newParam => {
+            const existingParam = currentParams.find(p => p.name === newParam.name);
+
+            if (existingParam) {
+              // SMART MERGE LOGIC:
+              // If the user's current value in the UI matches the OLD default, 
+              // then we assume they haven't "intended" to override it forever,
+              // and we update it to the NEW default from the code.
+              // If the value is different (dirty), we keep the user's value.
+
+              const isValueAtOldDefault = existingParam.value === existingParam.defaultValue;
+
+              if (isValueAtOldDefault) {
+                // User hasn't touched it (it's at default), so sync to new default
+                return {
+                  ...newParam,
+                  value: newParam.defaultValue // Use the new default as the current value
+                };
+              } else {
+                // User has explicitly overridden this value, preserve it.
+                // But update metadata (min/max/options) from the new param.
+                return {
+                  ...newParam,
+                  value: existingParam.value
+                };
+              }
+            }
+
+            // New parameter added to script
+            return newParam;
+          });
         } else {
           console.log(`[ScriptExecutionProvider] Mapping fresh parameters for ${script.name} from API.`);
           finalParameters = (paramsResult.parameters as RawScriptParameterData[]).map((p: RawScriptParameterData) => {

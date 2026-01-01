@@ -291,9 +291,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
                 ...transformed.metadata,
                 // Prioritize new metadata but keep things that might be missing in list view (like usage examples if they aren't in list)
               },
-              parameters: existing.parameters && existing.parameters.length > 0
-                ? existing.parameters
-                : transformed.parameters
+              parameters: (transformed.parameters && transformed.parameters.length > 0)
+                ? transformed.parameters
+                : (existing.parameters && existing.parameters.length > 0 ? existing.parameters : [])
             };
           }
           return transformed;
