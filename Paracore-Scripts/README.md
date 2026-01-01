@@ -1,102 +1,220 @@
-# Paracore Starter Scripts
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode } from '@fortawesome/free-solid-svg-icons';
+import { useUI } from '@/hooks/useUI';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
+import { useTheme } from '@/context/ThemeContext';
+import { useNotifications } from '@/hooks/useNotifications';
 
-Paracore is a developer-first automation platform for Autodesk Revit.  
-These starter scripts demonstrate how to automate Revit using raw C# Revit API code.
+import { useAuth } from '@/hooks/useAuth';
+import { useScripts } from '@/hooks/useScripts';
+import React, { useState, useRef, useEffect } from 'react';
+import { UserMenu } from './UserMenu';
+import { Workspace } from '@/types';
+import { Modal } from '@/components/common/Modal';
+import { shell } from '@tauri-apps/api';
 
----
+export const TopBar: React.FC = () => {
+  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView } = useUI();
+  const { ParacoreConnected, revitStatus } = useRevitStatus();
+  const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
+  const { loadScriptsForFolder, toolLibraryPath } = useScripts();
+  const { showNotification } = useNotifications();
 
-## 🚀 Quick Start (TL;DR)
+  const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const helpDropdownRef = useRef<HTMLDivElement>(null);
+  const [hasGeneratedManifest, setHasGeneratedManifest] = useState(false);
 
-1. Install **Paracore_Revit_Installer.exe** → Open Revit → Toggle **Paracore (ON)** in the Paracore tab.  
-2. Install **Paracore_Installer.msi** → Launch rap-web (Paracore UI, auto-connects to Revit).  
-3. Clone this repo → Add the folder in rap-web's **Local Folders** sidebar.  
-4. Open an empty Revit project → Run scripts from the gallery.  
-5. Experiment safely before applying to real projects.
+  const handleAgentModeClick = async () => {
+    setActiveMainView('agent');
 
----
+    // Trigger manifest generation only once per session when entering Agent Mode
+    if (!hasGeneratedManifest && toolLibraryPath) {
+      try {
+        console.log("Triggering manifest generation...");
+        showNotification("Generating script manifest...", "info");
+        const response = await fetch('http://localhost:8000/api/manifest/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_scripts_path: toolLibraryPath })
+        });
+        const data = await response.json();
+        console.log("Manifest generation triggered successfully.");
+        showNotification(`Script manifest generated successfully! Found ${data.count} scripts.`, "success");
+        setHasGeneratedManifest(true);
+      } catch (error) {
+        console.error("Failed to trigger manifest generation:", error);
+        showNotification("Failed to generate manifest.", "error");
+      }
+    }
+  };
 
-## 📥 Installation
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (helpDropdownRef.current && !helpDropdownRef.current.contains(event.target as Node)) {
+        setIsHelpDropdownOpen(false);
+      }
+    };
 
-Before using the scripts, you need to install Paracore and its Revit add-in.  
-All installers are available on the [Releases page](../../releases).
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
-1. **Download from Releases**  
-   - Paracore_Installer.msi (v1.0.0)  
-   - Paracore.Addin (v1.0.0)  
-   - (Optional) corescript-0.0.1.vsix VSCode extension  
-     → For developers who want to execute code directly from VSCode to Revit.  
-     → rap-web itself does not require this extension.
+  const handleHelpClick = async () => {
+    await shell.open('https://sey56.github.io/paracore-help');
+    setIsHelpDropdownOpen(false);
+  };
 
-2. **Install the Revit Add-in**  
-   - Run `Paracore_Revit_Installer.exe`.  
-   - Open Revit.  
-   - In the **Paracore tab**, toggle **Paracore (ON)**.
+  const handleAboutClick = () => {
+    setIsAboutModalOpen(true);
+    setIsHelpDropdownOpen(false);
+  };
 
-3. **Install rap-web (Paracore UI)**  
-   - Run `Paracore_Installer.msi`.  
-   - At the end of installation, check **Start Paracore**.  
-   - rap-web will launch and immediately connect to the active Revit session (make sure a document is open).
+  const getConnectionStatusText = () => {
+    if (!ParacoreConnected) {
+      return "Paracore Disconnected";
+    }
+    const parts = ["Paracore Connected"];
+    if (revitStatus.version) {
+      parts.push(`Revit ${revitStatus.version}`);
+    }
+    if (revitStatus.document) {
+      parts.push(revitStatus.document);
+    }
+    if (revitStatus.documentType && revitStatus.documentType !== 'None') {
+      parts.push(revitStatus.documentType);
+    }
+    return parts.join(' | ');
+  };
 
----
+  const getConnectionStatusColorClass = () => {
+    if (!ParacoreConnected) {
+      return "bg-red-500";
+    }
+    return "bg-green-500";
+  };
 
-## 📂 Adding Scripts to rap-web
+  return (
+    <div className="bg-white dark:bg-gray-800 shadow-lg p-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center space-x-4">
+        <button onClick={toggleSidebar} className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+          <FontAwesomeIcon icon={faBars} className="text-xl" />
+        </button>
+        <div className="flex items-center space-x-1">
+          <img src="/RAP.png" alt="Paracore Logo" className="h-8 w-auto" />
+          <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">Paracore</h1>
+        </div>
+        <button
+          onClick={toggleTheme}
+          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <FontAwesomeIcon icon={theme === 'dark' ? faSun : faMoon} />
+        </button>
+      </div>
 
-1. In the rap-web UI, click the **hamburger menu** (top left).  
-2. Open the **Sidebar**.  
-3. In the **Local Folders** section, click the **+ button** (Add Folder).  
-4. In the file explorer dialog, select the `Paracore-Scripts` folder you cloned from GitHub.  
-5. The scripts will now appear in the **Script Gallery**.
+      {/* Connection Status - Hidden on mobile, shown on larger screens */}
+      <div className={`hidden md:flex items-center text-sm px-3 py-1.5 rounded-full ${!ParacoreConnected ? "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" : "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"}`}>
+        <span className={`w-2.5 h-2.5 rounded-full ${getConnectionStatusColorClass()} mr-2`}></span>
+        <span className="font-medium">{getConnectionStatusText()}</span>
+      </div>
 
----
+      <div className="flex items-center space-x-2">
+        {/* Agent/Automation Toggle */}
+        <button
+          onClick={() => setActiveMainView('scripts')}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'scripts' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          title="Automation Mode"
+        >
+          <FontAwesomeIcon icon={faRectangleList} />
+        </button>
+        <button
+          onClick={() => {
+            if (activeTeam && activeTeam.team_id !== 0) setActiveMainView('generation');
+          }}
+          disabled={!activeTeam || activeTeam.team_id === 0}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'generation' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "AI Script Generation (Enterprise Feature)" : "Generation Mode"}
+        >
+          <FontAwesomeIcon icon={faCode} />
+        </button>
+        <button
+          onClick={() => {
+            if (activeTeam && activeTeam.team_id !== 0) handleAgentModeClick();
+          }}
+          disabled={!activeTeam || activeTeam.team_id === 0}
+          className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "Agentic Mode (Enterprise Feature)" : "Agent Mode"}
+        >
+          <FontAwesomeIcon icon={faRobot} />
+        </button>
 
-## 🧪 First Steps
+        <div className="action-icons flex items-center space-x-2 border-r border-gray-200 dark:border-gray-700 pr-4">
+          <div className="relative" ref={helpDropdownRef}>
+            <button
+              onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <FontAwesomeIcon icon={faQuestionCircle} />
+            </button>
+            {isHelpDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg z-10 py-1">
+                <button
+                  onClick={handleHelpClick}
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 w-full text-left"
+                >
+                  Help
+                </button>
+                <button
+                  onClick={handleAboutClick}
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 w-full text-left"
+                >
+                  About
+                </button>
+              </div>
+            )}
+          </div>
+          {activeTeam && activeTeam.team_id !== 0 && (
+            <button onClick={openSettingsModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+              <FontAwesomeIcon icon={faCog} />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center space-x-2 pl-2">
+          <UserMenu user={user} onLogin={login} onLoginLocal={loginLocal} onLogout={logout} />
+        </div>
+      </div>
 
-- Open an **empty Revit project** before experimenting with scripts.  
-- This ensures you can safely test automation without affecting a real project.  
-- Once comfortable, apply scripts to production projects.
-
----
-
-## 📜 Scripts Included
-
-All scripts appear as ScriptCards in the rap-web gallery.
-
-### 🔹 Single-file scripts
-- **Create_Wall.cs** → Build a wall with parameters for level, length, and height.  
-- **DeleteAllWalls.cs** → Remove all walls in the current project.  
-- **ListWallTypes.cs / ListWallSweepTypes.cs / ListWallSweepProfiles.cs** → Enumerate wall types and profiles.  
-- **SelectAndZoom.cs** → Select elements and zoom the view.  
-- **Wall_Geometry_Editor.cs** → Edit wall geometry interactively.
-
-### 🔹 Multi-file scripts (modularized)
-- **Create_Walls/** → Multi-file script for modular wall creation.  
-- **Create_Spiral_Wall/** → Multi-file script for spiral wall generation.  
-
-👉 Multi-file scripts are treated as single ScriptCards. The engine automatically resolves references, so you can run them just like single-file scripts.
-
-### 🔹 Generated scripts
-- **GeneratedScriptOne.cs / GeneratedScriptTwo.cs** → ai generated scripts.
-
----
-
-## 📎 Downloads
-
-- Installers and add-ins are available on the [Releases page](../../releases).  
-
----
-
-## 🎯 Why Paracore?
-
-- Write raw C# Revit API scripts in VSCode — battle-tested, robust.  
-- Execute instantly — scripts run directly in Revit.  
-- Generate complex automation with clarity and control.  
-- Modularize scripts easily — Paracore handles multi-file dependencies automatically.  
-
----
-
-## 📺 Demo Video
-
-Watch the 30-second promo on YouTube:  
-[Paracore Promo — Automate Revit with Raw C# Scripts]https://youtu.be/Q-PtjA_aSe4
-
----
+      {/* About Modal */}
+      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="About Paracore" size="sm">
+        <div className="p-6 space-y-4 text-sm">
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Paracore</h2>
+            <p className="text-gray-600 dark:text-gray-400">Revit Automation Platform</p>
+          </div>
+          <div className="space-y-2 pt-2">
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Version:</span>
+              <span className="text-gray-600 dark:text-gray-400">$1$1$1$1$1$11.1.1</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Developer:</span>
+              <span className="text-gray-600 dark:text-gray-400">$1$1$1$1$1$11.1.1</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Contact:</span>
+              <span className="text-gray-600 dark:text-gray-400">$1$1$1$1$1$11.1.1</span>
+            </div>
+          </div>
+          <div className="pt-4 text-center">
+            <a href="https://sey56.github.io/paracore-help" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+              Online Documentation
+            </a>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};

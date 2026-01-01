@@ -6,6 +6,14 @@ $ErrorActionPreference = 'Stop'
 # --- Configuration ---
 $ProjectRoot = Get-Location
 
+# --- Auto-Sync Version ---
+$SyncScript = Join-Path $ProjectRoot "scripts" "Set-Version.ps1"
+if (Test-Path $SyncScript) {
+    & $SyncScript
+} else {
+    Write-Warning "Set-Version.ps1 not found, skipping auto-sync."
+}
+
 # --- Banner ---
 Write-Host '=================================' -ForegroundColor Cyan
 Write-Host '   Building Paracore Addin Installer   '

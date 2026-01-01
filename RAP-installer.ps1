@@ -9,14 +9,25 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # --- Configuration ---
-
-# --- Auto-Sync Version ---
-$SyncScript = Join-Path (Get-Location) "scripts" "Set-Version.ps1"
-if (Test-Path $SyncScript) { & $SyncScript }
-
 $ProjectRoot = Get-Location
 $webDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-web'
 $distDir = "rap-server-dist" # Define distDir at a higher scope
+
+# --- Auto-Sync Version ---
+$VersionFile = Join-Path $ProjectRoot "VERSION"
+if (-not (Test-Path $VersionFile)) {
+    Write-Error "CRITICAL: VERSION file not found at $VersionFile"
+    exit 1
+}
+$Version = (Get-Content $VersionFile).Trim()
+$SyncScript = Join-Path $ProjectRoot "scripts" "Set-Version.ps1"
+
+if (Test-Path $SyncScript) {
+    Write-Host "Syncing versions to $Version..." -ForegroundColor Cyan
+    & $SyncScript
+} else {
+    Write-Warning "Set-Version.ps1 not found, skipping auto-sync."
+}
 
 # --- Banner ---
 Write-Host '=================================' -ForegroundColor Cyan
@@ -270,7 +281,7 @@ Write-Host "Installer output will be placed in: $finalInstallDir" -ForegroundCol
 Write-Host "`n[2/2] Copying Tauri MSI to installers folder..."
 
 $buildMode = if ($Release) { 'release' } else { 'debug' }
-$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\$buildMode\bundle\msi\Paracore_1.1.1_x64_en-US.msi"
+$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\$buildMode\bundle\msi\Paracore_$($Version)_x64_en-US.msi"
 
 $tauriMsiDestination = Join-Path -Path $finalInstallDir -ChildPath 'Paracore_Installer.msi'
 Copy-Item -Path $tauriMsiSource -Destination $tauriMsiDestination -Force

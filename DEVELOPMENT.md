@@ -1,281 +1,220 @@
-# Development Guide
-
-This guide explains how to set up and develop Paracore locally. The project uses a non-traditional development workflow optimized for rapid iteration by an architect-developer.
-
----
-
-## Release History
-
-### **v1.1.1 (Current)** - *The Developer Productivity Update*
-
-#### **Core Features & Improvements**
-- **🚀 Live Parameter Sync**: Paracore now automatically re-extracts script parameters and metadata when the app window gains focus. **No more manual app refreshes** (right-click -> refresh) needed to see code changes. Just edit in VS Code and switch back to Paracore for an instant, seamless update.
-- **🪄 "Magic" Revit Lookups**: Refined the `[RevitElements]` attribute for seamless automatic Revit data population. Decoupled it from `[ScriptParameter]` to keep general data types simple and clean.
-- **🔄 Robust Lifecycle Management**: The Script Inspector now clears instantly when a script source is removed, preventing "ghost" parameters from lingering.
-- **🔎 Enhanced Extraction Engine**: Updated the C# engine to support parameter injection into class properties and improved detection of entry points in multi-file scripts.
-- **⚡ QoL & UI Refinements**:
-  - **Auto-Selection**: New scripts are automatically highlighted in the gallery upon creation.
-  - **Manual Refresh**: Added a button to force a full metadata rescan when needed.
-  - **High-Performance Parsing**: Parsing now uses file timestamps to only re-extract when changes are detected.
-  - **Table Improvements**: Fixed `Show("table", ...)` for single objects and improved CSV export reliability.
-- **🛡️ Security & Branding**:
-  - **Access Gating**: Added `ALLOWED_EMAILS` environment variable support to the Auth Server for private beta control.
-  - **Final Rebranding**: Transitioned all remaining legacy "RServer" terms to **Paracore Server** across the Revit Add-in and Desktop UI.
-- **🚀 Connection & Performance**:
-  - **Singleton gRPC Channel**: Optimized the Python backend to use a single persistent connection to Revit, significantly improving resource efficiency by eliminating the overhead of frequent connection cycling.
-- **💻 Developer Experience**:
-  - **IntelliSense Fixes**: Relaxed strict .NET 8 SDK dependencies and enabled full Analyzer support in ephemeral workspaces. Unused `using` statements now correctly appear as warnings in VS Code.
-
----
-
-
-## Prerequisites
-
-- **Revit 2025+** (for testing the add-in)
-- **.NET 8 SDK** (for C# projects)
-- **Node.js 18+** and **npm** (for the web UI)
-- **uv** (Python package manager - [install here](https://github.com/astral-sh/uv))
-  - **Note:** `uv` will automatically download and install Python 3.12+ if not already present
-- **Rust** (for Tauri desktop app)
-- **Git Bash** (for building the VS Code extension)
-- **PowerShell 7+** (for installer scripts)
-- **Inno Setup** (for creating Windows installers - [download here](https://jrsoftware.org/isdl.php))
-
-> **Note:** The AI Script Generation and Agentic Automation features are **proof-of-concept**. They are client-side implementations where users provide their own API keys. See [CLOUD_FEATURES.md](CLOUD_FEATURES.md) for details.
-
-## Project Structure
-
-```
-Paracore/
-├── rap-server/          # Python backend (FastAPI)
-├── rap-web/             # React + TypeScript + Tauri desktop app
-├── Paracore.Addin/      # C# Revit add-in
-├── CoreScript.Engine/   # C# scripting engine
-├── corescript-vscode/   # VS Code extension
-└── rap-auth-server/     # Cloud authentication service (optional)
-```
-
----
-
-## Development Workflow
-
-### 1. Running the Backend Server (rap-server)
-
-The backend server mediates between the rap-web UI and the Revit add-in.
-
-```bash
-# Navigate to the server directory
-cd rap-server/server
-
-# Activate the uv virtual environment
-./.venv/Scripts/activate
-
-# Run the server with auto-reload
-uvicorn main:app --reload
-```
-
-**Server will be available at:** `http://127.0.0.1:8000`
-
-#### Setting up the environment (first time):
-
-```bash
-cd rap-server/server
-uv sync
-```
-
-> **Note:** Use `uv add` instead of `uv pip install` to ensure dependencies are registered in `pyproject.toml`.
-
----
-
-### 2. Running rap-web (Paracore UI)
-
-The desktop application built with React, TypeScript, and Tauri.
-
-```bash
-# Navigate to the web directory
-cd rap-web
-
-# Run in development mode
-npm run tauri dev
-```
-
-This starts the Tauri app with hot-reload enabled.
-
----
-
-### 3. Building the Revit Add-in Installer
-
-The Revit add-in hosts the gRPC server inside Revit.
-
-```bash
-# From the Paracore root directory
-./Paracore-installer.ps1
-```
-
-**Output:** `installers/Paracore_Revit_Installer.exe`
-
-**Install it in Revit**, then start the Paracore server (sometimes called RServer in documentation).
-
----
-
-### 4. Building the Full Paracore Installer (Release)
-
-This compiles the complete Paracore desktop application package, which manages the lifecycle of the rap-server.
-
-```bash
-# From the Paracore root directory
-./RAP-installer.ps1 -Release
-```
-
-This builds:
-- The React + TypeScript + Tauri app
-- Bundles the rap-server (Python backend)
-- Creates a standalone installer
-
----
-
-### 5. Building the VS Code Extension (corescript-vscode)
-
-The VS Code extension enables script execution directly from VS Code without installing the Paracore UI.
-
-```bash
-# From the Paracore root directory (using Git Bash)
-./build_extension.sh
-```
-
-This script:
-- Builds the extension
-- Packages it as a `.vsix`
-- Uninstalls the old version from VS Code (if present)
-- Reinstalls the new version
-
----
-
-## Testing the Full Stack
-
-1. **Install the Revit Add-in** (using `Paracore-installer.ps1`)
-2. **Start Revit** and verify the Paracore add-in is loaded
-3. **Run the backend server** (`uvicorn main:app --reload`)
-4. **Run the rap-web UI** (`npm run tauri dev`)
-5. **Test automation** by creating and executing a script
-
----
-
-## Cloud Features (Optional)
-
-### rap-auth-server
-
-### rap-auth-server
-
-The cloud authentication service enables:
-- **User Authentication** (Google OAuth2)
-- **Team Management** (Inviting members, assigning roles)
-- **Workspace Registration** (Defining Git repositories for teams)
-
-> **⚠️ Advanced Configuration:** This component is optional. Most developers can work entirely in **Offline Mode** without setting up this server. Only deploy this if you need multi-user team management or want to enable the AI features that are gated by authentication.
-
-> **Note:** AI Script Generation and Agentic Automation are **not** hosted by rap-auth-server. They are client-side features where the user provides their own API keys (e.g., Google Gemini) or connects to other providers. They do not require the cloud auth server to function in a local context, but team-based features do.
-
-**Setup:**
-
-1. Deploy `rap-auth-server` to Railway or similar hosting
-2. Set environment variables (see `rap-auth-server/server/.env.example`)
-3. Configure Google OAuth credentials
-4. Generate JWT keys: `python generate_keys.py`
-
-**Current Status:**
-- ✅ **Core Automation:** Complete and production-ready
-- ⚠️ **AI Script Generation:** Works with free Gemini API only
-- ⚠️ **Agentic Automation:** Functional but needs further development (uses LangGraph, HITL modal, script selection)
-
----
-
-## Development Philosophy
-
-This project follows a development philosophy focused on rapid iteration and practical utility:
-
-- **Rapid iteration** over formal testing
-- **AI-assisted coding** (using tools like Gemini)
-- **Practical workflows** optimized for AEC professionals
-- **Minimal boilerplate** and ceremony
-
-**What's NOT included (yet):**
-- Unit tests
-- CI/CD pipelines
-- Formal code reviews
-- Strict coding standards
-
-**Contributions are welcome!** If you're a professional developer, feel free to fork and add these practices.
-
----
-
-## Common Development Tasks
-
-### Adding a Python Dependency
-
-```bash
-cd rap-server/server
-./.venv/Scripts/activate
-uv add package-name
-```
-
-### Updating the React UI
-
-```bash
-cd rap-web
-npm install new-package
-# Edit files in src/
-# Changes auto-reload with `npm run tauri dev`
-```
-
-### Modifying the C# Engine
-
-```bash
-# Open the `RAP.sln` file in Visual Studio (not VS Code) to work on the C# solution.
-# This solution includes both `Paracore.Addin` and `CoreScript.Engine`.
-
-# Edit files in CoreScript.Engine/ or Paracore.Addin/
-# Rebuild the add-in installer
-./Paracore-installer.ps1
-# Reinstall in Revit
-```
-
-### Debugging the Agent
-
-The agent code is in `rap-server/server/agent/`:
-- `graph.py` - LangGraph workflow
-- `tools.py` - Available tools (script discovery, execution)
-- `state.py` - Agent state schema
-
----
-
-## Troubleshooting
-
-### "Module not found" in Python
-- Make sure you're in the activated virtual environment
-- Use `uv add` instead of `pip install`
-
-### Tauri build fails
-- Check Rust is installed: `rustc --version`
-- Clear cache: `cd rap-web/src-tauri && cargo clean`
-
-### Revit add-in not loading
-- Check Revit version compatibility (.NET 8)
-- Verify `.addin` manifest is in the correct folder
-- Check Revit's add-in manager for errors
-
----
-
-## Next Steps for Contributors
-
-If you want to improve the development workflow:
-
-1. **Add unit tests** (pytest for Python, Jest for TypeScript, xUnit for C#)
-2. **Set up CI/CD** (GitHub Actions for automated builds)
-3. **Add linting** (ESLint, Pylint, Roslyn analyzers)
-4. **Improve error handling** (better logging, user-friendly error messages)
-5. **Optimize build scripts** (faster compilation, smaller bundles)
-
----
-
-**Questions?** Open an issue on GitHub or email: codarch46@gmail.com
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode } from '@fortawesome/free-solid-svg-icons';
+import { useUI } from '@/hooks/useUI';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
+import { useTheme } from '@/context/ThemeContext';
+import { useNotifications } from '@/hooks/useNotifications';
+
+import { useAuth } from '@/hooks/useAuth';
+import { useScripts } from '@/hooks/useScripts';
+import React, { useState, useRef, useEffect } from 'react';
+import { UserMenu } from './UserMenu';
+import { Workspace } from '@/types';
+import { Modal } from '@/components/common/Modal';
+import { shell } from '@tauri-apps/api';
+
+export const TopBar: React.FC = () => {
+  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView } = useUI();
+  const { ParacoreConnected, revitStatus } = useRevitStatus();
+  const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
+  const { loadScriptsForFolder, toolLibraryPath } = useScripts();
+  const { showNotification } = useNotifications();
+
+  const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const helpDropdownRef = useRef<HTMLDivElement>(null);
+  const [hasGeneratedManifest, setHasGeneratedManifest] = useState(false);
+
+  const handleAgentModeClick = async () => {
+    setActiveMainView('agent');
+
+    // Trigger manifest generation only once per session when entering Agent Mode
+    if (!hasGeneratedManifest && toolLibraryPath) {
+      try {
+        console.log("Triggering manifest generation...");
+        showNotification("Generating script manifest...", "info");
+        const response = await fetch('http://localhost:8000/api/manifest/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_scripts_path: toolLibraryPath })
+        });
+        const data = await response.json();
+        console.log("Manifest generation triggered successfully.");
+        showNotification(`Script manifest generated successfully! Found ${data.count} scripts.`, "success");
+        setHasGeneratedManifest(true);
+      } catch (error) {
+        console.error("Failed to trigger manifest generation:", error);
+        showNotification("Failed to generate manifest.", "error");
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (helpDropdownRef.current && !helpDropdownRef.current.contains(event.target as Node)) {
+        setIsHelpDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleHelpClick = async () => {
+    await shell.open('https://sey56.github.io/paracore-help');
+    setIsHelpDropdownOpen(false);
+  };
+
+  const handleAboutClick = () => {
+    setIsAboutModalOpen(true);
+    setIsHelpDropdownOpen(false);
+  };
+
+  const getConnectionStatusText = () => {
+    if (!ParacoreConnected) {
+      return "Paracore Disconnected";
+    }
+    const parts = ["Paracore Connected"];
+    if (revitStatus.version) {
+      parts.push(`Revit ${revitStatus.version}`);
+    }
+    if (revitStatus.document) {
+      parts.push(revitStatus.document);
+    }
+    if (revitStatus.documentType && revitStatus.documentType !== 'None') {
+      parts.push(revitStatus.documentType);
+    }
+    return parts.join(' | ');
+  };
+
+  const getConnectionStatusColorClass = () => {
+    if (!ParacoreConnected) {
+      return "bg-red-500";
+    }
+    return "bg-green-500";
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 shadow-lg p-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center space-x-4">
+        <button onClick={toggleSidebar} className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+          <FontAwesomeIcon icon={faBars} className="text-xl" />
+        </button>
+        <div className="flex items-center space-x-1">
+          <img src="/RAP.png" alt="Paracore Logo" className="h-8 w-auto" />
+          <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">Paracore</h1>
+        </div>
+        <button
+          onClick={toggleTheme}
+          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <FontAwesomeIcon icon={theme === 'dark' ? faSun : faMoon} />
+        </button>
+      </div>
+
+      {/* Connection Status - Hidden on mobile, shown on larger screens */}
+      <div className={`hidden md:flex items-center text-sm px-3 py-1.5 rounded-full ${!ParacoreConnected ? "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" : "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"}`}>
+        <span className={`w-2.5 h-2.5 rounded-full ${getConnectionStatusColorClass()} mr-2`}></span>
+        <span className="font-medium">{getConnectionStatusText()}</span>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        {/* Agent/Automation Toggle */}
+        <button
+          onClick={() => setActiveMainView('scripts')}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'scripts' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          title="Automation Mode"
+        >
+          <FontAwesomeIcon icon={faRectangleList} />
+        </button>
+        <button
+          onClick={() => {
+            if (activeTeam && activeTeam.team_id !== 0) setActiveMainView('generation');
+          }}
+          disabled={!activeTeam || activeTeam.team_id === 0}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'generation' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "AI Script Generation (Enterprise Feature)" : "Generation Mode"}
+        >
+          <FontAwesomeIcon icon={faCode} />
+        </button>
+        <button
+          onClick={() => {
+            if (activeTeam && activeTeam.team_id !== 0) handleAgentModeClick();
+          }}
+          disabled={!activeTeam || activeTeam.team_id === 0}
+          className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "Agentic Mode (Enterprise Feature)" : "Agent Mode"}
+        >
+          <FontAwesomeIcon icon={faRobot} />
+        </button>
+
+        <div className="action-icons flex items-center space-x-2 border-r border-gray-200 dark:border-gray-700 pr-4">
+          <div className="relative" ref={helpDropdownRef}>
+            <button
+              onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <FontAwesomeIcon icon={faQuestionCircle} />
+            </button>
+            {isHelpDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg z-10 py-1">
+                <button
+                  onClick={handleHelpClick}
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 w-full text-left"
+                >
+                  Help
+                </button>
+                <button
+                  onClick={handleAboutClick}
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 w-full text-left"
+                >
+                  About
+                </button>
+              </div>
+            )}
+          </div>
+          {activeTeam && activeTeam.team_id !== 0 && (
+            <button onClick={openSettingsModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+              <FontAwesomeIcon icon={faCog} />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center space-x-2 pl-2">
+          <UserMenu user={user} onLogin={login} onLoginLocal={loginLocal} onLogout={logout} />
+        </div>
+      </div>
+
+      {/* About Modal */}
+      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="About Paracore" size="sm">
+        <div className="p-6 space-y-4 text-sm">
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Paracore</h2>
+            <p className="text-gray-600 dark:text-gray-400">Revit Automation Platform</p>
+          </div>
+          <div className="space-y-2 pt-2">
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Version:</span>
+              <span className="text-gray-600 dark:text-gray-400">$1$1$1$1$1$11.1.1</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Developer:</span>
+              <span className="text-gray-600 dark:text-gray-400">$1$1$1$1$1$11.1.1</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700 dark:text-gray-300">Contact:</span>
+              <span className="text-gray-600 dark:text-gray-400">$1$1$1$1$1$11.1.1</span>
+            </div>
+          </div>
+          <div className="pt-4 text-center">
+            <a href="https://sey56.github.io/paracore-help" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+              Online Documentation
+            </a>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};

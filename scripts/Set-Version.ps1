@@ -84,7 +84,7 @@ foreach ($file in $IssFiles) {
 $TopBarPath = Join-Path $RootDir "rap-web/src/components/layout/TopBar/TopBar.tsx"
 if (Test-Path $TopBarPath) {
     $content = Get-Content $TopBarPath -Raw
-    $newContent = $content -replace '<span className="text-gray-600 dark:text-gray-400">[^<]+</span>', "<span className=`"text-gray-600 dark:text-gray-400`">$Version</span>"
+    $newContent = $content -replace '(<span[^>]*>Version:</span>\s*)<span[^>]*>[^<]+</span>', "`$1<span className=`"text-gray-600 dark:text-gray-400`">$Version</span>"
     $newContent | Set-Content $TopBarPath -NoNewline
     Write-Host "Updated TopBar.tsx"
 }
