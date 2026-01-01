@@ -280,8 +280,32 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const memoizedUser = React.useMemo(() => user, [user]);
 
+  const contextValue = React.useMemo(() => ({
+    isAuthenticated,
+    user: memoizedUser,
+    cloudToken,
+    localToken,
+    login,
+    loginLocal,
+    logout,
+    sessionStartTime,
+    activeTeam,
+    activeRole
+  }), [
+    isAuthenticated,
+    memoizedUser,
+    cloudToken,
+    localToken,
+    login,
+    loginLocal,
+    logout,
+    sessionStartTime,
+    activeTeam,
+    activeRole
+  ]);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user: memoizedUser, cloudToken, localToken, login, loginLocal, logout, sessionStartTime, activeTeam, activeRole }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
       {pendingUser && (
         <TeamSelectionModal

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ScriptContext, ScriptContextProps } from './ScriptContext';
-import type { Script, RawScriptFromApi } from '@/types/scriptModel';
+import type { Script, RawScriptFromApi, ScriptParameter, RawScriptParameterData } from '@/types/scriptModel';
 import { Workspace } from '@/types/index';
 import { useNotifications } from '@/hooks/useNotifications';
 import api from '@/api/axios';
@@ -14,6 +14,7 @@ import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
 
 import { getTeamWorkspaces, registerWorkspace, deleteRegisteredWorkspace, updateRegisteredWorkspace } from '@/api/rapAuthApiClient';
+import { Role } from '@/context/authTypes';
 
 interface ApiError {
   response?: {
@@ -26,12 +27,18 @@ interface ApiError {
 export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const { activeScriptSource, setActiveScriptSource } = useUI();
-  const { user, isAuthenticated, activeTeam, cloudToken } = useAuth();
+  const { user, isAuthenticated, activeTeam, activeRole, cloudToken } = useAuth();
   const rapServerUrl = useRapServerUrl();
   const { userWorkspacePaths, isLoaded: userWorkspacesLoaded } = useUserWorkspaces();
 
   const [scripts, setScripts] = useState<Script[]>([]);
-  const [allScripts, setAllScripts] = useState<Script[]>([]);
+  const scriptsRef = useRef<Script[]>([]);
+
+  // Keep scriptsRef in sync with scripts state
+  useEffect(() => {
+    scriptsRef.current = scripts;
+  }, [scripts]);
+
   // Use useLocalStorage to persist custom folders across restarts
   const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>('rap_customScriptFolders', []);
 
@@ -126,6 +133,15 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     return activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
   }, [activeTeam, teamWorkspaces]);
 
+  const canUseLocalFolders = useMemo(() => {
+    if (!user || !activeTeam) return false;
+    // Admins can always use local folders
+    if (activeRole === Role.Admin) return true;
+    // In Personal Team, everyone is implicitly an admin or it's their personal space
+    if (activeTeam.owner_id === Number(user.id)) return true;
+    return false;
+  }, [user, activeTeam, activeRole]);
+
   const ignorePersistRef = useRef(false);
 
   useEffect(() => {
@@ -145,13 +161,18 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const key = `rap_lastActiveSource_${activeTeam.team_id}`;
+      // Rule: Only persist/store local folders if role allows it
       if (activeScriptSource) {
-        localStorage.setItem(key, JSON.stringify(activeScriptSource));
+        if (activeScriptSource.type === 'local' && !canUseLocalFolders) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, JSON.stringify(activeScriptSource));
+        }
       } else {
         localStorage.removeItem(key);
       }
     }
-  }, [activeTeam, activeScriptSource]);
+  }, [activeTeam, activeScriptSource, canUseLocalFolders]);
 
   // Restore activeScriptSource when activeTeam changes (and no source is selected yet)
   useEffect(() => {
@@ -164,18 +185,14 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
           const parsed = JSON.parse(saved);
           if (parsed.type === 'workspace') {
             // Validate that the workspace still exists in our local paths
-            // Note: parsed.id is a string based on usage in Sidebar/UIContext
             if (userWorkspacePaths[parsed.id]) {
-              console.log(`[ScriptProvider] Restoring active workspace for team ${activeTeam.team_id}:`, parsed);
               setActiveScriptSource(parsed);
             } else {
               console.log(`[ScriptProvider] Stored active workspace ${parsed.id} not found in user paths. Clearing.`);
               localStorage.removeItem(key);
-              // Do not call setActiveScriptSource(null) here as it is already null or controlled by other logic
             }
           } else {
             // For local folders or published scripts, restore directly
-            console.log(`[ScriptProvider] Restoring active source for team ${activeTeam.team_id}:`, parsed);
             setActiveScriptSource(parsed);
           }
         } catch (e) {
@@ -243,21 +260,48 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         setScripts([]);
         return undefined;
       } else {
-        const transformedData: Script[] = data.map((s: RawScriptFromApi) => ({
-          ...s,
-          metadata: {
-            ...s.metadata,
-            documentType: s.metadata.document_type,
-            gitInfo: s.metadata.git_info ? {
-              lastCommitDate: s.metadata.git_info.last_commit_date,
-              lastCommitAuthor: s.metadata.git_info.last_commit_author,
-              lastCommitMessage: s.metadata.git_info.last_commit_message,
-            } : undefined,
-          },
-        }));
+        const currentScripts = scriptsRef.current;
+        const transformedData: Script[] = data.map((s: RawScriptFromApi) => {
+          const normalizedNewId = s.id.replace(/\\/g, '/');
+          const existing = currentScripts.find(es => {
+            const normalizedExistingId = es.id.replace(/\\/g, '/');
+            return normalizedExistingId === normalizedNewId;
+          });
+          const transformed: Script = {
+            ...s,
+            id: normalizedNewId, // Keep IDs normalized
+            metadata: {
+              ...s.metadata,
+              documentType: s.metadata.document_type,
+              gitInfo: s.metadata.git_info ? {
+                lastCommitDate: s.metadata.git_info.last_commit_date,
+                lastCommitAuthor: s.metadata.git_info.last_commit_author,
+                lastCommitMessage: s.metadata.git_info.last_commit_message,
+              } : undefined,
+            },
+          };
+
+          // Merge with existing to preserve parameters and computed metadata
+          if (existing) {
+            return {
+              ...existing,
+              ...transformed,
+              metadata: {
+                ...existing.metadata,
+                ...transformed.metadata,
+                // Prioritize new metadata but keep things that might be missing in list view (like usage examples if they aren't in list)
+              },
+              parameters: existing.parameters && existing.parameters.length > 0
+                ? existing.parameters
+                : transformed.parameters
+            };
+          }
+          return transformed;
+        });
+
         setScripts(transformedData);
         setSelectedFolder(folderPath);
-        showNotification(`Loaded ${transformedData.length} scripts.`, "success");
+        showNotification(`Loaded scripts.`, "success");
         return transformedData;
       }
     } catch (error) {
@@ -274,6 +318,12 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (activeScriptSource) {
       if (activeScriptSource.type === 'local') {
+        // Final safety gate: If source is local but user can't use them, clear it immediately
+        if (!canUseLocalFolders) {
+          console.warn("[ScriptProvider] Attempted to load local folder for restricted role. Clearing source.");
+          setActiveScriptSource(null);
+          return;
+        }
         path_to_load = activeScriptSource.path;
       } else if (activeScriptSource.type === 'workspace') {
         path_to_load = userWorkspacePaths[Number(activeScriptSource.id)]?.path;
@@ -287,7 +337,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       setScripts([]);
       setSelectedFolder(null);
     }
-  }, [activeScriptSource, loadScriptsFromPath, setSelectedFolder, userWorkspacePaths, showNotification]);
+  }, [activeScriptSource, loadScriptsFromPath, setSelectedFolder, userWorkspacePaths, showNotification, canUseLocalFolders, setActiveScriptSource]);
 
   const { ParacoreConnected } = useRevitStatus();
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>('agentScriptsPath', null);
@@ -579,9 +629,106 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [activeTeam, cloudToken, currentTeamWorkspaces, userWorkspacePaths, showNotification, activeScriptSource, currentDisplayPath, loadScriptsFromPath, rapServerUrl]);
 
-  const contextValue: ScriptContextProps = {
+  const reloadScript = useCallback(async (script: Script, options?: { silent?: boolean }) => {
+    const isSilent = options?.silent ?? false;
+    try {
+      if (!isSilent) {
+        showNotification(`Reloading ${script.name}...`, "info");
+      }
+
+      const [metadataResponse, paramsResponse] = await Promise.all([
+        api.post("/api/script-metadata", {
+          scriptPath: script.absolutePath,
+          type: script.type
+        }),
+        api.post("/api/get-script-parameters", {
+          scriptPath: script.absolutePath,
+          type: script.type
+        }).catch(err => ({ data: { parameters: [] as RawScriptParameterData[], error: err.message } })) // Gracefully handle param errors
+      ]);
+
+      const metadata = metadataResponse.data.metadata;
+      const rawParams = (paramsResponse.data.parameters || []) as RawScriptParameterData[];
+
+      const updateLogic = (s: Script) => {
+        const normalizedSid = s.id.replace(/\\/g, '/');
+        const normalizedTargetId = script.id.replace(/\\/g, '/');
+
+        if (normalizedSid !== normalizedTargetId) return s;
+
+        console.log(`[ScriptProvider] Reloading script ${s.name}. Current parameters count: ${s.parameters?.length || 0}`);
+
+        // Map raw parameters and preserve existing options/values
+        const mergedParameters: ScriptParameter[] = rawParams.map((p) => {
+          let defaultValue: string | number | boolean = p.defaultValueJson;
+          try {
+            defaultValue = JSON.parse(p.defaultValueJson);
+          } catch { /* Ignore if not JSON */ }
+          if (p.type === 'number' && typeof defaultValue === 'string') defaultValue = parseFloat(defaultValue) || 0;
+          else if (p.type === 'boolean' && typeof defaultValue === 'string') defaultValue = defaultValue.toLowerCase() === 'true';
+
+          const existingParam = s.parameters?.find(ep => ep.name === p.name && ep.type === p.type);
+
+          if (existingParam?.options && existingParam.options.length > 0) {
+            console.log(`[ScriptProvider] Preserving ${existingParam.options.length} options for parameter: ${p.name}`);
+          }
+
+          return {
+            ...(existingParam || {} as ScriptParameter),
+            ...p,
+            type: p.type as ScriptParameter['type'],
+            value: existingParam ? existingParam.value : defaultValue,
+            defaultValue: defaultValue,
+            // Preserve dynamic UI state
+            inputType: (existingParam?.inputType && existingParam.inputType !== 'String')
+              ? existingParam.inputType
+              : p.inputType,
+            options: (existingParam?.options && existingParam.options.length > 0)
+              ? existingParam.options
+              : ((p as any).options || [])
+          };
+        });
+
+        return {
+          ...s,
+          metadata: {
+            ...s.metadata,
+            documentType: metadata.document_type ?? 'Any',
+            description: metadata.description ?? '',
+            author: metadata.author ?? '',
+            website: metadata.website ?? '',
+            categories: metadata.categories ?? [],
+            usage_examples: metadata.usage_examples ?? [],
+            dependencies: metadata.dependencies ?? [],
+            displayName: metadata.displayName ?? metadata.name ?? s.metadata?.displayName ?? s.name,
+            dateCreated: metadata.dateCreated ?? s.metadata?.dateCreated,
+            dateModified: metadata.dateModified ?? s.metadata?.dateModified,
+            lastRun: s.metadata?.lastRun,
+            gitInfo: metadata.git_info ? {
+              lastCommitDate: metadata.git_info.last_commit_date,
+              lastCommitAuthor: metadata.git_info.last_commit_author,
+              lastCommitMessage: metadata.git_info.last_commit_message,
+            } : s.metadata?.gitInfo
+          },
+          parameters: mergedParameters
+        };
+      };
+
+      setScripts(prevScripts => prevScripts.map(updateLogic));
+
+      if (!isSilent) {
+        showNotification(`Reloaded ${script.name}.`, "success");
+      }
+    } catch (error) {
+      console.error(`Failed to reload script ${script.name}:`, error);
+      if (!isSilent) {
+        showNotification(`Failed to reload script: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+      }
+    }
+  }, [showNotification, setScripts]);
+
+  const contextValue: ScriptContextProps = useMemo(() => ({
     scripts: scriptsWithFavorites,
-    allScripts: allScripts,
     customScriptFolders: customScriptFolders,
     teamWorkspaces,
     selectedFolder,
@@ -605,58 +752,44 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     setCombinedScriptContent,
     clearScriptsForWorkspace,
     clearScripts,
-
-    reloadScript: useCallback(async (script: Script, options?: { silent?: boolean }) => {
-      const isSilent = options?.silent ?? false;
-      try {
-        if (!isSilent) {
-          showNotification(`Reloading ${script.name}...`, "info");
-        }
-
-        const response = await api.post("/api/script-metadata", {
-          scriptPath: script.absolutePath,
-          type: script.type
-        });
-
-        const metadata = response.data.metadata;
-
-        const updateLogic = (s: Script) =>
-          s.id === script.id
-            ? {
-              ...s,
-              metadata: {
-                ...s.metadata,
-                ...metadata,
-                documentType: metadata.document_type || s.metadata?.documentType,
-                gitInfo: metadata.git_info ? {
-                  lastCommitDate: metadata.git_info.last_commit_date,
-                  lastCommitAuthor: metadata.git_info.last_commit_author,
-                  lastCommitMessage: metadata.git_info.last_commit_message,
-                } : s.metadata?.gitInfo
-              }
-            }
-            : s;
-
-        setScripts(prevScripts => prevScripts.map(updateLogic));
-        setAllScripts(prevScripts => prevScripts.map(updateLogic));
-
-        if (!isSilent) {
-          showNotification(`Reloaded ${script.name}.`, "success");
-        }
-      } catch (error) {
-        console.error(`Failed to reload script ${script.name}:`, error);
-        if (!isSilent) {
-          showNotification(`Failed to reload script: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
-        }
-      }
-    }, [showNotification]),
-
+    reloadScript,
     pullAllTeamWorkspaces,
     pullWorkspace,
     fetchTeamWorkspaces,
     toolLibraryPath: toolLibraryPath,
     setToolLibraryPath: setToolLibraryPath,
-  };
+  }), [
+    scriptsWithFavorites,
+    customScriptFolders,
+    teamWorkspaces,
+    selectedFolder,
+    favoriteScripts,
+    recentScriptsData,
+    combinedScriptContent,
+    toggleFavoriteScript,
+    addRecentScript,
+    updateScriptLastRunTime,
+    addCustomScriptFolder,
+    removeCustomScriptFolder,
+    addTeamWorkspace,
+    removeTeamWorkspace,
+    updateTeamWorkspace,
+    loadScriptsFromPath,
+    createNewScript,
+    clearFavoriteScripts,
+    clearRecentScripts,
+    fetchScriptMetadata,
+    setScripts,
+    setCombinedScriptContent,
+    clearScriptsForWorkspace,
+    clearScripts,
+    reloadScript,
+    pullAllTeamWorkspaces,
+    pullWorkspace,
+    fetchTeamWorkspaces,
+    toolLibraryPath,
+    setToolLibraryPath
+  ]);
 
   return (
     <ScriptContext.Provider value={contextValue}>{children}</ScriptContext.Provider>

@@ -4,7 +4,6 @@ import { Workspace } from '@/types/index'; // Corrected import path
 
 export interface ScriptContextProps {
   scripts: Script[];
-  allScripts: Script[];
   customScriptFolders: string[]; // This is the current user's folders
 
 

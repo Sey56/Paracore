@@ -129,7 +129,7 @@ import { useRevitStatus } from '@/hooks/useRevitStatus';
 export const ScriptGallery: React.FC = () => {
   const { revitStatus, ParacoreConnected } = useRevitStatus();
   const isParacoreDisconnected = !ParacoreConnected;
-  const { scripts, allScripts, selectedFolder, teamWorkspaces, loadScriptsForFolder, reloadScript } = useScripts();
+  const { scripts, selectedFolder, teamWorkspaces, loadScriptsForFolder, reloadScript } = useScripts();
   const { selectedCategory, customCategories, setInspectorOpen, openNewScriptModal, closeNewScriptModal, isNewScriptModalOpen, activeScriptSource } = useUI();
   const { setSelectedScript, selectedScript } = useScriptExecution();
   const { isAuthenticated, activeRole, activeTeam, user } = useAuth();
@@ -414,14 +414,13 @@ export const ScriptGallery: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => {
-                    if (selectedScript) {
-                      reloadScript(selectedScript);
-                    } else if (activeScriptSource && 'path' in activeScriptSource && activeScriptSource.path) {
-                      loadScriptsForFolder(activeScriptSource.path);
+                    const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
+                    if (path) {
+                      loadScriptsForFolder(path);
                     }
                   }}
                   className="p-1 px-2 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded-md hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
-                  title={selectedScript ? `Reload ${selectedScript.name}` : "Refresh scripts in this folder"}
+                  title="Rescan folder for new/deleted scripts"
                   disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
                 >
                   <FontAwesomeIcon icon={faSync} />

@@ -4,7 +4,6 @@ import { Workspace } from '@/types/index'; // Import Workspace type
 
 export interface ScriptContextProps {
   scripts: Script[];
-  allScripts: Script[]; // For global search
   customScriptFolders: string[];
   selectedFolder: string | null;
   favoriteScripts: string[];

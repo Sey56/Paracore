@@ -90,10 +90,10 @@ namespace CoreScript.Engine.Core
 
         private void ProcessVariableDeclaration(VariableDeclarationSyntax declaration, IEnumerable<AttributeSyntax> attributes, SyntaxTriviaList triviaList, List<ScriptParameter> parameters)
         {
-            var parameterAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("ScriptParameter") || a.Name.ToString().Contains("Parameter"));
+            var parameterAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("ScriptParameter"));
             var revitElementsAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("RevitElements"));
             
-            var parameterComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[(Parameter|ScriptParameter)"));
+            var parameterComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[ScriptParameter"));
             var revitElementsComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[RevitElements"));
 
             if (parameterAttribute == null && revitElementsAttribute == null && 
@@ -110,10 +110,10 @@ namespace CoreScript.Engine.Core
 
         private void ProcessPropertyDeclaration(PropertyDeclarationSyntax prop, IEnumerable<AttributeSyntax> attributes, SyntaxTriviaList triviaList, List<ScriptParameter> parameters)
         {
-            var parameterAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("ScriptParameter") || a.Name.ToString().Contains("Parameter"));
+            var parameterAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("ScriptParameter"));
             var revitElementsAttribute = attributes.FirstOrDefault(a => a.Name.ToString().Contains("RevitElements"));
             
-            var parameterComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[(Parameter|ScriptParameter)"));
+            var parameterComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[ScriptParameter"));
             var revitElementsComment = triviaList.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) && Regex.IsMatch(t.ToString(), @"^\s*//\s*\[RevitElements"));
 
             if (parameterAttribute == null && revitElementsAttribute == null && 

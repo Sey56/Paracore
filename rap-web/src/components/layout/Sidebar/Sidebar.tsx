@@ -75,13 +75,6 @@ export const Sidebar = () => {
   const { userWorkspacePaths, setWorkspacePath, removeWorkspacePath } = useUserWorkspaces();
 
   const isPersonalTeamActive = useMemo(() => {
-    console.log("Debug Sidebar Personal Team Check:");
-    console.log("User:", user);
-    console.log("Active Team:", activeTeam);
-    if (user && activeTeam) {
-      console.log("User ID:", user.id, "Number(User ID):", Number(user.id));
-      console.log("Active Team Owner ID:", activeTeam.owner_id);
-    }
     return activeTeam && user && activeTeam.owner_id === Number(user.id);
   }, [activeTeam, user]);
 

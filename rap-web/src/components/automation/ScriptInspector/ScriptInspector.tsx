@@ -9,19 +9,19 @@ import { useAuth } from '@/hooks/useAuth';
 
 export const ScriptInspector: React.FC = () => {
   const { selectedScript, runningScriptPath, setSelectedScript } = useScriptExecution();
-  const { toggleFavoriteScript, allScripts } = useScripts();
+  const { toggleFavoriteScript, scripts } = useScripts();
   const { toggleFloatingCodeViewer, agentSelectedScriptPath } = useUI();
   const { revitStatus } = useRevitStatus(); // Get Revit status
   const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
-    if (agentSelectedScriptPath && allScripts.length > 0) {
-      const script = allScripts.find(s => s.absolutePath === agentSelectedScriptPath);
+    if (agentSelectedScriptPath && scripts.length > 0) {
+      const script = scripts.find(s => s.absolutePath === agentSelectedScriptPath || s.id === agentSelectedScriptPath);
       if (script) {
         setSelectedScript(script, 'agent');
       }
     }
-  }, [agentSelectedScriptPath, allScripts, setSelectedScript]);
+  }, [agentSelectedScriptPath, scripts, setSelectedScript]);
 
   const script = selectedScript;
 
@@ -58,16 +58,16 @@ export const ScriptInspector: React.FC = () => {
       return "You must sign in to use RAP";
     }
     if (!isCompatibleWithDocument) {
-        if (!script) return "";
-        const scriptDocType = script.metadata.documentType?.trim().toLowerCase();
+      if (!script) return "";
+      const scriptDocType = script.metadata.documentType?.trim().toLowerCase();
 
-        if (revitStatus.document === null) {
-          return "No document opened in Revit";
-        }
+      if (revitStatus.document === null) {
+        return "No document opened in Revit";
+      }
 
-        if (scriptDocType && scriptDocType !== 'any') {
-          return `This script requires '${script.metadata.documentType}' document type, but the current is '${revitStatus.documentType || "None"}'`;
-        }
+      if (scriptDocType && scriptDocType !== 'any') {
+        return `This script requires '${script.metadata.documentType}' document type, but the current is '${revitStatus.documentType || "None"}'`;
+      }
     }
     return "";
   };
@@ -76,8 +76,8 @@ export const ScriptInspector: React.FC = () => {
 
   const handleToggleFavorite = (scriptId: string) => {
     toggleFavoriteScript(scriptId);
-    // Find the updated script from the allScripts array and set it as selected
-    const updatedScript = allScripts.find(s => s.id === scriptId);
+    // Find the updated script from the scripts array and set it as selected
+    const updatedScript = scripts.find(s => s.id === scriptId);
     if (updatedScript) {
       setSelectedScript(updatedScript);
     }

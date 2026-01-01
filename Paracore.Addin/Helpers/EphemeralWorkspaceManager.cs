@@ -210,7 +210,7 @@ namespace Paracore.Addin.Helpers
             var newTokenSource = new CancellationTokenSource();
             _debounceTokens[sourcePath] = newTokenSource;
 
-            Task.Delay(200, newTokenSource.Token).ContinueWith(t =>
+            Task.Delay(50, newTokenSource.Token).ContinueWith(t =>
             {
                 if (t.IsCanceled) return;
                 
@@ -231,9 +231,9 @@ namespace Paracore.Addin.Helpers
                     {
                         if (File.Exists(sourcePath))
                         {
-                            // VSCode sometimes writes an empty file first
-                            if (new FileInfo(sourcePath).Length == 0) continue;
-
+                            // VSCode sometimes writes an empty file first, but our 200ms debounce handles that.
+                            // We MUST allow 0-byte files for intentional clearing.
+                            
                             File.Copy(sourcePath, targetPath, true);
                             FileLogger.Log($"Synced changes to: {targetPath}");
                             ScriptChanged?.Invoke(targetPath);

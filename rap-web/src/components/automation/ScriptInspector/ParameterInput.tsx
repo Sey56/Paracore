@@ -16,8 +16,6 @@ interface ParameterInputProps {
 export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, isComputing, disabled }) => {
   // Helper to parse multi-select value safely
   const getMultiSelectValues = (): string[] => {
-    // ... (unchanged logic)
-    console.log(`DEBUG: MultiSelect value for '${param.name}':`, param.value, `(type: ${typeof param.value})`);
     try {
       if (Array.isArray(param.value)) return param.value;
       if (typeof param.value === 'string') {
@@ -55,7 +53,6 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   };
 
   const renderInput = () => {
-    console.log(`[DEBUG ParameterInput] Rendering '${param.name}': inputType='${param.inputType}', type='${param.type}'`);
     // Case 0: File/Folder Picker (Native Dialog)
     if (param.inputType === 'File' || param.inputType === 'Folder' || param.inputType === 'SaveFile') {
       return (

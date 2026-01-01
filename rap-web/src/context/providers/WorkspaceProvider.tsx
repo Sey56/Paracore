@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cloneWorkspace as cloneWorkspaceApi, CloneWorkspacePayload } from '@/api/workspaces';
@@ -58,16 +58,16 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       if (message && message === "workspace exists in path, loading it...") {
         showNotification(message, "info");
         const newWorkspace: Workspace = {
-            id: workspace_id,
-            name: payload.repo_url.split('/').pop()?.replace('.git', '') || 'New Workspace',
-            repo_url: payload.repo_url,
+          id: workspace_id,
+          name: payload.repo_url.split('/').pop()?.replace('.git', '') || 'New Workspace',
+          repo_url: payload.repo_url,
         };
         setWorkspaces((prev) => {
-            const updatedWorkspaces = [...prev, newWorkspace];
-            if (prev.length === 0) {
-                setActiveWorkspaceId(newWorkspace.id);
-            }
-            return updatedWorkspaces;
+          const updatedWorkspaces = [...prev, newWorkspace];
+          if (prev.length === 0) {
+            setActiveWorkspaceId(newWorkspace.id);
+          }
+          return updatedWorkspaces;
         });
         return;
       }
@@ -111,14 +111,21 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     ? workspaces.find(ws => ws.id === activeWorkspaceId) || null
     : null;
 
-  const contextValue = {
+  const contextValue = useMemo(() => ({
     workspaces,
     activeWorkspace,
     cloneAndAddWorkspace,
     removeWorkspace,
     setActiveWorkspaceId,
     clearActiveWorkspace,
-  };
+  }), [
+    workspaces,
+    activeWorkspace,
+    cloneAndAddWorkspace,
+    removeWorkspace,
+    setActiveWorkspaceId,
+    clearActiveWorkspace,
+  ]);
 
   return (
     <WorkspaceContext.Provider value={contextValue}>

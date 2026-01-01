@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -74,51 +74,49 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   // Main View Toggle
   const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'generation'>('scripts'); // Default to 'scripts'
 
-  // Effect to initialize activeScriptSource from localStorage and validate it
-  useEffect(() => {
-    if (!userWorkspacesLoaded || !user) return; // Wait for user workspaces to load and user to be available
+  const openSettingsModal = useCallback(() => setSettingsModalOpen(true), []);
+  const closeSettingsModal = useCallback(() => setSettingsModalOpen(false), []);
 
-    const storedSource = localStorage.getItem("activeScriptSource");
-    if (storedSource) {
-      try {
-        const parsedSource = JSON.parse(storedSource) as ActiveScriptSource;
-        if (parsedSource?.type === 'workspace') {
-          // Validate if the stored workspace is actually set up for the current user
-          const localPathForStoredWorkspace = userWorkspacePaths[parsedSource.id];
-          if (localPathForStoredWorkspace && localPathForStoredWorkspace.path === parsedSource.path) {
-            setActiveScriptSource(parsedSource);
-          } else {
-            // Stored workspace is not set up for this user, or path is inconsistent
-            localStorage.removeItem("activeScriptSource"); // Clear invalid entry
-            setActiveScriptSource(null);
-          }
-        } else if (parsedSource?.type === 'local') {
-          // For local folders, we don't have userWorkspacePaths to validate against
-          // We assume local folders are user-specific via ScriptProvider's useLocalStorage
-          // For now, just set it if it's a local type
-          setActiveScriptSource(parsedSource);
-        } else {
-          setActiveScriptSource(parsedSource);
-        }
-      } catch (e) {
-        console.error("Failed to parse activeScriptSource from localStorage", e);
-        setActiveScriptSource(null);
-      }
+  const openNewScriptModal = useCallback(() => setIsNewScriptModalOpen(true), []);
+  const closeNewScriptModal = useCallback(() => setIsNewScriptModalOpen(false), []);
+
+  const openTeamManagementModal = useCallback(() => setIsTeamManagementModalOpen(true), []);
+  const closeTeamManagementModal = useCallback(() => setIsTeamManagementModalOpen(false), []);
+
+  const openFloatingCodeViewer = useCallback(() => setFloatingCodeViewerOpen(true), []);
+  const closeFloatingCodeViewer = useCallback(() => setFloatingCodeViewerOpen(false), []);
+  const toggleFloatingCodeViewer = useCallback(() => setFloatingCodeViewerOpen(prev => !prev), []);
+
+  const addCustomCategory = useCallback((categoryName: string) => {
+    if (!customCategories.includes(categoryName)) {
+      const newCategories = [...customCategories, categoryName];
+      setCustomCategories(newCategories);
+      localStorage.setItem("customCategories", JSON.stringify(newCategories));
+      showNotification(`Added custom category: ${categoryName}.`, "success");
+    } else {
+      showNotification(`Category already exists: ${categoryName}.`, "info");
     }
-  }, [user, userWorkspacesLoaded, userWorkspacePaths]); // Re-run when user or userWorkspaces change
+  }, [customCategories, showNotification]);
 
-  const openSettingsModal = () => setSettingsModalOpen(true);
-  const closeSettingsModal = () => setSettingsModalOpen(false);
+  const removeCustomCategory = useCallback((categoryName: string) => {
+    if (selectedCategory === categoryName) {
+      setSelectedCategory(null);
+    }
+    const newCategories = customCategories.filter(
+      (category) => category !== categoryName
+    );
+    setCustomCategories(newCategories);
+    localStorage.setItem("customCategories", JSON.stringify(newCategories));
+    showNotification(`Removed custom category: ${categoryName}.`, "info");
+  }, [customCategories, selectedCategory, showNotification]);
 
-  const openNewScriptModal = () => setIsNewScriptModalOpen(true);
-  const closeNewScriptModal = () => setIsNewScriptModalOpen(false);
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => !prev);
+  }, []);
 
-  const openTeamManagementModal = () => setIsTeamManagementModalOpen(true);
-  const closeTeamManagementModal = () => setIsTeamManagementModalOpen(false);
-
-  const openFloatingCodeViewer = () => setFloatingCodeViewerOpen(true);
-  const closeFloatingCodeViewer = () => setFloatingCodeViewerOpen(false);
-  const toggleFloatingCodeViewer = () => setFloatingCodeViewerOpen(prev => !prev);
+  const toggleInspector = useCallback(() => {
+    setInspectorOpen((prev) => !prev);
+  }, []);
 
   // Effect to load custom categories
   useEffect(() => {
@@ -148,39 +146,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [activeScriptSource]);
 
-
-  const addCustomCategory = (categoryName: string) => {
-    if (!customCategories.includes(categoryName)) {
-      const newCategories = [...customCategories, categoryName];
-      setCustomCategories(newCategories);
-      localStorage.setItem("customCategories", JSON.stringify(newCategories));
-      showNotification(`Added custom category: ${categoryName}.`, "success");
-    } else {
-      showNotification(`Category already exists: ${categoryName}.`, "info");
-    }
-  };
-
-  const removeCustomCategory = (categoryName: string) => {
-    if (selectedCategory === categoryName) {
-      setSelectedCategory(null);
-    }
-    const newCategories = customCategories.filter(
-      (category) => category !== categoryName
-    );
-    setCustomCategories(newCategories);
-    localStorage.setItem("customCategories", JSON.stringify(newCategories));
-    showNotification(`Removed custom category: ${categoryName}.`, "info");
-  };
-
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen((prev) => !prev);
-  }, []);
-
-  const toggleInspector = useCallback(() => {
-    setInspectorOpen((prev) => !prev);
-  }, []);
-
-  const contextValue = {
+  const contextValue = useMemo(() => ({
     isSidebarOpen,
     toggleSidebar,
     setSidebarOpen,
@@ -226,7 +192,37 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     setAgentSelectedScriptPath,
     activeMainView,
     setActiveMainView,
-  };
+  }), [
+    isSidebarOpen,
+    toggleSidebar,
+    isInspectorOpen,
+    toggleInspector,
+    activeInspectorTab,
+    selectedCategory,
+    customCategories,
+    addCustomCategory,
+    removeCustomCategory,
+    isSettingsModalOpen,
+    openSettingsModal,
+    closeSettingsModal,
+    isTeamManagementModalOpen,
+    openTeamManagementModal,
+    closeTeamManagementModal,
+    isNewScriptModalOpen,
+    openNewScriptModal,
+    closeNewScriptModal,
+    isFloatingCodeViewerOpen,
+    openFloatingCodeViewer,
+    closeFloatingCodeViewer,
+    toggleFloatingCodeViewer,
+    activeScriptSource,
+    messages,
+    threadId,
+    isAwaitingApproval,
+    pendingToolCall,
+    agentSelectedScriptPath,
+    activeMainView,
+  ]);
 
   return (
     <UIContext.Provider value={contextValue}>{children}</UIContext.Provider>

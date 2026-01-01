@@ -93,10 +93,22 @@ def get_script_metadata(script_files):
         request = corescript_pb2.GetScriptMetadataRequest(script_files=grpc_script_files)
         response = stub.GetScriptMetadata(request)
     
-    metadata_dict = json_format.MessageToDict(
-        response.metadata, 
-        preserving_proto_field_name=True
-    )
+    # Manually construct the dictionary to ensure empty fields are included (Proto3 omits them by default in MessageToDict)
+    # and to avoid version-specific keyword arguments errors.
+    m = response.metadata
+    metadata_dict = {
+        "name": m.name,
+        "file_path": m.file_path,
+        "script_type": m.script_type,
+        "description": m.description,
+        "author": m.author,
+        "categories": list(m.categories),
+        "dependencies": list(m.dependencies),
+        "document_type": m.document_type,
+        "usage_examples": list(m.usage_examples),
+        "website": m.website,
+        "last_run": m.last_run
+    }
 
     return {
         "metadata": metadata_dict,

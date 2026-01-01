@@ -44,7 +44,7 @@ UsageExamples:
 - "Run script"
 */
 
-// [Parameter]
+// [ScriptParameter]
 string targetName = "Paracore";
 
 // Use Println with string interpolation ($"...") for clear output
@@ -251,7 +251,22 @@ async def get_script_metadata_endpoint(request: Request):
         if not script_files:
             raise HTTPException(status_code=404, detail="No script files found.")
 
-        response = get_script_metadata(script_files)
+        if not script_files:
+            raise HTTPException(status_code=404, detail="No script files found.")
+
+        # Handle empty script content gracefully
+        has_content = any(f["content"].strip() for f in script_files)
+        if not has_content:
+             # Basic default metadata for empty file
+             metadata = {
+                 "displayName": os.path.basename(absolute_path),
+                 "description": "",
+                 "dependencies": [],
+                 "parameters": [] 
+             }
+             response = {"metadata": metadata}
+        else:
+            response = get_script_metadata(script_files)
         
         # ADDED: Include file stats for refresh detection
         file_stat = os.stat(absolute_path)
@@ -298,7 +313,15 @@ async def get_script_parameters_endpoint(request: Request):
         if not script_files:
             raise HTTPException(status_code=404, detail="No script files found.")
 
-        response = get_script_parameters(script_files)
+        if not script_files:
+            raise HTTPException(status_code=404, detail="No script files found.")
+
+        # Handle empty script content gracefully
+        has_content = any(f["content"].strip() for f in script_files)
+        if not has_content:
+            response = {"parameters": []}
+        else:
+            response = get_script_parameters(script_files)
         return JSONResponse(content=response)
         
     except FileNotFoundError as e:
