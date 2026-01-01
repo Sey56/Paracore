@@ -83,7 +83,7 @@ async def create_new_script(request: NewScriptRequest, current_user: CurrentUser
         try:
             with open(new_script_path, 'w', encoding='utf-8') as f:
                 f.write(CSHARP_TEMPLATE)
-            return {"message": f"Successfully created script: {script_name}"}
+            return {"message": f"Successfully created script: {script_name}", "script_path": new_script_path}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to create script file: {e}")
 
@@ -108,7 +108,8 @@ async def create_new_script(request: NewScriptRequest, current_user: CurrentUser
             os.makedirs(new_folder_path)
             with open(new_script_path, 'w', encoding='utf-8') as f:
                 f.write(CSHARP_TEMPLATE)
-            return {"message": f"Successfully created multi-script project: {request.folder_name}/{script_name}"}
+            # For multi-script, the ID/path represented in the gallery is typically the folder path
+            return {"message": f"Successfully created multi-script project: {request.folder_name}/{script_name}", "script_path": new_folder_path}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to create multi-script project: {e}")
 
@@ -251,6 +252,16 @@ async def get_script_metadata_endpoint(request: Request):
             raise HTTPException(status_code=404, detail="No script files found.")
 
         response = get_script_metadata(script_files)
+        
+        # ADDED: Include file stats for refresh detection
+        file_stat = os.stat(absolute_path)
+        date_created = datetime.fromtimestamp(file_stat.st_ctime).isoformat()
+        date_modified = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+        
+        if "metadata" in response:
+            response["metadata"]["dateCreated"] = date_created
+            response["metadata"]["dateModified"] = date_modified
+            
         return JSONResponse(content=response)
         
     except FileNotFoundError as e:

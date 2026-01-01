@@ -8,23 +8,45 @@ from google.protobuf import json_format
 
 import json
 
+# Global channel variable
+_channel = None
+
+def init_channel():
+    """Initializes the global gRPC channel."""
+    global _channel
+    if _channel is None:
+        grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
+        logging.info(f"Initializing gRPC channel to {grpc_server_address}")
+        _channel = grpc.insecure_channel(grpc_server_address)
+
+def close_channel():
+    """Closes the global gRPC channel."""
+    global _channel
+    if _channel:
+        logging.info("Closing gRPC channel")
+        _channel.close()
+        _channel = None
+
 @contextmanager
 def get_corescript_runner_stub():
-    """Provides a gRPC stub within a managed context."""
-    channel = None
+    """Provides a gRPC stub using the global singleton channel."""
+    global _channel
+    # Fallback if channel wasn't initialized (e.g. running outside main app)
+    local_channel = None
+    
     try:
-        grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
-        # logging.info(f"Attempting to connect to gRPC server at: {grpc_server_address}")
-        channel = grpc.insecure_channel(grpc_server_address)
-        stub = corescript_pb2_grpc.CoreScriptRunnerStub(channel)
-        # logging.info("gRPC channel and stub created successfully.")
-        yield stub
-    except Exception as e:
-        logging.error(f"Failed to create gRPC channel or stub: {e}")
-        raise # Re-raise the exception
+        if _channel is None:
+            logging.warning("Global gRPC channel not initialized. Creating temporary channel.")
+            grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
+            local_channel = grpc.insecure_channel(grpc_server_address)
+            stub = corescript_pb2_grpc.CoreScriptRunnerStub(local_channel)
+            yield stub
+        else:
+            stub = corescript_pb2_grpc.CoreScriptRunnerStub(_channel)
+            yield stub
     finally:
-        if channel:
-            channel.close()
+        if local_channel:
+            local_channel.close()
 
 def get_status():
     # logging.info("Attempting to get gRPC server status.")

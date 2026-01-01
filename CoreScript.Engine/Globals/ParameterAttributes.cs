@@ -22,6 +22,7 @@ namespace CoreScript.Engine.Globals
             string VisibleWhen = "",
             string Group = "",
             bool Computable = false,
+            bool Fetch = false, // Alias for Computable
             string InputType = "") 
         { 
         }
@@ -36,7 +37,14 @@ namespace CoreScript.Engine.Globals
         public RevitElementsAttribute() { }
         
         // Constructor with optional parameters to support [RevitElements(Type: "Wall", Category: "Walls")]
-        public RevitElementsAttribute(string Type = "", string Category = "", bool MultiSelect = false, string Group = "", string Description = "") 
+        public RevitElementsAttribute(
+            string Type = "", 
+            string Category = "", 
+            bool MultiSelect = false, 
+            string Group = "", 
+            string Description = "",
+            bool Computable = false,
+            bool Fetch = false) 
         { 
         }
     }

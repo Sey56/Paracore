@@ -2,6 +2,33 @@
 
 This guide explains how to set up and develop Paracore locally. The project uses a non-traditional development workflow optimized for rapid iteration by an architect-developer.
 
+---
+
+## Release History
+
+### **v1.1.0 (Current)** - *The Developer Productivity Update*
+
+#### **Core Features & Improvements**
+- **🚀 Live Parameter Sync**: Paracore now automatically re-extracts script parameters and metadata when the app window gains focus. **No more manual app refreshes** (right-click -> refresh) needed to see code changes. Just edit in VS Code and switch back to Paracore for an instant, seamless update.
+- **🪄 "Magic" Revit Lookups**: Refined the `[RevitElements]` attribute for seamless automatic Revit data population. Decoupled it from `[ScriptParameter]` to keep general data types simple and clean.
+- **🔄 Robust Lifecycle Management**: The Script Inspector now clears instantly when a script source is removed, preventing "ghost" parameters from lingering.
+- **🔎 Enhanced Extraction Engine**: Updated the C# engine to support parameter injection into class properties and improved detection of entry points in multi-file scripts.
+- **⚡ QoL & UI Refinements**:
+  - **Auto-Selection**: New scripts are automatically highlighted in the gallery upon creation.
+  - **Manual Refresh**: Added a button to force a full metadata rescan when needed.
+  - **High-Performance Parsing**: Parsing now uses file timestamps to only re-extract when changes are detected.
+  - **Table Improvements**: Fixed `Show("table", ...)` for single objects and improved CSV export reliability.
+- **🛡️ Security & Branding**:
+  - **Access Gating**: Added `ALLOWED_EMAILS` environment variable support to the Auth Server for private beta control.
+  - **Final Rebranding**: Transitioned all remaining legacy "RServer" terms to **Paracore Server** across the Revit Add-in and Desktop UI.
+- **🚀 Connection & Performance**:
+  - **Singleton gRPC Channel**: Optimized the Python backend to use a single persistent connection to Revit, significantly improving resource efficiency by eliminating the overhead of frequent connection cycling.
+- **💻 Developer Experience**:
+  - **IntelliSense Fixes**: Relaxed strict .NET 8 SDK dependencies and enabled full Analyzer support in ephemeral workspaces. Unused `using` statements now correctly appear as warnings in VS Code.
+
+---
+
+
 ## Prerequisites
 
 - **Revit 2025+** (for testing the add-in)
@@ -165,7 +192,7 @@ The cloud authentication service enables:
 
 ## Development Philosophy
 
-This project follows an **architect-driven development approach**:
+This project follows a development philosophy focused on rapid iteration and practical utility:
 
 - **Rapid iteration** over formal testing
 - **AI-assisted coding** (using tools like Gemini)

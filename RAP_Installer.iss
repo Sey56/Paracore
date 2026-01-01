@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Revit Automation Platform"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Seyoum Hagos"
 #define MyAppExeName "rap-server.exe"
 
@@ -20,10 +20,10 @@ OutputBaseFilename=RAP_Installer
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-VersionInfoVersion=1.0.0
+VersionInfoVersion=1.1.0
 VersionInfoCompany=Paras Codarch
 VersionInfoDescription=Revit Automation Platform. Author: Seyoum Hagos
-VersionInfoTextVersion=1.0.0
+VersionInfoTextVersion=1.1.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

@@ -164,9 +164,12 @@ namespace CoreScript.Engine.Core
                     else if (argName == "Step") { if (arg.Expression is LiteralExpressionSyntax l && l.Token.Value is double dStep) step = dStep; else if (arg.Expression is LiteralExpressionSyntax i && i.Token.Value is int m) step = (double)m; }
                     else if (argName == "Group" && arg.Expression is LiteralExpressionSyntax g) group = g.Token.ValueText;
                     else if (argName == "Computable" && arg.Expression is LiteralExpressionSyntax c && c.Token.Value is bool bVal) requiresCompute = bVal;
+                    else if (argName == "Fetch" && arg.Expression is LiteralExpressionSyntax f && f.Token.Value is bool fVal) requiresCompute = fVal;
                     else if (argName == "InputType" && arg.Expression is LiteralExpressionSyntax it) inputType = it.Token.ValueText;
                 }
             }
+
+            if (!string.IsNullOrEmpty(revitElementType)) isRevitElement = true;
 
             if (revitAttr != null)
             {
@@ -179,6 +182,8 @@ namespace CoreScript.Engine.Core
                         if (argName == "Type" && arg.Expression is LiteralExpressionSyntax l) revitElementType = l.Token.ValueText;
                         else if (argName == "Category" && arg.Expression is LiteralExpressionSyntax c) revitElementCategory = c.Token.ValueText;
                         else if (argName == "Group" && arg.Expression is LiteralExpressionSyntax g) group = g.Token.ValueText;
+                        else if (argName == "Computable" && arg.Expression is LiteralExpressionSyntax comp && comp.Token.Value is bool b) requiresCompute = b;
+                        else if (argName == "Fetch" && arg.Expression is LiteralExpressionSyntax f && f.Token.Value is bool fv) requiresCompute = fv;
                     }
                 }
             }
@@ -194,6 +199,8 @@ namespace CoreScript.Engine.Core
                 if (meta.TryGetValue("Step", out string st) && double.TryParse(st, out double std)) step = std;
                 if (meta.TryGetValue("Options", out string op)) options = op.Split(',').Select(o => o.Trim()).Where(o => !string.IsNullOrEmpty(o)).ToList();
                 if (meta.TryGetValue("Group", out string gr)) group = gr;
+                if (meta.TryGetValue("Computable", out string cp)) requiresCompute = cp.ToLower() == "true";
+                if (meta.TryGetValue("Fetch", out string ft)) requiresCompute = ft.ToLower() == "true";
             }
 
             if (!string.IsNullOrEmpty(revitComment.ToString()))
@@ -203,6 +210,8 @@ namespace CoreScript.Engine.Core
                 if (meta.TryGetValue("Type", out string ty)) revitElementType = ty;
                 if (meta.TryGetValue("Category", out string ca)) revitElementCategory = ca;
                 if (meta.TryGetValue("Group", out string gr)) group = gr;
+                if (meta.TryGetValue("Computable", out string cp)) requiresCompute = cp.ToLower() == "true";
+                if (meta.TryGetValue("Fetch", out string ft)) requiresCompute = ft.ToLower() == "true";
             }
 
             string defaultValueJson = "";

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useScripts } from '@/hooks/useScripts';
+import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { Modal } from './Modal';
 
 interface NewScriptModalProps {
@@ -12,6 +13,7 @@ type ScriptType = 'single' | 'multi';
 
 export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptModalProps) => {
   const { createNewScript } = useScripts();
+  const { setSelectedScript } = useScriptExecution();
   const [scriptType, setScriptType] = useState<ScriptType>('single');
   const [scriptName, setScriptName] = useState('');
   const [folderName, setFolderName] = useState('');
@@ -45,12 +47,17 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
     setIsLoading(true);
     setError(null);
     try {
-      await createNewScript({
+      const createdScript = await createNewScript({
         parent_folder: selectedFolder,
         script_type: scriptType,
         script_name: scriptName,
         folder_name: scriptType === 'multi' ? folderName : undefined,
       });
+
+      if (createdScript) {
+        setSelectedScript(createdScript);
+      }
+
       onClose();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -78,22 +85,20 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
         <div className="flex rounded-md shadow-sm">
           <button
             type="button"
-            className={`relative inline-flex items-center rounded-l-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium ${
-              scriptType === 'single'
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-            } focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500`}
+            className={`relative inline-flex items-center rounded-l-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium ${scriptType === 'single'
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+              } focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500`}
             onClick={() => setScriptType('single')}
           >
             Single Script
           </button>
           <button
             type="button"
-            className={`relative -ml-px inline-flex items-center rounded-r-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium ${
-              scriptType === 'multi'
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-            } focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500`}
+            className={`relative -ml-px inline-flex items-center rounded-r-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium ${scriptType === 'multi'
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+              } focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500`}
             onClick={() => setScriptType('multi')}
           >
             Multi-script Folder

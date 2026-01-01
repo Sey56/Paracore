@@ -77,10 +77,12 @@ rap-server/*.spec
 # Tauri
 rap-web/src-tauri/target/
 rap-web/src-tauri/gen/
-rap-web/src-tauri/server-release/
-
-# Untracked files
-manifest.json
+rap-web/src-tauri/server-relParacore-Pulse/
+coverage/
+*.xml
+*.json
+!global.json
+!appsettings.json
 package-lock.json
 paracore-help/
 

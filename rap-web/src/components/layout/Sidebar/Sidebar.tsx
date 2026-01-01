@@ -223,6 +223,7 @@ export const Sidebar = () => {
 
       if (activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === workspaceToRemove.id) { // Convert activeScriptSource.id to number
         setActiveScriptSource(null);
+        setSelectedScript(null); // Clear the inspector
         const localPath = userWorkspacePaths[workspaceToRemove.id]?.path; // Get path from userWorkspacePaths
         if (localPath) {
           clearScriptsForWorkspace(localPath);
@@ -458,7 +459,13 @@ export const Sidebar = () => {
               {activeScriptSource?.type === 'local' && (
                 <button
                   className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400"
-                  onClick={() => { if (activeScriptSource.path) { removeCustomScriptFolder(activeScriptSource.path); clearScriptsForWorkspace(activeScriptSource.path); } }}
+                  onClick={() => {
+                    if (activeScriptSource.path) {
+                      removeCustomScriptFolder(activeScriptSource.path);
+                      clearScriptsForWorkspace(activeScriptSource.path);
+                      setSelectedScript(null); // Clear the inspector
+                    }
+                  }}
                   title={`Remove folder ${getFolderNameFromPath(activeScriptSource.path || '')}`}
                 >
                   <FontAwesomeIcon icon={faTrash} className="text-xs" />

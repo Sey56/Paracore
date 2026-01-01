@@ -36,17 +36,19 @@ async def run_script(
         raise HTTPException(status_code=400, detail="No script path provided")
 
     db: Session = next(get_db())
-    
-    # Skip path resolution and DB script creation for generated code
-    if not generated_code:
-        resolved_script_path = resolve_script_path(path)
-        script = get_or_create_script(db, resolved_script_path, current_user.id)
-    else:
-        # For generated code, use a placeholder
-        resolved_script_path = None
-        script = None
+    script = None
+    resolved_script_path = None
 
     try:
+        # Skip path resolution and DB script creation for generated code
+        if not generated_code:
+            resolved_script_path = resolve_script_path(path)
+            script = get_or_create_script(db, resolved_script_path, current_user.id)
+        else:
+            # For generated code, use a placeholder
+            resolved_script_path = None
+            script = None
+
         script_files_payload = []
         
         # Handle generated code (from Generation Mode)
@@ -162,7 +164,9 @@ async def run_script(
             db.add(script_run)
             db.commit()
         
-        if isinstance(e, (FileNotFoundError, grpc.RpcError, HTTPException)):
+        if isinstance(e, FileNotFoundError):
+             raise HTTPException(status_code=404, detail=f"Script file not found at source path: {path}")
+        elif isinstance(e, (grpc.RpcError, HTTPException)):
             raise
         else:
             raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")

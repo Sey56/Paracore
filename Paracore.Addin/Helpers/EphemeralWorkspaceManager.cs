@@ -279,8 +279,8 @@ namespace Paracore.Addin.Helpers
                     <ImplicitUsings>enable</ImplicitUsings>
                     <Nullable>enable</Nullable>
                     <OutputType>Library</OutputType>
-                    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
-                    <RunAnalyzers>false</RunAnalyzers>
+                    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+                    <RunAnalyzers>true</RunAnalyzers>
                   </PropertyGroup>
                   <ItemGroup>
                     <Reference Include="RevitAPI">
@@ -308,7 +308,6 @@ namespace Paracore.Addin.Helpers
             File.WriteAllText(Path.Combine(folderPath, "global.json"),
                 "{\n" +
                 "    \"sdk\": {\n" +
-                "        \"version\": \"8.0.100\",\n" +
                 "        \"rollForward\": \"latestFeature\"\n" +
                 "    }\n" +
                 "}");
@@ -326,7 +325,8 @@ namespace Paracore.Addin.Helpers
         {
             File.WriteAllText(Path.Combine(folderPath, ".editorconfig"),
                 "[*.{cs,vb}]\n" +
-                "dotnet_diagnostic.CA1050.severity = none");
+                "dotnet_diagnostic.CA1050.severity = none\n" +
+                "dotnet_diagnostic.CS8019.severity = warning");
         }
     }
 }

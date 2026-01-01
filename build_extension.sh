@@ -7,6 +7,7 @@ cd corescript-vscode
 
 # 🧪 Package VS Code extension
 echo "📦 Packaging VS Code extension..."
+rm -f corescript-*.vsix
 # The 'yes' command is used to automatically answer 'yes' to any prompts from vsce
 yes | vsce package
 

@@ -32,17 +32,24 @@ from config import settings
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 from agent.graph import close_app
+from grpc_client import init_channel, close_channel
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Handles application startup events.
-    On startup, it creates all database tables.
+    On startup, it creates all database tables and initializes the gRPC channel.
     """
     # Note: In a production environment with Alembic, you might remove this.
     Base.metadata.create_all(bind=engine)
+    
+    # Initialize singleton gRPC channel
+    init_channel()
+    
     yield
+    
     # Shutdown events
+    close_channel()
     await close_app()
 
 app = FastAPI(lifespan=lifespan)

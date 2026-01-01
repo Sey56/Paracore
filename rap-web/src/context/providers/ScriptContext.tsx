@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import React, { createContext } from 'react';
 import type { Script } from '@/types/scriptModel';
 import { Workspace } from '@/types/index'; // Import Workspace type
 
@@ -21,7 +21,7 @@ export interface ScriptContextProps {
     script_type: 'single' | 'multi';
     script_name: string;
     folder_name?: string;
-  }) => Promise<void>;
+  }) => Promise<Script | undefined>;
   clearFavoriteScripts: () => void;
   clearRecentScripts: () => void;
   fetchScriptMetadata: (scriptId: string) => Promise<void>;
@@ -38,6 +38,7 @@ export interface ScriptContextProps {
 
   toolLibraryPath: string | null;
   setToolLibraryPath: (path: string) => void;
+  reloadScript: (script: Script, options?: { silent?: boolean }) => Promise<void>;
   clearScripts: () => void;
 }
 

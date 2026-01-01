@@ -48,7 +48,7 @@ const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter
 
 export const ScriptExecutionProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
-  const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime } = useScripts();
+  const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime, reloadScript } = useScripts();
   const { scripts: allScriptsFromScriptProvider, teamWorkspaces } = useScripts(); // Get all scripts and teamWorkspaces from ScriptProvider
   const { isAuthenticated, activeTeam } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, messages, setActiveMainView, setActiveInspectorTab, threadId } = useUI();
@@ -161,7 +161,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     return { success: true, message: "Preset renamed." };
   };
 
-  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' | 'agent_executed_full_output' = 'user') => {
+  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' = 'user') => {
     console.log(`[setSelectedScript] Called with script:`, script, `source:`, source);
     if (!script) {
       setSelectedScriptState(null);
@@ -172,7 +172,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       return;
     }
 
-    if (script.id === selectedScript?.id) {
+    if (source !== 'refresh' && script.id === selectedScript?.id) {
       if (source === 'agent') {
         // If agent selects the same script, ensure agentSelectedScriptPath is set
         setAgentSelectedScriptPath(script.absolutePath);
@@ -260,8 +260,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     // Original logic for user selection
     setAgentSelectedScriptPath(null); // Clear agent selected path for user interaction
-    // --- NEW LOGIC: Check for cached parameters first ---
-    const cachedParameters = userEditedScriptParameters[script.id];
+
+    // --- NEW LOGIC: Check for cached parameters first (skip on refresh) ---
+    const cachedParameters = source !== 'refresh' ? userEditedScriptParameters[script.id] : null;
     if (cachedParameters) {
       const updatedScript = { ...script, parameters: cachedParameters };
       setSelectedScriptState(updatedScript);
@@ -344,14 +345,45 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, [selectedScript, userEditedScriptParameters, fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath, updateUserEditedParameters]);
 
   // Effect to keep selectedScript in sync with allScriptsFromScriptProvider
+  const lastSeenProviderScriptRef = useRef<Script | null>(null);
+
   useEffect(() => {
     if (selectedScript && allScriptsFromScriptProvider.length > 0) {
       const updatedScript = allScriptsFromScriptProvider.find(s => s.id === selectedScript.id);
-      if (updatedScript && updatedScript.isFavorite !== selectedScript.isFavorite) {
+
+      // If the script object in the provider reference has changed AND metadata has changed (e.g. dateModified), it means a real refresh happened.
+      const hasContentChanged = updatedScript?.metadata?.dateModified !== selectedScript.metadata?.dateModified;
+
+      if (updatedScript && (updatedScript !== lastSeenProviderScriptRef.current || hasContentChanged)) {
+        console.log(`[ScriptExecutionProvider] Reference change detected for ${updatedScript.name}. Syncing...`);
+        lastSeenProviderScriptRef.current = updatedScript;
+
+        // Only trigger a full re-fetch if the file or metadata actually changed
+        if (hasContentChanged) {
+          setSelectedScript(updatedScript, 'refresh');
+        } else {
+          // Just update the reference in state without hitting the server if it's just a React re-render/ref change
+          setSelectedScriptState(updatedScript);
+        }
+      } else if (updatedScript && updatedScript.isFavorite !== selectedScript.isFavorite) {
+        // Fallback for just favorite toggle if ref didn't change (unlikely if provider impl is immutable)
         setSelectedScriptState(updatedScript);
       }
     }
-  }, [allScriptsFromScriptProvider, selectedScript]);
+  }, [allScriptsFromScriptProvider, selectedScript, setSelectedScript]);
+
+  // Effect to restore "Live Parameter Sync" on window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (selectedScript) {
+        console.log(`[ScriptExecutionProvider] Window focused. Checking for updates for ${selectedScript.name}...`);
+        reloadScript(selectedScript, { silent: true });
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [selectedScript, reloadScript]);
 
 
 
@@ -483,8 +515,19 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       } else {
         showNotification(`Script '${script.name}' executed successfully.`, "success");
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "An unknown error occurred.";
+    } catch (err: any) {
+      // Check for Axios error response
+      let message = err.response?.data?.detail || (err instanceof Error ? err.message : "An unknown error occurred.");
+
+      // If detail is an object (common in FastAPI validation errors), stringify it or extract message
+      if (typeof message === 'object') {
+        message = JSON.stringify(message);
+      }
+
+      if (err.response?.status === 404) {
+        message = `Script not found. It may have been deleted or moved. Try refreshing the gallery. (${message})`;
+      }
+
       showNotification(`Failed to execute script: ${message}`, "error");
       setExecutionResult({ output: "", isSuccess: false, error: message });
     } finally {

@@ -186,10 +186,10 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   }, [activeTeam, userWorkspacesLoaded, userWorkspacePaths, activeScriptSource, setActiveScriptSource]);
 
 
-  const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false) => {
+  const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false): Promise<Script[] | undefined> => {
     if (!folderPath) {
       setScripts([]);
-      return;
+      return [];
     }
 
     // If the path is a direct file path, handle it differently
@@ -198,7 +198,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         if (!suppressNotification) {
           showNotification(`Loading script: ${folderPath}...`, "info");
         }
-        // We need to get the metadata for this single script.
+        // We need the get the metadata for this single script.
         const metadataResponse = await api.post("/api/script-metadata", {
           scriptPath: folderPath,
           type: 'single-file', // Assuming agent-selected scripts are single files for now
@@ -220,14 +220,15 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         setScripts([scriptObject]);
         setSelectedFolder(folderPath); // Keep track of the selected file
         showNotification(`Loaded script ${scriptObject.name}.`, "success");
+        return [scriptObject];
 
       } catch (error) {
         console.error(`Failed to fetch metadata for script ${folderPath}:`, error);
         const message = error instanceof Error ? error.message : "Unknown error";
         showNotification(`Failed to fetch metadata: ${message}`, "error");
         setScripts([]);
+        return undefined;
       }
-      return;
     }
 
     // Original logic for handling folder paths
@@ -240,8 +241,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       if (data.error || !Array.isArray(data)) {
         showNotification(`Failed to load scripts: ${data.error || "Invalid data format"}`, "error");
         setScripts([]);
+        return undefined;
       } else {
-        const transformedData = data.map((s: RawScriptFromApi) => ({
+        const transformedData: Script[] = data.map((s: RawScriptFromApi) => ({
           ...s,
           metadata: {
             ...s.metadata,
@@ -256,12 +258,14 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         setScripts(transformedData);
         setSelectedFolder(folderPath);
         showNotification(`Loaded ${transformedData.length} scripts.`, "success");
+        return transformedData;
       }
     } catch (error) {
       console.error(`Failed to fetch scripts from ${folderPath}:`, error);
       const message = error instanceof Error ? error.message : "Unknown error";
       showNotification(`Failed to fetch scripts: ${message}`, "error");
       setScripts([]);
+      return undefined;
     }
   }, [showNotification, setSelectedFolder]);
 
@@ -463,11 +467,20 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     script_type: 'single' | 'multi';
     script_name: string;
     folder_name?: string;
-  }) => {
+  }): Promise<Script | undefined> => {
     try {
       const response = await api.post("/api/scripts/new", details);
       showNotification(response.data.message, "success");
-      await loadScriptsFromPath(details.parent_folder);
+
+      const newScriptPath = response.data.script_path?.replace(/\\/g, '/'); // Normalize path
+
+      const loadedScripts = await loadScriptsFromPath(details.parent_folder);
+
+      if (loadedScripts && newScriptPath) {
+        const newScript = loadedScripts.find(s => s.absolutePath?.replace(/\\/g, '/') === newScriptPath);
+        return newScript;
+      }
+      return undefined;
     } catch (error: unknown) {
       const message = isAxiosErrorWithResponseData(error) ? error.response.data.detail : (error instanceof Error ? error.message : "An unknown error occurred.");
       showNotification(`Failed to create script: ${message}`, "error");
@@ -592,6 +605,52 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     setCombinedScriptContent,
     clearScriptsForWorkspace,
     clearScripts,
+
+    reloadScript: useCallback(async (script: Script, options?: { silent?: boolean }) => {
+      const isSilent = options?.silent ?? false;
+      try {
+        if (!isSilent) {
+          showNotification(`Reloading ${script.name}...`, "info");
+        }
+
+        const response = await api.post("/api/script-metadata", {
+          scriptPath: script.absolutePath,
+          type: script.type
+        });
+
+        const metadata = response.data.metadata;
+
+        const updateLogic = (s: Script) =>
+          s.id === script.id
+            ? {
+              ...s,
+              metadata: {
+                ...s.metadata,
+                ...metadata,
+                documentType: metadata.document_type || s.metadata?.documentType,
+                gitInfo: metadata.git_info ? {
+                  lastCommitDate: metadata.git_info.last_commit_date,
+                  lastCommitAuthor: metadata.git_info.last_commit_author,
+                  lastCommitMessage: metadata.git_info.last_commit_message,
+                } : s.metadata?.gitInfo
+              }
+            }
+            : s;
+
+        setScripts(prevScripts => prevScripts.map(updateLogic));
+        setAllScripts(prevScripts => prevScripts.map(updateLogic));
+
+        if (!isSilent) {
+          showNotification(`Reloaded ${script.name}.`, "success");
+        }
+      } catch (error) {
+        console.error(`Failed to reload script ${script.name}:`, error);
+        if (!isSilent) {
+          showNotification(`Failed to reload script: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+        }
+      }
+    }, [showNotification]),
+
     pullAllTeamWorkspaces,
     pullWorkspace,
     fetchTeamWorkspaces,

@@ -3,7 +3,7 @@ import {
   useState
 } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faSync } from '@fortawesome/free-solid-svg-icons';
 import { ScriptCard } from '../ScriptCard/ScriptCard';
 import { useScripts } from '@/hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
@@ -129,9 +129,9 @@ import { useRevitStatus } from '@/hooks/useRevitStatus';
 export const ScriptGallery: React.FC = () => {
   const { revitStatus, ParacoreConnected } = useRevitStatus();
   const isParacoreDisconnected = !ParacoreConnected;
-  const { scripts, allScripts, selectedFolder, teamWorkspaces } = useScripts();
+  const { scripts, allScripts, selectedFolder, teamWorkspaces, loadScriptsForFolder, reloadScript } = useScripts();
   const { selectedCategory, customCategories, setInspectorOpen, openNewScriptModal, closeNewScriptModal, isNewScriptModalOpen, activeScriptSource } = useUI();
-  const { setSelectedScript } = useScriptExecution();
+  const { setSelectedScript, selectedScript } = useScriptExecution();
   const { isAuthenticated, activeRole, activeTeam, user } = useAuth();
   const isMobile = useBreakpoint();
 
@@ -411,14 +411,30 @@ export const ScriptGallery: React.FC = () => {
               </h2>
             </div>
             {canCreateScripts && (
-              <div className="relative" title={getNewScriptButtonTooltip()}>
+              <div className="flex items-center space-x-2">
                 <button
-                  onClick={handleOpenNewScriptModal}
-                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    if (selectedScript) {
+                      reloadScript(selectedScript);
+                    } else if (activeScriptSource && 'path' in activeScriptSource && activeScriptSource.path) {
+                      loadScriptsForFolder(activeScriptSource.path);
+                    }
+                  }}
+                  className="p-1 px-2 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded-md hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+                  title={selectedScript ? `Reload ${selectedScript.name}` : "Refresh scripts in this folder"}
                   disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
                 >
-                  New Script
+                  <FontAwesomeIcon icon={faSync} />
                 </button>
+                <div className="relative" title={getNewScriptButtonTooltip()}>
+                  <button
+                    onClick={handleOpenNewScriptModal}
+                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
+                  >
+                    New Script
+                  </button>
+                </div>
               </div>
             )}
           </div>
