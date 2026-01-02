@@ -6,37 +6,39 @@
 - Recap of Day 1 & 2: Installation, UI Tour, "HelloWall.cs".
 - **Goal for Today:** Lay the groundwork for real-world automation. Before we start building complex tools, we need to master the Paracore ecosystem and get comfortable with its unique workflow mechanics.
 
-## Scene 2: The "Live Sync" Engine (Metadata & Parameters)
+## Scene 2: The "Smart Sync" Engine (Metadata & Parameters)
 - **Metadata Behavior:** Metadata (Author, Description, etc.) is parsed when the script source is loaded.
-- **Parameter Efficiency:** Parameters are extracted on selection.
-- **The "Live Sync" Workflow:** 
-  - Updates happen automatically when you switch focus back to the Paracore app.
-  - No manual refresh needed! Just add a parameter in VS Code, Alt-Tab back to Paracore, and watch the new input field appear instantly.
-  - This keeps performance high by not spamming the engine while you type.
+- **Parameter Extraction:** Parameters are extracted on selection and cached globally.
+- **The "Smart Sync" Workflow (v1.1.1):** 
+  - **Automatic Background Sync:** Updates happen automatically in the background (every ~5s) while you type in VS Code. You don't even need to change focus! 🚀
+  - **Instant Focus Sync:** If you want an immediate update, simply click anywhere on the Paracore window to trigger a focus-driven rescan.
+  - **Manual Override Protection:** Paracore remembers your UI edits. If you manually change a value, it becomes "dirty" and won't be overwritten by code changes.
+  - **Global Persistence:** Your edits and selected presets are now saved to `localStorage`. They survive app restarts and navigating between scripts.
+  - **Pro Tip: Resetting Parameters:** If you want to force a parameter back to the code's default (clearing your UI override), simply delete the parameter definition in VS Code, wait for Paracore to sync (it will disappear), and then **Undo** in VS Code. It will be treated as a "new" parameter and pick up the fresh defaults! 💡
 
 ## Scene 3: Temporary Workspaces
 - **What are they?** When you click "Edit", Paracore generates a temporary, isolated VS Code workspace. This gives you full IntelliSense without cluttering your main project.
-- **Lifecycle:** These workpsaces are **ephemeral**. They are designed to be thrown away.
-- **Cleanup:** When you close **Revit**, Paracore automatically cleans up all these temporary folders to keep your disk usage low.
+- **Lifecycle:** These workspaces are **ephemeral**. They are designed to be thrown away.
+- **Cleanup:** When you close **Revit**, Paracore automatically cleans up all these temporary folders.
 - **Visuals:** If you keep VS Code open after closing Revit, the files will appear deleted (strikethrough) because the temp folder is gone. This is normal behavior! Just reopen from Paracore next time.
 
-## Scene 4: CoreScript Extension vs. Paracore App
-- **Standalone:** The `corescript-vscode` extension works independently!
-- **Minimal Setup:** You only need the **Revit Add-in** installed for the server. You don't need the full Paracore React app running to execute scripts from VS Code.
+## Scene 4: Standalone vs. App Workflow
+- **VS Code Extension:** works independently! You only need the **Revit Add-in** running.
+- **Paracore App:** Provides the rich UI, parameter sliders, preset management, and collaboration features.
 - **Workspace Differences:** 
-  - **VS Code Extension:** Manages its own workspaces that persist until *you* delete them.
-  - **Paracore App:** Manages ephemeral workspaces that are automatically cleaned up by Revit.
+  - **Extension:** Manages persistent workspaces until manually deleted.
+  - **App:** Manages ephemeral workspaces for quick "edit-and-run" cycles.
 
 ## Scene 5: Blocking Operations
-- **The "Running..." Hang:** Revit is a single-threaded application. If it is busy (e.g., a `TaskDialog` is open, or you are in the middle of drawing a Wall), it acts as a modal block.
-- **Result:** Execution results cannot be sent back to Paracore until the operation finishes. 
-- **Example:** A `TaskDialog.Show()` blocks the script until you click "Close". `Println` statements after it won't appear until unblocked.
+- **The Revit Modal Block:** Revit is single-threaded. If a `TaskDialog` is open, or you are actively drawing/editing an element, the Revit API is "blocked."
+- **Communication Latency:** Execution results can only be sent back once the Revit transaction finishes. 
+- **Pro Tip:** Avoid long-running loops without `Println` feedback, and remember that `TaskDialog.Show()` will pause your script execution entirely until it is closed.
 
 ## Scene 6: The "Zero Setup" Advantage
 Comparing a traditional Revit Add-in vs. Paracore CoreScript.
 
 ### The Traditional Way (SDK Example)
-*Requires: Class Library project, References (RevitAPI.dll), Manifest file (.addin), restarting Revit to load.*
+*Requires: Class Library, DLL References, .addin Manifest, and a Revit Restart.*
 
 ```csharp
 [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
@@ -45,60 +47,34 @@ public class Document_Selection : IExternalCommand
     public Autodesk.Revit.UI.Result Execute(ExternalCommandData commandData,
         ref string message, ElementSet elements)
     {
-        try
-        {
-            // Boilerplate to get document
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
-
-            if (selectedIds.Count == 0)
-            {
-                TaskDialog.Show("Revit", "You haven't selected any elements.");
-            }
-            else
-            {
-                string info = "Ids of selected elements in the document are: ";
-                foreach (ElementId id in selectedIds)
-                {
-                    info += Environment.NewLine + id.Value;
-                }
-                TaskDialog.Show("Revit", info);
-            }
-        }
-        catch (Exception e)
-        {
-            message = e.Message;
-            return Autodesk.Revit.UI.Result.Failed;
-        }
-        return Autodesk.Revit.UI.Result.Succeeded;
+        UIDocument uidoc = commandData.Application.ActiveUIDocument;
+        ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
+        // ... (Lots of boilerplate)
+        return Result.Succeeded;
     }
 }
 ```
 
-### The Paracore Way
-*No setup. No restart. Just write and run.*
+### The Paracore Way (Modern Syntax)
+*No setup. No restart. Immediate Parameter Sync.*
 
 ```csharp
-try
-{
-    // UIDoc is globally available!
-    var selectedIds = UIDoc.Selection.GetElementIds();
+// Parameters are defined at the end in the Pro Pattern
+var p = new Params();
 
-    if (selectedIds.Count == 0)
-    {
-        Println("No elements selected.");
-    }
-    else
-    {
-        Println("Selected ElementIds:");
-        foreach (ElementId id in selectedIds)
-        {
-            Println($"ElementId: {id.Value}");
-        }
-    }
-}
-catch (Exception e)
-{
-    Println($"Error: {e.Message}");
+var selectedIds = UIDoc.Selection.GetElementIds();
+
+if (selectedIds.Count == 0)
+    Println("No elements selected.");
+else
+    Println($"Processing {selectedIds.Count} elements with offset {p.offsetMeters}m...");
+
+// --- PRO PATTERN ---
+class Params {
+    [ScriptParameter(Min: 0, Max: 10, Step: 0.1, Description: "Offset in meters")]
+    public double offsetMeters = 1.0;
+
+    [ScriptParameter(Description: "Enable detailed logging")]
+    public bool debugMode = false;
 }
 ```
