@@ -49,34 +49,66 @@ public class Document_Selection : IExternalCommand
     public Autodesk.Revit.UI.Result Execute(ExternalCommandData commandData,
         ref string message, ElementSet elements)
     {
-        UIDocument uidoc = commandData.Application.ActiveUIDocument;
-        ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
-        // ... (Lots of boilerplate)
-        return Result.Succeeded;
+        try
+        {
+            // Select some elements in Revit before invoking this command
+
+            // Get the handle of current document.
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+
+            // Get the element selection of current document.
+            ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
+
+            if (selectedIds.Count == 0)
+            {
+                TaskDialog.Show("Revit", "You haven't selected any elements.");
+            }
+            else
+            {
+                string info = "Ids of selected elements in the document are: ";
+                foreach (ElementId id in selectedIds)
+                {
+                    info += Environment.NewLine + id.Value;
+                }
+                TaskDialog.Show("Revit", info);
+            }
+        }
+        catch (Exception e)
+        {
+            message = e.Message;
+            return Autodesk.Revit.UI.Result.Failed;
+        }
+        return Autodesk.Revit.UI.Result.Succeeded;
     }
 }
 ```
 
 ### The Paracore Way (Modern Syntax)
-*No setup. No restart. Immediate Parameter Sync.*
+*No setup. No restart. Immediate Parameter Sync. (Namespaces like `Autodesk.Revit.DB` are already globally available!)*
 
 ```csharp
-// Parameters are defined at the end in the Pro Pattern
+// 1. Initialize Parameters (Pro Pattern)
 var p = new Params();
 
+// 2. Access Revit! (UIDoc, Doc, App are globally available)
 var selectedIds = UIDoc.Selection.GetElementIds();
 
 if (selectedIds.Count == 0)
+{
     Println("No elements selected.");
+}
 else
-    Println($"Processing {selectedIds.Count} elements with offset {p.offsetMeters}m...");
+{
+    Println($"Ids of {selectedIds.Count} selected elements:");
+    foreach (ElementId id in selectedIds)
+    {
+        Println($"ElementId: {id.Value}");
+    }
+}
 
-// --- PRO PATTERN ---
+// 3. Define the UI (Pro Pattern)
 class Params {
     [ScriptParameter(Min: 0, Max: 10, Step: 0.1, Description: "Offset in meters")]
     public double offsetMeters = 1.0;
-
-    [ScriptParameter(Description: "Enable detailed logging")]
-    public bool debugMode = false;
 }
 ```
