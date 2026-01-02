@@ -84,31 +84,29 @@ public class Document_Selection : IExternalCommand
 ```
 
 ### The Paracore Way (Modern Syntax)
-*No setup. No restart. Immediate Parameter Sync. (Namespaces like `Autodesk.Revit.DB` are already globally available!)*
+*No setup. No restart. Instant UI and Console feedback. (Global namespaces like `Autodesk.Revit.DB` are already available!)*
 
 ```csharp
-// 1. Initialize Parameters (Pro Pattern)
-var p = new Params();
-
-// 2. Access Revit! (UIDoc, Doc, App are globally available)
+// Access Revit handles directly (UIDoc, Doc, App are globally available)
 var selectedIds = UIDoc.Selection.GetElementIds();
 
 if (selectedIds.Count == 0)
 {
-    Println("No elements selected.");
+    // You can use standard Revit UI...
+    TaskDialog.Show("Revit", "You haven't selected any elements.");
 }
 else
 {
-    Println($"Ids of {selectedIds.Count} selected elements:");
+    // ...OR the powerful Paracore console!
+    Println($"Ids of {selectedIds.Count} selected elements in the document are:");
+
     foreach (ElementId id in selectedIds)
     {
-        Println($"ElementId: {id.Value}");
+        // Standard Revit API works perfectly here
+        Println($"- {id.Value}");
     }
-}
-
-// 3. Define the UI (Pro Pattern)
-class Params {
-    [ScriptParameter(Min: 0, Max: 10, Step: 0.1, Description: "Offset in meters")]
-    public double offsetMeters = 1.0;
+    
+    // Mix and match as needed
+    TaskDialog.Show("Paracore", $"Processing {selectedIds.Count} elements. See console for details.");
 }
 ```
