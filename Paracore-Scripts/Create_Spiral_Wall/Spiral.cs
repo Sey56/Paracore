@@ -19,15 +19,15 @@ UsageExamples:
 - "Make spiral partition wall 200mm thick"
 */
 
-// [Parameter]
+// [ScriptParameter]
 string levelName = "Level 1";
-// [Parameter]
+// [ScriptParameter]
 double maxRadiusMeters = 24.0; // Maximum radius in meters
-// [Parameter]
+// [ScriptParameter]
 int numTurns = 5; // Number of spiral turns
-// [Parameter]
+// [ScriptParameter]
 double angleResolutionDegrees = 30; // Angle resolution in degrees (lower = smoother)
-// [Parameter]
+// [ScriptParameter]
 double wallHeightMeters = 3.0; // Wall height
 
 Level? level = new FilteredElementCollector(Doc)

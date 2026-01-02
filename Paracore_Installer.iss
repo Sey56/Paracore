@@ -23,10 +23,10 @@ SetupIconFile="{#IconPath}"
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-VersionInfoVersion=1.0.0
+VersionInfoVersion=1.1.1
 VersionInfoCompany=Paras Codarch
 VersionInfoDescription=Paracore Add-in for Revit. Author: Seyoum Hagos
-VersionInfoTextVersion=1.0.0
+VersionInfoTextVersion=1.1.1
 DisableDirPage=yes
 
 [Languages]

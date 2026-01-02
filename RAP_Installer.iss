@@ -11,7 +11,7 @@
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{YOUR_APP_GUID}} ; Replace with a new GUID
 AppName={#MyAppName}
-AppVersion={#MyAppVersion}
+AppVersion=1.1.1
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\RAP
 DefaultGroupName=RAP

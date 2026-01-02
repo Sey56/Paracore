@@ -13,13 +13,13 @@ UsageExamples:
 */
 
 // 1. Configuration
-// [Parameter]
+// [ScriptParameter]
 double houseWidthMeters = 10.0;
-// [Parameter]
+// [ScriptParameter]
 double houseDepthMeters = 20.0;
-// [Parameter]
+// [ScriptParameter]
 string wallTypeName = "Generic - 200mm";
-// [Parameter]
+// [ScriptParameter]
 double rotationIncrementDegrees = 5.0;
 
 // 2. Find Wall Type

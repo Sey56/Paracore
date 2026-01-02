@@ -289,7 +289,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
               metadata: {
                 ...existing.metadata,
                 ...transformed.metadata,
-                // Prioritize new metadata but keep things that might be missing in list view (like usage examples if they aren't in list)
               },
               parameters: (transformed.parameters && transformed.parameters.length > 0)
                 ? transformed.parameters
@@ -299,10 +298,18 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
           return transformed;
         });
 
-        setScripts(transformedData);
+        // DE-DUPLICATION: Ensure unique scripts by ID
+        const uniqueScripts = transformedData.filter((script, index, self) =>
+          index === self.findIndex((t) => t.id === script.id)
+        );
+
+        setScripts(uniqueScripts);
         setSelectedFolder(folderPath);
-        showNotification(`Loaded scripts.`, "success");
-        return transformedData;
+        // Only show success if we actually found scripts
+        if (uniqueScripts.length > 0 && !suppressNotification) {
+          showNotification(`Loaded ${uniqueScripts.length} scripts.`, "success");
+        }
+        return uniqueScripts;
       }
     } catch (error) {
       console.error(`Failed to fetch scripts from ${folderPath}:`, error);
@@ -343,12 +350,12 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>('agentScriptsPath', null);
 
   const fetchScriptMetadata = useCallback(async (scriptId: string) => {
-    const script = scripts.find(s => s.id === scriptId);
+    // Use the ref to avoid dependency on the 'scripts' state
+    const script = scriptsRef.current.find(s => s.id === scriptId);
     if (!script || script.metadata) return;
 
     try {
       const response = await api.post("/api/script-metadata", { scriptPath: script.absolutePath, type: script.type });
-
       const metadata = response.data;
 
       setScripts(prevScripts =>
@@ -360,7 +367,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       console.error(`[RAP] Error fetching metadata for script ${script.absolutePath}:`, error);
       showNotification(`Failed to fetch metadata for ${script.name}.`, "error");
     }
-  }, [scripts, showNotification]);
+  }, [showNotification]); // NO SCRIPTS DEPENDENCY HERE
 
   const scriptsWithFavorites = useMemo(() => {
     return scripts.map(script => ({
@@ -655,8 +662,6 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         const normalizedTargetId = script.id.replace(/\\/g, '/');
 
         if (normalizedSid !== normalizedTargetId) return s;
-
-        console.log(`[ScriptProvider] Reloading script ${s.name}. Current parameters count: ${s.parameters?.length || 0}`);
 
         // Map raw parameters and preserve existing options/values
         const mergedParameters: ScriptParameter[] = rawParams.map((p) => {

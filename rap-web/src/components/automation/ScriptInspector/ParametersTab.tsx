@@ -55,6 +55,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     computeParameterOptions,
     isComputingOptions,
     userEditedScriptParameters,
+    activePresets,
+    setActivePreset,
   } = useScriptExecution();
 
   const [editedParameters, setEditedParameters] = useState<ScriptParameter[]>([]);
@@ -70,7 +72,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     return filterVisibleParameters(editedParameters);
   }, [editedParameters]);
 
-  const [selectedPreset, setSelectedPreset] = useState("<Default Parameters>");
+  const selectedPreset = activePresets[script.id] || "<Default Parameters>";
 
   const [isNewPresetModalOpen, setIsNewPresetModalOpen] = useState(false);
   const [isRenamePresetModalOpen, setIsRenamePresetModalOpen] = useState(false);
@@ -82,10 +84,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
 
   const isRunning = runningScriptPath === script.id;
-
-  useEffect(() => {
-    setSelectedPreset("<Default Parameters>");
-  }, [script.id]);
 
   const handleParameterChange = (
     index: number,
@@ -103,7 +101,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   const handleNewPresetConfirm = (presetName: string) => {
     const result = addPreset({ name: presetName, parameters: editedParameters });
-    if (result.success) setSelectedPreset(presetName);
+    if (result.success) setActivePreset(script.id, presetName);
     else {
       setInfoModalMessage(result.message);
       setIsInfoModalOpen(true);
@@ -116,7 +114,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   const handleRenamePresetConfirm = (newName: string) => {
     const result = renamePreset(selectedPreset, newName);
-    if (result.success) setSelectedPreset(newName);
+    if (result.success) setActivePreset(script.id, newName);
     else {
       setInfoModalMessage(result.message);
       setIsInfoModalOpen(true);
@@ -136,9 +134,9 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
       setIsInfoModalOpen(true);
 
       const currentPresetName = selectedPreset;
-      setSelectedPreset("<Default Parameters>");
+      internalSetSelectedPreset("<Default Parameters>");
       setTimeout(() => {
-        setSelectedPreset(currentPresetName);
+        internalSetSelectedPreset(currentPresetName);
       }, 0);
     }
     setIsUpdatePresetModalOpen(false);
@@ -157,8 +155,12 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
       setInfoModalMessage(result.message);
       setIsInfoModalOpen(true);
     }
-    setSelectedPreset("<Default Parameters>");
+    internalSetSelectedPreset("<Default Parameters>");
     setPresetToDelete('');
+  };
+
+  const internalSetSelectedPreset = (name: string) => {
+    setActivePreset(script.id, name);
   };
 
   const handleRunScript = async () => {
@@ -195,7 +197,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               value={selectedPreset}
               onChange={(e) => {
                 const presetName = e.target.value;
-                setSelectedPreset(presetName);
+                internalSetSelectedPreset(presetName);
                 if (presetName === "<Default Parameters>") {
                   const defaultParams = initializeParameters(script.parameters ?? []);
                   updateUserEditedParameters(script.id, defaultParams);

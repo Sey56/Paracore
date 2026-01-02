@@ -16,7 +16,7 @@ Use this as a template for your own automation tools!
 // 1. SIMPLE PATTERN (Comment-Based)
 // =================================================================================
 // Best for: Quick scripts, prototyping, and top-level simplicity.
-// Syntax: Use C# comments starting with // [Parameter(...)] or // [RevitElements(...)]
+// Syntax: Use C# comments starting with // [ScriptParameter(...)] or // [RevitElements(...)]
 
 // [ScriptParameter(Description: "A simple text input field")]
 string projectName = "My Revit Project";

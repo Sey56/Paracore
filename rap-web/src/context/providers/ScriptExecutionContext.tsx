@@ -13,6 +13,8 @@ export interface ScriptExecutionContextProps {
   clearExecutionResult: () => void;
   userEditedScriptParameters: Record<string, ScriptParameter[]>;
   updateUserEditedParameters: (scriptId: string, parameters: ScriptParameter[]) => void;
+  activePresets: Record<string, string>;
+  setActivePreset: (scriptId: string, presetName: string) => void;
   presets: ParameterPreset[];
   addPreset: (preset: ParameterPreset) => { success: boolean; message: string };
   updatePreset: (name: string, preset: ParameterPreset) => { success: boolean; message: string };

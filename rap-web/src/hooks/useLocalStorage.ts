@@ -21,21 +21,23 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val
   });
 
   const setValue = useCallback((value: T | ((val: T) => T)) => {
-    try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      if (typeof window !== 'undefined') {
-        // Store strings directly, stringify others
-        if (typeof valueToStore === 'string') {
-          window.localStorage.setItem(key, valueToStore);
-        } else {
-          window.localStorage.setItem(key, JSON.stringify(valueToStore));
+    setStoredValue(prev => {
+      try {
+        const valueToStore = value instanceof Function ? value(prev) : value;
+        if (typeof window !== 'undefined') {
+          if (typeof valueToStore === 'string') {
+            window.localStorage.setItem(key, valueToStore);
+          } else {
+            window.localStorage.setItem(key, JSON.stringify(valueToStore));
+          }
         }
+        return valueToStore;
+      } catch (error) {
+        console.error(error);
+        return prev;
       }
-    } catch (error) {
-      console.error(error);
-    }
-  }, [key, storedValue]);
+    });
+  }, [key]);
 
   return [storedValue, setValue];
 }

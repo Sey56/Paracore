@@ -16,13 +16,13 @@ UsageExamples:
 */
 
 // 🌿 Editable Parameters
-// [Parameter]
+// [ScriptParameter]
 string levelName = "Level 1";
-// [Parameter]
+// [ScriptParameter]
 double maxRadiusCm = 2400;
-// [Parameter]
+// [ScriptParameter]
 int numTurns = 10;
-// [Parameter]
+// [ScriptParameter]
 double angleResolutionDegrees = 20;
 
 Print("Starting spiral sketch...");

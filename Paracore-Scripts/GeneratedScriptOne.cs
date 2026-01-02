@@ -14,15 +14,15 @@ UsageExamples:
 */
 
 // 1. Top-Level Statements for parameters
-// [Parameter]
+// [ScriptParameter]
 string wallTypeName = "Generic - 200mm";
-// [Parameter]
+// [ScriptParameter]
 double houseWidthMeters = 10.0;
-// [Parameter]
+// [ScriptParameter]
 double houseDepthMeters = 20.0;
-// [Parameter]
+// [ScriptParameter]
 double rotationIncrementDegrees = 5.0;
-// [Parameter]
+// [ScriptParameter]
 double defaultWallHeightMeters = 3.0; // Assuming a default wall height if not specified
 
 // 2. Preparation (Read-only operations, outside transaction)

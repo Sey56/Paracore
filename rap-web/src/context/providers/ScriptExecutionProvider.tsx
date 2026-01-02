@@ -9,8 +9,37 @@ import { useUI } from '@/hooks/useUI';
 import api from '@/api/axios';
 import { getFolderNameFromPath } from '@/utils/pathHelpers';
 import { Workspace } from '@/types';
+import useLocalStorage from '@/hooks/useLocalStorage';
 
 
+// Helper function for robust value comparison
+const areValuesEqual = (val1: any, val2: any, type?: string): boolean => {
+  if (val1 === val2) return true;
+  if ((val1 === null || val1 === undefined) && (val2 === null || val2 === undefined)) return true;
+
+  if (type === 'boolean') {
+    const b1 = typeof val1 === 'string' ? val1.toLowerCase() === 'true' : !!val1;
+    const b2 = typeof val2 === 'string' ? val2.toLowerCase() === 'true' : !!val2;
+    return b1 === b2;
+  }
+
+  if (type === 'number') {
+    const EPSILON = 0.000001;
+    const n1 = typeof val1 === 'string' ? parseFloat(val1) : val1 as number;
+    const n2 = typeof val2 === 'string' ? parseFloat(val2) : val2 as number;
+    return Math.abs((n1 || 0) - (n2 || 0)) < EPSILON;
+  }
+
+  if (Array.isArray(val1) && Array.isArray(val2)) {
+    if (val1.length !== val2.length) return false;
+    for (let i = 0; i < val1.length; i++) {
+      if (val1[i] !== val2[i]) return false;
+    }
+    return true;
+  }
+
+  return false;
+};
 
 // Helper function for deep comparison of parameters
 const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter[]): boolean => {
@@ -33,24 +62,7 @@ const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter
     if (options1.length !== options2.length) return false;
     if (options1.some((opt, idx) => opt !== options2[idx])) return false;
 
-    // Robust value comparison
-    let val1 = p1.value;
-    let val2 = p2.value;
-
-    // Normalize boolean strings
-    if (p1.type === 'boolean') {
-      if (typeof val1 === 'string') val1 = val1.toLowerCase() === 'true';
-      if (typeof val2 === 'string') val2 = val2.toLowerCase() === 'true';
-    }
-
-    if (p1.type === 'number') {
-      const n1 = typeof val1 === 'string' ? parseFloat(val1) : val1 as number;
-      const n2 = typeof val2 === 'string' ? parseFloat(val2) : val2 as number;
-      if (Math.abs((n1 || 0) - (n2 || 0)) > EPSILON) return false;
-    } else if (val1 !== val2) {
-      if ((val1 === null || val1 === undefined) && (val2 === null || val2 === undefined)) continue;
-      return false;
-    }
+    if (!areValuesEqual(p1.value, p2.value, p1.type)) return false;
   }
   return true;
 };
@@ -67,14 +79,25 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const [selectedScript, setSelectedScriptState] = useState<Script | null>(null);
   const selectedScriptRef = useRef<Script | null>(null);
 
-  // Sync state between state and ref
+  // Persistence for user-edited parameters across sessions
+  const [userEditedScriptParameters, setUserEditedScriptParameters] = useLocalStorage<Record<string, ScriptParameter[]>>('rap_userEditedScriptParameters', {});
+  const userEditedParametersRef = useRef(userEditedScriptParameters);
+
+  // Keep ref in sync
+  useEffect(() => {
+    userEditedParametersRef.current = userEditedScriptParameters;
+  }, [userEditedScriptParameters]);
+
+  // Track which preset is selected for each script
+  const [activePresets, setActivePresets] = useLocalStorage<Record<string, string>>('rap_activePresets', {});
+
+  // Sync ref for access in callbacks
   useEffect(() => {
     selectedScriptRef.current = selectedScript;
   }, [selectedScript]);
 
   const [runningScriptPath, setRunningScriptPath] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
-  const [userEditedScriptParameters, setUserEditedScriptParameters] = useState<Record<string, ScriptParameter[]>>({});
   const [presets, setPresets] = useState<ParameterPreset[]>([]);
   const [isComputingOptions, setIsComputingOptions] = useState<Record<string, boolean>>({});
 
@@ -89,7 +112,19 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       ...prev,
       [scriptId]: parameters,
     }));
-  }, []);
+
+    // If the currently selected script's parameters were updated, sync the state
+    if (selectedScriptRef.current?.id === scriptId) {
+      setSelectedScriptState(prev => prev ? { ...prev, parameters } : null);
+    }
+  }, [setUserEditedScriptParameters]);
+
+  const setActivePreset = useCallback((scriptId: string, presetName: string) => {
+    setActivePresets(prev => ({
+      ...prev,
+      [scriptId]: presetName
+    }));
+  }, [setActivePresets]);
 
   const fetchScriptContent = useCallback(async (script: Script) => {
     if (!script.sourcePath) {
@@ -267,7 +302,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setAgentSelectedScriptPath(null); // Clear agent selected path for user interaction
 
     // --- NEW LOGIC: Check for cached parameters first (skip on refresh) ---
-    const cachedParameters = source !== 'refresh' ? userEditedScriptParameters[script.id] : null;
+    const cachedParameters = source !== 'refresh' ? userEditedParametersRef.current[script.id] : null;
     if (cachedParameters) {
       const updatedScript = { ...script, parameters: cachedParameters };
       setSelectedScriptState(updatedScript);
@@ -317,7 +352,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         // If we fetched from API, we need to map them.
         if (canReusePassedParameters) {
           console.log(`[ScriptExecutionProvider] Smart Merging parameters for ${script.name}`);
-          const currentParams = userEditedScriptParameters[script.id] || [];
+          const currentParams = userEditedParametersRef.current[script.id] || [];
 
           finalParameters = (paramsResult.parameters as ScriptParameter[]).map(newParam => {
             const existingParam = currentParams.find(p => p.name === newParam.name);
@@ -329,7 +364,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
               // and we update it to the NEW default from the code.
               // If the value is different (dirty), we keep the user's value.
 
-              const isValueAtOldDefault = existingParam.value === existingParam.defaultValue;
+              const isValueAtOldDefault = areValuesEqual(existingParam.value, existingParam.defaultValue, existingParam.type);
 
               if (isValueAtOldDefault) {
                 // User hasn't touched it (it's at default), so sync to new default
@@ -388,20 +423,20 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setSelectedScriptState(script); // Keep the initial script selected
       setCombinedScriptContent("// Error loading script. Please try again.");
     }
-  }, [userEditedScriptParameters, fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath, updateUserEditedParameters]);
+  }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath, updateUserEditedParameters]); // userEditedScriptParameters REMOVED FROM DEPS
 
   // Effect to keep selectedScript in sync with allScriptsFromScriptProvider
-  const lastSeenProviderScriptRef = useRef<Script | null>(null);
+  const lastSyncedProviderScriptRef = useRef<Script | null>(null);
 
   useEffect(() => {
     if (selectedScript) {
-      const updatedScript = allScriptsFromScriptProvider.find(s => {
+      const updatedScriptFromProvider = allScriptsFromScriptProvider.find(s => {
         const normalizedSid = s.id.replace(/\\/g, '/');
         const normalizedTargetId = selectedScript.id.replace(/\\/g, '/');
         return normalizedSid === normalizedTargetId;
       });
 
-      if (!updatedScript) {
+      if (!updatedScriptFromProvider) {
         // If the script is missing from the list but matches the current folder, it was likely deleted
         if (selectedFolder && selectedScript.absolutePath?.replace(/\\/g, '/').startsWith(selectedFolder.replace(/\\/g, '/'))) {
           console.log(`[ScriptExecutionProvider] Selected script ${selectedScript.name} is missing from ${selectedFolder}. Clearing inspector.`);
@@ -412,33 +447,60 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         return;
       }
 
-      if (updatedScript === selectedScript) return; // Strict reference check FIRST
+      // REFERENCE GUARD: Only sync if the script data IN THE PROVIDER has changed.
+      // This prevents local parameter edits (which make selectedScript differ from provider)
+      // from triggering a sync loop.
+      const lastSynced = lastSyncedProviderScriptRef.current;
+      const isProviderDataNew = !lastSynced ||
+        lastSynced.id !== updatedScriptFromProvider.id ||
+        lastSynced.metadata?.dateModified !== updatedScriptFromProvider.metadata?.dateModified ||
+        lastSynced.isFavorite !== updatedScriptFromProvider.isFavorite;
 
-      const hasContentChanged = updatedScript.metadata?.dateModified !== selectedScript.metadata?.dateModified;
-      const paramsChanged = !areParametersEqual(updatedScript.parameters || [], selectedScript.parameters || []);
-      const favoriteChanged = updatedScript.isFavorite !== selectedScript.isFavorite;
+      if (!isProviderDataNew) {
+        return;
+      }
 
-      if (hasContentChanged || paramsChanged || favoriteChanged) {
-        console.log(`[ScriptExecutionProvider] Data sync for ${updatedScript.name}. content: ${hasContentChanged}, params: ${paramsChanged}, fav: ${favoriteChanged}`);
+      // Update the sync guard immediately
+      lastSyncedProviderScriptRef.current = updatedScriptFromProvider;
 
-        if (hasContentChanged) {
-          // Trigger refresh but avoid direct dependency loop by using the ref source
-          setSelectedScript(updatedScript, 'refresh');
-        } else {
-          setSelectedScriptState(updatedScript);
-          if (paramsChanged) {
-            updateUserEditedParameters(updatedScript.id, updatedScript.parameters || []);
-          }
-        }
+      const hasContentChanged = updatedScriptFromProvider.metadata?.dateModified !== selectedScript.metadata?.dateModified;
+      const favoriteChanged = updatedScriptFromProvider.isFavorite !== selectedScript.isFavorite;
+      // Note: We don't check paramsChanged here for "triggering" because local edits will always make them different.
+      // We only care if the provider's definition of parameters has changed (e.g. metadata).
+
+      if (hasContentChanged) {
+        console.log(`[ScriptExecutionProvider] Source code change detected for ${updatedScriptFromProvider.name}. Refreshing.`);
+        setSelectedScript(updatedScriptFromProvider, 'refresh');
+      } else if (favoriteChanged) {
+        console.log(`[ScriptExecutionProvider] Metadata update (Favorite/Other) for ${updatedScriptFromProvider.name}.`);
+        setSelectedScriptState(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            isFavorite: updatedScriptFromProvider.isFavorite,
+            metadata: updatedScriptFromProvider.metadata
+            // We specifically do NOT touch parameters here to avoid overwriting user edits.
+          };
+        });
       }
     }
-  }, [allScriptsFromScriptProvider, selectedScript, updateUserEditedParameters, selectedFolder]);
+  }, [allScriptsFromScriptProvider, selectedScript, setSelectedScript, selectedFolder]);
 
   // Effect to restore "Live Parameter Sync" on window focus
+  const lastFocusTimeRef = useRef(0);
+
   useEffect(() => {
     const handleFocus = () => {
+      const now = Date.now();
+      // Safety Guard: Don't reload if we just did a reload less than 1s ago.
+      // This prevents "Focus Flutter" loops.
+      if (now - lastFocusTimeRef.current < 1000) {
+        return;
+      }
+
       if (selectedScript) {
         console.log(`[ScriptExecutionProvider] Focus detected. Reloading ${selectedScript.name}`);
+        lastFocusTimeRef.current = now;
         reloadScript(selectedScript, { silent: true });
       }
     };
@@ -449,9 +511,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     const pollInterval = setInterval(() => {
       if (selectedScript && document.visibilityState === 'visible') {
         // Only poll if tab is visible, but doesn't necessarily need focus
+        // Polling is already slow (3s), so we don't need the same guard here.
         reloadScript(selectedScript, { silent: true });
       }
-    }, 3000); // 3s polling is sufficient for background freshness
+    }, 5000); // Increased polling to 5s for better stability
 
     return () => {
       window.removeEventListener('focus', handleFocus);
@@ -486,13 +549,17 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         setPresets([]);
         return;
       }
+
+      // CRITICAL: Check and set immediately to prevent async re-entry
       if (notifiedPresetsScriptIdRef.current === selectedScript.id) {
         return;
       }
+      notifiedPresetsScriptIdRef.current = selectedScript.id;
 
       try {
         const response = await api.get(`/api/presets?scriptPath=${encodeURIComponent(selectedScript.absolutePath)}`);
         const data = response.data;
+
         if (data.error) throw new Error(data.error);
         if (!Array.isArray(data)) throw new Error("Invalid data format");
 
@@ -509,14 +576,17 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             return { ...p, value: processedValue };
           }) : []
         }));
+
         setPresets(initializedPresets);
-        if (initializedPresets.length > 0) {
+
+        // Double check script ID hasn't changed during the await
+        if (selectedScriptRef.current?.id === selectedScript.id && initializedPresets.length > 0) {
           showNotification(`Loaded ${initializedPresets.length} presets for ${selectedScript.name}.`, "success");
         }
-        notifiedPresetsScriptIdRef.current = selectedScript.id;
       } catch (_) {
-        showNotification("Failed to fetch presets.", "error");
+        console.error("[Presets] Failed to fetch:", _);
         setPresets([]);
+        // Do not reset the ref here, so we don't keep trying and failing/spamming
       }
     };
 
@@ -626,15 +696,11 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         const updateParamWithOptions = (p: ScriptParameter) => {
           if (p.name !== parameterName) return p;
 
-          // Auto-select logic:
-          // If we have options, and the current value is either empty or not in the new options list,
-          // auto-select the first option to ensure a valid state.
           let newValue = p.value;
           if (options.length > 0) {
             const currentValueStr = String(p.value || "");
             if (!currentValueStr || !options.includes(currentValueStr)) {
               newValue = options[0];
-              // console.log(`[ScriptExecutionProvider] Auto-selecting first option for ${p.name}: ${newValue}`);
             }
           }
 
@@ -643,8 +709,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
         // Update the parameter with the new options AND potentially new value
         setUserEditedScriptParameters(prev => {
-          const params = prev[script.id];
-          if (!params) return prev;
+          // IMPORTANT: If we don't have cached parameters yet, we must start from the script's defaults
+          const params = prev[script.id] || script.parameters || [];
 
           const updatedParams = params.map(updateParamWithOptions);
 
@@ -663,7 +729,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           });
         }
 
-        // CRITICAL FIX: Update the global scripts list in ScriptProvider so background reloads preserve these options
+        // CRITICAL: Update the global scripts list in ScriptProvider so background reloads preserve these options
         setScripts(prev => prev.map(s => {
           if (s.id !== script.id) return s;
           const updatedParams = (s.parameters || []).map(updateParamWithOptions);
@@ -681,7 +747,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     } finally {
       setIsComputingOptions(prev => ({ ...prev, [parameterName]: false }));
     }
-  }, [selectedScript, showNotification]);
+  }, [selectedScript, showNotification, setUserEditedScriptParameters, setScripts]);
 
   const contextValue = useMemo(() => ({
     selectedScript,
@@ -693,6 +759,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     clearExecutionResult,
     userEditedScriptParameters,
     updateUserEditedParameters,
+    activePresets,
+    setActivePreset,
     presets,
     addPreset,
     updatePreset,
@@ -710,6 +778,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     clearExecutionResult,
     userEditedScriptParameters,
     updateUserEditedParameters,
+    activePresets,
+    setActivePreset,
     presets,
     addPreset,
     updatePreset,
