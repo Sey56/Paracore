@@ -1,7 +1,9 @@
 # Day 03 — The Paracore Ecosystem & Workflow Mastery
 
 ## Scene 1: Introduction & Version Check
-> **Important:** Please ensure you have installed **Paracore v1.1.1** or later. This update includes critical workflow improvements (Live Sync, Instant Connection) referenced in this tutorial.
+> [!IMPORTANT]
+> Please ensure you have installed **Paracore v1.1.1** or later. This update includes critical workflow improvements (Live Sync, Instant Connection) referenced in this tutorial.
+> **Download:** [Paracore v1.1.1 Latest Release](https://github.com/Sey56/Paracore/releases/tag/v1.1.1)
 
 - Recap of Day 1 & 2: Installation, UI Tour, "HelloWall.cs".
 - **Goal for Today:** Lay the groundwork for real-world automation. Before we start building complex tools, we need to master the Paracore ecosystem and get comfortable with its unique workflow mechanics.
