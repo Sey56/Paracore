@@ -100,25 +100,77 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
     // Case 2: Multi-Select (Checkboxes)
     if (param.options && param.options.length > 0 && param.multiSelect) {
       const selectedValues = getMultiSelectValues();
+      const [searchTerm, setSearchTerm] = useState("");
+
+      const filteredOptions = param.options.filter(opt =>
+        opt.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const handleAllNone = (selectAll: boolean) => {
+        const newValues = selectAll ? [...param.options!] : [];
+        onChange(index, JSON.stringify(newValues));
+      };
+
       return (
-        <div className="flex flex-wrap gap-2 border border-gray-300 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-800">
-          {param.options.map((option: string, i: number) => (
-            <label key={i} className="inline-flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedValues.includes(option)}
-                onChange={(e) => {
-                  const newValues = e.target.checked
-                    ? [...selectedValues, option]
-                    : selectedValues.filter(v => v !== option);
-                  onChange(index, JSON.stringify(newValues));
-                }}
-                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+        <div className="flex flex-col space-y-2 border border-gray-300 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-800">
+          {/* Search and Helpers */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              placeholder="Search options..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-grow px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={disabled}
+            />
+            <div className="flex gap-1">
+              <button
+                onClick={() => handleAllNone(true)}
                 disabled={disabled}
-              />
-              <span className="text-xs text-gray-700 dark:text-gray-300">{option}</span>
-            </label>
-          ))}
+                className="px-1.5 py-0.5 text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors"
+                title="Select All"
+              >
+                All
+              </button>
+              <button
+                onClick={() => handleAllNone(false)}
+                disabled={disabled}
+                className="px-1.5 py-0.5 text-[9px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-200 transition-colors"
+                title="Clear All"
+              >
+                None
+              </button>
+            </div>
+          </div>
+
+          {/* Grid of Checkboxes */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option: string, i: number) => (
+                <label key={i} className="flex items-center space-x-2 cursor-pointer group py-0.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedValues.includes(option)}
+                    onChange={(e) => {
+                      const newValues = e.target.checked
+                        ? [...selectedValues, option]
+                        : selectedValues.filter(v => v !== option);
+                      onChange(index, JSON.stringify(newValues));
+                    }}
+                    className="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 border-gray-300 dark:border-gray-700 dark:bg-gray-900"
+                    disabled={disabled}
+                  />
+                  <span className="text-[11px] text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate" title={option}>
+                    {option}
+                  </span>
+                </label>
+              ))
+            ) : (
+              <div className="col-span-2 text-center py-2 text-[10px] text-gray-400 italic">
+                No matching options found
+              </div>
+            )}
+          </div>
         </div>
       );
     }
