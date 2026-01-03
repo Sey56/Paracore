@@ -10,8 +10,8 @@ Welcome to the official sample script library for **Paracore**. This collection 
 
 ---
 
-## 🏗️ Script Structures
-Paracore supports two types of automation:
+## 🏗️ Script Types
+Paracore supports two types of scripts:
 
 ### 1. Single-File Scripts (`.cs`)
 Most scripts in the root directory are simple, single-file automations. The engine compiles and executes the logic sequentially.
