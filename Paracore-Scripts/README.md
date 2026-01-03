@@ -11,16 +11,16 @@ Welcome to the official sample script library for **Paracore**. This collection 
 ---
 
 ## 🏗️ Script Types
-Paracore supports two types of scripts:
+Paracore identifies two types of scripts within a script source:
 
 ### 1. Single-File Scripts (`.cs`)
-Most scripts in the root directory are simple, single-file automations. The engine compiles and executes the logic sequentially.
-*   **Example**: `Create_Wall.cs`
+Files located directly in the script source. These are standalone automations where the engine executes the logic sequentially.
 
 ### 2. Multi-File Scripts (Folders)
-Any subfolder (like `Create_Walls`) is treated as a single script. 
-*   **Requirement**: The folder must contain at least one `.cs` file.
-*   **Logical Entry**: The engine looks for a file matching the folder name (e.g., `Create_Walls.cs`) or the first file found.
+Folders located directly in the script source. These are treated as a single script entity, regardless of how many files are inside. 
+
+*   **No Naming Enforcement**: You don't need to name the main file after the folder. You can name your entry point `Main.cs`, `Logic.cs`, or anything else.
+*   **Smart Detection**: The Paracore engine uses Roslyn to parse all files in the folder and automatically identifies the top-level execution entry point. 🧠
 
 ---
 
