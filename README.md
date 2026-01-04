@@ -11,6 +11,11 @@ We built Paracore to solve two critical problems:
 1.  **Accelerate Developers**: Kill the painful loop of building DLLs and restarting Revit. We provide a hot-reload style environment where C# executes instantly.
 2.  **Democratize Automation**: By simplifying the workflow to "Type & Run", we make powerful automation accessible to Architects and Engineers who aren't systems engineers.
 
+## 📚 Developer Resources
+- **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally (Build, Run, Contribute)
+- **[Cloud Features](CLOUD_FEATURES.md)** - AI Script Generation & Agentic Automation setup
+- **[Contributing](CONTRIBUTING.md)** - Guidelines for contributing to the project
+
 ## ✨ Why Paracore?
 Traditional Revit API development requires:
 - ❌ Restarting Revit for every code change
