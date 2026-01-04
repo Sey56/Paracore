@@ -18,6 +18,12 @@ if [ -z "$VSIX_FILE" ]; then
 fi
 echo "✅ Extension packaged: $VSIX_FILE"
 
+# 🚚 Copy to Installers folder
+INSTALLERS_DIR="../installers"
+mkdir -p "$INSTALLERS_DIR"
+cp "$VSIX_FILE" "$INSTALLERS_DIR/"
+echo "✅ Copied $VSIX_FILE to $INSTALLERS_DIR"
+
 # 🔁 Uninstall and reinstall extension
 echo "🔁 Installing VS Code extension..."
 EXTENSION_ID=$(node -e "console.log(require('./package.json').publisher + '.' + require('./package.json').name)")

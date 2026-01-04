@@ -19,36 +19,36 @@ As a contributor, you are not just building an add-in; you are building a **Plat
 
 ## 🏗️ Build Instructions
 
-### 1. Build the Revit Addin
-```bash
-# Navigate to Addin directory
-cd Paracore.Addin
-# Build with dotnet
-dotnet build -c Release
+### 1. Build the Revit Addin 🧱
+This compiles `RAP.sln` and generates `Paracore_Revit_Installer.exe` in the `installers` folder.
+```powershell
+./Paracore-Installer.ps1
 ```
 
-### 2. Start the Frontend (UI)
+### 2. Start the Backend Server 🐍
 ```bash
-# Navigate to web directory
+cd rap-server/server
+./.venv/Scripts/activate
+uvicorn main:app --reload
+```
+
+### 3. Start the Frontend (UI) ⚛️
+```bash
 cd rap-web
-# Install dependencies
-npm install
-# Run in dev mode
 npm run tauri dev
 ```
 
-### 3. Start the Backend Server
+### 4. Build the VSCode Extension 🧩
+Open **Git Bash** in the Paracore root folder and run:
 ```bash
-# Navigate to server directory
-cd rap-server/server
-# Create venv
-python -m venv venv
-# Activate venv
-./venv/Scripts/Activate.ps1
-# Install requirements
-pip install -r requirements.txt
-# Run server
-uvicorn main:app --reload
+./build_extension.sh
+```
+This will build the extension, copy it to the `installers` folder, and reinstall it in your local VSCode.
+
+### 5. Build Final Release (MSI) 📦
+To generate the final `Paracore_Installer.msi` in the `installers` folder:
+```powershell
+./RAP-installer.ps1 -Release
 ```
 
 ## 🤝 Contributing
