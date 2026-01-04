@@ -13,8 +13,8 @@ As a contributor, you are not just building an add-in; you are building a **Plat
 
 ## 🛠️ Prerequisites
 - **Node.js** (v18+)
-- **Python** (v3.10+)
-- **Revit 2024+**
+- **Python** (v3.12+)
+- **Revit 2025+** (.NET 8.0 Runtime required)
 - **Visual Studio 2022** (for Engine work) or **VSCode** (for Scripting)
 
 ## 🏗️ Build Instructions
