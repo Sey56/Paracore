@@ -44,11 +44,11 @@ Traditional Revit API development requires:
 
 ## Architecture: The Hybrid Model
 
-RAP is built on a hybrid model that combines the power and security of local execution with the connectivity of cloud services. This architecture is a deliberate choice designed to provide the best possible user experience. 
+Paracore is built on a hybrid model that combines the power and security of local execution with the connectivity of cloud services. This architecture is a deliberate choice designed to provide the best possible user experience. 
 
 ### Local-First Execution
 
-The core of RAP runs entirely on the user's local machine, ensuring maximum performance and security. The communication flow is designed for speed and stability:
+The core of Paracore runs entirely on the user's local machine, ensuring maximum performance and security. The communication flow is designed for speed and stability:
 
 1.  **Paracore (Desktop App):** The user interacts with the React-based desktop application. When a script is run, the UI sends a standard HTTP request to the local backend.
 2.  **rap-server (Local Backend):** This Python server acts as the central middleman. It receives the HTTP request from the UI and translates it into a highly efficient gRPC call.
@@ -94,13 +94,13 @@ The platform is composed of several key projects that work together:
 
 ## Collaboration: A Git-Powered Approach
 
-To enable powerful team collaboration without compromising data privacy or forcing users into a proprietary system, RAP integrates directly with Git. This approach treats Git as the "source of truth" for script content, while RAP remains the "engine" for execution and management.
+To enable powerful team collaboration without compromising data privacy or forcing users into a proprietary system, Paracore integrates directly with Git. This approach treats Git as the "source of truth" for script content, while Paracore remains the "engine" for execution and management.
 
-This model respects user data by keeping scripts within a user-controlled Git repository (e.g., on GitHub, GitLab, or a private server), not on RAP's servers.
+This model respects user data by keeping scripts within a user-controlled Git repository (e.g., on GitHub, GitLab, or a private server), not on Paracore's servers.
 
 ### Script Sources & Access
 
-RAP provides two distinct sources for scripts, tailored to different user needs and roles:
+Paracore provides two distinct sources for scripts, tailored to different user needs and roles:
 
 *   **Local Folders (Individual Use):**
     *   Admins have the unique ability to load scripts directly from local folders on their machine **only when they are in their own personal team space**.
@@ -113,7 +113,7 @@ RAP provides two distinct sources for scripts, tailored to different user needs 
 
 ### What Git Manages (The Source of Truth - External Git Platform)
 
-RAP relies on Git's robust, universally understood features for the core collaboration workflow, primarily managed on the external Git hosting platform (GitHub, GitLab, Bitbucket, etc.).
+Paracore relies on Git's robust, universally understood features for the core collaboration workflow, primarily managed on the external Git hosting platform (GitHub, GitLab, Bitbucket, etc.).
 
 *   **Version Control & History:** All script changes, commits, diffs, and historical logs are handled by Git.
 *   **Branching & Merging:** Teams use standard Git workflows like feature branches, bug fixes, and Pull Requests.
@@ -121,13 +121,13 @@ RAP relies on Git's robust, universally understood features for the core collabo
 *   **Conflict Resolution:** If merge conflicts occur, users will resolve them using standard Git tools.
 *   **Protected Branches:** The `main` branch of the repository is configured as "protected" on the Git hosting platform. This prevents direct pushes to `main` and enforces the PR review process.
 
-### What RAP Manages (The Thin Integration Layer - Convenience within RAP)
+### What Paracore Manages (The Thin Integration Layer - Convenience within Paracore)
 
-RAP's role is to provide a seamless and intelligent interface *on top of* the user's Git repository. It makes the Git workflow accessible and convenient from within the RAP application for common operations, without trying to be a full Git client.
+Paracore's role is to provide a seamless and intelligent interface *on top of* the user's Git repository. It makes the Git workflow accessible and convenient from within the Paracore application for common operations, without trying to be a full Git client.
 
 *   **Workspace Registration (Admin Role):** Admins define a "Workspace" by registering a remote Git repository URL. This registration makes the remote URL available to all members of that team.
 *   **Workspace Setup (All Team Members):** Team members can "Setup" a registered workspace, which clones the remote repository to a local path on their machine.
-*   **Local Clone Management (All Team Members):** Users can "Remove" their local copy of a cloned workspace, deleting the local folder and its record from RAP.
+*   **Local Clone Management (All Team Members):** Users can "Remove" their local copy of a cloned workspace, deleting the local folder and its record from Paracore.
 *   **Branch Management (Admin & Developer Roles):** Display current branch, select/switch branches, and create new branches.
 *   **Git Status Indicators (Admin & Developer Roles):** The UI displays the Git status (Up to Date, Ahead, Behind, Uncommitted Changes).
 *   **User-Driven Git Actions (Role-Based):**
@@ -138,11 +138,11 @@ RAP's role is to provide a seamless and intelligent interface *on top of* the us
 
 ### Git Workflow Enforcement
 
-RAP implements several features to guide users towards Git best practices and protect the integrity of the `main` branch:
+Paracore implements several features to guide users towards Git best practices and protect the integrity of the `main` branch:
 
 *   **Proactive Branching Reminder (Developer Role):** When a `developer` is on the `main` branch, the `GitStatusPanel` displays a prominent message: "You are on the main branch. Create a branch to commit your changes."
 *   **Disabled Commit/Push (Developer Role on `main`):** The "Commit" and "Push" buttons in the `GitStatusPanel` are disabled for `developer`s when the `main` branch is active.
-*   **Preventing "main" Branch Creation:** RAP prevents both `admin`s and `developer`s from creating a new branch named "main".
+*   **Preventing "main" Branch Creation:** Paracore prevents both `admin`s and `developer`s from creating a new branch named "main".
 
 ---
 
@@ -156,8 +156,8 @@ The platform is designed around a three-tiered role system that mirrors the stru
 
 **Their Goal:** To leverage automation to perform their daily tasks faster, more accurately, and more consistently, without needing to understand the underlying code or version control.
 
-**Responsibilities & Permissions in RAP:**
-*   **Run Scripts:** Their main interaction with RAP is to find and execute pre-approved, "published" scripts.
+**Responsibilities & Permissions in Paracore:**
+*   **Run Scripts:** Their main interaction with Paracore is to find and execute pre-approved, "published" scripts.
 *   **Update Scripts:** A simple "Update Scripts" button performs a `git pull` in the background, ensuring they always have the latest versions of the tools published by the admin.
 *   **Read-Only View:** They can view a script's parameters and description but cannot see or edit the C# code. This prevents accidental changes and keeps the interface clean and focused.
 *   **No Git Complexity:** The user is completely shielded from Git. They don't see commit history, branches, or push/pull commands.
@@ -171,13 +171,13 @@ In short: The `user` is the **consumer** of the automation. They benefit from th
 
 **Their Goal:** To build, test, and maintain a robust library of C# scripts that solve real-world project problems. They need a full-featured development environment to be effective.
 
-**Responsibilities & Permissions in RAP:**
-*   **Create & Edit Scripts:** They have full access to the script editor and development environment within RAP.
+**Responsibilities & Permissions in Paracore:**
+*   **Create & Edit Scripts:** They have full access to the script editor and development environment within Paracore.
 *   **Full Git Workflow:** They can use all the Git integration features: commit, push, pull/sync, and manage workspaces.
 *   **Collaboration:** They collaborate with other developers using standard Git practices like branching, merging, and creating Pull Requests on the Git provider's platform (e.g., GitHub, Azure DevOps) for code review.
 *   **Local Clone Management:** Can remove their local copy of a cloned workspace.
 
-In short: The `developer` is the **creator** of the automation. They use RAP as an integrated development and execution environment for Revit scripting.
+In short: The `developer` is the **creator** of the automation. They use Paracore as an integrated development and execution environment for Revit scripting.
 
 ### 3. The `admin`
 
@@ -185,12 +185,12 @@ In short: The `developer` is the **creator** of the automation. They use RAP as 
 
 **Their Goal:** To manage the team, ensure script quality, and control which tools are made available to the general user base, providing a stable and reliable experience for everyone.
 
-**Responsibilities & Permissions in RAP:**
+**Responsibilities & Permissions in Paracore:**
 *   **All `developer` Permissions:** The admin has all the capabilities of the developer role.
 *   **Team Management:** They are responsible for inviting new members, assigning roles (`user`, `developer`, or `admin`), and removing users.
 *   **Workspace Registration:** Can register new team Workspaces.
 *   **Registered Workspace Management:** Can delete registered workspaces from the Settings modal.
-*   **Publishing Scripts (The "Golden" Responsibility):** This is the most critical function. After a script has been tested and reviewed, the admin uses the "Publish" function in RAP. This action marks a specific version of a script as "ready for production use," making it visible and available to all `user` roles.
+*   **Publishing Scripts (The "Golden" Responsibility):** This is the most critical function. After a script has been tested and reviewed, the admin uses the "Publish" function in Paracore. This action marks a specific version of a script as "ready for production use," making it visible and available to all `user` roles.
 *   **Gatekeeper of Quality:** The admin acts as the final gatekeeper, ensuring that only high-quality, reliable tools are rolled out to the entire firm.
 *   **Local Clone Management:** Can remove their local copy of a cloned workspace.
 
