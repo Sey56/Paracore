@@ -1,28 +1,25 @@
-# Paracore: Dynamic C# Scripting for Revit
+# Paracore: Dynamic C# Scripting for Revit 🏗️⚡
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Revit 2024+](https://img.shields.io/badge/Revit-2024%2B-blue)](https://www.autodesk.com/products/revit/)
 [![Documentation](https://img.shields.io/badge/docs-live-brightgreen)](https://sey56.github.io/paracore-help/)
 
-**Paracore** makes the Revit API accessible to architects, engineers, and BIM managers through dynamic C# scripting—no Visual Studio, no DLLs, no Revit restarts.
+**Paracore** is a dynamic automation platform that solves the biggest bottleneck in Revit API development: **The "Compile & Restart" Cycle.**
 
-## 🚀 Quick Links
-- **[Download Installer](https://github.com/Sey56/Paracore/releases)** (Windows)
-- **[Documentation](https://sey56.github.io/paracore-help/)** (Installation, Tutorials, API Reference)
-- **[Video Guides](https://www.youtube.com/@Codarch46)** (YouTube)
-- **[Report Issues](https://github.com/Sey56/Paracore/issues)**
-
-## 📚 Developer Resources
-- **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally
-- **[Cloud Features](CLOUD_FEATURES.md)** - AI Script Generation & Agentic Automation setup
-- **[Contributing](CONTRIBUTING.md)** - How to contribute to the project
+## 🚀 The Mission
+We built Paracore to solve two critical problems:
+1.  **Accelerate Developers**: Kill the painful loop of building DLLs and restarting Revit. We provide a hot-reload style environment where C# executes instantly.
+2.  **Democratize Automation**: By simplifying the workflow to "Type & Run", we make powerful automation accessible to Architects and Engineers who aren't systems engineers.
 
 ## ✨ Why Paracore?
-
-Traditional Revit plugin development requires:
-- ❌ Visual Studio setup and `.csproj` configuration
-- ❌ Complex boilerplate code (`IExternalCommand`, transactions, manifests)
+Traditional Revit API development requires:
 - ❌ Restarting Revit for every code change
+- ❌ Building and deploying DLLs
+- ❌ Complex boilerplate code (`IExternalCommand`, transactions, manifests)
+
+**Paracore lets you:**
+- ✅ Write scripts in VS Code with full IntelliSense
+- ✅ Execute them instantly in Revit (no restart)
 - ❌ Building and deploying DLLs
 
 **Paracore lets you:**
