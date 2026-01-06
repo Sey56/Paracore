@@ -25,5 +25,12 @@ namespace CoreScript.Engine.Globals
         public static void Transact(string name, Action action) => Globals.Transact(name, action);
 
         public static void Show(string type, object data) => Globals.Output.Show(type, data);
+
+        /// <summary>
+        /// Sets the execution timeout for the current script. Default is 10 seconds.
+        /// Call this at the start of your script if you need more time for long-running operations.
+        /// </summary>
+        /// <param name="seconds">Maximum execution time in seconds</param>
+        public static void SetExecutionTimeout(int seconds) => ExecutionGlobals.SetExecutionTimeout(seconds);
     }
 }

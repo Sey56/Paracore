@@ -12,7 +12,7 @@
 [Setup]
 AppId={{F22B529C-22A9-42A0-9243-A335A195A80C-ADDIN}}
 AppName=Paracore
-AppVersion=1.1.1
+AppVersion=1.1.2
 AppPublisher=Paras Codarch
 DefaultDirName={userappdata}\{#AppDataFolderName}
 PrivilegesRequired=lowest
@@ -23,10 +23,10 @@ SetupIconFile="{#IconPath}"
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-VersionInfoVersion=1.0.0
+VersionInfoVersion=1.1.2
 VersionInfoCompany=Paras Codarch
 VersionInfoDescription=Paracore Add-in for Revit. Author: Seyoum Hagos
-VersionInfoTextVersion=1.0.0
+VersionInfoTextVersion=1.1.2
 DisableDirPage=yes
 
 [Languages]

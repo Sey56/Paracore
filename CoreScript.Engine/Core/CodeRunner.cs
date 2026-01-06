@@ -33,6 +33,8 @@ namespace CoreScript.Engine.Core
 
             FileLogger.Log("🟢 Starting CodeRunner.Execute");
 
+            string topLevelScriptName = "Unknown Script"; // Initialize here so it's accessible in catch blocks
+
             try
             {
                 var parameters = new Dictionary<string, object>();
@@ -132,14 +134,20 @@ namespace CoreScript.Engine.Core
                 }
 
                 var topLevelScriptFile = ScriptParser.IdentifyTopLevelScript(scriptFiles);
-                var topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
+                topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
                 var combinedScriptContent = SemanticCombinator.Combine(scriptFiles);
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(combinedScriptContent);
                 
 
 
+
                 var rewriter = new ParameterRewriter(parameters);
                 SyntaxNode newRoot = rewriter.Visit(tree.GetRoot());
+                
+                // Apply timeout rewriter to inject timeout checks into all loops
+                var timeoutRewriter = new TimeoutRewriter();
+                newRoot = timeoutRewriter.Visit(newRoot);
+                
                 string modifiedUserCode = newRoot.ToFullString();
                 
 
@@ -234,6 +242,28 @@ namespace CoreScript.Engine.Core
                 
                 var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
+                return failureResult;
+            }
+            catch (AggregateException ex) when (ex.InnerException is TimeoutException)
+            {
+                // Handle timeout wrapped in AggregateException
+                string failureMessage = ex.InnerException.Message + " | " + timestamp;
+                context.Println(failureMessage);
+                FileLogger.Log(failureMessage);
+
+                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
+                return failureResult;
+            }
+            catch (TimeoutException ex)
+            {
+                // Handle timeout directly
+                string failureMessage = ex.Message + " | " + timestamp;
+                context.Println(failureMessage);
+                FileLogger.Log(failureMessage);
+
+                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
                 return failureResult;
             }
             catch (AggregateException ex)
