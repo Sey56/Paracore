@@ -63,6 +63,13 @@ namespace CoreScript.Engine.Globals
         /// <param name="data">The structured data object to display.</param>
         public static void Show(string type, object data) => throw DesignTimeOnlyException;
 
+        /// <summary>
+        /// Sets the execution timeout for the current script. Default is 10 seconds.
+        /// Call this at the start of your script if you need more time for long-running operations.
+        /// </summary>
+        /// <param name="seconds">Maximum execution time in seconds</param>
+        public static void SetExecutionTimeout(int seconds) => throw DesignTimeOnlyException;
+
         public static void SetInternalData(string data) => throw DesignTimeOnlyException;
 
         // Properties
