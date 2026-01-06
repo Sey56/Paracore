@@ -4,12 +4,12 @@
 [![Revit 2025+](https://img.shields.io/badge/Revit-2025%2B-blue)](https://www.autodesk.com/products/revit/)
 [![Documentation](https://img.shields.io/badge/docs-live-brightgreen)](https://sey56.github.io/paracore-help/)
 
-**Paracore** is a dynamic automation platform that solves the biggest bottleneck in Revit API development: **The "Compile & Restart" Cycle.**
+**Paracore** is a dynamic automation platform designed to remove the friction from Revit API development, bridging the gap between simple macros and full-scale add-ins.
 
 ## 🚀 The Mission
 We built Paracore to solve two critical problems:
-1.  **Accelerate Developers**: Streamline the development cycle by removing the need to build DLLs and restart Revit for every iteration. Paracore is an ideal tool for **Rapid Prototyping** and testing logic before committing to a full add-in.
-2.  **Democratize Automation**: By simplifying the workflow to "Type & Run", we make powerful automation accessible to Architects and Engineers who may not be full-time systems engineers.
+1.  **Eliminate Boilerplate & Friction**: Traditional add-in development requires complex setup, compiling DLLs, and managing installers. Paracore reduces this to a simple "Type & Run" workflow, ideal for **Rapid Prototyping** and agile development.
+2.  **Democratize Automation**: By removing the need for a full software engineering environment, we make powerful C# automation accessible to Architects and Engineers who focus on design, not DevOps.
 
 ## 📚 Developer Resources
 - **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally (Build, Run, Contribute)
@@ -17,21 +17,16 @@ We built Paracore to solve two critical problems:
 - **[Contributing](CONTRIBUTING.md)** - Guidelines for contributing to the project
 
 ## ✨ Why Paracore?
-Traditional Revit API development can be time-consuming due to:
-- ⏳ Restarting Revit for every code change
-- 🛠️ Building and deploying DLLs
-- 📄 Complex boilerplate code (`IExternalCommand`, transactions, manifests)
+Traditional Revit API development often involves a heavy "tax" on creativity:
+- 🚧 **High Barrier to Entry**: Setting up a full project environment just to test an idea.
+- 📦 **Static Deployment**: Compiling and distributing DLLs makes updating tools slow and rigid.
+- 📄 **Complex Boilerplate**: Managing `IExternalCommand`, transactions, and manifests for every single command.
 
 **Paracore lets you:**
-- ✅ Write scripts in VS Code with full IntelliSense
-- ✅ Execute them instantly in Revit (no restart)
-- ❌ Building and deploying DLLs
-
-**Paracore lets you:**
-- ✅ Write scripts in VS Code with full IntelliSense
-- ✅ Execute them instantly in Revit (no restart)
-- ✅ Use simple helpers like `Transact()`, `Println()`, and `Show()`
-- ✅ Auto-generate UIs from parameter definitions
+- ✅ **Focus on Logic**: Write scripts in VS Code with full IntelliSense, skipping the setup.
+- ✅ **Dynamic Execution**: Execute code instantly without compiling binaries.
+- ✅ **Flexible Deployment**: Share scripts via Git workspaces, allowing teams to sync updates immediately.
+- ✅ **Rich Features**: Use simple helpers like `Transact()`, auto-generate UIs, and access full C# power.
 
 ## 📊 Feature Status
 
@@ -113,7 +108,7 @@ Paracore provides two distinct sources for scripts, tailored to different user n
     *   Local folders are not version-controlled and are not visible to anyone else or in any other team space.
 
 *   **Workspaces (Team Collaboration):**
-    *   For team collaboration, scripts are sourced exclusively from registered Git repositories (Workspaces).
+    *   For team collaboration, scripts are sourced exclusively from registered Git repositories (Workspaces) explicitly added by the Admin.
     *   These repositories serve as the central, version-controlled source for all team-approved automation scripts.
 
 ### What Git Manages (The Source of Truth - External Git Platform)
@@ -139,7 +134,7 @@ Paracore's role is to provide a seamless and intelligent interface *on top of* t
     *   **Commit (Admin & Developer Roles):** Perform `git add .` and `git commit` to the current local branch.
     *   **Pull (Admin & Developer Roles):** Performs `git pull` to fetch and merge changes.
     *   **Push (Admin & Developer Roles):** Performs `git push` to send local commits.
-    *   **Update Scripts (User Role Only):** A simplified button that performs a `git pull` to get the latest versions of published scripts.
+    *   **Update Scripts (User Role Only):** A simplified button that performs a `git pull` to get the latest versions of scripts from the registered Workspace.
 
 ### Git Workflow Enforcement
 
@@ -162,8 +157,8 @@ The platform is designed around a three-tiered role system that mirrors the stru
 **Their Goal:** To leverage automation to perform their daily tasks faster, more accurately, and more consistently, without needing to understand the underlying code or version control.
 
 **Responsibilities & Permissions in Paracore:**
-*   **Run Scripts:** Their main interaction with Paracore is to find and execute pre-approved, "published" scripts.
-*   **Update Scripts:** A simple "Update Scripts" button performs a `git pull` in the background, ensuring they always have the latest versions of the tools published by the admin.
+*   **Run Scripts:** Their main interaction with Paracore is to find and execute scripts from the Workspaces assigned to them.
+*   **Update Scripts:** A simple "Update Scripts" button performs a `git pull` in the background, ensuring they always have the latest versions of the tools from the remote repository.
 *   **Read-Only View:** They can view a script's parameters and description but cannot see or edit the C# code. This prevents accidental changes and keeps the interface clean and focused.
 *   **No Git Complexity:** The user is completely shielded from Git. They don't see commit history, branches, or push/pull commands.
 *   **Local Clone Management:** Can remove their local copy of a cloned workspace.
@@ -195,11 +190,11 @@ In short: The `developer` is the **creator** of the automation. They use Paracor
 *   **Team Management:** They are responsible for inviting new members, assigning roles (`user`, `developer`, or `admin`), and removing users.
 *   **Workspace Registration:** Can register new team Workspaces.
 *   **Registered Workspace Management:** Can delete registered workspaces from the Settings modal.
-*   **Publishing Scripts (The "Golden" Responsibility):** This is the most critical function. After a script has been tested and reviewed, the admin uses the "Publish" function in Paracore. This action marks a specific version of a script as "ready for production use," making it visible and available to all `user` roles.
-*   **Gatekeeper of Quality:** The admin acts as the final gatekeeper, ensuring that only high-quality, reliable tools are rolled out to the entire firm.
+*   **Publishing & Distribution:** By registering a Workspace, the admin effectively "distributions" scripts to the team. Any script committed and pushed to the repository becomes available to users when they sync.
+*   **Gatekeeper of Quality:** The admin controls *which* repositories are registered, ensuring that only trusted sources are available to the team.
 *   **Local Clone Management:** Can remove their local copy of a cloned workspace.
 
-In short: The `admin` is the **manager and curator** of the automation ecosystem. They control team access and are responsible for the final "stamp of approval" on scripts.
+In short: The `admin` is the **architect** of the ecosystem. They configure the sources (Workspaces) that feed the team.
 
 This three-tiered structure provides a clear and effective collaboration model that aligns perfectly with the operational needs and skill sets of a modern AEC firm. The detailed implementation plan for how users are created and assigned to teams can be found in the Git Collaboration Plan.
 
