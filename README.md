@@ -266,6 +266,4 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 
 ---
 
-**Built by architects, for architects.** 🏗️
-
 *Making Revit automation accessible to the entire AEC industry.*
