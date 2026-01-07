@@ -6,6 +6,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useScripts } from '@/hooks/useScripts';
 import { useAuth } from '@/hooks/useAuth';
 import { useUI } from '@/hooks/useUI';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
 import api from '@/api/axios';
 import { getFolderNameFromPath } from '@/utils/pathHelpers';
 import { Workspace } from '@/types';
@@ -137,6 +138,34 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setSelectedScriptState(prev => prev ? { ...prev, parameters } : null);
     }
   }, [setUserEditedScriptParameters, setActivePresets, setDefaultDraftParameters, activePresets]);
+
+  const { user, cloudToken } = useAuth();
+  const { revitStatus, ParacoreConnected } = useRevitStatus();
+
+  const editScript = useCallback(async (script: Script) => {
+    if (!script || !user || !ParacoreConnected) return;
+
+    try {
+      const response = await fetch("http://localhost:8000/api/edit-script", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cloudToken}`
+        },
+        body: JSON.stringify({ scriptPath: script.absolutePath, type: script.type }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      await response.json();
+      showNotification(`Opening ${script.name} in VSCode...`, "success");
+    } catch (error) {
+      console.error("Failed to open script for editing:", error);
+      showNotification("Failed to open script in VSCode.", "error");
+    }
+  }, [user, cloudToken, ParacoreConnected, showNotification]);
 
   const setActivePreset = useCallback((scriptId: string, presetName: string) => {
     setActivePresets(prev => ({
@@ -788,6 +817,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     renamePreset,
     computeParameterOptions,
     isComputingOptions,
+    editScript,
   }), [
     selectedScript,
     setSelectedScript,
@@ -808,6 +838,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     renamePreset,
     computeParameterOptions,
     isComputingOptions,
+    editScript,
   ]);
 
   return (

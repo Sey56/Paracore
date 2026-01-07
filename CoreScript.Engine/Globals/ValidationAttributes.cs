@@ -28,6 +28,9 @@ namespace CoreScript.Engine.Globals
         public string TargetType { get; set; } // Target element type name (e.g. "WallType")
         public string Group { get; set; }
         public string Category { get; set; } // Filter by category (e.g., "Doors")
+        public bool MultiSelect { get; set; } = false;
+        public string Options { get; set; }
+        public string VisibleWhen { get; set; }
         public bool Compute { get; set; } = false;
         public bool Computable { get; set; } = false;
         public string Description { get; set; }

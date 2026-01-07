@@ -5,8 +5,9 @@ import type { Script } from '../../../types/scriptModel';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '@/context/ThemeContext';
-import { useAuth } from '@/hooks/useAuth'; // Import useAuth
-import { useRevitStatus } from '@/hooks/useRevitStatus'; // Import useRevitStatus
+import { useScriptExecution } from '@/hooks/useScriptExecution';
+import { useAuth } from '@/hooks/useAuth';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
 
 interface FloatingCodeViewerProps {
   script: Script;
@@ -16,8 +17,9 @@ interface FloatingCodeViewerProps {
 
 export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, isOpen, onClose }) => {
   const { theme } = useTheme();
-  const { user, cloudToken } = useAuth(); // Get user and cloudToken from auth context
-  const { ParacoreConnected } = useRevitStatus(); // Get ParacoreConnected status
+  const { user } = useAuth();
+  const { ParacoreConnected } = useRevitStatus();
+  const { editScript } = useScriptExecution();
 
   if (!isOpen) {
     return null;
@@ -37,29 +39,6 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
 
   const onDragResizeStop = () => {
     document.body.style.overflow = 'auto';
-  };
-
-  const handleEditScript = async () => {
-    if (!script || !canEdit) return;
-
-    try {
-      const response = await fetch("http://localhost:8000/api/edit-script", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${cloudToken}`
-        },
-        body: JSON.stringify({ scriptPath: script.absolutePath, type: script.type }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-    } catch (error) {
-      console.error("Failed to open script for editing:", error);
-    }
   };
 
   return (
@@ -99,11 +78,10 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
       </div>
       <div className="absolute bottom-0 left-0 right-0 h-16 p-4 border-t border-gray-300 dark:border-gray-600 flex justify-end items-center bg-gray-200 dark:bg-gray-700">
         <button
-          onClick={handleEditScript}
+          onClick={() => editScript(script)}
           disabled={!canEdit}
-          className={`bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold flex items-center ${
-            !canEdit ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
-          }`}
+          className={`bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold flex items-center ${!canEdit ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
+            }`}
           title={getTitleMessage()}
         >
           <FontAwesomeIcon icon={faEdit} className="mr-2" />

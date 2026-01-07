@@ -392,6 +392,7 @@ export const ScriptGallery: React.FC = () => {
                 script={script}
                 onSelect={() => handleScriptSelect(script)}
                 isFromActiveWorkspace={isFromActiveWorkspace(script)}
+                isCompact={true}
               />
             ))}
           </div>
