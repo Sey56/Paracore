@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using CoreScript.Engine.Globals; // Required for attributes
 
 public class Params
 {
@@ -11,10 +9,10 @@ public class Params
     };
 
     // Common Parameters
-    [RevitElements(TargetType: "Level")]
+    [RevitElements(TargetType = "Level")]
     public string LevelName { get; set; } = "Level 1";
 
-    [RevitElements(TargetType: "WallType")]
+    [RevitElements(TargetType = "WallType")]
     public string WallTypeName { get; set; } = "Generic - 200mm";
 
     /// <summary>Height in meters</summary>

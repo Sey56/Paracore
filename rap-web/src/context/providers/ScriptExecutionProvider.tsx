@@ -643,6 +643,19 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [selectedScript, showNotification, isAuthenticated]);
 
+  // Synchronize selectedScript with the global scripts list from ScriptProvider
+  // This ensures that when a script is reloaded (e.g. by polling or focus), 
+  // the inspector's local state is updated with the new metadata and parameters.
+  useEffect(() => {
+    if (selectedScript) {
+      const updatedScript = allScriptsFromScriptProvider.find(s => s.id === selectedScript.id);
+      if (updatedScript && updatedScript !== selectedScript) {
+        // console.debug(`[ScriptExecutionProvider] Syncing selectedScript state for ${selectedScript.name}`);
+        setSelectedScriptState(updatedScript);
+      }
+    }
+  }, [allScriptsFromScriptProvider, selectedScript]);
+
   // Clear selected script when user logs out
   useEffect(() => {
     if (!isAuthenticated && selectedScript) {

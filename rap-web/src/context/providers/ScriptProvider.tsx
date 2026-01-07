@@ -123,9 +123,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   }, [fetchTeamWorkspaces, activeTeam]);
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [favoriteScripts, setFavoriteScripts] = useState<string[]>([]);
-  const [recentScripts, setRecentScripts] = useState<string[]>([]);
-  const [lastRunTimes, setLastRunTimes] = useState<Record<string, string>>({});
+  const [favoriteScripts, setFavoriteScripts] = useLocalStorage<string[]>('rap_favoriteScripts', []);
+  const [recentScripts, setRecentScripts] = useLocalStorage<string[]>('rap_recentScripts', []);
+  const [lastRunTimes, setLastRunTimes] = useLocalStorage<Record<string, string>>('rap_lastRunTimes', {});
   const [combinedScriptContent, setCombinedScriptContent] = useState<string | null>(null);
   const [currentDisplayPath, setCurrentDisplayPath] = useState<string | null>(null);
 
