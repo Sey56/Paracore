@@ -675,7 +675,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
           const existingParam = s.parameters?.find(ep => ep.name === p.name && ep.type === p.type);
 
           if (existingParam?.options && existingParam.options.length > 0) {
-            console.log(`[ScriptProvider] Preserving ${existingParam.options.length} options for parameter: ${p.name}`);
+            // console.debug(`[ScriptProvider] Preserving ${existingParam.options.length} options for parameter: ${p.name}`);
           }
 
           return {

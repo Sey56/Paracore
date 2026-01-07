@@ -547,7 +547,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       }
 
       if (selectedScript) {
-        console.log(`[ScriptExecutionProvider] Focus detected. Reloading ${selectedScript.name}`);
+        // console.debug(`[ScriptExecutionProvider] Focus detected. Reloading ${selectedScript.name}`);
         lastFocusTimeRef.current = now;
         reloadScript(selectedScript, { silent: true });
       }
