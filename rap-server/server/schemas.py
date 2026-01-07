@@ -108,6 +108,19 @@ class ParameterSchema(BaseModel):
     name: str
     type: str
     value: Any # Use Any to allow different types (string, number, boolean, etc.)
+    description: Optional[str] = None
+    group: Optional[str] = None
+    options: Optional[List[str]] = None
+    multiSelect: Optional[bool] = None
+    requiresCompute: Optional[bool] = None
+    suffix: Optional[str] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+    step: Optional[float] = None
+    pattern: Optional[str] = None
+    required: Optional[bool] = None
+    inputType: Optional[str] = None
+    defaultValue: Optional[Any] = None
 
 # This represents the structure of a single preset
 class PresetSchema(BaseModel):

@@ -30,15 +30,17 @@ const areValuesEqual = (val1: any, val2: any, type?: string): boolean => {
     return Math.abs((n1 || 0) - (n2 || 0)) < EPSILON;
   }
 
-  if (Array.isArray(val1) && Array.isArray(val2)) {
-    if (val1.length !== val2.length) return false;
-    for (let i = 0; i < val1.length; i++) {
-      if (val1[i] !== val2[i]) return false;
-    }
-    return true;
+  if (Array.isArray(val1) || Array.isArray(val2)) {
+    const arr1 = Array.isArray(val1) ? val1 : (typeof val1 === 'string' ? JSON.parse(val1 || '[]') : []);
+    const arr2 = Array.isArray(val2) ? val2 : (typeof val2 === 'string' ? JSON.parse(val2 || '[]') : []);
+
+    if (arr1.length !== arr2.length) return false;
+    const sorted1 = [...arr1].sort();
+    const sorted2 = [...arr2].sort();
+    return sorted1.every((val, index) => val === sorted2[index]);
   }
 
-  return false;
+  return String(val1) === String(val2);
 };
 
 // Helper function for deep comparison of parameters
@@ -91,10 +93,14 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   // Track which preset is selected for each script
   const [activePresets, setActivePresets] = useLocalStorage<Record<string, string>>('rap_activePresets', {});
 
-  // Sync ref for access in callbacks
+  // Isolated storage for the user's manual "draft" edits in the "<Default Parameters>" mode.
+  // This prevents edits in titled presets from polluting the base defaults.
+  const [defaultDraftParameters, setDefaultDraftParameters] = useLocalStorage<Record<string, ScriptParameter[]>>('rap_defaultDraftParameters', {});
+  const defaultDraftParametersRef = useRef(defaultDraftParameters);
+
   useEffect(() => {
-    selectedScriptRef.current = selectedScript;
-  }, [selectedScript]);
+    defaultDraftParametersRef.current = defaultDraftParameters;
+  }, [defaultDraftParameters]);
 
   const [runningScriptPath, setRunningScriptPath] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -107,17 +113,30 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setExecutionResult(null);
   }, []);
 
-  const updateUserEditedParameters = useCallback((scriptId: string, parameters: ScriptParameter[]) => {
+  const updateUserEditedParameters = useCallback((scriptId: string, parameters: ScriptParameter[], isPresetLoad: boolean = false) => {
     setUserEditedScriptParameters(prev => ({
       ...prev,
       [scriptId]: parameters,
     }));
 
+    // If we are in "<Default Parameters>" mode AND this is NOT a preset load, update the draft cache.
+    // This prevents values from a just-loaded preset from leaking into the "Default" draft 
+    // before the activePreset state has finished updating.
+    if (!isPresetLoad) {
+      const currentPreset = activePresets[scriptId] || "<Default Parameters>";
+      if (currentPreset === "<Default Parameters>") {
+        setDefaultDraftParameters(prev => ({
+          ...prev,
+          [scriptId]: parameters,
+        }));
+      }
+    }
+
     // If the currently selected script's parameters were updated, sync the state
     if (selectedScriptRef.current?.id === scriptId) {
       setSelectedScriptState(prev => prev ? { ...prev, parameters } : null);
     }
-  }, [setUserEditedScriptParameters]);
+  }, [setUserEditedScriptParameters, setActivePresets, setDefaultDraftParameters, activePresets]);
 
   const setActivePreset = useCallback((scriptId: string, presetName: string) => {
     setActivePresets(prev => ({
@@ -759,6 +778,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     clearExecutionResult,
     userEditedScriptParameters,
     updateUserEditedParameters,
+    defaultDraftParameters,
     activePresets,
     setActivePreset,
     presets,
@@ -778,6 +798,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     clearExecutionResult,
     userEditedScriptParameters,
     updateUserEditedParameters,
+    defaultDraftParameters,
     activePresets,
     setActivePreset,
     presets,

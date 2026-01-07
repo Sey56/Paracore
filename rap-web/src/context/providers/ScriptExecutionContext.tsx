@@ -12,7 +12,8 @@ export interface ScriptExecutionContextProps {
   runScript: (script: Script, parameters?: ScriptParameter[]) => Promise<void>;
   clearExecutionResult: () => void;
   userEditedScriptParameters: Record<string, ScriptParameter[]>;
-  updateUserEditedParameters: (scriptId: string, parameters: ScriptParameter[]) => void;
+  updateUserEditedParameters: (scriptId: string, parameters: ScriptParameter[], isPresetLoad?: boolean) => void;
+  defaultDraftParameters: Record<string, ScriptParameter[]>;
   activePresets: Record<string, string>;
   setActivePreset: (scriptId: string, presetName: string) => void;
   presets: ParameterPreset[];

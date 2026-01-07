@@ -55,6 +55,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     computeParameterOptions,
     isComputingOptions,
     userEditedScriptParameters,
+    defaultDraftParameters,
     activePresets,
     setActivePreset,
   } = useScriptExecution();
@@ -219,21 +220,22 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 const presetName = e.target.value;
                 internalSetSelectedPreset(presetName);
                 if (presetName === "<Default Parameters>") {
-                  const defaultParams = initializeParameters(script.parameters ?? []);
-                  updateUserEditedParameters(script.id, defaultParams);
-                  setEditedParameters(defaultParams);
+                  // Load from the isolated "Default" draft cache if it exists, otherwise fall back to script defaults
+                  const draftParams = defaultDraftParameters[script.id];
+                  const finalDefaultParams = draftParams || initializeParameters(script.parameters ?? []);
+                  updateUserEditedParameters(script.id, finalDefaultParams, true); // isPresetLoad = true
+                  setEditedParameters(finalDefaultParams);
                 } else {
                   const preset = presets.find((p) => p.name === presetName);
                   if (preset) {
-                    // CRITICAL FIX: Merge preset values into existing script parameters to preserve metadata (options, type, etc.)
-                    // Do NOT replace the parameter objects with the preset objects directly.
+                    // ... (merge logic)
                     const mergedParams = (script.parameters ?? []).map(scriptParam => {
                       const presetParam = preset.parameters.find(p => p.name === scriptParam.name);
 
                       if (presetParam) {
                         let newValue = presetParam.value;
 
-                        // Handle Multi-Select deserialization (string -> array)
+                        // Handle Multi-Select deserialization if necessary (though state isolation usually handles this)
                         if (scriptParam.multiSelect && typeof newValue === 'string') {
                           try {
                             const parsed = JSON.parse(newValue);
@@ -244,15 +246,19 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                           }
                         }
 
-                        return { ...scriptParam, value: newValue };
+                        // Also restore 'options' from the preset if they exist, 
+                        // as they might represent a previous "Fetch" state.
+                        const finalOptions = presetParam.options && presetParam.options.length > 0
+                          ? presetParam.options
+                          : scriptParam.options;
+
+                        return { ...scriptParam, value: newValue, options: finalOptions };
                       }
 
-                      // If param not in preset, keep current value or reset to default? 
-                      // Keeping current is safer, or resetting to default. Let's reset to default to be "clean".
-                      return { ...scriptParam, value: scriptParam.value };
+                      return { ...scriptParam };
                     });
 
-                    updateUserEditedParameters(script.id, mergedParams);
+                    updateUserEditedParameters(script.id, mergedParams, true); // isPresetLoad = true
                     setEditedParameters(mergedParams);
                   }
                 }
