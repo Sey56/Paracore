@@ -137,7 +137,13 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     if (selectedScriptRef.current?.id === scriptId) {
       setSelectedScriptState(prev => prev ? { ...prev, parameters } : null);
     }
-  }, [setUserEditedScriptParameters, setActivePresets, setDefaultDraftParameters, activePresets]);
+
+    // CRITICAL: Update the global scripts list in ScriptProvider so background reloads preserve these values
+    setScripts(prev => prev.map(s => {
+      if (s.id !== scriptId) return s;
+      return { ...s, parameters };
+    }));
+  }, [setUserEditedScriptParameters, setActivePresets, setDefaultDraftParameters, activePresets, setScripts]);
 
   const { user, cloudToken } = useAuth();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
@@ -652,9 +658,36 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (updatedScript && updatedScript !== selectedScript) {
         // console.debug(`[ScriptExecutionProvider] Syncing selectedScript state for ${selectedScript.name}`);
         setSelectedScriptState(updatedScript);
+
+        // Synchronize the user-edited parameters cache too.
+        // This is critical for ensuring that schema changes (added/removed params)
+        // are reflected in the UI, while preserving current user edits.
+        setUserEditedScriptParameters(prev => {
+          const currentEdits = prev[selectedScript.id];
+          if (!currentEdits) return prev;
+
+          // If the updated script has no parameters but we have cached edits,
+          // skip the update to avoid wiping the cache during the brief reload period
+          // (common for multi-file scripts during initial selection).
+          if ((!updatedScript.parameters || updatedScript.parameters.length === 0) && currentEdits.length > 0) {
+            return prev;
+          }
+
+          // Merge: Keep the new parameter structure (metadata, etc.)
+          // but preserve the 'value' if the parameter name matches.
+          const mergedParameters = (updatedScript.parameters || []).map(newParam => {
+            const existingEdit = currentEdits.find(e => e.name === newParam.name);
+            return existingEdit ? { ...newParam, value: existingEdit.value } : newParam;
+          });
+
+          return {
+            ...prev,
+            [selectedScript.id]: mergedParameters
+          };
+        });
       }
     }
-  }, [allScriptsFromScriptProvider, selectedScript]);
+  }, [allScriptsFromScriptProvider, selectedScript, setUserEditedScriptParameters]);
 
   // Clear selected script when user logs out
   useEffect(() => {

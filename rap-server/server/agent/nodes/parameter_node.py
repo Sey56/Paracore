@@ -232,7 +232,7 @@ Your task is to extract the parameter names and their new values from the user's
       * If default is "Generic - 200mm" and user says "change wall type to 300mm", the new value should be "Generic - 300mm".
       * If default is "True" and user says "set it to false", the new value should be "False" (matching the capitalization).
       * If default is "true" and user says "set it to False", the new value should be "false" (matching lowercase).
-      * If default is a number like 5 and user says "set to 10", the new value should be 10 (number).
+      * If default is a number like 1.5 and user says "set to 3", the new value should be 3 (number).
     - **DO NOT fabricate or hallucinate values.** Only use what the user explicitly provided.
     - If a parameter name from the user's request does not closely match any of the available parameter names, ignore it.
     
@@ -246,7 +246,9 @@ Return a list of all identified parameter updates with values formatted to match
         print(f"parameter_node: Could not extract parameter updates from user message: {e}")
         chat_updates = {}
 
-    # Merge parameters: UI changes first, then chat changes (chat takes precedence)
+    # Merge parameters: UI changes AND chat updates.
+    # UI parameters represent the CURRENT state of the UI at the time of the message.
+    # Chat updates represent intent expressed IN the message.
     ui_params = state.get('ui_parameters', {}) # This is a dict of {name: value}
     
     print(f"[parameter_node] UI parameters from state: {ui_params}")
@@ -255,34 +257,14 @@ Return a list of all identified parameter updates with values formatted to match
     # Create a dictionary of current parameters for easy lookup
     params_dict = {str(p['name']): p for p in current_params if 'name' in p and isinstance(p['name'], str)}
     
-    # DEBUG: Show current parameter values BEFORE merging
-    print(f"[parameter_node] Current params BEFORE merging:")
-    for name, param in params_dict.items():
-        current_val = param.get('value')
-        default_val = param.get('defaultValueJson')
-        print(f"  {name}: value={current_val}, default={default_val}")
-
-    # Apply UI updates ONLY if the parameter doesn't already have a 'value' from previous chat updates
-    # This prevents UI from overwriting chat updates when user says "run it"
+    # 1. Apply UI updates first. These are the "baseline" of what is currently in the inspector.
     if ui_params:
         for param_name, param_value in ui_params.items():
             if param_name in params_dict:
-                # Only apply UI value if there's no existing 'value' (or if value equals defaultValueJson)
-                current_value = params_dict[param_name].get('value')
-                default_value = params_dict[param_name].get('defaultValueJson')
-                
-                # Normalize to strings for comparison to handle type mismatches (e.g., False vs "false")
-                current_str = str(current_value).lower() if current_value is not None else None
-                default_str = str(default_value).lower() if default_value is not None else None
-                
-                # Apply UI update if: no value set yet, OR value is still the default
-                if current_value is None or current_str == default_str:
-                    params_dict[param_name]['value'] = param_value
-                    print(f"[parameter_node] Applied UI update: {param_name} = {param_value}")
-                else:
-                    print(f"[parameter_node] Skipped UI update for {param_name} (has chat value: {current_value})")
+                params_dict[param_name]['value'] = param_value
+                print(f"[parameter_node] Applied UI update: {param_name} = {param_value}")
 
-    # Apply chat updates (these OVERRIDE everything, including UI values)
+    # 2. Apply chat updates. These OVERRIDE UI values because they were just explicitly stated by the user.
     if chat_updates:
         for param_name, param_value in chat_updates.items():
             # Find the correct parameter name (case-insensitive)
