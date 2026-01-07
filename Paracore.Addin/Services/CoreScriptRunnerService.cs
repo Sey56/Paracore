@@ -251,7 +251,12 @@ namespace Paracore.Addin.Services
                         RevitElementCategory = p.RevitElementCategory ?? "",
                         RequiresCompute = p.RequiresCompute,
                         Group = p.Group ?? "",
-                        InputType = p.InputType ?? ""
+                        InputType = p.InputType ?? "",
+                        Required = p.Required,
+                        Suffix = p.Suffix ?? "",
+                        Pattern = p.Pattern ?? "",
+                        EnabledWhenParam = p.EnabledWhenParam ?? "",
+                        EnabledWhenValue = p.EnabledWhenValue ?? ""
                     };
                     
                     protoParam.Options.AddRange(p.Options);

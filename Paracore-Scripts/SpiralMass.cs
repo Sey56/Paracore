@@ -21,39 +21,7 @@ History:
 */
 
 // ===== PARAMETERS =====
-//  [Parameter]
-string baseLevelName = "Level 1";       // Base level name
-// [Parameter]
-string topLevelName = "Level 42";       // Top level name
-// [Parameter]
-int segments = 82;                      // Number of segments for entire height (min 3)
-// [Parameter]
-double sideLengthCm = 1000;             // Base square side length
-// [Parameter]
-double topSideLengthCm = 1000;          // Top square side length (tapering)
-// [Parameter]
-double rotationDeg = 360;               // Total rotation over height (degrees)
-// [Parameter]
-bool clockwiseRotation = true;          // Rotation direction
-// [Parameter]
-double twistAngle = 0;                  // Additional twist per segment
-// [Parameter]
-int segmentsPerSide = 2;                // Number of segments per square side
-
-// Bulge/Squeeze parameters
-// [Parameter]
-double bulgeFactor = 3;                 // Bulge magnitude (positive = bulge, negative = squeeze)
-// [Parameter]
-double bulgeCenterHeightRatio = 0.2;    // Vertical position of bulge center (0=base, 1=top)
-// [Parameter]
-double bulgeRadiusRatio = 0.3;          // Vertical radius of bulge effect (0-0.5)
-
-// Positioning parameters
-// [Parameter]
-double centerX = 0;                     // X position offset in meters
-// [Parameter]
-double centerY = 0;                     // Y position offset in meters
-// ======================
+var p = new Params();
 
 Print("⏳ Creating SpiralMass with anchor-preserving bulge effect...");
 
@@ -67,8 +35,8 @@ Transact("Create SpiralMass", doc =>
         .Cast<Level>()
         .ToList();
 
-    Level? baseLevel = levels.FirstOrDefault(l => l.Name == baseLevelName);
-    Level?  topLevel = levels.FirstOrDefault(l => l.Name == topLevelName);
+    Level? baseLevel = levels.FirstOrDefault(l => l.Name == p.BaseLevelName);
+    Level?  topLevel = levels.FirstOrDefault(l => l.Name == p.TopLevelName);
 
     if (baseLevel == null || topLevel == null)
     {
@@ -82,33 +50,33 @@ Transact("Create SpiralMass", doc =>
     double totalHeightFt = topHeightFt - baseHeightFt;
     
     // Ensure minimum segments
-    segments = Math.Max(3, segments);
+    int segments = Math.Max(3, p.Segments);
     int profileCount = segments + 1;  // Profiles = segments + 1
     
-    Print($"   - Base Level: {baseLevelName} ({UnitUtils.ConvertFromInternalUnits(baseHeightFt, UnitTypeId.Meters):0.00} m)");
-    Print($"   - Top Level: {topLevelName} ({UnitUtils.ConvertFromInternalUnits(topHeightFt, UnitTypeId.Meters):0.00} m)");
+    Print($"   - Base Level: {p.BaseLevelName} ({UnitUtils.ConvertFromInternalUnits(baseHeightFt, UnitTypeId.Meters):0.00} m)");
+    Print($"   - Top Level: {p.TopLevelName} ({UnitUtils.ConvertFromInternalUnits(topHeightFt, UnitTypeId.Meters):0.00} m)");
     Print($"   - Segments: {segments}, Profiles: {profileCount}");
     Print($"   - Total height: {UnitUtils.ConvertFromInternalUnits(totalHeightFt, UnitTypeId.Meters):0.00} m");
-    Print($"   - Position: ({centerX:0.00}m, {centerY:0.00}m)");
+    Print($"   - Position: ({p.CenterX:0.00}m, {p.CenterY:0.00}m)");
 
     // Convert inputs to Revit internal units (feet)
-    double sideFt = UnitUtils.ConvertToInternalUnits(sideLengthCm, UnitTypeId.Centimeters);
-    double topSideFt = UnitUtils.ConvertToInternalUnits(topSideLengthCm, UnitTypeId.Centimeters);
+    double sideFt = UnitUtils.ConvertToInternalUnits(p.SideLengthCm, UnitTypeId.Centimeters);
+    double topSideFt = UnitUtils.ConvertToInternalUnits(p.TopSideLengthCm, UnitTypeId.Centimeters);
     
     // Convert position offsets to feet
-    double offsetX = UnitUtils.ConvertToInternalUnits(centerX, UnitTypeId.Meters);
-    double offsetY = UnitUtils.ConvertToInternalUnits(centerY, UnitTypeId.Meters);
+    double offsetX = UnitUtils.ConvertToInternalUnits(p.CenterX, UnitTypeId.Meters);
+    double offsetY = UnitUtils.ConvertToInternalUnits(p.CenterY, UnitTypeId.Meters);
     XYZ positionOffset = new(offsetX, offsetY, 0);
     
-    double rotationSign = clockwiseRotation ? 1 : -1;
-    double rotationRad = rotationDeg * Math.PI / 180.0 * rotationSign;
-    double twistRad = twistAngle * Math.PI / 180.0;
+    double rotationSign = p.ClockwiseRotation ? 1 : -1;
+    double rotationRad = p.RotationDeg * Math.PI / 180.0 * rotationSign;
+    double twistRad = p.TwistAngle * Math.PI / 180.0;
 
     var profileArrays = new ReferenceArrayArray();
 
     // Calculate bulge center and radius
-    double bulgeCenterZ = baseHeightFt + totalHeightFt * bulgeCenterHeightRatio;
-    double bulgeRadiusFt = totalHeightFt * bulgeRadiusRatio;
+    double bulgeCenterZ = baseHeightFt + totalHeightFt * p.BulgeCenterHeightRatio;
+    double bulgeRadiusFt = totalHeightFt * p.BulgeRadiusRatio;
 
     // Calculate bulge boundaries
     double bulgeStartZ = Math.Max(baseHeightFt, bulgeCenterZ - bulgeRadiusFt);
@@ -133,7 +101,7 @@ Transact("Create SpiralMass", doc =>
         bool isAnchorProfile = (i == BASE_PROFILE_INDEX) || (i == profileCount - 1);
         
         // Only calculate bulge effect if within bulge radius and not anchor
-        if (!isAnchorProfile && Math.Abs(bulgeFactor) > 0.001 && 
+        if (!isAnchorProfile && Math.Abs(p.BulgeFactor) > 0.001 && 
             z > bulgeStartZ && z < bulgeEndZ)
         {
             // Calculate normalized distance from bulge center (0 at center, 1 at boundaries)
@@ -144,7 +112,7 @@ Transact("Create SpiralMass", doc =>
                                   2 * Math.Pow(normalizedDistance, 3);
             
             // Apply bulge factor
-            bulgeEffect = 1.0 + bulgeFactor * smoothFactor;
+            bulgeEffect = 1.0 + p.BulgeFactor * smoothFactor;
         }
 
         var ringRefs = new ReferenceArray();
@@ -156,10 +124,10 @@ Transact("Create SpiralMass", doc =>
             double endAngle = (sideIndex + 1) * Math.PI / 2;
             
             // Create multiple segments per side
-            for (int seg = 0; seg < segmentsPerSide; seg++)
+            for (int seg = 0; seg < p.SegmentsPerSide; seg++)
             {
-                double segStartAngle = startAngle + (endAngle - startAngle) * seg / segmentsPerSide;
-                double segEndAngle = startAngle + (endAngle - startAngle) * (seg + 1) / segmentsPerSide;
+                double segStartAngle = startAngle + (endAngle - startAngle) * seg / p.SegmentsPerSide;
+                double segEndAngle = startAngle + (endAngle - startAngle) * (seg + 1) / p.SegmentsPerSide;
                 
                 // Apply twist along the height
                 double twist = twistRad * heightRatio;
@@ -178,7 +146,7 @@ Transact("Create SpiralMass", doc =>
                 );
                 
                 // Apply bulge effect only if within the affected zone and not anchor
-                if (!isAnchorProfile && Math.Abs(bulgeFactor) > 0.001 && 
+                if (!isAnchorProfile && Math.Abs(p.BulgeFactor) > 0.001 && 
                     z > bulgeStartZ && z < bulgeEndZ)
                 {
                     // Apply bulge effect only radially
@@ -220,18 +188,79 @@ Transact("Create SpiralMass", doc =>
     
     Print($"✅ SpiralMass created successfully");
     Print($"   - Segments: {segments}, Profiles: {profileCount}");
-    Print($"   - Base: {sideLengthCm} cm (exact), Top: {topSideLengthCm} cm (exact)");
-    Print($"   - Total rotation: {rotationDeg}° {(clockwiseRotation ? "CW" : "CCW")}");
+    Print($"   - Base: {p.SideLengthCm} cm (exact), Top: {p.TopSideLengthCm} cm (exact)");
+    Print($"   - Total rotation: {p.RotationDeg}° {(p.ClockwiseRotation ? "CW" : "CCW")}");
     
-    if (Math.Abs(bulgeFactor) > 0.001)
+    if (Math.Abs(p.BulgeFactor) > 0.001)
     {
-        string effect = bulgeFactor > 0 ? "Bulge" : "Squeeze";
+        string effect = p.BulgeFactor > 0 ? "Bulge" : "Squeeze";
         double startHeightM = UnitUtils.ConvertFromInternalUnits(bulgeStartZ - baseHeightFt, UnitTypeId.Meters);
         double endHeightM = UnitUtils.ConvertFromInternalUnits(bulgeEndZ - baseHeightFt, UnitTypeId.Meters);
         
-        Print($"   - {effect} effect: {Math.Abs(bulgeFactor * 100):0}%");
+        Print($"   - {effect} effect: {Math.Abs(p.BulgeFactor * 100):0}%");
         Print($"     Anchor profiles preserved at base and top");
-        Print($"     Center at {bulgeCenterHeightRatio * 100:0}% height ({UnitUtils.ConvertFromInternalUnits(bulgeCenterZ - baseHeightFt, UnitTypeId.Meters):0.00}m)");
+        Print($"     Center at {p.BulgeCenterHeightRatio * 100:0}% height ({UnitUtils.ConvertFromInternalUnits(bulgeCenterZ - baseHeightFt, UnitTypeId.Meters):0.00}m)");
         Print($"     Affects from {startHeightM:0.00}m to {endHeightM:0.00}m");
     }
 });
+
+// ======================
+public class Params
+{
+    /// Name of the base level
+    [RevitElements(TargetType: "Level")]
+    public string BaseLevelName { get; set; } = "Level 1";
+
+    /// Name of the top level
+    [RevitElements(TargetType: "Level")]
+    public string TopLevelName { get; set; } = "Level 2";
+
+    /// Number of segments for entire height (min 3)
+    [Range(3, 200)]
+    public int Segments { get; set; } = 82;
+
+    /// Base square side length in cm
+    [Range(100, 5000, 10)]
+    public double SideLengthCm { get; set; } = 1000;
+
+    /// Top square side length in cm (tapering)
+    [Range(100, 5000, 10)]
+    public double TopSideLengthCm { get; set; } = 1000;
+
+    /// Total rotation over height (degrees)
+    [Range(0, 1080, 15)]
+    public double RotationDeg { get; set; } = 360;
+
+    /// Check for clockwise, uncheck for counter-clockwise
+    public bool ClockwiseRotation { get; set; } = true;
+
+    /// Additional twist per segment
+    [Range(0, 45, 1)]
+    public double TwistAngle { get; set; } = 0;
+
+    /// Number of segments per square side
+    [Range(1, 10)]
+    public int SegmentsPerSide { get; set; } = 2;
+
+    // Bulge/Squeeze parameters
+    
+    /// Bulge magnitude (positive = bulge, negative = squeeze)
+    [Range(-5.0, 5.0, 0.1)]
+    public double BulgeFactor { get; set; } = 3;
+
+    /// Vertical position of bulge center (0=base, 1=top)
+    [Range(0.0, 1.0, 0.05)]
+    public double BulgeCenterHeightRatio { get; set; } = 0.2;
+
+    /// Vertical radius of bulge effect (0-0.5)
+    [Range(0.0, 0.5, 0.05)]
+    public double BulgeRadiusRatio { get; set; } = 0.3;
+
+    // Positioning parameters
+    
+    /// X position offset in meters
+    public double CenterX { get; set; } = 0;
+
+    /// Y position offset in meters
+    public double CenterY { get; set; } = 0;
+}

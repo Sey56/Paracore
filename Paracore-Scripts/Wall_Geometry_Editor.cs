@@ -24,7 +24,7 @@ var p = new Params();
 // Collect Walls
 List<Wall> walls = new List<Wall>();
 
-if (p.useSelection)
+if (p.UseSelection)
 {
     var selection = UIDoc.Selection.GetElementIds();
     foreach (var id in selection)
@@ -34,7 +34,7 @@ if (p.useSelection)
     
     if (walls.Count == 0)
     {
-        Println("🚫 No walls selected. Please select walls or set useSelection to false.");
+        Println("🚫 No walls selected. Please select walls or set UseSelection to false.");
         return;
     }
 }
@@ -50,15 +50,15 @@ Println($"Found {walls.Count} walls to process.");
 
 // Find Sweep/Reveal Type by name
 ElementType? sweepType = null;
-BuiltInCategory targetCategory = p.mode == "AddSweep" ? BuiltInCategory.OST_Cornices : BuiltInCategory.OST_Reveals;
+BuiltInCategory targetCategory = p.Mode == "AddSweep" ? BuiltInCategory.OST_Cornices : BuiltInCategory.OST_Reveals;
 
-if (!string.IsNullOrEmpty(p.sweepTypeName))
+if (!string.IsNullOrEmpty(p.SweepTypeName))
 {
     sweepType = new FilteredElementCollector(Doc)
         .WhereElementIsElementType()
         .OfCategory(targetCategory)
         .Cast<ElementType>()
-        .FirstOrDefault(x => x.Name.Equals(p.sweepTypeName, StringComparison.OrdinalIgnoreCase));
+        .FirstOrDefault(x => x.Name.Equals(p.SweepTypeName, StringComparison.OrdinalIgnoreCase));
 }
 
 // Fallback to first available if not found or not specified
@@ -76,19 +76,19 @@ if (sweepType == null)
 
 if (sweepType == null)
 {
-    Println($"🚫 No {p.mode} types found in the project.");
+    Println($"🚫 No {p.Mode} types found in the project.");
     return;
 }
 
 // Find Profile (optional)
 FamilySymbol? profile = null;
-if (!string.IsNullOrEmpty(p.profileName))
+if (!string.IsNullOrEmpty(p.ProfileName))
 {
     profile = new FilteredElementCollector(Doc)
         .OfClass(typeof(FamilySymbol))
         .OfCategory(BuiltInCategory.OST_ProfileFamilies)
         .Cast<FamilySymbol>()
-        .FirstOrDefault(x => x.Name.Equals(p.profileName, StringComparison.OrdinalIgnoreCase));
+        .FirstOrDefault(x => x.Name.Equals(p.ProfileName, StringComparison.OrdinalIgnoreCase));
         
     if (profile != null && !profile.IsActive)
         profile.Activate();
@@ -96,30 +96,30 @@ if (!string.IsNullOrEmpty(p.profileName))
 
 int successCount = 0;
 
-Transact($"Wall Geometry - {p.mode}", () =>
+Transact($"Wall Geometry - {p.Mode}", () =>
 {
     foreach (var wall in walls)
     {
         try
         {
             // Create WallSweepInfo
-            WallSweepType sweepTypeEnum = p.mode == "AddSweep" ? WallSweepType.Sweep : WallSweepType.Reveal;
-            WallSweepInfo sweepInfo = new WallSweepInfo(sweepTypeEnum, p.vertical);
-            sweepInfo.WallSide = p.wallSide == "Exterior" ? WallSide.Exterior : WallSide.Interior;
+            WallSweepType sweepTypeEnum = p.Mode == "AddSweep" ? WallSweepType.Sweep : WallSweepType.Reveal;
+            WallSweepInfo sweepInfo = new WallSweepInfo(sweepTypeEnum, p.Vertical);
+            sweepInfo.WallSide = p.WallSide == "Exterior" ? WallSide.Exterior : WallSide.Interior;
             
             // For horizontal sweeps, Distance is measured from top or bottom
             // For vertical sweeps, Distance is a parameter along the wall's path (0.0 to 1.0)
-            if (p.vertical)
+            if (p.Vertical)
             {
                 // Vertical: use normalized value (0.0 to 1.0)
-                sweepInfo.Distance = p.offset;
+                sweepInfo.Distance = p.Offset;
             }
             else
             {
                 // Horizontal: convert offset ratio to actual distance from base
                 // Get wall height and calculate distance from bottom
                 double wallHeight = wall.get_Parameter(BuiltInParameter.WALL_USER_HEIGHT_PARAM).AsDouble();
-                sweepInfo.Distance = wallHeight * p.offset;
+                sweepInfo.Distance = wallHeight * p.Offset;
                 sweepInfo.DistanceMeasuredFrom = DistanceMeasuredFrom.Base;
             }
             
@@ -131,12 +131,12 @@ Transact($"Wall Geometry - {p.mode}", () =>
         }
         catch (Exception ex)
         {
-            Println($"⚠️ Failed to add {p.mode} to wall {wall.Id}: {ex.Message}");
+            Println($"⚠️ Failed to add {p.Mode} to wall {wall.Id}: {ex.Message}");
         }
     }
 });
 
-Println($"✅ Successfully added {p.mode} to {successCount}/{walls.Count} walls.");
+Println($"✅ Successfully added {p.Mode} to {successCount}/{walls.Count} walls.");
 
 // ============================================
 // CLASS DEFINITIONS (Must be at the bottom)
@@ -144,22 +144,25 @@ Println($"✅ Successfully added {p.mode} to {successCount}/{walls.Count} walls.
 
 class Params
 {
-    [ScriptParameter(Group: "Mode", Description: "Operation type", Options: "AddSweep,AddReveal")]
-    public string mode = "AddSweep";
+    /// <summary>Operation type</summary>
+    public string Mode { get; set; } = "AddSweep";
+    public static string[] Mode_Options => new[] { "AddSweep", "AddReveal" };
 
-    [ScriptParameter(Group: "Configuration", Description: "Wall side placement", Options: "Exterior,Interior")]
-    public string wallSide = "Exterior";
+    /// <summary>Wall side placement</summary>
+    public string WallSide { get; set; } = "Exterior";
+    public static string[] WallSide_Options => new[] { "Exterior", "Interior" };
 
-    [ScriptParameter(Group: "Configuration", Description: "Vertical or horizontal placement")]
-    public bool vertical = false; // false = horizontal, true = vertical
+    /// <summary>Vertical or horizontal placement</summary>
+    public bool Vertical { get; set; } = false; // false = horizontal, true = vertical
 
-    [ScriptParameter(Group: "Configuration", Description: "Position along wall height (0=bottom, 0.5=center, 1=top)", Min: 0.0, Max: 1.0, Step: 0.05)]
-    public double offset = 0.5;
+    /// <summary>Position along wall height (0=bottom, 0.5=center, 1=top)</summary>
+    [Range(0.0, 1.0, 0.05)]
+    public double Offset { get; set; } = 0.5;
 
-    [RevitElements(Group: "Type Selection", Description: "Wall Sweep or Reveal type")]
-    public string sweepTypeName = "";
+    [RevitElements(Description: "Wall Sweep or Reveal type")]
+    public string SweepTypeName { get; set; } = "";
 
-    public List<string> sweepTypeName_Options()
+    public List<string> SweepTypeName_Options()
     {
         var options = new List<string>();
 
@@ -185,10 +188,10 @@ class Params
         return options.OrderBy(n => n).ToList();
     }
 
-    [RevitElements(Group: "Type Selection", Description: "Profile family for the sweep/reveal")]
-    public string profileName = "";
+    [RevitElements(Description: "Profile family for the sweep/reveal")]
+    public string ProfileName { get; set; } = "";
 
-    public List<string> profileName_Options()
+    public List<string> ProfileName_Options()
     {
         return new FilteredElementCollector(Doc)
             .OfClass(typeof(FamilySymbol))
@@ -199,6 +202,6 @@ class Params
             .ToList();
     }
 
-    [ScriptParameter(Group: "Target", Description: "Operate on selected walls only")]
-    public bool useSelection = true;
+    /// <summary>Operate on selected walls only</summary>
+    public bool UseSelection { get; set; } = true;
 }

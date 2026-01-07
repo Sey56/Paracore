@@ -141,7 +141,12 @@ def get_script_parameters(script_files):
             "revitElementCategory": p.revit_element_category,
             "requiresCompute": p.requires_compute,
             "group": p.group,
-            "inputType": p.input_type
+            "inputType": p.input_type,
+            "required": p.required,
+            "suffix": p.suffix,
+            "pattern": p.pattern,
+            "enabledWhenParam": p.enabled_when_param,
+            "enabledWhenValue": p.enabled_when_value
         }
         params_to_return.append(param_dict)
 

@@ -120,6 +120,11 @@ message ScriptParameter {
   bool requires_compute = 15;
   string group = 16;
   string input_type = 17;
+  bool required = 18;
+  string suffix = 19;
+  string pattern = 20;
+  string enabled_when_param = 21;
+  string enabled_when_value = 22;
 }
 
 message GetCombinedScriptRequest {

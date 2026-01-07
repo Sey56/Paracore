@@ -40,9 +40,9 @@ export const evaluateVisibilityCondition = (
     let result = false;
 
     if (operator === '==') {
-        result = actualValue == expectedValueStr;
+        result = String(actualValue) == String(expectedValueStr);
     } else if (operator === '!=') {
-        result = actualValue != expectedValueStr;
+        result = String(actualValue) != String(expectedValueStr);
     }
 
     return result;
@@ -54,10 +54,19 @@ export const evaluateVisibilityCondition = (
  * @returns Only the visible parameters
  */
 export const filterVisibleParameters = (params: ScriptParameter[]): ScriptParameter[] => {
-
-    const visible = params.filter(p => {
+    return params.filter(p => {
+        // 1. Check legacy visibleWhen
         const isVisible = evaluateVisibilityCondition(p.visibleWhen, params);
-        return isVisible;
+        if (!isVisible) return false;
+
+        // 2. Check new enabledWhen (Phase 2)
+        if (p.enabledWhenParam && p.enabledWhenValue !== undefined && p.enabledWhenValue !== "") {
+            const targetParam = params.find(tp => tp.name === p.enabledWhenParam);
+            if (targetParam) {
+                return String(targetParam.value) === String(p.enabledWhenValue);
+            }
+        }
+
+        return true;
     });
-    return visible;
 };

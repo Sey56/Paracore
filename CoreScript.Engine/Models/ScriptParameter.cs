@@ -27,6 +27,10 @@ namespace CoreScript.Engine.Models
         public bool RequiresCompute { get; set; } = false; // True if options need to be computed from Revit document
         public string Group { get; set; }
         public string InputType { get; set; } // "File", "Folder", "Date", etc.
-
+        public bool Required { get; set; } = false; // New: Validation
+        public string Suffix { get; set; } // New: UI Hint (e.g. "mm")
+        public string Pattern { get; set; } // New: Regex Validation
+        public string EnabledWhenParam { get; set; } // New: Conditional Logic
+        public string EnabledWhenValue { get; set; } // New: Conditional Logic (serialized value)
     }
 }

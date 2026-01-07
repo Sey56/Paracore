@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using CoreScript.Engine.Globals;
 
 /*
 DocumentType: Project
@@ -34,25 +33,25 @@ var p = new Params();
 // =================================================================================
 // STEP 1: READ INPUT CSV FILE
 // =================================================================================
-if (string.IsNullOrWhiteSpace(p.inputCsvPath))
+if (string.IsNullOrWhiteSpace(p.InputCsvPath))
 {
     Println("⚠️ No input CSV file selected. Please select a file and run again.");
     return;
 }
 
-if (!File.Exists(p.inputCsvPath))
+if (!File.Exists(p.InputCsvPath))
 {
-    Println($"❌ File not found: {p.inputCsvPath}");
+    Println($"❌ File not found: {p.InputCsvPath}");
     return;
 }
 
-Println($"📂 Reading CSV file: {p.inputCsvPath}");
+Println($"📂 Reading CSV file: {p.InputCsvPath}");
 
 // Parse CSV
 var roomUpdates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 try
 {
-    var lines = File.ReadAllLines(p.inputCsvPath);
+    var lines = File.ReadAllLines(p.InputCsvPath);
     if (lines.Length < 2)
     {
         Println("❌ CSV file is empty or has no data rows.");
@@ -161,7 +160,7 @@ Println($"\n📊 Summary: {successCount} updated, {notFoundCount} not found.");
 // =================================================================================
 // STEP 3: EXPORT SUMMARY (OPTIONAL)
 // =================================================================================
-if (!string.IsNullOrWhiteSpace(p.outputCsvPath))
+if (!string.IsNullOrWhiteSpace(p.OutputCsvPath))
 {
     try
     {
@@ -176,8 +175,8 @@ if (!string.IsNullOrWhiteSpace(p.outputCsvPath))
             csvLines.Add($"{roomName},{status},{oldFinish},{newFinish}");
         }
 
-        File.WriteAllLines(p.outputCsvPath, csvLines);
-        Println($"💾 Exported summary to: {p.outputCsvPath}");
+        File.WriteAllLines(p.OutputCsvPath, csvLines);
+        Println($"💾 Exported summary to: {p.OutputCsvPath}");
     }
     catch (Exception ex)
     {
@@ -195,17 +194,11 @@ Println($"\n✅ Script completed. Updated {successCount} rooms.");
 // =================================================================================
 class Params
 {
-    [ScriptParameter(
-        Group: "Input", 
-        Description: "CSV file with room names and floor finishes (RoomName,FloorFinish)", 
-        InputType: "File"
-    )]
-    public string inputCsvPath = "";
+    /// <summary>CSV file with room names (RoomName,FloorFinish)</summary>
+    [ScriptParameter(InputType: "File", Group: "Input")]
+    public string InputCsvPath { get; set; } = "";
 
-    [ScriptParameter(
-        Group: "Output", 
-        Description: "Optional: Export summary of changes to CSV", 
-        InputType: "SaveFile"
-    )]
-    public string outputCsvPath = "";
+    /// <summary>Optional: Export summary of changes</summary>
+    [ScriptParameter(InputType: "SaveFile", Group: "Output")]
+    public string OutputCsvPath { get; set; } = "";
 }

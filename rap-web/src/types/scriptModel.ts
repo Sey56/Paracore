@@ -17,6 +17,11 @@ export interface ScriptParameter {
   requiresCompute?: boolean;
   group?: string;
   inputType?: string;
+  required?: boolean;
+  suffix?: string;
+  pattern?: string;
+  enabledWhenParam?: string;
+  enabledWhenValue?: string;
 }
 
 export interface RawScriptParameterData {
@@ -37,6 +42,11 @@ export interface RawScriptParameterData {
   requiresCompute?: boolean;
   group?: string;
   inputType?: string;
+  required?: boolean;
+  suffix?: string;
+  pattern?: string;
+  enabledWhenParam?: string;
+  enabledWhenValue?: string;
 }
 
 export interface StructuredOutput {
