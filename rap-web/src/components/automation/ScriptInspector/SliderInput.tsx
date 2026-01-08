@@ -72,7 +72,6 @@ export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value,
                         className="w-24 border border-gray-300 dark:border-gray-600 rounded px-2 py-0.5 text-xs font-mono bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         disabled={disabled}
                     />
-                    {suffix && <span className="ml-1 text-xs text-gray-500 whitespace-nowrap">{suffix}</span>}
                 </div>
             </div>
             <div className="flex justify-between px-1">

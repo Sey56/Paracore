@@ -195,10 +195,10 @@ Println($"\n✅ Script completed. Updated {successCount} rooms.");
 class Params
 {
     /// <summary>CSV file with room names (RoomName,FloorFinish)</summary>
-    [ScriptParameter(InputType: "File", Group: "Input")]
+    [ScriptParameter(InputType = "File", Group = "Input")]
     public string InputCsvPath { get; set; } = "";
 
     /// <summary>Optional: Export summary of changes</summary>
-    [ScriptParameter(InputType: "SaveFile", Group: "Output")]
+    [ScriptParameter(InputType = "SaveFile", Group = "Output")]
     public string OutputCsvPath { get; set; } = "";
 }

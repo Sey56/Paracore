@@ -39,13 +39,18 @@ async def chat_with_agent(request: ChatRequest):
     """
     Initiates or continues a conversation with the agent.
     """
-    print(f"DEBUG: Received chat request: {request.message}")
-    logging.info(f"DEBUG: Received chat request: {request.message}")
+    logging.info(f"[agent_router] Received chat request: {request.message}")
     
     try:
+        # Pre-flight check for LLM configuration
+        if not request.llm_provider or not request.llm_model or not request.llm_api_key_value:
+            logging.error(f"[agent_router] Missing LLM configuration: Provider={request.llm_provider}, Model={request.llm_model}, APIKeyPresent={bool(request.llm_api_key_value)}")
+            raise HTTPException(status_code=400, detail="LLM configuration (Provider, Model, or API Key) is missing. Please check your settings.")
+
         thread_id = request.thread_id or str(uuid.uuid4())
         config = {"configurable": {"thread_id": thread_id}}
 
+        logging.info(f"[agent_router] Initializing graph for thread: {thread_id}")
         # Await the async get_app to ensure DB connection is ready
         app_instance = await get_app()
 
@@ -59,8 +64,10 @@ async def chat_with_agent(request: ChatRequest):
         # Generate summary from raw_output_for_summary if present
         generated_summary = None
         if request.raw_output_for_summary:
+            logging.info(f"[agent_router] Generating execution summary for script output.")
             generated_summary = generate_summary(request.raw_output_for_summary)
         
+        logging.info(f"[agent_router] Invoking agent graph...")
         # The `ainvoke` call should receive the new message and any state updates.
         final_state = await app_instance.ainvoke({
             "messages": [input_message],
@@ -76,12 +83,15 @@ async def chat_with_agent(request: ChatRequest):
             "current_task_description": request.message if is_new_thread else None,
         }, config)
 
+        logging.info(f"[agent_router] Graph invocation complete.")
+
         # The agent's final response is the last message in the state
         last_message = final_state.get('messages', [])[-1]
 
         if isinstance(last_message, AIMessage) and last_message.tool_calls:
             # This is a tool call, likely for the HITL modal
             tool_call = last_message.tool_calls[0]
+            logging.info(f"[agent_router] Agent requested tool: {tool_call['name']}")
             
             # --- Start Parameter Formatting for HITL Display ---
             if tool_call['name'] == 'run_script_by_name' and 'parameters' in tool_call['args']:
@@ -118,6 +128,7 @@ async def chat_with_agent(request: ChatRequest):
 
         elif isinstance(last_message, AIMessage) and not last_message.tool_calls:
             # This is a standard conversational response
+            logging.info(f"[agent_router] Standard conversational response generated.")
             active_script_metadata = final_state.get('selected_script_metadata')
 
             return Response(content=json.dumps({
@@ -131,10 +142,9 @@ async def chat_with_agent(request: ChatRequest):
 
         else:
             # Handle other unexpected cases
-            print(f"agent_router: WARNING: Graph ended in an unexpected state. Last message: {last_message}")
+            logging.warning(f"[agent_router] WARNING: Graph ended in an unexpected state. Last message: {last_message}")
             raise ValueError("Agent did not produce a final answer or a valid tool call.")
 
     except Exception as e:
-        print(f"An error occurred: {e}")
-        traceback.print_exc()
+        logging.exception(f"[agent_router] CRITICAL ERROR during agent chat processing: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

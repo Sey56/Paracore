@@ -24,13 +24,13 @@ var targetIds = new List<ElementId>();
 
 // Resolve Categories from Names
 var targetCatIds = new List<ElementId>();
-foreach (var catName in p.targetCategoryNames)
+foreach (var catName in p.TargetCategoryNames)
 {
     Category cat = Doc.Settings.Categories.get_Item(catName);
     if (cat != null) targetCatIds.Add(cat.Id);
 }
 
-if (p.scope == "Selection")
+if (p.Scope == "Selection")
 {
     var selectionIds = UIDoc.Selection.GetElementIds();
     foreach (var id in selectionIds)
@@ -42,8 +42,8 @@ if (p.scope == "Selection")
         bool isTarget = targetCatIds.Any(catId => el.Category.Id.Value == catId.Value);
         
         // Logic for "Sheets" and "Views" if they aren't caught by standard category IDs
-        if (!isTarget && p.targetCategoryNames.Contains("Sheets") && el is ViewSheet) isTarget = true;
-        if (!isTarget && p.targetCategoryNames.Contains("Views") && el is View && !(el is ViewSheet)) isTarget = true;
+        if (!isTarget && p.TargetCategoryNames.Contains("Sheets") && el is ViewSheet) isTarget = true;
+        if (!isTarget && p.TargetCategoryNames.Contains("Views") && el is View && !(el is ViewSheet)) isTarget = true;
 
         if (isTarget) targetIds.Add(id);
     }
@@ -68,12 +68,12 @@ else
     }
 
     // Add Sheets/Views manually if using the special "Sheets" / "Views" names
-    if (p.targetCategoryNames.Contains("Sheets"))
+    if (p.TargetCategoryNames.Contains("Sheets"))
     {
         var sheetIds = new FilteredElementCollector(Doc).OfClass(typeof(ViewSheet)).ToElementIds();
         targetIds.AddRange(sheetIds);
     }
-    if (p.targetCategoryNames.Contains("Views"))
+    if (p.TargetCategoryNames.Contains("Views"))
     {
         var viewIds = new FilteredElementCollector(Doc).OfClass(typeof(View)).Where(v => !(v is ViewSheet)).Select(v => v.Id);
         targetIds.AddRange(viewIds);
@@ -84,15 +84,15 @@ targetIds = targetIds.Distinct().ToList();
 
 if (!targetIds.Any())
 {
-    string targetList = string.Join(", ", p.targetCategoryNames);
-    Println($"⚠️ No elements found for categories: [{targetList}] in scope '{p.scope}'.");
+    string targetList = string.Join(", ", p.TargetCategoryNames);
+    Println($"⚠️ No elements found for categories: [{targetList}] in scope '{p.Scope}'.");
     return;
 }
 
 // 3. Define Casing Logic
 string TransformName(string original)
 {
-    switch (p.caseMode)
+    switch (p.CaseMode)
     {
         case "UPPERCASE": return original.ToUpper();
         case "lowercase": return original.ToLower();
@@ -134,7 +134,7 @@ Transact($"Standardize Multi-Category Case", () =>
         {
             skippedCount++;
             // We only print errors for significant failures (like name already exists)
-            if (p.enableDetailedLogging)
+            if (p.EnableDetailedLogging)
                 Println($"❌ Skipped '{oldName}': {ex.Message}");
         }
     }
@@ -142,7 +142,7 @@ Transact($"Standardize Multi-Category Case", () =>
 
 // 5. Final Report
 if (updatedCount > 0)
-    Println($"✔️ Successfully updated casing for {updatedCount} elements across {p.targetCategoryNames.Count} categories.");
+    Println($"✔️ Successfully updated casing for {updatedCount} elements across {p.TargetCategoryNames.Count} categories.");
 else
     Println($"ℹ️ No elements in the selected categories required updates.");
 
@@ -150,12 +150,14 @@ if (skippedCount > 0)
     Println($"⚠️ {skippedCount} items were skipped (Name conflicts or read-only). Enable 'Detailed Logging' for details.");
 
 // --- Parameter Definitions ---
-class Params {
-    [RevitElements(MultiSelect: true, Description: "Select multiple categories to rename. Click 'Compute' to refresh the list.")]
-    public List<string> targetCategoryNames = new() { "Sheets" };
+public class Params 
+{
+    /// <summary>The categories to target for case standardization.</summary>
+    [RevitElements(MultiSelect = true)]
+    public List<string> TargetCategoryNames { get; set; } = new List<string>();
 
-    // Dynamic Options method for targetCategoryNames
-    public List<string> targetCategoryNames_Options() 
+    // Dynamic Options method for TargetCategoryNames
+    public List<string> TargetCategoryNames_Options() 
     {
         // 1. Define high-priority documentation categories
         var priorityNames = new List<string> { 
@@ -172,8 +174,6 @@ class Params {
         // 2. Add Annotation categories that commonly need standardization
         foreach (Category cat in Doc.Settings.Categories) 
         {
-            // We specifically want Annotations and specified documentation categories
-            // Most Model categories (Walls/Floors) don't support direct instance renaming
             if (cat.CategoryType == CategoryType.Annotation || priorityNames.Contains(cat.Name))
             {
                 if (!allOptions.Contains(cat.Name))
@@ -181,18 +181,23 @@ class Params {
             }
         }
 
-        // 3. Sort and ensure priority items are prominent (or just alphabetical for cleanliness)
         allOptions.Sort();
-        
         return allOptions;
     }
 
-    [ScriptParameter(Options: "UPPERCASE, lowercase, Title Case", Description: "The target text casing style.")]
-    public string caseMode = "UPPERCASE";
+    /// <summary>The target text casing style.</summary>
+    [ScriptParameter]
+    public string CaseMode { get; set; } = "UPPERCASE";
 
-    [ScriptParameter(Options: "Selection, All in Project", Description: "Scope of the operation.")]
-    public string scope = "Selection";
+    public List<string> CaseMode_Options() => new List<string> { "UPPERCASE", "lowercase", "Title Case" };
 
-    [ScriptParameter(Group: "Advanced", Description: "Print errors for every skipped element.")]
-    public bool enableDetailedLogging = false;
+    /// <summary>Scope of the operation.</summary>
+    [ScriptParameter]
+    public string Scope { get; set; } = "Selection";
+
+    public List<string> Scope_Options() => new List<string> { "Selection", "All in Project" };
+
+    /// <summary>Print errors for every skipped element.</summary>
+    [ScriptParameter(Group = "Advanced")]
+    public bool EnableDetailedLogging { get; set; } = false;
 }

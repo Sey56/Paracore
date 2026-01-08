@@ -53,17 +53,19 @@ namespace CoreScript.Engine.Core
                     .Select(u => u.ToString())
                     .ToList();
                 
-                // Find method or local function
+                // Find method, local function, or property
                 var functionNode = root.DescendantNodes()
                     .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
-                                         (n is LocalFunctionStatementSyntax l && l.Identifier.Text == functionName));
+                                         (n is LocalFunctionStatementSyntax l && l.Identifier.Text == functionName) ||
+                                         (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
 
                 if (functionNode == null)
                 {
-                    _logger.Log($"[ParameterOptionsExecutor] Function {functionName} not found in script content.", LogLevel.Warning);
+                    _logger.Log($"[ParameterOptionsExecutor] Function or Property {functionName} not found in script content.", LogLevel.Warning);
                     return new List<string>();
                 }
 
+                bool isProperty = functionNode is PropertyDeclarationSyntax;
                 string functionSource = functionNode.ToString();
                 string allUsings = string.Join("\n", usings);
 
@@ -97,7 +99,7 @@ using System.Linq;
 
 {functionSource}
 
-{functionName}()
+{(isProperty ? functionName : $"{functionName}()")}
 ";
 
                 _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
@@ -139,17 +141,14 @@ using System.Linq;
             }
         }
 
-        /// <summary>
-        /// Checks if a parameter has an associated _Options() function in the script.
-        /// </summary>
         public bool HasOptionsFunction(string scriptContent, string parameterName)
         {
             string functionName = $"{parameterName}_Options";
+            string filterName = $"{parameterName}_Filter";
             
-            // Simple check: does the script contain a function with this name?
-            // More sophisticated: parse the syntax tree to verify it's actually a function
-            return scriptContent.Contains($"List<string> {functionName}()") ||
-                   scriptContent.Contains($"List<string> {functionName} ()");
+            // Simple check: does the script contain a function or property with this name?
+            return scriptContent.Contains($" {functionName}") || 
+                   scriptContent.Contains($" {filterName}");
         }
     }
 }

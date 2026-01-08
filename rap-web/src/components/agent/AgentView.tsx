@@ -11,7 +11,8 @@ import { filterVisibleParameters } from '@/utils/parameterVisibility';
 
 import type { Message, ToolCall } from '@/context/providers/UIContext';
 import { Modal } from '@/components/common/Modal';
-import WorkingSetPanel from './WorkingSetPanel'; // Import the new component
+import WorkingSetPanel from './WorkingSetPanel';
+import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 
 // This component will be responsible for rendering the new HITL modal
 // It will be created in a subsequent step. For now, we define the props.
@@ -40,6 +41,7 @@ export const AgentView: React.FC = () => {
   const { showNotification } = useNotifications();
   const { selectedScript, setSelectedScript, runScript, executionResult, clearExecutionResult, userEditedScriptParameters } = useScriptExecution();
   const { toolLibraryPath, scripts: allScriptsFromScriptProvider } = useScripts();
+  const rapServerUrl = useRapServerUrl();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const agentRunTriggeredRef = useRef<boolean>(false);
@@ -66,6 +68,12 @@ export const AgentView: React.FC = () => {
       const llmApiKeyName = localStorage.getItem('llmApiKeyName');
       const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
 
+      if (!llmProvider || !llmModel || !llmApiKeyValue) {
+        showNotification("LLM configuration (Provider, Model, or API Key) is missing. Please check your settings under 'AI'.", "error");
+        setIsLoading(false);
+        return;
+      }
+
       // Extract the last human message content
       const lastHumanMessage = newMessages.findLast(m => m.type === 'human');
       const messageContent = lastHumanMessage ? lastHumanMessage.content : '';
@@ -77,7 +85,8 @@ export const AgentView: React.FC = () => {
           return acc;
         }, {} as Record<string, any>) : undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-      const response = await api.post("/agent/chat", {
+      const effectiveUrl = rapServerUrl ? `${rapServerUrl}/agent/chat` : "/agent/chat";
+      const response = await api.post(effectiveUrl, {
         thread_id: threadId,
         message: messageContent, // Send a single string message
         workspace_path: activeScriptSource?.type !== 'published' ? activeScriptSource?.path || "" : "",
@@ -413,7 +422,8 @@ export const AgentView: React.FC = () => {
               if (toolLibraryPath) {
                 try {
                   showNotification("Regenerating script manifest...", "info");
-                  const response = await fetch('http://localhost:8000/api/manifest/generate', {
+                  const effectiveUrl = rapServerUrl ? `${rapServerUrl}/api/manifest/generate` : "http://localhost:8000/api/manifest/generate";
+                  const response = await fetch(effectiveUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ agent_scripts_path: toolLibraryPath })

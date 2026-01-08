@@ -23,25 +23,25 @@ var p = new Params();
 
 
 
-if (string.IsNullOrEmpty(p.roomName)) 
+if (string.IsNullOrEmpty(p.RoomName)) 
 {
     Println("⚠️ No room selected. Please select a room and run again.");
     return;
 }
 
-Println($"🔍 Searching for Room: '{p.roomName}'...");
+Println($"🔍 Searching for Room: '{p.RoomName}'...");
 
 // Find the room by Name only (case-insensitive)
 Room room = new FilteredElementCollector(Doc)
     .OfCategory(BuiltInCategory.OST_Rooms)
     .WhereElementIsNotElementType()
     .Cast<Room>()
-    .FirstOrDefault(r => string.Equals((r.Name ?? "").Trim(), (p.roomName ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+    .FirstOrDefault(r => string.Equals((r.Name ?? "").Trim(), (p.RoomName ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
 
 if (room == null)
 {
-    Println($"❌ Room not found: {p.roomName}");
-    Show("message", $"Room not found: {p.roomName}");
+    Println($"❌ Room not found: {p.RoomName}");
+    Show("message", $"Room not found: {p.RoomName}");
     return;
 }
 
@@ -86,11 +86,11 @@ Show("table", paramData);
 Println($"✅ Listed {paramData.Count} parameters for '{room.Name}'.");
 
 // --- Export Logic ---
-if (!string.IsNullOrWhiteSpace(p.exportCsvPath))
+if (!string.IsNullOrWhiteSpace(p.ExportCsvPath))
 {
     try
     {
-        string path = p.exportCsvPath;
+        string path = p.ExportCsvPath;
         // Basic path sanitization
         if (!System.IO.Path.IsPathRooted(path))
         {
@@ -116,28 +116,35 @@ if (!string.IsNullOrWhiteSpace(p.exportCsvPath))
 // =================================================================================
 class Params
 {
-    [ScriptParameter(Group: "Selection", Description: "Select a room to analyze.", Computable: true)]
-    public string roomName = "";
+    /// <summary>Select a room to analyze.</summary>
+    [RevitElements(Group = "Selection")]
+    public string RoomName { get; set; } = "";
 
-    [ScriptParameter(Group: "Export", Description: "Optional: Path to save CSV export.", InputType: "SaveFile")]
-    public string exportCsvPath = "";
-
-    public List<string> roomName_Options()
+    public List<string> RoomName_Options
     {
-        var rooms = new FilteredElementCollector(Doc)
-            .OfCategory(BuiltInCategory.OST_Rooms)
-            .WhereElementIsNotElementType()
-            .Cast<Room>()
-            .Where(r => r.Area > 0) // Only placed rooms
-            .Select(r => (r.Name ?? "").Trim())
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Distinct()
-            .OrderBy(n => n)
-            .ToList();
+        get
+        {
+            var rooms = new FilteredElementCollector(Doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .Cast<Room>()
+                .Where(r => r.Area > 0) // Only placed rooms
+                .Select(r => (r.Name ?? "").Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct()
+                .OrderBy(n => n)
+                .ToList();
 
-        if (rooms.Count == 0)
-            throw new InvalidOperationException("No rooms found in the document. Please add rooms before running this script.");
+            if (rooms.Count == 0)
+            {
+                throw new Exception("❌ No placed rooms found in this model! Please ensure you have rooms created and placed before running this script.");
+            }
 
-        return rooms;
+            return rooms;
+        }
     }
+
+    /// <summary>Optional: Path to save CSV export.</summary>
+    [ScriptParameter(Group = "Export", InputType = "SaveFile")]
+    public string ExportCsvPath { get; set; } = "";
 }

@@ -21,7 +21,7 @@ var p = new Params();
 // 2. Identify the target elements
 IEnumerable<ElementId> targetIds;
 
-if (p.scope == "Selection")
+if (p.Scope == "Selection")
 {
     targetIds = UIDoc.Selection.GetElementIds();
     if (!targetIds.Any())
@@ -60,13 +60,13 @@ Transact("Bulk Unpin (Hardened)", () =>
         // --- SAFETY GUARDS ---
         
         // 1. Category Filter (if specified)
-        if (p.categoryFilter != "All Categories" && el.Category?.Name != p.categoryFilter)
+        if (p.CategoryFilter != "All Categories" && el.Category?.Name != p.CategoryFilter)
         {
             continue;
         }
 
         // 2. Critical Element Protection (Safe Mode)
-        if (p.safeMode)
+        if (p.SafeMode)
         {
             bool isCritical = el.Category != null && criticalCategories.Contains((BuiltInCategory)el.Category.Id.Value);
             bool isGridOrLevel = el is Grid || el is Level; // Extra check for safety
@@ -100,17 +100,24 @@ else
 }
 
 // --- Parameter Definitions ---
-class Params {
-    [ScriptParameter(Options: "Selection, Current View", Description: "Determine which elements to search for pinned status.")]
-    public string scope = "Selection";
+public class Params 
+{
+    /// <summary>Determine which elements to search for pinned status.</summary>
+    [ScriptParameter]
+    public string Scope { get; set; } = "Selection";
 
-    [ScriptParameter(Description: "If true, protects critical elements like Grids, Levels, and Linked Models from being unpinned.")]
-    public bool safeMode = true;
+    // Static Options for Scope
+    public List<string> Scope_Options() => new List<string> { "Selection", "Current View" };
 
-    [RevitElements(Description: "Optional: Only unpin elements of this specific category. Select 'All Categories' to unpin everything (respecting Safe Mode).")]
-    public string categoryFilter = "All Categories";
+    /// <summary>If true, protects critical elements like Grids, Levels, and Linked Models from being unpinned.</summary>
+    [ScriptParameter]
+    public bool SafeMode { get; set; } = true;
 
-    public List<string> categoryFilter_Options() 
+    /// <summary>Optional: Only unpin elements of this specific category. Select 'All Categories' to unpin everything (respecting Safe Mode).</summary>
+    [RevitElements]
+    public string CategoryFilter { get; set; } = "All Categories";
+
+    public List<string> CategoryFilter_Options() 
     {
         var categoryNames = new List<string> { "All Categories" };
         

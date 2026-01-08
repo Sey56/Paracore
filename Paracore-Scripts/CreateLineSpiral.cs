@@ -30,7 +30,7 @@ Print("Spiral sketch finished.");
 // V3 Simplified Parameters
 public class Params
 {
-    [RevitElements(TargetType: "Level")]
+    [RevitElements(TargetType = "Level")]
     public string LevelName { get; set; } = "Level 1";
 
     /// <summary>Maximum radius in cm</summary>

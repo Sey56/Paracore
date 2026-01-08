@@ -66,26 +66,20 @@ Transact("Create Wall", () =>
 // --- Parameter Definitions (Simplified V3 Pattern) ---
 
 class Params {
-    [RevitElements(TargetType: "Level")]
+    [RevitElements(TargetType = "Level")]
     public string LevelName { get; set; } = "Level 1";
 
-    [RevitElements(TargetType: "WallType")]
+    [RevitElements(TargetType = "WallType")]
     public string WallTypeName { get; set; } = "Generic - 200mm";
 
-    /// <summary>
-    /// Length in meters
-    /// </summary>
+    /// <summary>Length in meters</summary>
     [Range(0.1, 50.0)]
     public double WallLengthMeters { get; set; } = 6.0;
 
-    /// <summary>
-    /// Height in meters
-    /// </summary>
+    /// <summary>Height in meters</summary>
     [Range(0.1, 20.0)]
     public double WallHeightMeters { get; set; } = 3.0;
 
-    /// <summary>
-    /// If true, the wall is created along the X-axis. If false, along the Y-axis.
-    /// </summary>
+    /// <summary>If true, the wall is created along the X-axis. If false, along the Y-axis.</summary>
     public bool AlongXAxis { get; set; } = true;
 }

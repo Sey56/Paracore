@@ -207,12 +207,12 @@ Transact("Create SpiralMass", doc =>
 // ======================
 public class Params
 {
-    /// Name of the base level
-    [RevitElements(TargetType: "Level")]
+    /// <summary>Name of the base level</summary>
+    [RevitElements(TargetType = "Level")]
     public string BaseLevelName { get; set; } = "Level 1";
 
-    /// Name of the top level
-    [RevitElements(TargetType: "Level")]
+    /// <summary>Name of the top level</summary>
+    [RevitElements(TargetType = "Level")]
     public string TopLevelName { get; set; } = "Level 2";
 
     /// Number of segments for entire height (min 3)

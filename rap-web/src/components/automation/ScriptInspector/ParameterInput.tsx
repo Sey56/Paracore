@@ -94,7 +94,6 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
               </option>
             ))}
           </select>
-          {param.suffix && <span className="ml-2 text-xs text-gray-500 whitespace-nowrap">{param.suffix}</span>}
         </div>
       );
     }
@@ -142,6 +141,20 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
               >
                 None
               </button>
+              {param.requiresCompute && onCompute && (
+                <button
+                  onClick={() => onCompute(param.name)}
+                  disabled={disabled || isComputing}
+                  className={`px-1.5 py-0.5 text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors ${isComputing ? 'animate-pulse' : ''}`}
+                  title="Compute options from Revit"
+                >
+                  <FontAwesomeIcon
+                    icon={isComputing ? faSpinner : faSync}
+                    className={`${isComputing ? 'animate-spin' : ''} mr-1`}
+                  />
+                  {isComputing ? 'Computing...' : 'Compute'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -234,7 +247,6 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             disabled={disabled}
           />
-          {param.suffix && <span className="ml-2 text-xs text-gray-500 whitespace-nowrap">{param.suffix}</span>}
         </div>
       );
     }
@@ -249,7 +261,6 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
           disabled={disabled}
         />
-        {param.suffix && <span className="ml-2 text-xs text-gray-500 whitespace-nowrap">{param.suffix}</span>}
       </div>
     );
   };
@@ -259,6 +270,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       <div className="flex justify-between items-baseline">
         <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400">
           {param.name}
+          {param.suffix && <span className="ml-1 text-gray-400 font-normal">({param.suffix})</span>}
           {param.required && <span className="text-red-500 ml-1" title="Required">*</span>}
         </label>
         {param.description && (
@@ -271,7 +283,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
         <div className="flex-grow">
           {renderInput()}
         </div>
-        {param.requiresCompute && onCompute && (
+        {param.requiresCompute && onCompute && (!param.multiSelect || (param.options?.length ?? 0) === 0) && (
           <button
             onClick={() => onCompute(param.name)}
             disabled={disabled || isComputing}

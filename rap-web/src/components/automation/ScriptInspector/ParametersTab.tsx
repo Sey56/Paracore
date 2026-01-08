@@ -211,7 +211,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     <div className={`tab-content p-4`}>
       <div className="space-y-3">
         {/* Preset Selector + Actions */}
-        {activeMainView === 'scripts' && script.parameters && script.parameters.length > 0 && (
+        {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="relative flex items-center justify-end">
             <select
               className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-auto"

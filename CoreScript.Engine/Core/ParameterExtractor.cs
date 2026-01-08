@@ -78,7 +78,8 @@ namespace CoreScript.Engine.Core
                 
                 // Skip if it's a known provider suffix
                 if (propName.EndsWith("_Options") || propName.EndsWith("_Range") || 
-                    propName.EndsWith("_Visible") || propName.EndsWith("_Enabled")) 
+                    propName.EndsWith("_Visible") || propName.EndsWith("_Enabled") ||
+                    propName.EndsWith("_Filter")) 
                     continue;
 
                 ProcessPropertyDeclarationV3(prop, paramsClass, parameters, root);
@@ -112,16 +113,16 @@ namespace CoreScript.Engine.Core
             // Resolve Convention-Based Providers (V3)
             var members = paramsClass.Members;
             
-            // 1. Options Provider (_Options)
-            var optionsProvider = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Options");
+            // 1. Options / Filter Provider (_Options or _Filter)
+            var optionsProvider = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Options" || GetMemberName(m) == $"{name}_Filter");
             if (optionsProvider != null)
             {
                 var expr = GetInitialExpression(optionsProvider);
                 if (expr != null) param.Options = ExtractOptions(expr, root);
 
-                // Inference: If it's a method, it requires runtime compute in Revit
-                // (Static properties are already handled via ExtractOptions above)
-                if (optionsProvider is MethodDeclarationSyntax)
+                // Inference: If we have a logic-based provider (Method or Property with logic), it ALWAYS requires compute in Revit
+                if (optionsProvider is MethodDeclarationSyntax || 
+                    (optionsProvider is PropertyDeclarationSyntax p && (p.ExpressionBody != null || p.AccessorList != null)))
                 {
                     param.RequiresCompute = true;
                 }
@@ -315,8 +316,9 @@ namespace CoreScript.Engine.Core
                             else if (argName == "Min") min = ExtractDouble(expr);
                             else if (argName == "Max") max = ExtractDouble(expr);
                             else if (argName == "Step") step = ExtractDouble(expr);
+                            else if (argName == "Suffix") suffix = ExtractString(expr);
                             else if (argName == "Group") group = ExtractString(expr);
-                            else if (argName == "Computable" || argName == "Fetch") requiresCompute = ExtractBool(expr);
+                            else if (argName == "Computable" || argName == "Fetch" || argName == "Compute") requiresCompute = ExtractBool(expr);
                             else if (argName == "InputType") inputType = ExtractString(expr);
                             else if (argName == "Type" || argName == "TargetType") revitElementType = ExtractString(expr);
                             else if (argName == "Category") revitElementCategory = ExtractString(expr);
@@ -348,9 +350,10 @@ namespace CoreScript.Engine.Core
                 if (meta.TryGetValue("Fetch", out string ft)) requiresCompute = ft.ToLower() == "true";
                 if (meta.TryGetValue("Type", out string ty)) revitElementType = ty;
                 if (meta.TryGetValue("Category", out string ca)) revitElementCategory = ca;
+                if (meta.TryGetValue("Suffix", out string sx)) suffix = sx;
+                if (meta.TryGetValue("Required", out string rq)) required = rq.ToLower() == "true";
                 
-                // Add support for Required/Suffix in comments if needed? 
-                // Currently only attributes support robust validation.
+                // Attributes support robust validation, but comments are backup.
             }
 
 
@@ -427,24 +430,12 @@ namespace CoreScript.Engine.Core
                     }
                 }
             }
-            else if (initializer is CollectionExpressionSyntax col)
+            else if (initializer is CollectionExpressionSyntax || 
+                     initializer is ImplicitArrayCreationExpressionSyntax || 
+                     initializer is ArrayCreationExpressionSyntax || 
+                     initializer is BaseObjectCreationExpressionSyntax)
             {
-                 // Handle C# 12 List format: [ "A", "B" ]
-                var values = col.Elements.OfType<ExpressionElementSyntax>().Select(e => e.Expression).OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
-                defaultValueJson = JsonSerializer.Serialize(values);
-                multiSelect = true; // Infer multiselect if list
-            }
-            else if (initializer is ImplicitObjectCreationExpressionSyntax imp && imp.Initializer != null)
-            {
-                 // Handle new() { "A", "B" }
-                var values = imp.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
-                defaultValueJson = JsonSerializer.Serialize(values);
-                multiSelect = true;
-            }
-            else if (initializer is ObjectCreationExpressionSyntax obj && obj.Initializer != null)
-            {
-                 // Handle new List<string> { "A", "B" }
-                var values = obj.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
+                var values = ExtractStringsFromInitializer(initializer);
                 defaultValueJson = JsonSerializer.Serialize(values);
                 multiSelect = true;
             }
@@ -480,6 +471,10 @@ namespace CoreScript.Engine.Core
                 }
             }
 
+            // V3 STRICT: Only [RevitElements] are allowed to have dynamic compute buttons.
+            // This streamlines the UI and prevents "ghost" compute buttons on static lists.
+            if (!isRevitElement) requiresCompute = false;
+
             return new ScriptParameter
             {
                 Name = name,
@@ -511,57 +506,38 @@ namespace CoreScript.Engine.Core
 
         private List<string> ExtractOptions(ExpressionSyntax expr, CompilationUnitSyntax root)
         {
-            // Support nameof(Types)
+            if (expr == null) return new List<string>();
+
+            // 1. Support nameof(Types) where Types is a variable to be resolved
             if (expr is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof" && inv.ArgumentList.Arguments.Count > 0)
             {
                 var identifier = inv.ArgumentList.Arguments[0].Expression.ToString();
-                return ResolveOptionsFromIdentifier(identifier, root);
+                var resolved = ResolveOptionsFromIdentifier(identifier, root);
+                if (resolved.Count > 0) return resolved;
+                return new List<string> { identifier }; // Fallback to the literal name
             }
 
-            if (expr is ImplicitArrayCreationExpressionSyntax imp) 
-                return imp.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
-            
-            if (expr is ArrayCreationExpressionSyntax exp) 
-                return exp.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
-            
-            if (expr is LiteralExpressionSyntax lit) 
-            {
-                var val = lit.Token.ValueText;
-                if (val.Contains(","))
-                {
-                    return val.Split(',').Select(o => o.Trim()).Where(o => !string.IsNullOrEmpty(o)).ToList();
-                }
-                // Fallback: If it's a single word string, try to resolve it as a variable reference (legacy/convention)
-                var resolved = ResolveOptionsFromIdentifier(val, root);
-                if (resolved.Count > 0) return resolved;
-                
-                if (resolved.Count > 0) return resolved;
-                
-                return new List<string> { val };
-            }
-
-            // Support C# 12 Collection Expressions: ["A", "B"]
-            if (expr is CollectionExpressionSyntax col)
-            {
-                return col.Elements
-                    .OfType<ExpressionElementSyntax>()
-                    .Select(e => e.Expression)
-                    .OfType<LiteralExpressionSyntax>()
-                    .Select(l => l.Token.ValueText)
-                    .ToList();
-            }
-            
-            // Dynamic Options Support: referencing a variable or field directly
+            // 2. Resolve via Identifier: Options = MyList
             if (expr is IdentifierNameSyntax id)
             {
                 return ResolveOptionsFromIdentifier(id.Identifier.Text, root);
             }
-            if (expr is MemberAccessExpressionSyntax mem) 
+
+            // 3. Resolve via Member Access: Options = Params.MyList
+            if (expr is MemberAccessExpressionSyntax mem)
             {
                  return ResolveOptionsFromIdentifier(mem.Name.Identifier.Text, root);
             }
 
-            return new List<string>();
+            // 4. Literal fallback with variable resolution: Options = "MyList"
+            if (expr is LiteralExpressionSyntax lit && lit.Token.Value is string s && !s.Contains(","))
+            {
+                var resolved = ResolveOptionsFromIdentifier(s, root);
+                if (resolved.Count > 0) return resolved;
+            }
+
+            // 5. Direct Initialization: Options = ["A", "B"] or Options = new() { "A", "B" }
+            return ExtractStringsFromInitializer(expr);
         }
 
         private List<string> ResolveOptionsFromIdentifier(string identifier, CompilationUnitSyntax root)
@@ -665,19 +641,76 @@ namespace CoreScript.Engine.Core
 
         private List<string> ExtractStringList(ExpressionSyntax expr)
         {
-           if (expr is CollectionExpressionSyntax col)
-                return col.Elements.OfType<ExpressionElementSyntax>().Select(e => e.Expression).OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
-           
-           if (expr is ImplicitArrayCreationExpressionSyntax imp) 
-                return imp.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
-           
-           if (expr is ArrayCreationExpressionSyntax arr) 
-                 return arr.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
+            return ExtractStringsFromInitializer(expr);
+        }
+
+        private List<string> ExtractStringsFromInitializer(ExpressionSyntax expr)
+        {
+            if (expr == null) return new List<string>();
+
+            // 1. Literal Expression: "A, B, C"
+            if (expr is LiteralExpressionSyntax lit && lit.Token.Value is string val)
+            {
+                if (val.Contains(","))
+                {
+                    return val.Split(',').Select(o => o.Trim()).Where(o => !string.IsNullOrEmpty(o)).ToList();
+                }
+                return new List<string> { val };
+            }
+
+            // 2. Collection Expression: ["A", "B"]
+            if (expr is CollectionExpressionSyntax col)
+            {
+                return col.Elements
+                    .OfType<ExpressionElementSyntax>()
+                    .Select(e => ExtractStringValue(e.Expression))
+                    .Where(v => v != null)
+                    .ToList();
+            }
+
+            // 3. Array Initializers: new[] { "A", "B" } or new string[] { "A", "B" }
+            if (expr is ImplicitArrayCreationExpressionSyntax imp && imp.Initializer != null)
+            {
+                return imp.Initializer.Expressions
+                    .Select(ExtractStringValue)
+                    .Where(v => v != null)
+                    .ToList();
+            }
+            if (expr is ArrayCreationExpressionSyntax arr && arr.Initializer != null)
+            {
+                return arr.Initializer.Expressions
+                    .Select(ExtractStringValue)
+                    .Where(v => v != null)
+                    .ToList();
+            }
+
+            // 4. Object Initializers: new() { "A", "B" } or new List<string> { "A", "B" }
+            if (expr is BaseObjectCreationExpressionSyntax objInit && objInit.Initializer != null)
+            {
+                return objInit.Initializer.Expressions
+                    .Select(ExtractStringValue)
+                    .Where(v => v != null)
+                    .ToList();
+            }
             
-           if (expr is ImplicitObjectCreationExpressionSyntax objImp && objImp.Initializer != null)
-                 return objImp.Initializer.Expressions.OfType<LiteralExpressionSyntax>().Select(l => l.Token.ValueText).ToList();
-           
-           return new List<string>();
+            // 5. Single Member/Invocation: nameof(X) or myVar
+            var singleVal = ExtractStringValue(expr);
+            if (singleVal != null) return new List<string> { singleVal };
+
+            return new List<string>();
+        }
+
+        private string ExtractStringValue(ExpressionSyntax expr)
+        {
+            if (expr == null) return null;
+            if (expr is LiteralExpressionSyntax l) return l.Token.ValueText;
+            if (expr is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof" && inv.ArgumentList.Arguments.Count > 0)
+            {
+                 return inv.ArgumentList.Arguments[0].Expression.ToString();
+            }
+            if (expr is IdentifierNameSyntax id) return id.Identifier.Text;
+            if (expr is MemberAccessExpressionSyntax mem) return mem.Name.Identifier.Text;
+            return null;
         }
 
         private double? ExtractDouble(ExpressionSyntax expr)

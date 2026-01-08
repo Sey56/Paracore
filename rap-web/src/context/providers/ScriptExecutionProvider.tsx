@@ -32,8 +32,23 @@ const areValuesEqual = (val1: any, val2: any, type?: string): boolean => {
   }
 
   if (Array.isArray(val1) || Array.isArray(val2)) {
-    const arr1 = Array.isArray(val1) ? val1 : (typeof val1 === 'string' ? JSON.parse(val1 || '[]') : []);
-    const arr2 = Array.isArray(val2) ? val2 : (typeof val2 === 'string' ? JSON.parse(val2 || '[]') : []);
+    const toArr = (v: any) => {
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'string') {
+        const trimmed = v.trim();
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          try {
+            return JSON.parse(trimmed);
+          } catch (e) {
+            return [];
+          }
+        }
+      }
+      return [];
+    };
+
+    const arr1 = toArr(val1);
+    const arr2 = toArr(val2);
 
     if (arr1.length !== arr2.length) return false;
     const sorted1 = [...arr1].sort();
@@ -81,6 +96,12 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
   const [selectedScript, setSelectedScriptState] = useState<Script | null>(null);
   const selectedScriptRef = useRef<Script | null>(null);
+  const lastExplicitParameterFetchTimeRef = useRef<number>(0);
+
+  // Keep ref in sync
+  useEffect(() => {
+    selectedScriptRef.current = selectedScript;
+  }, [selectedScript]);
 
   // Persistence for user-edited parameters across sessions
   const [userEditedScriptParameters, setUserEditedScriptParameters] = useLocalStorage<Record<string, ScriptParameter[]>>('rap_userEditedScriptParameters', {});
@@ -144,6 +165,44 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       return { ...s, parameters };
     }));
   }, [setUserEditedScriptParameters, setActivePresets, setDefaultDraftParameters, activePresets, setScripts]);
+
+  // --- Source Change Detection ---
+
+  // Effect to clear selected script when the script source (folder, workspace) changes.
+  // This ensures the inspector is cleared when the gallery content changes.
+  const lastSourceRef = useRef<{ type?: string; id?: string; path?: string } | null>(null);
+
+  useEffect(() => {
+    // Determine if the source has actually changed since the last effect run
+    // Cast to any to safely compare properties across different union types
+    const current = activeScriptSource as any;
+    const previous = lastSourceRef.current as any;
+
+    const hasSourceChanged = previous && (
+      previous.type !== current?.type ||
+      previous.id !== current?.id ||
+      previous.path !== current?.path
+    );
+
+    if (hasSourceChanged) {
+      console.log("[ScriptExecutionProvider] Script source changed. Clearing inspector selection.");
+      setSelectedScriptState(null);
+      setCombinedScriptContent(null);
+      setExecutionResult(null);
+    }
+
+    lastSourceRef.current = activeScriptSource ? { ...activeScriptSource } : null;
+  }, [activeScriptSource, setCombinedScriptContent]);
+
+  // Effect to clear selection on team switch
+  useEffect(() => {
+    if (activeTeam?.team_id) {
+      console.log("[ScriptExecutionProvider] Team changed. Clearing inspector selection.");
+      setSelectedScriptState(null);
+      setCombinedScriptContent(null);
+      setExecutionResult(null);
+    }
+  }, [activeTeam?.team_id, setCombinedScriptContent]);
 
   const { user, cloudToken } = useAuth();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
@@ -327,6 +386,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         updateUserEditedParameters(script.id, finalParameters);
         setCombinedScriptContent(contentResult || "// Failed to load script content.");
         setScripts((prev: Script[]) => prev.map((s: Script) => s.id === updatedScript.id ? updatedScript : s));
+        lastExplicitParameterFetchTimeRef.current = Date.now();
         setSelectedScriptState(updatedScript);
 
       } catch (err) {
@@ -339,6 +399,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
 
     if (source === 'agent_executed_full_output') {
+      lastExplicitParameterFetchTimeRef.current = Date.now();
       setSelectedScriptState(script);
       setAgentSelectedScriptPath(script.absolutePath); // Set agent selected path
       setCombinedScriptContent("// Loading script content...");
@@ -357,8 +418,11 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     // --- NEW LOGIC: Check for cached parameters first (skip on refresh) ---
     const cachedParameters = source !== 'refresh' ? userEditedParametersRef.current[script.id] : null;
-    if (cachedParameters) {
+    const hasCachedParameters = cachedParameters && cachedParameters.length > 0;
+
+    if (hasCachedParameters) {
       const updatedScript = { ...script, parameters: cachedParameters };
+      lastExplicitParameterFetchTimeRef.current = Date.now();
       setSelectedScriptState(updatedScript);
       // Still fetch content in the background
       fetchScriptContent(updatedScript).then(content => {
@@ -491,7 +555,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       });
 
       if (!updatedScriptFromProvider) {
-        // If the script is missing from the list but matches the current folder, it was likely deleted
         if (selectedFolder && selectedScript.absolutePath?.replace(/\\/g, '/').startsWith(selectedFolder.replace(/\\/g, '/'))) {
           console.log(`[ScriptExecutionProvider] Selected script ${selectedScript.name} is missing from ${selectedFolder}. Clearing inspector.`);
           setSelectedScriptState(null);
@@ -501,44 +564,67 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         return;
       }
 
-      // REFERENCE GUARD: Only sync if the script data IN THE PROVIDER has changed.
-      // This prevents local parameter edits (which make selectedScript differ from provider)
-      // from triggering a sync loop.
+      // REFERENCE GUARD: Sync only if provider data changed
       const lastSynced = lastSyncedProviderScriptRef.current;
+
+      // CRITICAL RACE CONDITION GUARD:
+      // If we just explicitly fetched parameters (user selection or agent),
+      // block background sync for 2 seconds to allow state to stabilize.
+      const timeSinceFetch = Date.now() - lastExplicitParameterFetchTimeRef.current;
+      if (timeSinceFetch < 2000) {
+        return;
+      }
+
       const isProviderDataNew = !lastSynced ||
-        lastSynced.id !== updatedScriptFromProvider.id ||
-        lastSynced.metadata?.dateModified !== updatedScriptFromProvider.metadata?.dateModified ||
-        lastSynced.isFavorite !== updatedScriptFromProvider.isFavorite;
+        lastSynced !== updatedScriptFromProvider && (
+          lastSynced.id !== updatedScriptFromProvider.id ||
+          lastSynced.metadata?.dateModified !== updatedScriptFromProvider.metadata?.dateModified ||
+          lastSynced.isFavorite !== updatedScriptFromProvider.isFavorite
+        );
 
       if (!isProviderDataNew) {
         return;
       }
 
-      // Update the sync guard immediately
       lastSyncedProviderScriptRef.current = updatedScriptFromProvider;
 
       const hasContentChanged = updatedScriptFromProvider.metadata?.dateModified !== selectedScript.metadata?.dateModified;
-      const favoriteChanged = updatedScriptFromProvider.isFavorite !== selectedScript.isFavorite;
-      // Note: We don't check paramsChanged here for "triggering" because local edits will always make them different.
-      // We only care if the provider's definition of parameters has changed (e.g. metadata).
 
       if (hasContentChanged) {
         console.log(`[ScriptExecutionProvider] Source code change detected for ${updatedScriptFromProvider.name}. Refreshing.`);
         setSelectedScript(updatedScriptFromProvider, 'refresh');
-      } else if (favoriteChanged) {
-        console.log(`[ScriptExecutionProvider] Metadata update (Favorite/Other) for ${updatedScriptFromProvider.name}.`);
-        setSelectedScriptState(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            isFavorite: updatedScriptFromProvider.isFavorite,
-            metadata: updatedScriptFromProvider.metadata
-            // We specifically do NOT touch parameters here to avoid overwriting user edits.
-          };
-        });
+        return;
       }
+
+      // Sync metadata/state without full reload (content unchanged)
+
+      // 1. Update SelectedScript State (Preserving Parameters if provider is stale)
+      let scriptToSet = updatedScriptFromProvider;
+      const isProviderMissingParams = !updatedScriptFromProvider.parameters || updatedScriptFromProvider.parameters.length === 0;
+      const weHaveParams = selectedScript.parameters && selectedScript.parameters.length > 0;
+      const hasContentActuallyChanged = updatedScriptFromProvider.metadata?.dateModified !== selectedScript.metadata?.dateModified;
+
+      if (isProviderMissingParams && weHaveParams && !hasContentActuallyChanged) {
+        // Provider data is newer in terms of reference, but missing params that we just loaded.
+        // And the code hasn't changed, so it's just a stale provider state.
+        scriptToSet = { ...updatedScriptFromProvider, parameters: selectedScript.parameters };
+      }
+      setSelectedScriptState(scriptToSet);
+
+      // 2. Sync User Edited Parameters Cache (Schema updates)
+      setUserEditedScriptParameters(prev => {
+        const currentEdits = prev[selectedScript.id];
+        if (!currentEdits) return prev;
+
+        const mergedParameters = (updatedScriptFromProvider.parameters || []).map(newParam => {
+          const existingEdit = currentEdits.find(e => e.name === newParam.name);
+          return existingEdit ? { ...newParam, value: existingEdit.value } : newParam;
+        });
+
+        return { ...prev, [selectedScript.id]: mergedParameters };
+      });
     }
-  }, [allScriptsFromScriptProvider, selectedScript, setSelectedScript, selectedFolder]);
+  }, [allScriptsFromScriptProvider, selectedScript, setSelectedScript, selectedFolder, setUserEditedScriptParameters]);
 
   // Effect to restore "Live Parameter Sync" on window focus
   const lastFocusTimeRef = useRef(0);
@@ -648,46 +734,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       fetchPresets();
     }
   }, [selectedScript, showNotification, isAuthenticated]);
-
-  // Synchronize selectedScript with the global scripts list from ScriptProvider
-  // This ensures that when a script is reloaded (e.g. by polling or focus), 
-  // the inspector's local state is updated with the new metadata and parameters.
-  useEffect(() => {
-    if (selectedScript) {
-      const updatedScript = allScriptsFromScriptProvider.find(s => s.id === selectedScript.id);
-      if (updatedScript && updatedScript !== selectedScript) {
-        // console.debug(`[ScriptExecutionProvider] Syncing selectedScript state for ${selectedScript.name}`);
-        setSelectedScriptState(updatedScript);
-
-        // Synchronize the user-edited parameters cache too.
-        // This is critical for ensuring that schema changes (added/removed params)
-        // are reflected in the UI, while preserving current user edits.
-        setUserEditedScriptParameters(prev => {
-          const currentEdits = prev[selectedScript.id];
-          if (!currentEdits) return prev;
-
-          // If the updated script has no parameters but we have cached edits,
-          // skip the update to avoid wiping the cache during the brief reload period
-          // (common for multi-file scripts during initial selection).
-          if ((!updatedScript.parameters || updatedScript.parameters.length === 0) && currentEdits.length > 0) {
-            return prev;
-          }
-
-          // Merge: Keep the new parameter structure (metadata, etc.)
-          // but preserve the 'value' if the parameter name matches.
-          const mergedParameters = (updatedScript.parameters || []).map(newParam => {
-            const existingEdit = currentEdits.find(e => e.name === newParam.name);
-            return existingEdit ? { ...newParam, value: existingEdit.value } : newParam;
-          });
-
-          return {
-            ...prev,
-            [selectedScript.id]: mergedParameters
-          };
-        });
-      }
-    }
-  }, [allScriptsFromScriptProvider, selectedScript, setUserEditedScriptParameters]);
 
   // Clear selected script when user logs out
   useEffect(() => {

@@ -18,7 +18,7 @@ Use this as a template for your own automation tools!
 // Best for: Quick scripts, prototyping, and top-level simplicity.
 // V3 Marker: //[ScriptParameter] or //[RevitElements] above variables.
 
-// [ScriptParameter(Description = "A simple text input field")]
+// [ScriptParameter(Description = "A simple text input for non-Revit data")]
 string projectName = "My Revit Project";
 
 // [ScriptParameter(Min = 0, Max = 100, Step = 1, Description = "An integer slider")]
@@ -105,8 +105,9 @@ class Params {
 
     /// <summary>
     /// Demonstration of a generic category picker using Revit API.
+    /// Since this data is extracted from Revit, we use [RevitElements].
     /// </summary>
-    [ScriptParameter(Group = "Advanced")]
+    [RevitElements(Group = "Advanced")]
     public string TargetCategory { get; set; } = "Walls";
 
     public List<string> TargetCategory_Options() {

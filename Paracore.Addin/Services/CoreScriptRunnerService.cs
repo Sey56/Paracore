@@ -679,8 +679,22 @@ namespace Paracore.Addin.Services
                 }
                 else
                 {
+                    // Provide a more helpful error message
+                    var parameters = _parameterExtractor.ExtractParameters(request.ScriptContent);
+                    var targetParam = parameters.FirstOrDefault(p => p.Name == request.ParameterName);
+
                     response.IsSuccess = false;
-                    response.ErrorMessage = $"No options returned from {request.ParameterName}_Options() function.";
+                    
+                    if (targetParam != null && targetParam.IsRevitElement && !string.IsNullOrEmpty(targetParam.RevitElementType))
+                    {
+                        string categoryMsg = string.IsNullOrEmpty(targetParam.RevitElementCategory) ? "" : $" in category '{targetParam.RevitElementCategory}'";
+                        response.ErrorMessage = $"No elements of type '{targetParam.RevitElementType}'{categoryMsg} found in the current document.";
+                    }
+                    else
+                    {
+                        response.ErrorMessage = $"The options provider '{request.ParameterName}_Options' returned 0 items. Please ensure your Revit document contains the required elements.";
+                    }
+
                     _logger.Log($"[CoreScriptRunnerService] {response.ErrorMessage}", LogLevel.Warning);
                 }
             }

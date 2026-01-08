@@ -14,23 +14,14 @@ UsageExamples:
 */
 
 // 1. Top-Level Statements for parameters
-// [ScriptParameter]
-string wallTypeName = "Generic - 200mm";
-// [ScriptParameter]
-double houseWidthMeters = 10.0;
-// [ScriptParameter]
-double houseDepthMeters = 20.0;
-// [ScriptParameter]
-double rotationIncrementDegrees = 5.0;
-// [ScriptParameter]
-double defaultWallHeightMeters = 3.0; // Assuming a default wall height if not specified
+var p = new Params();
 
 // 2. Preparation (Read-only operations, outside transaction)
 
 // Convert dimensions to internal units (feet)
-double houseWidthFt = UnitUtils.ConvertToInternalUnits(houseWidthMeters, UnitTypeId.Meters);
-double houseDepthFt = UnitUtils.ConvertToInternalUnits(houseDepthMeters, UnitTypeId.Meters);
-double defaultWallHeightFt = UnitUtils.ConvertToInternalUnits(defaultWallHeightMeters, UnitTypeId.Meters);
+double houseWidthFt = UnitUtils.ConvertToInternalUnits(p.HouseWidthMeters, UnitTypeId.Meters);
+double houseDepthFt = UnitUtils.ConvertToInternalUnits(p.HouseDepthMeters, UnitTypeId.Meters);
+double defaultWallHeightFt = UnitUtils.ConvertToInternalUnits(p.DefaultWallHeightMeters, UnitTypeId.Meters);
 
 // Get all levels, sorted by elevation
 var levels = new FilteredElementCollector(Doc)
@@ -49,7 +40,7 @@ if (levels.Count == 0)
 WallType? wallType = new FilteredElementCollector(Doc)
     .OfClass(typeof(WallType))
     .Cast<WallType>()
-    .FirstOrDefault(wt => wt.Name == wallTypeName);
+    .FirstOrDefault(wt => wt.Name == p.WallTypeName);
 
 // Fallback if the specified wall type is not found
 if (wallType == null)
@@ -61,14 +52,14 @@ if (wallType == null)
 
     if (wallType == null)
     {
-        Println("🚫 Neither 'Generic - 200mm' nor any 'Basic' wall type was found. Cannot create walls.");
+        Println($"🚫 Neither '{p.WallTypeName}' nor any 'Basic' wall type was found. Cannot create walls.");
         return; // Early exit
     }
-    Println($"⚠️ Wall Type '{wallTypeName}' not found. Using default '{wallType.Name}' instead.");
+    Println($"⚠️ Wall Type '{p.WallTypeName}' not found. Using default '{wallType.Name}' instead.");
 }
 
 // Instantiate the helper class
-var houseCreator = new SpiralHouseCreator(houseWidthFt, houseDepthFt, defaultWallHeightFt, rotationIncrementDegrees);
+var houseCreator = new SpiralHouseCreator(houseWidthFt, houseDepthFt, defaultWallHeightFt, p.RotationIncrementDegrees);
 
 // 3. Execution (Single Transact block)
 Transact("Create Spiral House", () =>
@@ -78,14 +69,40 @@ Transact("Create Spiral House", () =>
     foreach (var level in levels)
     {
         houseCreator.CreateRectangularWalls(Doc, level, wallType, currentRotationRadians);
-        currentRotationRadians += rotationIncrementDegrees * (Math.PI / 180.0); // Convert degrees to radians
+        currentRotationRadians += p.RotationIncrementDegrees * (Math.PI / 180.0); // Convert degrees to radians
     }
 });
 
 Println($"✅ Spiral house created across {levels.Count} levels using '{wallType.Name}'.");
 
 
-// 4. Class Definition (Must come after all top-level statements)
+// 4. Class Definitions (Must come after all top-level statements)
+
+public class Params
+{
+    /// <summary>Wall Type to use</summary>
+    [RevitElements]
+    public string WallTypeName { get; set; } = "Generic - 200mm";
+    public List<string> WallTypeName_Options() => new FilteredElementCollector(Doc)
+        .OfClass(typeof(WallType))
+        .Cast<WallType>()
+        .Where(wt => wt.Kind == WallKind.Basic)
+        .Select(wt => wt.Name)
+        .ToList();
+
+    /// <summary>Width of the house (meters)</summary>
+    public double HouseWidthMeters { get; set; } = 10.0;
+
+    /// <summary>Depth of the house (meters)</summary>
+    public double HouseDepthMeters { get; set; } = 20.0;
+
+    /// <summary>Rotation per level (degrees)</summary>
+    public double RotationIncrementDegrees { get; set; } = 5.0;
+
+    /// <summary>Wall height (meters)</summary>
+    public double DefaultWallHeightMeters { get; set; } = 3.0;
+}
+
 public class SpiralHouseCreator
 {
     private readonly double _widthFt;

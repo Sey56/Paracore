@@ -159,7 +159,8 @@ class Params
     [Range(0.0, 1.0, 0.05)]
     public double Offset { get; set; } = 0.5;
 
-    [RevitElements(Description: "Wall Sweep or Reveal type")]
+    /// <summary>Wall Sweep or Reveal type</summary>
+    [RevitElements]
     public string SweepTypeName { get; set; } = "";
 
     public List<string> SweepTypeName_Options()
@@ -188,7 +189,8 @@ class Params
         return options.OrderBy(n => n).ToList();
     }
 
-    [RevitElements(Description: "Profile family for the sweep/reveal")]
+    /// <summary>Profile family for the sweep/reveal</summary>
+    [RevitElements]
     public string ProfileName { get; set; } = "";
 
     public List<string> ProfileName_Options()

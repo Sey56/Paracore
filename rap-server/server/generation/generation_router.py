@@ -150,56 +150,76 @@ async def save_temp_script(request: Request):
 @router.post("/save_to_library")
 async def save_to_library(request: Request):
     """
-    Save generated script to Agent-Library with metadata.
+    Save generated script to a specific target directory.
+    Supports both legacy (category-based) and new (direct path) saving.
     """
     try:
         data = await request.json()
         script_code = data.get("script_code")
         script_name = data.get("script_name")
+        
+        # New mode: Direct target directory
+        target_directory = data.get("target_directory")
+        
+        # Legacy mode inputs
         library_path = data.get("library_path")
         category = data.get("category")
         sub_category = data.get("sub_category", "")
         metadata = data.get("metadata", {})
         
-        if not all([script_code, script_name, library_path, category]):
-            raise HTTPException(status_code=400, detail="Missing required fields")
+        if not script_code or not script_name:
+            raise HTTPException(status_code=400, detail="Missing script code or name")
         
         # Ensure script name ends with .cs
         if not script_name.endswith('.cs'):
             script_name += '.cs'
+            
+        full_path = ""
         
-        # Construct metadata header
-        metadata_header = "/*\n"
-        metadata_header += f"DocumentType: {metadata.get('documentType', 'Project')}\n"
-        metadata_header += f"Categories: {metadata.get('categories', 'Architectural')}\n"
-        metadata_header += f"Author: {metadata.get('author', 'Unknown')}\n"
-        metadata_header += f"Dependencies: {metadata.get('dependencies', 'RevitAPI 2025, CoreScript.Engine, Paracore.Addin')}\n"
-        metadata_header += "\n"
-        
-        description = metadata.get('description', '')
-        if description:
-            metadata_header += "Description:\n"
-            for line in description.split('\n'):
-                metadata_header += f"{line}\n"
+        if target_directory:
+            # New Simple Mode: Save directly to target folder
+            full_path = os.path.join(target_directory, script_name)
+            
+            # For new mode, we DO NOT write metadata headers if not explicitly requested
+            # The user requested "no metadata... just .cs files"
+            full_script = script_code
+            
+        elif library_path and category:
+            # Legacy Mode: Construct path from category hierarchy
+            # Only used if old frontend calls this or fallback
+            
+            # Construct metadata header (Keep for legacy compatibility if needed)
+            metadata_header = "/*\n"
+            metadata_header += f"DocumentType: {metadata.get('documentType', 'Project')}\n"
+            metadata_header += f"Categories: {metadata.get('categories', 'Architectural')}\n"
+            metadata_header += f"Author: {metadata.get('author', 'Unknown')}\n"
+            metadata_header += f"Dependencies: {metadata.get('dependencies', 'RevitAPI 2025, CoreScript.Engine, Paracore.Addin')}\n"
             metadata_header += "\n"
-        
-        usage_examples = metadata.get('usageExamples', [])
-        if usage_examples:
-            metadata_header += "UsageExamples:\n"
-            for example in usage_examples:
-                if example.strip():
-                    metadata_header += f"- \"{example}\"\n"
-        
-        metadata_header += "*/\n\n"
-        
-        # Combine metadata and code
-        full_script = metadata_header + script_code
-        
-        # Construct full path
-        if sub_category:
-            full_path = os.path.join(library_path, category, sub_category, script_name)
+            
+            description = metadata.get('description', '')
+            if description:
+                metadata_header += "Description:\n"
+                for line in description.split('\n'):
+                    metadata_header += f"{line}\n"
+                metadata_header += "\n"
+            
+            usage_examples = metadata.get('usageExamples', [])
+            if usage_examples:
+                metadata_header += "UsageExamples:\n"
+                for example in usage_examples:
+                    if example.strip():
+                        metadata_header += f"- \"{example}\"\n"
+            
+            metadata_header += "*/\n\n"
+            
+            full_script = metadata_header + script_code
+            
+            if sub_category:
+                full_path = os.path.join(library_path, category, sub_category, script_name)
+            else:
+                full_path = os.path.join(library_path, category, script_name)
         else:
-            full_path = os.path.join(library_path, category, script_name)
+            raise HTTPException(status_code=400, detail="Missing target directory or library configuration")
         
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -212,7 +232,7 @@ async def save_to_library(request: Request):
         with open(full_path, 'w', encoding='utf-8') as f:
             f.write(full_script)
         
-        print(f"[Generation] Saved script to library: {full_path}")
+        print(f"[Generation] Saved script to: {full_path}")
         
         return {
             "success": True,

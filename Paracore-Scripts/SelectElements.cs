@@ -84,10 +84,10 @@ Println($"✅ Selected {elementsToSelect.Count} elements from {builtInCategories
 class Params
 {
     /// <summary>Categories to select</summary>
-    [ScriptParameter(MultiSelect: true)] // Explicit MultiSelect required for List<string> for now
+    [RevitElements(MultiSelect = true)]
     public List<string> Categories { get; set; } = new() { "Walls", "Doors" };
 
-    public static List<string> Categories_Options => new() {
+    public List<string> Categories_Options => new() {
         "Walls", "Floors", "Roofs", "Doors", "Windows", "Stairs", "Railings", 
         "Columns", "Structural Columns", "Structural Framing", "Foundations", 
         "Furniture", "Casework", "Generic Models", "Curtain Panels", 

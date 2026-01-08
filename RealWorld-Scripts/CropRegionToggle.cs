@@ -21,7 +21,7 @@ var p = new Params();
 // 2. Resolve Target Views
 List<View> targetViews = new List<View>();
 
-switch (p.scope)
+switch (p.Scope)
 {
     case "Active View":
         targetViews.Add(ActiveView);
@@ -64,7 +64,7 @@ switch (p.scope)
 
 if (!targetViews.Any())
 {
-    Println($"ℹ️ No valid views found in scope: {p.scope}");
+    Println($"ℹ️ No valid views found in scope: {p.Scope}");
     return;
 }
 
@@ -79,8 +79,8 @@ Transact("Bulk Crop Toggle", () =>
         if (!v.CanModifyView()) continue;
 
         bool targetState;
-        if (p.action == "Show All") targetState = true;
-        else if (p.action == "Hide All") targetState = false;
+        if (p.Action == "Show All") targetState = true;
+        else if (p.Action == "Hide All") targetState = false;
         else targetState = !v.CropRegionVisible; // Toggle mode
 
         // Apply Crop Region Visibility
@@ -91,7 +91,7 @@ Transact("Bulk Crop Toggle", () =>
         }
 
         // Apply Annotation Crop if requested
-        if (p.includeAnnotationCrop)
+        if (p.IncludeAnnotationCrop)
         {
             // Note: v.HasAnnotationCrop must be true to set it
             try {
@@ -108,13 +108,21 @@ else
     Println("ℹ️ All views were already in the target state.");
 
 // --- Parameter Definitions ---
-class Params {
-    [ScriptParameter(Options: "Active View, Selected Views, All Views on Sheet, All Views in Project", Description: "Which views should be processed?")]
-    public string scope = "Active View";
+public class Params 
+{
+    /// <summary>Which views should be processed?</summary>
+    [ScriptParameter]
+    public string Scope { get; set; } = "Active View";
 
-    [ScriptParameter(Options: "Toggle, Show All, Hide All", Description: "The action to perform on the crop region.")]
-    public string action = "Toggle";
+    public List<string> Scope_Options() => new List<string> { "Active View", "Selected Views", "All Views on Sheet", "All Views in Project" };
 
-    [ScriptParameter(Description: "Also show/hide the Annotation Crop boundary.")]
-    public bool includeAnnotationCrop = true;
+    /// <summary>The action to perform on the crop region.</summary>
+    [ScriptParameter]
+    public string Action { get; set; } = "Toggle";
+
+    public List<string> Action_Options() => new List<string> { "Toggle", "Show All", "Hide All" };
+
+    /// <summary>Also show/hide the Annotation Crop boundary.</summary>
+    [ScriptParameter]
+    public bool IncludeAnnotationCrop { get; set; } = true;
 }
