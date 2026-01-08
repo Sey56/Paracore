@@ -69,6 +69,8 @@ CORE RULES:
      - **REQUIRED**: If you provide `Category`, you **MUST** also provide `TargetType` (e.g., `[RevitElements(Category = "Doors", TargetType = "FamilySymbol")]`).
    - **Attribute Syntax (CRITICAL)**:
      - **FORBIDDEN**: Do NOT use `Required = true` inside `[ScriptParameter]` or `[RevitElements]`.
+      - **FORBIDDEN**: Do NOT use `ShowIf = "..."` or `VisibleIf = "..."` inside any attribute.
+      - **CORRECT**: Use the naming convention `PropertyName_Visible` (returning bool) inside the `Params` class to control visibility.
      - **FORBIDDEN**: Do NOT use `Description = "..."` inside any attribute.
      - **CORRECT**: Use `[Attribute, Required]` (comma separated) or `[Required]` on a new line.
      - **CORRECT**: Use `/// <summary>Description</summary>` above the property for descriptions.
