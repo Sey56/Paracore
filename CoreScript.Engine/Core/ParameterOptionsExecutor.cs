@@ -61,14 +61,12 @@ namespace CoreScript.Engine.Core
 
                 var functionNode = paramsClass?.Members
                     .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
-                                         (n is LocalFunctionStatementSyntax l && l.Identifier.Text == functionName) ||
                                          (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
 
                 if (functionNode == null)
                 {
                     functionNode = paramsClass?.Members
                         .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == filterName) ||
-                                             (n is LocalFunctionStatementSyntax l && l.Identifier.Text == filterName) ||
                                              (n is PropertyDeclarationSyntax p && p.Identifier.Text == filterName));
                     
                     if (functionNode != null) functionName = filterName;
@@ -80,12 +78,8 @@ namespace CoreScript.Engine.Core
                     return new List<string>();
                 }
 
-                // V3: For robustness, we collect ALL members of the parent class (usually 'Params')
-                // so the provider can call helper methods defined in the same class.
-                var members = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
-                    .FirstOrDefault(c => c.Identifier.Text == "Params")?.Members;
-
-                string membersSource = members != null ? string.Join("\n", members.Select(m => m.ToString())) : functionNode.ToString();
+                string allUsings = string.Join("\n", usings);
+                string membersSource = paramsClass != null ? string.Join("\n", paramsClass.Members.Select(m => m.ToString())) : functionNode.ToString();
                 bool isProperty = functionNode is PropertyDeclarationSyntax;
 
                 // Create script options with Revit API references
@@ -181,7 +175,12 @@ using System.Linq;
                     .Select(u => u.ToString())
                     .ToList();
                 
-                var functionNode = root.DescendantNodes()
+                // V3: For robustness, we collect ALL members of the parent class (usually 'Params')
+                // so the provider can call helper methods defined in the same class.
+                var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
+                    .FirstOrDefault(c => c.Identifier.Text == "Params");
+
+                var functionNode = paramsClass?.Members
                     .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
                                          (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
 
@@ -191,32 +190,22 @@ using System.Linq;
                     return null;
                 }
 
+                string membersSource = paramsClass != null ? string.Join("\n", paramsClass.Members.Select(m => m.ToString())) : functionNode.ToString();
                 bool isProperty = functionNode is PropertyDeclarationSyntax;
                 
-                // NEW LOGIC: Extract ALL members from the parent class to ensure helpers are available
-                string membersSource;
-                if (functionNode.Parent is ClassDeclarationSyntax parentClass)
-                {
-                    // "Unwrap" the class by taking all members and putting them at the top level of the script
-                    membersSource = string.Join("\n\n", parentClass.Members.Select(m => m.ToString()));
-                }
-                else
-                {
-                    // Fallback for top-level functions (V0 style or simple snippets)
-                    membersSource = functionNode.ToString();
-                }
-
                 string allUsings = string.Join("\n", usings);
 
                 var scriptOptions = ScriptOptions.Default
                     .AddReferences(
                         typeof(Autodesk.Revit.DB.Document).Assembly,
                         typeof(Autodesk.Revit.UI.UIDocument).Assembly,
+                        typeof(Autodesk.Revit.DB.Architecture.Room).Assembly,
                         Assembly.GetExecutingAssembly(),
                         typeof(System.ValueTuple<,,>).Assembly // Ensure tuple support
                     )
                     .AddImports(
                         "Autodesk.Revit.DB",
+                        "Autodesk.Revit.DB.Architecture",
                         "Autodesk.Revit.UI",
                         "System",
                         "System.Collections.Generic",
@@ -230,6 +219,7 @@ using System.Linq;
                 string executionScript = $@"
 {allUsings}
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
