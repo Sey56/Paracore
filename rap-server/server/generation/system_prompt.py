@@ -59,6 +59,11 @@ CORE RULES:
    - **Dynamic Data (CRITICAL)**:
      - ONLY `[RevitElements]` supports dynamic "Compute/Sync" from Revit.
      - If you need a dropdown populated from the Revit document, you **MUST** use `[RevitElements]`.
+   - **Range/Slider Logic (CRITICAL)**:
+     - Use `PropertyName_Range` property or method returning `(double min, double max, double step)`.
+     - **ROUNDING**: When calculating a dynamic Max, ALWAYS round it to the nearest Step (e.g., `Math.Round(val * 2) / 2` for a 0.5 step) to ensure the slider can reach the end perfectly.
+   - **Legacy Support (FORBIDDEN)**:
+     - **NEVER** use comment-based parameters (e.g., `// [ScriptParameter]`). Parameters MUST be properties inside the `Params` class using attributes.
    - **Magic Extraction (CRITICAL)**:
      - `[RevitElements(TargetType = "WallType")]` automatically fetches all wall types.
      - **REQUIRED**: If you provide `Category`, you **MUST** also provide `TargetType` (e.g., `[RevitElements(Category = "Doors", TargetType = "FamilySymbol")]`).
@@ -242,8 +247,20 @@ public class Params
     public string WallTypeName {{ get; set; }};
 
     /// <summary>Height in meters</summary>
-    [Range(0.1, 20.0, 0.5), ScriptParameter(Group = "Dimensions")]
+    [ScriptParameter(Group = "Dimensions")]
     public double WallHeight {{ get; set; }} = 3.0;
+
+    // DYNAMIC RANGE: Snaps to 0.5 step
+    public (double, double, double) WallHeight_Range
+    {{
+        get 
+        {{
+            var levels = new FilteredElementCollector(Doc).OfClass(typeof(Level)).Cast<Level>();
+            double maxLevel = levels.Any() ? levels.Max(l => l.Elevation) : 100.0;
+            double rawMax = Math.Max(10.0, maxLevel + 10.0);
+            return (0.0, Math.Round(rawMax * 2) / 2, 0.5);
+        }}
+    }}
 }}
 ```
 

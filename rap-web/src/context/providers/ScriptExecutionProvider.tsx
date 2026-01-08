@@ -833,7 +833,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (is_success) {
 
         // --- NEW LOGIC: Handle Range vs Options ---
-        const isRangeUpdate = min !== undefined || max !== undefined;
+        // Fix: Backend returns null, which is !== undefined. Must check type or null explicitly.
+        const isRangeUpdate = (typeof min === 'number') || (typeof max === 'number');
 
         // CRITICAL: Treat compute as an explicit fetch to block background sync for 2s
         lastExplicitParameterFetchTimeRef.current = Date.now();
