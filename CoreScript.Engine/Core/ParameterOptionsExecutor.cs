@@ -55,14 +55,18 @@ namespace CoreScript.Engine.Core
                     .ToList();
                 
                 // Find method, local function, or property (Options first, then Filter)
-                var functionNode = root.DescendantNodes()
+                // V3: We look explicitly inside the 'Params' class to avoid capturing global helper functions by accident
+                var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
+                    .FirstOrDefault(c => c.Identifier.Text == "Params");
+
+                var functionNode = paramsClass?.Members
                     .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
                                          (n is LocalFunctionStatementSyntax l && l.Identifier.Text == functionName) ||
                                          (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
 
                 if (functionNode == null)
                 {
-                    functionNode = root.DescendantNodes()
+                    functionNode = paramsClass?.Members
                         .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == filterName) ||
                                              (n is LocalFunctionStatementSyntax l && l.Identifier.Text == filterName) ||
                                              (n is PropertyDeclarationSyntax p && p.Identifier.Text == filterName));
@@ -76,19 +80,25 @@ namespace CoreScript.Engine.Core
                     return new List<string>();
                 }
 
+                // V3: For robustness, we collect ALL members of the parent class (usually 'Params')
+                // so the provider can call helper methods defined in the same class.
+                var members = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
+                    .FirstOrDefault(c => c.Identifier.Text == "Params")?.Members;
+
+                string membersSource = members != null ? string.Join("\n", members.Select(m => m.ToString())) : functionNode.ToString();
                 bool isProperty = functionNode is PropertyDeclarationSyntax;
-                string functionSource = functionNode.ToString();
-                string allUsings = string.Join("\n", usings);
 
                 // Create script options with Revit API references
                 var scriptOptions = ScriptOptions.Default
                     .AddReferences(
                         typeof(Autodesk.Revit.DB.Document).Assembly,  // RevitAPI.dll
                         typeof(Autodesk.Revit.UI.UIDocument).Assembly, // RevitAPIUI.dll
+                        typeof(Autodesk.Revit.DB.Architecture.Room).Assembly, // RevitAPI.dll (Architecture)
                         Assembly.GetExecutingAssembly() // CoreScript.Engine.dll
                     )
                     .AddImports(
                         "Autodesk.Revit.DB",
+                        "Autodesk.Revit.DB.Architecture",
                         "Autodesk.Revit.UI",
                         "System",
                         "System.Collections.Generic",
@@ -103,12 +113,13 @@ namespace CoreScript.Engine.Core
                 string executionScript = $@"
 {allUsings}
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-{functionSource}
+{membersSource}
 
 {(isProperty ? functionName : $"{functionName}()")}
 ";
