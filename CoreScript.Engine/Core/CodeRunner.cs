@@ -326,23 +326,43 @@ namespace CoreScript.Engine.Core
 
         public override SyntaxNode VisitVariableDeclarator(VariableDeclaratorSyntax node)
         {
-            if (node.Initializer != null && _parameters.TryGetValue(node.Identifier.Text, out object newValue))
+            if (_parameters.TryGetValue(node.Identifier.Text, out object newValue))
             {
                 ExpressionSyntax newLiteral = CreateExpression(newValue);
-                return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral).WithLeadingTrivia(node.Initializer.EqualsToken.LeadingTrivia).WithTrailingTrivia(node.Initializer.Value.GetTrailingTrivia()));
+                return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral)
+                    .WithLeadingTrivia(node.Initializer?.EqualsToken.LeadingTrivia ?? SyntaxFactory.Space)
+                    .WithTrailingTrivia(node.Initializer?.Value.GetTrailingTrivia() ?? SyntaxFactory.None));
             }
             return base.VisitVariableDeclarator(node);
         }
 
         public override SyntaxNode VisitPropertyDeclaration(PropertyDeclarationSyntax node)
         {
-            if (node.Initializer != null && _parameters.TryGetValue(node.Identifier.Text, out object newValue))
+            if (_parameters.TryGetValue(node.Identifier.Text, out object newValue))
             {
                 ExpressionSyntax newLiteral = CreateExpression(newValue);
-                return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral)
-                    .WithLeadingTrivia(node.Initializer.EqualsToken.LeadingTrivia)
-                    .WithTrailingTrivia(node.Initializer.Value.GetTrailingTrivia()))
-                    .WithSemicolonToken(node.SemicolonToken);
+                var equalsValue = SyntaxFactory.EqualsValueClause(newLiteral);
+                
+                if (node.Initializer != null)
+                {
+                    equalsValue = equalsValue
+                        .WithLeadingTrivia(node.Initializer.EqualsToken.LeadingTrivia)
+                        .WithTrailingTrivia(node.Initializer.Value.GetTrailingTrivia());
+                }
+                else
+                {
+                    equalsValue = equalsValue.WithLeadingTrivia(SyntaxFactory.Space);
+                }
+
+                var updatedNode = node.WithInitializer(equalsValue);
+                
+                // If it was an auto-property with no initializer, it needs a semicolon
+                if (node.SemicolonToken.Kind() == SyntaxKind.None)
+                {
+                    updatedNode = updatedNode.WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+                }
+                
+                return updatedNode;
             }
             return base.VisitPropertyDeclaration(node);
         }
