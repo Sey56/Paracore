@@ -83,6 +83,21 @@ public List<string> ViewNames_Options()
 }
 ```
 
+#### 2. Concise Room Selection (Expression Body `=>`)
+For simple queries that don't require error handling or complex logic.
+```csharp
+[RevitElements(Group = "Selection")]
+public string RoomName { get; set; }
+
+public List<string> RoomName_Options => new FilteredElementCollector(Doc)
+    .OfCategory(BuiltInCategory.OST_Rooms)
+    .WhereElementIsNotElementType()
+    .Cast<Room>()
+    .Where(r => r.Area > 0)
+    .Select(r => r.Name)
+    .ToList();
+```
+
 #### 2. Dynamic Range (`_Range`)
 Control numeric sliders **dynamically** based on the current model context (e.g., Level counts, wall heights, or unit settings).
 *   **Return Type**: `(double min, double max, double step)`
@@ -131,22 +146,22 @@ You can write complex logic inside your providers. Paracore executes this code o
 If your logic fails (e.g., no elements found), `throw` a descriptive exception. Paracore will catch this and display it as a styled notification in the UI.
 
 ```csharp
-#### 2. Concise Room Selection (Expression Body `=>`)
-The user's favorite way to write clean providers using the `=>` operator.
-
 ```csharp
-[RevitElements(Group = "Selection")]
-public string RoomName { get; set; }
+public List<string> RoomName_Options
+{
+    get
+    {
+        var rooms = new FilteredElementCollector(Doc)
+            .OfCategory(BuiltInCategory.OST_Rooms)
+            .Cast<Room>()
+            .ToList();
 
-// Concise V3 pattern for Room selection
-public List<string> RoomName_Options => new FilteredElementCollector(Doc)
-    .OfCategory(BuiltInCategory.OST_Rooms)
-    .WhereElementIsNotElementType()
-    .Cast<Room>()
-    .Where(r => r.Area > 0) // Only placed rooms
-    .Select(r => r.Name)
-    .OrderBy(n => n)
-    .ToList();
+        if (!rooms.Any()) 
+            throw new Exception("❌ No Rooms found in this document! Please place some rooms first.");
+
+        return rooms.Select(r => r.Name).OrderBy(n => n).ToList();
+    }
+}
 ```
 ```
 
