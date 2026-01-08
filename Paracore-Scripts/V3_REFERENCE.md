@@ -23,6 +23,9 @@ Use this when you want Paracore to **automatically** collect elements from the m
 *   **Category**: Optional. Required for generic types like "FamilySymbol" (e.g., `Category = "Doors"`).
 *   **UI Icon**: Parameters with this attribute show a Revit-specific icon.
 
+> [!IMPORTANT]
+> **Rooms/Categories**: "Room" is a **Category**, not a Class. You cannot use `TargetType = "Room"`. For Rooms (and other categories), you must use the `_Options` convention with `OfCategory(BuiltInCategory.OST_Rooms)` as shown in the examples below.
+
 ```csharp
 [RevitElements(TargetType = "WallType", Group = "Elements")]
 public string SelectedWallType { get; set; }
@@ -128,21 +131,23 @@ You can write complex logic inside your providers. Paracore executes this code o
 If your logic fails (e.g., no elements found), `throw` a descriptive exception. Paracore will catch this and display it as a styled notification in the UI.
 
 ```csharp
-public List<string> RoomName_Options
-{
-    get
-    {
-        var rooms = new FilteredElementCollector(Doc)
-            .OfCategory(BuiltInCategory.OST_Rooms)
-            .Cast<Room>()
-            .ToList();
+#### 2. Concise Room Selection (Expression Body `=>`)
+The user's favorite way to write clean providers using the `=>` operator.
 
-        if (!rooms.Any()) 
-            throw new Exception("❌ No Rooms found in this document! Please place some rooms first.");
+```csharp
+[RevitElements(Group = "Selection")]
+public string RoomName { get; set; }
 
-        return rooms.Select(r => r.Name).OrderBy(n => n).ToList();
-    }
-}
+// Concise V3 pattern for Room selection
+public List<string> RoomName_Options => new FilteredElementCollector(Doc)
+    .OfCategory(BuiltInCategory.OST_Rooms)
+    .WhereElementIsNotElementType()
+    .Cast<Room>()
+    .Where(r => r.Area > 0) // Only placed rooms
+    .Select(r => r.Name)
+    .OrderBy(n => n)
+    .ToList();
+```
 ```
 
 ---
