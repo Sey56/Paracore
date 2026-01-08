@@ -96,7 +96,8 @@ namespace CoreScript.Engine.Core
                         "Autodesk.Revit.UI",
                         "System",
                         "System.Collections.Generic",
-                        "System.Linq"
+                        "System.Linq",
+                        "CoreScript.Engine.Globals"
                     );
 
                 // Create execution globals
@@ -112,6 +113,7 @@ using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CoreScript.Engine.Globals;
 
 {membersSource}
 
