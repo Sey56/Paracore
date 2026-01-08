@@ -326,19 +326,19 @@ namespace CoreScript.Engine.Core
 
         public override SyntaxNode VisitVariableDeclarator(VariableDeclaratorSyntax node)
         {
-            if (_parameters.TryGetValue(node.Identifier.Text, out object newValue))
+            if (_parameters.TryGetValue(node.Identifier.Text, out object? newValue) && newValue != null)
             {
                 ExpressionSyntax newLiteral = CreateExpression(newValue);
                 return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral)
-                    .WithLeadingTrivia(node.Initializer?.EqualsToken.LeadingTrivia ?? SyntaxFactory.Space)
-                    .WithTrailingTrivia(node.Initializer?.Value.GetTrailingTrivia() ?? SyntaxFactory.None));
+                    .WithLeadingTrivia(node.Initializer?.EqualsToken.LeadingTrivia ?? SyntaxFactory.TriviaList(SyntaxFactory.Space))
+                    .WithTrailingTrivia(node.Initializer?.Value.GetTrailingTrivia() ?? SyntaxFactory.TriviaList()));
             }
             return base.VisitVariableDeclarator(node);
         }
 
         public override SyntaxNode VisitPropertyDeclaration(PropertyDeclarationSyntax node)
         {
-            if (_parameters.TryGetValue(node.Identifier.Text, out object newValue))
+            if (_parameters.TryGetValue(node.Identifier.Text, out object? newValue) && newValue != null)
             {
                 ExpressionSyntax newLiteral = CreateExpression(newValue);
                 var equalsValue = SyntaxFactory.EqualsValueClause(newLiteral);
@@ -351,7 +351,7 @@ namespace CoreScript.Engine.Core
                 }
                 else
                 {
-                    equalsValue = equalsValue.WithLeadingTrivia(SyntaxFactory.Space);
+                    equalsValue = equalsValue.WithLeadingTrivia(SyntaxFactory.TriviaList(SyntaxFactory.Space));
                 }
 
                 var updatedNode = node.WithInitializer(equalsValue);
