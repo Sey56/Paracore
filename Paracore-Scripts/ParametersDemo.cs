@@ -16,7 +16,8 @@ Use this as a template for your own automation tools!
 // 1. SIMPLE PATTERN (Comment-Based)
 // =================================================================================
 // Best for: Quick scripts, prototyping, and top-level simplicity.
-// V3 Marker: //[ScriptParameter] or //[RevitElements] above variables.
+// V3 Marker: //[ScriptParameter] above variables.
+// NOTE: Dynamic/Revit selection [RevitElements] requires the PRO Pattern (Class-Based) below.
 
 // [ScriptParameter(Description = "A simple text input for non-Revit data")]
 string projectName = "My Revit Project";
@@ -30,7 +31,7 @@ bool enableLogging = true;
 // [ScriptParameter(VisibleWhen = "enableLogging == true", Description = "Only visible when Logging is enabled")]
 string logPrefix = "LOG_";
 
-// [RevitElements(TargetType = "Level")]
+// [ScriptParameter(Description = "Manual name - V3 requires Class for Revit selection")]
 string levelName = "Level 1";
 
 // =================================================================================
@@ -67,8 +68,9 @@ class Params {
     /// <summary>
     /// A multi-select parameter. In the UI, this shows as multiple Checkboxes.
     /// </summary>
-    [ScriptParameter(Options = "Walls, Doors, Windows, Floors", Group = "Filtering")]
+    [ScriptParameter(Group = "Filtering")]
     public List<string> CategoryFilter { get; set; } = ["Walls", "Doors"];
+    public static string[] CategoryFilter_Options => ["Walls", "Doors", "Windows", "Floors"];
 
     // --- REELEMENTS MAGIC ---
 

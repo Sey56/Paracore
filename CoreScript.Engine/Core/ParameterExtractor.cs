@@ -189,8 +189,7 @@ namespace CoreScript.Engine.Core
 
              var hasComment = triviaList.Any(t => 
                 t.IsKind(SyntaxKind.SingleLineCommentTrivia) && 
-                (Regex.IsMatch(t.ToString(), @"^\s*//\s*\[ScriptParameter") || 
-                 Regex.IsMatch(t.ToString(), @"^\s*//\s*\[RevitElements")));
+                Regex.IsMatch(t.ToString(), @"^\s*//\s*\[ScriptParameter"));
 
              return hasComment;
         }
@@ -330,12 +329,11 @@ namespace CoreScript.Engine.Core
             // 2. Parse Comments (Backup for Simple Pattern)
             var commentTrivia = triviaList.FirstOrDefault(t => 
                 t.IsKind(SyntaxKind.SingleLineCommentTrivia) && 
-                (Regex.IsMatch(t.ToString(), @"^\s*//\s*\[ScriptParameter") || Regex.IsMatch(t.ToString(), @"^\s*//\s*\[RevitElements")));
+                Regex.IsMatch(t.ToString(), @"^\s*//\s*\[ScriptParameter"));
 
             if (!string.IsNullOrEmpty(commentTrivia.ToString()))
             {
                 string comment = commentTrivia.ToString();
-                if (comment.Contains("RevitElements")) isRevitElement = true;
 
                 var meta = ParseCommentMetadata(comment);
                 if (meta.TryGetValue("MultiSelect", out string ms)) multiSelect = ms.ToLower() == "true";

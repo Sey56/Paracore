@@ -109,9 +109,9 @@ message ScriptParameter {
   
   // Enhanced Numeric Types
   string numeric_type = 8;  // "int" or "double"
-  double min = 9;
-  double max = 10;
-  double step = 11;
+  optional double min = 9;
+  optional double max = 10;
+  optional double step = 11;
   
   // Revit Element Selection
   bool is_revit_element = 12;
