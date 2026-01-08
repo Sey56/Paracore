@@ -828,15 +828,39 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         parameterName: parameterName
       });
 
-      const { options, is_success, error_message } = response.data;
+      const { options, is_success, error_message, min, max, step } = response.data;
 
       if (is_success) {
-        showNotification(`Computed ${options.length} options for ${parameterName}`, "success");
+
+        // --- NEW LOGIC: Handle Range vs Options ---
+        const isRangeUpdate = min !== undefined || max !== undefined;
+
+        // CRITICAL: Treat compute as an explicit fetch to block background sync for 2s
+        lastExplicitParameterFetchTimeRef.current = Date.now();
+
+        if (isRangeUpdate) {
+          const fmt = (n: any) => typeof n === 'number' ? n.toFixed(2) : n;
+          showNotification(`Range updated: ${fmt(min)} to ${fmt(max)} (Step: ${fmt(step)})`, "success");
+        } else {
+          showNotification(`Computed ${options.length} options for ${parameterName}`, "success");
+        }
 
         const updateParamWithOptions = (p: ScriptParameter) => {
           if (p.name !== parameterName) return p;
 
           let newValue = p.value;
+
+          // Case 1: Range Update
+          if (isRangeUpdate) {
+            return {
+              ...p,
+              min: min ?? p.min,
+              max: max ?? p.max,
+              step: step ?? p.step
+            };
+          }
+
+          // Case 2: List Options Update
           if (options.length > 0) {
             const currentValueStr = String(p.value || "");
             if (!currentValueStr || !options.includes(currentValueStr)) {

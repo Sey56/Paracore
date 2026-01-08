@@ -141,14 +141,125 @@ using System.Linq;
             }
         }
 
+        /// <summary>
+        /// Executes the {parameterName}_Range property to get (min, max, step).
+        /// </summary>
+        public async Task<(double Min, double Max, double Step)?> ExecuteRangeFunction(string scriptContent, string parameterName, ICoreScriptContext context)
+        {
+            try
+            {
+                _logger.Log($"[ParameterOptionsExecutor] Executing range function for parameter: {parameterName}", LogLevel.Debug);
+
+                string functionName = $"{parameterName}_Range";
+                
+                var tree = CSharpSyntaxTree.ParseText(scriptContent);
+                var root = tree.GetRoot();
+                
+                var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>()
+                    .Select(u => u.ToString())
+                    .ToList();
+                
+                var functionNode = root.DescendantNodes()
+                    .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
+                                         (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
+
+                if (functionNode == null)
+                {
+                    _logger.Log($"[ParameterOptionsExecutor] Function or Property {functionName} not found.", LogLevel.Warning);
+                    return null;
+                }
+
+                bool isProperty = functionNode is PropertyDeclarationSyntax;
+                
+                // NEW LOGIC: Extract ALL members from the parent class to ensure helpers are available
+                string membersSource;
+                if (functionNode.Parent is ClassDeclarationSyntax parentClass)
+                {
+                    // "Unwrap" the class by taking all members and putting them at the top level of the script
+                    membersSource = string.Join("\n\n", parentClass.Members.Select(m => m.ToString()));
+                }
+                else
+                {
+                    // Fallback for top-level functions (V0 style or simple snippets)
+                    membersSource = functionNode.ToString();
+                }
+
+                string allUsings = string.Join("\n", usings);
+
+                var scriptOptions = ScriptOptions.Default
+                    .AddReferences(
+                        typeof(Autodesk.Revit.DB.Document).Assembly,
+                        typeof(Autodesk.Revit.UI.UIDocument).Assembly,
+                        Assembly.GetExecutingAssembly(),
+                        typeof(System.ValueTuple<,,>).Assembly // Ensure tuple support
+                    )
+                    .AddImports(
+                        "Autodesk.Revit.DB",
+                        "Autodesk.Revit.UI",
+                        "System",
+                        "System.Collections.Generic",
+                        "System.Linq",
+                        "CoreScript.Engine.Globals" // Added for attributes
+                    );
+
+                var executionGlobals = new ExecutionGlobals(context, new Dictionary<string, object>());
+                ExecutionGlobals.SetContext(executionGlobals);
+
+                string executionScript = $@"
+{allUsings}
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using CoreScript.Engine.Globals;
+
+{membersSource}
+
+{(isProperty ? functionName : $"{functionName}()")}
+";
+
+                _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
+                
+                // Execute and expect a tuple
+                var result = await CSharpScript.EvaluateAsync<(double, double, double)>(
+                    executionScript,
+                    scriptOptions,
+                    executionGlobals,
+                    typeof(ExecutionGlobals)
+                );
+
+                return result;
+            }
+            catch (CompilationErrorException ex)
+            {
+                _logger.LogError($"[ParameterOptionsExecutor] Compilation error: {ex.Message}");
+                throw new InvalidOperationException($"Failed to compile range function: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError($"[ParameterOptionsExecutor] Error executing range function: {errorMessage}");
+                throw new InvalidOperationException(errorMessage);
+            }
+        }
+
         public bool HasOptionsFunction(string scriptContent, string parameterName)
         {
             string functionName = $"{parameterName}_Options";
             string filterName = $"{parameterName}_Filter";
+            string rangeName = $"{parameterName}_Range";
             
             // Simple check: does the script contain a function or property with this name?
             return scriptContent.Contains($" {functionName}") || 
-                   scriptContent.Contains($" {filterName}");
+                   scriptContent.Contains($" {filterName}") ||
+                   scriptContent.Contains($" {rangeName}");
         }
+
+        public bool HasRangeFunction(string scriptContent, string parameterName)
+        {
+             return scriptContent.Contains($" {parameterName}_Range");
+        }
+
     }
 }

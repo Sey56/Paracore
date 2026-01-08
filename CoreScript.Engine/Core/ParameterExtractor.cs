@@ -120,9 +120,8 @@ namespace CoreScript.Engine.Core
                 var expr = GetInitialExpression(optionsProvider);
                 if (expr != null) param.Options = ExtractOptions(expr, root);
 
-                // Inference: If we have a logic-based provider (Method or Property with logic), it ALWAYS requires compute in Revit
-                if (optionsProvider is MethodDeclarationSyntax || 
-                    (optionsProvider is PropertyDeclarationSyntax p && (p.ExpressionBody != null || p.AccessorList != null)))
+                // Inference: If we have a logic-based provider, it requires compute in Revit
+                if (IsLogicBasedProvider(optionsProvider))
                 {
                     param.RequiresCompute = true;
                 }
@@ -140,23 +139,28 @@ namespace CoreScript.Engine.Core
                     if (range.Max.HasValue) param.Max = range.Max;
                     if (range.Step.HasValue) param.Step = range.Step;
                 }
+
+                if (IsLogicBasedProvider(rangeProvider))
+                {
+                    param.RequiresCompute = true;
+                }
             }
 
             // 3. Visibility Provider (_Visible)
-            var visibleProvider = members.OfType<PropertyDeclarationSyntax>().FirstOrDefault(p => p.Identifier.Text == $"{name}_Visible");
-            if (visibleProvider != null && visibleProvider.ExpressionBody != null)
+            var visibleProvider = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Visible");
+            if (visibleProvider != null)
             {
-                param.VisibleWhen = ParseVisibilityExpression(visibleProvider.ExpressionBody.Expression);
+                var expr = GetInitialExpression(visibleProvider);
+                if (expr != null) param.VisibleWhen = ParseVisibilityExpression(expr);
             }
 
             // 4. Enabled Provider (_Enabled)
-            var enabledProvider = members.OfType<PropertyDeclarationSyntax>().FirstOrDefault(p => p.Identifier.Text == $"{name}_Enabled");
-            if (enabledProvider != null && enabledProvider.ExpressionBody != null)
+            var enabledProvider = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Enabled");
+            if (enabledProvider != null)
             {
-                param.EnabledWhenParam = ParseVisibilityExpression(enabledProvider.ExpressionBody.Expression);
+                var expr = GetInitialExpression(enabledProvider);
+                if (expr != null) param.EnabledWhenParam = ParseVisibilityExpression(expr);
             }
-
-
 
             parameters.Add(param);
         }
@@ -171,9 +175,51 @@ namespace CoreScript.Engine.Core
 
         private ExpressionSyntax GetInitialExpression(MemberDeclarationSyntax member)
         {
-            if (member is PropertyDeclarationSyntax p) return p.Initializer?.Value ?? p.ExpressionBody?.Expression;
+            if (member is PropertyDeclarationSyntax p) 
+            {
+                if (p.Initializer != null) return p.Initializer.Value;
+                if (p.ExpressionBody != null) return p.ExpressionBody.Expression;
+
+                var getter = p.AccessorList?.Accessors.FirstOrDefault(a => a.IsKind(SyntaxKind.GetAccessorDeclaration));
+                if (getter?.ExpressionBody != null) return getter.ExpressionBody.Expression;
+                if (getter?.Body != null)
+                {
+                    var returnStmt = getter.Body.Statements.OfType<ReturnStatementSyntax>().FirstOrDefault();
+                    return returnStmt?.Expression;
+                }
+            }
             if (member is FieldDeclarationSyntax f) return f.Declaration.Variables.FirstOrDefault()?.Initializer?.Value;
             return null;
+        }
+
+        private bool IsLogicBasedProvider(MemberDeclarationSyntax member)
+        {
+            if (member is MethodDeclarationSyntax) return true;
+            if (member is PropertyDeclarationSyntax p)
+            {
+                // Has a complex getter block
+                if (p.AccessorList != null && p.AccessorList.Accessors.Any(a => a.Body != null)) return true;
+                
+                // Has an expression body
+                var expr = p.ExpressionBody?.Expression ?? p.AccessorList?.Accessors.FirstOrDefault(a => a.IsKind(SyntaxKind.GetAccessorDeclaration))?.ExpressionBody?.Expression;
+                if (expr != null)
+                {
+                    return !IsSimpleStaticExpression(expr);
+                }
+            }
+            return false;
+        }
+
+        private bool IsSimpleStaticExpression(ExpressionSyntax expr)
+        {
+            if (expr == null) return true;
+            if (expr is LiteralExpressionSyntax) return true;
+            if (expr is TupleExpressionSyntax tuple) return tuple.Arguments.All(a => IsSimpleStaticExpression(a.Expression));
+            if (expr is CollectionExpressionSyntax col) return col.Elements.OfType<ExpressionElementSyntax>().All(e => IsSimpleStaticExpression(e.Expression));
+            if (expr is ImplicitArrayCreationExpressionSyntax imp) return imp.Initializer.Expressions.All(IsSimpleStaticExpression);
+            if (expr is ArrayCreationExpressionSyntax arr) return arr.Initializer == null || arr.Initializer.Expressions.All(IsSimpleStaticExpression);
+            if (expr is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof") return true;
+            return false;
         }
 
         private bool HasAnyParameterMarker(IEnumerable<AttributeSyntax> attributes, SyntaxTriviaList triviaList)
@@ -468,10 +514,6 @@ namespace CoreScript.Engine.Core
                     defaultValueJson = "[]";
                 }
             }
-
-            // V3 STRICT: Only [RevitElements] are allowed to have dynamic compute buttons.
-            // This streamlines the UI and prevents "ghost" compute buttons on static lists.
-            if (!isRevitElement) requiresCompute = false;
 
             return new ScriptParameter
             {

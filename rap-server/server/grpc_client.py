@@ -257,7 +257,10 @@ def compute_parameter_options(script_content: str, parameter_name: str):
             return {
                 "options": list(response.options),
                 "is_success": response.is_success,
-                "error_message": response.error_message
+                "error_message": response.error_message,
+                "min": response.min if response.HasField('min') else None,
+                "max": response.max if response.HasField('max') else None,
+                "step": response.step if response.HasField('step') else None
             }
     except grpc.RpcError as e:
         logging.error(f"gRPC ComputeParameterOptions call failed: {e.code()} - {e.details()}")

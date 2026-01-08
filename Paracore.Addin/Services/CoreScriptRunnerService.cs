@@ -655,6 +655,27 @@ namespace Paracore.Addin.Services
                     {
                         // We call the async method synchronously here because ExecuteInUIContext 
                         // handles the threading and we need the result before the Revit turn ends.
+                        
+                        // 3. Strategy B: Dynamic Range (_Range)
+                        if (optionsExecutor.HasRangeFunction(request.ScriptContent, request.ParameterName))
+                        {
+                            var range = optionsExecutor.ExecuteRangeFunction(
+                                request.ScriptContent,
+                                request.ParameterName,
+                                serverContext
+                            ).GetAwaiter().GetResult();
+
+                            if (range.HasValue)
+                            {
+                                response.Min = range.Value.Min;
+                                response.Max = range.Value.Max;
+                                response.Step = range.Value.Step;
+                                response.IsSuccess = true;
+                                return new List<string>(); // Return empty options, but response is success
+                            }
+                        }
+
+                        // 4. Strategy C: Manual Options (_Options)
                         var options = optionsExecutor.ExecuteOptionsFunction(
                             request.ScriptContent,
                             request.ParameterName,
@@ -677,6 +698,11 @@ namespace Paracore.Addin.Services
                     response.IsSuccess = true;
                     _logger.Log($"[CoreScriptRunnerService] Successfully computed {result.Count} options for {request.ParameterName}", LogLevel.Debug);
                 }
+                else if (response.IsSuccess) 
+                {
+                    // Case where Range execution succeeded (set manually below)
+                    _logger.Log($"[CoreScriptRunnerService] Successfully computed range for {request.ParameterName}", LogLevel.Debug);
+                }
                 else
                 {
                     // Provide a more helpful error message
@@ -692,7 +718,7 @@ namespace Paracore.Addin.Services
                     }
                     else
                     {
-                        response.ErrorMessage = $"The options provider '{request.ParameterName}_Options' returned 0 items. Please ensure your Revit document contains the required elements.";
+                        response.ErrorMessage = $"The options provider '{request.ParameterName}_Options' (or Range) returned no results.";
                     }
 
                     _logger.Log($"[CoreScriptRunnerService] {response.ErrorMessage}", LogLevel.Warning);

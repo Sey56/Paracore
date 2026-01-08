@@ -190,4 +190,9 @@ message ComputeParameterOptionsResponse {
   repeated string options = 1;
   bool is_success = 2;
   string error_message = 3;
+  
+  // Dynamic Range Execution
+  optional double min = 4;
+  optional double max = 5;
+  optional double step = 6;
 }

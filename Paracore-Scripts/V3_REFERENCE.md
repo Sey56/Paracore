@@ -1,4 +1,4 @@
-# Paracore V3 Parameter System - The Ultimate Guide
+# Paracore V3 Parameter System
 
 The V3 Parameter System is a convention-over-configuration architecture designed for high-performance Revit automation. It minimizes boilerplate and puts all control into the `Params` class.
 
@@ -15,7 +15,7 @@ Every script must follow this strict internal structure:
 ---
 
 ## 2. Choosing Your Attribute
-V3 uses attributes to define how data is fetched and grouped, not necessarily how it's computed.
+V3 uses attributes to define how data is fetched and grouped.
 
 ### `[RevitElements]` (Auto-Extraction)
 Use this when you want Paracore to **automatically** collect elements from the model for you.
@@ -39,24 +39,21 @@ public double OffsetDistance { get; set; } = 150.0;
 ---
 
 ## 3. Dynamic Providers (The "Magic" Convention)
-Paracore uses a naming convention (`ParameterName_Suffix`) to attach logic to your parameters.
+Paracore uses a naming convention (`ParameterName_Suffix`) to attach dynamic logic to your parameters.
 
 ### Universal Compute Inference 🪄
-**Any parameter** (regardless of attribute) will automatically trigger a **"Compute"** button in the UI if its provider contains logic:
-*   A **Method**: `public List<string> MyParam_Options() { ... }`
-*   A **Property with a body**: `public List<string> MyParam_Options => ...`
-
-> [!TIP]
-> Use static initializers (e.g., `public List<string> X_Options = ["A", "B"];`) for simple lists that don't need a Compute button.
+**Any parameter** (regardless of attribute) will automatically trigger a **"Compute"** button in the UI if its provider relies on logic that must run in the Revit context.
+*   **With Compute**: Methods (`_Options()`) or Logic Properties (`_Range => (0, GetMax(), 1)`).
+*   **No Compute**: Static Fields or Literal Properties (`_Options = ["A", "B"]`).
 
 ### Convention List
-| Suffix | Purpose | Return Type |
-| :--- | :--- | :--- |
-| `_Options` | Populates a Dropdown/Multi-select | `List<string>` or `string[]` |
-| `_Filter` | Similar to Options, used inside `[RevitElements]` for refinement | `List<string>` |
-| `_Range` | Defines Min/Max/Step dynamically | `(double? min, double? max, double? step)` |
-| `_Visible` | Controls UI visibility | `bool` |
-| `_Enabled` | Controls UI read-only state | `bool` |
+| Suffix | Purpose | Return Type | Support |
+| :--- | :--- | :--- | :--- |
+| `_Options` | Populates a Dropdown/Multi-select | `List<string>` or `string[]` | Method, Property, Field |
+| `_Filter` | Similar to Options, used inside `[RevitElements]` for refinement | `List<string>` | Method, Property, Field |
+| `_Range` | Defines Min/Max/Step dynamically | `(double, double, double)` | Method, Property (Tuple) |
+| `_Visible` | Controls UI visibility | `bool` | Method, Property |
+| `_Enabled` | Controls UI read-only state | `bool` | Method, Property |
 
 ### Provider Examples 💡
 
@@ -69,10 +66,10 @@ public List<string> ViewNames_Options => new FilteredElementCollector(Doc)
     .ToList();
 ```
 
-**Method (Preferred for complex logic or standard C# style):**
+**Method (Preferred for complex logic):**
 ```csharp
 public List<string> ViewNames_Options()
-{
+    {
     var views = new FilteredElementCollector(Doc)
         .OfClass(typeof(View))
         .Cast<View>()
@@ -84,13 +81,29 @@ public List<string> ViewNames_Options()
 ```
 
 #### 2. Dynamic Range (`_Range`)
-Control sliders based on document units or other logic.
-```csharp
-[ScriptParameter, Suffix("mm")]
-public double WallHeight { get; set; }
+Control numeric sliders **dynamically** based on the current model context (e.g., Level counts, wall heights, or unit settings).
+*   **Return Type**: `(double min, double max, double step)`
+*   **Behavior**: Because this property uses logic (e.g., queries `Doc`), Paracore automatically adds a **[Compute]** button. Clicking it runs your logic and updates the slider bounds in real-time.
 
-// Returns (min, max, step)
-public (double, double, double) WallHeight_Range => (100, 5000, 10);
+```csharp
+[ScriptParameter("Wall Height Limit"), Suffix("m")]
+public double MaxHeight { get; set; } = 3.0;
+
+// The convention {ParameterName}_Range
+public (double, double, double) MaxHeight_Range 
+{
+    get 
+    {
+        // Example: Set max height to the highest level in the project
+        double maxLevel = new FilteredElementCollector(Doc)
+            .OfClass(typeof(Level))
+            .Cast<Level>()
+            .Max(l => l.Elevation);
+            
+        // Return (Min=0, Max=HighestLevel, Step=0.5)
+        return (0.0, maxLevel, 0.5);
+    }
+}
 ```
 
 #### 3. Conditional UI (`_Visible` / `_Enabled`)
@@ -104,11 +117,7 @@ public string ManualOverrideText { get; set; }
 
 // Only show the text box if Manual Mode is checked
 public bool ManualOverrideText_Visible => IsManualMode;
-
-// Or keep it visible but disabled (grayed out)
-// public bool ManualOverrideText_Enabled => IsManualMode;
 ```
-
 
 ---
 
@@ -143,6 +152,7 @@ The extraction engine is robust and supports all modern initializers:
 *   **Collection Expressions**: `public List<string> Tags { get; set; } = ["A", "B"];`
 *   **Implicit New**: `public List<string> Options => new() { "X", "Y" };`
 *   **Target-typed New**: `public string[] Modes = new[] { "Fast", "Slow" };`
+*   **Property Getters**: `public List<string> Opts { get { return ["A"]; } }`
 
 ---
 
@@ -156,11 +166,3 @@ The extraction engine is robust and supports all modern initializers:
 | `DateTime` | Date Picker |
 | `List<string>` | Multi-Select Checkboxes |
 | `Enum` | Dropdown |
-
----
-
-## 7. Best Practices
-1.  **XML Summaries**: Use `/// <summary>` on your properties to provide help text in the UI.
-2.  **Grouping**: Always use `Group = "..."` to keep the UI organized.
-3.  **No Magic Numbers**: If a value can change, make it a `[ScriptParameter]`.
-4.  **Transaction Boundary**: Keep your logic sequential. The engine handles the transaction at the end.
