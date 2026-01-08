@@ -59,6 +59,7 @@ CORE RULES:
    - **Dynamic Data (CRITICAL)**:
      - ONLY `[RevitElements]` supports dynamic "Compute/Sync" from Revit.
      - If you need a dropdown populated from the Revit document, you **MUST** use `[RevitElements]`.
+     - **ROOMS**: "Room" is not a magic `TargetType`. Always use a `_Options` provider with `OfCategory(BuiltInCategory.OST_Rooms)` for Rooms.
    - **Range/Slider Logic (CRITICAL)**:
      - Use `PropertyName_Range` property or method returning `(double min, double max, double step)`.
      - **ROUNDING**: When calculating a dynamic Max, ALWAYS round it to the nearest Step (e.g., `Math.Round(val * 2) / 2` for a 0.5 step) to ensure the slider can reach the end perfectly.
@@ -155,11 +156,22 @@ if (walls.Any())
 }}
 
 // 3. Class Definitions
+// 3. Class Definitions
 public class Params
 {{
-    /// <summary>The level to filter by.</summary>
-    [RevitElements(TargetType = "Level", Group = "Selection"), Required]
-    public string LevelName {{ get; set; }} = "Level 1";
+    /// <summary>The Room to generate floor tiles in.</summary>
+    [RevitElements(Group = "Selection"), Required]
+    public string RoomName {{ get; set; }}
+
+    // Provider for RoomName dropdown
+    public List<string> RoomName_Options => new FilteredElementCollector(Doc)
+        .OfCategory(BuiltInCategory.OST_Rooms)
+        .WhereElementIsNotElementType()
+        .Cast<Room>()
+        .Where(r => r.Area > 0)
+        .Select(r => r.Name)
+        .OrderBy(n => n)
+        .ToList();
 }}
 ```
 

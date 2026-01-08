@@ -42,8 +42,9 @@ namespace CoreScript.Engine.Core
             {
                 _logger.Log($"[ParameterOptionsExecutor] Executing options function for parameter: {parameterName}", LogLevel.Debug);
 
-                // The function name is {parameterName}_Options
+                // The function name is {parameterName}_Options or {parameterName}_Filter
                 string functionName = $"{parameterName}_Options";
+                string filterName = $"{parameterName}_Filter";
                 
                 // 1. Parse the script and extract the function and usings
                 var tree = CSharpSyntaxTree.ParseText(scriptContent);
@@ -53,7 +54,7 @@ namespace CoreScript.Engine.Core
                     .Select(u => u.ToString())
                     .ToList();
                 
-                // Find method, local function, or property
+                // Find method, local function, or property (Options first, then Filter)
                 var functionNode = root.DescendantNodes()
                     .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
                                          (n is LocalFunctionStatementSyntax l && l.Identifier.Text == functionName) ||
@@ -61,7 +62,17 @@ namespace CoreScript.Engine.Core
 
                 if (functionNode == null)
                 {
-                    _logger.Log($"[ParameterOptionsExecutor] Function or Property {functionName} not found in script content.", LogLevel.Warning);
+                    functionNode = root.DescendantNodes()
+                        .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == filterName) ||
+                                             (n is LocalFunctionStatementSyntax l && l.Identifier.Text == filterName) ||
+                                             (n is PropertyDeclarationSyntax p && p.Identifier.Text == filterName));
+                    
+                    if (functionNode != null) functionName = filterName;
+                }
+
+                if (functionNode == null)
+                {
+                    _logger.Log($"[ParameterOptionsExecutor] Provider {functionName} or {filterName} not found.", LogLevel.Warning);
                     return new List<string>();
                 }
 
