@@ -96,6 +96,7 @@ namespace Paracore.Addin.Helpers
                 WriteGlobalJson(workspacePath);
                 WriteGlobalsCs(workspacePath);
                 WriteEditorConfig(workspacePath);
+                WriteCopilotInstructions(workspacePath);
 
                 ParacoreApp.RegisterWorkspace(scriptPath, workspacePath);
 
@@ -330,6 +331,21 @@ namespace Paracore.Addin.Helpers
                 "[*.{cs,vb}]\n" +
                 "dotnet_diagnostic.CA1050.severity = none\n" +
                 "dotnet_diagnostic.CS8019.severity = warning");
+        }
+
+        private static void WriteCopilotInstructions(string folderPath)
+        {
+            try
+            {
+                string githubFolder = Path.Combine(folderPath, ".github");
+                Directory.CreateDirectory(githubFolder);
+                File.WriteAllText(Path.Combine(githubFolder, "copilot-instructions.md"), AiInstructions.CopilotInstructions);
+                FileLogger.Log($"Written Copilot instructions to: {githubFolder}");
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"WriteCopilotInstructions: {ex.Message}");
+            }
         }
     }
 }
