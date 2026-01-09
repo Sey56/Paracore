@@ -35,6 +35,14 @@ namespace CoreScript.Engine.Core
             {
                 return revitElementType switch
                 {
+                    "Wall" => GetWallTypes(),
+                    "Floor" => GetFloorTypes(),
+                    "Roof" => GetRoofTypes(),
+                    "Ceiling" => GetCeilingTypes(),
+                    "Pipe" => GetPipeTypes(),
+                    "Duct" => GetDuctTypes(),
+                    "Conduit" => GetConduitTypes(),
+                    "Wire" => GetWireTypes(),
                     "WallType" => GetWallTypes(),
                     "FloorType" => GetFloorTypes(),
                     "RoofType" => GetRoofTypes(),
@@ -240,6 +248,46 @@ namespace CoreScript.Engine.Core
                 .OfClass(typeof(FilledRegionType))
                 .Cast<FilledRegionType>()
                 .Select(frt => frt.Name)
+                .OrderBy(n => n)
+                .ToList();
+        }
+
+        private List<string> GetPipeTypes()
+        {
+            return new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_Pipes)
+                .WhereElementIsElementType()
+                .Select(e => e.Name)
+                .OrderBy(n => n)
+                .ToList();
+        }
+
+        private List<string> GetDuctTypes()
+        {
+            return new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_Ducts)
+                .WhereElementIsElementType()
+                .Select(e => e.Name)
+                .OrderBy(n => n)
+                .ToList();
+        }
+
+        private List<string> GetConduitTypes()
+        {
+            return new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_Conduit)
+                .WhereElementIsElementType()
+                .Select(e => e.Name)
+                .OrderBy(n => n)
+                .ToList();
+        }
+
+        private List<string> GetWireTypes()
+        {
+            return new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_Wire)
+                .WhereElementIsElementType()
+                .Select(e => e.Name)
                 .OrderBy(n => n)
                 .ToList();
         }
