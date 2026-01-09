@@ -145,10 +145,23 @@ namespace Paracore.Addin.Services
 
             var outputMessages = serverContext?.PrintLog ?? new List<string>();
             var errorMessages = serverContext?.ErrorLog ?? new List<string>();
+            
+            var combinedOutput = string.Join("\n", outputMessages);
+            if (!finalResult.IsSuccess && !string.IsNullOrEmpty(finalResult.ErrorMessage))
+            {
+                // If it's a failure and the console is empty (or even if it's not), make sure the error is visible in the console tab.
+                if (string.IsNullOrEmpty(combinedOutput) || !combinedOutput.Contains(finalResult.ErrorMessage))
+                {
+                    combinedOutput = string.IsNullOrEmpty(combinedOutput) 
+                        ? $"❌ {finalResult.ErrorMessage}" 
+                        : combinedOutput + $"\n❌ {finalResult.ErrorMessage}";
+                }
+            }
+
             var response = new ExecuteScriptResponse
             {
                 IsSuccess = finalResult.IsSuccess,
-                Output = string.Join("\n", outputMessages),
+                Output = combinedOutput,
                 ErrorMessage = finalResult.ErrorMessage ?? "",
             };
 

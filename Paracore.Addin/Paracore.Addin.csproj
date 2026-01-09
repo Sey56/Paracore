@@ -13,6 +13,10 @@
     <FileVersion>2.0.0.0</FileVersion>
 
     <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
+    <PathMap Condition="'$(Configuration)' == 'Release'">$(MSBuildProjectDirectory)=Paracore</PathMap>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Nullable>enable</Nullable>
 
     <ProjectCapability>Protobuf_Generator</ProjectCapability>

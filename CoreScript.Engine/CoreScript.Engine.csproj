@@ -14,7 +14,9 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-
+		<Deterministic>true</Deterministic>
+		<ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
+		<PathMap Condition="'$(Configuration)' == 'Release'">$(MSBuildProjectDirectory)=Paracore</PathMap>
 	</PropertyGroup>
 
 	<ItemGroup>
