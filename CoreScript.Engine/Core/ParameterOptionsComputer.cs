@@ -251,21 +251,11 @@ namespace CoreScript.Engine.Core
         {
             try
             {
-                Type type = null;
-                string[] namespaces = { 
-                    "Autodesk.Revit.DB", 
-                    "Autodesk.Revit.DB.Plumbing", 
-                    "Autodesk.Revit.DB.Mechanical", 
-                    "Autodesk.Revit.DB.Electrical", 
-                    "Autodesk.Revit.DB.Structure", 
-                    "Autodesk.Revit.DB.Architecture" 
-                };
-
-                foreach (var ns in namespaces)
-                {
-                    type = Type.GetType($"{ns}.{typeName}, RevitAPI");
-                    if (type != null) break;
-                }
+                // Robust Type Resolution: Search across all namespaces in the RevitAPI assembly
+                var revitAssembly = typeof(Element).Assembly;
+                var type = revitAssembly.GetTypes()
+                    .FirstOrDefault(t => t.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase) && 
+                                        (t.IsSubclassOf(typeof(Element)) || t == typeof(Element)));
 
                 if (type == null)
                 {
