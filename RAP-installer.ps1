@@ -283,7 +283,7 @@ Write-Host "`n[2/2] Copying Tauri MSI to installers folder..."
 $buildMode = if ($Release) { 'release' } else { 'debug' }
 $tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\$buildMode\bundle\msi\Paracore_$($Version)_x64_en-US.msi"
 
-$tauriMsiDestination = Join-Path -Path $finalInstallDir -ChildPath 'Paracore_Installer.msi'
+$tauriMsiDestination = Join-Path -Path $finalInstallDir -ChildPath "Paracore_Installer_v$($Version).msi"
 Copy-Item -Path $tauriMsiSource -Destination $tauriMsiDestination -Force
 Write-Host "Paracore MSI Installer created at: $tauriMsiDestination" -ForegroundColor Yellow
 

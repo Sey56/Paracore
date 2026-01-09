@@ -5,6 +5,10 @@
   #define AppDataFolderName "rap-data"
 #endif
 
+#ifndef MyAppVersion
+  #define MyAppVersion "2.0.0"
+#endif
+
 #ifndef PublishDir
   #define PublishDir "Paracore.Addin\bin\Release\net8.0-windows\win-x64\publish"
 #endif
@@ -14,11 +18,12 @@ AppId={{F22B529C-22A9-42A0-9243-A335A195A80C-ADDIN}}
 AppName=Paracore
 AppVersion=2.0.0
 AppPublisher=Paras Codarch
-DefaultDirName={userappdata}\{#AppDataFolderName}
-PrivilegesRequired=lowest
+DefaultDirName={commonappdata}\{#AppDataFolderName}
+PrivilegesRequired=admin
+UsedUserAreasWarning=no
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=.\installers
-OutputBaseFilename=Paracore_Revit_Installer
+OutputBaseFilename=Paracore_Revit_Installer_v{#MyAppVersion}
 SetupIconFile="{#IconPath}"
 Compression=lzma
 SolidCompression=yes
@@ -38,29 +43,44 @@ Name: "Revit2026"; Description: "Install for Revit 2026"; GroupDescription: "Rev
 
 [InstallDelete]
 ; For Revit 2025
-Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"; Tasks: Revit2025
-Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore"; Tasks: Revit2025
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"; Tasks: Revit2025
+Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore"; Tasks: Revit2025
 ; Cleanup Legacy RServer
-Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2025\RServer.Addin.addin"; Tasks: Revit2025
-Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2025\RServer"; Tasks: Revit2025
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\RServer.Addin.addin"; Tasks: Revit2025
+Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\RServer"; Tasks: Revit2025
 
 ; For Revit 2026
-Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"; Tasks: Revit2026
-Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore"; Tasks: Revit2026
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"; Tasks: Revit2026
+Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore"; Tasks: Revit2026
 ; Cleanup Legacy RServer
-Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2026\RServer.Addin.addin"; Tasks: Revit2026
-Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2026\RServer"; Tasks: Revit2026
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\RServer.Addin.addin"; Tasks: Revit2026
+Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\RServer"; Tasks: Revit2026
 
 [Files]
 ; Install Add-in for Revit 2025
-Source: "{#PublishDir}\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore"; Tasks: Revit2025; Flags: recursesubdirs replacesameversion
+Source: "{#PublishDir}\*"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore"; Tasks: Revit2025; Flags: recursesubdirs replacesameversion
 
-Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025"; Tasks: Revit2025; Flags: replacesameversion
+Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2025"; Tasks: Revit2025; Flags: replacesameversion
 
 ; Install Add-in for Revit 2026
-Source: "{#PublishDir}\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore"; Tasks: Revit2026; Flags: recursesubdirs replacesameversion
+Source: "{#PublishDir}\*"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore"; Tasks: Revit2026; Flags: recursesubdirs replacesameversion
 
-Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026"; Tasks: Revit2026; Flags: replacesameversion
+Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2026"; Tasks: Revit2026; Flags: replacesameversion
+
+[UninstallDelete]
+; Clean up the Add-in folders and manifests
+Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore"
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"
+Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore"
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"
+
+; Clean up the roaming data (Local DB, Logs)
+Type: filesandordirs; Name: "{userappdata}\paracore-data"
+Type: filesandordirs; Name: "{userappdata}\Paracore"
+
+; Clean up the debug files in Documents
+Type: files; Name: "{userdocs}\CodeRunnerDebug.txt"
+Type: files; Name: "{userdocs}\PrintCallbackDebug.txt"
 
 [Code]
 function IsRevitVersionInstalled(Version: string): Boolean;
