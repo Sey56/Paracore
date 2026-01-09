@@ -94,7 +94,7 @@ $MiscFiles = @(
     "RAP-installer.ps1",
     "README.md",
     "DEVELOPMENT.md",
-    "Paracore-Scripts/README.md"
+    "Paracore-Scripts(V2)/README.md"
 )
 
 foreach ($file in $MiscFiles) {
