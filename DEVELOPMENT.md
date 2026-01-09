@@ -1,13 +1,15 @@
 # Paracore Development Guide 🏗️⚡
 
 ## 🧠 Philosophy: Why Paracore?
-Paracore was built to solve the **Revit API Developer's Crisis** (the slow "Compile & Restart" loop).
-To achieve this, we architected the system differently from a standard Revit Add-in:
-1.  **Decoupled Engine**: The *Execution Engine* is separate from the *UI*. This allows us to run code dynamically without locking the interface.
-2.  **Web-First UI**: We use React/TypeScript (via Tauri) instead of WPF. This allows for modern, reactive interfaces that aren't constrained by Revit's outdated tech stack.
-3.  **VSCode Integration**: We treat VSCode as a first-class citizen, allowing developers to use the world's best editor for Revit automation.
+Paracore was built to eliminate the **Infrastructure Overload** of Revit API development. 
+Instead of spending time on boilerplate (creating projects, managing manifest files, and DLL orchestration), Paracore allows developers to focus purely on the automation logic.
 
-As a contributor, you are not just building an add-in; you are building a **Platform** that bridges the gap between Revit and the Modern Web.
+To achieve this, we architected the system differently:
+1.  **Decoupled Engine**: The *Execution Engine* is separate from the *UI*. This enables live execution of C# code without the need for manual project setup.
+2.  **Web-First UI**: We use React/TypeScript (via Tauri) to create modern, reactive interfaces that aren't constrained by Revit's legacy tech stack.
+3.  **VSCode Integration**: We treat VSCode as a first-class citizen, providing a pre-configured environment where scripts "just run" without manual setup.
+
+As a contributor, you are not just building an add-in; you are building a **Platform** that bridges the gap between Revit and modern software development practices.
 
 ---
 
