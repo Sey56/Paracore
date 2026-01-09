@@ -1,4 +1,4 @@
-# Paracore V3 Parameter System
+# Paracore V2 Parameter System
 
 The V3 Parameter System is a convention-over-configuration architecture designed for high-performance Revit automation. It minimizes boilerplate and puts all control into the `Params` class.
 
@@ -15,7 +15,7 @@ Every script must follow this strict internal structure:
 ---
 
 ## 2. Choosing Your Attribute
-V3 uses attributes to define how data is fetched and grouped.
+V2 uses attributes to define how data is fetched and grouped.
 
 ### `[RevitElements]` (Auto-Extraction)
 Use this when you want Paracore to **automatically** collect elements from the model for you.
@@ -23,12 +23,16 @@ Use this when you want Paracore to **automatically** collect elements from the m
 *   **Category**: Optional. Required for generic types like "FamilySymbol" (e.g., `Category = "Doors"`).
 *   **UI Icon**: Parameters with this attribute show a Revit-specific icon.
 
-> [!IMPORTANT]
-> **Rooms/Categories**: "Room" is a **Category**, not a Class. You cannot use `TargetType = "Room"`. For Rooms (and other categories), you must use the `_Options` convention with `OfCategory(BuiltInCategory.OST_Rooms)` as shown in the examples below.
+> [!NOTE]
+> **Native Rooms**: The engine now handles Rooms natively. You can use `TargetType = "Room"` without any extra configuration. Category filtering is still supported for other elements (e.g., `Category = "Doors"`).
 
 ```csharp
 [RevitElements(TargetType = "WallType", Group = "Elements")]
 public string SelectedWallType { get; set; }
+
+// Magic Room Selection (Native)
+[RevitElements(TargetType = "Room", Group = "Elements")]
+public string TargetRoom { get; set; }
 ```
 
 ### `[ScriptParameter]` (Manual/Logic-Based)
