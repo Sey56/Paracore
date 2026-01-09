@@ -12,6 +12,7 @@ namespace CoreScript.Engine.Core
     public class ParameterOptionsComputer
     {
         private readonly Document _doc;
+        private static Type[]? _revitTypes; // Static cache
 
         public ParameterOptionsComputer(Document doc)
         {
@@ -251,32 +252,62 @@ namespace CoreScript.Engine.Core
         {
             try
             {
-                // Robust Type Resolution: Search across all namespaces in the RevitAPI assembly
-                var revitAssembly = typeof(Element).Assembly;
-                var type = revitAssembly.GetTypes()
+                // 1. STRATEGY A: Class-Based Search (Existing)
+                if (_revitTypes == null)
+                {
+                    var revitAssembly = typeof(Element).Assembly;
+                    _revitTypes = revitAssembly.GetTypes();
+                }
+
+                var type = _revitTypes
                     .FirstOrDefault(t => t.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase) && 
                                         (t.IsSubclassOf(typeof(Element)) || t == typeof(Element)));
 
-                if (type == null)
+                if (type != null)
                 {
-                    return new List<string>();
+                    var collector = new FilteredElementCollector(_doc)
+                        .OfClass(type)
+                        .Cast<Element>();
+
+                    if (!string.IsNullOrEmpty(categoryName))
+                        collector = collector.Where(e => e.Category?.Name == categoryName);
+
+                    var results = collector.Select(e => e.Name).Where(n => !string.IsNullOrEmpty(n)).ToList();
+                    if (results.Count > 0) return results.Distinct().OrderBy(n => n).ToList();
                 }
 
-                var collector = new FilteredElementCollector(_doc)
-                    .OfClass(type)
-                    .Cast<Element>();
+                // 2. STRATEGY B: Category-Based Search (Fallback for things like "Pipe", "Duct", "Wall")
+                // Search for BuiltInCategory that matches the typeName
+                var categories = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>();
+                var targetCategory = categories.FirstOrDefault(c => 
+                    c.ToString().Equals($"OST_{typeName}", StringComparison.OrdinalIgnoreCase) ||
+                    c.ToString().Equals($"OST_{typeName}s", StringComparison.OrdinalIgnoreCase) ||
+                    c.ToString().Equals($"OST_{typeName}Curves", StringComparison.OrdinalIgnoreCase));
 
-                // Filter by category if specified and elements have categories
-                if (!string.IsNullOrEmpty(categoryName))
+                if (targetCategory != default)
                 {
-                    collector = collector.Where(e => e.Category?.Name == categoryName);
+                    // For categories, we usually want the Types (PipeTypes, WallTypes) if available
+                    var typeCollector = new FilteredElementCollector(_doc)
+                        .OfCategory(targetCategory)
+                        .WhereElementIsElementType()
+                        .Cast<Element>()
+                        .Select(e => e.Name)
+                        .ToList();
+
+                    if (typeCollector.Count > 0) return typeCollector.Distinct().OrderBy(n => n).ToList();
+
+                    // Fallback to instances if no types found
+                    var instanceCollector = new FilteredElementCollector(_doc)
+                        .OfCategory(targetCategory)
+                        .WhereElementIsNotElementType()
+                        .Cast<Element>()
+                        .Select(e => e.Name)
+                        .ToList();
+
+                    if (instanceCollector.Count > 0) return instanceCollector.Distinct().OrderBy(n => n).ToList();
                 }
 
-                return collector
-                    .Select(e => e.Name)
-                    .Where(n => !string.IsNullOrEmpty(n))
-                    .OrderBy(n => n)
-                    .ToList();
+                return new List<string>();
             }
             catch
             {
