@@ -17,6 +17,8 @@ DefaultDirName={autopf}\RAP
 DefaultGroupName=RAP
 AllowNoIcons=yes
 OutputBaseFilename=RAP_Installer
+PrivilegesRequired=admin
+UsedUserAreasWarning=no
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -43,3 +45,6 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Fil
 [Run]
 ; Launches the server after installation
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch RAP Server"; Flags: postinstall nowait skipifdoesntexist
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}"

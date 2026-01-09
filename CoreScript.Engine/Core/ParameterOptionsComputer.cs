@@ -12,6 +12,7 @@ namespace CoreScript.Engine.Core
     public class ParameterOptionsComputer
     {
         private readonly Document _doc;
+        private static Type[]? _revitTypes;
 
         public ParameterOptionsComputer(Document doc)
         {
@@ -244,38 +245,89 @@ namespace CoreScript.Engine.Core
         }
 
         /// <summary>
-        /// Generic method to get elements by type name.
-        /// Uses reflection to find the Type and collect elements.
+        /// The Master Resolver: Implements the "Three Pillars" in a single, robust pass.
+        /// 1. Strategy A: Class Discovery (e.g., Room, Level, Material)
+        /// 2. Strategy B: BuiltInCategory Discovery (e.g., Pipe, Duct, Wall)
+        /// 3. Strategy C: Localized Category Discovery (Fallback for strings)
         /// </summary>
-        private List<string> GetGenericElements(string typeName, string categoryName = null)
+        private List<string> GetGenericElements(string targetName, string categoryFilter = null)
         {
             try
             {
-                // Try to find the type in Autodesk.Revit.DB namespace
-                var type = Type.GetType($"Autodesk.Revit.DB.{typeName}, RevitAPI");
-                if (type == null)
+                var cleanName = targetName.Trim();
+                var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) 
+                                   ? cleanName.Substring(0, cleanName.Length - 1) 
+                                   : cleanName;
+
+                // --- STRATEGY 1: STRING-FIRST CATEGORY MATCH (The user's remembered "Magic") ---
+                // We check the document's categories for a name match (localized or English)
+                var matchedCategory = _doc.Settings.Categories.Cast<Category>().FirstOrDefault(c => 
+                    c.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || 
+                    c.Name.Equals($"{cleanName}s", StringComparison.OrdinalIgnoreCase) ||
+                    c.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
+                    c.Name.Equals($"{singularName}s", StringComparison.OrdinalIgnoreCase));
+
+                if (matchedCategory != null)
                 {
-                    return new List<string>();
+                    var catId = matchedCategory.Id;
+
+                    // A. Try Types (WallTypes, PipeTypes)
+                    var types = new FilteredElementCollector(_doc).OfCategoryId(catId).WhereElementIsElementType()
+                        .Cast<Element>().Select(e => e.Name).Distinct().OrderBy(n => n).ToList();
+                    if (types.Count > 0 && !cleanName.Equals("Room", StringComparison.OrdinalIgnoreCase)) return types;
+
+                    // B. Try Instances (Rooms, Materials, specific elements)
+                    var instances = new FilteredElementCollector(_doc).OfCategoryId(catId).WhereElementIsNotElementType()
+                        .Cast<Element>().Select(e => e.Name).Distinct().OrderBy(n => n).ToList();
+                    if (instances.Count > 0) return instances;
                 }
 
-                var collector = new FilteredElementCollector(_doc)
-                    .OfClass(type)
-                    .Cast<Element>();
+                // --- STRATEGY 2: BUILT-IN ENUM MATCH (Language Independent) ---
+                var categories = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>();
+                var builtin = categories.FirstOrDefault(c => 
+                    c.ToString().Equals($"OST_{cleanName}", StringComparison.OrdinalIgnoreCase) ||
+                    c.ToString().Equals($"OST_{cleanName}s", StringComparison.OrdinalIgnoreCase) ||
+                    c.ToString().Equals($"OST_{cleanName}Curves", StringComparison.OrdinalIgnoreCase) ||
+                    c.ToString().Equals($"OST_{singularName}", StringComparison.OrdinalIgnoreCase) ||
+                    c.ToString().Equals($"OST_{singularName}s", StringComparison.OrdinalIgnoreCase));
 
-                // Filter by category if specified and elements have categories
-                if (!string.IsNullOrEmpty(categoryName))
+                if (builtin != default)
                 {
-                    collector = collector.Where(e => e.Category?.Name == categoryName);
+                    var catId = new ElementId(builtin);
+                    var collector = new FilteredElementCollector(_doc).OfCategoryId(catId);
+                    
+                    // Priority: If it's Room-related, get instances. Otherwise, try types.
+                    if (cleanName.Contains("Room") || cleanName.Contains("Area") || cleanName.Contains("Space"))
+                    {
+                        var names = collector.WhereElementIsNotElementType().Cast<Element>().Select(e => e.Name).Distinct().ToList();
+                        if (names.Count > 0) return names;
+                    }
+
+                    var types = collector.WhereElementIsElementType().Cast<Element>().Select(e => e.Name).Distinct().ToList();
+                    if (types.Count > 0) return types;
+                    
+                    var inst = collector.WhereElementIsNotElementType().Cast<Element>().Select(e => e.Name).Distinct().ToList();
+                    if (inst.Count > 0) return inst;
                 }
 
-                return collector
-                    .Select(e => e.Name)
-                    .Where(n => !string.IsNullOrEmpty(n))
-                    .OrderBy(n => n)
-                    .ToList();
+                // --- STRATEGY 3: CLASS REFLECTION (Fallback for generic types) ---
+                if (_revitTypes == null) _revitTypes = typeof(Element).Assembly.GetTypes();
+                var classType = _revitTypes.FirstOrDefault(t => 
+                    (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)) &&
+                    (t.IsSubclassOf(typeof(Element)) || t == typeof(Element)));
+
+                if (classType != null)
+                {
+                    var names = new FilteredElementCollector(_doc).OfClass(classType)
+                        .Cast<Element>().Select(e => e.Name).Distinct().OrderBy(n => n).ToList();
+                    if (names.Count > 0) return names;
+                }
+
+                return new List<string>();
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[Master Resolver] Fatal error for {targetName}: {ex.Message}");
                 return new List<string>();
             }
         }

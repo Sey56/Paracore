@@ -7,8 +7,16 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Get-Location
 
 # --- Auto-Sync Version ---
+$VersionFile = Join-Path $ProjectRoot "VERSION"
+if (-not (Test-Path $VersionFile)) {
+    Write-Error "CRITICAL: VERSION file not found at $VersionFile"
+    exit 1
+}
+$Version = (Get-Content $VersionFile).Trim()
+
 $SyncScript = Join-Path $ProjectRoot "scripts" "Set-Version.ps1"
 if (Test-Path $SyncScript) {
+    Write-Host "Syncing versions to $Version..." -ForegroundColor Cyan
     & $SyncScript
 } else {
     Write-Warning "Set-Version.ps1 not found, skipping auto-sync."
@@ -125,5 +133,5 @@ $appDataFolderName = 'Paracore-data'
 Write-Host "`n=================================" -ForegroundColor Cyan
 Write-Host '   Build Complete!   '
 Write-Host '=================================' -ForegroundColor Cyan
-$finalAddinInstaller = Join-Path -Path $finalInstallDir -ChildPath 'Paracore_Revit_Installer.exe'
+$finalAddinInstaller = Join-Path -Path $finalInstallDir -ChildPath "Paracore_Revit_Installer_v$($Version).exe"
 Write-Host "Paracore Installer created at: $finalAddinInstaller" -ForegroundColor Yellow

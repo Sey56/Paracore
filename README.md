@@ -39,6 +39,18 @@ Traditional Revit API development often involves a heavy "tax" on creativity:
 
 > See [CLOUD_FEATURES.md](CLOUD_FEATURES.md) for details on AI and agent features.
 
+## ⚠️ Known Incompatibilities
+
+### pyRevit & Roslyn Conflict
+Paracore uses a modern version of the **Microsoft Roslyn (C# Compiler)** engine for high-performance script execution. Revit only allows one version of any DLL to be loaded per session. 
+- **The Conflict**: pyRevit loads an older version of Roslyn, which blocks Paracore from loading the modern version it requires.
+- **The Result**: If pyRevit is active, Paracore's parameter engine and script execution may fail.
+- **Resolution**: To use Paracore, you must disable pyRevit (or vice versa).
+
+For more details, see the [Compatibility Guide](https://sey56.github.io/paracore-help/docs/user-guide/compatibility).
+
+---
+
 ---
 
 
