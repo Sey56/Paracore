@@ -6,10 +6,10 @@
 
 **Paracore** is a dynamic automation platform designed to remove the friction from Revit API development, bridging the gap between simple macros and full-scale add-ins.
 
-## 🚀 The Mission
-We built Paracore to solve two critical problems:
-1.  **Eliminate Boilerplate & Friction**: Traditional add-in development requires complex setup, compiling DLLs, and managing installers. Paracore reduces this to a simple "Type & Run" workflow, ideal for **Rapid Prototyping** and agile development.
-2.  **Democratize Automation**: By removing the need for a full software engineering environment, we make powerful C# automation accessible to Architects and Engineers who focus on design, not DevOps.
+## Overview
+Paracore addresses common workflow overheads in Revit API development:
+1.  **Reduce Infrastructure Overhead**: Traditional add-in development requires complex setup, manifest management, and DLL orchestration. Paracore provides a streamlined runtime that lets developers focus on the logic.
+2.  **Accessible Automation**: By providing a pre-configured execution environment, sophisticated C# automation becomes more accessible to Architects and Engineers who need to automate design tasks without managing complex development environments.
 
 ## 📚 Developer Resources
 - **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally (Build, Run, Contribute)

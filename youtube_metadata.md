@@ -10,7 +10,7 @@
 
 Welcome to Day 03 of our tutorial series on the **Paracore Ecosystem**! 🚀
 
-In this session, we move beyond basic scripts and master the core architecture of the **Paracore Platform**. Understanding how the various components (App, Revit Add-in, and VS Code) communicate is the "secret sauce" for professional BIM automation. We dive deep into the newly released **v1.1.1** features, including the revolutionary Smart-Sync engine.
+In this session, we go beyond basic scripts and examine the core architecture of the **Paracore Platform**. We'll look at how the various components (App, Revit Add-in, and VS Code) communicate and coordinate for professional BIM automation. We dive into the **v1.1.1** features, including the updated sync engine.
 
 ### 🔥 Day 3 Highlights:
 - **The v1.1.1 Smart-Sync Engine**: Watch as parameters and metadata update automatically in the background while you code in VS Code. 
