@@ -30,11 +30,11 @@ var p = new Params();
 Level? level = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
     .Cast<Level>()
-    .FirstOrDefault(l => l.Name == p.levelName);
+    .FirstOrDefault(l => l.Name == p.LevelName);
 
 if (level == null)
 {
-    Println($"❌ Level '{p.levelName}' not found.");
+    Println($"❌ Level '{p.LevelName}' not found.");
     return;
 }
 
@@ -42,52 +42,52 @@ if (level == null)
 WallType? wallType = new FilteredElementCollector(Doc)
     .OfClass(typeof(WallType))
     .Cast<WallType>()
-    .FirstOrDefault(wt => wt.Name == p.wallTypeName);
+    .FirstOrDefault(wt => wt.Name == p.WallTypeName);
 
 if (wallType == null)
 {
-    Println($"❌ Wall type '{p.wallTypeName}' not found.");
+    Println($"❌ Wall type '{p.WallTypeName}' not found.");
     return;
 }
 
 int wallsCreated = 0;
 
-Transact($"Create Walls - {p.creationMode}", () =>
+Transact($"Create Walls - {p.CreationMode}", () =>
 {
-    switch (p.creationMode)
+    switch (p.CreationMode)
     {
         case "RoomBoundaries":
             wallsCreated = RoomBoundaryWalls.Create(
-                Doc, level, wallType, p.wallHeightMeters, 
-                p.roomBounding, p.wallOffsetMm);
+                Doc, level, wallType, p.WallHeightMeters, 
+                p.RoomBounding, p.WallOffsetMm);
             break;
 
         case "Grid":
             wallsCreated = GridWalls.Create(
-                Doc, level, wallType, p.wallHeightMeters,
-                p.gridSpacingXMeters, p.gridSpacingYMeters,
-                p.gridCountX, p.gridCountY,
-                p.gridOriginXMeters, p.gridOriginYMeters,
-                p.roomBounding);
+                Doc, level, wallType, p.WallHeightMeters,
+                p.GridSpacingXMeters, p.GridSpacingYMeters,
+                p.GridCountX, p.GridCountY,
+                p.GridOriginXMeters, p.GridOriginYMeters,
+                p.RoomBounding);
             break;
 
         case "Coordinates":
-            if (string.IsNullOrEmpty(p.csvFilePath))
+            if (string.IsNullOrEmpty(p.CsvFilePath))
             {
                 Println("❌ CSV file path is required for Coordinates mode.");
                 return;
             }
             wallsCreated = CoordinateWalls.Create(
-                Doc, level, wallType, p.wallHeightMeters, p.csvFilePath, p.roomBounding);
+                Doc, level, wallType, p.WallHeightMeters, p.CsvFilePath, p.RoomBounding);
             break;
 
         case "Perimeter":
             wallsCreated = PerimeterWalls.Create(
-                Doc, level, wallType, p.wallHeightMeters, p.useModelLines, p.roomBounding);
+                Doc, level, wallType, p.WallHeightMeters, p.UseModelLines, p.RoomBounding);
             break;
 
         default:
-            Println($"❌ Unknown creation mode: {p.creationMode}");
+            Println($"❌ Unknown creation mode: {p.CreationMode}");
             return;
     }
 });
@@ -95,7 +95,7 @@ Transact($"Create Walls - {p.creationMode}", () =>
 // Print result FIRST for agent summary
 if (wallsCreated > 0)
 {
-    Println($"✅ Successfully created {wallsCreated} walls using {p.creationMode} mode.");
+    Println($"✅ Successfully created {wallsCreated} walls using {p.CreationMode} mode.");
 }
 else
 {
@@ -103,8 +103,8 @@ else
 }
 
 // Then print configuration details
-Println($"🔧 Wall Creation Mode: {p.creationMode}");
-Println($"📍 Level: {p.levelName}");
-Println($"🧱 Wall Type: {p.wallTypeName}");
-Println($"📏 Wall Height: {p.wallHeightMeters}m");
-Println($"🏠 Room Bounding: {p.roomBounding}");
+Println($"🔧 Wall Creation Mode: {p.CreationMode}");
+Println($"📍 Level: {p.LevelName}");
+Println($"🧱 Wall Type: {p.WallTypeName}");
+Println($"📏 Wall Height: {p.WallHeightMeters}m");
+Println($"🏠 Room Bounding: {p.RoomBounding}");

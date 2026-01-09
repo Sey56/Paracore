@@ -33,6 +33,8 @@ namespace CoreScript.Engine.Core
 
             FileLogger.Log("🟢 Starting CodeRunner.Execute");
 
+            string topLevelScriptName = "Unknown Script"; // Initialize here so it's accessible in catch blocks
+
             try
             {
                 var parameters = new Dictionary<string, object>();
@@ -132,14 +134,20 @@ namespace CoreScript.Engine.Core
                 }
 
                 var topLevelScriptFile = ScriptParser.IdentifyTopLevelScript(scriptFiles);
-                var topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
+                topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
                 var combinedScriptContent = SemanticCombinator.Combine(scriptFiles);
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(combinedScriptContent);
                 
 
 
+
                 var rewriter = new ParameterRewriter(parameters);
                 SyntaxNode newRoot = rewriter.Visit(tree.GetRoot());
+                
+                // Apply timeout rewriter to inject timeout checks into all loops
+                var timeoutRewriter = new TimeoutRewriter();
+                newRoot = timeoutRewriter.Visit(newRoot);
+                
                 string modifiedUserCode = newRoot.ToFullString();
                 
 
@@ -236,6 +244,28 @@ namespace CoreScript.Engine.Core
                 failureResult.ScriptName = "Unknown Script";
                 return failureResult;
             }
+            catch (AggregateException ex) when (ex.InnerException is TimeoutException)
+            {
+                // Handle timeout wrapped in AggregateException
+                string failureMessage = ex.InnerException.Message + " | " + timestamp;
+                context.Println(failureMessage);
+                FileLogger.Log(failureMessage);
+
+                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
+                return failureResult;
+            }
+            catch (TimeoutException ex)
+            {
+                // Handle timeout directly
+                string failureMessage = ex.Message + " | " + timestamp;
+                context.Println(failureMessage);
+                FileLogger.Log(failureMessage);
+
+                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
+                return failureResult;
+            }
             catch (AggregateException ex)
             {
                 var errs = ex.InnerExceptions.Select(e => GetFilteredExceptionString(e)).ToArray();
@@ -296,23 +326,43 @@ namespace CoreScript.Engine.Core
 
         public override SyntaxNode VisitVariableDeclarator(VariableDeclaratorSyntax node)
         {
-            if (node.Initializer != null && _parameters.TryGetValue(node.Identifier.Text, out object newValue))
+            if (_parameters.TryGetValue(node.Identifier.Text, out object? newValue) && newValue != null)
             {
                 ExpressionSyntax newLiteral = CreateExpression(newValue);
-                return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral).WithLeadingTrivia(node.Initializer.EqualsToken.LeadingTrivia).WithTrailingTrivia(node.Initializer.Value.GetTrailingTrivia()));
+                return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral)
+                    .WithLeadingTrivia(node.Initializer?.EqualsToken.LeadingTrivia ?? SyntaxFactory.TriviaList(SyntaxFactory.Space))
+                    .WithTrailingTrivia(node.Initializer?.Value.GetTrailingTrivia() ?? SyntaxFactory.TriviaList()));
             }
             return base.VisitVariableDeclarator(node);
         }
 
         public override SyntaxNode VisitPropertyDeclaration(PropertyDeclarationSyntax node)
         {
-            if (node.Initializer != null && _parameters.TryGetValue(node.Identifier.Text, out object newValue))
+            if (_parameters.TryGetValue(node.Identifier.Text, out object? newValue) && newValue != null)
             {
                 ExpressionSyntax newLiteral = CreateExpression(newValue);
-                return node.WithInitializer(SyntaxFactory.EqualsValueClause(newLiteral)
-                    .WithLeadingTrivia(node.Initializer.EqualsToken.LeadingTrivia)
-                    .WithTrailingTrivia(node.Initializer.Value.GetTrailingTrivia()))
-                    .WithSemicolonToken(node.SemicolonToken);
+                var equalsValue = SyntaxFactory.EqualsValueClause(newLiteral);
+                
+                if (node.Initializer != null)
+                {
+                    equalsValue = equalsValue
+                        .WithLeadingTrivia(node.Initializer.EqualsToken.LeadingTrivia)
+                        .WithTrailingTrivia(node.Initializer.Value.GetTrailingTrivia());
+                }
+                else
+                {
+                    equalsValue = equalsValue.WithLeadingTrivia(SyntaxFactory.TriviaList(SyntaxFactory.Space));
+                }
+
+                var updatedNode = node.WithInitializer(equalsValue);
+                
+                // If it was an auto-property with no initializer, it needs a semicolon
+                if (node.SemicolonToken.Kind() == SyntaxKind.None)
+                {
+                    updatedNode = updatedNode.WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+                }
+                
+                return updatedNode;
             }
             return base.VisitPropertyDeclaration(node);
         }

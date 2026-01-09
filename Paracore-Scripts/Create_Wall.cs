@@ -21,37 +21,37 @@ UsageExamples:
 var p = new Params();
 
 // 1. Setup the geometry
-double lengthFt = UnitUtils.ConvertToInternalUnits(p.wallLengthMeters, UnitTypeId.Meters);
-double heightFt = UnitUtils.ConvertToInternalUnits(p.wallHeightMeters, UnitTypeId.Meters);
+double lengthFt = UnitUtils.ConvertToInternalUnits(p.WallLengthMeters, UnitTypeId.Meters);
+double heightFt = UnitUtils.ConvertToInternalUnits(p.WallHeightMeters, UnitTypeId.Meters);
 
-XYZ pt1 = p.alongXAxis ? new(-lengthFt / 2, 0, 0) : new(0, -lengthFt / 2, 0);
-XYZ pt2 = p.alongXAxis ? new(lengthFt / 2, 0, 0) : new(0, lengthFt / 2, 0);
+XYZ pt1 = p.AlongXAxis ? new(-lengthFt / 2, 0, 0) : new(0, -lengthFt / 2, 0);
+XYZ pt2 = p.AlongXAxis ? new(lengthFt / 2, 0, 0) : new(0, lengthFt / 2, 0);
 Line wallLine = Line.CreateBound(pt1, pt2);
 
 // 2. Select the elements from Revit
 Level? level = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
     .Cast<Level>()
-    .FirstOrDefault(l => l.Name == p.levelName); 
+    .FirstOrDefault(l => l.Name == p.LevelName); 
 
 WallType? wallType = new FilteredElementCollector(Doc)
     .OfClass(typeof(WallType))
     .Cast<WallType>()
-    .FirstOrDefault(w => w.Name == p.wallTypeName);
+    .FirstOrDefault(w => w.Name == p.WallTypeName);
 
 if (wallType == null)
 {
-    Println($"🚫 Wall type '{p.wallTypeName}' not found.");
+    Println($"🚫 Wall type '{p.WallTypeName}' not found.");
     return;
 }
 
 if (level == null)
 {
-    Println($"🚫 Level '{p.levelName}' not found.");
+    Println($"🚫 Level '{p.LevelName}' not found.");
     return;
 }
 
-Println($"Preparing to create wall of {p.wallLengthMeters}m × {p.wallHeightMeters}m on '{p.levelName}'...");
+Println($"Preparing to create wall of {p.WallLengthMeters}m × {p.WallHeightMeters}m on '{p.LevelName}'...");
 
 // 3. Create the wall inside a transaction
 Transact("Create Wall", () =>
@@ -63,36 +63,23 @@ Transact("Create Wall", () =>
     Println($"✔️ Wall created: {wall.Id}");
 });
 
-// --- Parameter Definitions (The "Pro" Pattern) ---
+// --- Parameter Definitions (Simplified V3 Pattern) ---
 
 class Params {
-    [RevitElements]
-    public string levelName = "Level 1";
+    [RevitElements(TargetType = "Level")]
+    public string LevelName { get; set; } = "Level 1";
 
-    public List<string> levelName_Options() {
-        return new FilteredElementCollector(Doc)
-            .OfClass(typeof(Level))
-            .Select(l => l.Name)
-            .ToList();
-    }
+    [RevitElements(TargetType = "WallType")]
+    public string WallTypeName { get; set; } = "Generic - 200mm";
 
-    [RevitElements]
-    public string wallTypeName = "Generic - 200mm";
+    /// <summary>Length in meters</summary>
+    [Range(0.1, 50.0)]
+    public double WallLengthMeters { get; set; } = 6.0;
 
-    public List<string> wallTypeName_Options() {
-        return new FilteredElementCollector(Doc)
-            .OfClass(typeof(WallType))
-            .Select(w => w.Name)
-            .OrderBy(n => n)
-            .ToList();
-    }
+    /// <summary>Height in meters</summary>
+    [Range(0.1, 20.0)]
+    public double WallHeightMeters { get; set; } = 3.0;
 
-    [ScriptParameter(Min: 0.1, Max: 50, Step: 0.1)]
-    public double wallLengthMeters = 6.0;
-
-    [ScriptParameter(Min: 0.1, Max: 20, Step: 0.1)]
-    public double wallHeightMeters = 3.0;
-
-    [ScriptParameter(Description: "If true, the wall is created along the X-axis. If false, along the Y-axis.")]
-    public bool alongXAxis = true;
+    /// <summary>If true, the wall is created along the X-axis. If false, along the Y-axis.</summary>
+    public bool AlongXAxis { get; set; } = true;
 }

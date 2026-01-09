@@ -31,6 +31,17 @@ code --uninstall-extension "$EXTENSION_ID" || echo "ℹ️ Previous extension no
 code --install-extension "$VSIX_FILE" --force
 echo "✅ Extension installed."
 
+# 🚚 Copy to installers folder
+echo "🚚 Copying extension to installers folder..."
+DEST_DIR="../installers"
+if [ -d "$DEST_DIR" ]; then
+    rm -f "$DEST_DIR"/corescript-*.vsix
+    cp "$VSIX_FILE" "$DEST_DIR"/
+    echo "✅ Extension copied to $DEST_DIR"
+else
+    echo "⚠️ Installers folder not found at $DEST_DIR"
+fi
+
 # Return to the root directory
 cd ..
 

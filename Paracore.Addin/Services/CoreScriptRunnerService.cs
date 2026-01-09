@@ -251,7 +251,12 @@ namespace Paracore.Addin.Services
                         RevitElementCategory = p.RevitElementCategory ?? "",
                         RequiresCompute = p.RequiresCompute,
                         Group = p.Group ?? "",
-                        InputType = p.InputType ?? ""
+                        InputType = p.InputType ?? "",
+                        Required = p.Required,
+                        Suffix = p.Suffix ?? "",
+                        Pattern = p.Pattern ?? "",
+                        EnabledWhenParam = p.EnabledWhenParam ?? "",
+                        EnabledWhenValue = p.EnabledWhenValue ?? ""
                     };
                     
                     protoParam.Options.AddRange(p.Options);
@@ -634,7 +639,48 @@ namespace Paracore.Addin.Services
                         return new List<string>();
                     }
 
-                    // 2. Strategy A: Automatic Revit Element Options
+                    // 2. Manual Providers (The "Pro" Logic)
+                    var optionsExecutor = new ParameterOptionsExecutor(_logger);
+                    if (optionsExecutor.HasOptionsFunction(request.ScriptContent, request.ParameterName))
+                    {
+                        try
+                        {
+                            // 2a. Dynamic Range (_Range)
+                            if (optionsExecutor.HasRangeFunction(request.ScriptContent, request.ParameterName))
+                            {
+                                var range = optionsExecutor.ExecuteRangeFunction(
+                                    request.ScriptContent,
+                                    request.ParameterName,
+                                    serverContext
+                                ).GetAwaiter().GetResult();
+
+                                if (range.HasValue)
+                                {
+                                    response.Min = range.Value.Min;
+                                    response.Max = range.Value.Max;
+                                    response.Step = range.Value.Step;
+                                    response.IsSuccess = true;
+                                    // Range usually doesn't return options, but if it's Just a range check, we return empty list
+                                }
+                            }
+
+                            // 2b. Manual Options (_Options / _Filter)
+                            var options = optionsExecutor.ExecuteOptionsFunction(
+                                request.ScriptContent,
+                                request.ParameterName,
+                                serverContext
+                            ).GetAwaiter().GetResult();
+                            
+                            if (options != null && options.Count > 0) return options;
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            _logger.Log($"[CoreScriptRunnerService] Options function error: {ex.Message}", LogLevel.Warning);
+                            throw; 
+                        }
+                    }
+
+                    // 3. Strategy B: Automatic Revit Element Extraction (The "Simple" Fallback)
                     if (targetParam.IsRevitElement && !string.IsNullOrEmpty(targetParam.RevitElementType))
                     {
                         var doc = _uiApp.ActiveUIDocument.Document;
@@ -643,27 +689,7 @@ namespace Paracore.Addin.Services
                         return optionsComputer.ComputeOptions(targetParam.RevitElementType, targetParam.RevitElementCategory);
                     }
 
-                    // 3. Strategy B: Manual _Options() Function
-                    var optionsExecutor = new ParameterOptionsExecutor(_logger);
-                    
-                    try
-                    {
-                        // We call the async method synchronously here because ExecuteInUIContext 
-                        // handles the threading and we need the result before the Revit turn ends.
-                        var options = optionsExecutor.ExecuteOptionsFunction(
-                            request.ScriptContent,
-                            request.ParameterName,
-                            serverContext
-                        ).GetAwaiter().GetResult();
-                        
-                        return options;
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        // Custom error message from the script
-                        _logger.Log($"[CoreScriptRunnerService] Options function error: {ex.Message}", LogLevel.Warning);
-                        throw; // Re-throw to be caught by outer catch block
-                    }
+                    return new List<string>();
                 });
 
                 if (result != null && result.Count > 0)
@@ -672,10 +698,29 @@ namespace Paracore.Addin.Services
                     response.IsSuccess = true;
                     _logger.Log($"[CoreScriptRunnerService] Successfully computed {result.Count} options for {request.ParameterName}", LogLevel.Debug);
                 }
+                else if (response.IsSuccess) 
+                {
+                    // Case where Range execution succeeded (set manually below)
+                    _logger.Log($"[CoreScriptRunnerService] Successfully computed range for {request.ParameterName}", LogLevel.Debug);
+                }
                 else
                 {
+                    // Provide a more helpful error message
+                    var parameters = _parameterExtractor.ExtractParameters(request.ScriptContent);
+                    var targetParam = parameters.FirstOrDefault(p => p.Name == request.ParameterName);
+
                     response.IsSuccess = false;
-                    response.ErrorMessage = $"No options returned from {request.ParameterName}_Options() function.";
+                    
+                    if (targetParam != null && targetParam.IsRevitElement && !string.IsNullOrEmpty(targetParam.RevitElementType))
+                    {
+                        string categoryMsg = string.IsNullOrEmpty(targetParam.RevitElementCategory) ? "" : $" in category '{targetParam.RevitElementCategory}'";
+                        response.ErrorMessage = $"No elements of type '{targetParam.RevitElementType}'{categoryMsg} found in the current document.";
+                    }
+                    else
+                    {
+                        response.ErrorMessage = $"The options provider '{request.ParameterName}_Options' (or Range) returned no results.";
+                    }
+
                     _logger.Log($"[CoreScriptRunnerService] {response.ErrorMessage}", LogLevel.Warning);
                 }
             }

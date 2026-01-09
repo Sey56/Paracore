@@ -26,8 +26,44 @@ namespace CoreScript.Engine.Globals
     {
         internal static readonly AsyncLocal<ExecutionGlobals> Current = new AsyncLocal<ExecutionGlobals>();
 
-        public static void SetContext(ExecutionGlobals context) => Current.Value = context;
-        public static void ClearContext() => Current.Value = null;
+        // Timeout mechanism
+        private static DateTime _executionDeadline;
+        private static int _timeoutSeconds = 10; // Default 10 seconds
+
+        public static void SetContext(ExecutionGlobals context)
+        {
+            Current.Value = context;
+            // Initialize deadline when execution starts
+            _executionDeadline = DateTime.Now.AddSeconds(_timeoutSeconds);
+        }
+
+        public static void ClearContext()
+        {
+            Current.Value = null;
+            // Reset timeout to default
+            _timeoutSeconds = 10;
+        }
+
+        /// <summary>
+        /// Sets the execution timeout for the current script. Call this at the start of your script if you need more than 10 seconds.
+        /// </summary>
+        /// <param name="seconds">Maximum execution time in seconds</param>
+        public static void SetExecutionTimeout(int seconds)
+        {
+            _timeoutSeconds = seconds;
+            _executionDeadline = DateTime.Now.AddSeconds(seconds);
+        }
+
+        /// <summary>
+        /// Internal method called by injected timeout checks. Throws TimeoutException if deadline exceeded.
+        /// </summary>
+        public static void CheckTimeout()
+        {
+            if (DateTime.Now > _executionDeadline)
+            {
+                throw new TimeoutException($"🛑 Script execution timed out after {_timeoutSeconds} seconds. If this script needs more time, add SetExecutionTimeout(seconds) at the start of your script.");
+            }
+        }
 
         private readonly ICoreScriptContext _context;
 

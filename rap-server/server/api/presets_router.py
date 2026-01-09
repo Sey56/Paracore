@@ -34,18 +34,31 @@ def are_parameters_equal_python(params1: List[schemas.ParameterSchema], params2:
         val1 = p1.value
         val2 = p2.value
 
-        # Normalize None and undefined (represented as None in Python) for comparison
+        # Normalize None and undefined
         if val1 is None and val2 is None:
             continue
         if val1 is None or val2 is None:
             return False
 
-        # Special handling for number types with tolerance
-        if p1.type == 'number' and isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
-            if math.fabs(val1 - val2) > EPSILON:
+        # Array/List comparison (Multi-Select)
+        if isinstance(val1, list) and isinstance(val2, list):
+            if len(val1) != len(val2):
                 return False
+            # Check if all elements match (assuming order doesn't strictly matter for multi-select, 
+            # but usually it's preserved or sorted)
+            if sorted(str(v) for v in val1) != sorted(str(v) for v in val2):
+                return False
+        # Special handling for number types with tolerance
+        elif p1.type == 'number' and isinstance(val1, (int, float, str)) and isinstance(val2, (int, float, str)):
+            try:
+                n1 = float(val1)
+                n2 = float(val2)
+                if math.fabs(n1 - n2) > EPSILON:
+                    return False
+            except (ValueError, TypeError):
+                if val1 != val2: return False
         elif val1 != val2:
-            # For other types, use strict equality after normalization
+            # For other types, use strict equality
             return False
     return True
 

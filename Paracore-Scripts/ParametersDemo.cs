@@ -8,7 +8,7 @@ DocumentType: Project
 Author: Paracore Team
 Description: 
 A comprehensive guide on how to define parameters in Paracore scripts.
-This script demonstrates both the "Simple" (Comment-Based) and "Pro" (Class-Based) patterns.
+This script demonstrates the V3 "Pro" (Class-Based) and "Simple" (Comment-Based) patterns.
 Use this as a template for your own automation tools!
 */
 
@@ -16,139 +16,133 @@ Use this as a template for your own automation tools!
 // 1. SIMPLE PATTERN (Comment-Based)
 // =================================================================================
 // Best for: Quick scripts, prototyping, and top-level simplicity.
-// Syntax: Use C# comments starting with // [ScriptParameter(...)] or // [RevitElements(...)]
+// V3 Marker: //[ScriptParameter] above variables.
+// NOTE: Dynamic/Revit selection [RevitElements] requires the PRO Pattern (Class-Based) below.
 
-// [ScriptParameter(Description: "A simple text input field")]
+// [ScriptParameter(Description = "A simple text input for non-Revit data")]
 string projectName = "My Revit Project";
 
-// [ScriptParameter(Min: 0, Max: 100, Step: 1, Description: "An integer slider")]
+// [ScriptParameter(Min = 0, Max = 100, Step = 1, Description = "An integer slider")]
 int wallCount = 10;
 
-// [ScriptParameter(Min: 0.0, Max: 50.0, Step: 0.1, Description: "A double/decimal slider")]
-double wallHeight = 3.5;
-
-// [ScriptParameter(Options: "Option A, Option B, Option C", Description: "A dropdown list")]
-string selectedOption = "Option A";
-
-// [ScriptParameter(Description: "A boolean toggle")]
+// [ScriptParameter(Description = "A boolean toggle")]
 bool enableLogging = true;
 
-// [ScriptParameter(VisibleWhen: "enableLogging == true", Description: "Only visible when Logging is enabled")]
+// [ScriptParameter(VisibleWhen = "enableLogging == true", Description = "Only visible when Logging is enabled")]
 string logPrefix = "LOG_";
 
-// [ScriptParameter(Description: "Enter the full file path manually (Use Pro Pattern for File Pickers)")]
-string importPath = @"C:\data.csv";
-
-// [ScriptParameter(MultiSelect: true, Options: "A,B,C", Description: "Multi-select checkboxes")]
-List<string> manualMultiSelect = ["A", "B"];
-
-// [RevitElements(Type: "Level", Category: "Levels")]
+// [ScriptParameter(Description = "Manual name - V3 requires Class for Revit selection")]
 string levelName = "Level 1";
 
 // =================================================================================
 // 2. PRO PATTERN (Class-Based)
 // =================================================================================
-// Best for: Large scripts, complex multi-file tools, and zero IDE errors.
-// Syntax: Real C# attributes [Parameter] inside a 'class Params'.
-// Benefit: Perfect IntelliSense in VS Code (zero red squiggles!)
+// Best for: Professional tools, IDE IntelliSense, and complex logic.
+// Syntax: Real C# attributes [ScriptParameter] inside a 'class Params'.
 
 var p = new Params();
 
-// Access class parameters using 'p.VariableName'
-Println($"Pro Parameter Text: {p.structuredDescription}");
-
-
-// =================================================================================
-// SCRIPT LOGIC
-// =================================================================================
-
-Println("--- Paracore Parameter Demonstration ---");
+Println("--- Paracore V3 Parameter Demonstration ---");
 Println($"Project: {projectName}");
 Println($"Wall Count: {wallCount}");
-Println($"Logging Prefix: {(enableLogging ? logPrefix : "N/A")}");
-Println($"Pro Description: {p.structuredDescription}");
-
+Println($"Pro Description: {p.StructuredDescription}");
 
 // =================================================================================
 // PRO CLASS DEFINITION
 // =================================================================================
 
 class Params {
-    [ScriptParameter(Description: "Metadata directly on class fields - no IDE errors!", Group: "General")]
-    public string structuredDescription = "Professional Automation";
+    /// <summary>
+    /// Professional description using XML comments. Metadata directly on properties!
+    /// </summary>
+    [ScriptParameter(Group = "General")]
+    public string StructuredDescription { get; set; } = "Professional Automation";
 
-    [ScriptParameter(Min: 5, Max: 500, Step: 5, Group: "Dimensions")]
-    public int offsetValue = 100;
+    /// <summary>
+    /// Offset value in millimeters.
+    /// </summary>
+    [Range(5, 500, 5)] 
+    [ScriptParameter(Group = "Dimensions")]
+    public int OffsetValue { get; set; } = 100;
 
-    [ScriptParameter(Min: 0.1, Max: 10.0, Step: 0.1, Description: "A decimal slider for precision offsets.", Group: "Dimensions")]
-    public double precisionOffset = 1.5;
+    /// <summary>
+    /// A multi-select parameter. In the UI, this shows as multiple Checkboxes.
+    /// </summary>
+    [ScriptParameter(Group = "Filtering")]
+    public List<string> CategoryFilter { get; set; } = ["Walls", "Doors"];
+    public static string[] CategoryFilter_Options => ["Walls", "Doors", "Windows", "Floors"];
 
-    [ScriptParameter(Options: "Walls, Doors, Windows, Floors", Description: "Supports multi-select! In the UI, this will show up as multiple Checkboxes.", Group: "Filtering")]
-    public List<string> categoryFilter = ["Walls", "Doors"];
+    // --- REELEMENTS MAGIC ---
 
-    // AUTOMATIC (MAGIC) - MULTI-SELECT
-    // The Engine has built-in logic for types like "WallType", "Level", "View", etc.
-    // By specifying Type="WallType", it automagically populates the list.
-    // MultiSelect: true -> Renders as CHECKBOXES in the UI.
-    [RevitElements(Type: "WallType", MultiSelect: true, Group: "Filtering")]
-    public List<string> wallTypeNames = new() { "Generic - 200mm" };
+    /// <summary>
+    /// Automatically populates with Wall Types from Revit. MultiSelect: true renders as checkboxes.
+    /// </summary>
+    [RevitElements(TargetType = "WallType", MultiSelect = true, Group = "Filtering")]
+    public List<string> WallTypeNames { get; set; } = new() { "Generic - 200mm" };
 
-    // AUTOMATIC (MAGIC) - SINGLE-SELECT
-    // Same magic, but single selection.
-    // MultiSelect: false (default) -> Renders as a DROPDOWN in the UI.
-    [RevitElements(Type: "Level", Group: "Context")]
-    public string simpleLevelName = "Level 1";
+    /// <summary>
+    /// Automatically populates with Levels from Revit.
+    /// </summary>
+    [RevitElements(TargetType = "Level", Group = "Context")]
+    public string ActiveLevel { get; set; } = "Level 1";
 
-    // MANUAL (CUSTOM) - SINGLE-SELECT
-    // For more control (e.g., custom filtering), defining a method ending in '_Options()'
-    // overrides the automatic magic.
-    [RevitElements(Group: "Context")]
-    public string targetLevelName = "Level 1";
+    // --- CONVENTION-BASED PROVIDERS (V3) ---
 
-    public List<string> targetLevelName_Options() {
+    /// <summary>
+    /// This property uses a custom provider for its options list.
+    /// </summary>
+    [RevitElements(Group = "Context")]
+    public string CustomLevel { get; set; } = "Level 1";
+
+    // V3 Convention: PropertyName_Options
+    public List<string> CustomLevel_Options() {
         return new FilteredElementCollector(Doc)
             .OfClass(typeof(Level))
+            .Cast<Level>()
             .Select(l => l.Name)
-            .Where(n => !n.Contains("Drafting")) // Custom Filter!
+            .Where(n => !n.Contains("Drafting")) 
             .OrderBy(n => n)
             .ToList();
     }
 
-    // AUTOMATIC (MAGIC) - CATEGORY FILTERING
-    // By specifying both Type and Category, we can filter elements.
-    // Here we get all FamilySymbols (Types) that belong to the "Doors" category.
-    [RevitElements(Type: "FamilySymbol", Category: "Doors", Group: "Filtering")]
-    public string doorTypeName = "Single-Flush: 30\" x 84\"";
+    /// <summary>
+    /// Demonstration of a generic category picker using Revit API.
+    /// Since this data is extracted from Revit, we use [RevitElements].
+    /// </summary>
+    [RevitElements(Group = "Advanced")]
+    public string TargetCategory { get; set; } = "Walls";
 
-    // MANUAL (CUSTOM) - LISTING CATEGORIES
-    // Since 'Category' is not an Element, we must list them manually.
-    // This allows you to create generic scripts that work on ANY category (e.g. "Delete All X").
-    [RevitElements(Group: "Filtering")]
-    public string targetCategoryName = "Walls";
-
-    public List<string> targetCategoryName_Options() {
-        var categories = new List<string>();
-        foreach (Category cat in Doc.Settings.Categories) {
-            categories.Add(cat.Name);
-        }
-        categories.Sort();
-        return categories;
+    public List<string> TargetCategory_Options() {
+        return Doc.Settings.Categories
+            .Cast<Category>()
+            .Where(c => c.IsVisibleInUI)
+            .Select(c => c.Name)
+            .OrderBy(n => n)
+            .ToList();
     }
 
-    // CONDITIONAL VISIBILITY
-    [ScriptParameter(Group: "Advanced")]
-    public bool showAvailableOptions = false;
+    // --- CONDITIONAL VISIBILITY (V3 CONVENTION) ---
 
-    [ScriptParameter(VisibleWhen: "showAvailableOptions == true", Group: "Advanced", Description: "Only shown when above toggle is ON")]
-    public string extraOption = "Hidden by default";
+    /// <summary>
+    /// Toggle this to show or hide the advanced property.
+    /// </summary>
+    [ScriptParameter(Group = "Advanced")]
+    public bool ShowAdvanced { get; set; } = false;
 
-    // FILE PICKERS
-    [ScriptParameter(InputType: "Folder", Group: "Advanced", Description: "Pick a folder for export")]
-    public string exportFolder = @"C:\Temp";
+    /// <summary>
+    /// This property is controlled by a C# method for visibility.
+    /// </summary>
+    [ScriptParameter(Group = "Advanced")]
+    public string AdvancedProperty { get; set; } = "High Tech Value";
 
-    [ScriptParameter(InputType: "File", Group: "Advanced", Description: "Pick a file to import")]
-    public string importFile = @"C:\Data\input.csv";
+    // V3 Convention: PropertyName_Visible
+    public bool AdvancedProperty_Visible() => ShowAdvanced;
 
-    [ScriptParameter(InputType: "SaveFile", Group: "Advanced", Description: "Pick a file to save to")]
-    public string outputFile = @"C:\Data\output.csv";
+    // --- INPUT TYPES ---
+
+    [ScriptParameter(InputType = "Folder", Group = "System")]
+    public string ExportPath { get; set; } = @"C:\Temp";
+
+    [ScriptParameter(InputType = "File", Group = "System")]
+    public string InputFile { get; set; } = @"C:\Data\input.csv";
 }

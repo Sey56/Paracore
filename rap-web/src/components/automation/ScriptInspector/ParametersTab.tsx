@@ -55,6 +55,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     computeParameterOptions,
     isComputingOptions,
     userEditedScriptParameters,
+    defaultDraftParameters,
     activePresets,
     setActivePreset,
   } = useScriptExecution();
@@ -164,6 +165,26 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   };
 
   const handleRunScript = async () => {
+    // Validation
+    const validationErrors = visibleParameters.flatMap(p => {
+      const errors = [];
+      const valStr = p.value === undefined || p.value === null ? '' : String(p.value).trim();
+
+      if (p.required && valStr === '') {
+        errors.push(`- ${p.description || p.name} is required`);
+      }
+      if (p.pattern && valStr !== '' && !new RegExp(p.pattern).test(valStr)) {
+        errors.push(`- ${p.description || p.name} format is invalid`);
+      }
+      return errors;
+    });
+
+    if (validationErrors.length > 0) {
+      setInfoModalMessage(`Please correct the following issues:\n${validationErrors.join('\n')}`);
+      setIsInfoModalOpen(true);
+      return;
+    }
+
     if (script) {
       await setSelectedScript(script);
       runScript(script, editedParameters);
@@ -190,7 +211,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     <div className={`tab-content p-4`}>
       <div className="space-y-3">
         {/* Preset Selector + Actions */}
-        {activeMainView === 'scripts' && script.parameters && script.parameters.length > 0 && (
+        {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="relative flex items-center justify-end">
             <select
               className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-auto"
@@ -199,21 +220,22 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 const presetName = e.target.value;
                 internalSetSelectedPreset(presetName);
                 if (presetName === "<Default Parameters>") {
-                  const defaultParams = initializeParameters(script.parameters ?? []);
-                  updateUserEditedParameters(script.id, defaultParams);
-                  setEditedParameters(defaultParams);
+                  // Load from the isolated "Default" draft cache if it exists, otherwise fall back to script defaults
+                  const draftParams = defaultDraftParameters[script.id];
+                  const finalDefaultParams = draftParams || initializeParameters(script.parameters ?? []);
+                  updateUserEditedParameters(script.id, finalDefaultParams, true); // isPresetLoad = true
+                  setEditedParameters(finalDefaultParams);
                 } else {
                   const preset = presets.find((p) => p.name === presetName);
                   if (preset) {
-                    // CRITICAL FIX: Merge preset values into existing script parameters to preserve metadata (options, type, etc.)
-                    // Do NOT replace the parameter objects with the preset objects directly.
+                    // ... (merge logic)
                     const mergedParams = (script.parameters ?? []).map(scriptParam => {
                       const presetParam = preset.parameters.find(p => p.name === scriptParam.name);
 
                       if (presetParam) {
                         let newValue = presetParam.value;
 
-                        // Handle Multi-Select deserialization (string -> array)
+                        // Handle Multi-Select deserialization if necessary (though state isolation usually handles this)
                         if (scriptParam.multiSelect && typeof newValue === 'string') {
                           try {
                             const parsed = JSON.parse(newValue);
@@ -224,15 +246,19 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                           }
                         }
 
-                        return { ...scriptParam, value: newValue };
+                        // Also restore 'options' from the preset if they exist, 
+                        // as they might represent a previous "Fetch" state.
+                        const finalOptions = presetParam.options && presetParam.options.length > 0
+                          ? presetParam.options
+                          : scriptParam.options;
+
+                        return { ...scriptParam, value: newValue, options: finalOptions };
                       }
 
-                      // If param not in preset, keep current value or reset to default? 
-                      // Keeping current is safer, or resetting to default. Let's reset to default to be "clean".
-                      return { ...scriptParam, value: scriptParam.value };
+                      return { ...scriptParam };
                     });
 
-                    updateUserEditedParameters(script.id, mergedParams);
+                    updateUserEditedParameters(script.id, mergedParams, true); // isPresetLoad = true
                     setEditedParameters(mergedParams);
                   }
                 }

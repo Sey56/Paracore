@@ -133,15 +133,20 @@ def get_script_parameters(script_files):
             "multiSelect": p.multi_select,
             "visibleWhen": p.visible_when,
             "numericType": p.numeric_type,
-            "min": p.min,
-            "max": p.max,
-            "step": p.step,
+            "min": p.min if p.HasField('min') else None,
+            "max": p.max if p.HasField('max') else None,
+            "step": p.step if p.HasField('step') else None,
             "isRevitElement": p.is_revit_element,
             "revitElementType": p.revit_element_type,
             "revitElementCategory": p.revit_element_category,
             "requiresCompute": p.requires_compute,
             "group": p.group,
-            "inputType": p.input_type
+            "inputType": p.input_type,
+            "required": p.required,
+            "suffix": p.suffix,
+            "pattern": p.pattern,
+            "enabledWhenParam": p.enabled_when_param,
+            "enabledWhenValue": p.enabled_when_value
         }
         params_to_return.append(param_dict)
 
@@ -252,7 +257,10 @@ def compute_parameter_options(script_content: str, parameter_name: str):
             return {
                 "options": list(response.options),
                 "is_success": response.is_success,
-                "error_message": response.error_message
+                "error_message": response.error_message,
+                "min": response.min if response.HasField('min') else None,
+                "max": response.max if response.HasField('max') else None,
+                "step": response.step if response.HasField('step') else None
             }
     except grpc.RpcError as e:
         logging.error(f"gRPC ComputeParameterOptions call failed: {e.code()} - {e.details()}")

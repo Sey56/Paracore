@@ -12,28 +12,39 @@ for maximum radius, number of turns, and angle resolution.
 
 UsageExamples:
 - "create a spiral with model lines"
-
 */
 
-// 🌿 Editable Parameters
-// [ScriptParameter]
-string levelName = "Level 1";
-// [ScriptParameter]
-double maxRadiusCm = 2400;
-// [ScriptParameter]
-int numTurns = 10;
-// [ScriptParameter]
-double angleResolutionDegrees = 20;
+// Initialize Parameters
+var p = new Params();
 
 Print("Starting spiral sketch...");
 
 Transact("Create Spiral", () =>
 {
     var spiral = new SpiralCreator();
-    spiral.CreateSpiral(Doc, levelName, maxRadiusCm, numTurns, angleResolutionDegrees);
+    spiral.CreateSpiral(Doc, p.LevelName, p.MaxRadiusCm, p.NumTurns, p.AngleResolutionDegrees);
 });
 
 Print("Spiral sketch finished.");
+
+// V3 Simplified Parameters
+public class Params
+{
+    [RevitElements(TargetType = "Level")]
+    public string LevelName { get; set; } = "Level 1";
+
+    /// <summary>Maximum radius in cm</summary>
+    [Range(100, 5000)]
+    public double MaxRadiusCm { get; set; } = 2400;
+
+    /// <summary>Number of turns</summary>
+    [Range(1, 50)]
+    public int NumTurns { get; set; } = 10;
+
+    /// <summary>Angle resolution in degrees</summary>
+    [Range(5, 90)]
+    public double AngleResolutionDegrees { get; set; } = 20;
+}
 
 public class SpiralCreator
 {

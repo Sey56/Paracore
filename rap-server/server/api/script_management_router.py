@@ -199,9 +199,15 @@ async def get_scripts(folderPath: str):
                     except grpc.RpcError as e:
                         metadata = {"displayName": os.path.basename(resolved_item_path), "description": f"Error: {e.details()}"}
 
+                    # Calculate robust date_modified for folders (latest mtime of any .cs file)
                     folder_stat = os.stat(resolved_item_path)
                     date_created = datetime.fromtimestamp(folder_stat.st_ctime).isoformat()
-                    date_modified = datetime.fromtimestamp(folder_stat.st_mtime).isoformat()
+                    
+                    latest_mtime = folder_stat.st_mtime
+                    for fp in glob.glob(os.path.join(item_path, "*.cs")):
+                        latest_mtime = max(latest_mtime, os.path.getmtime(fp))
+                    
+                    date_modified = datetime.fromtimestamp(latest_mtime).isoformat()
 
                     scripts.append({
                         "id": resolved_item_path.replace('\\', '/'),
@@ -271,7 +277,13 @@ async def get_script_metadata_endpoint(request: Request):
         # ADDED: Include file stats for refresh detection
         file_stat = os.stat(absolute_path)
         date_created = datetime.fromtimestamp(file_stat.st_ctime).isoformat()
-        date_modified = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+        
+        latest_mtime = file_stat.st_mtime
+        if script_type == "multi-file":
+            for fp in glob.glob(os.path.join(absolute_path, "*.cs")):
+                latest_mtime = max(latest_mtime, os.path.getmtime(fp))
+                
+        date_modified = datetime.fromtimestamp(latest_mtime).isoformat()
         
         if "metadata" in response:
             response["metadata"]["dateCreated"] = date_created

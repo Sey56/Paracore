@@ -42,8 +42,9 @@ namespace CoreScript.Engine.Core
             {
                 _logger.Log($"[ParameterOptionsExecutor] Executing options function for parameter: {parameterName}", LogLevel.Debug);
 
-                // The function name is {parameterName}_Options
+                // The function name is {parameterName}_Options or {parameterName}_Filter
                 string functionName = $"{parameterName}_Options";
+                string filterName = $"{parameterName}_Filter";
                 
                 // 1. Parse the script and extract the function and usings
                 var tree = CSharpSyntaxTree.ParseText(scriptContent);
@@ -53,33 +54,50 @@ namespace CoreScript.Engine.Core
                     .Select(u => u.ToString())
                     .ToList();
                 
-                // Find method or local function
-                var functionNode = root.DescendantNodes()
+                // Find method, local function, or property (Options first, then Filter)
+                // V3: We look explicitly inside the 'Params' class to avoid capturing global helper functions by accident
+                var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
+                    .FirstOrDefault(c => c.Identifier.Text == "Params");
+
+                var functionNode = paramsClass?.Members
                     .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
-                                         (n is LocalFunctionStatementSyntax l && l.Identifier.Text == functionName));
+                                         (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
 
                 if (functionNode == null)
                 {
-                    _logger.Log($"[ParameterOptionsExecutor] Function {functionName} not found in script content.", LogLevel.Warning);
+                    functionNode = paramsClass?.Members
+                        .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == filterName) ||
+                                             (n is PropertyDeclarationSyntax p && p.Identifier.Text == filterName));
+                    
+                    if (functionNode != null) functionName = filterName;
+                }
+
+                if (functionNode == null)
+                {
+                    _logger.Log($"[ParameterOptionsExecutor] Provider {functionName} or {filterName} not found.", LogLevel.Warning);
                     return new List<string>();
                 }
 
-                string functionSource = functionNode.ToString();
                 string allUsings = string.Join("\n", usings);
+                string membersSource = paramsClass != null ? string.Join("\n", paramsClass.Members.Select(m => m.ToString())) : functionNode.ToString();
+                bool isProperty = functionNode is PropertyDeclarationSyntax;
 
                 // Create script options with Revit API references
                 var scriptOptions = ScriptOptions.Default
                     .AddReferences(
                         typeof(Autodesk.Revit.DB.Document).Assembly,  // RevitAPI.dll
                         typeof(Autodesk.Revit.UI.UIDocument).Assembly, // RevitAPIUI.dll
+                        typeof(Autodesk.Revit.DB.Architecture.Room).Assembly, // RevitAPI.dll (Architecture)
                         Assembly.GetExecutingAssembly() // CoreScript.Engine.dll
                     )
                     .AddImports(
                         "Autodesk.Revit.DB",
+                        "Autodesk.Revit.DB.Architecture",
                         "Autodesk.Revit.UI",
                         "System",
                         "System.Collections.Generic",
-                        "System.Linq"
+                        "System.Linq",
+                        "CoreScript.Engine.Globals"
                     );
 
                 // Create execution globals
@@ -90,14 +108,16 @@ namespace CoreScript.Engine.Core
                 string executionScript = $@"
 {allUsings}
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CoreScript.Engine.Globals;
 
-{functionSource}
+{membersSource}
 
-{functionName}()
+{(isProperty ? functionName : $"{functionName}()")}
 ";
 
                 _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
@@ -140,16 +160,120 @@ using System.Linq;
         }
 
         /// <summary>
-        /// Checks if a parameter has an associated _Options() function in the script.
+        /// Executes the {parameterName}_Range property to get (min, max, step).
         /// </summary>
+        public async Task<(double Min, double Max, double Step)?> ExecuteRangeFunction(string scriptContent, string parameterName, ICoreScriptContext context)
+        {
+            try
+            {
+                _logger.Log($"[ParameterOptionsExecutor] Executing range function for parameter: {parameterName}", LogLevel.Debug);
+
+                string functionName = $"{parameterName}_Range";
+                
+                var tree = CSharpSyntaxTree.ParseText(scriptContent);
+                var root = tree.GetRoot();
+                
+                var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>()
+                    .Select(u => u.ToString())
+                    .ToList();
+                
+                // V3: For robustness, we collect ALL members of the parent class (usually 'Params')
+                // so the provider can call helper methods defined in the same class.
+                var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
+                    .FirstOrDefault(c => c.Identifier.Text == "Params");
+
+                var functionNode = paramsClass?.Members
+                    .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
+                                         (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
+
+                if (functionNode == null)
+                {
+                    _logger.Log($"[ParameterOptionsExecutor] Function or Property {functionName} not found.", LogLevel.Warning);
+                    return null;
+                }
+
+                string membersSource = paramsClass != null ? string.Join("\n", paramsClass.Members.Select(m => m.ToString())) : functionNode.ToString();
+                bool isProperty = functionNode is PropertyDeclarationSyntax;
+                
+                string allUsings = string.Join("\n", usings);
+
+                var scriptOptions = ScriptOptions.Default
+                    .AddReferences(
+                        typeof(Autodesk.Revit.DB.Document).Assembly,
+                        typeof(Autodesk.Revit.UI.UIDocument).Assembly,
+                        typeof(Autodesk.Revit.DB.Architecture.Room).Assembly,
+                        Assembly.GetExecutingAssembly(),
+                        typeof(System.ValueTuple<,,>).Assembly // Ensure tuple support
+                    )
+                    .AddImports(
+                        "Autodesk.Revit.DB",
+                        "Autodesk.Revit.DB.Architecture",
+                        "Autodesk.Revit.UI",
+                        "System",
+                        "System.Collections.Generic",
+                        "System.Linq",
+                        "CoreScript.Engine.Globals" // Added for attributes
+                    );
+
+                var executionGlobals = new ExecutionGlobals(context, new Dictionary<string, object>());
+                ExecutionGlobals.SetContext(executionGlobals);
+
+                string executionScript = $@"
+{allUsings}
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.UI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using CoreScript.Engine.Globals;
+
+{membersSource}
+
+{(isProperty ? functionName : $"{functionName}()")}
+";
+
+                _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
+                
+                // Execute and expect a tuple
+                var result = await CSharpScript.EvaluateAsync<(double, double, double)>(
+                    executionScript,
+                    scriptOptions,
+                    executionGlobals,
+                    typeof(ExecutionGlobals)
+                );
+
+                return result;
+            }
+            catch (CompilationErrorException ex)
+            {
+                _logger.LogError($"[ParameterOptionsExecutor] Compilation error: {ex.Message}");
+                throw new InvalidOperationException($"Failed to compile range function: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError($"[ParameterOptionsExecutor] Error executing range function: {errorMessage}");
+                throw new InvalidOperationException(errorMessage);
+            }
+        }
+
         public bool HasOptionsFunction(string scriptContent, string parameterName)
         {
             string functionName = $"{parameterName}_Options";
+            string filterName = $"{parameterName}_Filter";
+            string rangeName = $"{parameterName}_Range";
             
-            // Simple check: does the script contain a function with this name?
-            // More sophisticated: parse the syntax tree to verify it's actually a function
-            return scriptContent.Contains($"List<string> {functionName}()") ||
-                   scriptContent.Contains($"List<string> {functionName} ()");
+            // Simple check: does the script contain a function or property with this name?
+            return scriptContent.Contains($" {functionName}") || 
+                   scriptContent.Contains($" {filterName}") ||
+                   scriptContent.Contains($" {rangeName}");
         }
+
+        public bool HasRangeFunction(string scriptContent, string parameterName)
+        {
+             return scriptContent.Contains($" {parameterName}_Range");
+        }
+
     }
 }

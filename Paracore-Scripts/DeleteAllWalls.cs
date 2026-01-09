@@ -15,17 +15,15 @@ UsageExamples:
   
 */
 
+// Initialize Parameters
+var p = new Params();
 
-// [Parameter]
-bool confirmDeletion = true;
-
-// Other Top-Level Statements
+// Filter Walls
 FilteredElementCollector wallCollector = new FilteredElementCollector(Doc)
     .OfClass(typeof(Wall))
     .WhereElementIsNotElementType();
 
 ICollection<ElementId> wallIds = [.. wallCollector.Select(w => w.Id)];
-
 int wallCount = wallIds.Count;
 
 if (wallCount == 0)
@@ -34,9 +32,9 @@ if (wallCount == 0)
     return;
 }
 
-if (!confirmDeletion)
+if (!p.ConfirmDeletion)
 {
-    Println("⚠️ Deletion skipped due to 'confirmDeletion = false'.");
+    Println("⚠️ Deletion skipped due to 'ConfirmDeletion = false'.");
     Println($"Found {wallCount} wall(s) that could be deleted.");
     return;
 }
@@ -51,3 +49,9 @@ Transact("Delete All Walls", () =>
 Println($"✅ Deleted {wallCount} wall(s).");
 Println($"SUMMARY: Deleted {wallCount} wall(s).");
 
+// V3 Simplified Parameters
+public class Params
+{
+    /// <summary>If true, proceeds with deletion.</summary>
+    public bool ConfirmDeletion { get; set; } = true;
+}

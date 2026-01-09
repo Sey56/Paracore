@@ -7,6 +7,7 @@ import {
   faSpinner,
   faExclamationTriangle,
   faCodeBranch,
+  faEdit,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import { useRevitStatus } from "@/hooks/useRevitStatus";
@@ -21,14 +22,38 @@ interface ScriptCardProps {
   script: Script;
   onSelect: () => void;
   isFromActiveWorkspace: boolean;
+  isCompact?: boolean;
 }
 
-export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFromActiveWorkspace }) => {
-  const { selectedScript, runningScriptPath, runScript, setSelectedScript, userEditedScriptParameters } = useScriptExecution();
+export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFromActiveWorkspace, isCompact = false }) => {
+  const {
+    selectedScript,
+    runningScriptPath,
+    runScript,
+    setSelectedScript,
+    userEditedScriptParameters,
+    editScript
+  } = useScriptExecution();
   const { toggleFavoriteScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
   const { isAuthenticated } = useAuth();
+  const [showMenu, setShowMenu] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   const isSelected = selectedScript?.id === script.id;
   const isRunning = runningScriptPath === script.id;
@@ -58,7 +83,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     if (!ParacoreConnected) {
       return "Toggle on Paracore in Revit to enable scripts";
     }
-    
+
     if (!isAuthenticated) {
       return "You must sign in to use RAP";
     }
@@ -125,14 +150,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
 
   return (
     <div
-      className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${
-        isSelected ? "ring-2 ring-blue-500" : ""
-      } ${isRunning ? "opacity-70" : ""} ${!ParacoreConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}
+      className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
+        } ${isRunning ? "opacity-70" : ""} ${!ParacoreConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""} ${isCompact ? "min-h-0" : ""}`}
       onClick={handleSelect}
     >
-      <div className="p-4 flex-grow flex flex-col">
+      <div className={`p-4 flex-grow flex flex-col ${isCompact ? "py-2" : ""}`}>
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-medium text-lg text-gray-800 dark:text-gray-100">
+          <h3 className={`font-medium text-gray-800 dark:text-gray-100 ${isCompact ? "text-base" : "text-lg"}`}>
             {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
             {isFromActiveWorkspace && (
               <FontAwesomeIcon icon={faCodeBranch} className="ml-2 text-blue-500" title="From active workspace" />
@@ -140,11 +164,10 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
           </h3>
           <button
             onClick={handleFavoriteClick}
-            className={`${
-              script.isFavorite
+            className={`${script.isFavorite
                 ? "text-yellow-400 hover:text-yellow-500"
                 : "text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300"
-            }`}
+              }`}
           >
             {script.isFavorite ? (
               <FontAwesomeIcon icon={fasStar} />
@@ -154,26 +177,30 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
           </button>
         </div>
 
-        {/* Categories */}
-        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-            {script.metadata.categories?.join(', ')}
-        </div>
+        {!isCompact && (
+          <>
+            {/* Categories */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              {script.metadata.categories?.join(', ')}
+            </div>
 
-        {/* Description */}
-        <p className={`${styles.description} text-gray-600 dark:text-gray-300 text-sm mb-4 flex-grow`}>
-          {script.metadata.description}
-        </p>
-        
-        {/* Author and DocumentType */}
-        <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
-          <span>{script.metadata.author || 'Unknown Author'}</span>
-          <span>{script.metadata.documentType || 'Any'}</span>
-        </div>
-        {/* Dates */}
-        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          {script.metadata.dateCreated && <span>Created: {new Date(script.metadata.dateCreated).toLocaleDateString()}</span>}
-          {script.metadata.dateModified && <span> | Modified: {new Date(script.metadata.dateModified).toLocaleDateString()}</span>}
-        </div>
+            {/* Description */}
+            <p className={`${styles.description} text-gray-600 dark:text-gray-300 text-sm mb-4 flex-grow`}>
+              {script.metadata.description}
+            </p>
+
+            {/* Author and DocumentType */}
+            <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+              <span>{script.metadata.author || 'Unknown Author'}</span>
+              <span>{script.metadata.documentType || 'Any'}</span>
+            </div>
+            {/* Dates */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {script.metadata.dateCreated && <span>Created: {new Date(script.metadata.dateCreated).toLocaleDateString()}</span>}
+              {script.metadata.dateModified && <span> | Modified: {new Date(script.metadata.dateModified).toLocaleDateString()}</span>}
+            </div>
+          </>
+        )}
       </div>
       <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center">
         <div className="relative">
@@ -191,16 +218,40 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
           </button>
         </div>
 
-        <div className="flex items-center">
-            {!isCompatibleWithDocument && (
-                <FontAwesomeIcon
-                icon={faExclamationTriangle}
-                className="text-yellow-500"
-                />
-            )}
-            <button className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white text-sm px-2 py-1 ml-2">
-                <FontAwesomeIcon icon={faEllipsisH} />
-            </button>
+        <div className="flex items-center relative" ref={menuRef}>
+          {!isCompatibleWithDocument && (
+            <FontAwesomeIcon
+              icon={faExclamationTriangle}
+              className="text-yellow-500"
+            />
+          )}
+          <button
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white text-sm px-2 py-1 ml-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+          >
+            <FontAwesomeIcon icon={faEllipsisH} />
+          </button>
+
+          {showMenu && (
+            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 z-50 overflow-hidden">
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(false);
+                  editScript(script);
+                }}
+                disabled={!ParacoreConnected || !isAuthenticated}
+              >
+                <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
+                Edit in VSCode
+              </button>
+              {/* Additional menu items can be added here */}
+            </div>
+          )}
         </div>
       </div>
     </div>

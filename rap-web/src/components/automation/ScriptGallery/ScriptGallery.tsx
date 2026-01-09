@@ -3,7 +3,7 @@ import {
   useState
 } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faSync } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faSync, faCompressAlt, faExpandAlt } from '@fortawesome/free-solid-svg-icons';
 import { ScriptCard } from '../ScriptCard/ScriptCard';
 import { useScripts } from '@/hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
@@ -138,6 +138,7 @@ export const ScriptGallery: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
+  const [isCompactView, setIsCompactView] = useState(true);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
 
@@ -392,6 +393,7 @@ export const ScriptGallery: React.FC = () => {
                 script={script}
                 onSelect={() => handleScriptSelect(script)}
                 isFromActiveWorkspace={isFromActiveWorkspace(script)}
+                isCompact={true}
               />
             ))}
           </div>
@@ -425,6 +427,14 @@ export const ScriptGallery: React.FC = () => {
                 >
                   <FontAwesomeIcon icon={faSync} />
                 </button>
+                <button
+                  onClick={() => setIsCompactView(!isCompactView)}
+                  className="p-1 px-2 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded-md hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+                  title={isCompactView ? "Expand all cards" : "Collapse all cards"}
+                  disabled={!isAuthenticated}
+                >
+                  <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} />
+                </button>
                 <div className="relative" title={getNewScriptButtonTooltip()}>
                   <button
                     onClick={handleOpenNewScriptModal}
@@ -448,6 +458,7 @@ export const ScriptGallery: React.FC = () => {
               script={script}
               onSelect={() => handleScriptSelect(script)}
               isFromActiveWorkspace={isFromActiveWorkspace(script)}
+              isCompact={isCompactView}
             />
           ))}
         </div>

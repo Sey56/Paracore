@@ -1,4 +1,3 @@
-
 import { createContext } from 'react';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
 import type { ExecutionResult, ParameterPreset } from '@/types/common';
@@ -12,7 +11,8 @@ export interface ScriptExecutionContextProps {
   runScript: (script: Script, parameters?: ScriptParameter[]) => Promise<void>;
   clearExecutionResult: () => void;
   userEditedScriptParameters: Record<string, ScriptParameter[]>;
-  updateUserEditedParameters: (scriptId: string, parameters: ScriptParameter[]) => void;
+  updateUserEditedParameters: (scriptId: string, parameters: ScriptParameter[], isPresetLoad?: boolean) => void;
+  defaultDraftParameters: Record<string, ScriptParameter[]>;
   activePresets: Record<string, string>;
   setActivePreset: (scriptId: string, presetName: string) => void;
   presets: ParameterPreset[];
@@ -22,6 +22,7 @@ export interface ScriptExecutionContextProps {
   renamePreset: (oldName: string, newName: string) => { success: boolean; message: string };
   computeParameterOptions: (script: Script, parameterName: string) => Promise<void>;
   isComputingOptions: Record<string, boolean>;
+  editScript: (script: Script) => Promise<void>;
 }
 
 export const ScriptExecutionContext = createContext<ScriptExecutionContextProps | undefined>(undefined);

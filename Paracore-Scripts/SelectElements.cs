@@ -20,17 +20,17 @@ var p = new Params();
 
 // --- Main Logic ---
 
-if (p.categories == null || p.categories.Count == 0)
+if (p.Categories == null || p.Categories.Count == 0)
 {
     Println("⚠️ No categories were selected. Nothing to do.");
     return;
 }
 
-Println($"▶️ Processing selection for: {string.Join(", ", p.categories)}");
+Println($"▶️ Processing selection for: {string.Join(", ", p.Categories)}");
 
 var builtInCategories = new List<BuiltInCategory>();
 
-foreach (var categoryName in p.categories)
+foreach (var categoryName in p.Categories)
 {
     try
     {
@@ -83,6 +83,15 @@ Println($"✅ Selected {elementsToSelect.Count} elements from {builtInCategories
 
 class Params
 {
-    [ScriptParameter(MultiSelect: true, Options: "Walls, Floors, Roofs, Doors, Windows, Stairs, Railings, Columns, Structural Columns, Structural Framing, Foundations, Furniture, Casework, Generic Models, Curtain Panels, Curtain Wall Mullions, Areas, Rooms, Mass, Topography, Site, Parking, Planting")]
-    public List<string> categories { get; set; } = ["Walls", "Doors"];
+    /// <summary>Categories to select</summary>
+    [RevitElements(MultiSelect = true)]
+    public List<string> Categories { get; set; } = new() { "Walls", "Doors" };
+
+    public List<string> Categories_Options => new() {
+        "Walls", "Floors", "Roofs", "Doors", "Windows", "Stairs", "Railings", 
+        "Columns", "Structural Columns", "Structural Framing", "Foundations", 
+        "Furniture", "Casework", "Generic Models", "Curtain Panels", 
+        "Curtain Wall Mullions", "Areas", "Rooms", "Mass", "Topography", 
+        "Site", "Parking", "Planting"
+    };
 }

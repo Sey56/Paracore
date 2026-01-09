@@ -96,6 +96,7 @@ namespace Paracore.Addin.Helpers
                 WriteGlobalJson(workspacePath);
                 WriteGlobalsCs(workspacePath);
                 WriteEditorConfig(workspacePath);
+                WriteCopilotInstructions(workspacePath);
 
                 ParacoreApp.RegisterWorkspace(scriptPath, workspacePath);
 
@@ -266,9 +267,11 @@ namespace Paracore.Addin.Helpers
         private static void WriteCsproj(string folderPath, string projectName, List<string> scriptFileNames)
         {
             string revitPath = ParacoreApp.RevitInstallPath;
-            string enginePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "Autodesk", "Revit", "Addins", ParacoreApp.RevitVersion, "Paracore", "CoreScript.Engine.dll");
+            
+            // Fix: Use the actual location of the running assembly to find the referenced Engine DLL.
+            // This ensures we point to the correct DLL whether running from AppData, Program Files, or bin/Debug.
+            string addinDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string enginePath = Path.Combine(addinDirectory, "CoreScript.Engine.dll");
 
             // Corrected raw string literal with proper indentation
             string csprojContent =
@@ -276,6 +279,7 @@ namespace Paracore.Addin.Helpers
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>
                     <TargetFramework>net8.0-windows</TargetFramework>
+                    <LangVersion>latest</LangVersion>
                     <ImplicitUsings>enable</ImplicitUsings>
                     <Nullable>enable</Nullable>
                     <OutputType>Library</OutputType>
@@ -327,6 +331,21 @@ namespace Paracore.Addin.Helpers
                 "[*.{cs,vb}]\n" +
                 "dotnet_diagnostic.CA1050.severity = none\n" +
                 "dotnet_diagnostic.CS8019.severity = warning");
+        }
+
+        private static void WriteCopilotInstructions(string folderPath)
+        {
+            try
+            {
+                string githubFolder = Path.Combine(folderPath, ".github");
+                Directory.CreateDirectory(githubFolder);
+                File.WriteAllText(Path.Combine(githubFolder, "copilot-instructions.md"), AiInstructions.CopilotInstructions);
+                FileLogger.Log($"Written Copilot instructions to: {githubFolder}");
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"WriteCopilotInstructions: {ex.Message}");
+            }
         }
     }
 }

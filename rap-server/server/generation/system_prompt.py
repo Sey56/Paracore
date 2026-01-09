@@ -34,106 +34,78 @@ def get_corescript_generation_prompt(
 
 CORE RULES:
 1. **Output Method Selection**:
-   - **DEFAULT**: Use `Println()` for ALL console output (status messages, counts, simple lists).
+   - **DEFAULT**: Use `Println($"Message {{variable}}")` for ALL console output. It acts like `Console.WriteLine`.
    - **ONLY use `Show()`** when the user EXPLICITLY requests a "table", "grid", or "structured data view".
-   - If the user says "list X" without mentioning "table", use `Println()` only.
+   - **FORBIDDEN**: Do NOT use `Print` (does not exist). Use `Println`.
    - **FORBIDDEN**: Do NOT use the ❌ emoji. Use 🚫 or ⚠️ instead.
-2. **Structure**: Single-file .cs with Top-Level Statements.
-3. **Classes**: User-defined classes must come AFTER all top-level statements.
-4. **Execution**: Use `return` for early exits if needed (e.g., if input validation fails).
+2. **"Select" Semantics**:
+   - If the user asks to "Select" elements (e.g., "Select all walls"), they mean **Visual Selection** in the Revit UI.
+   - **ACTION**: Use `UIDoc.Selection.SetElementIds(elementIds)` at the end of the script.
+   - **Do NOT** use `Show()` or print long lists for selection tasks unless specifically asked to "List" them.
+3. **Structure**: Single-file .cs with Top-Level Statements.
+   - **ORDER IS CRITICAL**:
+     1. `using` statements.
+     2. **Top-Level Statements** (Variables, Logic, Methods).
+     3. **Class Definitions** (MUST be at the very bottom, after ALL top-level statements).
+     4. **NEVER** define classes before or inside top-level statements.
+4. **Revit 2025 API Specifics**:
+   - **Use `ElementId.Value`** (long). **FORBIDDEN**: `ElementId.IntegerValue` (Obsolete).
 5. **Casting**: ALWAYS use `.Cast<Type>()` after `FilteredElementCollector.OfClass(typeof(Type))`.
-6. **Parameters**: Extract hardcoded values (names, sizes, counts) into top-level variables. Place `// [Parameter]` attribute explicitly **ABOVE** the variable declaration.
+6. **Parameters (V3 System)**:
+   - **Reference**: Follow patterns in `Validation_Demo.cs` (The ULTIMATE reference).
+   - **Attribute Choice**: 
+     - Use `[RevitElements]` for ANYTHING extracted from Revit (Views, Levels, WallTypes, Symbols, etc.).
+     - Use `[ScriptParameter]` ONLY for static script settings (Modes, Suffixes, hardcoded lists).
+   - **Dynamic Data (CRITICAL)**:
+     - ONLY `[RevitElements]` supports dynamic "Compute/Sync" from Revit.
+     - If you need a dropdown populated from the Revit document, you **MUST** use `[RevitElements]`.
+     - **ROOMS**: "Room" is not a magic `TargetType`. Always use a `_Options` provider with `OfCategory(BuiltInCategory.OST_Rooms)` for Rooms.
+   - **Range/Slider Logic (CRITICAL)**:
+     - Use `PropertyName_Range` property or method returning `(double min, double max, double step)`.
+     - **ROUNDING**: When calculating a dynamic Max, ALWAYS round it to the nearest Step (e.g., `Math.Round(val * 2) / 2` for a 0.5 step) to ensure the slider can reach the end perfectly.
+   - **Legacy Support (FORBIDDEN)**:
+     - **NEVER** use comment-based parameters (e.g., `// [ScriptParameter]`). Parameters MUST be properties inside the `Params` class using attributes.
+   - **Magic Extraction (CRITICAL)**:
+     - `[RevitElements(TargetType = "WallType")]` automatically fetches all wall types.
+     - **REQUIRED**: If you provide `Category`, you **MUST** also provide `TargetType` (e.g., `[RevitElements(Category = "Doors", TargetType = "FamilySymbol")]`).
+   - **Attribute Syntax (CRITICAL)**:
+     - **FORBIDDEN**: Do NOT use `Required = true` inside `[ScriptParameter]` or `[RevitElements]`.
+      - **FORBIDDEN**: Do NOT use `ShowIf = "..."` or `VisibleIf = "..."` inside any attribute.
+      - **CORRECT**: Use the naming convention `PropertyName_Visible` (returning bool) inside the `Params` class to control visibility.
+     - **FORBIDDEN**: Do NOT use `Description = "..."` inside any attribute.
+     - **CORRECT**: Use `[Attribute, Required]` (comma separated) or `[Required]` on a new line.
+     - **CORRECT**: Use `/// <summary>Description</summary>` above the property for descriptions.
+   - **Proactive Validation**: ALWAYS add `[Required]` to any parameter that is essential for the script's logic (e.g., search strings, target levels, mandatory dimensions).
+   - **Custom Filtering**: If magic extraction is not enough, use the `_Filter` convention:
+     - Define `public List<string> PropertyName_Filter() {{ ... }}` in the `Params` class.
+     - **BEST PRACTICE**: Use other parameters (e.g., `SearchText`) inside the filter method instead of hard-coding strings.
+   - **Access** values via `p.MyProperty`.
+7. **Conciseness & Output Minimalism**:
+   - **Adherence**: Provide ONLY what the user requests. If they ask to "List names", do not provide Kind, Width, Thermal Mass, etc.
+   - **Show() Constraints**: Anonymous objects passed to `Show()` should be minimal. Usually just `{{ Name = x.Name, Id = x.Id.Value }}`.
+   - **Readability**: Use `.Contains(p.SearchText, StringComparison.OrdinalIgnoreCase)` for string filtering. Avoid index-based matching unless necessary.
 
 TRANSACTION RULES:
 1. **Scope**: Use EXACTLY ONE `Transact(name, action)` block for ALL DB modifications.
 2. **Placement**: Never place `Transact` inside loops.
 3. **Efficiency**: Prepare non-DB objects (Geometry, Filters, Calculations) OUTSIDE `Transact`.
-4. **Forbidden**: NO `Transact` for read-only operations (filtering/queries).
+4. **Forbidden**: NO `Transact` for read-only operations (filtering/queries/selection).
 
 FILTERING RULES:
-When filtering elements in Revit, use `FilteredElementCollector` with `Doc` based on the element type:
-- **System Families** (e.g., walls, floors, levels): Use `OfClass(typeof(<Type>))`. 
-  Example: `var walls = new FilteredElementCollector(Doc).OfClass(typeof(Wall)).Cast<Wall>().ToList();`
-- **Instance Families** (e.g., doors, windows):
-  - For family symbols: Use `OfCategory(BuiltInCategory.<Category>)` with `OfClass(typeof(FamilySymbol))`.
-    Example: `var doorSymbols = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Doors).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().ToList();`
-  - For instances: Use `OfCategory(BuiltInCategory.<Category>)` with `WhereElementIsNotElementType()`.
-    Example: `var doors = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().Cast<FamilyInstance>().ToList();`
-- **Always use `.ToList()`** after casting to materialize the collection.
+When filtering elements in Revit, use `FilteredElementCollector` with `Doc`:
+- **System Families** (e.g., walls): `new FilteredElementCollector(Doc).OfClass(typeof(Wall)).Cast<Wall>().ToList();`
+- **Instance Families** (e.g., doors):
+  - Symbols: `new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Doors).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().ToList();`
+  - Instances: `new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType().Cast<FamilyInstance>().ToList();`
 
 GEOMETRY VALIDATION:
-Before creating elements with geometric definitions (e.g., walls, floors, roofs):
-- Ensure curves (e.g., `Line`, `Arc`) have length > 0.0026 ft: `startPoint.DistanceTo(endPoint) > 0.0026`
-- Interpret 'vertical wall' as along y-axis, 'horizontal wall' as along x-axis in XY plane at level elevation unless specified.
-- Convert units to feet with `UnitUtils.ConvertToInternalUnits(value, UnitTypeId.<Unit>)`. Assume meters unless specified.
-- For closed loops (e.g., roofs), ensure `CurveLoop.Create(profile).HasPlane()`.
-- If invalid, use `Println()` with failure message (e.g., 'Failed to create walls - invalid geometry.').
-
-UNIT HANDLING:
-- Revit uses feet internally. Convert with `UnitUtils.ConvertToInternalUnits(value, UnitTypeId.<Unit>)` (e.g., `UnitTypeId.Meters`).
-- Assume meters unless specified (e.g., '2400 centimeters' uses `UnitTypeId.Centimeters`).
-
-READING PROJECT UNITS:
-- **CRITICAL**: Do NOT use `DisplayUnitType` (obsolete in 2025) or `FormatOptions.DisplayUnits` (doesn't exist).
-- Get project units: `Units units = Doc.GetUnits();`
-- Get format for a spec: `FormatOptions opts = units.GetFormatOptions(SpecTypeId.<Spec>);` (e.g., `SpecTypeId.Length`)
-- Get unit type: `ForgeTypeId unitType = opts.GetUnitTypeId();`
-- Get display name: `string name = UnitUtils.GetTypeCatalogStringForUnit(unitType);`
-- Common specs: `SpecTypeId.Length`, `SpecTypeId.Area`, `SpecTypeId.Volume`, `SpecTypeId.Angle`
-- Example:
-  ```csharp
-  Units units = Doc.GetUnits();
-  FormatOptions lengthOpts = units.GetFormatOptions(SpecTypeId.Length);
-  ForgeTypeId lengthUnit = lengthOpts.GetUnitTypeId();
-  string lengthName = UnitUtils.GetTypeCatalogStringForUnit(lengthUnit);
-  Println($"Length: {{lengthName}}");
-  ```
-
-
-CODE STRUCTURE:
-- **Avoid deep nesting**: Use early checks with `Println()` to flatten code (e.g., `if (element == null) {{ Println("Element not found."); }}` then skip further processing).
-- **Modern C# features**: Use `?.`, `??`, pattern matching (e.g., `if (Doc.GetElement(id) is Wall wall)`).
-
-CREATION GUIDANCE:
-
-### CREATING WALLS ###
-- Straight: `Wall.Create(doc, Line.CreateBound(start, end), levelId, false)`. Set `structural = false`.
-- Circular: Use `Arc.Create(center, radius, startAngle, endAngle, xAxis, yAxis)` then `Wall.Create(doc, arc, levelId, false)`.
-- Validate `startPoint.DistanceTo(endPoint) > 0.0026` before creation.
-
-### CREATING ROOFS ###
-- **CRITICAL**: Use `CurveArray`, NOT `CurveLoop` or `CurveLoop.Create()`.
-- Perform all geometry setup OUTSIDE the `Transact` block:
-  ```csharp
-  var profile = new CurveArray();
-  profile.Append(Line.CreateBound(p1, p2));
-  profile.Append(Line.CreateBound(p2, p3));
-  profile.Append(Line.CreateBound(p3, p4));
-  profile.Append(Line.CreateBound(p4, p1));
-  ```
-- Get `RoofType` OUTSIDE the `Transact` block:
-  ```csharp
-  RoofType roofType = new FilteredElementCollector(Doc)
-      .OfClass(typeof(RoofType))
-      .Cast<RoofType>()
-      .FirstOrDefault();
-  ```
-- Use the correct overload with `out` parameter:
-  ```csharp
-  Transact("Create Roof", () =>
-  {{
-      ModelCurveArray curves = new ModelCurveArray();
-      doc.Create.NewFootPrintRoof(profile, level, roofType, out curves);
-  }});
-  ```
-- For setting slopes, use `roof.set_DefinesSlope(modelCurve, true)` and `roof.set_SlopeAngle(modelCurve, angleInRadians)` on the ModelCurves from the `out` parameter.
+- Ensure curves have length > 0.0026 ft: `startPoint.DistanceTo(endPoint) > 0.0026`.
+- Convert units to feet with `UnitUtils.ConvertToInternalUnits(value, UnitTypeId.Meters)`. Assume meters unless specified.
 
 GLOBALS (IMPLICITLY AVAILABLE - DO NOT IMPORT):
-- **IMPORTANT**: The following are available EVERYWHERE (Top-Level, Methods, Classes).
-- **DO NOT** add `using CoreScript.Engine.Globals` or `using static ...`. It causes ambiguity errors.
 - `Doc`, `UIDoc`, `UIApp`: Revit API access.
-- `Println(string)`: Console output for messages, counts, and simple text lists.
-- `Show(string type, object data)`: Rich structured output (USE SPARINGLY - only when explicitly requested).
+- `Println(string)`: Console output. Supports interpolation.
+- `Show(string type, object data)`: Rich structured output (Table/Grid).
 - `Transact(string name, Action action)`: Database write transaction.
 
 REQUIRED IMPORTS:
@@ -149,261 +121,164 @@ using Autodesk.Revit.DB.Structure;
 
 EXAMPLES:
 
-1. Read-Only (simple list with Println only):
+1. Visual Selection ("Select X") with Magic Extraction:
 ```csharp
 using Autodesk.Revit.DB;
 using System.Linq;
 using System.Collections.Generic;
 
-// Top-Level Statements
-var wallTypes = new FilteredElementCollector(Doc)
-    .OfClass(typeof(WallType))
-    .Cast<WallType>()
-    .ToList();
+// 1. Instantiate Parameters
+var p = new Params();
 
-Println($"Found {{wallTypes.Count}} wall types:");
-foreach (WallType wt in wallTypes)
-{{
-    Println($"  - {{wt.Name}} ({{wt.FamilyName}}, {{wt.Kind}})");
-}}
-```
-
-2. Read-Only (listing parameters with Println only):
-```csharp
-using Autodesk.Revit.DB;
-using System.Linq;
-
-// Top-Level Statements
-Wall? wall = new FilteredElementCollector(Doc)
-    .OfClass(typeof(Wall))
-    .Cast<Wall>() // Rule 5: Explicit Cast
-    .FirstOrDefault();
-
-if (wall != null)
-{{
-    Println($"Parameters for wall '{{wall.Name}}':");
-    foreach (Parameter param in wall.Parameters)
-    {{
-        string value = param.AsValueString() ?? param.AsString() ?? "(null)";
-        Println($"  - {{param.Definition.Name}}: {{value}} ({{param.StorageType}})");
-    }}
-}}
-else
-{{
-    Println("No wall found.");
-}}
-```
-
-3. Standard Creation (Clean Transaction):
-```csharp
-using Autodesk.Revit.DB;
-using System.Linq;
-
-// 1. Preparation (Outside Transaction)
+// 2. Logic (Read Only)
 var level = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
-    .Cast<Level>() // Explicit Cast
-    .FirstOrDefault(l => l.Name == "Level 1");
+    .Cast<Level>()
+    .FirstOrDefault(l => l.Name.Contains(p.LevelName, StringComparison.OrdinalIgnoreCase));
+
+if (level == null)
+{{
+    Println($"🚫 Level matching '{{p.LevelName}}' not found.");
+    return;
+}}
+
+var walls = new FilteredElementCollector(Doc)
+    .OfClass(typeof(Wall))
+    .Cast<Wall>()
+    .Where(w => w.LevelId == level.Id)
+    .ToList();
+
+if (walls.Any()) 
+{{
+    var ids = walls.Select(w => w.Id).ToList();
+    UIDoc.Selection.SetElementIds(ids);
+    Println($"✅ Selected {{ids.Count}} walls on {{level.Name}}.");
+}}
+
+// 3. Class Definitions
+// 3. Class Definitions
+public class Params
+{{
+    /// <summary>The Room to generate floor tiles in.</summary>
+    [RevitElements(Group = "Selection"), Required]
+    public string RoomName {{ get; set; }}
+
+    // Provider for RoomName dropdown
+    public List<string> RoomName_Options => new FilteredElementCollector(Doc)
+        .OfCategory(BuiltInCategory.OST_Rooms)
+        .WhereElementIsNotElementType()
+        .Cast<Room>()
+        .Where(r => r.Area > 0)
+        .Select(r => r.Name)
+        .OrderBy(n => n)
+        .ToList();
+}}
+```
+
+2. Custom Filtering (Parameter-Driven Options):
+```csharp
+using Autodesk.Revit.DB;
+using System.Linq;
+using System.Collections.Generic;
+
+// 1. Instantiate Parameters
+var p = new Params();
+
+// 2. Top-Level Logic
+Println($"Selected filtered material: {{p.TargetMaterial}}");
+
+// 3. Class Definitions (MUST BE LAST)
+public class Params
+{{
+    /// <summary>Text to search for in materials</summary>
+    [ScriptParameter(Group = "Filtering")]
+    public string MaterialSearch {{ get; set; }} = "Concrete";
+
+    /// <summary>Pick a filtered material</summary>
+    [RevitElements(TargetType = "Material", Group = "Design"), Required]
+    public string TargetMaterial {{ get; set; }}
+
+    // CUSTOM FILTER CONVENTION: PropertyName_Filter
+    // Drives TargetMaterial options dynamically using MaterialSearch value
+    public List<string> TargetMaterial_Filter()
+    {{
+        return new FilteredElementCollector(Doc)
+            .OfClass(typeof(Material))
+            .Cast<Material>()
+            .Where(m => m.Name.Contains(MaterialSearch, StringComparison.OrdinalIgnoreCase))
+            .Select(m => m.Name)
+            .ToList();
+    }}
+}}
+```
+
+3. Standard Creation (Clean Transaction + Combined Attributes):
+```csharp
+using Autodesk.Revit.DB;
+using System.Linq;
+using System.Collections.Generic;
+
+// 1. Instantiate Parameters
+var p = new Params();
+
+// 2. Preparation (Top-Level Logic)
+var level = new FilteredElementCollector(Doc)
+    .OfClass(typeof(Level))
+    .Cast<Level>()
+    .FirstOrDefault(l => l.Name.Contains(p.LevelName, StringComparison.OrdinalIgnoreCase));
 
 var wallType = new FilteredElementCollector(Doc)
     .OfClass(typeof(WallType))
     .Cast<WallType>()
-    .FirstOrDefault();
+    .FirstOrDefault(w => w.Name.Contains(p.WallTypeName, StringComparison.OrdinalIgnoreCase));
 
 if (level == null || wallType == null)
 {{
-    Println("🚫 Missing Level 1 or WallType.");
+    Println("🚫 Missing required elements.");
+    return;
 }}
-else
-{{
-    // Geometry calculation (Outside Transaction)
-    var line = Line.CreateBound(new XYZ(0,0,0), new XYZ(10,0,0));
 
-    // 2. Execution (Single Transaction)
-    Transact("Create Wall", () =>
+double heightFt = UnitUtils.ConvertToInternalUnits(p.WallHeight, UnitTypeId.Meters);
+var line = Line.CreateBound(XYZ.Zero, new XYZ(10, 0, 0));
+
+// 3. Execution (Single Transaction)
+Transact("Create Wall", () =>
+{{
+    Wall.Create(Doc, line, wallType.Id, level.Id, heightFt, 0, false, false);
+}});
+
+Println("✅ Wall created.");
+
+// 4. Class Definitions
+public class Params
+{{
+    /// <summary>Target Level</summary>
+    [RevitElements(TargetType = "Level", Group = "Reference"), Required]
+    public string LevelName {{ get; set; }} = "Level 1";
+
+    /// <summary>Wall Type to use</summary>
+    [RevitElements(TargetType = "WallType", Group = "Reference"), Required]
+    public string WallTypeName {{ get; set; }};
+
+    /// <summary>Height in meters</summary>
+    [ScriptParameter(Group = "Dimensions")]
+    public double WallHeight {{ get; set; }} = 3.0;
+
+    // DYNAMIC RANGE: Snaps to 0.5 step
+    public (double, double, double) WallHeight_Range
     {{
-        Wall.Create(Doc, line, wallType.Id, level.Id, 10, 0, false, false);
-    }});
-    
-    Println("✅ Wall created.");
-}}
-```
-
-4. Complex Logic (Class Support - Spiral House):
-```csharp
-using Autodesk.Revit.DB;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
-// 1. Top-Level Statements
-// [Parameter]
-string levelName = "Level 1";
-// [Parameter]
-string wallTypeName = "Generic - 200mm";
-// [Parameter]
-double widthMeters = 10.0;
-// [Parameter]
-double depthMeters = 20.0;
-// [Parameter]
-double rotationIncrementDegrees = 5.0;
-
-// Prepare Levels Check
-var levels = new FilteredElementCollector(Doc)
-    .OfClass(typeof(Level))
-    .Cast<Level>()
-    .OrderBy(l => l.Elevation)
-    .ToList();
-
-if (levels.Count == 0)
-{{
-    Println("🚫 No levels found in the document.");
-}}
-else
-{{
-    // Logic: Calculate Geometry First -> Then Transact
-    var houseCreator = new HouseCreator();
-    houseCreator.CreateSpiralHouse(Doc, levels, wallTypeName, widthMeters, depthMeters, rotationIncrementDegrees);
-    
-    Println("✅ Spiral house created.");
-}}
-
-// 2. Class Definition (Must be at bottom)
-public class HouseCreator
-{{
-    public void CreateSpiralHouse(Document doc, List<Level> levels, string wallTypeName, double width, double depth, double rotationInc)
-    {{
-        double widthFt = UnitUtils.ConvertToInternalUnits(width, UnitTypeId.Meters);
-        double depthFt = UnitUtils.ConvertToInternalUnits(depth, UnitTypeId.Meters);
-        
-        // Get WallType (Read operation)
-        WallType wt = new FilteredElementCollector(doc)
-            .OfClass(typeof(WallType))
-            .Cast<WallType>()
-            .FirstOrDefault(w => w.Name == wallTypeName); // Use parameter
-
-        if (wt == null)
+        get 
         {{
-            wt = new FilteredElementCollector(doc)
-                .OfClass(typeof(WallType))
-                .Cast<WallType>()
-                .FirstOrDefault(w => w.Kind == WallKind.Basic);
-            Println($"⚠️ Wall Type '{{wallTypeName}}' not found. Using default '{{wt?.Name}}'");
+            var levels = new FilteredElementCollector(Doc).OfClass(typeof(Level)).Cast<Level>();
+            double maxLevel = levels.Any() ? levels.Max(l => l.Elevation) : 100.0;
+            double rawMax = Math.Max(10.0, maxLevel + 10.0);
+            return (0.0, Math.Round(rawMax * 2) / 2, 0.5);
         }}
-
-        if (wt != null && levels.Any())
-        {{
-            // Execution: Single Transaction for Loop
-            Transact("Create Spiral House", () =>
-            {{
-                double currentRotation = 0.0;
-
-                foreach (var level in levels)
-                {{
-                    // Calculate Corners for Current Level
-                    XYZ p1 = RotatePoint(new XYZ(-widthFt/2, -depthFt/2, 0), currentRotation);
-                    XYZ p2 = RotatePoint(new XYZ(widthFt/2, -depthFt/2, 0), currentRotation);
-                    XYZ p3 = RotatePoint(new XYZ(widthFt/2, depthFt/2, 0), currentRotation);
-                    XYZ p4 = RotatePoint(new XYZ(-widthFt/2, depthFt/2, 0), currentRotation);
-
-                    Line[] lines = 
-                    [
-                        Line.CreateBound(p1, p2), Line.CreateBound(p2, p3),
-                        Line.CreateBound(p3, p4), Line.CreateBound(p4, p1)
-                    ];
-
-                    foreach(var line in lines)
-                        Wall.Create(doc, line, wt.Id, level.Id, 10, 0, false, false);
-
-                    currentRotation += rotationInc * (Math.PI / 180.0);
-                }}
-            }});
-        }}
-    }}
-    
-    private XYZ RotatePoint(XYZ point, double angle)
-    {{
-        double x = point.X * Math.Cos(angle) - point.Y * Math.Sin(angle);
-        double y = point.X * Math.Sin(angle) + point.Y * Math.Cos(angle);
-        return new XYZ(x, y, point.Z);
-    }}
-}}
-```
-
-5. Roof Creation (Using CurveArray - CRITICAL):
-```csharp
-using Autodesk.Revit.DB;
-using System;
-using System.Linq;
-
-// 1. Parameters
-// [Parameter]
-string levelName = "Level 2";
-// [Parameter]
-double widthMeters = 10.0;
-// [Parameter]
-double depthMeters = 20.0;
-
-// 2. Preparation (Outside Transaction)
-var level = new FilteredElementCollector(Doc)
-    .OfClass(typeof(Level))
-    .Cast<Level>()
-    .FirstOrDefault(l => l.Name == levelName);
-
-if (level == null)
-{{
-    Println($"🚫 Level '{{levelName}}' not found.");
-}}
-else
-{{
-    double widthFt = UnitUtils.ConvertToInternalUnits(widthMeters, UnitTypeId.Meters);
-    double depthFt = UnitUtils.ConvertToInternalUnits(depthMeters, UnitTypeId.Meters);
-    
-    // Define corners at level elevation
-    XYZ p1 = new XYZ(-widthFt/2, -depthFt/2, level.Elevation);
-    XYZ p2 = new XYZ(widthFt/2, -depthFt/2, level.Elevation);
-    XYZ p3 = new XYZ(widthFt/2, depthFt/2, level.Elevation);
-    XYZ p4 = new XYZ(-widthFt/2, depthFt/2, level.Elevation);
-    
-    // Create CurveArray (NOT CurveLoop!)
-    var profile = new CurveArray();
-    profile.Append(Line.CreateBound(p1, p2));
-    profile.Append(Line.CreateBound(p2, p3));
-    profile.Append(Line.CreateBound(p3, p4));
-    profile.Append(Line.CreateBound(p4, p1));
-    
-    // Get RoofType
-    RoofType roofType = new FilteredElementCollector(Doc)
-        .OfClass(typeof(RoofType))
-        .Cast<RoofType>()
-        .FirstOrDefault();
-    
-    if (roofType == null)
-    {{
-        Println("🚫 No RoofType found.");
-    }}
-    else
-    {{
-        // 3. Execution (Single Transaction)
-        Transact("Create Roof", () =>
-        {{
-            ModelCurveArray curves = new ModelCurveArray();
-            FootPrintRoof roof = Doc.Create.NewFootPrintRoof(profile, level, roofType, out curves);
-            
-            // Optional: Set slopes on edges
-            foreach (ModelCurve mc in curves)
-            {{
-                roof.set_DefinesSlope(mc, true);
-                roof.set_SlopeAngle(mc, 30.0 * Math.PI / 180.0); // 30 degrees in radians
-            }}
-        }});
-        
-        Println("✅ Roof created with slopes.");
     }}
 }}
 ```
 
 TASK: {user_task}
 
-Generate complete, executable code following all rules.
+Generate complete, executable code following the ORDER: Imports -> Logic -> Classes.
 """

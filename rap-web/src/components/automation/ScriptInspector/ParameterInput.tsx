@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSync, faSpinner, faFolderOpen } from "@fortawesome/free-solid-svg-icons";
 import { open, save } from "@tauri-apps/api/dialog";
 import type { ScriptParameter } from "@/types/scriptModel";
+import { SliderInput } from "./SliderInput";
 
 interface ParameterInputProps {
   param: ScriptParameter;
@@ -80,45 +81,111 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
     // Case 1: Dropdown (Single Select)
     if (param.options && param.options.length > 0 && !param.multiSelect) {
       return (
-        <select
-          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          value={param.value as string}
-          onChange={(e) => onChange(index, e.target.value)}
-          disabled={disabled}
-        >
-          {param.options.map((option: string, i: number) => (
-            <option key={i} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center w-full">
+          <select
+            className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={param.value as string}
+            onChange={(e) => onChange(index, e.target.value)}
+            disabled={disabled}
+          >
+            {param.options.map((option: string, i: number) => (
+              <option key={i} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
       );
     }
-
-    // ... (rest of renderInput cases: Checkbox, Boolean, Number, Default String)
 
     // Case 2: Multi-Select (Checkboxes)
     if (param.options && param.options.length > 0 && param.multiSelect) {
       const selectedValues = getMultiSelectValues();
+      const [searchTerm, setSearchTerm] = useState("");
+
+      const filteredOptions = param.options.filter(opt =>
+        opt.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const handleAllNone = (selectAll: boolean) => {
+        const newValues = selectAll ? [...param.options!] : [];
+        onChange(index, JSON.stringify(newValues));
+      };
+
       return (
-        <div className="flex flex-wrap gap-2 border border-gray-300 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-800">
-          {param.options.map((option: string, i: number) => (
-            <label key={i} className="inline-flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedValues.includes(option)}
-                onChange={(e) => {
-                  const newValues = e.target.checked
-                    ? [...selectedValues, option]
-                    : selectedValues.filter(v => v !== option);
-                  onChange(index, JSON.stringify(newValues));
-                }}
-                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+        <div className="flex flex-col space-y-2 border border-gray-300 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-800">
+          {/* Search and Helpers */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              placeholder="Search options..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-grow px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={disabled}
+            />
+            <div className="flex gap-1">
+              <button
+                onClick={() => handleAllNone(true)}
                 disabled={disabled}
-              />
-              <span className="text-xs text-gray-700 dark:text-gray-300">{option}</span>
-            </label>
-          ))}
+                className="px-1.5 py-0.5 text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors"
+                title="Select All"
+              >
+                All
+              </button>
+              <button
+                onClick={() => handleAllNone(false)}
+                disabled={disabled}
+                className="px-1.5 py-0.5 text-[9px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-200 transition-colors"
+                title="Clear All"
+              >
+                None
+              </button>
+              {param.requiresCompute && onCompute && (
+                <button
+                  onClick={() => onCompute(param.name)}
+                  disabled={disabled || isComputing}
+                  className={`px-1.5 py-0.5 text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors ${isComputing ? 'animate-pulse' : ''}`}
+                  title="Compute options from Revit"
+                >
+                  <FontAwesomeIcon
+                    icon={isComputing ? faSpinner : faSync}
+                    className={`${isComputing ? 'animate-spin' : ''} mr-1`}
+                  />
+                  {isComputing ? 'Computing...' : 'Compute'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Grid of Checkboxes */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option: string, i: number) => (
+                <label key={i} className="flex items-center space-x-2 cursor-pointer group py-0.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedValues.includes(option)}
+                    onChange={(e) => {
+                      const newValues = e.target.checked
+                        ? [...selectedValues, option]
+                        : selectedValues.filter(v => v !== option);
+                      onChange(index, JSON.stringify(newValues));
+                    }}
+                    className="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 border-gray-300 dark:border-gray-700 dark:bg-gray-900"
+                    disabled={disabled}
+                  />
+                  <span className="text-[11px] text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate" title={option}>
+                    {option}
+                  </span>
+                </label>
+              ))
+            ) : (
+              <div className="col-span-2 text-center py-2 text-[10px] text-gray-400 italic">
+                No matching options found
+              </div>
+            )}
+          </div>
         </div>
       );
     }
@@ -153,66 +220,48 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
 
       if (hasSlider) {
         return (
-          <div className="flex flex-col space-y-1 w-full">
-            <div className="flex items-center space-x-3">
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={Number(param.value) || 0}
-                onChange={(e) => onChange(index, parseFloat(e.target.value))}
-                className="flex-grow h-2 rounded-lg cursor-pointer accent-blue-600"
-                disabled={disabled}
-              />
-              <input
-                type="number"
-                value={typeof param.value === 'number' || typeof param.value === 'string' ? param.value : ''}
-                min={min}
-                max={max}
-                step={step}
-                onChange={(e) => {
-                  const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
-                  onChange(index, val);
-                }}
-                className="w-24 border border-gray-300 dark:border-gray-600 rounded px-2 py-0.5 text-xs font-mono bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                disabled={disabled}
-              />
-            </div>
-            <div className="flex justify-between px-1">
-              <span className="text-[10px] text-gray-400 font-mono">{min}</span>
-              <span className="text-[10px] text-gray-400 font-mono">{max}</span>
-            </div>
-          </div>
+          <SliderInput
+            min={min!}
+            max={max!}
+            step={step}
+            value={Number(param.value) || min!}
+            onChange={(val) => onChange(index, val)}
+            disabled={disabled}
+            suffix={param.suffix}
+          />
         );
       }
 
       return (
-        <input
-          type="number"
-          value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
-          min={min}
-          max={max}
-          step={step}
-          onChange={(e) => {
-            const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
-            onChange(index, val);
-          }}
-          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          disabled={disabled}
-        />
+        <div className="flex items-center w-full">
+          <input
+            type="number"
+            value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
+            min={min}
+            max={max}
+            step={step}
+            onChange={(e) => {
+              const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
+              onChange(index, val);
+            }}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            disabled={disabled}
+          />
+        </div>
       );
     }
 
     // Case 5: Default (String)
     return (
-      <input
-        type="text"
-        value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
-        onChange={(e) => onChange(index, e.target.value)}
-        className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        disabled={disabled}
-      />
+      <div className="flex items-center w-full">
+        <input
+          type="text"
+          value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
+          onChange={(e) => onChange(index, e.target.value)}
+          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          disabled={disabled}
+        />
+      </div>
     );
   };
 
@@ -221,6 +270,8 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       <div className="flex justify-between items-baseline">
         <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400">
           {param.name}
+          {param.suffix && <span className="ml-1 text-gray-400 font-normal">({param.suffix})</span>}
+          {param.required && <span className="text-red-500 ml-1" title="Required">*</span>}
         </label>
         {param.description && (
           <span className="text-xs text-gray-400 dark:text-gray-500 italic truncate max-w-[60%] text-right" title={param.description}>
@@ -232,7 +283,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
         <div className="flex-grow">
           {renderInput()}
         </div>
-        {param.requiresCompute && onCompute && (
+        {param.requiresCompute && onCompute && (!param.multiSelect || (param.options?.length ?? 0) === 0) && (
           <button
             onClick={() => onCompute(param.name)}
             disabled={disabled || isComputing}
