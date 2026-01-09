@@ -251,8 +251,22 @@ namespace CoreScript.Engine.Core
         {
             try
             {
-                // Try to find the type in Autodesk.Revit.DB namespace
-                var type = Type.GetType($"Autodesk.Revit.DB.{typeName}, RevitAPI");
+                Type type = null;
+                string[] namespaces = { 
+                    "Autodesk.Revit.DB", 
+                    "Autodesk.Revit.DB.Plumbing", 
+                    "Autodesk.Revit.DB.Mechanical", 
+                    "Autodesk.Revit.DB.Electrical", 
+                    "Autodesk.Revit.DB.Structure", 
+                    "Autodesk.Revit.DB.Architecture" 
+                };
+
+                foreach (var ns in namespaces)
+                {
+                    type = Type.GetType($"{ns}.{typeName}, RevitAPI");
+                    if (type != null) break;
+                }
+
                 if (type == null)
                 {
                     return new List<string>();
