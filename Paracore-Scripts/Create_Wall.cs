@@ -47,9 +47,7 @@ if (level == null)
     return;
 }
 
-double displayLength = UnitUtils.ConvertFromInternalUnits(p.WallLength, UnitTypeId.Meters);
-double displayHeight = UnitUtils.ConvertFromInternalUnits(p.WallHeight, UnitTypeId.Meters);
-Println($"Preparing to create wall of {displayLength:F2}m × {displayHeight:F2}m on '{p.LevelName}'...");
+// Println($"Preparing to create wall of {p.WallLength}m × {p.WallHeight}m on '{p.LevelName}'...");
 
 
 // 3. Create the wall inside a transaction
