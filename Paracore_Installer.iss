@@ -6,7 +6,7 @@
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "2.0.0"
+  #define MyAppVersion "2.1.0"
 #endif
 
 #ifndef PublishDir
@@ -16,7 +16,7 @@
 [Setup]
 AppId={{F22B529C-22A9-42A0-9243-A335A195A80C-ADDIN}}
 AppName=Paracore
-AppVersion=2.0.0
+AppVersion=2.1.0
 AppPublisher=Paras Codarch
 DefaultDirName={commonappdata}\{#AppDataFolderName}
 PrivilegesRequired=admin
@@ -28,10 +28,10 @@ SetupIconFile="{#IconPath}"
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-VersionInfoVersion=2.0.0
+VersionInfoVersion=2.1.0
 VersionInfoCompany=Paras Codarch
 VersionInfoDescription=Paracore Add-in for Revit. Author: Seyoum Hagos
-VersionInfoTextVersion=2.0.0
+VersionInfoTextVersion=2.1.0
 DisableDirPage=yes
 
 [Languages]
