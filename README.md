@@ -30,17 +30,24 @@ Traditional Revit API development often involves a heavy "tax" on creativity:
 
 ## 🆕 Latest Release (v2.1.0)
 
-**Engine & Execution:**
-- **Automatic Unit Conversion:** Scripts now support `[Unit("m2")]`, `[Unit("ft3")]`, etc. The engine automatically converts user input (Metric/Imperial) to Revit internal units before execution.
-- **VS Code Parity:** Running scripts from VS Code now respects the same default values and unit conversions as the Paracore UI.
+**Core Parameter Engine Refinements:**
+- **Automatic Unit Conversion:** The engine now handles `[Unit("m2")]`, `[Unit("ft3")]` inputs transparently, injecting Revit internal units into the script execution scope.
+- **VS Code Parity:** Fixed execution context to inject default parameter values when running outside the UI (VS Code), ensuring logic parity.
+- **Reliable Extraction:** Adjusted `SemanticCombinator` to strictly preserve `Params.cs` during compilation, even if not explicitly referenced in `Main.cs`.
+- **Authoritative Providers:** Custom `_Options` methods that return empty results are now respected as "0 matches" rather than falling back to default extraction.
 
-**Multi-File Scripting:**
-- **Real-Time Sync:** Creating new files in a temporary workspace (e.g., `Params.cs`) now instantly syncs back to your original source folder.
-- **Reliable Extraction:** Parameters are now correctly detected in multi-file scripts even if the `Params` class hasn't been instantiated yet.
+**System & Multi-File Scripting:**
+- **Real-Time Workspace Sync:** Creating new files (e.g., `Utils.cs`, `Params.cs`) in a temporary VS Code workspace now instantly mirrors them to the original source folder.
+- **Robust Logging:** Fixed static logger instantiation issues in `CodeRunner`.
 
-**UI Improvements:**
-- **Layout Stability:** Fixed layout shifting issues in the Inspector panel for long parameter descriptions.
-- **Stability:** Resolved React hook violations that could cause the UI to crash during parameter updates.
+**UI Improvements (Paracore):**
+- **Stability Fixes:** Resolved React Hook violations in `ParameterInput` that caused UI crashes during updates.
+- **Layout Hardening:** Fixed Inspector layout shifts caused by long parameter descriptions; introduced custom tooltips and width constraints.
+- **Dropdown Logic:** Fixed stale data retention when option providers return empty lists.
+- **Visual Polish:** Aligned AI generation toggles and refined parameter grouping styles.
+
+**AI & Automation:**
+- **Smarter Filtering:** Updated all system prompts to strictly enforce `OfCategory(BuiltInCategory.OST_Rooms)` over the crash-prone `OfClass(typeof(Room))`.
 
 ## 📊 Feature Status
 
