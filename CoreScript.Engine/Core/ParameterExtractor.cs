@@ -68,6 +68,9 @@ namespace CoreScript.Engine.Core
             
             if (paramsClass == null) return;
 
+            // Build region map for automatic grouping
+            var regionMap = BuildRegionMap(paramsClass);
+
             // V3 Change: Implicitly discover ALL public properties in the Params class
             var properties = paramsClass.Members.OfType<PropertyDeclarationSyntax>()
                 .Where(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)));
@@ -82,7 +85,7 @@ namespace CoreScript.Engine.Core
                     propName.EndsWith("_Filter")) 
                     continue;
 
-                ProcessPropertyDeclarationV3(prop, paramsClass, parameters, root);
+                ProcessPropertyDeclarationV3(prop, paramsClass, parameters, root, regionMap);
             }
         }
 
@@ -99,9 +102,23 @@ namespace CoreScript.Engine.Core
             if (param != null) parameters.Add(param);
         }
 
-        private void ProcessPropertyDeclarationV3(PropertyDeclarationSyntax prop, ClassDeclarationSyntax paramsClass, List<ScriptParameter> parameters, CompilationUnitSyntax root)
+        private void ProcessPropertyDeclarationV3(PropertyDeclarationSyntax prop, ClassDeclarationSyntax paramsClass, List<ScriptParameter> parameters, CompilationUnitSyntax root, Dictionary<int, string> regionMap)
         {
             string name = prop.Identifier.Text;
+
+            // V4 FIX: Read-only properties (getter-only or expression-bodied) are usually providers or computed values, not parameters.
+            // We skip them to prevent CS0131 (assignment to read-only) errors in CodeRunner.
+            bool isReadOnly = false;
+            if (prop.ExpressionBody != null) isReadOnly = true;
+            else if (prop.AccessorList != null)
+            {
+               bool hasSetter = prop.AccessorList.Accessors.Any(a => 
+                   a.IsKind(SyntaxKind.SetAccessorDeclaration) || 
+                   a.IsKind(SyntaxKind.InitAccessorDeclaration));
+               if (!hasSetter) isReadOnly = true;
+            }
+            if (isReadOnly) return;
+
             var attributes = prop.AttributeLists.SelectMany(al => al.Attributes);
             var triviaList = prop.GetLeadingTrivia();
 
@@ -109,6 +126,13 @@ namespace CoreScript.Engine.Core
                                      attributes, triviaList, root);
 
             if (param == null) return;
+
+            // Apply region-based grouping if no explicit Group was set
+            if (string.IsNullOrEmpty(param.Group))
+            {
+                int propLine = prop.GetLocation().GetLineSpan().StartLinePosition.Line;
+                param.Group = GetRegionForLine(propLine, regionMap);
+            }
 
             // Resolve Convention-Based Providers (V3)
             var members = paramsClass.Members;
@@ -160,6 +184,51 @@ namespace CoreScript.Engine.Core
             {
                 var expr = GetInitialExpression(enabledProvider);
                 if (expr != null) param.EnabledWhenParam = ParseVisibilityExpression(expr);
+            }
+
+            // 5. Unit Extraction
+            // Priority: [Unit] Attribute > _Unit Provider > Name Suffix
+            string unit = null;
+
+            // Check for [Unit] Attribute
+            var unitAttr = attributes.FirstOrDefault(a => a.Name.ToString().Contains("Unit"));
+            if (unitAttr != null && unitAttr.ArgumentList != null && unitAttr.ArgumentList.Arguments.Count > 0)
+            {
+                 var arg = unitAttr.ArgumentList.Arguments[0];
+                 if (arg.Expression is LiteralExpressionSyntax lit && lit.IsKind(SyntaxKind.StringLiteralExpression))
+                 {
+                     unit = lit.Token.ValueText;
+                 }
+            }
+
+            // Check for explicit provider: PropertyName_Unit
+            if (string.IsNullOrEmpty(unit))
+            {
+                var unitProvider = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Unit");
+                if (unitProvider != null)
+                {
+                   var expr = GetInitialExpression(unitProvider);
+                   if (expr != null && expr is LiteralExpressionSyntax lit && lit.IsKind(SyntaxKind.StringLiteralExpression))
+                   {
+                       unit = lit.Token.ValueText;
+                   }
+                }
+            }
+
+            // If no attribute or provider, check name suffix convention (Fallback)
+            if (string.IsNullOrEmpty(unit))
+            {
+                if (name.EndsWith("_mm")) unit = "mm";
+                else if (name.EndsWith("_cm")) unit = "cm";
+                else if (name.EndsWith("_m")) unit = "m";
+                else if (name.EndsWith("_ft")) unit = "ft";
+                else if (name.EndsWith("_in") || name.EndsWith("_inch")) unit = "in";
+            }
+
+            if (!string.IsNullOrEmpty(unit))
+            {
+                param.Unit = unit;
+                param.Suffix = unit; // Hint for UI
             }
 
             parameters.Add(param);
@@ -802,6 +871,55 @@ namespace CoreScript.Engine.Core
             }
             
             return metadata;
+        }
+
+        /// <summary>
+        /// Builds a map of line numbers to region names for automatic parameter grouping.
+        /// </summary>
+        private Dictionary<int, string> BuildRegionMap(ClassDeclarationSyntax paramsClass)
+        {
+            var regionMap = new Dictionary<int, string>();
+            string currentRegion = "";
+            
+            foreach (var trivia in paramsClass.DescendantTrivia())
+            {
+                if (trivia.IsKind(SyntaxKind.RegionDirectiveTrivia))
+                {
+                    var regionText = trivia.ToFullString();
+                    // Extract region name: "#region Room Selection" -> "Room Selection"
+                    var match = Regex.Match(regionText, @"#region\s+(.+)");
+                    if (match.Success)
+                    {
+                        currentRegion = match.Groups[1].Value.Trim();
+                        int line = trivia.GetLocation().GetLineSpan().StartLinePosition.Line;
+                        regionMap[line] = currentRegion;
+                    }
+                }
+                else if (trivia.IsKind(SyntaxKind.EndRegionDirectiveTrivia))
+                {
+                    currentRegion = "";
+                    int line = trivia.GetLocation().GetLineSpan().StartLinePosition.Line;
+                    regionMap[line] = "";
+                }
+            }
+            
+            return regionMap;
+        }
+
+        /// <summary>
+        /// Gets the active region name for a given line number.
+        /// </summary>
+        private string GetRegionForLine(int lineNumber, Dictionary<int, string> regionMap)
+        {
+            string currentRegion = "";
+            foreach (var entry in regionMap.OrderBy(e => e.Key))
+            {
+                if (entry.Key <= lineNumber)
+                    currentRegion = entry.Value;
+                else
+                    break;
+            }
+            return currentRegion;
         }
     }
 }

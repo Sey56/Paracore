@@ -11,6 +11,7 @@ interface SaveToLibraryModalProps {
     isOpen: boolean;
     onClose: () => void;
     generatedCode: string;
+    generatedFiles: Record<string, string> | null;
     taskDescription: string;
     onSaveSuccess: () => void;
 }
@@ -19,6 +20,7 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
     isOpen,
     onClose,
     generatedCode,
+    generatedFiles,
     taskDescription,
     onSaveSuccess,
 }) => {
@@ -32,13 +34,17 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             // Suggest a name based on task
-            const sanitized = taskDescription
-                .replace(/[^a-zA-Z0-9\s]/g, '')
-                .split(' ')
-                .slice(0, 4) // Keep it short
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join('');
-            setScriptName(sanitized + ".cs" || 'NewScript.cs');
+            if (generatedFiles && Object.keys(generatedFiles).some(f => f.toLowerCase() === 'main.cs')) {
+                setScriptName('Main.cs');
+            } else {
+                const sanitized = taskDescription
+                    .replace(/[^a-zA-Z0-9\s]/g, '')
+                    .split(' ')
+                    .slice(0, 4) // Keep it short
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join('');
+                setScriptName(sanitized + ".cs" || 'NewScript.cs');
+            }
 
             // Default path from settings
             const savedPath = localStorage.getItem('agentScriptsPath') || '';
@@ -86,8 +92,7 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
                 script_code: generatedCode,
                 script_name: finalName,
                 target_directory: targetFolder,
-                // Legacy fields (sent as empty/default to satisfy potential strict schemas if not correctly ignored by backend, 
-                // but we are updating backend too, so we can send minimal payload)
+                files: generatedFiles
             });
 
             onSaveSuccess();
@@ -118,7 +123,12 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm dark:text-white focus:ring-2 focus:ring-purple-500 outline-none"
                         placeholder="MyScript.cs"
                     />
-                    <p className="text-xs text-gray-500 mt-1">File will be saved as a C# source file.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        {generatedFiles
+                            ? `Saving ${Object.keys(generatedFiles).length} files to folder. "${scriptName}" will be the entry point.`
+                            : "File will be saved as a C# source file."
+                        }
+                    </p>
                 </div>
 
                 {/* Target Folder */}

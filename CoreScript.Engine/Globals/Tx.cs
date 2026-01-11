@@ -9,7 +9,7 @@ namespace CoreScript.Engine.Globals
 {
     public static class Tx
     {
-        private static readonly string _logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "TxDebugLog.txt");
+        private static readonly string _logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "TxDebugLog.txt");
 
         // Overload that takes Action<Document> for backward compatibility, though it's less recommended.
         public static void Transact(Document doc, string transactionName, Action<Document> action)

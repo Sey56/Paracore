@@ -207,6 +207,7 @@ Transact("Create SpiralMass", doc =>
 // ======================
 public class Params
 {
+    #region Levels
     /// <summary>Name of the base level</summary>
     [RevitElements(TargetType = "Level")]
     public string BaseLevelName { get; set; } = "Level 1";
@@ -214,7 +215,9 @@ public class Params
     /// <summary>Name of the top level</summary>
     [RevitElements(TargetType = "Level")]
     public string TopLevelName { get; set; } = "Level 2";
+    #endregion
 
+    #region Segments
     /// Number of segments for entire height (min 3)
     [Range(3, 200)]
     public int Segments { get; set; } = 82;
@@ -241,7 +244,9 @@ public class Params
     /// Number of segments per square side
     [Range(1, 10)]
     public int SegmentsPerSide { get; set; } = 2;
+    #endregion
 
+    #region Bulge Effect
     // Bulge/Squeeze parameters
     
     /// Bulge magnitude (positive = bulge, negative = squeeze)
@@ -255,7 +260,9 @@ public class Params
     /// Vertical radius of bulge effect (0-0.5)
     [Range(0.0, 0.5, 0.05)]
     public double BulgeRadiusRatio { get; set; } = 0.3;
+    #endregion
 
+    #region Positioning
     // Positioning parameters
     
     /// X position offset in meters
@@ -263,4 +270,5 @@ public class Params
 
     /// Y position offset in meters
     public double CenterY { get; set; } = 0;
+    #endregion
 }

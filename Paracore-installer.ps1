@@ -126,12 +126,12 @@ Write-Host "`n[3/3] Compiling the installer with Inno Setup..."
 
 $rserverAddinInstallerScript = Join-Path -Path $ProjectRoot -ChildPath 'Paracore_Installer.iss'
 $iconPath = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\icons\rap-icon.ico'
-$appDataFolderName = 'Paracore-data'
+$appDataFolderName = 'paracore-data'
 # Pass defines to the Inno Setup script
 & $InnoSetupCompiler "/O$finalInstallDir" "/dIconPath=$iconPath" "/dAppDataFolderName=$appDataFolderName" "/dPublishDir=$resolvedPublishDir" $rserverAddinInstallerScript
 
 Write-Host "`n=================================" -ForegroundColor Cyan
 Write-Host '   Build Complete!   '
 Write-Host '=================================' -ForegroundColor Cyan
-$finalAddinInstaller = Join-Path -Path $finalInstallDir -ChildPath "Paracore_Revit_Installer_v$($Version).exe"
+$finalAddinInstaller = Join-Path -Path $finalInstallDir -ChildPath "Paracore_Addin_v$($Version).exe"
 Write-Host "Paracore Installer created at: $finalAddinInstaller" -ForegroundColor Yellow

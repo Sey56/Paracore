@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <!-- Custom Actions to kill processes before uninstallation -->
+    <CustomAction Id="KillParacore"
+                  Directory="TARGETDIR"
+                  ExeCommand="cmd.exe /c taskkill /f /im Paracore.exe /t"
+                  Execute="immediate"
+                  Return="ignore" />
+    <CustomAction Id="KillServer"
+                  Directory="TARGETDIR"
+                  ExeCommand="cmd.exe /c taskkill /f /im rap-server.exe /t"
+                  Execute="immediate"
+                  Return="ignore" />
+
+    <!-- Custom Action to remove the paracore-data folder -->
+    <CustomAction Id="CleanupParacoreData"
+                  Directory="TARGETDIR"
+                  ExeCommand="cmd.exe /c rd /s /q &quot;[AppDataFolder]paracore-data&quot;"
+                  Execute="deferred"
+                  Return="ignore"
+                  HideTarget="no" />
+
+    <InstallExecuteSequence>
+      <!-- Kill processes at the start of uninstallation -->
+      <Custom Action="KillParacore" Before="InstallInitialize">Installed AND NOT UPGRADINGPRODUCTCODE</Custom>
+      <Custom Action="KillServer" Before="InstallInitialize">Installed AND NOT UPGRADINGPRODUCTCODE</Custom>
+      <!-- Cleanup data after files are removed -->
+      <Custom Action="CleanupParacoreData" After="RemoveFiles">Installed AND NOT UPGRADINGPRODUCTCODE</Custom>
+    </InstallExecuteSequence>
+  </Fragment>
+</Wix>

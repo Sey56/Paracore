@@ -46,6 +46,17 @@ namespace CoreScript.Engine.Core
             filesToProcess.Enqueue(topLevelScript.FileName);
             referencedFiles.Add(topLevelScript.FileName);
 
+            // V2 FIX: Always include 'Params.cs' if it exists, even if not referenced.
+            // This ensures parameters are visible to the engine even if 'new Params()' isn't called yet.
+            // We specifically look for "Params.cs" per the project convention.
+            var paramsFileKey = syntaxTrees.Keys.FirstOrDefault(k => 
+                Path.GetFileName(k).Equals("Params.cs", StringComparison.OrdinalIgnoreCase));
+            
+            if (paramsFileKey != null && !referencedFiles.Contains(paramsFileKey))
+            {
+                referencedFiles.Add(paramsFileKey);
+            }
+
             while (filesToProcess.Any())
             {
                 var currentFileName = filesToProcess.Dequeue();

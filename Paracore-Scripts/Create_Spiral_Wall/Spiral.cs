@@ -22,27 +22,6 @@ UsageExamples:
 // V3 Parameters
 var p = new Params();
 
-public class Params
-{
-    [RevitElements(TargetType = "Level")]
-    public string LevelName { get; set; } = "Level 1";
-
-    /// <summary>Maximum radius in meters</summary>
-    [Range(1.0, 100.0)]
-    public double MaxRadiusMeters { get; set; } = 24.0;
-
-    /// <summary>Number of spiral turns</summary>
-    [Range(1, 20)]
-    public int NumTurns { get; set; } = 5;
-
-    /// <summary>Angle resolution in degrees (lower = smoother)</summary>
-    [Range(5, 90, 5)]
-    public double AngleResolutionDegrees { get; set; } = 30;
-
-    /// <summary>Wall height</summary>
-    public double WallHeightMeters { get; set; } = 3.0;
-}
-
 // Logic
 Level? level = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
@@ -65,3 +44,24 @@ Transact("Create Spiral Walls", () =>
 });
 
 Println("✅ Spiral walls created successfully!");
+
+public class Params
+{
+    [RevitElements(TargetType = "Level")]
+    public string LevelName { get; set; } = "Level 1";
+
+    /// <summary>Maximum radius in meters</summary>
+    [Range(1.0, 100.0)]
+    public double MaxRadiusMeters { get; set; } = 24.0;
+
+    /// <summary>Number of spiral turns</summary>
+    [Range(1, 20)]
+    public int NumTurns { get; set; } = 5;
+
+    /// <summary>Angle resolution in degrees (lower = smoother)</summary>
+    [Range(5, 90, 5)]
+    public double AngleResolutionDegrees { get; set; } = 30;
+
+    /// <summary>Wall height</summary>
+    public double WallHeightMeters { get; set; } = 3.0;
+}

@@ -144,6 +144,7 @@ Println($"✅ Successfully added {p.Mode} to {successCount}/{walls.Count} walls.
 
 class Params
 {
+    #region Settings
     /// <summary>Operation type</summary>
     public string Mode { get; set; } = "AddSweep";
     public static string[] Mode_Options => new[] { "AddSweep", "AddReveal" };
@@ -154,7 +155,9 @@ class Params
 
     /// <summary>Vertical or horizontal placement</summary>
     public bool Vertical { get; set; } = false; // false = horizontal, true = vertical
+    #endregion
 
+    #region Geometry
     /// <summary>Position along wall height (0=bottom, 0.5=center, 1=top)</summary>
     [Range(0.0, 1.0, 0.05)]
     public double Offset { get; set; } = 0.5;
@@ -203,7 +206,10 @@ class Params
             .OrderBy(n => n)
             .ToList();
     }
+    #endregion
 
+    #region Selection
     /// <summary>Operate on selected walls only</summary>
     public bool UseSelection { get; set; } = true;
+    #endregion
 }

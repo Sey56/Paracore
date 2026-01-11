@@ -24,32 +24,59 @@ class GenerateScriptRequest(BaseModel):
     llm_model: str = "gemini-2.0-flash-exp"
     llm_api_key_name: Optional[str] = None
     llm_api_key_value: Optional[str] = None
+    multi_file: bool = False  # If True, LLM can generate multiple modular files
 
 
 class GenerateScriptResponse(BaseModel):
-    generated_code: str
+    generated_code: str  # Still returns primary file/combined code for back-compat
+    files: Optional[Dict[str, str]] = None  # Mapping of filename -> code content
     is_success: bool
     error_message: Optional[str] = None
     attempt_number: int
 
 
+def extract_files_from_response(raw_response: str) -> Dict[str, str]:
+    """
+    Extract multiple C# code blocks from LLM response.
+    Expected format: 
+    File: MyClass.cs
+    ```csharp
+    ...
+    ```
+    """
+    files = {}
+    
+    # Try to find file-prefixed blocks
+    # Pattern: "File: filename.cs" followed by "```csharp ... ```"
+    file_pattern = r"(?:File|Filename):\s*([a-zA-Z0-9_\.]+\.cs)\s*[\r\n]+```csharp[\r\n]+(.*?)\s*```"
+    matches = re.finditer(file_pattern, raw_response, re.DOTALL | re.IGNORECASE)
+    
+    for match in matches:
+        filename = match.group(1)
+        code = match.group(2).strip()
+        files[filename] = code
+        
+    # If no named files found, find all raw csharp blocks
+    if not files:
+        raw_blocks = re.findall(r"```csharp[\r\n]+(.*?)\s*```", raw_response, re.DOTALL)
+        if len(raw_blocks) > 0:
+            # First block is Main.cs by convention
+            files["Main.cs"] = raw_blocks[0].strip()
+            # Others get generic names
+            for i, block in enumerate(raw_blocks[1:], 2):
+                files[f"Module_{i}.cs"] = block.strip()
+                
+    return files
+
+
 def extract_code_from_response(raw_response: str) -> str:
-    """Extract C# code from LLM response (between ```csharp and ```)."""
-    code_block_start = "```csharp"
-    code_block_end = "```"
-    
-    start = raw_response.find(code_block_start)
-    if start == -1:
-        return ""
-    
-    start += len(code_block_start)
-    end = raw_response.find(code_block_end, start)
-    
-    if end == -1:
-        return ""
-    
-    code = raw_response[start:end].strip()
-    return code
+    """Extract primary C# code from LLM response (between ```csharp and ```)."""
+    files = extract_files_from_response(raw_response)
+    if "Main.cs" in files:
+        return files["Main.cs"]
+    if files:
+        return next(iter(files.values()))
+    return ""
 
 
 @router.post("/generate_script", response_model=GenerateScriptResponse)
@@ -71,7 +98,8 @@ async def generate_script(
             use_web_search=request.use_web_search,
             llm_model=request.llm_model,
             llm_api_key_name=request.llm_api_key_name,
-            llm_api_key_value=request.llm_api_key_value
+            llm_api_key_value=request.llm_api_key_value,
+            multi_file=request.multi_file
         )
         
         print(f"[Generation] Received response from Gemini (length: {len(raw_response)})")
@@ -79,8 +107,12 @@ async def generate_script(
         # Extract code from response
         generated_code = extract_code_from_response(raw_response)
         
-        if not generated_code:
-            print("[Generation] Failed to extract code from response")
+        # Extract multiple files from response
+        files = extract_files_from_response(raw_response)
+        primary_code = extract_code_from_response(raw_response)
+        
+        if not primary_code:
+            print("[Generation] Failed to extract any code from response")
             return GenerateScriptResponse(
                 generated_code="",
                 is_success=False,
@@ -88,9 +120,10 @@ async def generate_script(
                 attempt_number=1
             )
         
-        print(f"[Generation] Successfully extracted code ({len(generated_code)} chars)")
+        print(f"[Generation] Successfully extracted {len(files)} files")
         return GenerateScriptResponse(
-            generated_code=generated_code,
+            generated_code=primary_code,
+            files=files if len(files) > 1 else None,
             is_success=True,
             error_message=None,
             attempt_number=1
@@ -166,6 +199,7 @@ async def save_to_library(request: Request):
         category = data.get("category")
         sub_category = data.get("sub_category", "")
         metadata = data.get("metadata", {})
+        files = data.get("files") # For multi-file support
         
         if not script_code or not script_name:
             raise HTTPException(status_code=400, detail="Missing script code or name")
@@ -174,16 +208,39 @@ async def save_to_library(request: Request):
         if not script_name.endswith('.cs'):
             script_name += '.cs'
             
-        full_path = ""
-        
         if target_directory:
             # New Simple Mode: Save directly to target folder
-            full_path = os.path.join(target_directory, script_name)
             
-            # For new mode, we DO NOT write metadata headers if not explicitly requested
-            # The user requested "no metadata... just .cs files"
-            full_script = script_code
+            if files:
+                # Multi-file Mode: Save all files in the dict
+                print(f"[Generation] Saving multi-file script ({len(files)} files) to: {target_directory}")
+                for filename, code in files.items():
+                    # If this is the main file, use the user-provided script_name
+                    final_filename = filename
+                    if filename.lower() == 'main.cs':
+                        final_filename = script_name
+                    
+                    file_path = os.path.join(target_directory, final_filename)
+                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(code)
+                
+                full_path = target_directory # Return folder path for success message
+                
+            else:
+                # Single-file Mode
+                full_path = os.path.join(target_directory, script_name)
+                # Ensure directory exists (might be deep path)
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                
+                with open(full_path, 'w', encoding='utf-8') as f:
+                    f.write(script_code)
             
+            return {
+                "success": True,
+                "path": full_path,
+                "message": f"Script saved successfully"
+            }
         elif library_path and category:
             # Legacy Mode: Construct path from category hierarchy
             # Only used if old frontend calls this or fallback

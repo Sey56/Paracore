@@ -19,6 +19,7 @@ async def generate_code_with_gemini(
     llm_model: str = "gemini-2.0-flash-exp",
     llm_api_key_name: Optional[str] = None,
     llm_api_key_value: Optional[str] = None,
+    multi_file: bool = False,
     max_retries: int = 3
 ) -> str:
     """
@@ -50,7 +51,8 @@ async def generate_code_with_gemini(
     # Build prompt
     prompt = get_corescript_generation_prompt(
         user_task=task_description,
-        previous_attempts=previous_attempts
+        previous_attempts=previous_attempts,
+        multi_file=multi_file
     )
     
     # Prepare request

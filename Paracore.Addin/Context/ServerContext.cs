@@ -33,6 +33,13 @@ namespace Paracore.Addin.Context
         // ✅ Backing delegate for script printing
         public Action<string>? PrintCallback { get; private set; }
 
+        private static string GetLogPath(string fileName)
+        {
+            var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
+            if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+            return Path.Combine(logDir, fileName);
+        }
+
         public ServerContext(UIApplication uiApp, bool isReadOnly = false)
         {
             UIApp = uiApp;
@@ -41,7 +48,7 @@ namespace Paracore.Addin.Context
             {
                 // ✅ Drop debug trace to disk
                 System.IO.File.AppendAllText(
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PrintCallbackDebug.txt"),
+                    GetLogPath("PrintCallbackDebug.txt"),
                     $"[DEBUG {DateTime.Now:HH:mm:ss}] {msg}\n"
                 );
             };
@@ -56,7 +63,7 @@ namespace Paracore.Addin.Context
         {
             _printMessages.Add(message);
             System.IO.File.AppendAllText(
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PrintCallbackDebug.txt"),
+                GetLogPath("PrintCallbackDebug.txt"),
                 $"[DEBUG {DateTime.Now:HH:mm:ss}] {message}\n"
             );
         }
@@ -72,7 +79,7 @@ namespace Paracore.Addin.Context
                 _printMessages.Add(message);
             }
             System.IO.File.AppendAllText(
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PrintCallbackDebug.txt"),
+                GetLogPath("PrintCallbackDebug.txt"),
                 $"[DEBUG {DateTime.Now:HH:mm:ss}] {message}\n"
             );
         }

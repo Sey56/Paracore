@@ -28,10 +28,10 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg mb-3 overflow-hidden">
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg mb-3 w-full">
             {/* Header */}
             <div
-                className="bg-gray-50 dark:bg-gray-800 px-4 py-2 cursor-pointer flex items-center justify-between select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className={`bg-gray-50 dark:bg-gray-800 px-4 py-2 cursor-pointer flex items-center justify-between select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center space-x-2 font-medium text-sm text-gray-700 dark:text-gray-300">
@@ -45,7 +45,7 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
 
             {/* Content */}
             {isExpanded && (
-                <div className="p-3 space-y-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+                <div className="p-3 space-y-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 w-full rounded-b-lg">
                     {parameters.map((param) => {
                         const originalIndex = allParameters.findIndex(p => p.name === param.name);
                         return (

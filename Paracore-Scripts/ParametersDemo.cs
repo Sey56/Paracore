@@ -55,20 +55,22 @@ class Params {
     /// <summary>
     /// Professional description using XML comments. Metadata directly on properties!
     /// </summary>
-    [ScriptParameter(Group = "General")]
+    #region General
     public string StructuredDescription { get; set; } = "Professional Automation";
+    #endregion
 
     /// <summary>
     /// Offset value in millimeters.
     /// </summary>
+    #region Dimensions
     [Range(5, 500, 5)] 
-    [ScriptParameter(Group = "Dimensions")]
     public int OffsetValue { get; set; } = 100;
+    #endregion
 
     /// <summary>
     /// A multi-select parameter. In the UI, this shows as multiple Checkboxes.
     /// </summary>
-    [ScriptParameter(Group = "Filtering")]
+    #region Filtering
     public List<string> CategoryFilter { get; set; } = ["Walls", "Doors"];
     public static string[] CategoryFilter_Options => ["Walls", "Doors", "Windows", "Floors"];
 
@@ -77,13 +79,15 @@ class Params {
     /// <summary>
     /// Automatically populates with Wall Types from Revit. MultiSelect: true renders as checkboxes.
     /// </summary>
-    [RevitElements(TargetType = "WallType", MultiSelect = true, Group = "Filtering")]
+    [RevitElements(TargetType = "WallType", MultiSelect = true)]
     public List<string> WallTypeNames { get; set; } = new() { "Generic - 200mm" };
+    #endregion
 
     /// <summary>
     /// Automatically populates with Levels from Revit.
     /// </summary>
-    [RevitElements(TargetType = "Level", Group = "Context")]
+    #region Context
+    [RevitElements(TargetType = "Level")]
     public string ActiveLevel { get; set; } = "Level 1";
 
     // --- CONVENTION-BASED PROVIDERS (V3) ---
@@ -91,7 +95,7 @@ class Params {
     /// <summary>
     /// This property uses a custom provider for its options list.
     /// </summary>
-    [RevitElements(Group = "Context")]
+    [RevitElements]
     public string CustomLevel { get; set; } = "Level 1";
 
     // V3 Convention: PropertyName_Options
@@ -104,12 +108,14 @@ class Params {
             .OrderBy(n => n)
             .ToList();
     }
+    #endregion
 
     /// <summary>
     /// Demonstration of a generic category picker using Revit API.
     /// Since this data is extracted from Revit, we use [RevitElements].
     /// </summary>
-    [RevitElements(Group = "Advanced")]
+    #region Advanced
+    [RevitElements]
     public string TargetCategory { get; set; } = "Walls";
 
     public List<string> TargetCategory_Options() {
@@ -126,23 +132,24 @@ class Params {
     /// <summary>
     /// Toggle this to show or hide the advanced property.
     /// </summary>
-    [ScriptParameter(Group = "Advanced")]
     public bool ShowAdvanced { get; set; } = false;
 
     /// <summary>
     /// This property is controlled by a C# method for visibility.
     /// </summary>
-    [ScriptParameter(Group = "Advanced")]
     public string AdvancedProperty { get; set; } = "High Tech Value";
 
     // V3 Convention: PropertyName_Visible
     public bool AdvancedProperty_Visible() => ShowAdvanced;
+    #endregion
 
     // --- INPUT TYPES ---
 
-    [ScriptParameter(InputType = "Folder", Group = "System")]
+    #region System
+    [ScriptParameter(InputType = "Folder")]
     public string ExportPath { get; set; } = @"C:\Temp";
 
-    [ScriptParameter(InputType = "File", Group = "System")]
+    [ScriptParameter(InputType = "File")]
     public string InputFile { get; set; } = @"C:\Data\input.csv";
+    #endregion
 }

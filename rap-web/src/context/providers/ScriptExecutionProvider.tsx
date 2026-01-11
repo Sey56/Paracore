@@ -861,12 +861,21 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             };
           }
 
-          // Case 2: List Options Update
-          if (options.length > 0) {
-            const currentValueStr = String(p.value || "");
-            if (!currentValueStr || !options.includes(currentValueStr)) {
-              newValue = options[0];
+          // Case 2: List Options Update (including empty lists)
+          if (!isRangeUpdate) {
+            let nextValue = p.value;
+            // If the new list is empty, or the current value isn't in the new list, reset value.
+            // Exception: If the current value is empty/null, keep it empty.
+            if (options.length === 0) {
+               nextValue = "";
+            } else {
+               const currentValueStr = String(p.value || "");
+               if (!currentValueStr || !options.includes(currentValueStr)) {
+                 nextValue = options[0];
+               }
             }
+            
+            return { ...p, options: options, value: nextValue };
           }
 
           return { ...p, options: options, value: newValue };

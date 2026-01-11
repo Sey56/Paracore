@@ -6,29 +6,46 @@ namespace CoreScript.Engine.Globals
 {
     public class CustomAssemblyResolver
     {
-        private static readonly string HomePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile); // Define here
 
         public static void Initialize()
         {
             AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
             {
-                var name = new AssemblyName(args.Name);
-                if (name.Name != "Microsoft.CodeAnalysis") return null;
+                var name = new AssemblyName(args.Name).Name;
+                if (string.IsNullOrEmpty(name)) return null;
 
-                var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Microsoft.CodeAnalysis.dll");
-                if (!File.Exists(path)) return null;
+                // Only attempt to resolve Roslyn-related assemblies that are known to conflict
+                if (!name.StartsWith("Microsoft.CodeAnalysis")) return null;
 
                 try
                 {
-                    return Assembly.LoadFrom(path);
+                    // Attempt to find the DLL in the engine's base directory
+                    var baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                    if (string.IsNullOrEmpty(baseDir)) return null;
+
+                    var path = Path.Combine(baseDir, name + ".dll");
+                    if (File.Exists(path))
+                    {
+                        return Assembly.LoadFrom(path);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    File.AppendAllText(Path.Combine(HomePath, "Loader.log"),
-                        $"[{DateTime.Now}] Load failed: {ex}");
-                    return null;
+                    LogErrorToLoaderLog($"Load failed for {args.Name}: {ex}");
                 }
+                return null;
             };
+        }
+
+        private static void LogErrorToLoaderLog(string message)
+        {
+            try
+            {
+                var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
+                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                File.AppendAllText(Path.Combine(logDir, "Loader.log"), $"[{DateTime.Now}] {message}{Environment.NewLine}");
+            }
+            catch { /* Silent fail */ }
         }
     }
 }

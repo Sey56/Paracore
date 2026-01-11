@@ -96,7 +96,7 @@ namespace Paracore.Addin.Helpers
                 WriteGlobalJson(workspacePath);
                 WriteGlobalsCs(workspacePath);
                 WriteEditorConfig(workspacePath);
-                WriteCopilotInstructions(workspacePath);
+                WriteCopilotInstructions(workspacePath, scriptType);
 
                 ParacoreApp.RegisterWorkspace(scriptPath, workspacePath);
 
@@ -129,12 +129,13 @@ namespace Paracore.Addin.Helpers
                     string scriptsPath = Path.Combine(workspaceFolder, "Scripts");
                     foreach (var fileInWorkspace in Directory.GetFiles(scriptsPath, "*.cs", SearchOption.TopDirectoryOnly))
                     {
-                        if (Path.GetFileName(fileInWorkspace).Equals("Globals.cs", StringComparison.OrdinalIgnoreCase)) continue;
-
                         string originalFilePath = Path.Combine(originalFolderPath, Path.GetFileName(fileInWorkspace));
 
                         StartFileWatcher(fileInWorkspace, originalFilePath);
                     }
+
+                    // Start watching for NEW files added to the workspace
+                    StartDirectoryCreationWatcher(scriptsPath, originalFolderPath);
                 }
 
                 string arguments = scriptType == "single-file"
@@ -159,17 +160,91 @@ namespace Paracore.Addin.Helpers
             }
         }
 
+        private static void StartDirectoryCreationWatcher(string workspaceScriptsPath, string originalFolderPath)
+        {
+            try
+            {
+                FileLogger.Log($"Starting directory creation watcher: {workspaceScriptsPath} -> {originalFolderPath}");
+
+                string watcherKey = $"{workspaceScriptsPath}_CreationWatcher";
+                StopWatcher(watcherKey); 
+
+                var watcher = new FileSystemWatcher(workspaceScriptsPath)
+                {
+                    Filter = "*.cs",
+                    NotifyFilter = NotifyFilters.FileName, 
+                    EnableRaisingEvents = true,
+                    IncludeSubdirectories = false
+                };
+
+                watcher.Created += (s, e) => HandleNewFile(e.FullPath, originalFolderPath);
+                
+                // Lock to safely add to dictionary
+                lock (ActiveWatchers)
+                {
+                    ActiveWatchers[watcherKey] = watcher;
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"StartDirectoryCreationWatcher: {ex.Message}");
+            }
+        }
+
+        private static void HandleNewFile(string newFilePath, string originalFolderPath)
+        {
+            try
+            {
+                string fileName = Path.GetFileName(newFilePath);
+                string originalFilePath = Path.Combine(originalFolderPath, fileName);
+                
+                FileLogger.Log($"New file detected in workspace: {fileName}. Syncing to original source...");
+
+                // Small delay to allow file release/write completion
+                Task.Delay(200).ContinueWith(_ => 
+                {
+                     try 
+                     {
+                        if (File.Exists(newFilePath))
+                        {
+                            // 1. Copy to original source
+                            File.Copy(newFilePath, originalFilePath, true);
+                            FileLogger.Log($"Created new file in source: {originalFilePath}");
+
+                            // 2. Start watching this new file for future edits
+                            // Ensure this runs on a thread that can access the Dictionary safely or use lock inside StartFileWatcher
+                            StartFileWatcher(newFilePath, originalFilePath);
+                            
+                            // 3. Notify system of change
+                            ScriptChanged?.Invoke(originalFilePath);
+                        }
+                     }
+                     catch (Exception ex)
+                     {
+                         FileLogger.LogError($"HandleNewFile Sync Failed: {ex.Message}");
+                     }
+                 });
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"HandleNewFile: {ex.Message}");
+            }
+        }
+
         private static void StopWatcher(string sourcePath)
         {
-            if (ActiveWatchers.TryGetValue(sourcePath, out var watcher))
+            lock (ActiveWatchers)
             {
-                try
+                if (ActiveWatchers.TryGetValue(sourcePath, out var watcher))
                 {
-                    watcher.EnableRaisingEvents = false;
-                    watcher.Dispose();
+                    try
+                    {
+                        watcher.EnableRaisingEvents = false;
+                        watcher.Dispose();
+                    }
+                    catch { }
+                    ActiveWatchers.Remove(sourcePath);
                 }
-                catch { }
-                ActiveWatchers.Remove(sourcePath);
             }
         }
 
@@ -193,7 +268,10 @@ namespace Paracore.Addin.Helpers
                 watcher.Changed += (s, e) => DebounceSync(sourcePath, targetPath);
                 watcher.Renamed += (s, e) => DebounceSync(sourcePath, targetPath);
                 
-                ActiveWatchers[sourcePath] = watcher;
+                lock (ActiveWatchers)
+                {
+                    ActiveWatchers[sourcePath] = watcher;
+                }
             }
             catch (Exception ex)
             {
@@ -273,6 +351,14 @@ namespace Paracore.Addin.Helpers
             string addinDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string enginePath = Path.Combine(addinDirectory, "CoreScript.Engine.dll");
 
+            // Collect all Roslyn-related DLLs from the same directory to ensure they are available for IntelliSense
+            var roslynDlls = Directory.GetFiles(addinDirectory, "Microsoft.CodeAnalysis*.dll");
+            var roslynReferences = string.Join("\n", roslynDlls.Select(path => 
+                $"    <Reference Include=\"{Path.GetFileNameWithoutExtension(path)}\">\n" +
+                $"      <HintPath>{path}</HintPath>\n" +
+                $"      <Private>false</Private>\n" +
+                $"    </Reference>"));
+
             // Corrected raw string literal with proper indentation
             string csprojContent =
                 $$"""
@@ -299,6 +385,7 @@ namespace Paracore.Addin.Helpers
                       <HintPath>{{enginePath}}</HintPath>
                       <Private>false</Private>
                     </Reference>
+                    {{roslynReferences.Replace("\n", "\n                    ")}}
                   </ItemGroup>
                 </Project>
                 """;
@@ -333,14 +420,19 @@ namespace Paracore.Addin.Helpers
                 "dotnet_diagnostic.CS8019.severity = warning");
         }
 
-        private static void WriteCopilotInstructions(string folderPath)
+        private static void WriteCopilotInstructions(string folderPath, string scriptType)
         {
             try
             {
                 string githubFolder = Path.Combine(folderPath, ".github");
                 Directory.CreateDirectory(githubFolder);
-                File.WriteAllText(Path.Combine(githubFolder, "copilot-instructions.md"), AiInstructions.CopilotInstructions);
-                FileLogger.Log($"Written Copilot instructions to: {githubFolder}");
+                
+                string contextHeader = scriptType == "single-file" 
+                    ? "# Current Script Type: SINGLE-FILE\n# Keep ALL logic, helpers, and the Params class in THIS ONE .cs file.\n# PARAMETER GROUPING: use #region GroupName directives to organize parameters.\n\n" 
+                    : "# Current Script Type: MULTI-FILE FOLDER\n# Modularization is OPTIONAL. Entry point is auto-detected by Roslyn.\n# If simple, keep everything in the entry file. If complex, create Utils.cs, Params.cs, etc.\n# PARAMETER GROUPING: use #region GroupName directives to organize parameters.\n\n";
+
+                File.WriteAllText(Path.Combine(githubFolder, "copilot-instructions.md"), contextHeader + AiInstructions.CopilotInstructions);
+                FileLogger.Log($"Written Copilot instructions with {scriptType} context to: {githubFolder}");
             }
             catch (Exception ex)
             {

@@ -46,6 +46,7 @@ namespace Paracore.Addin.App
             RevitVersion = application.ControlledApplication.VersionNumber;
             RevitInstallPath = Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName) ?? RevitInstallPath;
             FileLogger.Log($"Detected Revit {RevitVersion} at {RevitInstallPath}");
+            FileLogger.Log($"Paracore Add-in loaded from: {typeof(ParacoreApp).Assembly.Location}");
 
             // Initialize the custom assembly resolver
             CoreScript.Engine.Globals.CustomAssemblyResolver.Initialize();

@@ -23,7 +23,7 @@ PrivilegesRequired=admin
 UsedUserAreasWarning=no
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=.\installers
-OutputBaseFilename=Paracore_Revit_Installer_v{#MyAppVersion}
+OutputBaseFilename=Paracore_Addin_v{#MyAppVersion}
 SetupIconFile="{#IconPath}"
 Compression=lzma
 SolidCompression=yes
@@ -74,8 +74,7 @@ Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.ad
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore"
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"
 
-; Clean up the roaming data (Local DB, Logs)
-Type: filesandordirs; Name: "{userappdata}\paracore-data"
+; Clean up the roaming data
 Type: filesandordirs; Name: "{userappdata}\Paracore"
 
 ; Clean up the debug files in Documents
@@ -83,6 +82,21 @@ Type: files; Name: "{userdocs}\CodeRunnerDebug.txt"
 Type: files; Name: "{userdocs}\PrintCallbackDebug.txt"
 
 [Code]
+procedure Sleep(ms: Cardinal);
+  external 'Sleep@kernel32.dll stdcall';
+
+function InitializeUninstall(): Boolean;
+var
+  ErrorCode: Integer;
+begin
+  // Kill processes to release file locks on binaries
+  // Use /t to kill child processes (like the sidecar server)
+  ShellExec('open', 'taskkill.exe', '/f /im rap-server.exe /t', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  ShellExec('open', 'taskkill.exe', '/f /im Paracore.exe /t', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  
+  Result := True;
+end;
+
 function IsRevitVersionInstalled(Version: string): Boolean;
 var
   RevitKey: string;

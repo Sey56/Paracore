@@ -31,6 +31,7 @@ async def run_script(
     source_workspace = data.get("source_workspace")
     thread_id = data.get("thread_id") # Get thread_id from request
     generated_code = data.get("generated_code") # Get generated code if provided
+    generated_files = data.get("generated_files") # Get generated files if provided (modular)
 
     if not path:
         raise HTTPException(status_code=400, detail="No script path provided")
@@ -52,7 +53,10 @@ async def run_script(
         script_files_payload = []
         
         # Handle generated code (from Generation Mode)
-        if generated_code:
+        if generated_files and isinstance(generated_files, dict):
+            for filename, code in generated_files.items():
+                script_files_payload.append({"FileName": filename, "Content": code})
+        elif generated_code:
             script_files_payload.append({"FileName": "generated_script.cs", "Content": generated_code})
         # Handle file-based scripts (Manual/Agent modes)
         else:

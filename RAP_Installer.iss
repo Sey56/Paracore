@@ -48,3 +48,4 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch RAP Server"; Flags: post
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+Type: filesandordirs; Name: "{userappdata}\paracore-data"

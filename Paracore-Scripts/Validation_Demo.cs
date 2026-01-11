@@ -71,23 +71,24 @@ public class Params
     // 3. REVIT SELECTION (The Magic)
     // ---------------------------------------------------------
 
+    #region Revit Selection
     /// Pick a Wall Type from the model
-    [RevitElements(TargetType = "WallType", Group = "Revit Selection"), Required]
+    [RevitElements(TargetType = "WallType"), Required]
     public string WallTypeName { get; set; }
 
     /// Pick a specific Level
-    [RevitElements(TargetType = "Level", Group = "Revit Selection"), Required]
+    [RevitElements(TargetType = "Level"), Required]
     public string LevelName { get; set; } = "Level 1";
 
     /// Pick a Door Type (Filtered by Category)
-    [RevitElements(TargetType = "FamilySymbol", Category = "Doors", Group = "Revit Selection")]
+    [RevitElements(TargetType = "FamilySymbol", Category = "Doors")]
     public string DoorTypeName { get; set; }
 
     /// <summary>
     /// Pick a specific door using a custom filter method.
     /// This is the preferred way to filter Revit elements when "magic" extraction isn't enough.
     /// </summary>
-    [RevitElements(TargetType = "FamilySymbol", Group = "Revit Selection")]
+    [RevitElements(TargetType = "FamilySymbol")]
     public string CustomFilteredDoor { get; set; }
 
     // Convention: PropertyName_Filter
@@ -99,27 +100,28 @@ public class Params
             .OfCategory(BuiltInCategory.OST_Doors)
             .OfClass(typeof(FamilySymbol))
             .Cast<FamilySymbol>()
-            .Where(x => x.Name.Contains("Single")) 
-            .Select(x => x.Name)
+            .Where(x => x.FamilyName.Contains("Single") || x.Name.Contains("Single")) 
+            .Select(x => $"{x.FamilyName}: {x.Name}") // Return "Family: Type" for clarity
             .ToList();
     }
+    #endregion
 
     // ---------------------------------------------------------
     // 4. MULTI-SELECT & DROPDOWNS (The V3 Way)
     // ---------------------------------------------------------
 
+    #region Options
     /// <summary>Select operation mode (Dropdown)</summary>
-    [ScriptParameter(Group = "Options")]
     public string OperationMode { get; set; } = "Create";
     // Define options as a simple static range or property - clean C# syntax!
     public static string[] OperationMode_Options => ["Create", "Update", "Delete"];
 
     /// <summary>Select multiple materials (Checkboxes)</summary>
     /// <remarks>The engine infers MultiSelect: true because the type is List&lt;string&gt;</remarks>
-    [ScriptParameter(Group = "Options")]
     public List<string> SelectedMaterials { get; set; } = ["Concrete", "Glass"];
     // No more ugly comma-separated strings!
     public static List<string> SelectedMaterials_Options => ["Concrete", "Brick", "Glass", "Timber"];
+    #endregion
 
     // ---------------------------------------------------------
     // 5. ADVANCED CONVENTIONS (The Power Features)
@@ -127,8 +129,9 @@ public class Params
 
     // A. Dynamic Options (_Options Method)
     // ----------------------------
+    #region Advanced
     /// <summary>Select a distinct view name (Dynamically populated from Revit)</summary>
-    [RevitElements(Group = "Advanced")]
+    [RevitElements]
     public string? TargetViewName { get; set; }
 
     // Logic method for dynamic fetching
@@ -143,35 +146,38 @@ public class Params
             .OrderBy(n => n)
             .ToList();
     }
+    #endregion
 
     // B. Conditional Visibility (_Visible)
     // ------------------------------------
     
+    #region Logic
     /// Is this a commercial project?
-    [ScriptParameter(Group = "Logic")]
     public bool IsCommercial { get; set; } = false;
 
     /// Tax ID (Only visible if IsCommercial is true)
-    [ScriptParameter(Group = "Logic")]
     public string CommercialTaxID { get; set; }
 
     // This property AUTOMATICALLY controls visibility of CommercialTaxID
     // Convention: PropertyName_Visible => bool
     public bool CommercialTaxID_Visible => IsCommercial;
+    #endregion
 
     // ---------------------------------------------------------
     // 6. FILE SYSTEM INPUTS
     // ---------------------------------------------------------
 
+    #region IO
     /// Select an import file
-    [ScriptParameter(InputType = "File", Group = "IO")]
+    [ScriptParameter(InputType = "File")]
     public string ImportPath { get; set; } = @"C:\data.csv";
 
     /// Select an export folder
-    [ScriptParameter(InputType = "Folder", Group = "IO")]
+    [ScriptParameter(InputType = "Folder")]
     public string ExportFolder { get; set; } = @"C:\Exports";
     
     /// Select save location
-    [ScriptParameter(InputType = "SaveFile", Group = "IO")]
+    [ScriptParameter(InputType = "SaveFile")]
     public string SavePath { get; set; } = @"C:\Exports\report.pdf";
+    #endregion
 }

@@ -24,7 +24,8 @@ namespace Paracore.Addin.Helpers
 
             if (File.Exists(assemblyPath))
             {
-                return Assembly.LoadFrom(assemblyPath);
+                try { return Assembly.LoadFrom(assemblyPath); }
+                catch (Exception ex) { LogErrorToLoaderLog($"Load failed for {args.Name}: {ex}"); }
             }
 
             // Check in the parent directory for Revit assemblies
@@ -34,11 +35,23 @@ namespace Paracore.Addin.Helpers
                 assemblyPath = Path.Combine(parentDirectory, assemblyName.Name + ".dll");
                 if (File.Exists(assemblyPath))
                 {
-                    return Assembly.LoadFrom(assemblyPath);
+                    try { return Assembly.LoadFrom(assemblyPath); }
+                    catch (Exception ex) { LogErrorToLoaderLog($"Load failed for {args.Name}: {ex}"); }
                 }
             }
 
             return null;
+        }
+
+        private static void LogErrorToLoaderLog(string message)
+        {
+            try
+            {
+                var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
+                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                File.AppendAllText(Path.Combine(logDir, "Loader.log"), $"[{DateTime.Now}] {message}{Environment.NewLine}");
+            }
+            catch { /* Silent fail */ }
         }
 
         private static string GetExecutingAssemblyDirectory()
