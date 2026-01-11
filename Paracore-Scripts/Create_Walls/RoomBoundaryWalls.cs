@@ -11,8 +11,9 @@ public class RoomBoundaryWalls
         bool roomBounding, double wallOffsetMm)
     {
         int wallsCreated = 0;
-        double wallHeightFt = UnitUtils.ConvertToInternalUnits(wallHeightMeters, UnitTypeId.Meters);
-        double offsetFt = UnitUtils.ConvertToInternalUnits(wallOffsetMm, UnitTypeId.Millimeters);
+        // Input parameters are already in internal units (feet)
+        double wallHeightFt = wallHeightMeters;
+        double offsetFt = wallOffsetMm;
 
         // Get all rooms on the specified level
         var rooms = new FilteredElementCollector(doc)

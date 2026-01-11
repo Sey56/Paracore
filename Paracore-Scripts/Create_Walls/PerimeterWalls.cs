@@ -10,7 +10,8 @@ public class PerimeterWalls
         bool useModelLines, bool roomBounding)
     {
         int wallsCreated = 0;
-        double wallHeightFt = UnitUtils.ConvertToInternalUnits(wallHeightMeters, UnitTypeId.Meters);
+        // Input parameter is already in internal units (feet)
+        double wallHeightFt = wallHeightMeters;
 
         if (useModelLines)
         {

@@ -11,11 +11,12 @@ public class GridWalls
         bool roomBounding)
     {
         int wallsCreated = 0;
-        double wallHeightFt = UnitUtils.ConvertToInternalUnits(wallHeightMeters, UnitTypeId.Meters);
-        double spacingXFt = UnitUtils.ConvertToInternalUnits(gridSpacingXMeters, UnitTypeId.Meters);
-        double spacingYFt = UnitUtils.ConvertToInternalUnits(gridSpacingYMeters, UnitTypeId.Meters);
-        double originXFt = UnitUtils.ConvertToInternalUnits(gridOriginXMeters, UnitTypeId.Meters);
-        double originYFt = UnitUtils.ConvertToInternalUnits(gridOriginYMeters, UnitTypeId.Meters);
+        // Input parameters are already in internal units (feet) due to [Unit("m")] attribute in Params
+        double wallHeightFt = wallHeightMeters;
+        double spacingXFt = gridSpacingXMeters;
+        double spacingYFt = gridSpacingYMeters;
+        double originXFt = gridOriginXMeters;
+        double originYFt = gridOriginYMeters;
 
         // Diagnostic info removed to keep agent summary clean
 

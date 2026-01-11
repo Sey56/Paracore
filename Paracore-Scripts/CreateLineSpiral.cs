@@ -34,7 +34,7 @@ public class Params
     public string LevelName { get; set; } = "Level 1";
 
     /// <summary>Maximum radius in cm</summary>
-    [Range(100, 5000)]
+    [Range(100, 5000), Unit("cm")]
     public double MaxRadiusCm { get; set; } = 2400;
 
     /// <summary>Number of turns</summary>
@@ -48,7 +48,7 @@ public class Params
 
 public class SpiralCreator
 {
-    public void CreateSpiral(Document doc, string levelName, double maxRadiusCm, int numTurns, double angleResolutionDegrees)
+    public void CreateSpiral(Document doc, string levelName, double maxRadiusInternal, int numTurns, double angleResolutionDegrees)
     {
         Level level = new FilteredElementCollector(doc)
             .OfClass(typeof(Level))
@@ -60,7 +60,7 @@ public class SpiralCreator
         XYZ origin = new(0, 0, z);
         SketchPlane sketch = SketchPlane.Create(doc, Plane.CreateByNormalAndOrigin(XYZ.BasisZ, origin));
 
-        double maxRadiusFt = UnitUtils.ConvertToInternalUnits(maxRadiusCm, UnitTypeId.Centimeters);
+        double maxRadiusFt = maxRadiusInternal; // Input is already in internal units (feet)
         double angleResRad = angleResolutionDegrees * Math.PI / 180;
 
         var curves = new List<Curve>();

@@ -60,12 +60,12 @@ Transact("Create SpiralMass", doc =>
     Print($"   - Position: ({p.CenterX:0.00}m, {p.CenterY:0.00}m)");
 
     // Convert inputs to Revit internal units (feet)
-    double sideFt = UnitUtils.ConvertToInternalUnits(p.SideLengthCm, UnitTypeId.Centimeters);
-    double topSideFt = UnitUtils.ConvertToInternalUnits(p.TopSideLengthCm, UnitTypeId.Centimeters);
+    double sideFt = p.SideLengthCm;
+    double topSideFt = p.TopSideLengthCm;
     
     // Convert position offsets to feet
-    double offsetX = UnitUtils.ConvertToInternalUnits(p.CenterX, UnitTypeId.Meters);
-    double offsetY = UnitUtils.ConvertToInternalUnits(p.CenterY, UnitTypeId.Meters);
+    double offsetX = p.CenterX;
+    double offsetY = p.CenterY;
     XYZ positionOffset = new(offsetX, offsetY, 0);
     
     double rotationSign = p.ClockwiseRotation ? 1 : -1;
@@ -223,11 +223,11 @@ public class Params
     public int Segments { get; set; } = 82;
 
     /// Base square side length in cm
-    [Range(100, 5000, 10)]
+    [Range(100, 5000, 10), Unit("cm")]
     public double SideLengthCm { get; set; } = 1000;
 
     /// Top square side length in cm (tapering)
-    [Range(100, 5000, 10)]
+    [Range(100, 5000, 10), Unit("cm")]
     public double TopSideLengthCm { get; set; } = 1000;
 
     /// Total rotation over height (degrees)
@@ -266,9 +266,11 @@ public class Params
     // Positioning parameters
     
     /// X position offset in meters
+    [Unit("m")]
     public double CenterX { get; set; } = 0;
 
     /// Y position offset in meters
+    [Unit("m")]
     public double CenterY { get; set; } = 0;
     #endregion
 }

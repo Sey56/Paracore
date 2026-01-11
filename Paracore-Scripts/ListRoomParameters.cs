@@ -116,8 +116,9 @@ if (!string.IsNullOrWhiteSpace(p.ExportCsvPath))
 // =================================================================================
 class Params
 {
+    #region Selection
     /// <summary>Select a room to analyze.</summary>
-    [RevitElements(Group = "Selection")]
+    [RevitElements]
     public string RoomName { get; set; } = "";
 
     public List<string> RoomName_Options
@@ -143,8 +144,11 @@ class Params
             return rooms;
         }
     }
+    #endregion
 
+    #region Export
     /// <summary>Optional: Path to save CSV export.</summary>
-    [ScriptParameter(Group = "Export", InputType = "SaveFile")]
+    [ScriptParameter(InputType = "SaveFile")]
     public string ExportCsvPath { get; set; } = "";
+    #endregion
 }

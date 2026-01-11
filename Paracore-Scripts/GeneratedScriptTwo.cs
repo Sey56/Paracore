@@ -40,23 +40,17 @@ else
     {
         // 4. Geometry Calculation & House Creation
         double currentRotationDegrees = 0.0;
-        double toFeet = UnitUtils.ConvertToInternalUnits(1, UnitTypeId.Meters);
 
         foreach (Level level in levels)
         {
             double rotationRadians = currentRotationDegrees * Math.PI / 180.0;
 
             // Calculate corner points of the rotated rectangle
+            // Parameters are already in internal units (feet)
             XYZ p1 = RotatePoint(new XYZ(-p.HouseWidthMeters / 2, -p.HouseDepthMeters / 2, 0), rotationRadians);
             XYZ p2 = RotatePoint(new XYZ(p.HouseWidthMeters / 2, -p.HouseDepthMeters / 2, 0), rotationRadians);
             XYZ p3 = RotatePoint(new XYZ(p.HouseWidthMeters / 2, p.HouseDepthMeters / 2, 0), rotationRadians);
             XYZ p4 = RotatePoint(new XYZ(-p.HouseWidthMeters / 2, p.HouseDepthMeters / 2, 0), rotationRadians);
-
-            // Convert meters to feet
-            p1 = p1.Multiply(toFeet);
-            p2 = p2.Multiply(toFeet);
-            p3 = p3.Multiply(toFeet);
-            p4 = p4.Multiply(toFeet);
 
             // Create lines for the walls
             Line line1 = Line.CreateBound(p1, p2);
@@ -99,9 +93,11 @@ void CreateWall(Line line, ElementId wallTypeId, ElementId levelId)
 public class Params
 {
     /// <summary>Width of the house (meters)</summary>
+    [Unit("m")]
     public double HouseWidthMeters { get; set; } = 10.0;
 
     /// <summary>Depth of the house (meters)</summary>
+    [Unit("m")]
     public double HouseDepthMeters { get; set; } = 20.0;
 
     /// <summary>Wall Type to use</summary>

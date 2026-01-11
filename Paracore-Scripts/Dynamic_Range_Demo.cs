@@ -33,7 +33,6 @@ public class Params
     // This value is constrained by a property named 'DynamicDistance_Range'.
     // The existence of this property tells Paracore that this parameter is "Computable".
     /// <summary>Bounds change based on Project Levels</summary>
-    [ScriptParameter]
     public double DynamicDistance { get; set; } = 10.0;
 
     // CONVENTION: {ParameterName}_Range

@@ -19,9 +19,9 @@ var p = new Params();
 // 2. Preparation (Read-only operations, outside transaction)
 
 // Convert dimensions to internal units (feet)
-double houseWidthFt = UnitUtils.ConvertToInternalUnits(p.HouseWidthMeters, UnitTypeId.Meters);
-double houseDepthFt = UnitUtils.ConvertToInternalUnits(p.HouseDepthMeters, UnitTypeId.Meters);
-double defaultWallHeightFt = UnitUtils.ConvertToInternalUnits(p.DefaultWallHeightMeters, UnitTypeId.Meters);
+double houseWidthFt = p.HouseWidthMeters;
+double houseDepthFt = p.HouseDepthMeters;
+double defaultWallHeightFt = p.DefaultWallHeightMeters;
 
 // Get all levels, sorted by elevation
 var levels = new FilteredElementCollector(Doc)
@@ -91,15 +91,18 @@ public class Params
         .ToList();
 
     /// <summary>Width of the house (meters)</summary>
+    [Unit("m")]
     public double HouseWidthMeters { get; set; } = 10.0;
 
     /// <summary>Depth of the house (meters)</summary>
+    [Unit("m")]
     public double HouseDepthMeters { get; set; } = 20.0;
 
     /// <summary>Rotation per level (degrees)</summary>
     public double RotationIncrementDegrees { get; set; } = 5.0;
 
     /// <summary>Wall height (meters)</summary>
+    [Unit("m")]
     public double DefaultWallHeightMeters { get; set; } = 3.0;
 }
 

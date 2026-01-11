@@ -28,13 +28,14 @@ public class Params
 
     #region Tile Settings
     /// Spacing between tiles in meters
-    [Range(0.1, 10.0, 0.1)]
+    [Range(0.1, 10.0, 0.1), Unit("m")]
     public double TileSpacing { get; set; } = 1.0;
     
     /// Enable random offset
     public bool RandomizeOffset { get; set; } = false;
     
     /// Maximum offset distance
+    [Unit("m")]
     public double MaxOffset { get; set; } = 0.1;
     
     public bool MaxOffset_Visible => RandomizeOffset;
