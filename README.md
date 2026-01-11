@@ -28,6 +28,27 @@ Traditional Revit API development often involves a heavy "tax" on creativity:
 - ✅ **Flexible Deployment**: Share scripts via Git workspaces, allowing teams to sync updates immediately.
 - ✅ **Rich Features**: Use simple helpers like `Transact()`, auto-generate UIs, and access full C# power.
 
+## 🆕 Latest Release (v2.1.0)
+
+**Core Parameter Engine Refinements:**
+- **Automatic Unit Conversion:** The engine now handles `[Unit("m2")]`, `[Unit("ft3")]` inputs transparently, injecting Revit internal units into the script execution scope.
+- **VS Code Parity:** Fixed execution context to inject default parameter values when running outside the UI (VS Code), ensuring logic parity.
+- **Reliable Extraction:** Adjusted `SemanticCombinator` to strictly preserve `Params.cs` during compilation, even if not explicitly referenced in `Main.cs`.
+- **Authoritative Providers:** Custom `_Options` methods that return empty results are now respected as "0 matches" rather than falling back to default extraction.
+
+**System & Multi-File Scripting:**
+- **Real-Time Workspace Sync:** Creating new files (e.g., `Utils.cs`, `Params.cs`) in a temporary VS Code workspace now instantly mirrors them to the original source folder.
+- **Robust Logging:** Fixed static logger instantiation issues in `CodeRunner`.
+
+**UI Improvements (Paracore):**
+- **Stability Fixes:** Resolved React Hook violations in `ParameterInput` that caused UI crashes during updates.
+- **Layout Hardening:** Fixed Inspector layout shifts caused by long parameter descriptions; introduced custom tooltips and width constraints.
+- **Dropdown Logic:** Fixed stale data retention when option providers return empty lists.
+- **Visual Polish:** Aligned AI generation toggles and refined parameter grouping styles.
+
+**AI & Automation:**
+- **Smarter Filtering:** Updated all system prompts to strictly enforce `OfCategory(BuiltInCategory.OST_Rooms)` over the crash-prone `OfClass(typeof(Room))`.
+
 ## 📊 Feature Status
 
 | Feature | Status | Notes |

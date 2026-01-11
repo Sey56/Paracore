@@ -15,7 +15,9 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
+using System.Runtime.Loader;
 using System.Text.Json;
+using Autodesk.Revit.DB;
 
 namespace CoreScript.Engine.Core
 {
@@ -103,6 +105,59 @@ namespace CoreScript.Engine.Core
                                             else if (param.Value.TryGetDouble(out double dblVal)) value = dblVal;
                                         }
                                         else if (param.Value.ValueKind == JsonValueKind.String && double.TryParse(param.Value.GetString(), out double parsedDbl)) value = parsedDbl;
+
+                                        // Automatic Unit Conversion (Zero Boilerplate)
+                                        double? valueToConvert = null;
+                                        if (value is double d) valueToConvert = d;
+                                        else if (value is int i) valueToConvert = (double)i;
+
+                                        string unitToUse = param.Unit;
+                                        if (string.IsNullOrEmpty(unitToUse) && !string.IsNullOrEmpty(param.Suffix)) unitToUse = param.Suffix;
+
+                                        if (valueToConvert.HasValue && !string.IsNullOrEmpty(unitToUse))
+                                        {
+                                            double dVal = valueToConvert.Value;
+                                            try 
+                                            {
+                                                ForgeTypeId unitTypeId = null;
+                                                switch (unitToUse.ToLower())
+                                                {
+                                                    case "mm": unitTypeId = UnitTypeId.Millimeters; break;
+                                                    case "cm": unitTypeId = UnitTypeId.Centimeters; break;
+                                                    case "m": unitTypeId = UnitTypeId.Meters; break;
+                                                    case "ft": unitTypeId = UnitTypeId.Feet; break;
+                                                    case "in": unitTypeId = UnitTypeId.Inches; break;
+                                                    
+                                                    // Area
+                                                    case "m2":
+                                                    case "sqm": unitTypeId = UnitTypeId.SquareMeters; break;
+                                                    case "ft2": 
+                                                    case "sqft": unitTypeId = UnitTypeId.SquareFeet; break;
+                                                    case "mm2": unitTypeId = UnitTypeId.SquareMillimeters; break;
+                                                    case "cm2": unitTypeId = UnitTypeId.SquareCentimeters; break;
+                                                    case "in2": unitTypeId = UnitTypeId.SquareInches; break;
+
+                                                    // Volume
+                                                    case "m3":
+                                                    case "cum": unitTypeId = UnitTypeId.CubicMeters; break;
+                                                    case "ft3":
+                                                    case "cuft": unitTypeId = UnitTypeId.CubicFeet; break;
+                                                    case "mm3": unitTypeId = UnitTypeId.CubicMillimeters; break;
+                                                    case "cm3": unitTypeId = UnitTypeId.CubicCentimeters; break;
+                                                    case "in3": unitTypeId = UnitTypeId.CubicInches; break;
+                                                }
+
+                                                if (unitTypeId != null)
+                                                {
+                                                    value = UnitUtils.ConvertToInternalUnits(dVal, unitTypeId);
+                                                    FileLogger.Log($"[CodeRunner] Converted {param.Name}: {dVal} {param.Unit} -> {value} ft");
+                                                }
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                FileLogger.LogError($"[CodeRunner] Unit conversion failed for {param.Name}: {ex.Message}");
+                                            }
+                                        }
                                         break;
                                     case "boolean":
                                         if (param.Value.ValueKind == JsonValueKind.True || param.Value.ValueKind == JsonValueKind.False) value = param.Value.GetBoolean();
@@ -136,6 +191,90 @@ namespace CoreScript.Engine.Core
                 var topLevelScriptFile = ScriptParser.IdentifyTopLevelScript(scriptFiles);
                 topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
                 var combinedScriptContent = SemanticCombinator.Combine(scriptFiles);
+                
+                // V4 FIX: Ensure defaults (with unit conversions) are applied even if input JSON is empty (VSCode case)
+                try 
+                {
+                    var extractor = new ParameterExtractor(new RunnerLogger());
+                    var extractedParams = extractor.ExtractParameters(combinedScriptContent);
+                    
+                    foreach (var p in extractedParams)
+                    {
+                        if (!parameters.ContainsKey(p.Name))
+                        {
+                            object val = null;
+                            // DefaultValueJson is raw display value. Convert if Unit is present.
+                            if (!string.IsNullOrEmpty(p.DefaultValueJson))
+                            {
+                                try 
+                                {
+                                    if (p.Type == "number") 
+                                    {
+                                        if (double.TryParse(p.DefaultValueJson, out double d)) 
+                                        {
+                                            val = d;
+                                            // Apply Unit Conversion
+                                            if (!string.IsNullOrEmpty(p.Unit))
+                                            {
+                                                Autodesk.Revit.DB.ForgeTypeId unitTypeId = null;
+                                                switch (p.Unit.ToLower())
+                                                {
+                                                    case "mm": unitTypeId = Autodesk.Revit.DB.UnitTypeId.Millimeters; break;
+                                                    case "cm": unitTypeId = Autodesk.Revit.DB.UnitTypeId.Centimeters; break;
+                                                    case "m": unitTypeId = Autodesk.Revit.DB.UnitTypeId.Meters; break;
+                                                    case "ft": unitTypeId = Autodesk.Revit.DB.UnitTypeId.Feet; break;
+                                                    case "in": unitTypeId = Autodesk.Revit.DB.UnitTypeId.Inches; break;
+                                                    case "m2":
+                                                    case "sqm": unitTypeId = Autodesk.Revit.DB.UnitTypeId.SquareMeters; break;
+                                                    case "ft2": 
+                                                    case "sqft": unitTypeId = Autodesk.Revit.DB.UnitTypeId.SquareFeet; break;
+                                                    case "m3":
+                                                    case "cum": unitTypeId = Autodesk.Revit.DB.UnitTypeId.CubicMeters; break;
+                                                    case "ft3":
+                                                    case "cuft": unitTypeId = Autodesk.Revit.DB.UnitTypeId.CubicFeet; break;
+                                                }
+
+                                                if (unitTypeId != null)
+                                                {
+                                                    val = Autodesk.Revit.DB.UnitUtils.ConvertToInternalUnits(d, unitTypeId);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else if (p.Type == "boolean")
+                                    {
+                                        val = p.DefaultValueJson.ToLower() == "true";
+                                    }
+                                    else if (p.Type == "string")
+                                    {
+                                        // Simple string or JSON string
+                                        if (p.DefaultValueJson.StartsWith("\"") && p.DefaultValueJson.EndsWith("\""))
+                                            val = JsonSerializer.Deserialize<string>(p.DefaultValueJson);
+                                        else 
+                                            val = p.DefaultValueJson;
+                                            
+                                        // Handle list defaults if multiselect
+                                        if (p.MultiSelect && val is string s && s.StartsWith("["))
+                                        {
+                                            try { val = JsonSerializer.Deserialize<List<string>>(s); } catch {}
+                                        }
+                                    }
+                                }
+                                catch {}
+                            }
+                            
+                            if (val != null)
+                            {
+                                parameters[p.Name] = val;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError($"[CodeRunner] Failed to inject defaults: {ex.Message}");
+                }
+
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(combinedScriptContent);
                 
 
@@ -182,7 +321,7 @@ namespace CoreScript.Engine.Core
                     context.Println(failureMessage);
                     FileLogger.Log(failureMessage);
                     // Populate ErrorDetails with the entire PrintLog for frontend display
-                    var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                    var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
                     failureResult.ScriptName = topLevelScriptName;
                     return failureResult;
                 }
@@ -240,7 +379,7 @@ namespace CoreScript.Engine.Core
                 context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
                 
-                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
                 return failureResult;
             }
@@ -251,7 +390,7 @@ namespace CoreScript.Engine.Core
                 context.Println(failureMessage);
                 FileLogger.Log(failureMessage);
 
-                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
                 failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
                 return failureResult;
             }
@@ -262,33 +401,56 @@ namespace CoreScript.Engine.Core
                 context.Println(failureMessage);
                 FileLogger.Log(failureMessage);
 
-                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
                 failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
                 return failureResult;
             }
             catch (AggregateException ex)
             {
-                var errs = ex.InnerExceptions.Select(e => GetFilteredExceptionString(e)).ToArray();
-                string failureMessage = "❌ Script execution failed | " + timestamp;
+                // Extract the root cause message for clear error reporting
+                string rootMessage = GetRootExceptionMessage(ex);
+                string failureMessage = $"❌ Script execution failed: {rootMessage} | {timestamp}";
                 context.Println(failureMessage);
-                foreach (var err in errs) context.Println($"[ERROR] {err}");
+                
+                // Also print filtered stack trace for debugging
+                var errs = ex.InnerExceptions.Select(e => GetFilteredExceptionString(e)).ToArray();
+                foreach (var err in errs) context.Println($"[DETAILS] {err}");
 
-                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
-                failureResult.ScriptName = "Unknown Script";
+                var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
+                failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
                 return failureResult;
             }
             catch (Exception ex)
             {
                 FileLogger.LogError("🛑 Internal engine exception: " + ex.ToString());
 
-                bool isEngineError = ex is NullReferenceException || ex is ReflectionTypeLoadException || ex is InvalidOperationException || ex.Message.Contains("Roslyn") || ex.Message.Contains("SyntaxTree") || ex.Message.Contains("CSharpScript");
+                string msg = ex.Message ?? "";
+                bool isEngineError = ex is NullReferenceException || ex is ReflectionTypeLoadException || ex is InvalidOperationException || ex is FileLoadException || ex is TypeLoadException || msg.Contains("Roslyn") || msg.Contains("SyntaxTree") || msg.Contains("CSharpScript");
 
                 string failureMessage = isEngineError 
-                    ? $"⚠️ Internal engine error occurred | {timestamp}" 
-                    : $"❌ Runtime error: {GetFilteredExceptionString(ex)} | {timestamp}";
+                    ? "⚠️ Add-in Conflict: Paracore is unable to safely run this script because its engine has been blocked by another Revit Add-in."
+                    : $"❌ Script execution error: {ex.Message} | {timestamp}";
                 
                 context.Println(failureMessage);
-                var failureResult = ExecutionResult.Failure("", context.PrintLog.ToArray());
+                
+                if (isEngineError)
+                {
+                    context.Println("💡 Tip: A conflict with another add-in (e.g. pyRevit) was detected. See 'CoreScriptError.txt' or 'CodeRunnerDebug.txt' in your logs folder for the technical footprint.");
+                }
+                else
+                {
+                    context.Println($"[STACK TRACE]\n{ex}");
+                }
+
+                // Check if a Loader.log exists and inform the user
+                var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "Loader.log");
+                if (File.Exists(logPath) && new FileInfo(logPath).LastWriteTime > DateTime.Now.AddMinutes(-1))
+                {
+                    context.Println($"💡 Tip: A recent assembly load error was detected. See 'Loader.log' and 'CodeRunnerDebug.txt' in %AppData%\\Roaming\\paracore-data\\logs for more details.");
+                }
+
+                var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
+                failureResult.ScriptName = topLevelScriptName;
                 return failureResult;
             }
             finally
@@ -297,6 +459,26 @@ namespace CoreScript.Engine.Core
                 alc.Unload();
                 FileLogger.Log("🟣 Unloaded script AssemblyLoadContext and cleared context.");
             }
+        }
+
+        /// <summary>
+        /// Recursively extracts the innermost exception message to show the root cause clearly.
+        /// </summary>
+        private string GetRootExceptionMessage(Exception ex)
+        {
+            // Unwrap AggregateException to get the first inner exception
+            if (ex is AggregateException aggEx && aggEx.InnerExceptions.Count > 0)
+            {
+                return GetRootExceptionMessage(aggEx.InnerExceptions[0]);
+            }
+            
+            // Unwrap TargetInvocationException and other wrappers
+            if (ex.InnerException != null)
+            {
+                return GetRootExceptionMessage(ex.InnerException);
+            }
+            
+            return ex.Message;
         }
 
         private string GetFilteredExceptionString(Exception ex)
@@ -387,5 +569,11 @@ namespace CoreScript.Engine.Core
                     return SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression);
             }
         }
+    }
+
+    internal class RunnerLogger : ILogger
+    {
+        public void Log(string message, LogLevel level) => FileLogger.Log(message, level);
+        public void LogError(string message) => FileLogger.LogError(message);
     }
 }

@@ -64,6 +64,15 @@ try {
     $configObject.package.productName = "Paracore"
     $configObject.tauri.bundle.identifier = "com.paracore.dev"
 
+    # --- Add WiX Cleanup Fragment (Ensures paracore-data removal on uninstall) ---
+    if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'windows')) {
+        Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'windows' -Value @{ wix = @{ fragmentPaths = @() } }
+    }
+    elseif (-not ($configObject.tauri.bundle.windows.PSObject.Properties.Name -contains 'wix')) {
+        Add-Member -InputObject $configObject.tauri.bundle.windows -MemberType NoteProperty -Name 'wix' -Value @{ fragmentPaths = @() }
+    }
+    $configObject.tauri.bundle.windows.wix.fragmentPaths = @("wix/cleanup.wxs")
+
     if ($Release) {
         # --- RELEASE BUILD: Standalone Executable (Slow) ---
         Write-Host "Compiling Python server into a standalone distribution (Release Mode)..." -ForegroundColor Yellow
@@ -224,6 +233,13 @@ import site
     # Write the modified config to disk before building
     $configObject | ConvertTo-Json -Depth 10 | Set-Content -Path $tauriConfigPath
 
+    # --- Clean Previous Bundle (Force Tauri to regenerate MSI) ---
+    $tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\release\bundle\msi\Paracore_$($Version)_x64_en-US.msi"
+    if (Test-Path $tauriMsiSource) {
+        Write-Host "Cleaning stale source MSI to force regeneration..." -ForegroundColor Gray
+        Remove-Item -Path $tauriMsiSource -Force
+    }
+
     # --- Build the Tauri App (COMMON STEP) ---
     if ($Release) {
         Write-Host "Running npx tauri build for RELEASE..." -ForegroundColor Cyan
@@ -232,11 +248,16 @@ import site
         Write-Host "Running npx tauri build with 'bundle-server' feature..."
         npx tauri build --features "bundle-server" --debug
     }
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "CRITICAL: Tauri build failed with exit code $LASTEXITCODE. Check the output above for errors."
+        exit $LASTEXITCODE
+    }
+
     Write-Host "Tauri build finished."
-}
-finally {
-    # --- Cleanup ---
-    Write-Host "Restoring original tauri.conf.json..."
+
+    # --- Cleanup on Success ---
+    Write-Host "Restoring original tauri.conf.json..." -ForegroundColor Gray
     Set-Content -Path $tauriConfigPath -Value $originalConfig
 
     # Remove the server-modules directory after the build for development builds
@@ -253,6 +274,11 @@ finally {
         Remove-Item -Path $nuitkaDistDir -Recurse -Force
     }
 }
+finally {
+    # If the build failed, we leave the config on disk for debugging, 
+    # but we should still pop the location to keep the shell state clean.
+    Pop-Location 
+}
 
 Write-Host 'rap-web build complete.' -ForegroundColor Green
 
@@ -266,7 +292,6 @@ Write-Host "`n[INFO] Skipping code signing." # In a production build, these line
 # $webExe = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\target\release\Paracore.exe'
 
 # & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /f $certPath /p $certPassword /t http://timestamp.digicert.com $webExe
-Pop-Location # Balance the Push-Location at the start of the script
 
 # --- Define Output Directory based on Build Mode ---
 $finalInstallDir = Join-Path -Path $ProjectRoot -ChildPath 'installers'
@@ -283,9 +308,30 @@ Write-Host "`n[2/2] Copying Tauri MSI to installers folder..."
 $buildMode = if ($Release) { 'release' } else { 'debug' }
 $tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\$buildMode\bundle\msi\Paracore_$($Version)_x64_en-US.msi"
 
-$tauriMsiDestination = Join-Path -Path $finalInstallDir -ChildPath "Paracore_Installer_v$($Version).msi"
-Copy-Item -Path $tauriMsiSource -Destination $tauriMsiDestination -Force
-Write-Host "Paracore MSI Installer created at: $tauriMsiDestination" -ForegroundColor Yellow
+$tauriMsiDestination = Join-Path -Path $finalInstallDir -ChildPath "Paracore_$($Version)_x64.msi"
+
+# 🗑️ Clean up existing file if it exists (helps prevent locking issues and duplicates)
+if (Test-Path $tauriMsiDestination) {
+    try {
+        Remove-Item -Path $tauriMsiDestination -Force -ErrorAction Stop
+        Write-Host "Removed previous version of the installer." -ForegroundColor Gray
+    } catch {
+        Write-Warning "Failed to remove $tauriMsiDestination. It might be locked. Please close any installers or file explorers and try again."
+    }
+}
+
+# Also clean up the 'en-US' suffixed version if it's there (prevents duplicates)
+$extraMsi = Join-Path -Path $finalInstallDir -ChildPath "Paracore_$($Version)_x64_en-US.msi"
+if (Test-Path $extraMsi) {
+    Remove-Item -Path $extraMsi -Force -ErrorAction SilentlyContinue
+}
+
+try {
+    Copy-Item -Path $tauriMsiSource -Destination $tauriMsiDestination -Force -ErrorAction Stop
+    Write-Host "Paracore MSI Installer created at: $tauriMsiDestination" -ForegroundColor Yellow
+} catch {
+    Write-Error "CRITICAL: Could not copy the installer to the 'installers' folder. The file is locked.`nSource: $tauriMsiSource`nDestination: $tauriMsiDestination`n`n💡 Recovery Tip: You don't need to rebuild! You can manually copy the file from the Source path above."
+}
 
 Write-Host "`n=================================" -ForegroundColor Cyan
 Write-Host '   Build Complete!   '

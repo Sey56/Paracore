@@ -79,8 +79,14 @@ namespace CoreScript.Engine.Core
                 }
 
                 string allUsings = string.Join("\n", usings);
+                
+                // V4: We gather all other type declarations (classes, structs, etc.) to support modular dependencies like 'Utils'
+                var extraTypes = root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
+                    .Where(t => t != paramsClass)
+                    .Select(t => t.ToString());
+                string extraTypesSource = string.Join("\n\n", extraTypes);
+
                 string membersSource = paramsClass != null ? string.Join("\n", paramsClass.Members.Select(m => m.ToString())) : functionNode.ToString();
-                bool isProperty = functionNode is PropertyDeclarationSyntax;
 
                 // Create script options with Revit API references
                 var scriptOptions = ScriptOptions.Default
@@ -103,8 +109,10 @@ namespace CoreScript.Engine.Core
                 // Create execution globals
                 var executionGlobals = new ExecutionGlobals(context, new Dictionary<string, object>());
                 ExecutionGlobals.SetContext(executionGlobals);
-
-                // Build the script that only contains usings, the function, and the call
+                
+                // V4 FIX: We invoke members by wrapping them in a class to preserve context (attributes, properties, etc.)
+                // This prevents CS1520 errors when using top-level property syntax or attributes in a script global scope.
+                
                 string executionScript = $@"
 {allUsings}
 using Autodesk.Revit.DB;
@@ -114,20 +122,35 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CoreScript.Engine.Globals;
+using static CoreScript.Engine.Globals.ScriptApi;
 
-{membersSource}
+{extraTypesSource}
 
-{(isProperty ? functionName : $"{functionName}()")}
+public class ParamsWrapper
+{{
+    {membersSource}
+}}
+
+// Execution Call
 ";
 
+                // Determine invocation logic based on static/instance
+                bool isStatic = false;
+                if (functionNode is MethodDeclarationSyntax m) isStatic = m.Modifiers.Any(mod => mod.IsKind(SyntaxKind.StaticKeyword));
+                else if (functionNode is PropertyDeclarationSyntax p) isStatic = p.Modifiers.Any(mod => mod.IsKind(SyntaxKind.StaticKeyword));
+
+                string invocation = isStatic 
+                    ? $"return ParamsWrapper.{functionName}{(functionNode is MethodDeclarationSyntax ? "()" : "")};"
+                    : $"return (new ParamsWrapper()).{functionName}{(functionNode is MethodDeclarationSyntax ? "()" : "")};";
+
+                executionScript += invocation;
+                
                 _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
                 
                 // Execute the script
                 var result = await CSharpScript.EvaluateAsync<List<string>>(
                     executionScript,
-                    scriptOptions,
-                    executionGlobals,
-                    typeof(ExecutionGlobals)
+                    scriptOptions
                 );
 
                 if (result == null || result.Count == 0)
@@ -192,6 +215,12 @@ using CoreScript.Engine.Globals;
                     return null;
                 }
 
+                // V4: Support modular dependencies like 'Utils' in range providers
+                var extraTypes = root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
+                    .Where(t => t != paramsClass)
+                    .Select(t => t.ToString());
+                string extraTypesSource = string.Join("\n\n", extraTypes);
+
                 string membersSource = paramsClass != null ? string.Join("\n", paramsClass.Members.Select(m => m.ToString())) : functionNode.ToString();
                 bool isProperty = functionNode is PropertyDeclarationSyntax;
                 
@@ -227,6 +256,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CoreScript.Engine.Globals;
+using static CoreScript.Engine.Globals.ScriptApi;
+
+{extraTypesSource}
 
 {membersSource}
 
@@ -236,11 +268,9 @@ using CoreScript.Engine.Globals;
                 _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
                 
                 // Execute and expect a tuple
-                var result = await CSharpScript.EvaluateAsync<(double, double, double)>(
+                var result = await CSharpScript.EvaluateAsync<(double, double, double)?>(
                     executionScript,
-                    scriptOptions,
-                    executionGlobals,
-                    typeof(ExecutionGlobals)
+                    scriptOptions
                 );
 
                 return result;

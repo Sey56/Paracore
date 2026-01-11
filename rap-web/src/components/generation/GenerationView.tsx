@@ -26,6 +26,9 @@ export const GenerationView: React.FC = () => {
     const [isEditingInVSCode, setIsEditingInVSCode] = useState(false);
     const [retryHistory, setRetryHistory] = useState<Array<{ code: string, error: string }>>([]);
     const [useWebSearch, setUseWebSearch] = useState(false);
+    const [useMultiFile, setUseMultiFile] = useState(false);
+    const [generatedFiles, setGeneratedFiles] = useState<Record<string, string> | null>(null);
+    const [activeFile, setActiveFile] = useState<string | null>(null);
 
     const syntaxHighlighterStyle = theme === 'dark' ? vscDarkPlus : vs;
 
@@ -34,10 +37,25 @@ export const GenerationView: React.FC = () => {
         const savedTaskDescription = localStorage.getItem('generation_taskDescription');
         const savedGeneratedCode = localStorage.getItem('generation_generatedCode');
         const savedExecutionOutput = localStorage.getItem('generation_executionOutput');
+        const savedGeneratedFiles = localStorage.getItem('generation_generatedFiles');
+        const savedActiveFile = localStorage.getItem('generation_activeFile');
+        const savedUseWebSearch = localStorage.getItem('generation_useWebSearch');
+        const savedUseMultiFile = localStorage.getItem('generation_useMultiFile');
 
         if (savedTaskDescription) setTaskDescription(savedTaskDescription);
         if (savedGeneratedCode) setGeneratedCode(savedGeneratedCode);
         if (savedExecutionOutput) setExecutionOutput(savedExecutionOutput);
+        if (savedActiveFile) setActiveFile(savedActiveFile);
+        if (savedUseWebSearch) setUseWebSearch(savedUseWebSearch === 'true');
+        if (savedUseMultiFile) setUseMultiFile(savedUseMultiFile === 'true');
+
+        if (savedGeneratedFiles) {
+            try {
+                setGeneratedFiles(JSON.parse(savedGeneratedFiles));
+            } catch (e) {
+                console.error('Failed to parse saved generated files:', e);
+            }
+        }
     }, []);
 
     // Save state to localStorage whenever it changes
@@ -52,6 +70,41 @@ export const GenerationView: React.FC = () => {
     React.useEffect(() => {
         localStorage.setItem('generation_executionOutput', executionOutput);
     }, [executionOutput]);
+
+    React.useEffect(() => {
+        if (generatedFiles) {
+            localStorage.setItem('generation_generatedFiles', JSON.stringify(generatedFiles));
+        } else {
+            localStorage.removeItem('generation_generatedFiles');
+        }
+    }, [generatedFiles]);
+
+    React.useEffect(() => {
+        if (activeFile) {
+            localStorage.setItem('generation_activeFile', activeFile);
+        }
+    }, [activeFile]);
+
+    React.useEffect(() => {
+        localStorage.setItem('generation_useWebSearch', useWebSearch.toString());
+    }, [useWebSearch]);
+
+    React.useEffect(() => {
+        localStorage.setItem('generation_useMultiFile', useMultiFile.toString());
+    }, [useMultiFile]);
+
+    // Sync generatedCode back to generatedFiles map when in modular mode
+    // This ensures that VSCode edits (which update generatedCode) are kept in the modular collection
+    React.useEffect(() => {
+        if (generatedFiles && activeFile && generatedCode && generatedCode !== generatedFiles[activeFile]) {
+            setGeneratedFiles(prev => {
+                if (!prev) return prev;
+                // Only update if it's actually different to avoid cycles
+                if (prev[activeFile] === generatedCode) return prev;
+                return { ...prev, [activeFile]: generatedCode };
+            });
+        }
+    }, [generatedCode, activeFile, generatedFiles]);
 
     // Auto-reload generated code from temp file (ONLY when actively editing in VSCode)
     React.useEffect(() => {
@@ -124,13 +177,23 @@ export const GenerationView: React.FC = () => {
             const response = await api.post('/generation/generate_script', {
                 task_description: taskDescription,
                 use_web_search: useWebSearch,
+                multi_file: useMultiFile,
                 llm_provider: llmProvider,
                 llm_model: llmModel,
                 llm_api_key_name: llmApiKeyName,
                 llm_api_key_value: llmApiKeyValue,
             });
 
-            setGeneratedCode(response.data.generated_code);
+            const files = response.data.files;
+            if (files && Object.keys(files).length > 1) {
+                setGeneratedFiles(files);
+                const mainFile = Object.keys(files).find(f => f.toLowerCase() === 'main.cs') || Object.keys(files)[0];
+                setActiveFile(mainFile);
+                setGeneratedCode(files[mainFile] || response.data.generated_code);
+            } else {
+                setGeneratedFiles(null);
+                setGeneratedCode(response.data.generated_code);
+            }
             showNotification('Code generated successfully!', 'success');
         } catch (error: unknown) {
             console.error('Generation error:', error);
@@ -166,13 +229,23 @@ export const GenerationView: React.FC = () => {
                 task_description: taskDescription,
                 previous_attempts: updatedHistory,  // Send full history
                 use_web_search: useWebSearch,
+                multi_file: useMultiFile,
                 llm_provider: llmProvider,
                 llm_model: llmModel,
                 llm_api_key_name: llmApiKeyName,
                 llm_api_key_value: llmApiKeyValue,
             });
 
-            setGeneratedCode(response.data.generated_code);
+            const files = response.data.files;
+            if (files && Object.keys(files).length > 1) {
+                setGeneratedFiles(files);
+                const mainFile = Object.keys(files).find(f => f.toLowerCase() === 'main.cs') || Object.keys(files)[0];
+                setActiveFile(mainFile);
+                setGeneratedCode(files[mainFile] || response.data.generated_code);
+            } else {
+                setGeneratedFiles(null);
+                setGeneratedCode(response.data.generated_code);
+            }
             setExecutionOutput(''); // Clear error after regeneration
             showNotification('Code regenerated successfully!', 'success');
         } catch (error: unknown) {
@@ -208,6 +281,7 @@ export const GenerationView: React.FC = () => {
                 type: 'generated',
                 source_folder: 'Generation',
                 generated_code: generatedCode,
+                generated_files: generatedFiles
             });
 
             let output = response.data.output || '';
@@ -322,22 +396,43 @@ export const GenerationView: React.FC = () => {
                         </p>
                     </div>
 
-                    {/* Web Search Toggle */}
-                    <div className="flex items-center space-x-2">
-                        <label className="text-xs text-gray-600 dark:text-gray-400">
-                            Web Search
-                        </label>
-                        <button
-                            onClick={() => setUseWebSearch(!useWebSearch)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useWebSearch ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                                }`}
-                            title={useWebSearch ? 'Web search enabled - LLM can search for Revit API docs' : 'Web search disabled - uses base knowledge only'}
-                        >
-                            <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useWebSearch ? 'translate-x-6' : 'translate-x-1'
+                    {/* Toggles */}
+                    <div className="flex flex-col space-y-3 min-w-[140px]">
+                        {/* Web Search Toggle */}
+                        <div className="flex items-center justify-between space-x-4">
+                            <label className="text-xs text-gray-600 dark:text-gray-400">
+                                Web Search
+                            </label>
+                            <button
+                                onClick={() => setUseWebSearch(!useWebSearch)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useWebSearch ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
                                     }`}
-                            />
-                        </button>
+                                title={useWebSearch ? 'Web search enabled - LLM can search for Revit API docs' : 'Web search disabled - uses base knowledge only'}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useWebSearch ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
+                                />
+                            </button>
+                        </div>
+
+                        {/* Modular Toggle */}
+                        <div className="flex items-center justify-between space-x-4">
+                            <label className="text-xs text-gray-600 dark:text-gray-400">
+                                Modular
+                            </label>
+                            <button
+                                onClick={() => setUseMultiFile(!useMultiFile)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useMultiFile ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'
+                                    }`}
+                                title={useMultiFile ? 'Multi-file generation enabled - AI can create modular classes' : 'Single-file generation - logic consolidated in one file'}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useMultiFile ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
+                                />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -475,75 +570,99 @@ export const GenerationView: React.FC = () => {
                         </button>
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* Right Panel: Code & Actions - Takes remaining space */}
-            <div className="flex-1 min-w-0 w-0 flex flex-col p-6">
-                {generatedCode ? (
-                    <>
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
-                            Generated Script
-                        </h3>
-                        {/* Code viewer takes all available space */}
-                        <div className="flex-1 overflow-auto bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 min-h-0">
-                            <SyntaxHighlighter
-                                language="csharp"
-                                style={syntaxHighlighterStyle}
-                                customStyle={{
-                                    margin: 0,
-                                    borderRadius: '0.5rem',
-                                    height: '100%',
-                                    fontSize: '0.875rem',
-                                }}
-                                showLineNumbers
-                            >
-                                {generatedCode}
-                            </SyntaxHighlighter>
-                        </div>
+            < div className="flex-1 min-w-0 w-0 flex flex-col p-6" >
+                {
+                    generatedCode ? (
+                        <>
+                            <div className="flex items-center justify-between mb-3 min-h-[40px]">
+                                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                                    Generated Script {generatedFiles ? `(${Object.keys(generatedFiles).length} Files)` : ''}
+                                </h3>
 
-                        {/* Buttons at the bottom */}
-                        <div className="flex space-x-3 justify-end mt-4">
-                            <button
-                                onClick={handleEditInVSCode}
-                                className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center"
-                            >
-                                <FontAwesomeIcon icon={faEdit} className="mr-2" />
-                                Edit in VSCode
-                            </button>
-                            <button
-                                onClick={handleRun}
-                                disabled={isExecuting || !ParacoreConnected}
-                                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                            >
-                                {isExecuting ? (
-                                    <>
-                                        <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
-                                        Running...
-                                    </>
-                                ) : (
-                                    <>
-                                        <FontAwesomeIcon icon={faPlay} className="mr-2" />
-                                        Run Script
-                                    </>
+                                {/* File Tabs for Modular Mode */}
+                                {generatedFiles && (
+                                    <div className="flex space-x-1 p-1 bg-gray-200 dark:bg-gray-700/50 rounded-lg overflow-x-auto max-w-[60%] scrollbar-hide">
+                                        {Object.keys(generatedFiles).sort().map(fileName => (
+                                            <button
+                                                key={fileName}
+                                                onClick={() => {
+                                                    setActiveFile(fileName);
+                                                    setGeneratedCode(generatedFiles[fileName]);
+                                                }}
+                                                className={`px-3 py-1 text-xs font-medium rounded-md whitespace-nowrap transition-all ${activeFile === fileName
+                                                    ? 'bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 shadow-sm'
+                                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                                                    }`}
+                                            >
+                                                {fileName}
+                                            </button>
+                                        ))}
+                                    </div>
                                 )}
-                            </button>
-                            <button
-                                onClick={handleSaveToLibrary}
-                                className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center"
-                            >
-                                <FontAwesomeIcon icon={faSave} className="mr-2" />
-                                Save to Library
-                            </button>
+                            </div>
+                            {/* Code viewer takes all available space */}
+                            <div className="flex-1 overflow-auto bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 min-h-0">
+                                <SyntaxHighlighter
+                                    language="csharp"
+                                    style={syntaxHighlighterStyle}
+                                    customStyle={{
+                                        margin: 0,
+                                        borderRadius: '0.5rem',
+                                        height: '100%',
+                                        fontSize: '0.875rem',
+                                    }}
+                                    showLineNumbers
+                                >
+                                    {generatedCode}
+                                </SyntaxHighlighter>
+                            </div>
+
+                            {/* Buttons at the bottom */}
+                            <div className="flex space-x-3 justify-end mt-4">
+                                <button
+                                    onClick={handleEditInVSCode}
+                                    className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 flex items-center"
+                                >
+                                    <FontAwesomeIcon icon={faEdit} className="mr-2" />
+                                    Edit in VSCode
+                                </button>
+                                <button
+                                    onClick={handleRun}
+                                    disabled={isExecuting || !ParacoreConnected}
+                                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                >
+                                    {isExecuting ? (
+                                        <>
+                                            <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
+                                            Running...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FontAwesomeIcon icon={faPlay} className="mr-2" />
+                                            Run Script
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={handleSaveToLibrary}
+                                    className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center"
+                                >
+                                    <FontAwesomeIcon icon={faSave} className="mr-2" />
+                                    Save to Library
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="text-center text-gray-400">
+                                <FontAwesomeIcon icon={faCode} className="text-6xl mb-4 opacity-50" />
+                                <p className="text-lg">Enter a task description and click Generate</p>
+                            </div>
                         </div>
-                    </>
-                ) : (
-                    <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center text-gray-400">
-                            <FontAwesomeIcon icon={faCode} className="text-6xl mb-4 opacity-50" />
-                            <p className="text-lg">Enter a task description and click Generate</p>
-                        </div>
-                    </div>
-                )}
+                    )}
             </div>
 
             {/* Save to Library Modal */}
@@ -551,6 +670,7 @@ export const GenerationView: React.FC = () => {
                 isOpen={isSaveModalOpen}
                 onClose={() => setIsSaveModalOpen(false)}
                 generatedCode={generatedCode}
+                generatedFiles={generatedFiles}
                 taskDescription={taskDescription}
                 onSaveSuccess={handleSaveSuccess}
             />

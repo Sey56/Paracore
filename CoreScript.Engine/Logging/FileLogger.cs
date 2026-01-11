@@ -15,7 +15,9 @@ namespace CoreScript.Engine.Logging
     public static class FileLogger
     {
         private static readonly string logFile = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "paracore-data",
+            "logs",
             "CodeRunnerDebug.txt");
 
         public static LogLevel CurrentLogLevel { get; set; } = LogLevel.Info; // Default to Info
@@ -29,6 +31,8 @@ namespace CoreScript.Engine.Logging
 
             try
             {
+                var dir = Path.GetDirectoryName(logFile);
+                if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
                 File.AppendAllText(logFile, $"[{DateTime.Now}] [{level.ToString().ToUpper()}] {message}{Environment.NewLine}");
             }
             catch (Exception ex)

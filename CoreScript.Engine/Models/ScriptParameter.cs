@@ -32,5 +32,6 @@ namespace CoreScript.Engine.Models
         public string Pattern { get; set; } // New: Regex Validation
         public string EnabledWhenParam { get; set; } // New: Conditional Logic
         public string EnabledWhenValue { get; set; } // New: Conditional Logic (serialized value)
+        public string Unit { get; set; } // New: Unit conversion (e.g. "mm", "ft")
     }
 }

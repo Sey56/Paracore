@@ -16,7 +16,7 @@ namespace Paracore.Addin.Services
     public class CoreScriptServer
     {
         private bool _running;
-        private readonly string _logPath = Path.Combine(ParacoreApp.HomePath, "CoreScriptServerLog.txt");
+        private readonly string _logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "CoreScriptServerLog.txt");
         private IHost? _webHost;
         private readonly UIApplication _uiApp;
         private readonly ILogger _logger; // Added

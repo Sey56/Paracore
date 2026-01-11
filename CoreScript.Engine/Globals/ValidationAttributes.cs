@@ -62,11 +62,19 @@ namespace CoreScript.Engine.Globals
         public double Min { get; }
         public double Max { get; }
         public double Step { get; }
+        public RangeAttribute(double min, double max, double step = 1.0) 
+        { 
+            Min = min; 
+            Max = max; 
+            Step = step; 
+        }
+    }
 
-        public RangeAttribute(double min, double max) { Min = min; Max = max; Step = 0; }
-        public RangeAttribute(double min, double max, double step) { Min = min; Max = max; Step = step; }
-        public RangeAttribute(int min, int max) { Min = min; Max = max; Step = 1; }
-        public RangeAttribute(int min, int max, int step) { Min = min; Max = max; Step = step; }
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class UnitAttribute : Attribute
+    {
+        public string Unit { get; }
+        public UnitAttribute(string unit) { Unit = unit; }
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]

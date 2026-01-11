@@ -117,10 +117,28 @@ namespace CoreScript.Engine.Runtime
             }
             catch (Exception ex)
             {
-                var error = $"Runtime error: {ex.Message}";
-                LogErrorToFile(error);
-                FileLogger.LogError($"[CoreScriptExecutionDispatcher] Exception in ExecuteCodeInRevit: {ex.Message}");
-                FileLogger.LogError(ex.StackTrace);
+                string msg = ex.Message ?? "";
+                bool isConflict = msg.Contains("Microsoft.CodeAnalysis") || msg.Contains("Roslyn") || ex is FileLoadException;
+                
+                var error = isConflict 
+                    ? "⚠️ Add-in Conflict: Paracore is unable to start its scripting engine because another Revit Add-in (like pyRevit) has locked a required library."
+                    : $"Dispatcher error: {ex.Message}";
+
+                LogErrorToFile($"{error} | Details: {ex.Message}");
+                FileLogger.LogError($"[CoreScriptExecutionDispatcher] Exception: {ex.Message}");
+                
+                if (_pendingContext != null)
+                {
+                    _pendingContext.Println($"❌ {error}");
+                    if (isConflict)
+                    {
+                        _pendingContext.Println("💡 Tip: This usually happens when pyRevit is installed. We are working on a fix, but for now, you can check 'CoreScriptError.txt' or 'CodeRunnerDebug.txt' in %AppData%\\Roaming\\paracore-data\\logs for details.");
+                    }
+                    else
+                    {
+                        _pendingContext.Println($"[STACK TRACE]\n{ex}");
+                    }
+                }
                 scriptResult = ExecutionResult.Failure(error, ex.StackTrace);
             }
             finally
@@ -138,12 +156,14 @@ namespace CoreScript.Engine.Runtime
 
         private static void LogErrorToFile(string errorMessage)
         {
-            var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "CoreScriptError.txt");
+            var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
             try
             {
-                File.WriteAllText(logPath, $"{DateTime.Now}: {errorMessage}\n");
+                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                var logPath = Path.Combine(logDir, "CoreScriptError.txt");
+                File.AppendAllText(logPath, $"{DateTime.Now}: {errorMessage}\n");
             }
-            catch {{ /* Silent fail */ }}
+            catch { /* Silent fail */ }
         }
     }
 

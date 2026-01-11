@@ -6,48 +6,46 @@ namespace CoreScript.Engine.Globals
 {
     public class CustomAssemblyResolver
     {
-        private static string? _addinFolder;
 
         public static void Initialize()
         {
-            // Capture the folder where Paracore.Addin is located
-            _addinFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-            AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
-        }
-
-        private static Assembly? ResolveAssembly(object? sender, ResolveEventArgs args)
-        {
-            if (string.IsNullOrEmpty(_addinFolder)) return null;
-
-            var assemblyName = new AssemblyName(args.Name).Name;
-            if (string.IsNullOrEmpty(assemblyName)) return null;
-
-            // We only care about assemblies we ship that might conflict (Roslyn, Immutable, etc.)
-            bool isTarget = assemblyName.StartsWith("Microsoft.CodeAnalysis") || 
-                             assemblyName.StartsWith("System.Collections.Immutable") ||
-                             assemblyName.StartsWith("System.Reflection.Metadata") ||
-                             assemblyName.StartsWith("Microsoft.CSharp");
-
-            if (!isTarget) return null;
-
-            var assemblyPath = Path.Combine(_addinFolder, assemblyName + ".dll");
-
-            if (File.Exists(assemblyPath))
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
             {
+                var name = new AssemblyName(args.Name).Name;
+                if (string.IsNullOrEmpty(name)) return null;
+
+                // Only attempt to resolve Roslyn-related assemblies that are known to conflict
+                if (!name.StartsWith("Microsoft.CodeAnalysis")) return null;
+
                 try
                 {
-                    // Load the assembly from our folder to bypass Revit's conflict
-                    return Assembly.LoadFrom(assemblyPath);
+                    // Attempt to find the DLL in the engine's base directory
+                    var baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                    if (string.IsNullOrEmpty(baseDir)) return null;
+
+                    var path = Path.Combine(baseDir, name + ".dll");
+                    if (File.Exists(path))
+                    {
+                        return Assembly.LoadFrom(path);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "ParacoreLoader.log");
-                    File.AppendAllText(logPath, $"[{DateTime.Now}] Failed to load {assemblyName} from {assemblyPath}: {ex.Message}\n");
+                    LogErrorToLoaderLog($"Load failed for {args.Name}: {ex}");
                 }
-            }
+                return null;
+            };
+        }
 
-            return null;
+        private static void LogErrorToLoaderLog(string message)
+        {
+            try
+            {
+                var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
+                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                File.AppendAllText(Path.Combine(logDir, "Loader.log"), $"[{DateTime.Now}] {message}{Environment.NewLine}");
+            }
+            catch { /* Silent fail */ }
         }
     }
 }

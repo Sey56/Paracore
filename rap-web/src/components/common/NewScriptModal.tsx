@@ -39,10 +39,6 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
       setError('Folder name cannot be empty for a multi-script project.');
       return;
     }
-    if (scriptType === 'multi' && !scriptName.trim()) {
-      setError('Script name cannot be empty for a multi-script project.');
-      return;
-    }
 
     setIsLoading(true);
     setError(null);
@@ -50,7 +46,7 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
       const createdScript = await createNewScript({
         parent_folder: selectedFolder,
         script_type: scriptType,
-        script_name: scriptName,
+        script_name: scriptType === 'multi' ? 'Main' : scriptName,
         folder_name: scriptType === 'multi' ? folderName : undefined,
       });
 
@@ -113,12 +109,22 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
         </div>
       )}
 
-      <div className="mb-6">
-        <label htmlFor="scriptName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {scriptType === 'multi' ? 'Top-level Script Name (.cs)' : 'Script Name (.cs)'}
-        </label>
-        <input type="text" id="scriptName" value={scriptName} onChange={(e) => setScriptName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder={scriptType === 'multi' ? "e.g., Main" : "e.g., HelloWorld"} />
-      </div>
+      {scriptType === 'single' && (
+        <div className="mb-6">
+          <label htmlFor="scriptName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Script Name (.cs)
+          </label>
+          <input type="text" id="scriptName" value={scriptName} onChange={(e) => setScriptName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., HelloWorld" />
+        </div>
+      )}
+
+      {scriptType === 'multi' && (
+        <div className="mb-6">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            A <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">Main.cs</span> entry point will be created automatically.
+          </p>
+        </div>
+      )}
 
       <div className="flex justify-end space-x-3">
         <button onClick={onClose} disabled={isLoading} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">Cancel</button>

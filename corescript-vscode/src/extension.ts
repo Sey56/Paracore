@@ -6,6 +6,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { executeScript, CoreScript as CoreScriptRuntime } from "./grpcClient"; // CoreScriptRuntime is the actual runtime object
 import { CoreScript } from "./grpcTypes"; // CoreScript is for type checking
+import { COPILOT_INSTRUCTIONS } from "./aiInstructions";
 
 const execPromise = promisify(exec);
 
@@ -45,6 +46,14 @@ export function activate(context: vscode.ExtensionContext) {
 }
         `.trim();
         fs.writeFileSync(path.join(rootPath, "global.json"), globalJson);
+
+        // 🤖 Create AI Instructions
+        const githubFolder = path.join(rootPath, ".github");
+        if (!fs.existsSync(githubFolder)) {
+          fs.mkdirSync(githubFolder);
+        }
+        const contextHeader = "# Current Script Type: MULTI-FILE FOLDER (You can modularize across files)\n\n";
+        fs.writeFileSync(path.join(githubFolder, "copilot-instructions.md"), contextHeader + COPILOT_INSTRUCTIONS);
 
         // 📦 Create workspaceName.csproj
         const appData = process.env.APPDATA || '';
@@ -112,16 +121,40 @@ global using static CoreScript.Engine.Globals.DesignTimeGlobals;
         // 📝 Main.cs script
         const mainScript = `
 using Autodesk.Revit.DB;
+using System.Linq;
 
-Println("Starting spiral sketch...");
+// 1. Setup Parameters
+var p = new Params();
 
+Println($"Starting execution for: {p.ProjectName}...");
+
+// 2. Execution Logic
 Transact("Create Spiral", () =>
 {
     var spiral = new SpiralCreator();
-    spiral.CreateSpiral(Doc, "Level 1", 2400, 10, 20);
+    spiral.CreateSpiral(Doc, p.LevelName, p.Radius, p.Turns, p.Resolution);
 });
 
-Println("Spiral sketch finished.");
+Println("Execution finished successfully! ✅");
+
+// 3. Parameter Definition (Compatible with Paracore UI)
+public class Params
+{
+    [ScriptParameter(Group = "Project Settings")]
+    public string ProjectName { get; set; } = "My Spiral Project";
+
+    [RevitElements(Category = "Levels"), Required]
+    public string LevelName { get; set; } = "Level 1";
+
+    [ScriptParameter(Group = "Geometry")]
+    public double Radius { get; set; } = 2400.0;
+
+    [ScriptParameter(Group = "Geometry")]
+    public int Turns { get; set; } = 10;
+
+    [ScriptParameter(Group = "Geometry")]
+    public double Resolution { get; set; } = 20.0;
+}
         `.trim();
         fs.writeFileSync(path.join(scriptsPath, "Main.cs"), mainScript);
 

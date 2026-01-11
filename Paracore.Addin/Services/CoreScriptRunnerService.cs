@@ -678,13 +678,16 @@ namespace Paracore.Addin.Services
                             }
 
                             // 2b. Manual Options (_Options / _Filter)
+                            // V4 FIX: If a custom provider exists, it is AUTHORITATIVE. 
+                            // We do NOT fallback to automatic extraction if it returns empty.
+                            // An empty list means "no matches found", not "try something else".
                             var options = optionsExecutor.ExecuteOptionsFunction(
                                 request.ScriptContent,
                                 request.ParameterName,
                                 serverContext
                             ).GetAwaiter().GetResult();
                             
-                            if (options != null && options.Count > 0) return options;
+                            return options ?? new List<string>();
                         }
                         catch (InvalidOperationException ex)
                         {
@@ -705,15 +708,22 @@ namespace Paracore.Addin.Services
                     return new List<string>();
                 });
 
-                if (result != null && result.Count > 0)
+                if (result != null)
                 {
-                    response.Options.AddRange(result);
+                    if (result.Count > 0)
+                    {
+                        response.Options.AddRange(result);
+                        _logger.Log($"[CoreScriptRunnerService] Successfully computed {result.Count} options for {request.ParameterName}", LogLevel.Debug);
+                    }
+                    else
+                    {
+                        _logger.Log($"[CoreScriptRunnerService] Successfully computed 0 options (Empty Result) for {request.ParameterName}", LogLevel.Debug);
+                    }
                     response.IsSuccess = true;
-                    _logger.Log($"[CoreScriptRunnerService] Successfully computed {result.Count} options for {request.ParameterName}", LogLevel.Debug);
                 }
                 else if (response.IsSuccess) 
                 {
-                    // Case where Range execution succeeded (set manually below)
+                    // Case where Range execution succeeded (set manually inside ExecuteInUIContext)
                     _logger.Log($"[CoreScriptRunnerService] Successfully computed range for {request.ParameterName}", LogLevel.Debug);
                 }
                 else
