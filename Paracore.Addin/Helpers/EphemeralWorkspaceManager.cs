@@ -123,19 +123,11 @@ namespace Paracore.Addin.Helpers
                 }
                 else
                 {
-                    // For multi-file scripts, scriptToOpenPath is the original folder path
+                    // For multi-file scripts, we watch the entire Scripts directory
                     string originalFolderPath = originalScriptPath;
-
                     string scriptsPath = Path.Combine(workspaceFolder, "Scripts");
-                    foreach (var fileInWorkspace in Directory.GetFiles(scriptsPath, "*.cs", SearchOption.TopDirectoryOnly))
-                    {
-                        string originalFilePath = Path.Combine(originalFolderPath, Path.GetFileName(fileInWorkspace));
 
-                        StartFileWatcher(fileInWorkspace, originalFilePath);
-                    }
-
-                    // Start watching for NEW files added to the workspace
-                    StartDirectoryCreationWatcher(scriptsPath, originalFolderPath);
+                    StartDirectoryWatcher(scriptsPath, originalFolderPath);
                 }
 
                 string arguments = scriptType == "single-file"
@@ -160,26 +152,31 @@ namespace Paracore.Addin.Helpers
             }
         }
 
-        private static void StartDirectoryCreationWatcher(string workspaceScriptsPath, string originalFolderPath)
+        private static void StartDirectoryWatcher(string workspaceScriptsPath, string originalFolderPath)
         {
             try
             {
-                FileLogger.Log($"Starting directory creation watcher: {workspaceScriptsPath} -> {originalFolderPath}");
+                FileLogger.Log($"Starting directory watcher: {workspaceScriptsPath} -> {originalFolderPath}");
 
-                string watcherKey = $"{workspaceScriptsPath}_CreationWatcher";
+                string watcherKey = $"{workspaceScriptsPath}_DirWatcher";
                 StopWatcher(watcherKey); 
 
                 var watcher = new FileSystemWatcher(workspaceScriptsPath)
                 {
                     Filter = "*.cs",
-                    NotifyFilter = NotifyFilters.FileName, 
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
                     EnableRaisingEvents = true,
                     IncludeSubdirectories = false
                 };
 
-                watcher.Created += (s, e) => HandleNewFile(e.FullPath, originalFolderPath);
+                watcher.Created += (s, e) => HandleFileCreated(e.FullPath, originalFolderPath);
+                watcher.Deleted += (s, e) => HandleFileDeleted(e.FullPath, originalFolderPath);
+                watcher.Renamed += (s, e) => HandleFileRenamed(e.OldFullPath, e.FullPath, originalFolderPath);
+                watcher.Changed += (s, e) => {
+                    string targetPath = Path.Combine(originalFolderPath, e.Name);
+                    DebounceSync(e.FullPath, targetPath);
+                };
                 
-                // Lock to safely add to dictionary
                 lock (ActiveWatchers)
                 {
                     ActiveWatchers[watcherKey] = watcher;
@@ -187,48 +184,85 @@ namespace Paracore.Addin.Helpers
             }
             catch (Exception ex)
             {
-                FileLogger.LogError($"StartDirectoryCreationWatcher: {ex.Message}");
+                FileLogger.LogError($"StartDirectoryWatcher: {ex.Message}");
             }
         }
 
-        private static void HandleNewFile(string newFilePath, string originalFolderPath)
+        private static void HandleFileCreated(string newFilePath, string originalFolderPath)
         {
             try
             {
                 string fileName = Path.GetFileName(newFilePath);
                 string originalFilePath = Path.Combine(originalFolderPath, fileName);
                 
-                FileLogger.Log($"New file detected in workspace: {fileName}. Syncing to original source...");
+                FileLogger.Log($"New file detected in workspace: {fileName}. Syncing to source...");
 
-                // Small delay to allow file release/write completion
                 Task.Delay(200).ContinueWith(_ => 
                 {
                      try 
                      {
                         if (File.Exists(newFilePath))
                         {
-                            // 1. Copy to original source
                             File.Copy(newFilePath, originalFilePath, true);
                             FileLogger.Log($"Created new file in source: {originalFilePath}");
-
-                            // 2. Start watching this new file for future edits
-                            // Ensure this runs on a thread that can access the Dictionary safely or use lock inside StartFileWatcher
-                            StartFileWatcher(newFilePath, originalFilePath);
-                            
-                            // 3. Notify system of change
                             ScriptChanged?.Invoke(originalFilePath);
                         }
                      }
-                     catch (Exception ex)
-                     {
-                         FileLogger.LogError($"HandleNewFile Sync Failed: {ex.Message}");
-                     }
+                     catch (Exception ex) { FileLogger.LogError($"HandleFileCreated Sync Failed: {ex.Message}"); }
                  });
             }
-            catch (Exception ex)
+            catch (Exception ex) { FileLogger.LogError($"HandleFileCreated: {ex.Message}"); }
+        }
+
+        private static void HandleFileDeleted(string deletedFilePath, string originalFolderPath)
+        {
+            try
             {
-                FileLogger.LogError($"HandleNewFile: {ex.Message}");
+                string fileName = Path.GetFileName(deletedFilePath);
+                string originalFilePath = Path.Combine(originalFolderPath, fileName);
+                
+                FileLogger.Log($"File deletion detected in workspace: {fileName}. Deleting from source...");
+
+                if (File.Exists(originalFilePath))
+                {
+                    File.Delete(originalFilePath);
+                    FileLogger.Log($"Deleted file from source: {originalFilePath}");
+                    ScriptChanged?.Invoke(originalFilePath);
+                }
             }
+            catch (Exception ex) { FileLogger.LogError($"HandleFileDeleted: {ex.Message}"); }
+        }
+
+        private static void HandleFileRenamed(string oldPath, string newPath, string originalFolderPath)
+        {
+            try
+            {
+                string oldName = Path.GetFileName(oldPath);
+                string newName = Path.GetFileName(newPath);
+                
+                string oldOriginalPath = Path.Combine(originalFolderPath, oldName);
+                string newOriginalPath = Path.Combine(originalFolderPath, newName);
+
+                FileLogger.Log($"File rename detected in workspace: {oldName} -> {newName}. Renaming in source...");
+
+                if (File.Exists(oldOriginalPath))
+                {
+                    if (File.Exists(newOriginalPath)) File.Delete(newOriginalPath);
+                    File.Move(oldOriginalPath, newOriginalPath);
+                    FileLogger.Log($"Renamed file in source: {oldOriginalPath} -> {newOriginalPath}");
+                    ScriptChanged?.Invoke(newOriginalPath);
+                }
+                else
+                {
+                    if (File.Exists(newPath))
+                    {
+                        File.Copy(newPath, newOriginalPath, true);
+                        FileLogger.Log($"Copied renamed file to source (old source didn't exist): {newOriginalPath}");
+                        ScriptChanged?.Invoke(newOriginalPath);
+                    }
+                }
+            }
+            catch (Exception ex) { FileLogger.LogError($"HandleFileRenamed: {ex.Message}"); }
         }
 
         private static void StopWatcher(string sourcePath)
