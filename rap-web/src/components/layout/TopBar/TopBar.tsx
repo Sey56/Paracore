@@ -176,11 +176,9 @@ export const TopBar: React.FC = () => {
               </div>
             )}
           </div>
-          {activeTeam && activeTeam.team_id !== 0 && (
-            <button onClick={openSettingsModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-              <FontAwesomeIcon icon={faCog} />
-            </button>
-          )}
+          <button onClick={openSettingsModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+            <FontAwesomeIcon icon={faCog} />
+          </button>
         </div>
         <div className="flex items-center space-x-2 pl-2">
           <UserMenu user={user} onLogin={login} onLoginLocal={loginLocal} onLogout={logout} />

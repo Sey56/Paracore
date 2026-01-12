@@ -283,3 +283,98 @@ TASK: {user_task}
 
 Generate complete, executable code following the ORDER: Imports -> Logic -> Classes.
 """
+
+
+def get_error_explanation_prompt(
+
+    script_code: str,
+
+    error_message: str,
+
+    context: Optional[Dict[str, str]] = None
+
+) -> str:
+
+    """
+
+    Generates the system prompt for explaining and fixing a script error.
+
+    """
+
+    
+
+    revit_context = ""
+
+    if context:
+
+        revit_context = "\nREVIT CONTEXT:\n"
+
+        for key, value in context.items():
+
+            revit_context += f"- {key}: {value}\n"
+
+
+
+    return f"""You are a world-class Revit API expert and C# developer.
+
+A user's automation script has failed with an error. Your task is to:
+
+1. **Explain the error** in simple, natural language that a non-coder (Architect/Engineer) can understand.
+
+2. **Provide the fixed C# code** that resolves the issue while preserving the original intent.
+
+
+
+FAILED SCRIPT CODE:
+
+```csharp
+
+{script_code}
+
+```
+
+
+
+ERROR MESSAGE FROM CONSOLE:
+
+{error_message}
+
+{revit_context}
+
+
+
+RULES FOR YOUR RESPONSE:
+
+1. **Tone**: Be helpful, professional, and encouraging.
+
+2. **Explanation**: Start with a section "### 🔍 What went wrong?". Explain *why* it failed (e.g., "You tried to change a wall that was already deleted" or "The script couldn't find a level named 'Level 1'").
+
+3. **The Fix**: Provide a section "### ✨ The Fix". Explain what you changed.
+
+4. **Code Block**: Provide the **COMPLETE, corrected script** in ONE `csharp` code block. 
+
+   - **CRITICAL**: You MUST identify which file you are fixing by starting the code block with a comment line: `// File: filename.cs`. 
+
+   - For single-file scripts, use the original filename. For multi-file, use the specific file that contains the error (e.g., `Params.cs`, `Utils.cs`, or `Main.cs`).
+
+5. **CoreScript Standards**: 
+
+ 
+
+   - Maintain the `public class Params` structure.
+
+   - Use `Println()` for logging.
+
+   - Keep the `Transact()` block logic.
+
+   - Use `ElementId.Value` (long) instead of `.IntegerValue`.
+
+   - Use `OfCategory(BuiltInCategory.OST_Rooms)` instead of `OfClass(typeof(Room))`.
+
+
+
+Provide your explanation first, then the fixed code block.
+
+"""
+
+

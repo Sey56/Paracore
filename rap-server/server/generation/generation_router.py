@@ -11,7 +11,7 @@ import re
 import asyncio
 
 from auth import get_current_user, CurrentUser
-from generation.gemini_client import generate_code_with_gemini
+from generation.gemini_client import generate_code_with_gemini, explain_and_fix_with_gemini
 
 router = APIRouter(prefix="/generation", tags=["Generation"])
 
@@ -132,6 +132,72 @@ async def generate_script(
     except Exception as e:
         print(f"[Generation] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ExplainErrorRequest(BaseModel):
+    script_code: str
+    error_message: str
+    context: Optional[Dict[str, str]] = None
+    llm_provider: str = "gemini"
+    llm_model: str = "gemini-2.0-flash-exp"
+    llm_api_key_name: Optional[str] = None
+    llm_api_key_value: Optional[str] = None
+
+
+class ExplainErrorResponse(BaseModel):
+    explanation: str
+    fixed_code: Optional[str] = None
+    filename: Optional[str] = None
+    is_success: bool
+    error_message: Optional[str] = None
+
+
+@router.post("/explain_error", response_model=ExplainErrorResponse)
+async def explain_error(
+    request: ExplainErrorRequest,
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Analyzes a failed script run, explains why it failed, and provides a fix.
+    """
+    print(f"[Generation] Received error explanation request")
+    try:
+        raw_response = await explain_and_fix_with_gemini(
+            script_code=request.script_code,
+            error_message=request.error_message,
+            context=request.context,
+            llm_model=request.llm_model,
+            llm_api_key_name=request.llm_api_key_name,
+            llm_api_key_value=request.llm_api_key_value
+        )
+        
+        # Extract the fixed code
+        fixed_code = extract_code_from_response(raw_response)
+        
+        # Extract filename if present (// File: filename.cs)
+        filename = None
+        if fixed_code:
+            filename_match = re.search(r"//\s*(?:File|Filename):\s*([a-zA-Z0-9_\.]+\.cs)", fixed_code, re.IGNORECASE)
+            if filename_match:
+                filename = filename_match.group(1)
+        
+        # Clean up the explanation (remove the code block from the text)
+        explanation = re.sub(r"```csharp.*?```", "", raw_response, flags=re.DOTALL).strip()
+        
+        return ExplainErrorResponse(
+            explanation=explanation,
+            fixed_code=fixed_code if fixed_code else None,
+            filename=filename,
+            is_success=True
+        )
+        
+    except Exception as e:
+        print(f"[Generation] Explain error error: {str(e)}")
+        return ExplainErrorResponse(
+            explanation="Failed to generate explanation.",
+            is_success=False,
+            error_message=str(e)
+        )
 
 
 @router.post("/save_temp_script")
