@@ -276,3 +276,29 @@ def compute_parameter_options(script_content: str, parameter_name: str):
             "is_success": False,
             "error_message": f"Unexpected error: {str(e)}"
         }
+
+def select_elements(element_ids: list[int]):
+        """
+        Calls the gRPC service to set the selection in the active Revit document.
+        """
+        logging.info(f"Attempting to select {len(element_ids)} elements via gRPC.")
+        try:
+            with get_corescript_runner_stub() as stub:
+                request = corescript_pb2.SelectElementsRequest(element_ids=element_ids)
+                response = stub.SelectElements(request)
+                return {
+                    "is_success": response.is_success,
+                    "error_message": response.error_message
+                }
+        except grpc.RpcError as e:
+            logging.error(f"gRPC SelectElements call failed: {e.code()} - {e.details()}")
+            return {
+                "is_success": False,
+                "error_message": f"gRPC error: {e.details()}"
+            }
+        except Exception as e:
+            logging.error(f"An unexpected error occurred during gRPC SelectElements call: {e}")
+            return {
+                "is_success": False,
+                "error_message": f"Unexpected error: {str(e)}"
+            }

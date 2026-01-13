@@ -318,7 +318,6 @@ namespace CoreScript.Engine.Core
                 if (scriptReportedError)
                 {
                     string failureMessage = "❌ Script execution failed due to runtime errors | " + timestamp;
-                    context.Println(failureMessage);
                     FileLogger.Log(failureMessage);
                     // Populate ErrorDetails with the entire PrintLog for frontend display
                     var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
@@ -376,7 +375,6 @@ namespace CoreScript.Engine.Core
                 }).ToArray();
 
                 string failureMessage = "❌ Script failed to compile | " + timestamp;
-                context.Println(failureMessage);
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
                 
                 var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
@@ -430,8 +428,6 @@ namespace CoreScript.Engine.Core
                 string failureMessage = isEngineError 
                     ? "⚠️ Add-in Conflict: Paracore is unable to safely run this script because its engine has been blocked by another Revit Add-in."
                     : $"❌ Script execution error: {ex.Message} | {timestamp}";
-                
-                context.Println(failureMessage);
                 
                 if (isEngineError)
                 {

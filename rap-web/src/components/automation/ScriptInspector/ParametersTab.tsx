@@ -351,11 +351,11 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
           <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <div className="relative flex items-center" title={finalTooltipMessage}>
               <button
-                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 text-base rounded-lg font-semibold flex items-center justify-center disabled:bg-blue-400 dark:disabled:bg-blue-800 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+                className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleRunScript}
                 disabled={isRunDisabled}
               >
-                <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`mr-3 ${isRunning ? "animate-spin" : ""}`} />
+                <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`mr-2 ${isRunning ? "animate-spin" : ""}`} />
                 {isRunning ? "Running..." : "Run Script"}
               </button>
               {showStatusIcon && (

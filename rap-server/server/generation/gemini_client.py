@@ -16,7 +16,7 @@ async def explain_and_fix_with_gemini(
     script_code: str,
     error_message: str,
     context: Optional[Dict[str, str]] = None,
-    llm_model: str = "gemini-2.0-flash-exp",
+    llm_model: Optional[str] = None,
     llm_api_key_name: Optional[str] = None,
     llm_api_key_value: Optional[str] = None,
     max_retries: int = 3
@@ -29,11 +29,12 @@ async def explain_and_fix_with_gemini(
     api_key = llm_api_key_value
     if not api_key and llm_api_key_name:
         api_key = os.getenv(llm_api_key_name)
-    if not api_key:
-        api_key = os.getenv("GEMINI_API_KEY")
     
     if not api_key:
-        raise ValueError("No Gemini API key provided.")
+        raise ValueError("No LLM API key provided.")
+
+    if not llm_model:
+        raise ValueError("No LLM model specified.")
     
     # Build prompt
     prompt = get_error_explanation_prompt(
@@ -43,7 +44,11 @@ async def explain_and_fix_with_gemini(
     )
     
     # Prepare request
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{llm_model}:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{llm_model}:generateContent"
+    headers = {
+        "x-goog-api-key": api_key,
+        "Content-Type": "application/json"
+    }
     request_body = {
         "contents": [
             {
@@ -58,18 +63,35 @@ async def explain_and_fix_with_gemini(
     for attempt in range(1, max_retries + 1):
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                response = await client.post(url, json=request_body)
+                response = await client.post(url, headers=headers, json=request_body)
                 response_data = response.json()
                 
                 if "error" in response_data:
                     error_code = response_data["error"].get("code")
+                    error_msg = response_data["error"].get("message")
                     if error_code == 503 and attempt < max_retries:
                         await asyncio.sleep(delay_ms / 1000)
                         delay_ms *= 2
                         continue
-                    raise Exception(f"Gemini API Error: {response_data['error'].get('message')}")
+                    raise Exception(f"Gemini API Error (Code: {error_code}): {error_msg}")
                 
-                text = response_data["candidates"][0]["content"]["parts"][0]["text"]
+                candidates = response_data.get("candidates", [])
+                if not candidates:
+                    raise Exception("No candidates found in Gemini API response")
+                
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                if not parts:
+                    # Check for safety block
+                    finish_reason = candidates[0].get("finishReason")
+                    if finish_reason:
+                        raise Exception(f"Gemini API blocked response. Reason: {finish_reason}")
+                    raise Exception("No parts found in Gemini API response")
+                
+                text = parts[0].get("text", "")
+                if not text:
+                    raise Exception("Empty response text from Gemini API")
+                
                 return text
         
         except Exception as e:
@@ -86,7 +108,7 @@ async def generate_code_with_gemini(
     task_description: str,
     previous_attempts: Optional[List[Dict[str, str]]] = None,
     use_web_search: bool = False,
-    llm_model: str = "gemini-2.0-flash-exp",
+    llm_model: Optional[str] = None,
     llm_api_key_name: Optional[str] = None,
     llm_api_key_value: Optional[str] = None,
     multi_file: bool = False,
@@ -112,11 +134,12 @@ async def generate_code_with_gemini(
     api_key = llm_api_key_value
     if not api_key and llm_api_key_name:
         api_key = os.getenv(llm_api_key_name)
-    if not api_key:
-        api_key = os.getenv("GEMINI_API_KEY")  # Fallback
     
     if not api_key:
-        raise ValueError("No Gemini API key provided. Set GEMINI_API_KEY environment variable or provide llm_api_key_value.")
+        raise ValueError("No LLM API key provided.")
+
+    if not llm_model:
+        raise ValueError("No LLM model specified.")
     
     # Build prompt
     prompt = get_corescript_generation_prompt(
@@ -126,7 +149,11 @@ async def generate_code_with_gemini(
     )
     
     # Prepare request
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{llm_model}:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{llm_model}:generateContent"
+    headers = {
+        "x-goog-api-key": api_key,
+        "Content-Type": "application/json"
+    }
     request_body = {
         "contents": [
             {
@@ -152,7 +179,7 @@ async def generate_code_with_gemini(
     for attempt in range(1, max_retries + 1):
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                response = await client.post(url, json=request_body)
+                response = await client.post(url, headers=headers, json=request_body)
                 response_data = response.json()
                 
                 # Check for API errors

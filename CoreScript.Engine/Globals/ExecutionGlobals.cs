@@ -20,6 +20,10 @@ namespace CoreScript.Engine.Globals
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
             _context.AddStructuredOutput(type, json);
         }
+
+        public void ChartBar(object data) => Show("chart-bar", data);
+        public void ChartPie(object data) => Show("chart-pie", data);
+        public void ChartLine(object data) => Show("chart-line", data);
     }
 
     public class ExecutionGlobals

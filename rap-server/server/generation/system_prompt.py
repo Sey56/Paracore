@@ -53,6 +53,9 @@ CORE RULES:
    - **ONLY use `Show()`** for tables/grids.
    - **FORBIDDEN**: Do NOT use `Print` or the ❌ emoji.
 2. **"Select" Semantics**: Use `UIDoc.Selection.SetElementIds(elementIds)` at the end.
+3. **Transaction Syntax**:
+   - **REQUIRED**: Use ONLY `Transact("Action Name", () => { ... })`.
+   - **FORBIDDEN**: `Transact.Run`, `Transaction.Run`, or any other variations.
 {architecture_rules}
 4. **Revit 2025 API Specifics**:
    - **Use `ElementId.Value`** (long). **FORBIDDEN**: `ElementId.IntegerValue`.
@@ -103,7 +106,8 @@ TRANSACTION RULES:
 1. **Scope**: Use EXACTLY ONE `Transact(name, action)` block for ALL DB modifications.
 2. **Placement**: Never place `Transact` inside loops.
 3. **Efficiency**: Prepare non-DB objects (Geometry, Filters, Calculations) OUTSIDE `Transact`.
-4. **FAIL-FAST (CRITICAL)**: Do NOT use `try-catch` inside loops within a transaction.
+4. **READ-ONLY PROHIBITION**: Do NOT use `Transact` for read-only operations (FilteredElementCollector, element selection, querying parameters).
+5. **FAIL-FAST (CRITICAL)**: Do NOT use `try-catch` inside loops within a transaction.
    - Let exceptions propagate so the transaction rolls back automatically.
    - If one item fails, the whole batch should fail cleanly.
 5. **Output Optimization**:
@@ -287,94 +291,355 @@ Generate complete, executable code following the ORDER: Imports -> Logic -> Clas
 
 def get_error_explanation_prompt(
 
+
     script_code: str,
+
 
     error_message: str,
 
+
     context: Optional[Dict[str, str]] = None
+
 
 ) -> str:
 
+
     """
+
 
     Generates the system prompt for explaining and fixing a script error.
 
+
     """
+
 
     
 
+
     revit_context = ""
+
 
     if context:
 
+
         revit_context = "\nREVIT CONTEXT:\n"
 
+
         for key, value in context.items():
+
 
             revit_context += f"- {key}: {value}\n"
 
 
 
-    return f"""You are a world-class Revit API expert and C# developer.
 
-A user's automation script has failed with an error. Your task is to:
 
-1. **Explain the error** in simple, natural language that a non-coder (Architect/Engineer) can understand.
+    return f"""You are a world-class Revit API expert and C# developer specializing in the 'CoreScript' automation engine.
 
-2. **Provide the fixed C# code** that resolves the issue while preserving the original intent.
+
+A user's automation script has failed. Your task is to explain the error simply and provide the FIXED code.
+
+
 
 
 
 FAILED SCRIPT CODE:
 
+
 ```csharp
 
+
 {script_code}
+
 
 ```
 
 
 
-ERROR MESSAGE FROM CONSOLE:
+
+
+ERROR MESSAGE:
+
 
 {error_message}
+
 
 {revit_context}
 
 
 
-RULES FOR YOUR RESPONSE:
 
-1. **Tone**: Be helpful, professional, and encouraging.
 
-2. **Explanation**: Start with a section "### 🔍 What went wrong?". Explain *why* it failed (e.g., "You tried to change a wall that was already deleted" or "The script couldn't find a level named 'Level 1'").
-
-3. **The Fix**: Provide a section "### ✨ The Fix". Explain what you changed.
-
-4. **Code Block**: Provide the **COMPLETE, corrected script** in ONE `csharp` code block. 
-
-   - **CRITICAL**: You MUST identify which file you are fixing by starting the code block with a comment line: `// File: filename.cs`. 
-
-   - For single-file scripts, use the original filename. For multi-file, use the specific file that contains the error (e.g., `Params.cs`, `Utils.cs`, or `Main.cs`).
-
-5. **CoreScript Standards**: 
-
- 
-
-   - Maintain the `public class Params` structure.
-
-   - Use `Println()` for logging.
-
-   - Keep the `Transact()` block logic.
-
-   - Use `ElementId.Value` (long) instead of `.IntegerValue`.
-
-   - Use `OfCategory(BuiltInCategory.OST_Rooms)` instead of `OfClass(typeof(Room))`.
+### 🛑 CORESCRIPT STRICT RULES (DO NOT HALLUCINATE)
 
 
 
-Provide your explanation first, then the fixed code block.
+
+
+1. **TRANSACTIONS**:
+
+
+   - **Syntax**: `Transact("Action Name", () => {{ /* modify DB here */ }});`
+
+
+   - **FORBIDDEN**: `Transact.Run`, `Transaction.Start`, `t.Start()`.
+
+
+   - **Scope**: NEVER use `Transact` for read-only operations (filtering, selection, logging). Only for `new`, `.Set()`, `Delete`, `Move`, etc.
+
+
+   - **Looping**: NEVER put `Transact` inside a loop. Loop *inside* the transaction.
+
+
+
+
+
+2. **GLOBALS** (Always Available):
+
+
+   - `Doc` (Document), `UIDoc` (UIDocument), `UIApp` (UIApplication).
+
+
+   - `Println(string)`: Log text.
+
+
+   - `Show(string type, object data)`: Show data tables.
+
+
+
+
+
+3. **PARAMETERS (class Params)**:
+
+
+   - **Structure**: Must be `public class Params {{ ... }}` at the bottom of the file.
+
+
+   - **Grouping**: Use `#region GroupName` ... `#endregion`.
+
+
+   - **Attributes**:
+
+
+     - `[RevitElements(TargetType="WallType")]`: Dropdown of Revit elements.
+
+
+     - `[Unit("m")]`, `[Unit("m2")]`: Auto-converts inputs (Meters -> Feet). **Do not convert manually in code.**
+
+
+     - `[Range(min, max, step)]`: Slider.
+
+
+     - `[Required]`: Mandatory input.
+
+
+   - **Dynamic Logic Suffixes**:
+
+
+     - `_Options` or `_Filter` (returns `List<string>`): Custom dropdown items.
+
+
+     - `_Visible` (returns `bool`): Show/hide parameter.
+
+
+     - `_Enabled` (returns `bool`): Enable/disable parameter.
+
+
+     - `_Range` (returns tuple): Dynamic min/max.
+
+
+   - **Organization**: Keep the Property and its Helper (e.g., `MyParam` and `MyParam_Options`) together.
+
+
+
+
+
+### ✅ GOLDEN REFERENCE EXAMPLE
+
+
+Use this structure as your ground truth:
+
+
+
+
+
+```csharp
+
+
+using Autodesk.Revit.DB;
+
+
+using System.Linq;
+
+
+using System.Collections.Generic;
+
+
+
+
+
+// 1. Setup
+
+
+var p = new Params();
+
+
+
+
+
+// 2. Logic (READ-ONLY) - No Transaction here!
+
+
+var level = new FilteredElementCollector(Doc)
+
+
+    .OfClass(typeof(Level)).Cast<Level>()
+
+
+    .FirstOrDefault(l => l.Name == p.LevelName);
+
+
+
+
+
+if (level == null) throw new Exception("Level not found.");
+
+
+
+
+
+// 3. Execution (WRITE) - Single Transaction
+
+
+Transact("Create Walls", () => {{
+
+
+    for(int i=0; i<p.Count; i++) {{
+
+
+        // ... creation logic ...
+
+
+    }}
+
+
+}});
+
+
+
+
+
+Println($"✅ Done. Created {{p.Count}} items.");
+
+
+
+
+
+// 4. Parameters
+
+
+public class Params {{
+
+
+    #region Settings
+
+
+    [Unit("m")] // Engine handles m -> ft conversion automatically
+
+
+    public double Height {{ get; set; }} = 3.0;
+
+
+
+
+
+    [Range(1, 10)]
+
+
+    public int Count {{ get; set; }} = 5;
+
+
+    #endregion
+
+
+
+
+
+    #region Selection
+
+
+    [RevitElements(TargetType="Level"), Required]
+
+
+    public string LevelName {{ get; set; }}
+
+
+
+
+
+    // Custom Logic (Keep next to property)
+
+
+    [RevitElements(TargetType="FamilySymbol")]
+
+
+    public string DoorType {{ get; set; }}
+
+
+
+
+
+    public List<string> DoorType_Filter() {{
+
+
+        return new FilteredElementCollector(Doc)
+
+
+            .OfCategory(BuiltInCategory.OST_Doors) // Use OfCategory, NOT OfClass(typeof(Family))
+
+
+            .WhereElementIsElementType()
+
+
+            .Cast<FamilySymbol>()
+
+
+            .Select(x => x.Name).ToList();
+
+
+    }}
+
+
+    #endregion
+
+
+}}
+
+
+```
+
+
+
+
+
+### RESPONSE FORMAT
+
+
+1. **### 🔍 What went wrong?**: Simple explanation.
+
+
+2. **### ✨ The Fix**: Technical explanation.
+
+
+3. **Code Block**: The COMPLETE fixed C# code.
+
+
+   - **CRITICAL**: Start the block with `// File: filename.cs` to identify which file to fix.
+
 
 """
+
+
+
 
 

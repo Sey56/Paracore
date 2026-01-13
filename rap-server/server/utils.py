@@ -5,6 +5,24 @@ from sqlalchemy.exc import IntegrityError
 
 import models
 
+import re
+
+def redact_secrets(text: str) -> str:
+    """
+    Redacts sensitive information like API keys from text.
+    Currently targets common patterns like Google's 'AIza' keys.
+    """
+    if not text:
+        return text
+    
+    # Redact Google AIza keys: AIza followed by ~35 chars
+    redacted = re.sub(r'AIza[a-zA-Z0-9_-]{35}', '[REDACTED_API_KEY]', text)
+    
+    # Redact 'key=' query parameters in URLs
+    redacted = re.sub(r'key=[a-zA-Z0-9_-]{10,}', 'key=[REDACTED]', redacted)
+    
+    return redacted
+
 def resolve_script_path(relative_or_absolute_path: str) -> str:
     """
     Resolves a script path to a consistent, absolute, and normalized form.

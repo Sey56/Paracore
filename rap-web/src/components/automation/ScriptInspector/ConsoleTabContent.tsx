@@ -78,12 +78,12 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     setAiResult(null);
 
     try {
-      const llmProvider = localStorage.getItem('llmProvider') || 'gemini';
-      const llmModel = localStorage.getItem('llmModel') || 'gemini-2.0-flash-exp';
+      const llmProvider = localStorage.getItem('llmProvider');
+      const llmModel = localStorage.getItem('llmModel');
       const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
 
-      if (!llmApiKeyValue) {
-        showNotification("Please set your Gemini API Key in Settings to use AI Fix.", "warning");
+      if (!llmProvider || !llmModel || !llmApiKeyValue) {
+        showNotification("Please configure your LLM settings (Provider, Model, and API Key) in Settings to use AI Fix.", "warning");
         setIsExplaining(false);
         return;
       }
@@ -102,6 +102,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
       });
 
       if (response.data.is_success) {
+        console.log("[AI Fix] Success:", response.data);
         setAiResult(response.data);
       } else {
         showNotification(response.data.error_message || "AI failed to explain the error.", "error");
@@ -143,6 +144,78 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
 
   const showAiButton = executionResult && !executionResult.isSuccess && !isRunning && !isExplaining && !aiResult;
 
+  if (aiResult) {
+    return (
+      <div className="absolute inset-0 z-10 p-4 w-full h-full box-border flex flex-col min-w-0">
+        <div className="flex flex-col h-full w-full max-w-full min-w-0 p-4 bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-900 rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 box-border">
+          <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
+            <h3 className="text-blue-600 dark:text-blue-400 font-bold flex items-center truncate">
+              <FontAwesomeIcon icon={faMagicWandSparkles} className="mr-2" />
+              AI Analysis & Fix
+            </h3>
+            <button 
+              onClick={() => setAiResult(null)}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-2"
+            >
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          </div>
+          
+          <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar w-full min-w-0">
+            <div className="prose dark:prose-invert prose-sm max-w-none mb-6 text-gray-700 dark:text-gray-300 break-words">
+              {/* Simple markdown-ish rendering for the explanation */}
+              {aiResult.explanation.split('\n').map((line, i) => {
+                if (line.startsWith('###')) return <h4 key={i} className="text-blue-600 dark:text-blue-400 mt-4 mb-2">{line.replace('###', '').trim()}</h4>;
+                return <p key={i} className="mb-2">{line}</p>;
+              })}
+            </div>
+
+            {aiResult.fixed_code && (
+              <div className="mt-4 w-full min-w-0">
+                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  <FontAwesomeIcon icon={faCode} className="mr-2" />
+                  FIXED CODE PROPOSAL
+                </div>
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs w-full overflow-hidden">
+                  <SyntaxHighlighter
+                    language="csharp"
+                    style={vscDarkPlus}
+                    customStyle={{ margin: 0, padding: '1rem', width: '100%', maxWidth: '100%', overflowX: 'auto' }}
+                    codeTagProps={{ style: { whiteSpace: 'pre', wordBreak: 'normal' } }}
+                  >
+                    {aiResult.fixed_code}
+                  </SyntaxHighlighter>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800 flex justify-end space-x-3 shrink-0">
+            <button
+              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              onClick={() => setAiResult(null)}
+            >
+              Cancel
+            </button>
+            {aiResult.fixed_code && (
+              <button
+                disabled={isApplyingFix}
+                className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleApplyFix}
+              >
+                {isApplyingFix ? (
+                  <><FontAwesomeIcon icon={faSpinner} spin className="mr-2" /> Applying...</>
+                ) : (
+                  <><FontAwesomeIcon icon={faCheck} className="mr-2" /> Apply Fix</>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="tab-content py-4 flex flex-col h-full relative overflow-hidden">
       <div className="flex-grow flex flex-col min-h-0 relative">
@@ -158,14 +231,14 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
             </code>
           ) : null}
           {executionResult?.error && (
-            <code className="text-red-600 dark:text-red-400 block mt-2 font-bold">
-              ERROR: {executionResult.error}
+            <code className="text-red-600 dark:text-red-400 block mt-4 font-bold border-t border-red-100 dark:border-red-900/30 pt-2">
+              {executionResult.error}
             </code>
           )}
           <div ref={consoleEndRef} />
         </pre>
 
-        {/* AI Explanation Overlay */}
+        {/* AI Explanation Overlay - Moved outside pre for better isolation if needed, but still inside min-h-0 wrapper */}
         {isExplaining && (
           <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-lg">
             <FontAwesomeIcon icon={faSpinner} spin className="text-blue-500 text-4xl mb-4" />
@@ -174,102 +247,33 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
             </p>
           </div>
         )}
-
-        {aiResult && (
-          <div className="absolute inset-0 bg-white dark:bg-gray-900 z-20 flex flex-col p-4 border border-blue-200 dark:border-blue-900 rounded-lg shadow-xl overflow-hidden">
-            <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-              <h3 className="text-blue-600 dark:text-blue-400 font-bold flex items-center">
-                <FontAwesomeIcon icon={faMagicWandSparkles} className="mr-2" />
-                AI Analysis & Fix
-              </h3>
-              <button 
-                onClick={() => setAiResult(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            </div>
-            
-            <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
-              <div className="prose dark:prose-invert prose-sm max-w-none mb-6 text-gray-700 dark:text-gray-300">
-                {/* Simple markdown-ish rendering for the explanation */}
-                {aiResult.explanation.split('\n').map((line, i) => {
-                  if (line.startsWith('###')) return <h4 key={i} className="text-blue-600 dark:text-blue-400 mt-4 mb-2">{line.replace('###', '').trim()}</h4>;
-                  return <p key={i} className="mb-2">{line}</p>;
-                })}
-              </div>
-
-              {aiResult.fixed_code && (
-                <div className="mt-4">
-                  <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    <FontAwesomeIcon icon={faCode} className="mr-2" />
-                    FIXED CODE PROPOSAL
-                  </div>
-                  <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-xs">
-                    <SyntaxHighlighter
-                      language="csharp"
-                      style={vscDarkPlus}
-                      customStyle={{ margin: 0, padding: '1rem' }}
-                    >
-                      {aiResult.fixed_code}
-                    </SyntaxHighlighter>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800 flex justify-end space-x-3">
-              <button
-                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                onClick={() => setAiResult(null)}
-              >
-                Cancel
-              </button>
-              {aiResult.fixed_code && (
-                <button
-                  disabled={isApplyingFix}
-                  className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-bold flex items-center shadow-md transition-all active:scale-95"
-                  onClick={handleApplyFix}
-                >
-                  {isApplyingFix ? (
-                    <><FontAwesomeIcon icon={faSpinner} spin className="mr-2" /> Applying...</>
-                  ) : (
-                    <><FontAwesomeIcon icon={faCheck} className="mr-2" /> Apply Fix</>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Footer Buttons for Console Tab */}
-      <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 z-30">
-        <div className="flex space-x-2">
+      <div className="pt-4 mt-auto border-t border-gray-200 dark:border-gray-700 flex justify-end items-center bg-white dark:bg-gray-800 z-30 space-x-2">
+        <button
+          title="Clear Console"
+          className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm"
+          onClick={clearExecutionResult}
+        >
+          <FontAwesomeIcon icon={faTrash} className="mr-2" />
+          Clear
+        </button>
+        
+        {showAiButton && (
           <button
-            title="Clear Console"
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 py-2 px-4 rounded-lg font-medium flex items-center transition-colors"
-            onClick={clearExecutionResult}
+            title="Explain and Fix with AI"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm animate-in fade-in slide-in-from-bottom-2"
+            onClick={handleExplainError}
           >
-            <FontAwesomeIcon icon={faTrash} className="mr-2" />
-            Clear
+            <FontAwesomeIcon icon={faMagicWandSparkles} className="mr-2" />
+            Explain & Fix
           </button>
-          
-          {showAiButton && (
-            <button
-              title="Explain and Fix with AI"
-              className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-2 px-4 rounded-lg font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all animate-in fade-in slide-in-from-bottom-2"
-              onClick={handleExplainError}
-            >
-              <FontAwesomeIcon icon={faMagicWandSparkles} className="mr-2" />
-              Explain & Fix
-            </button>
-          )}
-        </div>
+        )}
 
         <button
           title="Copy to Clipboard"
-          className="bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 py-2 px-4 rounded-lg font-medium flex items-center transition-colors"
+          className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm"
           onClick={handleCopy}
         >
           <FontAwesomeIcon icon={faCopy} className="mr-2" />

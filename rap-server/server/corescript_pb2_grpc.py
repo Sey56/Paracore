@@ -84,6 +84,11 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.ComputeParameterOptionsRequest.SerializeToString,
                 response_deserializer=corescript__pb2.ComputeParameterOptionsResponse.FromString,
                 _registered_method=True)
+        self.SelectElements = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/SelectElements',
+                request_serializer=corescript__pb2.SelectElementsRequest.SerializeToString,
+                response_deserializer=corescript__pb2.SelectElementsResponse.FromString,
+                _registered_method=True)
 
 
 class CoreScriptRunnerServicer(object):
@@ -149,6 +154,12 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SelectElements(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreScriptRunnerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -201,6 +212,11 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.ComputeParameterOptions,
                     request_deserializer=corescript__pb2.ComputeParameterOptionsRequest.FromString,
                     response_serializer=corescript__pb2.ComputeParameterOptionsResponse.SerializeToString,
+            ),
+            'SelectElements': grpc.unary_unary_rpc_method_handler(
+                    servicer.SelectElements,
+                    request_deserializer=corescript__pb2.SelectElementsRequest.FromString,
+                    response_serializer=corescript__pb2.SelectElementsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -473,6 +489,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/ComputeParameterOptions',
             corescript__pb2.ComputeParameterOptionsRequest.SerializeToString,
             corescript__pb2.ComputeParameterOptionsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SelectElements(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/SelectElements',
+            corescript__pb2.SelectElementsRequest.SerializeToString,
+            corescript__pb2.SelectElementsResponse.FromString,
             options,
             channel_credentials,
             insecure,

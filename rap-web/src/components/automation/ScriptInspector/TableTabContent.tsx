@@ -117,10 +117,10 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
         )}
       </div>
       {hasOutput && (
-        <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div className="pt-4 mt-auto border-t border-gray-200 dark:border-gray-700 flex justify-end items-center bg-white dark:bg-gray-800 z-30 space-x-2">
           <button
             title="Copy to Clipboard"
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 py-2 px-4 rounded-lg font-medium flex items-center"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm"
             onClick={handleCopy}
           >
             <FontAwesomeIcon icon={faCopy} className="mr-2" />
@@ -128,7 +128,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
           </button>
           <button
             title="Export as CSV"
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 py-2 px-4 rounded-lg font-medium flex items-center"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm"
             onClick={handleExportCsv}
           >
             <FontAwesomeIcon icon={faFileCsv} className="mr-2" />

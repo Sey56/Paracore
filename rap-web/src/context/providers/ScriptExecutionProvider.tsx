@@ -437,7 +437,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     setCombinedScriptContent("// Loading script content...");
     setPresets([]);
-    setExecutionResult(null);
 
     try {
       const promises = [];

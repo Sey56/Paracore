@@ -57,14 +57,14 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
           placeholder="Search options..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-grow px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-grow px-2 py-1 text-xs rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
           disabled={disabled}
         />
         <div className="flex gap-1">
           <button
             onClick={() => handleAllNone(true)}
             disabled={disabled}
-            className="px-1.5 py-0.5 text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors"
+            className="px-2 py-1 text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors"
             title="Select All"
           >
             All
@@ -72,7 +72,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
           <button
             onClick={() => handleAllNone(false)}
             disabled={disabled}
-            className="px-1.5 py-0.5 text-[9px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-200 transition-colors"
+            className="px-2 py-1 text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-200 transition-colors"
             title="Clear All"
           >
             None
@@ -81,7 +81,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             <button
               onClick={() => onCompute(param.name)}
               disabled={disabled || isComputing}
-              className={`px-1.5 py-0.5 text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors ${isComputing ? 'animate-pulse' : ''}`}
+              className={`px-2 py-1 text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors ${isComputing ? 'animate-pulse' : ''}`}
               title="Compute options from Revit"
             >
               <FontAwesomeIcon
@@ -98,7 +98,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
         {filteredOptions.length > 0 ? (
           filteredOptions.map((option: string, i: number) => (
-            <label key={i} className="flex items-center space-x-2 cursor-pointer group py-0.5">
+            <label key={i} className="flex items-center space-x-2 cursor-pointer group py-1">
               <input
                 type="checkbox"
                 checked={selectedValues.includes(option)}
@@ -108,16 +108,16 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
                     : selectedValues.filter(v => v !== option);
                   onChange(index, JSON.stringify(newValues));
                 }}
-                className="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 border-gray-300 dark:border-gray-700 dark:bg-gray-900"
+                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-gray-300 dark:border-gray-700 dark:bg-gray-900"
                 disabled={disabled}
               />
-              <span className="text-[11px] text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate" title={option}>
+              <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate" title={option}>
                 {option}
               </span>
             </label>
           ))
         ) : (
-          <div className="col-span-2 text-center py-2 text-[10px] text-gray-400 italic">
+          <div className="col-span-2 text-center py-2 text-xs text-gray-400 italic">
             No matching options found
           </div>
         )}
@@ -164,14 +164,14 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             type="text"
             value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
             onChange={(e) => onChange(index, e.target.value)}
-            className="flex-grow border border-gray-300 dark:border-gray-600 rounded-l px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-grow border border-gray-300 dark:border-gray-600 rounded-l px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             disabled={disabled}
             placeholder={param.inputType === 'Folder' ? "Select folder..." : (param.inputType === 'SaveFile' ? "Enter save path..." : "Select file...")}
           />
           <button
             onClick={handleFileBrowse}
             disabled={disabled}
-            className="px-3 py-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-r border border-l-0 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
+            className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-r border border-l-0 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
             title="Browse..."
           >
             <FontAwesomeIcon icon={faFolderOpen} />
@@ -185,7 +185,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       return (
         <div className="flex items-center w-full">
           <select
-            className="w-full max-w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full max-w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             value={param.value as string}
             onChange={(e) => onChange(index, e.target.value)}
             disabled={disabled}
@@ -223,10 +223,10 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             type="checkbox"
             checked={isChecked}
             onChange={(e) => onChange(index, e.target.checked)}
-            className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+            className="rounded text-blue-600 focus:ring-blue-500 h-5 w-5"
             disabled={disabled}
           />
-          <span className="ml-2 text-xs text-gray-700 dark:text-gray-300">
+          <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
             True
           </span>
         </label>
@@ -268,7 +268,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
               const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
               onChange(index, val);
             }}
-            className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             disabled={disabled}
           />
         </div>
@@ -282,7 +282,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           type="text"
           value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
           onChange={(e) => onChange(index, e.target.value)}
-          className="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
           disabled={disabled}
         />
       </div>
@@ -290,9 +290,9 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   };
 
   return (
-    <div key={index} className="flex flex-col space-y-1">
+    <div key={index} className="flex flex-col space-y-1.5">
       <div className="flex justify-between items-baseline min-w-0">
-        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 truncate mr-2">
+        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 truncate mr-2">
           {param.name}
           {param.suffix && <span className="ml-1 text-gray-400 font-normal">({param.suffix})</span>}
           {param.required && <span className="text-red-500 ml-1" title="Required">*</span>}

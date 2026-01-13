@@ -438,7 +438,7 @@ export const ScriptGallery: React.FC = () => {
                 <div className="relative" title={getNewScriptButtonTooltip()}>
                   <button
                     onClick={handleOpenNewScriptModal}
-                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
                   >
                     New Script

@@ -55,7 +55,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   }, [activeInspectorTab, hasUnviewedTableData]);
 
   return (
-    <div className={`tabs mb-6 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
+    <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
       <div className="flex border-b border-gray-200 dark:border-gray-700">
         {allTabs.map((tab: InspectorTab) => (
           <button
@@ -80,11 +80,11 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
       </div>
 
       {/* Tab Content Area */}
-      <div className="mt-4">
-        <div className={activeInspectorTab === 'parameters' ? '' : 'hidden'}>
+      <div className="mt-4 flex-grow min-h-0 w-full overflow-hidden relative">
+        <div className={activeInspectorTab === 'parameters' ? 'h-full overflow-y-auto custom-scrollbar' : 'hidden'}>
           <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
         </div>
-        <div className={activeInspectorTab === 'console' ? '' : 'hidden'}>
+        <div className={activeInspectorTab === 'console' ? 'h-full w-full min-w-0' : 'hidden'}>
           <ConsoleTabContent
             isRunning={isRunning}
             executionResult={executionResult}
@@ -92,10 +92,10 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             clearExecutionResult={clearExecutionResult}
           />
         </div>
-        <div className={activeInspectorTab === 'table' ? '' : 'hidden'}>
+        <div className={activeInspectorTab === 'table' ? 'h-full' : 'hidden'}>
           <TableTabContent executionResult={executionResult} />
         </div>
-        <div className={activeInspectorTab === 'metadata' ? '' : 'hidden'}>
+        <div className={activeInspectorTab === 'metadata' ? 'h-full' : 'hidden'}>
           <MetadataTabContent metadata={script.metadata} />
         </div>
       </div>

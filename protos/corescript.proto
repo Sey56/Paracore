@@ -13,6 +13,16 @@ service CoreScriptRunner {
   rpc GetScriptManifest (GetScriptManifestRequest) returns (GetScriptManifestResponse);
   rpc ValidateWorkingSet (ValidateWorkingSetRequest) returns (ValidateWorkingSetResponse);
   rpc ComputeParameterOptions (ComputeParameterOptionsRequest) returns (ComputeParameterOptionsResponse);
+  rpc SelectElements (SelectElementsRequest) returns (SelectElementsResponse);
+}
+
+message SelectElementsRequest {
+  repeated int64 element_ids = 1;
+}
+
+message SelectElementsResponse {
+  bool is_success = 1;
+  string error_message = 2;
 }
 
 message CreateWorkspaceRequest {

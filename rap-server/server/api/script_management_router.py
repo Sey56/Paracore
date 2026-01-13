@@ -27,9 +27,27 @@ from auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
-# --- Memory Cache for Active Workspaces ---
+# --- Persistence for Active Workspaces ---
+WORKSPACE_CACHE_FILE = "active_workspaces.json"
+
+def load_workspace_cache() -> Dict[str, str]:
+    try:
+        if os.path.exists(WORKSPACE_CACHE_FILE):
+            with open(WORKSPACE_CACHE_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[ScriptManagement] Failed to load workspace cache: {e}")
+    return {}
+
+def save_workspace_cache(cache: Dict[str, str]):
+    try:
+        with open(WORKSPACE_CACHE_FILE, 'w') as f:
+            json.dump(cache, f, indent=2)
+    except Exception as e:
+        print(f"[ScriptManagement] Failed to save workspace cache: {e}")
+
 # original_script_path -> temp_workspace_path
-ACTIVE_SESSION_WORKSPACES: Dict[str, str] = {}
+ACTIVE_SESSION_WORKSPACES: Dict[str, str] = load_workspace_cache()
 
 # --- Template for new single-file scripts ---
 CSHARP_TEMPLATE = """using Autodesk.Revit.DB;
@@ -495,6 +513,7 @@ async def edit_script(request: Request, current_user: CurrentUser = Depends(get_
         # Store the workspace path for redirected AI fixes
         normalized_path = script_path.replace('\\', '/')
         ACTIVE_SESSION_WORKSPACES[normalized_path] = workspace_path
+        save_workspace_cache(ACTIVE_SESSION_WORKSPACES)
         print(f"[EditScript] Tracked active workspace for: {normalized_path}")
                 
         return JSONResponse(content={

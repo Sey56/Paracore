@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 import models, schemas
 from database_config import get_db
-from grpc_client import execute_script, validate_working_set_grpc
+from grpc_client import execute_script, validate_working_set_grpc, select_elements
 from utils import get_or_create_script, resolve_script_path
 from auth import get_current_user, CurrentUser
 from agent.graph import get_app # Import agent app
@@ -174,3 +174,22 @@ async def run_script(
             raise
         else:
             raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+@router.post("/api/select-elements", tags=["Script Execution"])
+async def select_elements_endpoint(request: Request):
+    """
+    Sets the selection in the active Revit document.
+    """
+    try:
+        data = await request.json()
+        element_ids = data.get("element_ids")
+        if not isinstance(element_ids, list):
+            raise HTTPException(status_code=400, detail="element_ids must be a list of integers.")
+        
+        # Ensure all IDs are integers
+        element_ids = [int(eid) for eid in element_ids]
+        
+        response = select_elements(element_ids)
+        return JSONResponse(content=response)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -129,7 +129,6 @@ namespace CoreScript.Engine.Runtime
                 
                 if (_pendingContext != null)
                 {
-                    _pendingContext.Println($"❌ {error}");
                     if (isConflict)
                     {
                         _pendingContext.Println("💡 Tip: This usually happens when pyRevit is installed. We are working on a fix, but for now, you can check 'CoreScriptError.txt' or 'CodeRunnerDebug.txt' in %AppData%\\Roaming\\paracore-data\\logs for details.");

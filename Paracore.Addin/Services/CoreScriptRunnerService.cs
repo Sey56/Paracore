@@ -147,16 +147,6 @@ namespace Paracore.Addin.Services
             var errorMessages = serverContext?.ErrorLog ?? new List<string>();
             
             var combinedOutput = string.Join("\n", outputMessages);
-            if (!finalResult.IsSuccess && !string.IsNullOrEmpty(finalResult.ErrorMessage))
-            {
-                // If it's a failure and the console is empty (or even if it's not), make sure the error is visible in the console tab.
-                if (string.IsNullOrEmpty(combinedOutput) || !combinedOutput.Contains(finalResult.ErrorMessage))
-                {
-                    combinedOutput = string.IsNullOrEmpty(combinedOutput) 
-                        ? $"❌ {finalResult.ErrorMessage}" 
-                        : combinedOutput + $"\n❌ {finalResult.ErrorMessage}";
-                }
-            }
 
             var response = new ExecuteScriptResponse
             {
@@ -760,6 +750,48 @@ namespace Paracore.Addin.Services
                 _logger.LogError($"[CoreScriptRunnerService] Error in ComputeParameterOptions: {errorMessage}");
                 response.IsSuccess = false;
                 response.ErrorMessage = errorMessage;
+            }
+
+            return response;
+        }
+
+        public override async Task<SelectElementsResponse> SelectElements(SelectElementsRequest request, ServerCallContext context)
+        {
+            _logger.Log($"[CoreScriptRunnerService] Entering SelectElements. Target count: {request.ElementIds.Count}", LogLevel.Debug);
+            var response = new SelectElementsResponse { IsSuccess = false };
+
+            if (_uiApp == null)
+            {
+                response.ErrorMessage = "Revit UI Application is not available.";
+                return response;
+            }
+
+            try
+            {
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
+                {
+                    var uidoc = _uiApp.ActiveUIDocument;
+                    if (uidoc == null) throw new Exception("No active document.");
+
+                    var ids = request.ElementIds.Select(id => new ElementId(id)).ToList();
+                    uidoc.Selection.SetElementIds(ids);
+                    
+                    // Optional: Zoom to selection
+                    if (ids.Count > 0)
+                    {
+                        uidoc.ShowElements(ids.First());
+                    }
+                    return true;
+                });
+
+                response.IsSuccess = true;
+                _logger.Log("[CoreScriptRunnerService] Selection updated successfully.", LogLevel.Debug);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[CoreScriptRunnerService] Selection failed: {ex.Message}");
+                response.IsSuccess = false;
+                response.ErrorMessage = ex.Message;
             }
 
             return response;

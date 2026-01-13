@@ -60,6 +60,8 @@ All script parameters must be defined inside a \`public class Params\` (bottom o
     - This allows the Paracore engine to catch the failure and display an "Execution Failed" status in the UI.
 2.  **Transactions & Fail-Fast**:
     - Use exactly one \`Transact("Name", () => { ... })\` block.
+    - **FORBIDDEN**: \`Transact.Run\`, \`Transaction.Run\`, or any variations.
+    - **FORBIDDEN**: Do NOT use \`Transact\` for read-only operations (filtering, selection).
     - **FORBIDDEN**: Do NOT use \`try-catch\` inside loops within a transaction.
     - Let exceptions propagate so the transaction rolls back automatically.
     - If one element fails, the whole batch should fail cleanly.

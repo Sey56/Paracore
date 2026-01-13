@@ -10,6 +10,14 @@ import os
 import re
 import asyncio
 
+from grpc_client import (
+    get_script_metadata,
+    get_script_parameters,
+    get_combined_script,
+    create_and_open_workspace,
+    compute_parameter_options
+)
+from utils import get_or_create_script, resolve_script_path, redact_secrets
 from auth import get_current_user, CurrentUser
 from generation.gemini_client import generate_code_with_gemini, explain_and_fix_with_gemini
 
@@ -20,8 +28,8 @@ class GenerateScriptRequest(BaseModel):
     task_description: str
     previous_attempts: Optional[List[Dict[str, str]]] = None  # List of {"code": ..., "error": ...}
     use_web_search: bool = False  # Enable Google Search for Revit API docs
-    llm_provider: str = "gemini"
-    llm_model: str = "gemini-2.0-flash-exp"
+    llm_provider: Optional[str] = None
+    llm_model: Optional[str] = None
     llm_api_key_name: Optional[str] = None
     llm_api_key_value: Optional[str] = None
     multi_file: bool = False  # If True, LLM can generate multiple modular files
@@ -130,16 +138,17 @@ async def generate_script(
         )
     
     except Exception as e:
-        print(f"[Generation] Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = redact_secrets(str(e))
+        print(f"[Generation] Error: {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 class ExplainErrorRequest(BaseModel):
     script_code: str
     error_message: str
     context: Optional[Dict[str, str]] = None
-    llm_provider: str = "gemini"
-    llm_model: str = "gemini-2.0-flash-exp"
+    llm_provider: Optional[str] = None
+    llm_model: Optional[str] = None
     llm_api_key_name: Optional[str] = None
     llm_api_key_value: Optional[str] = None
 
@@ -160,7 +169,8 @@ async def explain_error(
     """
     Analyzes a failed script run, explains why it failed, and provides a fix.
     """
-    print(f"[Generation] Received error explanation request")
+    error_summary = request.error_message[:100] + "..." if len(request.error_message) > 100 else request.error_message
+    print(f"[Generation] Received error explanation request for: {error_summary}")
     try:
         raw_response = await explain_and_fix_with_gemini(
             script_code=request.script_code,
@@ -192,11 +202,12 @@ async def explain_error(
         )
         
     except Exception as e:
-        print(f"[Generation] Explain error error: {str(e)}")
+        error_msg = redact_secrets(str(e))
+        print(f"[Generation] Explain error error: {error_msg}")
         return ExplainErrorResponse(
             explanation="Failed to generate explanation.",
             is_success=False,
-            error_message=str(e)
+            error_message=error_msg
         )
 
 
