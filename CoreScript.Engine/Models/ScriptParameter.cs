@@ -33,5 +33,6 @@ namespace CoreScript.Engine.Models
         public string EnabledWhenParam { get; set; } // New: Conditional Logic
         public string EnabledWhenValue { get; set; } // New: Conditional Logic (serialized value)
         public string Unit { get; set; } // New: Unit conversion (e.g. "mm", "ft")
+        public string SelectionType { get; set; } // New: "Element", "Point", "Face", etc.
     }
 }

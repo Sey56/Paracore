@@ -13,6 +13,29 @@ service CoreScriptRunner {
   rpc GetScriptManifest (GetScriptManifestRequest) returns (GetScriptManifestResponse);
   rpc ValidateWorkingSet (ValidateWorkingSetRequest) returns (ValidateWorkingSetResponse);
   rpc ComputeParameterOptions (ComputeParameterOptionsRequest) returns (ComputeParameterOptionsResponse);
+  rpc SelectElements (SelectElementsRequest) returns (SelectElementsResponse);
+  rpc PickObject (PickObjectRequest) returns (PickObjectResponse);
+}
+
+message PickObjectRequest {
+  string selection_type = 1; // "Element", "Point", "Face", "Edge"
+  string category_filter = 2; // Optional: BuiltInCategory name or "Walls", "Doors", etc.
+}
+
+message PickObjectResponse {
+  string value = 1; // The ID or coordinates returned
+  bool is_success = 2;
+  bool cancelled = 3;
+  string error_message = 4;
+}
+
+message SelectElementsRequest {
+  repeated int64 element_ids = 1;
+}
+
+message SelectElementsResponse {
+  bool is_success = 1;
+  string error_message = 2;
 }
 
 message CreateWorkspaceRequest {
@@ -125,6 +148,8 @@ message ScriptParameter {
   string pattern = 20;
   string enabled_when_param = 21;
   string enabled_when_value = 22;
+  string unit = 23;
+  string selection_type = 24;
 }
 
 message GetCombinedScriptRequest {

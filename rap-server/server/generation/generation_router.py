@@ -46,33 +46,41 @@ class GenerateScriptResponse(BaseModel):
 def extract_files_from_response(raw_response: str) -> Dict[str, str]:
     """
     Extract multiple C# code blocks from LLM response.
-    Expected format: 
-    File: MyClass.cs
-    ```csharp
-    ...
-    ```
+    Supports two patterns:
+    1. External headers: File: Main.cs \n ```csharp ... ```
+    2. Internal headers: ```csharp \n // File: Main.cs \n ... \n // File: Params.cs ... ```
     """
     files = {}
     
-    # Try to find file-prefixed blocks
-    # Pattern: "File: filename.cs" followed by "```csharp ... ```"
+    # Pattern 1: External file-prefixed blocks (Markdown style)
+    # "File: filename.cs" followed by "```csharp ... ```"
     file_pattern = r"(?:File|Filename):\s*([a-zA-Z0-9_\.]+\.cs)\s*[\r\n]+```csharp[\r\n]+(.*?)\s*```"
-    matches = re.finditer(file_pattern, raw_response, re.DOTALL | re.IGNORECASE)
+    matches = list(re.finditer(file_pattern, raw_response, re.DOTALL | re.IGNORECASE))
     
     for match in matches:
         filename = match.group(1)
         code = match.group(2).strip()
         files[filename] = code
         
-    # If no named files found, find all raw csharp blocks
+    # Pattern 2: Internal headers (Single block containing multiple files)
     if not files:
+        # Find all csharp blocks
         raw_blocks = re.findall(r"```csharp[\r\n]+(.*?)\s*```", raw_response, re.DOTALL)
-        if len(raw_blocks) > 0:
-            # First block is Main.cs by convention
-            files["Main.cs"] = raw_blocks[0].strip()
-            # Others get generic names
-            for i, block in enumerate(raw_blocks[1:], 2):
-                files[f"Module_{i}.cs"] = block.strip()
+        for block in raw_blocks:
+            # Look for "// File: name.cs" markers inside this block
+            # We split the block by these markers
+            segments = re.split(r"//\s*(?:File|Filename):\s*([a-zA-Z0-9_\.]+\.cs)", block, flags=re.IGNORECASE)
+            
+            # segments[0] is everything before the first marker (often empty or generic header)
+            # segments[1] is filename1, segments[2] is code1, etc.
+            if len(segments) > 1:
+                for i in range(1, len(segments), 2):
+                    fname = segments[i].strip()
+                    fcode = segments[i+1].strip()
+                    files[fname] = fcode
+            elif not files:
+                # Fallback: No markers found inside the first block, treat as Main.cs or single file
+                files["Main.cs"] = block.strip()
                 
     return files
 
@@ -143,9 +151,27 @@ async def generate_script(
         raise HTTPException(status_code=500, detail=error_msg)
 
 
+from utils import get_or_create_script, resolve_script_path, redact_secrets
+from auth import get_current_user, CurrentUser
+from generation.gemini_client import generate_code_with_gemini, explain_and_fix_with_gemini
+from workspace_manager import get_scripts_dir
+import glob
+
+router = APIRouter(prefix="/generation", tags=["Generation"])
+
+
+class GenerateScriptRequest(BaseModel):
+    task_description: str
+# ... (existing GenerateScriptRequest parts) ...
+
+# ... (existing functions) ...
+
 class ExplainErrorRequest(BaseModel):
-    script_code: str
     error_message: str
+    script_code: Optional[str] = None
+    script_path: Optional[str] = None
+    type: Optional[str] = None
+    files: Optional[Dict[str, str]] = None
     context: Optional[Dict[str, str]] = None
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
@@ -156,6 +182,7 @@ class ExplainErrorRequest(BaseModel):
 class ExplainErrorResponse(BaseModel):
     explanation: str
     fixed_code: Optional[str] = None
+    files: Optional[Dict[str, str]] = None
     filename: Optional[str] = None
     is_success: bool
     error_message: Optional[str] = None
@@ -168,23 +195,68 @@ async def explain_error(
 ):
     """
     Analyzes a failed script run, explains why it failed, and provides a fix.
+    Supports both single-file and multi-file contexts.
+    Prioritizes loading files from the Active Workspace if available.
     """
     error_summary = request.error_message[:100] + "..." if len(request.error_message) > 100 else request.error_message
     print(f"[Generation] Received error explanation request for: {error_summary}")
+    
     try:
+        # 1. Determine Files to Analyze
+        files_to_process = request.files or {}
+        
+        # If files not provided explicitly, try to load from disk/workspace
+        if not files_to_process and request.script_path:
+            try:
+                target_dir = get_scripts_dir(request.script_path, request.type)
+                print(f"[Generation] Loading script context from: {target_dir}")
+                
+                if os.path.exists(target_dir):
+                    if os.path.isfile(target_dir): # Single file case
+                         with open(target_dir, 'r', encoding='utf-8-sig') as f:
+                             files_to_process[os.path.basename(target_dir)] = f.read()
+                    else: # Directory case
+                        for file_path in glob.glob(os.path.join(target_dir, "*.cs")):
+                            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                                files_to_process[os.path.basename(file_path)] = f.read()
+            except Exception as load_err:
+                print(f"[Generation] Warning: Failed to load files from disk: {load_err}")
+
+        # 2. Construct Combined Content
+        script_content_to_send = ""
+        
+        if files_to_process:
+            print(f"[Generation] Processing multi-file explanation request ({len(files_to_process)} files)")
+            combined_parts = []
+            for fname, code in files_to_process.items():
+                combined_parts.append(f"// File: {fname}\n{code}")
+            script_content_to_send = "\n\n".join(combined_parts)
+        elif request.script_code:
+            # Fallback to provided single string
+            script_content_to_send = request.script_code
+        else:
+            raise HTTPException(status_code=400, detail="No script content or valid path provided for analysis.")
+            
+        # Determine if multi-file mode should be active
+        is_multi_file = request.type == 'multi-file' or len(files_to_process) > 1
+
         raw_response = await explain_and_fix_with_gemini(
-            script_code=request.script_code,
+            script_code=script_content_to_send,
             error_message=request.error_message,
             context=request.context,
+            multi_file=is_multi_file,
             llm_model=request.llm_model,
             llm_api_key_name=request.llm_api_key_name,
             llm_api_key_value=request.llm_api_key_value
         )
         
-        # Extract the fixed code
+        # Extract fixed code (Primary)
         fixed_code = extract_code_from_response(raw_response)
         
-        # Extract filename if present (// File: filename.cs)
+        # Extract multiple files if present
+        fixed_files = extract_files_from_response(raw_response)
+        
+        # Extract filename if present (// File: filename.cs) from the primary block
         filename = None
         if fixed_code:
             filename_match = re.search(r"//\s*(?:File|Filename):\s*([a-zA-Z0-9_\.]+\.cs)", fixed_code, re.IGNORECASE)
@@ -197,6 +269,7 @@ async def explain_error(
         return ExplainErrorResponse(
             explanation=explanation,
             fixed_code=fixed_code if fixed_code else None,
+            files=fixed_files if len(fixed_files) > 0 else None,
             filename=filename,
             is_success=True
         )

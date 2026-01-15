@@ -45,21 +45,21 @@ def get_corescript_generation_prompt(
    - **Formatting**: Simply return one `csharp` code block.
    - **ORDER**: 1. using, 2. Top-Level Statements, 3. Class Definitions (Params MUST be last)."""
 
-    return f"""Generate Revit API 2025 C# code for CoreScript.Engine.
+    return f"""Generate Revit API 2025 and above C# code for CoreScript.Engine.
 
 CORE RULES:
 1. **Output Method Selection**:
    - **DEFAULT**: Use `Println($"Message {{variable}}")` for ALL console output.
-   - **ONLY use `Show()`** for tables/grids.
+   - **VISUALIZATION**: Use `Table(data)` for interactive grids and `ChartBar(data)`, `PieChart(data)`, or `LineChart(data)` for charts.
    - **FORBIDDEN**: Do NOT use `Print` or the ❌ emoji.
 2. **"Select" Semantics**: Use `UIDoc.Selection.SetElementIds(elementIds)` at the end.
 3. **Transaction Syntax**:
    - **REQUIRED**: Use ONLY `Transact("Action Name", () => { ... })`.
    - **FORBIDDEN**: `Transact.Run`, `Transaction.Run`, or any other variations.
 {architecture_rules}
-4. **Revit 2025 API Specifics**:
+4. **Revit 2025+ API Specifics**:
    - **Use `ElementId.Value`** (long). **FORBIDDEN**: `ElementId.IntegerValue`.
-   - Ensure all API calls are compatible with .NET 8.
+   - Ensure all API calls are compatible with .NET 8 (Revit 2025 and 2026).
 5. **Error Handling & Early Exits**:
    - **CRITICAL**: Do NOT use the `return` keyword for early exits on errors.
    - Instead, `throw new Exception("Clear error message")`.
@@ -74,11 +74,18 @@ CORE RULES:
    - **Definition**: All parameters MUST be in `public class Params`.
    - **File Location**: Bottom of `Main.cs` OR in dedicated `Params.cs`.
    - **Grouping (Zero Boilerplate)**: Use `#region GroupName` ... `#endregion` to automatically group UI inputs.
+   - **CRITICAL**: Always leave an **EMPTY LINE** before and after `#region` and `#endregion` directives.
+   - **NOTE**: Keep attributes (e.g., `[Unit]`) directly above the property (no empty line).
 
    **Supported Attributes**:
    - `[RevitElements]`: For Revit objects (Walls, Sheets, Rooms).
      - Example: `[RevitElements(TargetType="Room")]`
      - Example: `[RevitElements(TargetType="FamilySymbol", Category="Doors")]`
+   - `[Select]`: For interactive user selection (Native Types Supported).
+     - `[Select(SelectionType.Point)]`: Use `public XYZ StartPoint {{ get; set; }}`.
+     - `[Select(SelectionType.Edge)]`: Use `public Reference EdgeRef {{ get; set; }}`.
+     - `[Select(SelectionType.Face)]`: Use `public Reference FaceRef {{ get; set; }}`.
+     - `[Select(SelectionType.Element)]`: Use `public int ElementIdVal {{ get; set; }}`.
    - `[Range(min, max, step)]`: Forces a UI Slider.
    - `[Unit("unit")]`: Handles input conversion (e.g. `[Unit("mm")]`).
      - *Note*: Input is auto-converted to feet. Output (Print) must be manual.
@@ -93,11 +100,11 @@ CORE RULES:
    - `_Range` (returns `(double, double, double)`): Dynamic slider limits.
 8. **Conciseness & Output Minimalism**:
    - **Adherence**: Provide ONLY what the user requests.
-   - **Show() Constraints**: Anonymous objects passed to `Show()` should be minimal. Usually just `{{ Name = x.Name, Id = x.Id.Value }}`.
+   - **Visualization Constraints**: Anonymous objects passed to `Table()` or `ChartBar()` should be minimal. Usually just `{{ Name = x.Name, Id = x.Id.Value }}`.
 9. **Geometry Rules**:
     - **FORBIDDEN**: `Curve` does NOT have `GetBoundingBoxXYZ()`. Use `curve.GetEndPoint(0)` and `curve.GetEndPoint(1)` to calculate ranges.
     - **FORBIDDEN**: `SpatialElement` (Room) boundary location is an Enum: `SpatialElementBoundaryLocation.Finish` or `Center`.
-    - **FORBIDDEN**: `SpatialElementBoundaryOptions` does NOT have a `BoundaryOffset` property in Revit 2025.
+    - **FORBIDDEN**: `SpatialElementBoundaryOptions` does NOT have a `BoundaryOffset` property in Revit 2025+.
     - **FORBIDDEN**: `Floor.Create` overloads with `XYZ normal` are DEPRECATED.
     - **CORRECT**: Use `Floor.Create(Doc, profile, floorTypeId, levelId)` for architectural floors.
     - **CORRECT**: Use `Floor.Create(Doc, profile, floorTypeId, levelId, isStructural, null, 0.0)` for structural floors (last two are slopeArrow and slope).
@@ -128,17 +135,14 @@ GEOMETRY VALIDATION:
 
 GLOBALS (IMPLICITLY AVAILABLE - DO NOT IMPORT):
 - `Doc`, `UIDoc`, `UIApp`: Revit API access.
-- `Println(string)`: Console output.
-- `Show(string type, object data)`: Rich structured output.
+- `Println(string)`, `Table(object)`, `ChartBar(object)`, `PieChart(object)`, `LineChart(object)`: Output.
 - `Transact(string name, Action action)`: Database write transaction.
+- `System`, `System.Linq`, `System.Collections.Generic`, `Autodesk.Revit.DB`: Implicitly imported.
 
 REQUIRED IMPORTS:
-using Autodesk.Revit.DB;
-using System;
-using System.Linq;
-using System.Collections.Generic;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
+// System, Linq, Collections, DB are implicit but safe to re-import if needed for IntelliSense.
 
 {retry_context}
 
@@ -146,15 +150,15 @@ EXAMPLES:
 
 1. Visual Selection ("Select X") with Magic Extraction:
 ```csharp
-using Autodesk.Revit.DB;
-using System;
-using System.Linq;
-using System.Collections.Generic;
+using Autodesk.Revit.DB.Architecture;
 
 // 1. Instantiate Parameters
 var p = new Params();
 
 // 2. Logic (Read Only)
+// Native Point Support!
+XYZ start = p.StartPoint ?? XYZ.Zero;
+
 var level = new FilteredElementCollector(Doc)
     .OfClass(typeof(Level))
     .Cast<Level>()
@@ -178,15 +182,21 @@ if (!walls.Any())
 
 var ids = walls.Select(w => w.Id).ToList();
 UIDoc.Selection.SetElementIds(ids);
-Println($"✅ Selected {{ids.Count}} walls on {{level.Name}}.");
+Println($"✅ Selected {{ids.Count}} walls on {{level.Name}} near {{start}}.");
 
 // 3. Class Definitions (Params MUST be last)
 public class Params
 {{
     #region Selection
+
     /// <summary>Target level name</summary>
     [RevitElements, Required]
     public string LevelName {{ get; set; }}
+
+    /// <summary>Start point for search</summary>
+    [Select(SelectionType.Point)]
+    public XYZ StartPoint {{ get; set; }}
+
     #endregion
 }}
 ```
@@ -233,6 +243,8 @@ public class Params
 {{
     // Zero Boilerplate: Properties are automatically parameters
     
+    #region Dimensions
+
     // 1. Automatic Unit Conversion using [Unit] attribute (Standard C#)
     // Variable holds Internal Units (Feet), UI shows 1000 mm
     // NOTE: For DISPLAY/OUTPUT, you must manually convert FROM feet using UnitUtils.
@@ -252,7 +264,11 @@ public class Params
     // Convention-Based "Visible When" Logic (Property Property_Visible)
     public bool UseHeight {{ get; set; }} = true;
     public bool Height_Visible => UseHeight; // Automatically controls Height visibility
+
+    #endregion
+
     #region Reference
+
     [RevitElements(TargetType = "Level"), Required]
     public string LevelName {{ get; set; }} = "Level 1";
 
@@ -270,15 +286,7 @@ public class Params
             .WhereElementIsNotElementType().Cast<Room>()
             .Where(r => r.LevelId.Value == GetLevelId(LevelName)).Select(r => r.Name).ToList();
     }}
-    #endregion
 
-    #region Dimensions
-    /// <summary>Height in meters</summary>
-    [Range(0.5, 10.0, 0.1)]
-    public double WallHeight {{ get; set; }} = 3.0;
-
-    // Required for dynamic range sliders
-    public (double min, double max, double step) WallHeight_Range => (0.1, 10.0, 0.1);
     #endregion
 }}
 ```
@@ -290,354 +298,120 @@ Generate complete, executable code following the ORDER: Imports -> Logic -> Clas
 
 
 def get_error_explanation_prompt(
-
-
     script_code: str,
-
-
     error_message: str,
-
-
-    context: Optional[Dict[str, str]] = None
-
-
+    context: Optional[Dict[str, str]] = None,
+    multi_file: bool = False
 ) -> str:
-
-
     """
-
-
     Generates the system prompt for explaining and fixing a script error.
-
-
     """
-
-
     
-
-
     revit_context = ""
-
-
     if context:
-
-
         revit_context = "\nREVIT CONTEXT:\n"
-
-
         for key, value in context.items():
-
-
             revit_context += f"- {key}: {value}\n"
 
-
-
-
+    structure_rule = ""
+    if multi_file:
+        structure_rule = """
+3. **MODULAR STRUCTURE (MULTI-FILE)**:
+   - This is a **MULTI-FILE** script. Do NOT consolidate the code into one block.
+   - **Params.cs**: Keep the `Params` class here.
+   - **Main.cs**: Keep the main logic here.
+   - **Utilities**: Keep other classes in their respective files.
+   - **OUTPUT**: Return a separate ```csharp``` block for EVERY file you modify. 
+   - **HEADER**: Start every block with `// File: filename.cs`.
+"""
+    else:
+        structure_rule = """
+3. **STANDALONE STRUCTURE (SINGLE-FILE)**:
+   - This is a **SINGLE-FILE** script. Keep everything in one block.
+   - **Params**: Must be at the very bottom of the code.
+   - **OUTPUT**: Return exactly ONE ```csharp``` block.
+"""
 
     return f"""You are a world-class Revit API expert and C# developer specializing in the 'CoreScript' automation engine.
-
-
 A user's automation script has failed. Your task is to explain the error simply and provide the FIXED code.
 
-
-
-
-
 FAILED SCRIPT CODE:
-
-
 ```csharp
-
-
 {script_code}
-
-
 ```
 
-
-
-
-
 ERROR MESSAGE:
-
-
 {error_message}
-
-
 {revit_context}
-
-
-
-
 
 ### 🛑 CORESCRIPT STRICT RULES (DO NOT HALLUCINATE)
 
-
-
-
-
 1. **TRANSACTIONS**:
-
-
    - **Syntax**: `Transact("Action Name", () => {{ /* modify DB here */ }});`
-
-
    - **FORBIDDEN**: `Transact.Run`, `Transaction.Start`, `t.Start()`.
-
-
    - **Scope**: NEVER use `Transact` for read-only operations (filtering, selection, logging). Only for `new`, `.Set()`, `Delete`, `Move`, etc.
-
-
    - **Looping**: NEVER put `Transact` inside a loop. Loop *inside* the transaction.
 
-
-
-
-
 2. **GLOBALS** (Always Available):
-
-
    - `Doc` (Document), `UIDoc` (UIDocument), `UIApp` (UIApplication).
-
-
    - `Println(string)`: Log text.
-
-
-   - `Show(string type, object data)`: Show data tables.
-
-
-
-
-
-3. **PARAMETERS (class Params)**:
-
-
-   - **Structure**: Must be `public class Params {{ ... }}` at the bottom of the file.
-
-
+   - `Table(object)`: Show data tables.
+   - `ChartBar(object)`, `PieChart(object)`, `LineChart(object)`: Show visualizations.
+   - `System`, `System.Linq`, `System.Collections.Generic`, `Autodesk.Revit.DB`: Implicitly imported.
+{structure_rule}
+4. **PARAMETERS (class Params)**:
+   - **Structure**: Must be `public class Params {{ ... }}`.
    - **Grouping**: Use `#region GroupName` ... `#endregion`.
-
-
+   - **CRITICAL**: Always leave an **EMPTY LINE** before and after `#region` and `#endregion` directives.
    - **Attributes**:
-
-
      - `[RevitElements(TargetType="WallType")]`: Dropdown of Revit elements.
-
-
-     - `[Unit("m")]`, `[Unit("m2")]`: Auto-converts inputs (Meters -> Feet). **Do not convert manually in code.**
-
-
+     - `[Select(SelectionType.Element)]`: Interactive element selection (returns int/long).
+     - `[Select(SelectionType.Point)]`: Interactive point selection (Use type `XYZ`).
+     - `[Select(SelectionType.Edge)]`: Interactive edge selection (Use type `Reference`).
+     - `[Unit("m")]`: Auto-converts inputs (Meters -> Feet). **Do not convert manually in code.**
      - `[Range(min, max, step)]`: Slider.
-
-
-     - `[Required]`: Mandatory input.
-
-
-   - **Dynamic Logic Suffixes**:
-
-
-     - `_Options` or `_Filter` (returns `List<string>`): Custom dropdown items.
-
-
-     - `_Visible` (returns `bool`): Show/hide parameter.
-
-
-     - `_Enabled` (returns `bool`): Enable/disable parameter.
-
-
-     - `_Range` (returns tuple): Dynamic min/max.
-
-
    - **Organization**: Keep the Property and its Helper (e.g., `MyParam` and `MyParam_Options`) together.
 
+5. **PRESERVE ARCHITECTURE (CRITICAL)**:
+   - **Maintain Mapping**: Do NOT move code between files. 
+   - If the error is in `Params.cs`, fix it in `Params.cs`. 
+   - If the error is in `Main.cs`, fix it in `Main.cs`.
+   - Do NOT consolidate modular scripts into a single file unless explicitly requested.
+   - Always return the updated content for every file that needs a fix.
 
-
-
-
-### ✅ GOLDEN REFERENCE EXAMPLE
-
-
-Use this structure as your ground truth:
-
-
-
-
-
+### ✅ GOLDEN REFERENCE EXAMPLE (MODULAR)
 ```csharp
-
-
-using Autodesk.Revit.DB;
-
-
-using System.Linq;
-
-
-using System.Collections.Generic;
-
-
-
-
-
-// 1. Setup
-
+// File: Main.cs
+using Autodesk.Revit.DB.Architecture;
 
 var p = new Params();
+var room = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).Cast<Room>().FirstOrDefault(r => r.Name == p.RoomName);
+if (room == null) throw new Exception("Room not found.");
 
+Transact("Fix", () => {{ /* ... */ }});
+Println("Done.");
 
-
-
-
-// 2. Logic (READ-ONLY) - No Transaction here!
-
-
-var level = new FilteredElementCollector(Doc)
-
-
-    .OfClass(typeof(Level)).Cast<Level>()
-
-
-    .FirstOrDefault(l => l.Name == p.LevelName);
-
-
-
-
-
-if (level == null) throw new Exception("Level not found.");
-
-
-
-
-
-// 3. Execution (WRITE) - Single Transaction
-
-
-Transact("Create Walls", () => {{
-
-
-    for(int i=0; i<p.Count; i++) {{
-
-
-        // ... creation logic ...
-
-
-    }}
-
-
-}});
-
-
-
-
-
-Println($"✅ Done. Created {{p.Count}} items.");
-
-
-
-
-
-// 4. Parameters
-
-
+// File: Params.cs
 public class Params {{
-
-
     #region Settings
 
-
-    [Unit("m")] // Engine handles m -> ft conversion automatically
-
-
+    [Unit("m")]
     public double Height {{ get; set; }} = 3.0;
 
-
-
-
-
-    [Range(1, 10)]
-
-
-    public int Count {{ get; set; }} = 5;
-
+    [Select(SelectionType.Point)]
+    public XYZ Location {{ get; set; }}
 
     #endregion
-
-
-
-
-
-    #region Selection
-
-
-    [RevitElements(TargetType="Level"), Required]
-
-
-    public string LevelName {{ get; set; }}
-
-
-
-
-
-    // Custom Logic (Keep next to property)
-
-
-    [RevitElements(TargetType="FamilySymbol")]
-
-
-    public string DoorType {{ get; set; }}
-
-
-
-
-
-    public List<string> DoorType_Filter() {{
-
-
-        return new FilteredElementCollector(Doc)
-
-
-            .OfCategory(BuiltInCategory.OST_Doors) // Use OfCategory, NOT OfClass(typeof(Family))
-
-
-            .WhereElementIsElementType()
-
-
-            .Cast<FamilySymbol>()
-
-
-            .Select(x => x.Name).ToList();
-
-
-    }}
-
-
-    #endregion
-
-
 }}
-
-
 ```
 
-
-
-
-
 ### RESPONSE FORMAT
-
-
 1. **### 🔍 What went wrong?**: Simple explanation.
-
-
 2. **### ✨ The Fix**: Technical explanation.
-
-
-3. **Code Block**: The COMPLETE fixed C# code.
-
-
-   - **CRITICAL**: Start the block with `// File: filename.cs` to identify which file to fix.
-
-
+3. **Code Blocks**: The fixed C# code.
+   - **CRITICAL**: Start every block with `// File: filename.cs` to identify which file to fix.
 """
+
 
 
 

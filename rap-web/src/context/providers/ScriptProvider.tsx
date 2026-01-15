@@ -690,7 +690,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
               : p.inputType,
             options: (existingParam?.options && existingParam.options.length > 0)
               ? existingParam.options
-              : ((p as any).options || [])
+              : ((p as any).options || []),
+            unit: p.unit,
+            selectionType: p.selectionType
           };
         });
 

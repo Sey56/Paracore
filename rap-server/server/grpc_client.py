@@ -146,7 +146,9 @@ def get_script_parameters(script_files):
             "suffix": p.suffix,
             "pattern": p.pattern,
             "enabledWhenParam": p.enabled_when_param,
-            "enabledWhenValue": p.enabled_when_value
+            "enabledWhenValue": p.enabled_when_value,
+            "unit": p.unit,
+            "selectionType": p.selection_type
         }
         params_to_return.append(param_dict)
 
@@ -302,3 +304,34 @@ def select_elements(element_ids: list[int]):
                 "is_success": False,
                 "error_message": f"Unexpected error: {str(e)}"
             }
+
+def pick_object(selection_type: str, category_filter: str = None):
+    """
+    Calls the gRPC service to let the user pick an object in Revit.
+    """
+    logging.info(f"Attempting to pick object (Type: {selection_type}, Filter: {category_filter}) via gRPC.")
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.PickObjectRequest(
+                selection_type=selection_type,
+                category_filter=category_filter if category_filter else ""
+            )
+            response = stub.PickObject(request)
+            return {
+                "value": response.value,
+                "is_success": response.is_success,
+                "cancelled": response.cancelled,
+                "error_message": response.error_message
+            }
+    except grpc.RpcError as e:
+        logging.error(f"gRPC PickObject call failed: {e.code()} - {e.details()}")
+        return {
+            "is_success": False,
+            "error_message": f"gRPC error: {e.details()}"
+        }
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during gRPC PickObject call: {e}")
+        return {
+            "is_success": False,
+            "error_message": f"Unexpected error: {str(e)}"
+        }

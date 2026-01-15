@@ -25,6 +25,17 @@ namespace CoreScript.Engine.Globals
         public static void Transact(string name, Action action) => Globals.Transact(name, action);
 
         public static void Show(string type, object data) => Globals.Output.Show(type, data);
+        public static void Table(object data) => Globals.Output.Show("table", data);
+        
+        public static void ChartBar(object data) => Globals.Output.ChartBar(data);
+        public static void ChartPie(object data) => Globals.Output.ChartPie(data);
+        public static void ChartLine(object data) => Globals.Output.ChartLine(data);
+
+        // Aliases for better intuition
+        public static void BarChart(object data) => Globals.Output.ChartBar(data);
+        public static void PieChart(object data) => Globals.Output.ChartPie(data);
+        public static void LineChart(object data) => Globals.Output.ChartLine(data);
+        public static void LineGraph(object data) => Globals.Output.ChartLine(data);
 
         /// <summary>
         /// Sets the execution timeout for the current script. Default is 10 seconds.

@@ -89,6 +89,11 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.SelectElementsRequest.SerializeToString,
                 response_deserializer=corescript__pb2.SelectElementsResponse.FromString,
                 _registered_method=True)
+        self.PickObject = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/PickObject',
+                request_serializer=corescript__pb2.PickObjectRequest.SerializeToString,
+                response_deserializer=corescript__pb2.PickObjectResponse.FromString,
+                _registered_method=True)
 
 
 class CoreScriptRunnerServicer(object):
@@ -160,6 +165,12 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def PickObject(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreScriptRunnerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -217,6 +228,11 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.SelectElements,
                     request_deserializer=corescript__pb2.SelectElementsRequest.FromString,
                     response_serializer=corescript__pb2.SelectElementsResponse.SerializeToString,
+            ),
+            'PickObject': grpc.unary_unary_rpc_method_handler(
+                    servicer.PickObject,
+                    request_deserializer=corescript__pb2.PickObjectRequest.FromString,
+                    response_serializer=corescript__pb2.PickObjectResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -516,6 +532,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/SelectElements',
             corescript__pb2.SelectElementsRequest.SerializeToString,
             corescript__pb2.SelectElementsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def PickObject(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/PickObject',
+            corescript__pb2.PickObjectRequest.SerializeToString,
+            corescript__pb2.PickObjectResponse.FromString,
             options,
             channel_credentials,
             insecure,

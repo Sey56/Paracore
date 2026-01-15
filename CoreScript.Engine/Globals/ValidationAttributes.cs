@@ -2,6 +2,15 @@ using System;
 
 namespace CoreScript.Engine.Globals
 {
+    public enum SelectionType
+    {
+        None = 0,
+        Element = 1,
+        Point = 2,
+        Face = 3,
+        Edge = 4
+    }
+
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public class ScriptParameterAttribute : Attribute
     {
@@ -17,6 +26,7 @@ namespace CoreScript.Engine.Globals
         public string InputType { get; set; } // e.g., "File", "SaveFile", "Folder"
         public bool Compute { get; set; } = false;
         public bool Computable { get; set; } = false; // V3 Alias
+        public SelectionType Select { get; set; } = SelectionType.None; // New Selection Mode
 
         // Validation helpers for attribute parsing
         public ScriptParameterAttribute() { }
@@ -34,6 +44,7 @@ namespace CoreScript.Engine.Globals
         public bool Compute { get; set; } = false;
         public bool Computable { get; set; } = false;
         public string Description { get; set; }
+        public SelectionType Select { get; set; } = SelectionType.None; // Allow selection override here too
         
         // Constructor signatures for convenience
         public RevitElementsAttribute() { }
@@ -41,6 +52,16 @@ namespace CoreScript.Engine.Globals
     }
 
     // Standard Validation Attributes for V3 Professional Syntax
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class SelectAttribute : Attribute 
+    {
+        public SelectionType Type { get; }
+        public SelectAttribute(SelectionType type = SelectionType.Element) 
+        { 
+            Type = type; 
+        }
+    }
+
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class RequiredAttribute : Attribute { }
 
@@ -104,5 +125,21 @@ namespace CoreScript.Engine.Globals
     {
         public string Value { get; }
         public DescriptionAttribute(string value) { Value = value; }
+    }
+
+    // --- File System Attributes (Unified V3) ---
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class InputFileAttribute : Attribute { 
+        public string Filter { get; set; } // Optional: e.g. "csv,txt"
+        public InputFileAttribute(string filter = null) { Filter = filter; }
+    }
+
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class InputFolderAttribute : Attribute { }
+
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class SaveFileAttribute : Attribute { 
+        public string Filter { get; set; }
+        public SaveFileAttribute(string filter = null) { Filter = filter; }
     }
 }

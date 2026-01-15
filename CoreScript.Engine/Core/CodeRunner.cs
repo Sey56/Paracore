@@ -62,7 +62,33 @@ namespace CoreScript.Engine.Core
                                 switch (param.Type)
                                 {
                                     case "string":
-                                        if (param.MultiSelect)
+                                    {
+                                        if (param.SelectionType == "Point")
+                                        {
+                                            string xyzStr = param.Value.ValueKind == JsonValueKind.String ? param.Value.GetString() : param.Value.ToString();
+                                            if (!string.IsNullOrEmpty(xyzStr))
+                                            {
+                                                var parts = xyzStr.Split(',');
+                                                if (parts.Length == 3 && 
+                                                    double.TryParse(parts[0], out double x) && 
+                                                    double.TryParse(parts[1], out double y) && 
+                                                    double.TryParse(parts[2], out double z))
+                                                {
+                                                    value = new Autodesk.Revit.DB.XYZ(x, y, z);
+                                                }
+                                            }
+                                            if (value == null) value = Autodesk.Revit.DB.XYZ.Zero;
+                                        }
+                                        else if (param.SelectionType == "Edge" || param.SelectionType == "Face")
+                                        {
+                                            string refStr = param.Value.ValueKind == JsonValueKind.String ? param.Value.GetString() : param.Value.ToString();
+                                            if (!string.IsNullOrEmpty(refStr))
+                                            {
+                                                try { value = Autodesk.Revit.DB.Reference.ParseFromStableRepresentation(context.Doc, refStr); }
+                                                catch { }
+                                            }
+                                        }
+                                        else if (param.MultiSelect)
                                         {
                                             if (param.Value.ValueKind == JsonValueKind.Array)
                                             {
@@ -98,10 +124,18 @@ namespace CoreScript.Engine.Core
                                             }
                                         }
                                         break;
+                                    }
                                     case "number":
                                         if (param.Value.ValueKind == JsonValueKind.Number)
                                         {
-                                            if (param.Value.TryGetInt32(out int intVal)) value = intVal;
+                                            if (param.Value.TryGetInt64(out long longVal)) 
+                                            {
+                                                // Prefer int if it fits, for backward compatibility with older scripts using int properties
+                                                if (longVal >= int.MinValue && longVal <= int.MaxValue)
+                                                    value = (int)longVal;
+                                                else
+                                                    value = longVal;
+                                            }
                                             else if (param.Value.TryGetDouble(out double dblVal)) value = dblVal;
                                         }
                                         else if (param.Value.ValueKind == JsonValueKind.String && double.TryParse(param.Value.GetString(), out double parsedDbl)) value = parsedDbl;
@@ -110,6 +144,7 @@ namespace CoreScript.Engine.Core
                                         double? valueToConvert = null;
                                         if (value is double d) valueToConvert = d;
                                         else if (value is int i) valueToConvert = (double)i;
+                                        else if (value is long l) valueToConvert = (double)l; // Handle long conversion
 
                                         string unitToUse = param.Unit;
                                         if (string.IsNullOrEmpty(unitToUse) && !string.IsNullOrEmpty(param.Suffix)) unitToUse = param.Suffix;
@@ -163,6 +198,33 @@ namespace CoreScript.Engine.Core
                                         if (param.Value.ValueKind == JsonValueKind.True || param.Value.ValueKind == JsonValueKind.False) value = param.Value.GetBoolean();
                                         else if (param.Value.ValueKind == JsonValueKind.String && bool.TryParse(param.Value.GetString(), out bool parsedBool)) value = parsedBool;
                                         break;
+                                    case "xyz":
+                                    {
+                                        string xyzStr = param.Value.GetString();
+                                        if (!string.IsNullOrEmpty(xyzStr))
+                                        {
+                                            var parts = xyzStr.Split(',');
+                                            if (parts.Length == 3 && 
+                                                double.TryParse(parts[0], out double x) && 
+                                                double.TryParse(parts[1], out double y) && 
+                                                double.TryParse(parts[2], out double z))
+                                            {
+                                                value = new Autodesk.Revit.DB.XYZ(x, y, z);
+                                            }
+                                        }
+                                        if (value == null) value = Autodesk.Revit.DB.XYZ.Zero;
+                                        break;
+                                    }
+                                    case "reference":
+                                    {
+                                        string refStr = param.Value.GetString();
+                                        if (!string.IsNullOrEmpty(refStr))
+                                        {
+                                            try { value = Autodesk.Revit.DB.Reference.ParseFromStableRepresentation(context.Doc, refStr); }
+                                            catch { }
+                                        }
+                                        break;
+                                    }
                                     default: value = param.Value.ToString(); break;
                                 }
                                 if (name != null && value != null) parameters[name] = value;
@@ -192,7 +254,7 @@ namespace CoreScript.Engine.Core
                 topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
                 var combinedScriptContent = SemanticCombinator.Combine(scriptFiles);
                 
-                // V4 FIX: Ensure defaults (with unit conversions) are applied even if input JSON is empty (VSCode case)
+                // V2 FIX: Ensure defaults (with unit conversions) are applied even if input JSON is empty (VSCode case)
                 try 
                 {
                     var extractor = new ParameterExtractor(new RunnerLogger());
@@ -276,9 +338,10 @@ namespace CoreScript.Engine.Core
                 }
 
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(combinedScriptContent);
-                
 
-
+                // Set Globals Context EARLY so Rewriters can access Doc/Context
+                var executionGlobals = new ExecutionGlobals(context, parameters ?? new Dictionary<string, object>());
+                ExecutionGlobals.SetContext(executionGlobals);
 
                 var rewriter = new ParameterRewriter(parameters);
                 SyntaxNode newRoot = rewriter.Visit(tree.GetRoot());
@@ -293,8 +356,17 @@ namespace CoreScript.Engine.Core
 
                 var finalScriptCode = "using static CoreScript.Engine.Globals.ScriptApi;\n" + modifiedUserCode;
 
-                var executionGlobals = new ExecutionGlobals(context, parameters ?? new Dictionary<string, object>());
-                ExecutionGlobals.SetContext(executionGlobals);
+                // DEBUG: Dump the compiled script to verify #line directives and rewriter output
+                try
+                {
+                    var debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "CompiledScript.cs");
+                    Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
+                    File.WriteAllText(debugPath, finalScriptCode);
+                    FileLogger.Log($"💾 Dumped compiled script to {debugPath}");
+                }
+                catch (Exception dumpEx) { FileLogger.LogError($"Failed to dump script: {dumpEx.Message}"); }
+
+                // Context is already set above
 
                 string revitInstallPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
                 if (!Directory.Exists(revitInstallPath))
@@ -307,7 +379,8 @@ namespace CoreScript.Engine.Core
 
                 var options = ScriptOptions.Default
                     .WithReferences(coreRefs.Concat(revitRefs))
-                    .WithImports("System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", "System.Text.Json.Serialization", "Autodesk.Revit.DB", "Autodesk.Revit.UI", "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime");
+                    .WithImports("System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", "System.Text.Json.Serialization", "Autodesk.Revit.DB", "Autodesk.Revit.UI", "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime")
+                    .WithFilePath(topLevelScriptName);
 
                 var script = CSharpScript.Create(finalScriptCode, options);
                 var state = script.RunAsync().Result;
@@ -359,23 +432,25 @@ namespace CoreScript.Engine.Core
             {
                 var errs = ex.Diagnostics.Select(d =>
                 {
-                    var lineSpan = d.Location.GetLineSpan();
+                    var lineSpan = d.Location.GetMappedLineSpan();
                     if (lineSpan.IsValid)
                     {
-                        // Decrement the line number by 1 because of the prepended 'using' statement
-                        int user1IndexedLine = Math.Max(1, lineSpan.StartLinePosition.Line); // Roslyn's 0-indexed line + 1 is the 1-indexed line in the combined script. We want the 1-indexed line in the user's script.
-                        // Since Roslyn's 0-indexed line is already 1 higher than the user's 0-indexed line, we just use Roslyn's 0-indexed line as the user's 1-indexed line.
-                        // Example: User's 0-indexed line 0 -> Roslyn's 0-indexed line 1. We want to display 1.
-                        // Example: User's 0-indexed line 56 -> Roslyn's 0-indexed line 57. We want to display 57.
-                        // So, we just use lineSpan.StartLinePosition.Line as the 1-indexed line number.
-                        // We use Math.Max(1, ...) to ensure the line number is at least 1.
-                        return $"{lineSpan.Path}({user1IndexedLine},{lineSpan.StartLinePosition.Character + 1}): {d.Severity.ToString().ToLower()} {d.Id}: {d.GetMessage()}";
+                        string fileName = Path.GetFileName(lineSpan.Path);
+                        int line = lineSpan.StartLinePosition.Line + 1;
+                        int character = lineSpan.StartLinePosition.Character + 1;
+                        return $"{fileName}({line},{character}): {d.Severity.ToString().ToLower()} {d.Id}: {d.GetMessage()}";
                     }
-                    return d.ToString(); // Fallback to original string if line info is not valid
+                    return d.ToString(); 
                 }).ToArray();
 
                 string failureMessage = "❌ Script failed to compile | " + timestamp;
+                
+                // Log to UI
                 foreach (var err in errs) context.Println($"[ERROR] {err}");
+                
+                // Log to File (New)
+                FileLogger.LogError(failureMessage);
+                foreach (var err in errs) FileLogger.LogError($"[COMPILATION] {err}");
                 
                 var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
                 failureResult.ScriptName = "Unknown Script";
@@ -385,7 +460,6 @@ namespace CoreScript.Engine.Core
             {
                 // Handle timeout wrapped in AggregateException
                 string failureMessage = ex.InnerException.Message + " | " + timestamp;
-                context.Println(failureMessage);
                 FileLogger.Log(failureMessage);
 
                 var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
@@ -396,7 +470,6 @@ namespace CoreScript.Engine.Core
             {
                 // Handle timeout directly
                 string failureMessage = ex.Message + " | " + timestamp;
-                context.Println(failureMessage);
                 FileLogger.Log(failureMessage);
 
                 var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
@@ -408,11 +481,12 @@ namespace CoreScript.Engine.Core
                 // Extract the root cause message for clear error reporting
                 string rootMessage = GetRootExceptionMessage(ex);
                 string failureMessage = $"❌ Script execution failed: {rootMessage} | {timestamp}";
-                context.Println(failureMessage);
                 
-                // Also print filtered stack trace for debugging
-                var errs = ex.InnerExceptions.Select(e => GetFilteredExceptionString(e)).ToArray();
-                foreach (var err in errs) context.Println($"[DETAILS] {err}");
+                // Print standardized runtime errors
+                foreach (var innerEx in ex.InnerExceptions)
+                {
+                    context.Println(FormatRuntimeError(innerEx));
+                }
 
                 var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
                 failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
@@ -423,7 +497,9 @@ namespace CoreScript.Engine.Core
                 FileLogger.LogError("🛑 Internal engine exception: " + ex.ToString());
 
                 string msg = ex.Message ?? "";
-                bool isEngineError = ex is NullReferenceException || ex is ReflectionTypeLoadException || ex is InvalidOperationException || ex is FileLoadException || ex is TypeLoadException || msg.Contains("Roslyn") || msg.Contains("SyntaxTree") || msg.Contains("CSharpScript");
+                // Refined check: Only flag actual assembly/type loading issues as conflicts.
+                // Standard NREs or InvalidOps are likely engine bugs or script issues, not conflicts.
+                bool isEngineError = ex is ReflectionTypeLoadException || ex is FileLoadException || ex is TypeLoadException || msg.Contains("Roslyn") || msg.Contains("SyntaxTree") || msg.Contains("CSharpScript");
 
                 string failureMessage = isEngineError 
                     ? "⚠️ Add-in Conflict: Paracore is unable to safely run this script because its engine has been blocked by another Revit Add-in."
@@ -435,7 +511,8 @@ namespace CoreScript.Engine.Core
                 }
                 else
                 {
-                    context.Println($"[STACK TRACE]\n{ex}");
+                    // Standardized single exception logging
+                    context.Println(FormatRuntimeError(ex));
                 }
 
                 // Check if a Loader.log exists and inform the user
@@ -455,6 +532,30 @@ namespace CoreScript.Engine.Core
                 alc.Unload();
                 FileLogger.Log("🟣 Unloaded script AssemblyLoadContext and cleared context.");
             }
+        }
+
+        /// <summary>
+        /// Formats a runtime exception to look like a compiler error: [ERROR] (Line X): Exception: Message
+        /// </summary>
+        private string FormatRuntimeError(Exception ex)
+        {
+            // Try to extract line number from stack trace
+            string stackTrace = ex.StackTrace ?? "";
+            string lineNum = "";
+            
+            // Regex to find ":line \d+"
+            var match = System.Text.RegularExpressions.Regex.Match(stackTrace, @":line (\d+)");
+            if (match.Success)
+            {
+                if (int.TryParse(match.Groups[1].Value, out int rawLine))
+                {
+                    // Safety check
+                    int adjustedLine = Math.Max(1, rawLine - 1);
+                    lineNum = string.Format("({0}): ", adjustedLine);
+                }
+            }
+
+            return string.Format("[ERROR] {0}{1}: {2}", lineNum, ex.GetType().Name, ex.Message);
         }
 
         /// <summary>
@@ -555,8 +656,16 @@ namespace CoreScript.Engine.Core
                     return SyntaxFactory.LiteralExpression(b ? SyntaxKind.TrueLiteralExpression : SyntaxKind.FalseLiteralExpression);
                 case int i:
                     return SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(i));
+                case long l:
+                    return SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(l));
                 case double d:
                     return SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(d));
+                case Autodesk.Revit.DB.XYZ xyz:
+                    return SyntaxFactory.ParseExpression($"new Autodesk.Revit.DB.XYZ({xyz.X}, {xyz.Y}, {xyz.Z})");
+                case Autodesk.Revit.DB.Reference r:
+                    // Use the Doc from context to get stable representation during rewriting
+                    // In the generated code, we assume 'Doc' is available in scope (Global Script Scope)
+                    return SyntaxFactory.ParseExpression($"Autodesk.Revit.DB.Reference.ParseFromStableRepresentation(Doc, \"{r.ConvertToStableRepresentation(ExecutionGlobals.Current.Value.Doc)}\")");
                 case List<string> list:
                     var stringLiterals = string.Join(", ", list.Select(s => $"\"{s.Replace("\"", "\\\"")}\""));
                     var listInitializerString = $"new System.Collections.Generic.List<string> {{ {stringLiterals} }}";

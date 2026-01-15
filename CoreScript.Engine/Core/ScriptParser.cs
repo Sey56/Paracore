@@ -58,23 +58,24 @@ namespace CoreScript.Engine.Core
 
             var allUsingDirectives = new HashSet<string>();
             
-            // Use List to preserve order, and separate Params class
-            var otherUserDefinedTypes = new List<string>();
-            string paramsClassContent = null;
+            // Store content with source mapping: (Content, File, Line)
+            var otherUserDefinedTypes = new List<(string Content, string File, int Line)>();
+            (string Content, string File, int Line)? paramsClassData = null;
             
             string mainScriptBody = null;
+            int mainBodyStartLine = 1;
             
             var topLevelScriptFile = IdentifyTopLevelScript(scriptFiles);
             if(topLevelScriptFile == null)
             {
                 // This can happen if a folder contains only class libraries and no executable code.
-                // In this case, we can treat all files as type declarations.
                 mainScriptBody = ""; 
             }
 
             foreach (var file in scriptFiles)
             {
-                var tree = CSharpSyntaxTree.ParseText(file.Content);
+                // Ensure parsing with path so Location works
+                var tree = CSharpSyntaxTree.ParseText(file.Content, path: file.FileName);
                 var root = tree.GetRoot();
 
                 // Collect all using directives
@@ -90,33 +91,46 @@ namespace CoreScript.Engine.Core
                 foreach (var decl in fileTypeDecls)
                 {
                     string content = decl.ToFullString().Trim();
+                    int line = decl.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
                     
                     // Check if this is the Params class
                     if (decl is ClassDeclarationSyntax classDecl && classDecl.Identifier.Text == "Params")
                     {
-                        paramsClassContent = content;
+                        paramsClassData = (content, file.FileName, line);
                     }
                     else
                     {
-                        if (!otherUserDefinedTypes.Contains(content))
-                            otherUserDefinedTypes.Add(content);
+                        // Avoid duplicates
+                        if (!otherUserDefinedTypes.Any(t => t.Content == content))
+                            otherUserDefinedTypes.Add((content, file.FileName, line));
                     }
                 }
 
-                if (file == topLevelScriptFile)
+                if (file.FileName == topLevelScriptFile?.FileName)
                 {
+                    // Calculate start line for the main body using FullSpan to include leading trivia (comments)
+                    var firstGlobal = root.DescendantNodes().OfType<GlobalStatementSyntax>().FirstOrDefault();
+                    if (firstGlobal != null)
+                    {
+                        var span = firstGlobal.FullSpan;
+                        var lineSpan = root.SyntaxTree.GetLineSpan(span);
+                        mainBodyStartLine = lineSpan.StartLinePosition.Line + 1;
+                    }
+
                     // Extract stripped body (potential top-level statements)
+                    // Do NOT Trim(), preserve leading trivia (newlines/comments) to match the line calculation
                     mainScriptBody = root.RemoveNodes(
                         fileUsingDirectives.Cast<SyntaxNode>().Concat(fileTypeDecls.Cast<SyntaxNode>()),
                         SyntaxRemoveOptions.KeepNoTrivia
-                    ).ToFullString().Trim();
+                    ).ToFullString();
                 }
             }
 
-            if (mainScriptBody == null && topLevelScriptFile != null)
+            if (string.IsNullOrWhiteSpace(mainScriptBody) && topLevelScriptFile != null)
             {
-                // Error: The identified top-level file has no executable code after stripping.
-                throw new InvalidOperationException("The identified top-level script file contains no executable statements.");
+                // It's possible the body is empty or just whitespace/comments. 
+                // If it's effectively empty but we have a file, that's fine, but check for logic.
+                // We'll proceed, as empty scripts are valid (do nothing).
             }
 
             var globalImportsList = allUsingDirectives.Where(u => u.Trim().StartsWith("global using")).ToList();
@@ -137,19 +151,26 @@ namespace CoreScript.Engine.Core
 
             if (!string.IsNullOrWhiteSpace(mainScriptBody))
             {
-                parts.Add(mainScriptBody);
+                // Inject line mapping for main body
+                if (topLevelScriptFile != null)
+                    parts.Add($"#line {mainBodyStartLine} \"{topLevelScriptFile.FileName}\"\n{mainScriptBody}");
+                else
+                    parts.Add(mainScriptBody);
             }
             
             // Add Params class immediately after logic (Top Priority)
-            if (!string.IsNullOrEmpty(paramsClassContent))
+            if (paramsClassData.HasValue)
             {
-                parts.Add(paramsClassContent);
+                // Combine directive and content to avoid extra newlines from Join
+                parts.Add($"#line {paramsClassData.Value.Line} \"{paramsClassData.Value.File}\"\n{paramsClassData.Value.Content}");
             }
 
             if (otherUserDefinedTypes.Any())
             {
-                // Join other user types with double newlines
-                parts.Add(string.Join("\n\n", otherUserDefinedTypes));
+                foreach (var typeData in otherUserDefinedTypes)
+                {
+                    parts.Add($"#line {typeData.Line} \"{typeData.File}\"\n{typeData.Content}");
+                }
             }
 
             // Join all major parts with double newlines

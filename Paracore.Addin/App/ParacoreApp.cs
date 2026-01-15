@@ -22,8 +22,8 @@ namespace Paracore.Addin.App
     {
         public static readonly Guid DashboardPaneId = new Guid("D7C95B7A-2E34-4A1E-8A6A-45A75D25E48B");
         public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        public static string RevitVersion { get; private set; } = "2025"; // Default fallback
-        public static string RevitInstallPath { get; private set; } = @"C:\Program Files\Autodesk\Revit 2025"; // Default fallback
+        public static string RevitVersion { get; private set; } = "Unknown"; // Default fallback
+        public static string RevitInstallPath { get; private set; } = @"C:\Program Files\Autodesk\Revit"; // Default fallback base
         private static CoreScriptServer? _server;
         private static bool _serverRunning;
         private static PushButton? _toggleButton;

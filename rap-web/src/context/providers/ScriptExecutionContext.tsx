@@ -21,6 +21,7 @@ export interface ScriptExecutionContextProps {
   deletePreset: (name: string) => { success: boolean; message: string };
   renamePreset: (oldName: string, newName: string) => { success: boolean; message: string };
   computeParameterOptions: (script: Script, parameterName: string) => Promise<void>;
+  pickObject: (script: Script, paramName: string, selectionType: string) => Promise<void>;
   isComputingOptions: Record<string, boolean>;
   editScript: (script: Script) => Promise<void>;
 }

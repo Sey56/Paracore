@@ -164,20 +164,34 @@ public class Params
     #endregion
 
     // ---------------------------------------------------------
-    // 6. FILE SYSTEM INPUTS
+    // 6. INTERACTIVE SELECTION (New in V2)
+    // ---------------------------------------------------------
+
+    #region Selection
+    /// <summary>Pick a point in 3D space</summary>
+    [Select(SelectionType.Point)]
+    public string StartPoint { get; set; } = "0,0,0";
+
+    /// <summary>Pick an element to get its ID</summary>
+    [Select(SelectionType.Element)]
+    public long TargetElementId { get; set; }
+    #endregion
+
+    // ---------------------------------------------------------
+    // 7. FILE SYSTEM INPUTS
     // ---------------------------------------------------------
 
     #region IO
     /// Select an import file
-    [ScriptParameter(InputType = "File")]
+    [InputFile("csv,txt")]
     public string ImportPath { get; set; } = @"C:\data.csv";
 
     /// Select an export folder
-    [ScriptParameter(InputType = "Folder")]
+    [InputFolder]
     public string ExportFolder { get; set; } = @"C:\Exports";
     
     /// Select save location
-    [ScriptParameter(InputType = "SaveFile")]
+    [SaveFile("pdf,docx")]
     public string SavePath { get; set; } = @"C:\Exports\report.pdf";
     #endregion
 }

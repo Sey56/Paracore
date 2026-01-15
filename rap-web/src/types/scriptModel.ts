@@ -22,6 +22,8 @@ export interface ScriptParameter {
   pattern?: string;
   enabledWhenParam?: string;
   enabledWhenValue?: string;
+  unit?: string;
+  selectionType?: string;
 }
 
 export interface RawScriptParameterData {
@@ -47,6 +49,8 @@ export interface RawScriptParameterData {
   pattern?: string;
   enabledWhenParam?: string;
   enabledWhenValue?: string;
+  unit?: string;
+  selectionType?: string;
 }
 
 export interface StructuredOutput {

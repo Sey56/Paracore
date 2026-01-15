@@ -43,7 +43,7 @@ class Params
     /// <summary>
     /// The height of the wall in meters.
     /// </summary>
-    [Unit("m")]
+    [ScriptParameter(Suffix = "m")]
     [Range(1.0, 20.0, 0.1)]
     public double WallHeight { get; set; } = 3.0;
 

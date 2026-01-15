@@ -37,7 +37,7 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
   metadata,
 }) => {
   return (
-    <div className="tab-content py-4">
+    <div className="tab-content py-4 h-full overflow-y-auto pr-2 custom-scrollbar">
       {/* Full-width Description section */}
       <div className="mb-6">
         <h4 className="font-medium text-gray-700 dark:text-gray-300">Description</h4>

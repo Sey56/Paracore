@@ -20,6 +20,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
   const handleCopy = () => {
     if (!executionResult?.structuredOutput) return;
 
+    // Only copy from the table component
     const tableDataItem = executionResult.structuredOutput.find(item => item.type === 'table');
 
     if (tableDataItem) {
@@ -56,6 +57,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
   const handleExportCsv = async () => {
     if (!executionResult?.structuredOutput) return;
 
+    // Only export the table component
     const tableDataItem = executionResult.structuredOutput.find(item => item.type === 'table');
 
     if (tableDataItem) {

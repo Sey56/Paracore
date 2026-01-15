@@ -11,6 +11,7 @@ interface ParameterGroupSectionProps {
     handleParameterChange: (index: number, value: any) => void;
     script: Script;
     computeParameterOptions: (script: Script, paramName: string) => void;
+    onPickObject: (selectionType: string, index: number) => void;
     isComputingOptions: Record<string, boolean>;
     isActionable: boolean;
 }
@@ -22,6 +23,7 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
     handleParameterChange,
     script,
     computeParameterOptions,
+    onPickObject,
     isComputingOptions,
     isActionable
 }) => {
@@ -55,6 +57,7 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
                                 index={originalIndex}
                                 onChange={handleParameterChange}
                                 onCompute={(paramName) => computeParameterOptions(script, paramName)}
+                                onPickObject={onPickObject}
                                 isComputing={isComputingOptions[param.name]}
                                 disabled={!isActionable}
                             />

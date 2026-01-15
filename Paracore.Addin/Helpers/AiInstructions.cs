@@ -8,10 +8,10 @@ namespace Paracore.Addin.Helpers
 Follow these instructions to generate high-quality, C#-based Revit automation scripts compatible with the Paracore Parameter Engine (V2).
 
 ## Core Architecture
-- **Language**: C# Revit API (Targeting Revit 2025).
+- **Language**: C# Revit API (Targeting Revit 2025 and above).
 - **Structure**: Single-file `.cs` using **Top-Level Statements**.
 - **Important Order**:
-    1.  `using` statements.
+    1.  `using` statements (Minimal - System/Linq/Collections/Revit.DB are implicit).
     2.  **Logic & Preparation** (Read-only queries, calculations).
     3.  **Execution** (Single transaction for modifications).
     4.  **Class Definitions** (Attributes and Parameters MUST be at the very bottom).
@@ -21,11 +21,18 @@ All script parameters must be defined inside a `public class Params` (bottom of 
 
 ### 1. Grouping (Zero Boilerplate)
 - Use C# `#region GroupName` ... `#endregion` to automatically group UI inputs.
+- **CRITICAL**: Always leave an **EMPTY LINE** before and after `#region` and `#endregion` directives.
+- **NOTE**: Keep attributes attached directly to the property (no empty line).
 
-### 2. Supported Attributes
+### 2. Supported Attributes & Types
 - `[RevitElements]`: For Revit objects (Walls, Sheets, Rooms).
   - Example: `[RevitElements(TargetType=""Room"")]`
   - Example: `[RevitElements(TargetType=""FamilySymbol"", Category=""Doors"")]`
+- `[Select]`: For interactive selection (Native Types supported).
+  - `[Select(SelectionType.Point)]`: Use `public XYZ StartPoint { get; set; }` (Engine injects `new XYZ(...)`).
+  - `[Select(SelectionType.Edge)]`: Use `public Reference EdgeRef { get; set; }`.
+  - `[Select(SelectionType.Face)]`: Use `public Reference FaceRef { get; set; }`.
+  - `[Select(SelectionType.Element)]`: Use `public int ElementIdVal { get; set; }`.
 - `[Range(min, max, step)]`: Forces a UI Slider.
 - `[Unit(""unit"")]`: Handles input conversion (e.g. `[Unit(""mm"")]`). 
   - *Note*: Input is auto-converted to feet. Output (Print) must be manual.
@@ -48,7 +55,7 @@ All script parameters must be defined inside a `public class Params` (bottom of 
   - **CRITICAL**: The file containing `public class Params` **MUST** be named `Params.cs`. Do NOT use `module_X.cs`.
   - Utilities should be named meaningfully (e.g., `GeometryUtils.cs`).
 
-## Revit 2025 API Rules (CRITICAL)
+## Revit 2025+ API Rules (CRITICAL)
 1.  **ElementId**: Use `ElementId.Value` (long). **NEVER use `.IntegerValue`**.
 2.  **Geometry**:
     - `Curve` does NOT have `GetBoundingBoxXYZ()`. Use `curve.GetEndPoint(0)` and `curve.GetEndPoint(1)`.
@@ -76,7 +83,7 @@ All script parameters must be defined inside a `public class Params` (bottom of 
     - **FORBIDDEN**: Do NOT call `Println` inside loops that are within a `Transact` block. It floods the console and slows execution.
     - **CORRECT**: After the transaction, print ONE summary message like `Println($""✅ Created {count} items."");`
     - **ALLOWED**: `Println` inside loops is fine for read-only operations (filtering, selection).
-    - Use `Show(""table"", data)` only for structured grids.
+    - Use `Table(data)` for interactive grids and `ChartBar(data)` for visualizations.
     - **Avoid** the ❌ emoji; use 🚫 or ⚠️.
 4. **Casting & Filtering (CRITICAL)**:
     - **ALWAYS** use `.Cast<Type>()` after `FilteredElementCollector`.
@@ -88,29 +95,27 @@ All script parameters must be defined inside a `public class Params` (bottom of 
 ## Implicit Globals (Do Not Import)
 These are provided by the engine at runtime:
 - `Doc`, `UIDoc`, `UIApp`
-- `Println`, `Show`, `Transact`
+- `Println`, `Table`, `ChartBar`, `Transact`
+- `System`, `System.Linq`, `System.Collections.Generic`, `Autodesk.Revit.DB` (Explicitly imported by engine)
 
 ## Required Imports
 ```csharp
-using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
-using System;
-using System.Linq;
-using System.Collections.Generic;
+// System, Linq, Collections, DB are implicit but safe to re-import if needed for IntelliSense.
 ```
 
 ## Example Structure
 ```csharp
-using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
-using System.Linq;
-using System.Collections.Generic;
 
 // 1. Setup
 var p = new Params();
 
 // 2. Logic (Preparation)
+// Native Point Support!
+XYZ start = p.StartPoint ?? XYZ.Zero;
+
 var room = new FilteredElementCollector(Doc)
     .OfCategory(BuiltInCategory.OST_Rooms)
     .Cast<Room>()
@@ -121,37 +126,33 @@ if (room == null) {
 }
 
 // 3. Execution
-// 3. Execution
 Transact(""Add Note"", () => {
     // DB modifications here
 });
 
 // 4. Classes (MUST BE LAST)
 public class Params {
-    // Zero Boilerplate: Properties are automatically parameters
-    
-    // 1. Automatic Unit Conversion using [Unit] attribute
-    // Script gets feet, UI gets mm. Convert outputs manually if needed.
+    #region Geometry
+
+    // Automatic Unit Conversion
     [Unit(""mm"")]
     public double Offset { get; set; } = 500;
 
-    // 2. Simple Parameters
-    public int Count { get; set; } = 5;
+    // Native XYZ Support
+    [Select(SelectionType.Point)]
+    public XYZ StartPoint { get; set; }
 
-    // 3. Validation
-    [Range(0, 100)]
-    public int Percentage { get; set; } = 50;
+    #endregion
 
-    #region Room Selection
-    [RevitElements, Required]
-    public string SelectedRoom { get; set; }
+    #region Selection
 
-    public List<string> SelectedRoom_Options => new FilteredElementCollector(Doc)
-        .OfCategory(BuiltInCategory.OST_Rooms)
-        .WhereElementIsNotElementType()
-        .Cast<Room>()
-        .Select(r => r.Name)
-        .ToList();
+    // Native Reference Support
+    [Select(SelectionType.Edge)]
+    public Reference SelectedEdge { get; set; }
+
+    [RevitElements(TargetType = ""WallType"")]
+    public string WallTypeName { get; set; }
+
     #endregion
 }
 ";

@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSync, faSpinner, faFolderOpen } from "@fortawesome/free-solid-svg-icons";
+import { faSync, faSpinner, faFolderOpen, faMousePointer, faCrosshairs } from "@fortawesome/free-solid-svg-icons";
 import { open, save } from "@tauri-apps/api/dialog";
 import type { ScriptParameter } from "@/types/scriptModel";
 import { SliderInput } from "./SliderInput";
+import { PointInput } from "./PointInput";
 
 interface ParameterInputProps {
   param: ScriptParameter;
   index: number;
   onChange: (index: number, value: string | number | boolean) => void;
   onCompute?: (paramName: string) => void;
+  onPickObject?: (selectionType: string, index: number) => void; // New prop
   isComputing?: boolean;
   disabled?: boolean;
 }
@@ -126,7 +128,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
   );
 };
 
-export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, isComputing, disabled }) => {
+export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, onPickObject, isComputing, disabled }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const handleFileBrowse = async () => {
@@ -257,7 +259,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       }
 
       return (
-        <div className="flex items-center w-full">
+        <div className="flex gap-2 w-full items-center">
           <input
             type="number"
             value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
@@ -268,23 +270,56 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
               const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
               onChange(index, val);
             }}
-            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-grow border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 w-0"
             disabled={disabled}
           />
+          {param.selectionType && param.selectionType !== "None" && onPickObject && (
+             <button
+                onClick={() => onPickObject(param.selectionType!, index)}
+                disabled={disabled || isComputing}
+                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center min-w-[40px]"
+                title={`Select ${param.selectionType} in Revit`}
+             >
+                <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} />
+             </button>
+          )}
         </div>
+      );
+    }
+
+    // Case X: Point Selection (XYZ)
+    if (param.selectionType === 'Point') {
+      return (
+        <PointInput 
+          value={String(param.value || "0,0,0")}
+          onChange={(val) => onChange(index, val)}
+          onPick={() => onPickObject && onPickObject('Point', index)}
+          disabled={disabled}
+          isPicking={isComputing} // reusing isComputing for loading state
+        />
       );
     }
 
     // Case 5: Default (String)
     return (
-      <div className="flex items-center w-full">
+      <div className="flex gap-2 w-full items-center">
         <input
           type="text"
           value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
           onChange={(e) => onChange(index, e.target.value)}
-          className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-grow border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 w-0"
           disabled={disabled}
         />
+        {param.selectionType && param.selectionType !== "None" && onPickObject && (
+             <button
+                onClick={() => onPickObject(param.selectionType!, index)}
+                disabled={disabled || isComputing}
+                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center min-w-[40px]"
+                title={`Select ${param.selectionType} in Revit`}
+             >
+                <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} />
+             </button>
+        )}
       </div>
     );
   };

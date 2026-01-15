@@ -58,6 +58,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     defaultDraftParameters,
     activePresets,
     setActivePreset,
+    pickObject,
   } = useScriptExecution();
 
   const [editedParameters, setEditedParameters] = useState<ScriptParameter[]>([]);
@@ -162,6 +163,13 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   const internalSetSelectedPreset = (name: string) => {
     setActivePreset(script.id, name);
+  };
+
+  const handlePickObject = (selectionType: string, index: number) => {
+    const param = editedParameters[index];
+    if (param) {
+      pickObject(script, param.name, selectionType);
+    }
   };
 
   const handleRunScript = async () => {
@@ -322,6 +330,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     index={originalIndex}
                     onChange={handleParameterChange}
                     onCompute={(paramName) => computeParameterOptions(script, paramName)}
+                    onPickObject={handlePickObject}
                     isComputing={isComputingOptions[param.name]}
                     disabled={!isActionable}
                   />
@@ -338,6 +347,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                   handleParameterChange={handleParameterChange}
                   script={script}
                   computeParameterOptions={computeParameterOptions}
+                  onPickObject={handlePickObject}
                   isComputingOptions={isComputingOptions}
                   isActionable={isActionable}
                 />

@@ -24,30 +24,9 @@ from grpc_client import (
 )
 from utils import get_or_create_script, resolve_script_path
 from auth import get_current_user, CurrentUser
+from workspace_manager import get_active_workspace, set_active_workspace
 
 router = APIRouter()
-
-# --- Persistence for Active Workspaces ---
-WORKSPACE_CACHE_FILE = "active_workspaces.json"
-
-def load_workspace_cache() -> Dict[str, str]:
-    try:
-        if os.path.exists(WORKSPACE_CACHE_FILE):
-            with open(WORKSPACE_CACHE_FILE, 'r') as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"[ScriptManagement] Failed to load workspace cache: {e}")
-    return {}
-
-def save_workspace_cache(cache: Dict[str, str]):
-    try:
-        with open(WORKSPACE_CACHE_FILE, 'w') as f:
-            json.dump(cache, f, indent=2)
-    except Exception as e:
-        print(f"[ScriptManagement] Failed to save workspace cache: {e}")
-
-# original_script_path -> temp_workspace_path
-ACTIVE_SESSION_WORKSPACES: Dict[str, str] = load_workspace_cache()
 
 # --- Template for new single-file scripts ---
 CSHARP_TEMPLATE = """using Autodesk.Revit.DB;
@@ -511,10 +490,8 @@ async def edit_script(request: Request, current_user: CurrentUser = Depends(get_
                 # Don't fail the request, VSCode might still open
         
         # Store the workspace path for redirected AI fixes
-        normalized_path = script_path.replace('\\', '/')
-        ACTIVE_SESSION_WORKSPACES[normalized_path] = workspace_path
-        save_workspace_cache(ACTIVE_SESSION_WORKSPACES)
-        print(f"[EditScript] Tracked active workspace for: {normalized_path}")
+        set_active_workspace(script_path, workspace_path)
+        print(f"[EditScript] Tracked active workspace for: {script_path}")
                 
         return JSONResponse(content={
             "message": f"Successfully created workspace at {workspace_path}",
@@ -526,85 +503,98 @@ async def edit_script(request: Request, current_user: CurrentUser = Depends(get_
 class SaveScriptRequest(BaseModel):
     script_path: str
     type: str
-    content: str
+    content: Optional[str] = None
     filename: Optional[str] = None
+    files: Optional[Dict[str, str]] = None  # New: Support for multi-file saving
 
 @router.post("/api/save-script", tags=["Script Management"])
 async def save_script(request: SaveScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
     """
-    Overwrites an existing script file with new content.
+    Overwrites existing script file(s) with new content.
     Prioritizes saving to an active temporary workspace if one exists.
+    Supports both single-file content and multi-file dictionaries.
     """
     if not os.path.isabs(request.script_path):
         raise HTTPException(status_code=400, detail="An absolute script path is required.")
 
+    if not request.content and not request.files:
+        raise HTTPException(status_code=400, detail="Either 'content' or 'files' must be provided.")
+
     try:
         # Check if there is an active workspace for this script
-        normalized_path = request.script_path.replace('\\', '/')
-        workspace_path = ACTIVE_SESSION_WORKSPACES.get(normalized_path)
-        
-        target_file = None
+        workspace_path = get_active_workspace(request.script_path)
         is_workspace_save = False
+        target_dir = ""
 
+        # Determine base target directory
         if workspace_path and os.path.isdir(workspace_path):
             # REDIRECT: Save to the workspace instead of the original source.
-            # This ensures VS Code stays in sync and the FileWatcher handles the source update.
             is_workspace_save = True
-            scripts_dir = os.path.join(workspace_path, "Scripts")
-            
-            if request.filename:
-                target_file = os.path.join(scripts_dir, request.filename)
-            else:
-                # Default to the original filename
-                orig_filename = os.path.basename(request.script_path)
-                # If original is a folder (multi-file), default to Main.cs
-                if request.type == "multi-file":
-                    target_file = os.path.join(scripts_dir, "Main.cs")
-                else:
-                    target_file = os.path.join(scripts_dir, orig_filename)
-            
-            print(f"[ScriptManagement] Redirecting save to active workspace: {target_file}")
+            target_dir = os.path.join(workspace_path, "Scripts")
+            print(f"[ScriptManagement] Redirecting save to active workspace: {target_dir}")
         else:
             # FALLBACK: Save directly to the original source path
-            target_file = resolve_script_path(request.script_path)
-            
             if request.type == "multi-file":
-                if os.path.isdir(target_file):
-                    # If AI provided a specific filename, use it
-                    if request.filename:
-                        target_file = os.path.join(target_file, request.filename)
-                    else:
-                        # Look for Main.cs
-                        main_cs = os.path.join(target_file, "Main.cs")
-                        if os.path.exists(main_cs):
-                            target_file = main_cs
-                        else:
-                            # Find first .cs file if Main.cs is missing
-                            cs_files = glob.glob(os.path.join(target_file, "*.cs"))
-                            if cs_files:
-                                target_file = cs_files[0]
-                            else:
-                                raise HTTPException(status_code=404, detail="No .cs files found in multi-file script folder.")
-                else:
-                    raise HTTPException(status_code=400, detail="Path for multi-file script must be a directory.")
+                target_dir = resolve_script_path(request.script_path)
+                if not os.path.isdir(target_dir):
+                     raise HTTPException(status_code=400, detail="Path for multi-file script must be a directory.")
+            else:
+                # For single-file script source, the directory is the parent of the script file
+                target_dir = os.path.dirname(resolve_script_path(request.script_path))
 
-        if not target_file:
-             raise HTTPException(status_code=500, detail="Could not determine target file path for saving.")
+        saved_paths = []
 
-        # Ensure directory exists (especially for new files in multi-file scripts)
-        os.makedirs(os.path.dirname(target_file), exist_ok=True)
+        # Handler for Multiple Files
+        if request.files:
+            for fname, fcontent in request.files.items():
+                target_file = os.path.join(target_dir, fname)
+                
+                # Security/Sanity Check: Ensure we don't write outside target_dir using ..
+                if not os.path.abspath(target_file).startswith(os.path.abspath(target_dir)):
+                    print(f"[ScriptManagement] Security Warning: Skipped unsafe path {target_file}")
+                    continue
 
-        with open(target_file, 'w', encoding='utf-8') as f:
-            f.write(request.content)
+                os.makedirs(os.path.dirname(target_file), exist_ok=True)
+                with open(target_file, 'w', encoding='utf-8') as f:
+                    f.write(fcontent)
+                saved_paths.append(target_file)
+
+        # Handler for Single Content (Backward Compatibility & Single-File updates)
+        if request.content:
+            target_file = None
             
+            # If explicit filename provided (e.g. from AI or specific file edit)
+            if request.filename:
+                target_file = os.path.join(target_dir, request.filename)
+            else:
+                # Default behavior based on script type
+                if is_workspace_save:
+                    # In workspace, single-file scripts are named by their original filename inside /Scripts/
+                    if request.type == "multi-file":
+                        target_file = os.path.join(target_dir, "Main.cs") # Default for multi-file
+                    else:
+                        target_file = os.path.join(target_dir, os.path.basename(request.script_path))
+                else:
+                    # Direct source save
+                    if request.type == "multi-file":
+                        target_file = os.path.join(target_dir, "Main.cs")
+                    else:
+                        target_file = resolve_script_path(request.script_path)
+
+            if target_file:
+                os.makedirs(os.path.dirname(target_file), exist_ok=True)
+                with open(target_file, 'w', encoding='utf-8') as f:
+                    f.write(request.content)
+                saved_paths.append(target_file)
+
         location_type = "Workspace (Synced)" if is_workspace_save else "Original Source"
-        print(f"[ScriptManagement] Successfully saved script to {location_type}: {target_file}")
+        print(f"[ScriptManagement] Successfully saved {len(saved_paths)} files to {location_type}")
         
         return {
             "success": True, 
-            "message": f"Script saved successfully to {location_type}",
+            "message": f"Saved {len(saved_paths)} file(s) successfully to {location_type}",
             "is_workspace_save": is_workspace_save,
-            "path": target_file
+            "paths": saved_paths
         }
         
     except Exception as e:

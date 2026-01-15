@@ -16,6 +16,7 @@ async def explain_and_fix_with_gemini(
     script_code: str,
     error_message: str,
     context: Optional[Dict[str, str]] = None,
+    multi_file: bool = False,
     llm_model: Optional[str] = None,
     llm_api_key_name: Optional[str] = None,
     llm_api_key_value: Optional[str] = None,
@@ -40,7 +41,8 @@ async def explain_and_fix_with_gemini(
     prompt = get_error_explanation_prompt(
         script_code=script_code,
         error_message=error_message,
-        context=context
+        context=context,
+        multi_file=multi_file
     )
     
     # Prepare request

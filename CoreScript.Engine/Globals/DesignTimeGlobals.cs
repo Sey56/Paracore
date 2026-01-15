@@ -64,6 +64,46 @@ namespace CoreScript.Engine.Globals
         public static void Show(string type, object data) => throw DesignTimeOnlyException;
 
         /// <summary>
+        /// Renders a list of objects as an interactive table in the Summary tab.
+        /// </summary>
+        public static void Table(object data) => throw DesignTimeOnlyException;
+
+        /// <summary>
+        /// Renders a bar chart in the Summary tab. Data should have 'name' and 'value' properties.
+        /// </summary>
+        public static void ChartBar(object data) => throw DesignTimeOnlyException;
+
+        /// <summary>
+        /// Alias for ChartBar.
+        /// </summary>
+        public static void BarChart(object data) => throw DesignTimeOnlyException;
+
+        /// <summary>
+        /// Renders a pie chart in the Summary tab. Data should have 'name' and 'value' properties.
+        /// </summary>
+        public static void ChartPie(object data) => throw DesignTimeOnlyException;
+
+        /// <summary>
+        /// Alias for ChartPie.
+        /// </summary>
+        public static void PieChart(object data) => throw DesignTimeOnlyException;
+
+        /// <summary>
+        /// Renders a line chart in the Summary tab. Data should have 'name' and 'value' properties.
+        /// </summary>
+        public static void ChartLine(object data) => throw DesignTimeOnlyException;
+
+        /// <summary>
+        /// Alias for ChartLine.
+        /// </summary>
+        public static void LineChart(object data) => throw DesignTimeOnlyException;
+
+        /// <summary>
+        /// Alias for ChartLine.
+        /// </summary>
+        public static void LineGraph(object data) => throw DesignTimeOnlyException;
+
+        /// <summary>
         /// Sets the execution timeout for the current script. Default is 10 seconds.
         /// Call this at the start of your script if you need more time for long-running operations.
         /// </summary>

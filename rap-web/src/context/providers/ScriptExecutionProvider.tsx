@@ -494,7 +494,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
                 // But update metadata (min/max/options) from the new param.
                 return {
                   ...newParam,
-                  value: existingParam.value
+                  value: existingParam.value,
+                  unit: newParam.unit,
+                  selectionType: newParam.selectionType
                 };
               }
             }
@@ -516,7 +518,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
               ...p,
               type: p.type as ScriptParameter['type'],
               value: value,
-              defaultValue: value
+              defaultValue: value,
+              unit: p.unit,
+              selectionType: p.selectionType
             };
             return newParamObject;
           });
@@ -922,6 +926,59 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [selectedScript, showNotification, setUserEditedScriptParameters, setScripts]);
 
+  const pickObject = useCallback(async (script: Script, paramName: string, selectionType: string) => {
+    setIsComputingOptions(prev => ({ ...prev, [paramName]: true })); // Use computing state for spinner
+    try {
+      // Find the parameter to get potential filters
+      const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
+      const param = currentParams.find(p => p.name === paramName);
+      const categoryFilter = param?.revitElementCategory;
+
+      showNotification(`Please select a ${selectionType} in Revit...`, "info");
+      const response = await api.post("/api/pick-object", {
+        selection_type: selectionType,
+        category_filter: categoryFilter
+      });
+
+      const { value, is_success, cancelled, error_message } = response.data;
+
+      if (is_success) {
+        showNotification("Selection successful!", "success");
+        // Update parameter value
+        setUserEditedScriptParameters(prev => {
+          const params = prev[script.id] || script.parameters || [];
+          const updatedParams = params.map(p => {
+            if (p.name === paramName) {
+              return { ...p, value: value };
+            }
+            return p;
+          });
+          return { ...prev, [script.id]: updatedParams };
+        });
+        
+        // Sync selected script state
+        if (selectedScriptRef.current?.id === script.id) {
+             setSelectedScriptState(prev => {
+                if (!prev) return null;
+                const updatedParams = (prev.parameters || []).map(p => 
+                    p.name === paramName ? { ...p, value: value } : p
+                );
+                return { ...prev, parameters: updatedParams };
+             });
+        }
+
+      } else if (cancelled) {
+        showNotification("Selection cancelled.", "info");
+      } else {
+        showNotification(error_message || "Selection failed.", "error");
+      }
+    } catch (err: any) {
+      showNotification(err.message || "Failed to pick object.", "error");
+    } finally {
+      setIsComputingOptions(prev => ({ ...prev, [paramName]: false }));
+    }
+  }, [showNotification, setUserEditedScriptParameters]);
+
   const contextValue = useMemo(() => ({
     selectedScript,
     setSelectedScript,
@@ -941,6 +998,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     deletePreset,
     renamePreset,
     computeParameterOptions,
+    pickObject, // Add pickObject
     isComputingOptions,
     editScript,
   }), [
@@ -962,6 +1020,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     deletePreset,
     renamePreset,
     computeParameterOptions,
+    pickObject, // Add pickObject
     isComputingOptions,
     editScript,
   ]);

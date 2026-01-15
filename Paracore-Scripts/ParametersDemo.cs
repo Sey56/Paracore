@@ -8,47 +8,22 @@ DocumentType: Project
 Author: Paracore Team
 Description: 
 A comprehensive guide on how to define parameters in Paracore scripts.
-This script demonstrates the V3 "Pro" (Class-Based) and "Simple" (Comment-Based) patterns.
+This script demonstrates the modern "Pro" (Class-Based) pattern.
 Use this as a template for your own automation tools!
 */
 
 // =================================================================================
-// 1. SIMPLE PATTERN (Comment-Based)
+// RUNTIME LOGIC
 // =================================================================================
-// Best for: Quick scripts, prototyping, and top-level simplicity.
-// V3 Marker: //[ScriptParameter] above variables.
-// NOTE: Dynamic/Revit selection [RevitElements] requires the PRO Pattern (Class-Based) below.
-
-// [ScriptParameter(Description = "A simple text input for non-Revit data")]
-string projectName = "My Revit Project";
-
-// [ScriptParameter(Min = 0, Max = 100, Step = 1, Description = "An integer slider")]
-int wallCount = 10;
-
-// [ScriptParameter(Description = "A boolean toggle")]
-bool enableLogging = true;
-
-// [ScriptParameter(VisibleWhen = "enableLogging == true", Description = "Only visible when Logging is enabled")]
-string logPrefix = "LOG_";
-
-// [ScriptParameter(Description = "Manual name - V3 requires Class for Revit selection")]
-string levelName = "Level 1";
-
-// =================================================================================
-// 2. PRO PATTERN (Class-Based)
-// =================================================================================
-// Best for: Professional tools, IDE IntelliSense, and complex logic.
-// Syntax: Real C# attributes [ScriptParameter] inside a 'class Params'.
 
 var p = new Params();
 
-Println("--- Paracore V3 Parameter Demonstration ---");
-Println($"Project: {projectName}");
-Println($"Wall Count: {wallCount}");
+Println("--- Paracore Modern Parameter Demonstration ---");
 Println($"Pro Description: {p.StructuredDescription}");
+Println($"Selected Element: {p.PickElementId}");
 
 // =================================================================================
-// PRO CLASS DEFINITION
+// PARAMETERS CLASS
 // =================================================================================
 
 class Params {
@@ -89,6 +64,12 @@ class Params {
     #region Context
     [RevitElements(TargetType = "Level")]
     public string ActiveLevel { get; set; } = "Level 1";
+
+    /// <summary>
+    /// Pick an element directly from Revit.
+    /// </summary>
+    [Select(SelectionType.Element)]
+    public long PickElementId { get; set; }
 
     // --- CONVENTION-BASED PROVIDERS (V3) ---
 
@@ -146,10 +127,16 @@ class Params {
     // --- INPUT TYPES ---
 
     #region System
-    [ScriptParameter(InputType = "Folder")]
+    /// <summary>
+    /// Select a folder for exporting data.
+    /// </summary>
+    [InputFolder]
     public string ExportPath { get; set; } = @"C:\Temp";
 
-    [ScriptParameter(InputType = "File")]
+    /// <summary>
+    /// Select a CSV file for processing.
+    /// </summary>
+    [InputFile("csv")]
     public string InputFile { get; set; } = @"C:\Data\input.csv";
     #endregion
 }

@@ -30,7 +30,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const { showNotification } = useNotifications();
 
   const [isExplaining, setIsExplaining] = useState(false);
-  const [aiResult, setAiResult] = useState<{ explanation: string, fixed_code?: string, filename?: string } | null>(null);
+  const [aiResult, setAiResult] = useState<{ explanation: string, fixed_code?: string, filename?: string, files?: Record<string, string> } | null>(null);
   const [isApplyingFix, setIsApplyingFix] = useState(false);
 
   useEffect(() => {
@@ -72,7 +72,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   };
 
   const handleExplainError = useCallback(async () => {
-    if (!selectedScript || !executionResult?.error || !combinedScriptContent) return;
+    if (!selectedScript || !executionResult?.error) return;
 
     setIsExplaining(true);
     setAiResult(null);
@@ -88,8 +88,13 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
         return;
       }
 
+      // For single file, we might have content loaded in combinedScriptContent, 
+      // but for multi-file we prefer backend loading via path.
+      // We send both path/type AND script_code (as fallback/context)
       const response = await api.post("/generation/explain_error", {
-        script_code: combinedScriptContent,
+        script_code: combinedScriptContent || "", 
+        script_path: selectedScript.absolutePath,
+        type: selectedScript.type,
         error_message: executionResult.error,
         context: {
           document: revitStatus.document || "Unknown",
@@ -115,16 +120,24 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   }, [selectedScript, executionResult, combinedScriptContent, revitStatus, scriptName, showNotification]);
 
   const handleApplyFix = useCallback(async () => {
-    if (!selectedScript || !aiResult?.fixed_code) return;
+    if (!selectedScript || (!aiResult?.fixed_code && !aiResult?.files)) return;
 
     setIsApplyingFix(true);
     try {
-      const response = await api.post("/api/save-script", {
+      // Determine payload based on single vs multi-file result
+      const payload: any = {
         script_path: selectedScript.absolutePath,
         type: selectedScript.type,
-        content: aiResult.fixed_code,
-        filename: aiResult.filename
-      });
+      };
+
+      if (aiResult.files) {
+        payload.files = aiResult.files;
+      } else {
+        payload.content = aiResult.fixed_code;
+        payload.filename = aiResult.filename;
+      }
+
+      const response = await api.post("/api/save-script", payload);
 
       if (response.data.success) {
         showNotification("✨ Fix applied successfully!", "success");
@@ -170,22 +183,49 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
               })}
             </div>
 
-            {aiResult.fixed_code && (
-              <div className="mt-4 w-full min-w-0">
+            {/* Render Fixed Code(s) */}
+            {(aiResult.files || aiResult.fixed_code) && (
+              <div className="mt-4 w-full min-w-0 space-y-6">
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
                   <FontAwesomeIcon icon={faCode} className="mr-2" />
-                  FIXED CODE PROPOSAL
+                  {aiResult.files && Object.keys(aiResult.files).length > 1 
+                    ? `FIXED CODE PROPOSAL (${Object.keys(aiResult.files).length} FILES)` 
+                    : "FIXED CODE PROPOSAL"}
                 </div>
-                <div className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs w-full overflow-hidden">
-                  <SyntaxHighlighter
-                    language="csharp"
-                    style={vscDarkPlus}
-                    customStyle={{ margin: 0, padding: '1rem', width: '100%', maxWidth: '100%', overflowX: 'auto' }}
-                    codeTagProps={{ style: { whiteSpace: 'pre', wordBreak: 'normal' } }}
-                  >
-                    {aiResult.fixed_code}
-                  </SyntaxHighlighter>
-                </div>
+
+                {aiResult.files ? (
+                  // Multi-file Display
+                  Object.entries(aiResult.files).map(([fname, fcode]) => (
+                    <div key={fname} className="space-y-2">
+                      <div className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border-l-4 border-blue-500 text-xs font-bold text-gray-700 dark:text-gray-200 rounded-r shadow-sm flex justify-between items-center">
+                        <span>{fname}</span>
+                        <span className="text-[10px] text-gray-400 font-normal uppercase">Modified</span>
+                      </div>
+                      <div className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs w-full overflow-hidden">
+                        <SyntaxHighlighter
+                          language="csharp"
+                          style={vscDarkPlus}
+                          customStyle={{ margin: 0, padding: '1rem', width: '100%', maxWidth: '100%', overflowX: 'auto' }}
+                          codeTagProps={{ style: { whiteSpace: 'pre', wordBreak: 'normal' } }}
+                        >
+                          {fcode}
+                        </SyntaxHighlighter>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  // Single-file Fallback
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs w-full overflow-hidden">
+                    <SyntaxHighlighter
+                      language="csharp"
+                      style={vscDarkPlus}
+                      customStyle={{ margin: 0, padding: '1rem', width: '100%', maxWidth: '100%', overflowX: 'auto' }}
+                      codeTagProps={{ style: { whiteSpace: 'pre', wordBreak: 'normal' } }}
+                    >
+                      {aiResult.fixed_code || ""}
+                    </SyntaxHighlighter>
+                  </div>
+                )}
               </div>
             )}
           </div>

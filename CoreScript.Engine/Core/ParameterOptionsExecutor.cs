@@ -55,7 +55,7 @@ namespace CoreScript.Engine.Core
                     .ToList();
                 
                 // Find method, local function, or property (Options first, then Filter)
-                // V3: We look explicitly inside the 'Params' class to avoid capturing global helper functions by accident
+                // V2: We look explicitly inside the 'Params' class to avoid capturing global helper functions by accident
                 var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
                     .FirstOrDefault(c => c.Identifier.Text == "Params");
 
@@ -80,7 +80,7 @@ namespace CoreScript.Engine.Core
 
                 string allUsings = string.Join("\n", usings);
                 
-                // V4: We gather all other type declarations (classes, structs, etc.) to support modular dependencies like 'Utils'
+                // V2: We gather all other type declarations (classes, structs, etc.) to support modular dependencies like 'Utils'
                 var extraTypes = root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
                     .Where(t => t != paramsClass)
                     .Select(t => t.ToString());
@@ -110,7 +110,7 @@ namespace CoreScript.Engine.Core
                 var executionGlobals = new ExecutionGlobals(context, new Dictionary<string, object>());
                 ExecutionGlobals.SetContext(executionGlobals);
                 
-                // V4 FIX: We invoke members by wrapping them in a class to preserve context (attributes, properties, etc.)
+                // V2 FIX: We invoke members by wrapping them in a class to preserve context (attributes, properties, etc.)
                 // This prevents CS1520 errors when using top-level property syntax or attributes in a script global scope.
                 
                 string executionScript = $@"
@@ -200,7 +200,7 @@ public class ParamsWrapper
                     .Select(u => u.ToString())
                     .ToList();
                 
-                // V3: For robustness, we collect ALL members of the parent class (usually 'Params')
+                // V2: For robustness, we collect ALL members of the parent class (usually 'Params')
                 // so the provider can call helper methods defined in the same class.
                 var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
                     .FirstOrDefault(c => c.Identifier.Text == "Params");
@@ -215,7 +215,7 @@ public class ParamsWrapper
                     return null;
                 }
 
-                // V4: Support modular dependencies like 'Utils' in range providers
+                // V2: Support modular dependencies like 'Utils' in range providers
                 var extraTypes = root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
                     .Where(t => t != paramsClass)
                     .Select(t => t.ToString());

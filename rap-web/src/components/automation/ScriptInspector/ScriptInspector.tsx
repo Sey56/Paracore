@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { InspectorTabs } from './InspectorTabs';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { useScripts } from '@/hooks/useScripts';
@@ -13,6 +13,7 @@ export const ScriptInspector: React.FC = () => {
   const { toggleFloatingCodeViewer, agentSelectedScriptPath } = useUI();
   const { revitStatus } = useRevitStatus(); // Get Revit status
   const { isAuthenticated, user } = useAuth();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (agentSelectedScriptPath && scripts.length > 0) {
@@ -84,7 +85,7 @@ export const ScriptInspector: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full rounded-none shadow-none bg-white dark:bg-gray-800 p-4 overflow-hidden">
+    <div className={`flex flex-col h-full rounded-none shadow-none bg-white dark:bg-gray-800 overflow-hidden ${isExpanded ? 'p-0' : 'p-4'}`}>
       {!script ? (
         <div className="text-center py-10 text-gray-400 dark:text-gray-500">
           <i className="fas fa-mouse-pointer text-4xl mb-3"></i>
@@ -92,7 +93,7 @@ export const ScriptInspector: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="">
+          <div className={`${isExpanded ? 'hidden' : ''}`}>
             <ScriptHeader script={script} onToggleFavorite={handleToggleFavorite} disabled={!isActionable} isFavoriteProp={script.isFavorite ?? false} />
           </div>
           <InspectorTabs
@@ -101,6 +102,8 @@ export const ScriptInspector: React.FC = () => {
             onViewCodeClick={toggleFloatingCodeViewer}
             isActionable={isActionable}
             tooltipMessage={tooltipMessage}
+            isExpanded={isExpanded}
+            onToggleExpand={() => setIsExpanded(!isExpanded)}
           />
         </>
       )}

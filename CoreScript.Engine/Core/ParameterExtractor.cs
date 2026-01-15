@@ -71,7 +71,7 @@ namespace CoreScript.Engine.Core
             // Build region map for automatic grouping
             var regionMap = BuildRegionMap(paramsClass);
 
-            // V3 Change: Implicitly discover ALL public properties in the Params class
+            // V2 Change: Implicitly discover ALL public properties in the Params class
             var properties = paramsClass.Members.OfType<PropertyDeclarationSyntax>()
                 .Where(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)));
 
@@ -85,7 +85,7 @@ namespace CoreScript.Engine.Core
                     propName.EndsWith("_Filter")) 
                     continue;
 
-                ProcessPropertyDeclarationV3(prop, paramsClass, parameters, root, regionMap);
+                ProcessPropertyDeclarationV2(prop, paramsClass, parameters, root, regionMap);
             }
         }
 
@@ -102,11 +102,11 @@ namespace CoreScript.Engine.Core
             if (param != null) parameters.Add(param);
         }
 
-        private void ProcessPropertyDeclarationV3(PropertyDeclarationSyntax prop, ClassDeclarationSyntax paramsClass, List<ScriptParameter> parameters, CompilationUnitSyntax root, Dictionary<int, string> regionMap)
+        private void ProcessPropertyDeclarationV2(PropertyDeclarationSyntax prop, ClassDeclarationSyntax paramsClass, List<ScriptParameter> parameters, CompilationUnitSyntax root, Dictionary<int, string> regionMap)
         {
             string name = prop.Identifier.Text;
 
-            // V4 FIX: Read-only properties (getter-only or expression-bodied) are usually providers or computed values, not parameters.
+            // V2 FIX: Read-only properties (getter-only or expression-bodied) are usually providers or computed values, not parameters.
             // We skip them to prevent CS0131 (assignment to read-only) errors in CodeRunner.
             bool isReadOnly = false;
             if (prop.ExpressionBody != null) isReadOnly = true;
@@ -134,7 +134,7 @@ namespace CoreScript.Engine.Core
                 param.Group = GetRegionForLine(propLine, regionMap);
             }
 
-            // Resolve Convention-Based Providers (V3)
+            // Resolve Convention-Based Providers (V2)
             var members = paramsClass.Members;
             
             // 1. Options / Filter Provider (_Options or _Filter)
@@ -293,7 +293,7 @@ namespace CoreScript.Engine.Core
 
         private bool HasAnyParameterMarker(IEnumerable<AttributeSyntax> attributes, SyntaxTriviaList triviaList)
         {
-             // V3: Marker optional for class properties, but still used for top-level or descriptions
+             // V2: Marker optional for class properties, but still used for top-level or descriptions
              var hasAttr = attributes.Any(a => 
                 a.Name.ToString().Contains("ScriptParameter") || 
                 a.Name.ToString().Contains("RevitElements") ||
@@ -333,9 +333,9 @@ namespace CoreScript.Engine.Core
             string group = "";
             string inputType = "";
             bool requiresCompute = false;
+            string selectionType = "";
 
-            // 1. Extract Description from XML Documentation Comments (V3 Priority)
-            // 1. Extract Description from XML Documentation Comments (V3 Priority)
+            // 1. Extract Description from XML Documentation Comments (V2 Priority)
             if (triviaList.Any())
             {
                 var xmlTrivia = triviaList
@@ -360,7 +360,7 @@ namespace CoreScript.Engine.Core
                     }
                     else
                     {
-                        // Fallback: Use the raw comment text if no <summary> tags found (Tagless V3)
+                        // Fallback: Use the raw comment text if no <summary> tags found (Tagless V2)
                         var lines = xmlTrivia
                             .Select(l => l.Trim('/', ' ')) // Robustly remove all leading/trailing slashes and spaces
                             .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("<")); // Exclude other XML tags
@@ -409,6 +409,36 @@ namespace CoreScript.Engine.Core
                         enabledWhenValue = valExpr.ToString().Trim('"', '\'');
                 }
 
+                // Selection Attribute (New)
+                if (attrName.Contains("Select") && attr.Name.ToString() == "Select")
+                {
+                    if (attr.ArgumentList?.Arguments.Count > 0)
+                    {
+                        var arg = attr.ArgumentList.Arguments[0];
+                        // Extract "Element" from "SelectionType.Element"
+                        if (arg.Expression is MemberAccessExpressionSyntax mem)
+                            selectionType = mem.Name.Identifier.Text;
+                    }
+                }
+
+                // File System Attributes (Unified V2)
+                if (attrName.Contains("InputFile"))
+                {
+                    inputType = "File";
+                    if (attr.ArgumentList?.Arguments.Count > 0)
+                        pattern = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                }
+                if (attrName.Contains("InputFolder"))
+                {
+                    inputType = "Folder";
+                }
+                if (attrName.Contains("SaveFile"))
+                {
+                    inputType = "SaveFile";
+                    if (attr.ArgumentList?.Arguments.Count > 0)
+                        pattern = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                }
+
                 // Main Attributes (ScriptParameter / RevitElements)
                 if (attrName.Contains("ScriptParameter") || attrName.Contains("RevitElements"))
                 {
@@ -436,6 +466,9 @@ namespace CoreScript.Engine.Core
                             else if (argName == "InputType") inputType = ExtractString(expr);
                             else if (argName == "Type" || argName == "TargetType") revitElementType = ExtractString(expr);
                             else if (argName == "Category") revitElementCategory = ExtractString(expr);
+                            else if (argName == "Select") {
+                                if (expr is MemberAccessExpressionSyntax mem) selectionType = mem.Name.Identifier.Text;
+                            }
                         }
                     }
                 }
@@ -475,9 +508,13 @@ namespace CoreScript.Engine.Core
             string type = "string";
             string numericType = null;
 
+            // Check for XYZ type explicitly
+            bool isXyz = csharpType == "XYZ" || csharpType == "Autodesk.Revit.DB.XYZ";
+            bool isReference = csharpType == "Reference" || csharpType == "Autodesk.Revit.DB.Reference";
+
             if (initializer == null)
             {
-                // V3: Support implicit defaults if no initializer is present
+                // V2: Support implicit defaults if no initializer is present
                 if (csharpType == "int" || csharpType == "double" || csharpType == "float" || csharpType == "number")
                 {
                     type = "number";
@@ -489,9 +526,21 @@ namespace CoreScript.Engine.Core
                     type = "boolean";
                     defaultValueJson = "false";
                 }
+                else if (isXyz)
+                {
+                    type = "xyz";
+                    defaultValueJson = JsonSerializer.Serialize("0,0,0");
+                    if (string.IsNullOrEmpty(selectionType)) selectionType = "Point";
+                }
+                else if (isReference)
+                {
+                    type = "reference";
+                    defaultValueJson = JsonSerializer.Serialize("");
+                    if (string.IsNullOrEmpty(selectionType)) selectionType = "Element";
+                }
                 else if (csharpType.StartsWith("List<") || csharpType.Contains("[]") || csharpType.StartsWith("IList<") || csharpType.Contains("IEnumerable<"))
                 {
-                    // V3 Inference: If it's a List/Array, it's a MultiSelect parameter
+                    // V2 Inference: If it's a List/Array, it's a MultiSelect parameter
                     type = "string"; // Usually string array for options
                     multiSelect = true;
                     defaultValueJson = "[]";
@@ -543,6 +592,21 @@ namespace CoreScript.Engine.Core
                     }
                 }
             }
+            else if (initializer is ObjectCreationExpressionSyntax objCreation && isXyz)
+            {
+                 // Handle: new XYZ(0, 0, 0)
+                 // We extract args if possible, or default to 0,0,0
+                 type = "xyz";
+                 string xyzVal = "0,0,0";
+                 if (objCreation.ArgumentList != null && objCreation.ArgumentList.Arguments.Count == 3)
+                 {
+                     var args = objCreation.ArgumentList.Arguments.Select(a => a.Expression.ToString()).ToList();
+                     // Basic attempt to clean up literals
+                     xyzVal = $"{args[0]},{args[1]},{args[2]}";
+                 }
+                 defaultValueJson = JsonSerializer.Serialize(xyzVal);
+                 if (string.IsNullOrEmpty(selectionType)) selectionType = "Point";
+            }
             else if (initializer is CollectionExpressionSyntax || 
                      initializer is ImplicitArrayCreationExpressionSyntax || 
                      initializer is ArrayCreationExpressionSyntax || 
@@ -562,6 +626,13 @@ namespace CoreScript.Engine.Core
                     defaultValueJson = JsonSerializer.Serialize(rawValue);
                 }
             }
+            
+            // Late Check for explicit XYZ type even if initializer was "new XYZ()"
+            if (isXyz && type == "string") 
+            {
+                 type = "xyz";
+                 if (string.IsNullOrEmpty(selectionType)) selectionType = "Point";
+            }
 
             if (numericType == null && type == "number")
             {
@@ -572,7 +643,7 @@ namespace CoreScript.Engine.Core
             // Fallback for options inference
             if (options.Count == 0 && isRevitElement) requiresCompute = true;
 
-            // V3 FINAL INFERENCE: Enforce MultiSelect if the C# type is clearly a collection
+            // V2 FINAL INFERENCE: Enforce MultiSelect if the C# type is clearly a collection
             // This overrides any miss from the initializer parsing
             if (csharpType.StartsWith("List<") || csharpType.Contains("[]") || csharpType.StartsWith("IList<") || csharpType.StartsWith("IEnumerable<"))
             {
@@ -607,7 +678,8 @@ namespace CoreScript.Engine.Core
                 RevitElementCategory = revitElementCategory,
                 RequiresCompute = requiresCompute,
                 Group = group,
-                InputType = inputType
+                InputType = inputType,
+                SelectionType = selectionType
             };
         }
 
@@ -720,7 +792,7 @@ namespace CoreScript.Engine.Core
 
         private string ParseVisibilityExpression(ExpressionSyntax expr)
         {
-            // Simplified "Transpilation" for V3
+            // Simplified "Transpilation" for V2
             // Currently handles: => PropName == "Value" or => PropName
             
             if (expr is BinaryExpressionSyntax binary)

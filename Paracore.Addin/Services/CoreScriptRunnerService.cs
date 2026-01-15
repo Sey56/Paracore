@@ -259,7 +259,9 @@ namespace Paracore.Addin.Services
                         Suffix = p.Suffix ?? "",
                         Pattern = p.Pattern ?? "",
                         EnabledWhenParam = p.EnabledWhenParam ?? "",
-                        EnabledWhenValue = p.EnabledWhenValue ?? ""
+                        EnabledWhenValue = p.EnabledWhenValue ?? "",
+                        Unit = p.Unit ?? "",
+                        SelectionType = p.SelectionType ?? ""
                     };
                     
                     protoParam.Options.AddRange(p.Options);
@@ -795,6 +797,186 @@ namespace Paracore.Addin.Services
             }
 
             return response;
+        }
+
+        public override async Task<PickObjectResponse> PickObject(PickObjectRequest request, ServerCallContext context)
+        {
+            _logger.Log($"[CoreScriptRunnerService] Entering PickObject. Type: {request.SelectionType}", LogLevel.Debug);
+            var response = new PickObjectResponse { IsSuccess = false, Cancelled = false };
+
+            if (_uiApp == null)
+            {
+                response.ErrorMessage = "Revit UI Application is not available.";
+                return response;
+            }
+
+            try
+            {
+                var result = await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
+                {
+                    var uidoc = _uiApp.ActiveUIDocument;
+                    if (uidoc == null) throw new Exception("No active document.");
+
+                    try
+                    {
+                        // Bring Revit to front (Basic attempt, might need PInvoke for full focus)
+                        // However, PickObject usually focuses the window automatically.
+                        
+                        if (request.SelectionType.Equals("Point", StringComparison.OrdinalIgnoreCase))
+                        {
+                            XYZ point = uidoc.Selection.PickPoint("Pick a point");
+                            // Return formatted string: "X,Y,Z"
+                            return $"{point.X},{point.Y},{point.Z}";
+                        }
+                        else
+                        {
+                            Autodesk.Revit.UI.Selection.ObjectType objType = Autodesk.Revit.UI.Selection.ObjectType.Element;
+                            
+                            if (request.SelectionType.Equals("Face", StringComparison.OrdinalIgnoreCase)) 
+                                objType = Autodesk.Revit.UI.Selection.ObjectType.Face;
+                            else if (request.SelectionType.Equals("Edge", StringComparison.OrdinalIgnoreCase)) 
+                                objType = Autodesk.Revit.UI.Selection.ObjectType.Edge;
+                            else if (request.SelectionType.Equals("PointOnElement", StringComparison.OrdinalIgnoreCase)) 
+                                objType = Autodesk.Revit.UI.Selection.ObjectType.PointOnElement;
+
+                            Reference reference;
+                            if (!string.IsNullOrEmpty(request.CategoryFilter))
+                            {
+                                string cleanName = request.CategoryFilter.Trim();
+                                string singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) 
+                                                   ? cleanName.Substring(0, cleanName.Length - 1) 
+                                                   : cleanName;
+
+                                _logger.Log($"[CoreScriptRunnerService] Resolving Category Filter: '{cleanName}'", LogLevel.Debug);
+                                ElementId? targetCategoryId = null;
+
+                                // 1. Strategy: Direct Name Match (Plural/Singular)
+                                foreach (Category cat in uidoc.Document.Settings.Categories)
+                                {
+                                    if (cat.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || 
+                                        cat.Name.Equals($"{cleanName}s", StringComparison.OrdinalIgnoreCase) ||
+                                        cat.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
+                                        cat.Name.Equals($"{singularName}s", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        targetCategoryId = cat.Id;
+                                        _logger.Log($"[CoreScriptRunnerService] Resolved '{cleanName}' via Name Match to ID: {targetCategoryId}", LogLevel.Debug);
+                                        break;
+                                    }
+                                }
+
+                                // 2. Strategy: BuiltInCategory Enum Match (Language Independent)
+                                if (targetCategoryId == null)
+                                {
+                                    var categories = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>();
+                                    var builtin = categories.FirstOrDefault(c => 
+                                        c.ToString().Equals($"OST_{cleanName}", StringComparison.OrdinalIgnoreCase) ||
+                                        c.ToString().Equals($"OST_{cleanName}s", StringComparison.OrdinalIgnoreCase) ||
+                                        c.ToString().Equals($"OST_{singularName}", StringComparison.OrdinalIgnoreCase) ||
+                                        c.ToString().Equals($"OST_{singularName}s", StringComparison.OrdinalIgnoreCase));
+
+                                    if (builtin != default)
+                                    {
+                                        targetCategoryId = new ElementId(builtin);
+                                        _logger.Log($"[CoreScriptRunnerService] Resolved '{cleanName}' via BuiltInCategory to ID: {targetCategoryId}", LogLevel.Debug);
+                                    }
+                                }
+
+                                // 3. Strategy: Class Type Match (e.g. "Wall", "Floor")
+                                Type? targetType = null;
+                                if (targetCategoryId == null)
+                                {
+                                    var revitAssembly = typeof(Element).Assembly;
+                                    targetType = revitAssembly.GetTypes().FirstOrDefault(t => 
+                                        typeof(Element).IsAssignableFrom(t) && 
+                                        (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)));
+                                    
+                                    if (targetType != null)
+                                    {
+                                        _logger.Log($"[CoreScriptRunnerService] Resolved '{cleanName}' via Class Type to: {targetType.Name}", LogLevel.Debug);
+                                    }
+                                }
+
+                                if (targetCategoryId != null || targetType != null)
+                                {
+                                    var filter = new UniversalSelectionFilter(targetCategoryId, targetType);
+                                    reference = uidoc.Selection.PickObject(objType, filter, $"Pick {request.SelectionType} ({request.CategoryFilter})");
+                                }
+                                else
+                                {
+                                    _logger.Log($"[CoreScriptRunnerService] Category filter '{request.CategoryFilter}' NOT FOUND in document. Falling back to all.", LogLevel.Warning);
+                                    reference = uidoc.Selection.PickObject(objType, $"Pick {request.SelectionType}");
+                                }
+                            }
+                            else
+                            {
+                                _logger.Log("[CoreScriptRunnerService] No Category Filter provided. Allowing all elements.", LogLevel.Debug);
+                                reference = uidoc.Selection.PickObject(objType, $"Pick {request.SelectionType}");
+                            }
+                            
+                            // Return Element ID
+                            return reference.ElementId.Value.ToString();
+                        }
+                    }
+                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                    {
+                        // User pressed Esc
+                        return "CANCELLED"; 
+                    }
+                });
+
+                if (result == "CANCELLED")
+                {
+                    response.Cancelled = true;
+                    response.IsSuccess = false; // Not an error, just cancellation
+                }
+                else
+                {
+                    response.Value = result;
+                    response.IsSuccess = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[CoreScriptRunnerService] PickObject failed: {ex.Message}");
+                response.IsSuccess = false;
+                response.ErrorMessage = ex.Message;
+            }
+
+            return response;
+        }
+    }
+
+    public class UniversalSelectionFilter : Autodesk.Revit.UI.Selection.ISelectionFilter
+    {
+        private readonly ElementId? _categoryId;
+        private readonly Type? _classType;
+
+        public UniversalSelectionFilter(ElementId? categoryId, Type? classType)
+        {
+            _categoryId = categoryId;
+            _classType = classType;
+        }
+
+        public bool AllowElement(Element elem)
+        {
+            // Priority 1: Check Class Type (Robust)
+            if (_classType != null)
+            {
+                return _classType.IsAssignableFrom(elem.GetType());
+            }
+
+            // Priority 2: Check Category ID
+            if (_categoryId != null)
+            {
+                return elem.Category != null && elem.Category.Id.Value == _categoryId.Value;
+            }
+
+            return true;
+        }
+
+        public bool AllowReference(Reference reference, XYZ position)
+        {
+            return false;
         }
     }
 }

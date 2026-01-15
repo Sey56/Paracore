@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useId } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -6,6 +6,8 @@ import {
 } from 'recharts';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDownload, faFileCsv } from '@fortawesome/free-solid-svg-icons';
 
 interface StructuredOutput {
   type: string;
@@ -18,9 +20,22 @@ interface StructuredOutputViewerProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
+const CustomPieTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
+        <p style={{ color: '#fff', margin: 0, marginBottom: '4px' }}>{payload[0].name}</p>
+        <p style={{ color: '#60a5fa', margin: 0 }}>{`value : ${payload[0].value}`}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ item }) => {
   const { showNotification } = useNotifications();
   const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null);
+  const chartId = useId().replace(/:/g, ''); // Generate unique ID for the chart container
 
   const handleSelectElements = useCallback(async (ids: number[]) => {
     try {
@@ -30,6 +45,167 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       showNotification("Failed to select elements in Revit.", "error");
     }
   }, [showNotification]);
+
+  const handleDownloadCsv = () => {
+    try {
+      const data = JSON.parse(item.data);
+      const tableData = Array.isArray(data) ? data : [data];
+      if (tableData.length === 0) return;
+
+      const headers = Object.keys(tableData[0]).join(',');
+      const rows = tableData.map((row: any) =>
+        Object.values(row).map((val: any) => `"${String(val).replace(/"/g, '""')}"`).join(',')
+      );
+      const csvContent = [headers, ...rows].join('\n');
+
+      const url = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `data_${item.type}_${new Date().getTime()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showNotification("Chart data exported as CSV.", "success");
+    } catch (err) {
+      showNotification("Failed to export CSV data.", "error");
+    }
+  };
+
+  const handleDownloadSvg = () => {
+    const container = document.getElementById(chartId);
+    
+    if (container) {
+      try {
+        // 1. Find the chart SVG (largest SVG in the container)
+        // This avoids selecting the small FontAwesome icons (14x14)
+        const allSvgs = Array.from(container.querySelectorAll('svg'));
+        let originalSvg: SVGSVGElement | null = null;
+        let maxArea = 0;
+
+        allSvgs.forEach(svg => {
+            const rect = svg.getBoundingClientRect();
+            const area = rect.width * rect.height;
+            // Log for debugging
+            console.log(`[ExportSVG] Found SVG: class="${svg.classList.value}", size=${rect.width}x${rect.height}`);
+            
+            if (area > maxArea) {
+                maxArea = area;
+                originalSvg = svg;
+            }
+        });
+
+        if (!originalSvg || maxArea < 1000) { // Ignore small icons (< 30x30 roughly)
+             console.warn(`[ExportSVG] No suitable chart SVG found. Max area: ${maxArea}`);
+             showNotification("Could not find the chart image to export.", "warning");
+             return;
+        }
+
+        const rect = originalSvg.getBoundingClientRect();
+        // Fallback to attribute or container if rect is 0 (e.g. hidden tab)
+        let width = rect.width;
+        let height = rect.height;
+
+        if (!width || !height) {
+            width = parseFloat(originalSvg.getAttribute("width") || "0");
+            height = parseFloat(originalSvg.getAttribute("height") || "0");
+        }
+        
+        console.log(`[ExportSVG] Selected Chart SVG: class="${originalSvg.classList.value}", dimensions=${width}x${height}`);
+
+        if (!width || !height) {
+            console.warn("[ExportSVG] Width or height is 0, aborting export.");
+            showNotification("Chart has no dimensions to export.", "warning");
+            return;
+        }
+
+        // 2. Clone the SVG node deeply
+        const clonedSvg = originalSvg.cloneNode(true) as SVGElement;
+        
+        // 3. Explicitly set dimensions on the clone to match pixel value
+        clonedSvg.setAttribute("width", width.toString());
+        clonedSvg.setAttribute("height", height.toString());
+        clonedSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        clonedSvg.setAttribute("x", "0");
+        clonedSvg.setAttribute("y", "0");
+        // Ensure overflow is visible in case of slight clipping
+        clonedSvg.style.overflow = "visible";
+
+        // 4. Inline computed styles (crucial for Recharts/Tailwind)
+        const originalNodes = originalSvg.querySelectorAll('*');
+        const clonedNodes = clonedSvg.querySelectorAll('*');
+
+        // Styles to copy
+        const stylesToCopy = [
+          'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 
+          'opacity', 'font-family', 'font-size', 'font-weight', 
+          'transform', 'transform-origin', 'visibility', 'display'
+        ];
+        
+        // Copy root styles first
+        const rootComputed = window.getComputedStyle(originalSvg);
+        stylesToCopy.forEach(styleName => {
+             const value = rootComputed.getPropertyValue(styleName);
+             if (value) clonedSvg.style.setProperty(styleName, value);
+        });
+
+        // Copy children styles
+        originalNodes.forEach((orig, index) => {
+          const clone = clonedNodes[index] as SVGElement;
+          if (clone instanceof SVGElement) {
+            const computed = window.getComputedStyle(orig);
+            stylesToCopy.forEach(styleName => {
+              const value = computed.getPropertyValue(styleName);
+              if (value) {
+                clone.style.setProperty(styleName, value);
+              }
+            });
+          }
+        });
+
+        // 5. Create a wrapper SVG with background
+        const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        wrapperSvg.setAttribute("width", width.toString());
+        wrapperSvg.setAttribute("height", height.toString());
+        wrapperSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        wrapperSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+        // Background
+        const computedContainerStyle = window.getComputedStyle(container);
+        const bgColor = computedContainerStyle.backgroundColor || '#ffffff';
+        const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        bgRect.setAttribute("width", "100%");
+        bgRect.setAttribute("height", "100%");
+        bgRect.setAttribute("fill", bgColor);
+        wrapperSvg.appendChild(bgRect);
+
+        // Append the styled chart (nested)
+        wrapperSvg.appendChild(clonedSvg);
+
+        // 6. Serialize
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(wrapperSvg);
+        
+        // Add xlink namespace if needed
+        if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
+          source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+        }
+        
+        const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `chart_${item.type}_${new Date().getTime()}.svg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showNotification("Chart exported as SVG.", "success");
+      } catch (err) {
+        console.error("Failed to export SVG:", err);
+        showNotification("Failed to export chart image.", "error");
+      }
+    } else {
+      showNotification("Could not find chart element to export.", "warning");
+    }
+  };
 
   try {
     const parsedData = JSON.parse(item.data);
@@ -100,14 +276,19 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
                         : "hover:bg-blue-50 dark:hover:bg-blue-900/20"}
                     `}
                   >
-                    {headers.map((header, colIndex) => (
-                      <td
-                        key={colIndex}
-                        className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300"
-                      >
-                        {row[header] !== null && row[header] !== undefined ? String(row[header]) : ''}
-                      </td>
-                    ))}
+                    {headers.map((header, colIndex) => {
+                      const cellValue = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
+                      return (
+                        <td
+                          key={colIndex}
+                          className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-[200px]"
+                        >
+                          <div className="truncate" title={cellValue}>
+                            {cellValue}
+                          </div>
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}
@@ -119,8 +300,24 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     
     if (item.type === 'chart-bar') {
       return (
-        <div className="h-64 w-full bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
-          <ResponsiveContainer width="100%" height="100%">
+        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ height: '300px', width: '100%', minHeight: '300px' }}>
+          <div className="absolute top-2 right-2 z-10 flex gap-1">
+            <button 
+              onClick={handleDownloadCsv}
+              className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500"
+              title="Download Data as CSV"
+            >
+              <FontAwesomeIcon icon={faFileCsv} className="text-xs" />
+            </button>
+            <button 
+              onClick={handleDownloadSvg}
+              className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500"
+              title="Download Chart as SVG"
+            >
+              <FontAwesomeIcon icon={faDownload} className="text-xs" />
+            </button>
+          </div>
+          <ResponsiveContainer width="100%" height="100%" minWidth="100px" minHeight="100px">
             <BarChart data={parsedData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis dataKey="name" fontSize={10} />
@@ -139,8 +336,24 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
     if (item.type === 'chart-pie') {
       return (
-        <div className="h-64 w-full bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
-          <ResponsiveContainer width="100%" height="100%">
+        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ height: '300px', width: '100%', minHeight: '300px' }}>
+          <div className="absolute top-2 right-2 z-10 flex gap-1">
+            <button 
+              onClick={handleDownloadCsv}
+              className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500"
+              title="Download Data as CSV"
+            >
+              <FontAwesomeIcon icon={faFileCsv} className="text-xs" />
+            </button>
+            <button 
+              onClick={handleDownloadSvg}
+              className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500"
+              title="Download Chart as SVG"
+            >
+              <FontAwesomeIcon icon={faDownload} className="text-xs" />
+            </button>
+          </div>
+          <ResponsiveContainer width="100%" height="100%" minWidth="100px" minHeight="100px">
             <PieChart>
               <Pie
                 data={parsedData}
@@ -156,9 +369,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
-              />
+              <Tooltip content={<CustomPieTooltip />} />
               <Legend wrapperStyle={{ fontSize: '10px' }} />
             </PieChart>
           </ResponsiveContainer>
@@ -168,8 +379,24 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
     if (item.type === 'chart-line') {
       return (
-        <div className="h-64 w-full bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
-          <ResponsiveContainer width="100%" height="100%">
+        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ height: '300px', width: '100%', minHeight: '300px' }}>
+          <div className="absolute top-2 right-2 z-10 flex gap-1">
+            <button 
+              onClick={handleDownloadCsv}
+              className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500"
+              title="Download Data as CSV"
+            >
+              <FontAwesomeIcon icon={faFileCsv} className="text-xs" />
+            </button>
+            <button 
+              onClick={handleDownloadSvg}
+              className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500"
+              title="Download Chart as SVG"
+            >
+              <FontAwesomeIcon icon={faDownload} className="text-xs" />
+            </button>
+          </div>
+          <ResponsiveContainer width="100%" height="100%" minWidth="100px" minHeight="100px">
             <LineChart data={parsedData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis dataKey="name" fontSize={10} />

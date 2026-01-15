@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 import models, schemas
 from database_config import get_db
-from grpc_client import execute_script, validate_working_set_grpc, select_elements
+from grpc_client import execute_script, validate_working_set_grpc, select_elements, pick_object
 from utils import get_or_create_script, resolve_script_path
 from auth import get_current_user, CurrentUser
 from agent.graph import get_app # Import agent app
@@ -17,6 +17,22 @@ from agent.graph import get_app # Import agent app
 router = APIRouter()
 
 from typing import Optional # Import Optional
+from pydantic import BaseModel
+
+class PickObjectRequest(BaseModel):
+    selection_type: str
+    category_filter: Optional[str] = None
+
+@router.post("/api/pick-object", tags=["Script Execution"])
+async def pick_object_endpoint(request: PickObjectRequest):
+    """
+    Triggers a PickObject operation in Revit.
+    """
+    try:
+        response = pick_object(request.selection_type, request.category_filter)
+        return JSONResponse(content=response)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/run-script", tags=["Script Execution"])
 async def run_script(
