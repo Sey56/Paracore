@@ -145,10 +145,10 @@ Native OS dialogs for files/folders.
 [InputFile("csv,xlsx")] // UI: Browse File button (filters for csv/xlsx)
 public string SourceFile { get; set; }
 
-[InputFolder]           // UI: Browse Folder button
+[FolderPath]            // UI: Browse Folder button
 public string ExportDir { get; set; }
 
-[SaveFile("json")]      // UI: Save File dialog
+[OutputFile("json")]    // UI: Save File dialog
 public string OutputPath { get; set; }
 ```
 

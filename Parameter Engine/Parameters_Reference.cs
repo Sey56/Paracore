@@ -161,14 +161,14 @@ public class Params
     // -----------------------------------------------------
     #region 6. File System
 
-    [InputFile("csv,xlsx")]
-    public string SourceExcelFile { get; set; }
+    [InputFile("csv,xlsx")] 
+    public string SourceFile { get; set; }
 
-    [InputFolder]
-    public string ExportFolder { get; set; }
+    [FolderPath]           
+    public string ExportDir { get; set; }
 
-    [SaveFile("json")]
-    public string JsonReportPath { get; set; }
+    [OutputFile("json")]      
+    public string OutputPath { get; set; }
 
     #endregion
 

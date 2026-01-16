@@ -428,13 +428,23 @@ namespace CoreScript.Engine.Core
                     if (attr.ArgumentList?.Arguments.Count > 0)
                         pattern = ExtractString(attr.ArgumentList.Arguments[0].Expression);
                 }
-                if (attrName.Contains("InputFolder"))
+                if (attrName.Contains("FolderPath"))
                 {
                     inputType = "Folder";
                 }
-                if (attrName.Contains("SaveFile"))
+                if (attrName.Contains("OutputFile"))
                 {
-                    inputType = "SaveFile";
+                    inputType = "SaveFile"; // Keep identifier "SaveFile" for internal backward compat if UI expects it, or change? 
+                    // Let's keep inputType="SaveFile" if the frontend logic relies on this string. 
+                    // But if I can validation, the user complained "naming is a mess up". 
+                    // The UI code likely checks for `inputType === 'SaveFile'`. 
+                    // I will check if I should change this string. 
+                    
+                    // Actually, let's look at the old code: 
+                    // if (attrName.Contains("SaveFile")) { inputType = "SaveFile"; ... }
+                    
+                    // New code:
+                    inputType = "SaveFile"; 
                     if (attr.ArgumentList?.Arguments.Count > 0)
                         pattern = ExtractString(attr.ArgumentList.Arguments[0].Expression);
                 }

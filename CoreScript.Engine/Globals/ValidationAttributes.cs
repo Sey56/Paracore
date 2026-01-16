@@ -135,11 +135,11 @@ namespace CoreScript.Engine.Globals
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class InputFolderAttribute : Attribute { }
+    public class FolderPathAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class SaveFileAttribute : Attribute { 
+    public class OutputFileAttribute : Attribute { 
         public string Filter { get; set; }
-        public SaveFileAttribute(string filter = null) { Filter = filter; }
+        public OutputFileAttribute(string filter = null) { Filter = filter; }
     }
 }
