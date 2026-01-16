@@ -334,7 +334,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
 
     const currentSelected = selectedScriptRef.current;
-    if (source !== 'refresh' && script.id === currentSelected?.id) {
+    if (source !== 'refresh' && source !== 'hard_reset' && script.id === currentSelected?.id) {
       if (source === 'agent') {
         setAgentSelectedScriptPath(script.absolutePath);
       }
@@ -1007,6 +1007,31 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [showNotification, setUserEditedScriptParameters]);
 
+  const resetScriptParameters = useCallback(async (scriptId: string) => {
+    // 1. Clear from user edits cache
+    setUserEditedScriptParameters(prev => {
+      const next = { ...prev };
+      delete next[scriptId];
+      return next;
+    });
+
+    // 2. Clear from draft cache 
+    setDefaultDraftParameters(prev => {
+      const next = { ...prev };
+      delete next[scriptId];
+      return next;
+    });
+
+    showNotification("Parameters reset to defaults.", "info");
+
+    // 3. Reload the script to fetch fresh defaults from engine
+    // We pass 'hard_reset' to skip the cache check in setSelectedScript
+    if (selectedScriptRef.current && selectedScriptRef.current.id === scriptId) {
+      // Force a re-fetch by passing the hard_reset flag
+      await setSelectedScript(selectedScriptRef.current, 'hard_reset');
+    }
+  }, [setUserEditedScriptParameters, setDefaultDraftParameters, setSelectedScript, showNotification]);
+
   const contextValue = useMemo(() => ({
     selectedScript,
     setSelectedScript,
@@ -1029,6 +1054,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     pickObject, // Add pickObject
     isComputingOptions,
     editScript,
+    resetScriptParameters,
   }), [
     selectedScript,
     setSelectedScript,
@@ -1051,6 +1077,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     pickObject, // Add pickObject
     isComputingOptions,
     editScript,
+    resetScriptParameters,
   ]);
 
   return (

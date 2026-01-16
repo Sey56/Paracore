@@ -24,6 +24,7 @@ export interface ScriptExecutionContextProps {
   pickObject: (script: Script, paramName: string, selectionType: string) => Promise<void>;
   isComputingOptions: Record<string, boolean>;
   editScript: (script: Script) => Promise<void>;
+  resetScriptParameters: (scriptId: string) => Promise<void>;
 }
 
 export const ScriptExecutionContext = createContext<ScriptExecutionContextProps | undefined>(undefined);

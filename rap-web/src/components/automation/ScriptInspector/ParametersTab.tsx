@@ -60,6 +60,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     activePresets,
     setActivePreset,
     pickObject,
+    resetScriptParameters,
   } = useScriptExecution();
 
   const [editedParameters, setEditedParameters] = useState<ScriptParameter[]>([]);
@@ -282,6 +283,19 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
             </select>
 
             <div className="flex space-x-2 pl-4">
+              <button
+                className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 text-xs flex items-center px-2 py-1 rounded transition-colors"
+                onClick={() => {
+                  if (confirm('Are you sure you want to reset all parameters to their original defaults? This will clear your local changes.')) {
+                    resetScriptParameters(script.id);
+                  }
+                }}
+                disabled={!isActionable || isRunning}
+                title="Hard Reset: Clear local cache and reload defaults from engine"
+              >
+                <FontAwesomeIcon icon={faUndo} />
+              </button>
+              <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 self-center mx-2"></div>
               <button title="New Preset" className="text-gray-600 dark:text-gray-300 hover:text-blue-600" onClick={handleNewPreset}>
                 <FontAwesomeIcon icon={faPlus} />
               </button>
@@ -362,27 +376,30 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         {/* Run Script Button */}
         {activeMainView === 'scripts' && (
           <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <div className="relative flex items-center" title={finalTooltipMessage}>
-              <button
-                className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={handleRunScript}
-                disabled={isRunDisabled}
-              >
-                <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`mr-2 ${isRunning ? "animate-spin" : ""}`} />
-                {isRunning ? "Running..." : "Run Script"}
-              </button>
-              {showStatusIcon && (
-                <div
-                  className="absolute -right-12 cursor-pointer p-1"
-                  onClick={handleStatusIconClick}
-                  title={activeInspectorTab === 'console' ? "Go to Parameters" : "Go to Console"}
+
+            <div className="flex items-center space-x-4">
+              <div className="relative flex items-center" title={finalTooltipMessage}>
+                <button
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleRunScript}
+                  disabled={isRunDisabled}
                 >
-                  <FontAwesomeIcon
-                    icon={runSucceeded ? faCheckCircle : faTimesCircle}
-                    className={`${runSucceeded ? 'text-green-500' : 'text-red-500'} text-2xl`}
-                  />
-                </div>
-              )}
+                  <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={`mr-2 ${isRunning ? "animate-spin" : ""}`} />
+                  {isRunning ? "Running..." : "Run Script"}
+                </button>
+                {showStatusIcon && (
+                  <div
+                    className="absolute -right-12 cursor-pointer p-1"
+                    onClick={handleStatusIconClick}
+                    title={activeInspectorTab === 'console' ? "Go to Parameters" : "Go to Console"}
+                  >
+                    <FontAwesomeIcon
+                      icon={runSucceeded ? faCheckCircle : faTimesCircle}
+                      className={`${runSucceeded ? 'text-green-500' : 'text-red-500'} text-2xl`}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             {activeRole !== Role.User && (
               <button
