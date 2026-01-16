@@ -83,8 +83,8 @@ CORE RULES:
    - `[Pattern("regex")]`: Regex validation.
    - `[EnabledWhen("PropName", "Value")]`: Conditional logic.
    - `[InputFile("csv,xlsx")]`: Open File Dialog.
-   - `[InputFolder]`: Select Folder Dialog.
-   - `[SaveFile("json")]`: Save File Dialog.
+   - `[FolderPath]`: Select Folder Dialog.
+   - `[OutputFile("json")]`: Save File Dialog.
    - `///` or `/// <summary>`: Tooltip description.
 
    **Dynamic Logic (Naming Conventions)**:
@@ -207,8 +207,8 @@ ERROR MESSAGE:
    - `[Pattern("regex")]`: Regex validation.
    - `[EnabledWhen("Prop", "Value")]`: Conditional UI.
    - `[InputFile("csv,xlsx")]`: Open File Dialog.
-   - `[InputFolder]`: Select Folder Dialog.
-   - `[SaveFile("json")]`: Save File Dialog.
+   - `[FolderPath]`: Select Folder Dialog.
+   - `[OutputFile("json")]`: Save File Dialog.
    - `///` or `/// <summary>`: Tooltip description.
 
    **Dynamic Logic (Naming Conventions)**:

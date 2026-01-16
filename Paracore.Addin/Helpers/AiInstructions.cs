@@ -42,8 +42,8 @@ All script parameters must be defined inside a `public class Params` (bottom of 
 - `[Pattern(""regex"")]`: Validates string input against a regex pattern.
 - `[EnabledWhen(""PropName"", ""Value"")]`: Conditional enabling based on another parameter.
 - `[InputFile(""csv,xlsx"")]`: Open File Dialog.
-- `[InputFolder]`: Select Folder Dialog.
-- `[SaveFile(""json"")]`: Save File Dialog.
+- `[FolderPath]`: Select Folder Dialog.
+- `[OutputFile(""json"")]`: Save File Dialog.
 - `/// <summary>` or `///`: Tooltip description.
 
 ### 3. Dynamic Logic (Conventions)
