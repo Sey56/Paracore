@@ -284,14 +284,16 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
             </select>
 
             <div className="flex space-x-2 pl-4">
-              <button
-                className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 text-xs flex items-center px-2 py-1 rounded transition-colors"
-                onClick={() => setIsResetModalOpen(true)}
-                disabled={!isActionable || isRunning || !isDefaultPreset}
-                title="Hard Reset: Clear local cache and reload defaults from engine"
-              >
-                <FontAwesomeIcon icon={faUndo} />
-              </button>
+              {isDefaultPreset && (
+                <button
+                  className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 text-xs flex items-center px-2 py-1 rounded transition-colors"
+                  onClick={() => setIsResetModalOpen(true)}
+                  disabled={!isActionable || isRunning}
+                  title="Hard Reset: Clear local cache and reload defaults from engine"
+                >
+                  <FontAwesomeIcon icon={faUndo} />
+                </button>
+              )}
               <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 self-center mx-2"></div>
               <button title="New Preset" className="text-gray-600 dark:text-gray-300 hover:text-blue-600" onClick={handleNewPreset}>
                 <FontAwesomeIcon icon={faPlus} />
