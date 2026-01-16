@@ -259,6 +259,79 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           wrapperSvg.appendChild(legendGroup);
         }
 
+        // 5.6 Append Pie Labels Manually (Lines + Values)
+        if (item.type === 'chart-pie' && legendHeight > 0) { // Reuse the data check from legend
+          const labelsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+          // Pie Geometry Assumptions (matching the Recharts render in this file)
+          // cx="50%", cy="50%" -> center of the SVG viewbox
+          const cx = width / 2;
+          const cy = height / 2;
+          const outerRadius = 80; // Hardcoded in Pie component above
+          const labelRadius = outerRadius + 20; // Distance for text
+
+          const total = data.reduce((sum, entry) => sum + (Number(entry.value) || 0), 0);
+          let currentAngle = 0; // Recharts default start angle 0? verified: 0 is 3 o'clock. CCW.
+
+          data.forEach((entry) => {
+            const value = Number(entry.value) || 0;
+            if (total === 0) return;
+
+            const sliceAngle = (value / total) * 360;
+            const midAngle = currentAngle + (sliceAngle / 2);
+
+            // Recharts: 0 is 3 o'clock, Motion is Counter-Clockwise.
+            // SVG Trig: x = cos(a), y = -sin(a) (since y is down) for mathematical angle 'a' from x-axis.
+            // This matches Recharts 0=3oclock CCW convention.
+            const midAngleRad = (-midAngle) * (Math.PI / 180); // Negative for SVG CCW behavior visually? 
+            // Wait. Standard Trig: 0=East, 90=North (CCW).
+            // SVG Screen: 0=East, 90=South (CW).
+            // Recharts Default: 0=East (3 oclock), Direction=CCW (so 90 is North).
+            // To Map Recharts Angle to Screen Angle (CW):
+            // Recharts 0 -> Screen 0
+            // Recharts 90 (North) -> Screen 270 (or -90)
+            // Screen Y is flipped. 
+            // x = cx + r * cos(recharts_angle_rad)
+            // y = cy - r * sin(recharts_angle_rad)  <-- minus because screen Y increases downwards
+
+            const angleRad = midAngle * (Math.PI / 180);
+
+            const x1_edge = cx + outerRadius * Math.cos(-angleRad);
+            const y1_edge = cy + outerRadius * Math.sin(-angleRad);
+
+            const x2_label = cx + labelRadius * Math.cos(-angleRad);
+            const y2_label = cy + labelRadius * Math.sin(-angleRad);
+
+            // Line
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1_edge.toString());
+            line.setAttribute("y1", y1_edge.toString());
+            line.setAttribute("x2", x2_label.toString());
+            line.setAttribute("y2", y2_label.toString());
+            line.setAttribute("stroke", "#6b7280"); // gray-500
+            line.setAttribute("stroke-width", "1");
+            labelsGroup.appendChild(line);
+
+            // Text
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", x2_label.toString());
+            text.setAttribute("y", y2_label.toString());
+            text.setAttribute("fill", "#374151"); // gray-700
+            text.setAttribute("font-size", "10");
+            text.setAttribute("text-anchor", Math.cos(-angleRad) > 0 ? "start" : "end"); // Align based on side
+            text.setAttribute("dominant-baseline", "middle");
+            // Offset slightly
+            text.setAttribute("dx", Math.cos(-angleRad) > 0 ? "5" : "-5");
+
+            text.textContent = String(value);
+            labelsGroup.appendChild(text);
+
+            currentAngle += sliceAngle;
+          });
+
+          wrapperSvg.appendChild(labelsGroup);
+        }
+
         // 6. Serialize
         const serializer = new XMLSerializer();
         let source = serializer.serializeToString(wrapperSvg);
