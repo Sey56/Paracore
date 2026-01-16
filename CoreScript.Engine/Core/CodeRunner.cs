@@ -236,6 +236,13 @@ namespace CoreScript.Engine.Core
                         FileLogger.LogError($"[CodeRunner] JSON deserialization error for parameters: {ex.Message}");
                     }
                 }
+                
+                // DEBUG: Log all parameters that CodeRunner thinks it has
+                FileLogger.Log($"[CodeRunner] Final Parameters Dictionary Keys: {string.Join(", ", parameters.Keys)}");
+                foreach (var kvp in parameters)
+                {
+                    FileLogger.Log($"[CodeRunner] Param '{kvp.Key}' = {kvp.Value} (Type: {kvp.Value?.GetType().Name ?? "null"})");
+                }
 
                 List<ScriptFile> scriptFiles = new List<ScriptFile>();
                 try

@@ -35,7 +35,7 @@ def get_corescript_generation_prompt(
         architecture_rules = """3. **Structure**: SINGLE-FILE Consolidated Script.
    - **Consolidation**: You **MUST** cram all logic, utility methods, and classes into this ONE output.
    - **Formatting**: Simply return one `csharp` code block.
-   - **ORDER**: 1. using, 2. Top-Level Statements, 3. Class Definitions (Params MUST be last)."""
+   - **ORDER**: 1. using (ONLY Revit namespaces), 2. Top-Level Statements, 3. Class Definitions (Params MUST be last)."""
 
     return f"""Generate Revit API 2025 and above C# code for CoreScript.Engine.
 
@@ -67,7 +67,7 @@ CORE RULES:
 7. **Parameters (V2 Engine)**:
    - **Definition**: All parameters MUST be in `public class Params` (at bottom of file).
    - **Zero Boilerplate**: `int`, `double`, `bool`, `string`, `List<string>` map to UI controls automatically.
-   - **Grouping**: Use `#region GroupName` ... `#endregion`. *CRITICAL*: Always leave an EMPTY LINE before and after #region and #endregion.
+   - **Grouping**: Use `#region GroupName` ... `#endregion`. *CRITICAL*: No space needed after `#region`. Space REQUIRED before/after `#endregion` label if present (e.g. `#endregion MyRegion`). Always leave an EMPTY LINE before and after `#region` and `#endregion`.
    
    **Attributes**:
    - `[RevitElements(TargetType="WallType")]`: Dropdown of Wall Types.
@@ -111,12 +111,13 @@ CORE RULES:
     - Scripts default to 10s. If complex, add `SetExecutionTimeout(60);` at start.
 
 GLOBALS (IMPLICITLY AVAILABLE - DO NOT IMPORT):
-- `Doc`, `UIDoc`, `UIApp`: Revit API access.
-- `Println(string)`, `Print(string)`, `LogError(string)`: Console.
-- `Table(object)`, `ChartBar(object)`, `ChartPie(object)`, `ChartLine(object)`: Visualization.
-- `Transact(string name, Action action)`: Database write transaction.
+- `Doc`, `UIDoc`, `UIApp`: Revit API access (Available in ALL FILES).
+- `Println(string)`, `Print(string)`, `LogError(string)`: Console (Available in ALL FILES).
+- `Table(object)`, `ChartBar(object)`, `ChartPie(object)`, `ChartLine(object)`: Visualization (Available in ALL FILES).
+- `Transact(string name, Action action)`: Database write transaction (Available in ALL FILES).
 - `SetExecutionTimeout(int seconds)`: Extend runtime.
-- `System`, `System.Linq`, `System.Collections.Generic`, `Autodesk.Revit.DB`: Implicitly imported.
+- `System`, `System.Linq`, `System.Collections.Generic`, `System.Text.Json`, `Autodesk.Revit.DB`, `Autodesk.Revit.UI`: Implicitly imported. DO NOT add `using` statements for these.
+- **Explicit Imports**: You MUST import `Autodesk.Revit.DB.Architecture` or `Structure` if using `Room`, `Wall`, etc.
 
 {retry_context}
 
@@ -181,12 +182,10 @@ ERROR MESSAGE:
    - **Looping**: NEVER put `Transact` inside a loop. Loop *inside* the transaction.
 
 2. **GLOBALS** (Always Available):
-   - `Doc` (Document), `UIDoc` (UIDocument), `UIApp` (UIApplication).
-   - `Println(string)`: Log text.
-   - `Table(object)`: Show data tables.
-   - `ChartBar(object)`, `ChartPie(object)`, `ChartLine(object)`: Show visualizations.
-   - `SetExecutionTimeout(int)`: Extend runtime.
-   - `System`, `System.Linq`, `System.Collections.Generic`, `Autodesk.Revit.DB`: Implicitly imported.
+   - `Doc`, `UIDoc`, `UIApp`: Available in ALL FILES.
+   - `Println(string)`, `Table(object)`, `Transact`, etc.: Available in ALL FILES.
+   - `System`, `System.Linq`, `System.Collections.Generic`, `System.Text.Json`, `Autodesk.Revit.DB`, `Autodesk.Revit.UI`: Implicitly imported. DO NOT add `using` statements for these.
+   - **Explicit Imports**: You MUST import `Autodesk.Revit.DB.Architecture` or `Structure` if using `Room`, `Wall`, etc.
 {structure_rule}
 4. **PARAMETERS (V2 Engine)**:
    - **Definition**: All parameters MUST be in `public class Params` (at bottom of file).
@@ -250,6 +249,8 @@ public class Params {{
     [RevitElements(TargetType="Room")]
     public string RoomName {{ get; set; }}
 
+    #region Settings
+    // ...
     #endregion
 }}
 ```

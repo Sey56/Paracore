@@ -1,21 +1,35 @@
+using System;
+using System.Collections.Generic;
+using Autodesk.Revit.DB;
+
 public class Params
 {
-    /// Name of the room to get area for.   
-    [RevitElements(TargetType = "Room")]
-    public string? RoomName { get; set; }
+
+    #region Room Selection
 
     /// Select multiple rooms to get their areas.
     [RevitElements(TargetType = "Room", MultiSelect = true)]
-    public List<string>? SelectedRooms { get; set; }
+    public List<string> SelectedRooms { get; set; } = new();
+
+    #endregion
+
+    #region Interactive Selection
 
     /// <summary>
-    ///  Click and select a single wall in Revit
+    /// Click and select a single wall in Revit
     /// </summary>
     [Select(SelectionType.Element)]
-    [RevitElements(Category = "Walls")] // <--- The Filter!
-    public int SelectedWallId { get; set; }
+    public long SelectedWallId { get; set; }
 
-    [Select(SelectionType.Point)]
-    public strin MyPoint { get; set; }
+    /// <summary>
+    /// Point selection requires the XYZ type
+    /// </summary>
+    [Select(SelectionType.Element)]
+    public long BaseLevel { get; set; }
+
+    [Select(SelectionType.Edge)]
+    public Reference? MyEdge { get; set; }
+
+    #endregion
 
 }

@@ -203,15 +203,16 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
     }
 
     // Case 2: Multi-Select (Checkboxes)
-    if (param.options && param.options.length > 0 && param.multiSelect) {
+    // Fix: Render MultiSelectInput even if options are empty/undefined, to prevent fallback to Text Input
+    if (param.multiSelect) {
       return (
-        <MultiSelectInput 
-          param={param} 
-          index={index} 
-          onChange={onChange} 
-          onCompute={onCompute} 
-          isComputing={isComputing} 
-          disabled={disabled} 
+        <MultiSelectInput
+          param={param}
+          index={index}
+          onChange={onChange}
+          onCompute={onCompute}
+          isComputing={isComputing}
+          disabled={disabled}
         />
       );
     }
@@ -274,14 +275,14 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             disabled={disabled}
           />
           {param.selectionType && param.selectionType !== "None" && onPickObject && (
-             <button
-                onClick={() => onPickObject(param.selectionType!, index)}
-                disabled={disabled || isComputing}
-                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center min-w-[40px]"
-                title={`Select ${param.selectionType} in Revit`}
-             >
-                <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} />
-             </button>
+            <button
+              onClick={() => onPickObject(param.selectionType!, index)}
+              disabled={disabled || isComputing}
+              className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center min-w-[40px]"
+              title={`Select ${param.selectionType} in Revit`}
+            >
+              <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} />
+            </button>
           )}
         </div>
       );
@@ -290,7 +291,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
     // Case X: Point Selection (XYZ)
     if (param.selectionType === 'Point') {
       return (
-        <PointInput 
+        <PointInput
           value={String(param.value || "0,0,0")}
           onChange={(val) => onChange(index, val)}
           onPick={() => onPickObject && onPickObject('Point', index)}
@@ -311,14 +312,14 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           disabled={disabled}
         />
         {param.selectionType && param.selectionType !== "None" && onPickObject && (
-             <button
-                onClick={() => onPickObject(param.selectionType!, index)}
-                disabled={disabled || isComputing}
-                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center min-w-[40px]"
-                title={`Select ${param.selectionType} in Revit`}
-             >
-                <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} />
-             </button>
+          <button
+            onClick={() => onPickObject(param.selectionType!, index)}
+            disabled={disabled || isComputing}
+            className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center min-w-[40px]"
+            title={`Select ${param.selectionType} in Revit`}
+          >
+            <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} />
+          </button>
         )}
       </div>
     );

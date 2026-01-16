@@ -517,24 +517,32 @@ namespace CoreScript.Engine.Core
             string defaultValueJson = "";
             string type = "string";
             string numericType = null;
+            
+            // Normalize type (Handle nullable)
+            string baseType = csharpType.TrimEnd('?');
 
             // Check for XYZ type explicitly
-            bool isXyz = csharpType == "XYZ" || csharpType == "Autodesk.Revit.DB.XYZ";
-            bool isReference = csharpType == "Reference" || csharpType == "Autodesk.Revit.DB.Reference";
+            bool isXyz = baseType == "XYZ" || baseType == "Autodesk.Revit.DB.XYZ";
+            bool isReference = baseType == "Reference" || baseType == "Autodesk.Revit.DB.Reference";
 
             if (initializer == null)
             {
                 // V2: Support implicit defaults if no initializer is present
-                if (csharpType == "int" || csharpType == "double" || csharpType == "float" || csharpType == "number")
+                if (baseType == "int" || baseType == "long" || baseType == "double" || baseType == "float" || baseType == "decimal" || baseType == "number")
                 {
                     type = "number";
-                    numericType = (csharpType == "int") ? "int" : "double";
+                    numericType = (baseType == "int" || baseType == "long") ? "int" : "double";
                     defaultValueJson = "0";
                 }
-                else if (csharpType == "bool" || csharpType == "boolean")
+                else if (baseType == "bool" || baseType == "boolean")
                 {
                     type = "boolean";
                     defaultValueJson = "false";
+                }
+                else if (baseType == "string")
+                {
+                    type = "string";
+                    defaultValueJson = "\"\"";
                 }
                 else if (isXyz)
                 {
@@ -548,14 +556,14 @@ namespace CoreScript.Engine.Core
                     defaultValueJson = JsonSerializer.Serialize("");
                     if (string.IsNullOrEmpty(selectionType)) selectionType = "Element";
                 }
-                else if (csharpType.StartsWith("List<") || csharpType.Contains("[]") || csharpType.StartsWith("IList<") || csharpType.Contains("IEnumerable<"))
+                else if (baseType.StartsWith("List<") || baseType.Contains("[]") || baseType.StartsWith("IList<") || baseType.Contains("IEnumerable<"))
                 {
                     // V2 Inference: If it's a List/Array, it's a MultiSelect parameter
                     type = "string"; // Usually string array for options
                     multiSelect = true;
                     defaultValueJson = "[]";
                 }
-                else
+                else // Default fallback
                 {
                     type = "string";
                     defaultValueJson = "\"\"";

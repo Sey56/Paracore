@@ -384,16 +384,6 @@ async def get_script_content(scriptPath: str, type: str):
     if not scriptPath or not type:
         raise HTTPException(status_code=400, detail="scriptPath and type are required")
     try:
-    try:
-        # Check if there is an active workspace for this script
-        workspace_path = get_active_workspace(scriptPath)
-        if workspace_path and os.path.isdir(workspace_path):
-            absolute_path = os.path.join(workspace_path, "Scripts")
-             # If absolute_path doesn't exist (e.g. single file script workspace structure differs), try workspace root
-            if not os.path.exists(absolute_path):
-                 absolute_path = workspace_path
-        else:
-        try:
         # Check if there is an active workspace for this script
         workspace_path = get_active_workspace(scriptPath)
         if workspace_path and os.path.isdir(workspace_path):

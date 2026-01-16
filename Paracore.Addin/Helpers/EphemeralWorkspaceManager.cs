@@ -441,7 +441,13 @@ namespace Paracore.Addin.Helpers
         private static void WriteGlobalsCs(string folderPath)
         {
             File.WriteAllText(Path.Combine(folderPath, "Globals.cs"),
-                "// This file enables IntelliSense for custom globals.\n" +
+                "// This file enables IntelliSense for custom globals and implicit imports.\n" +
+                "global using System;\n" +
+                "global using System.Collections.Generic;\n" +
+                "global using System.Linq;\n" +
+                "global using System.Text.Json;\n" +
+                "global using Autodesk.Revit.DB;\n" +
+                "global using Autodesk.Revit.UI;\n" +
                 "global using CoreScript.Engine.Globals;\n" +
                 "global using static CoreScript.Engine.Globals.DesignTimeGlobals;");
         }

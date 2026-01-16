@@ -58,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
         // 📦 Create workspaceName.csproj
         const appData = process.env.APPDATA || '';
         const programData = process.env.ProgramData || 'C:\\ProgramData';
-        
+
         // Define search paths in priority order (ProgramData preferred over AppData, newer Revit preferred over older)
         // We look for the folder that contains CoreScript.Engine.dll
         const searchPaths = [
@@ -87,9 +87,9 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Fallback if not found (default to 2025 ProgramData logic but warn)
         if (!enginePath) {
-           vscode.window.showWarningMessage("Could not locate CoreScript.Engine.dll in standard locations. IntelliSense might fail.");
-           enginePath = path.join(programData, 'Autodesk', 'Revit', 'Addins', '2025', 'Paracore', 'CoreScript.Engine.dll');
-           revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2025');
+          vscode.window.showWarningMessage("Could not locate CoreScript.Engine.dll in standard locations. IntelliSense might fail.");
+          enginePath = path.join(programData, 'Autodesk', 'Revit', 'Addins', '2025', 'Paracore', 'CoreScript.Engine.dll');
+          revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2025');
         }
 
         const revitPathFormatted = revitPath.replace(/\\/g, "/");
@@ -136,9 +136,15 @@ dotnet_diagnostic.CS8019.severity = warning
 
         // 🌍 Inject Globals.cs to enable IntelliSense for global helpers
         const globalsScript = `
-// This file enables IntelliSense for CoreScript.Engine helpers.
+// This file enables IntelliSense for CoreScript.Engine helpers and implicit imports.
 // It's included in compilation but contains no runtime logic.
 
+global using System;
+global using System.Collections.Generic;
+global using System.Linq;
+global using System.Text.Json;
+global using Autodesk.Revit.DB;
+global using Autodesk.Revit.UI;
 global using CoreScript.Engine.Globals;
 global using static CoreScript.Engine.Globals.DesignTimeGlobals;
 `.trim();

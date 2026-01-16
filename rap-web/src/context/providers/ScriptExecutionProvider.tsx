@@ -324,7 +324,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     return { success: true, message: "Preset renamed." };
   };
 
-  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' = 'user') => {
+  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' | 'hard_reset' = 'user') => {
     if (!script) {
       setSelectedScriptState(null);
       setCombinedScriptContent(null);
@@ -416,8 +416,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     // Original logic for user selection
     setAgentSelectedScriptPath(null); // Clear agent selected path for user interaction
 
-    // --- NEW LOGIC: Check for cached parameters first (skip on refresh) ---
-    const cachedParameters = source !== 'refresh' ? userEditedParametersRef.current[script.id] : null;
+    // --- NEW LOGIC: Check for cached parameters first (skip on refresh or hard_reset) ---
+    const cachedParameters = (source !== 'refresh' && source !== 'hard_reset') ? userEditedParametersRef.current[script.id] : null;
     const hasCachedParameters = cachedParameters && cachedParameters.length > 0;
 
     if (hasCachedParameters) {
@@ -481,10 +481,22 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
               // and we update it to the NEW default from the code.
               // If the value is different (dirty), we keep the user's value.
 
+              // SANITIZATION (Fix for dirty cache/ghost values):
+              // If new param is MultiSelect, but existing value is a raw string (e.g. "Back Room 2") 
+              // and NOT a valid JSON array, we MUST discard it.
+              let isValidCache = true;
+              if (newParam.multiSelect && typeof existingParam.value === 'string') {
+                const trimmed = existingParam.value.trim();
+                if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) {
+                  isValidCache = false;
+                  console.warn(`[ScriptExecutionProvider] Discarding invalid scalar cache for MultiSelect param ${newParam.name}:`, existingParam.value);
+                }
+              }
+
               const isValueAtOldDefault = areValuesEqual(existingParam.value, existingParam.defaultValue, existingParam.type);
 
-              if (isValueAtOldDefault) {
-                // User hasn't touched it (it's at default), so sync to new default
+              if (isValueAtOldDefault || !isValidCache) {
+                // User hasn't touched it (it's at default), OR cache is invalid -> sync to new default
                 return {
                   ...newParam,
                   value: newParam.defaultValue // Use the new default as the current value
@@ -768,8 +780,13 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       const workspace = currentTeamWorkspaces.find((ws: Workspace) => ws.id === Number(activeScriptSource.id));
       if (workspace) {
         sourceWorkspace = `${workspace.name}${workspace.isOrphaned ? ' (orphaned)' : ''}:${workspace.repo_url}`;
+        // If we are in a workspace, we might want to hint the backend about the root path
+        // but currently the backend resolves from the DB or file system.
       }
     }
+
+    // DEBUG: Ensure parameters are what we expect
+    console.log(`[ScriptExecutionProvider] Running ${script.name} with params:`, parameters);
 
     const body = {
       path: script.absolutePath || "",
@@ -870,14 +887,25 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             // If the new list is empty, or the current value isn't in the new list, reset value.
             // Exception: If the current value is empty/null, keep it empty.
             if (options.length === 0) {
-               nextValue = "";
+              nextValue = "";
             } else {
-               const currentValueStr = String(p.value || "");
-               if (!currentValueStr || !options.includes(currentValueStr)) {
-                 nextValue = options[0];
-               }
+
+              // Fix: For MultiSelect, do NOT auto-select the first option.
+              // Users should explicitly select items.
+              if (p.multiSelect) {
+                // Keep current value if valid? Or just keep it as is.
+                // If options changed, maybe current selection is invalid?
+                // For now, let's just NOT force a value.
+                nextValue = p.value || []; // Ensure array
+              } else {
+                // Single Select: Auto-select first option if current is invalid/empty
+                const currentValueStr = String(p.value || "");
+                if (!currentValueStr || !options.includes(currentValueStr)) {
+                  nextValue = options[0];
+                }
+              }
             }
-            
+
             return { ...p, options: options, value: nextValue };
           }
 
@@ -955,16 +983,16 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           });
           return { ...prev, [script.id]: updatedParams };
         });
-        
+
         // Sync selected script state
         if (selectedScriptRef.current?.id === script.id) {
-             setSelectedScriptState(prev => {
-                if (!prev) return null;
-                const updatedParams = (prev.parameters || []).map(p => 
-                    p.name === paramName ? { ...p, value: value } : p
-                );
-                return { ...prev, parameters: updatedParams };
-             });
+          setSelectedScriptState(prev => {
+            if (!prev) return null;
+            const updatedParams = (prev.parameters || []).map(p =>
+              p.name === paramName ? { ...p, value: value } : p
+            );
+            return { ...prev, parameters: updatedParams };
+          });
         }
 
       } else if (cancelled) {

@@ -6,7 +6,7 @@ Follow these instructions to generate high-quality, C#-based Revit automation sc
 - **Language**: C# Revit API (Targeting Revit 2025 and above).
 - **Structure**: Top-Level Statements with classes at the bottom.
 - **Important Order**:
-    1.  \`using\` statements (Minimal - System/Linq/Collections/Revit.DB are implicit).
+    1.  \`using\` statements (Minimal - System/Linq/Collections/Revit.DB/Revit.UI are implicit).
     2.  **Logic & Preparation** (Read-only queries, calculations).
     3.  **Execution** (Single transaction for modifications).
     4.  **Class Definitions** (Attributes and Parameters MUST be at the very bottom).
@@ -16,6 +16,9 @@ All script parameters must be defined inside a \`public class Params\` (bottom o
 
 ### 1. Grouping (Zero Boilerplate)
 - Use C# \`#region GroupName\` ... \`#endregion\` to automatically group UI inputs.
+- **CRITICAL**: Always leave an **EMPTY LINE** before and after \`#region\` and \`#endregion\` directives.
+- Use C# \`#region GroupName\` ... \`#endregion\` to automatically group UI inputs.
+- **CRITICAL**: \`#region\` does NOT start with a space. \`#endregion\` **MUST** be followed by a space if you add a label.
 - **CRITICAL**: Always leave an **EMPTY LINE** before and after \`#region\` and \`#endregion\` directives.
 - **NOTE**: Keep attributes attached directly to the property (no empty line).
 
@@ -105,18 +108,16 @@ All script parameters must be defined inside a \`public class Params\` (bottom o
 - **General Rule**: If \`typeof(T)\` fails, use \`OfCategory(BuiltInCategory.OST_T)\`.
 
 ## Implicit Globals (Do Not Import)
-These are provided by the engine at runtime:
+These are provided by the engine at runtime and available in **ALL FILES** (Main.cs, Params.cs, Utils.cs, etc.):
 - \`Doc\`, \`UIDoc\`, \`UIApp\`
-- \`Println\`, \`Print\`, \`LogError\`
-- \`Table\`, \`ChartBar\`, \`ChartPie\`, \`ChartLine\`
-- \`Transact\`, \`SetExecutionTimeout\`
-- \`System\`, \`System.Linq\`, \`System.Collections.Generic\`, \`Autodesk.Revit.DB\` (Explicitly imported by engine)
+- \`Println\`, \`Table\`, \`ChartBar\`, \`ChartPie\`, \`ChartLine\`, \`Transact\`, \`SetExecutionTimeout\`
+- \`System\`, \`System.Linq\`, \`System.Collections.Generic\`, \`System.Text.Json\`, \`Autodesk.Revit.DB\`, \`Autodesk.Revit.UI\` (Explicitly imported by engine. DO NOT re-import.)
 
-## Required Imports
+## Required Imports (If Needed)
+You MUST import specific sub-namespaces if you use types from them (e.g. \`Room\`, \`Wall\`, \`StructuralType\`):
 \`\`\`csharp
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
-// System, Linq, Collections, DB are implicit but safe to re-import if needed for IntelliSense.
 \`\`\`
 
 ## Example Structure

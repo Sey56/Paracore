@@ -13,6 +13,7 @@ import {
   faExternalLinkAlt,
   faChevronDown,
   faChevronRight,
+  faUndo,
 } from "@fortawesome/free-solid-svg-icons";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
@@ -160,6 +161,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     internalSetSelectedPreset("<Default Parameters>");
     setPresetToDelete('');
   };
+
+
 
   const internalSetSelectedPreset = (name: string) => {
     setActivePreset(script.id, name);
@@ -428,6 +431,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         confirmButtonText="Update"
         confirmButtonColor="blue"
       />
+
+
 
       <InfoModal
         isOpen={isInfoModalOpen}

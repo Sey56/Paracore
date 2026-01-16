@@ -4,7 +4,7 @@ import type { ExecutionResult, ParameterPreset } from '@/types/common';
 
 export interface ScriptExecutionContextProps {
   selectedScript: Script | null;
-  setSelectedScript: (script: Script | null, source?: 'user' | 'agent' | 'agent_executed_full_output') => Promise<void>;
+  setSelectedScript: (script: Script | null, source?: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' | 'hard_reset') => Promise<void>;
   runningScriptPath: string | null;
   executionResult: ExecutionResult | null;
   setExecutionResult: React.Dispatch<React.SetStateAction<ExecutionResult | null>>;
