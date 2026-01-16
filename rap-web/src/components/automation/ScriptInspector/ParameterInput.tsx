@@ -354,7 +354,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
         <div className="flex-grow min-w-0">
           {renderInput()}
         </div>
-        {param.requiresCompute && onCompute && (!param.multiSelect || (param.options?.length ?? 0) === 0) && (
+        {param.requiresCompute && onCompute && !param.multiSelect && (
           <button
             onClick={() => onCompute(param.name)}
             disabled={disabled || isComputing}
