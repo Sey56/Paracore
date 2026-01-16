@@ -57,26 +57,52 @@ export function activate(context: vscode.ExtensionContext) {
 
         // 📦 Create workspaceName.csproj
         const appData = process.env.APPDATA || '';
-        const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
+        const programData = process.env.ProgramData || 'C:\\ProgramData';
+        
+        // Define search paths in priority order (ProgramData preferred over AppData, newer Revit preferred over older)
+        // We look for the folder that contains CoreScript.Engine.dll
+        const searchPaths = [
+          path.join(programData, 'Autodesk', 'Revit', 'Addins', '2026', 'Paracore'),
+          path.join(programData, 'Autodesk', 'Revit', 'Addins', '2025', 'Paracore'),
+          path.join(appData, 'Autodesk', 'Revit', 'Addins', '2026', 'Paracore'),
+          path.join(appData, 'Autodesk', 'Revit', 'Addins', '2025', 'Paracore')
+        ];
 
-        // Try to find Revit installation (2026 first, then 2025)
-        let revitPath = path.join(programFiles, 'Autodesk', 'Revit 2026');
-        let revitVersion = '2026';
-        if (!fs.existsSync(revitPath)) {
-          revitPath = path.join(programFiles, 'Autodesk', 'Revit 2025');
-          revitVersion = '2025';
+        let enginePath = '';
+        let revitPath = '';
+
+        for (const basePath of searchPaths) {
+          const potentialEnginePath = path.join(basePath, 'CoreScript.Engine.dll');
+          if (fs.existsSync(potentialEnginePath)) {
+            enginePath = potentialEnginePath;
+            // Infer Revit version from path to find RevitAPI.dll
+            if (basePath.includes('2026')) {
+              revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2026');
+            } else {
+              revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2025');
+            }
+            break;
+          }
         }
-        const revitPathFormatted = revitPath.replace(/\\/g, "/");
 
-        // CoreScript.Engine path based on detected version
-        const enginePath = path.join(appData, 'Autodesk', 'Revit', 'Addins', revitVersion, 'Paracore', 'CoreScript.Engine.dll');
+        // Fallback if not found (default to 2025 ProgramData logic but warn)
+        if (!enginePath) {
+           vscode.window.showWarningMessage("Could not locate CoreScript.Engine.dll in standard locations. IntelliSense might fail.");
+           enginePath = path.join(programData, 'Autodesk', 'Revit', 'Addins', '2025', 'Paracore', 'CoreScript.Engine.dll');
+           revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2025');
+        }
+
+        const revitPathFormatted = revitPath.replace(/\\/g, "/");
         const enginePathFormatted = enginePath.replace(/\\/g, "/");
 
         const csproj = `
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <OutputType>Exe</OutputType>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="RevitAPI">
@@ -140,20 +166,34 @@ Println("Execution finished successfully! ✅");
 // 3. Parameter Definition (Compatible with Paracore UI)
 public class Params
 {
-    [ScriptParameter(Group = "Project Settings")]
+    #region Project Settings
+
+    /// <summary>
+    /// The name of the project.
+    /// </summary>
     public string ProjectName { get; set; } = "My Spiral Project";
 
+    /// <summary>
+    /// The level to create the spiral on.
+    /// </summary>
     [RevitElements(Category = "Levels"), Required]
     public string LevelName { get; set; } = "Level 1";
 
-    [ScriptParameter(Group = "Geometry")]
+    #endregion
+
+    #region Geometry
+
+    /// <summary>
+    /// The radius of the spiral in centimeters.
+    /// </summary>
+    [Unit("cm")]
     public double Radius { get; set; } = 2400.0;
 
-    [ScriptParameter(Group = "Geometry")]
-    public int Turns { get; set; } = 10;
+    public int Turns { get; set; } = 5;
 
-    [ScriptParameter(Group = "Geometry")]
     public double Resolution { get; set; } = 20.0;
+
+    #endregion
 }
         `.trim();
         fs.writeFileSync(path.join(scriptsPath, "Main.cs"), mainScript);
@@ -167,7 +207,7 @@ using System.Linq;
 
 public class SpiralCreator
 {
-    public void CreateSpiral(Document doc, string levelName, double maxRadiusCm, int numTurns, double angleResolutionDegrees)
+    public void CreateSpiral(Document doc, string levelName, double maxRadiusFeet, int numTurns, double angleResolutionDegrees)
     {
         Level level = new FilteredElementCollector(doc)
             .OfClass(typeof(Level))
@@ -175,7 +215,7 @@ public class SpiralCreator
             .FirstOrDefault(l => l.Name == levelName)
             ?? throw new Exception($"Level \\"{levelName}\\" not found.");
 
-        double maxRadiusFt = UnitUtils.ConvertToInternalUnits(maxRadiusCm, UnitTypeId.Centimeters);
+        // Radius is already in Feet because the Engine handles [Unit] conversion automatically.
         double angleResRad = angleResolutionDegrees * Math.PI / 180;
 
         var curves = new List<Curve>();
@@ -186,8 +226,8 @@ public class SpiralCreator
             double angle1 = i * angleResRad;
             double angle2 = (i + 1) * angleResRad;
 
-            double radius1 = maxRadiusFt * angle1 / (numTurns * 2 * Math.PI);
-            double radius2 = maxRadiusFt * angle2 / (numTurns * 2 * Math.PI);
+            double radius1 = maxRadiusFeet * angle1 / (numTurns * 2 * Math.PI);
+            double radius2 = maxRadiusFeet * angle2 / (numTurns * 2 * Math.PI);
 
             XYZ pt1 = new(radius1 * Math.Cos(angle1), radius1 * Math.Sin(angle1), level.Elevation);
             XYZ pt2 = new(radius2 * Math.Cos(angle2), radius2 * Math.Sin(angle2), level.Elevation);

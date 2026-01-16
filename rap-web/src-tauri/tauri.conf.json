@@ -24,7 +24,17 @@
         "icons/rap-icon-512.png",
         "icons/rap-icon.ico"
       ],
-      "resources": []
+      "resources": [
+        "server-release"
+      ],
+      "windows": {
+        "wix": {
+          "fragmentPaths": [
+            "wix/cleanup.wxs"
+          ]
+        }
+      },
+      "externalBin": []
     },
     "windows": [
       {
@@ -87,7 +97,4 @@
     }
   }
 }
-
-
-
 

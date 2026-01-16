@@ -78,11 +78,11 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       try {
         // 1. Find the chart SVG (largest SVG in the container)
         // This avoids selecting the small FontAwesome icons (14x14)
-        const allSvgs = Array.from(container.querySelectorAll('svg'));
+        const allSvgs = Array.from(container.querySelectorAll('svg')) as unknown as SVGSVGElement[];
         let originalSvg: SVGSVGElement | null = null;
         let maxArea = 0;
 
-        allSvgs.forEach(svg => {
+        for (const svg of allSvgs) {
             const rect = svg.getBoundingClientRect();
             const area = rect.width * rect.height;
             // Log for debugging
@@ -92,7 +92,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
                 maxArea = area;
                 originalSvg = svg;
             }
-        });
+        }
 
         if (!originalSvg || maxArea < 1000) { // Ignore small icons (< 30x30 roughly)
              console.warn(`[ExportSVG] No suitable chart SVG found. Max area: ${maxArea}`);
@@ -119,7 +119,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         }
 
         // 2. Clone the SVG node deeply
-        const clonedSvg = originalSvg.cloneNode(true) as SVGElement;
+        const clonedSvg = originalSvg.cloneNode(true) as SVGSVGElement;
         
         // 3. Explicitly set dimensions on the clone to match pixel value
         clonedSvg.setAttribute("width", width.toString());
@@ -149,14 +149,14 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         });
 
         // Copy children styles
-        originalNodes.forEach((orig, index) => {
-          const clone = clonedNodes[index] as SVGElement;
-          if (clone instanceof SVGElement) {
+        originalNodes.forEach((orig: Element, index: number) => {
+          const clone = clonedNodes[index] as unknown as SVGElement;
+          if (clone instanceof Element) { 
             const computed = window.getComputedStyle(orig);
             stylesToCopy.forEach(styleName => {
               const value = computed.getPropertyValue(styleName);
-              if (value) {
-                clone.style.setProperty(styleName, value);
+              if (value && (clone instanceof HTMLElement || clone instanceof SVGElement)) {
+                 (clone as SVGElement | HTMLElement).style.setProperty(styleName, value);
               }
             });
           }

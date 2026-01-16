@@ -80,4 +80,4 @@ app.include_router(generation_router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the RAP Local Server"}
+    return {"message": "Welcome to the Paracore Local Server"}

@@ -24,27 +24,35 @@ All script parameters must be defined inside a `public class Params` (bottom of 
 - **CRITICAL**: Always leave an **EMPTY LINE** before and after `#region` and `#endregion` directives.
 - **NOTE**: Keep attributes attached directly to the property (no empty line).
 
-### 2. Supported Attributes & Types
-- `[RevitElements]`: For Revit objects (Walls, Sheets, Rooms).
-  - Example: `[RevitElements(TargetType=""Room"")]`
-  - Example: `[RevitElements(TargetType=""FamilySymbol"", Category=""Doors"")]`
+### 2. Supported Attributes & Types (Zero Boilerplate)
+- **Automatic Types**: `int`, `double`, `bool`, `string`, and `List<string>` map to UI controls automatically.
+- `[RevitElements]`: For Revit objects.
+  - Dropdown: `[RevitElements(TargetType=""WallType"")]`
+  - Filtered: `[RevitElements(TargetType=""FamilySymbol"", Category=""Doors"")]`
+  - Multi-Select: `[RevitElements(TargetType=""WallType"", MultiSelect=true)]` (Use `List<string>`)
 - `[Select]`: For interactive selection (Native Types supported).
   - `[Select(SelectionType.Point)]`: Use `public XYZ StartPoint { get; set; }` (Engine injects `new XYZ(...)`).
   - `[Select(SelectionType.Edge)]`: Use `public Reference EdgeRef { get; set; }`.
   - `[Select(SelectionType.Face)]`: Use `public Reference FaceRef { get; set; }`.
-  - `[Select(SelectionType.Element)]`: Use `public int ElementIdVal { get; set; }`.
+  - `[Select(SelectionType.Element)]`: Use `public long ElementIdVal { get; set; }` (or `List<long>` for multi-select).
 - `[Range(min, max, step)]`: Forces a UI Slider.
 - `[Unit(""unit"")]`: Handles input conversion (e.g. `[Unit(""mm"")]`). 
-  - *Note*: Input is auto-converted to feet. Output (Print) must be manual.
+  - *Note*: Input is auto-converted to feet. Script ALWAYS sees Internal Units (Feet).
 - `[Required]`: Marks input as mandatory.
-- `/// <summary>`: Tooltip description.
+- `[Pattern(""regex"")]`: Validates string input against a regex pattern.
+- `[EnabledWhen(""PropName"", ""Value"")]`: Conditional enabling based on another parameter.
+- `[InputFile(""csv,xlsx"")]`: Open File Dialog.
+- `[InputFolder]`: Select Folder Dialog.
+- `[SaveFile(""json"")]`: Save File Dialog.
+- `/// <summary>` or `///`: Tooltip description.
 
 ### 3. Dynamic Logic (Conventions)
 - **Magic Extraction**: For simple lists (e.g. All Rooms), DO NOT define a helper. Just use `[RevitElements(TargetType=""Room"")]`.
 - **Custom Filtering**: Define `_Options` (returns `List<string>`) ONLY if you need specific filtering (e.g. ""Rooms on Level 1"").
 - `_Visible` (returns `bool`): Show/Hide logic.
 - `_Enabled` (returns `bool`): Enable/Disable logic.
-- `_Range` (returns `(double, double, double)`): Dynamic slider limits.
+- `_Range` (returns `(double, double, double)`): Dynamic slider limits (Min, Max, Step).
+- `_Unit` (returns `string`): Dynamic unit string (e.g. based on another dropdown).
 
 ## Architecture & Modularization
 - **Context Awareness**: ALWAYS check the `# Current Script Type` header at the very top of this file.
@@ -78,14 +86,21 @@ All script parameters must be defined inside a `public class Params` (bottom of 
     - **FORBIDDEN**: Do NOT use `try-catch` inside loops within a transaction.
     - Let exceptions propagate so the transaction rolls back automatically.
     - If one element fails, the whole batch should fail cleanly.
-3.  **Output Optimization**:
+3.  **Unit Handling Rules**:
+    -   **Input Parameters**: Do **NOT** manually convert input parameters to internal units if they have a `[Unit(""..."")]` attribute. The Engine automatically converts them to Internal Units (Feet) before your script runs.
+        -   *Example:* If `[Unit(""mm"")] public double Width { get; set; }` is `500`, the script receives `1.6404...` (Feet). Use it directly.
+    -   **Output/Display**: All Revit API geometry return values are in **Internal Units (Feet)**. If you need to display them in specific units (e.g. for `Println` or `Table`), you **MUST** convert them manually using `UnitUtils.ConvertFromInternalUnits(...)`.
+4.  **Timeouts**:
+    - Scripts default to a 10s timeout. If you expect long execution, call `SetExecutionTimeout(seconds)` at the start.
+5.  **Output Optimization**:
     - Use `Println($""Message {var}"")` for console logs.
     - **FORBIDDEN**: Do NOT call `Println` inside loops that are within a `Transact` block. It floods the console and slows execution.
     - **CORRECT**: After the transaction, print ONE summary message like `Println($""✅ Created {count} items."");`
     - **ALLOWED**: `Println` inside loops is fine for read-only operations (filtering, selection).
-    - Use `Table(data)` for interactive grids and `ChartBar(data)` for visualizations.
+    - Use `Table(data)` for interactive grids.
+    - Use `ChartBar(data)`, `ChartPie(data)`, `ChartLine(data)` for visualizations. Data objects should have `name` and `value` properties.
     - **Avoid** the ❌ emoji; use 🚫 or ⚠️.
-4. **Casting & Filtering (CRITICAL)**:
+5. **Casting & Filtering (CRITICAL)**:
     - **ALWAYS** use `.Cast<Type>()` after `FilteredElementCollector`.
     - **FORBIDDEN**: `OfClass(typeof(Room))` causes an API error.
     - **CORRECT**: Use `OfCategory(BuiltInCategory.OST_Rooms)` for Rooms.
@@ -95,7 +110,7 @@ All script parameters must be defined inside a `public class Params` (bottom of 
 ## Implicit Globals (Do Not Import)
 These are provided by the engine at runtime:
 - `Doc`, `UIDoc`, `UIApp`
-- `Println`, `Table`, `ChartBar`, `Transact`
+- `Println`, `Table`, `ChartBar`, `ChartPie`, `ChartLine`, `Transact`, `SetExecutionTimeout`
 - `System`, `System.Linq`, `System.Collections.Generic`, `Autodesk.Revit.DB` (Explicitly imported by engine)
 
 ## Required Imports
