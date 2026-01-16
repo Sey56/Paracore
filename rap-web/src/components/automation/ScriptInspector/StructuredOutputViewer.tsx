@@ -1,5 +1,5 @@
 import React, { useCallback, useId } from 'react';
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
   LineChart, Line
@@ -73,7 +73,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
   const handleDownloadSvg = () => {
     const container = document.getElementById(chartId);
-    
+
     if (container) {
       try {
         // 1. Find the chart SVG (largest SVG in the container)
@@ -83,21 +83,21 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         let maxArea = 0;
 
         for (const svg of allSvgs) {
-            const rect = svg.getBoundingClientRect();
-            const area = rect.width * rect.height;
-            // Log for debugging
-            console.log(`[ExportSVG] Found SVG: class="${svg.classList.value}", size=${rect.width}x${rect.height}`);
-            
-            if (area > maxArea) {
-                maxArea = area;
-                originalSvg = svg;
-            }
+          const rect = svg.getBoundingClientRect();
+          const area = rect.width * rect.height;
+          // Log for debugging
+          console.log(`[ExportSVG] Found SVG: class="${svg.classList.value}", size=${rect.width}x${rect.height}`);
+
+          if (area > maxArea) {
+            maxArea = area;
+            originalSvg = svg;
+          }
         }
 
         if (!originalSvg || maxArea < 1000) { // Ignore small icons (< 30x30 roughly)
-             console.warn(`[ExportSVG] No suitable chart SVG found. Max area: ${maxArea}`);
-             showNotification("Could not find the chart image to export.", "warning");
-             return;
+          console.warn(`[ExportSVG] No suitable chart SVG found. Max area: ${maxArea}`);
+          showNotification("Could not find the chart image to export.", "warning");
+          return;
         }
 
         const rect = originalSvg.getBoundingClientRect();
@@ -106,21 +106,21 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         let height = rect.height;
 
         if (!width || !height) {
-            width = parseFloat(originalSvg.getAttribute("width") || "0");
-            height = parseFloat(originalSvg.getAttribute("height") || "0");
+          width = parseFloat(originalSvg.getAttribute("width") || "0");
+          height = parseFloat(originalSvg.getAttribute("height") || "0");
         }
-        
+
         console.log(`[ExportSVG] Selected Chart SVG: class="${originalSvg.classList.value}", dimensions=${width}x${height}`);
 
         if (!width || !height) {
-            console.warn("[ExportSVG] Width or height is 0, aborting export.");
-            showNotification("Chart has no dimensions to export.", "warning");
-            return;
+          console.warn("[ExportSVG] Width or height is 0, aborting export.");
+          showNotification("Chart has no dimensions to export.", "warning");
+          return;
         }
 
         // 2. Clone the SVG node deeply
         const clonedSvg = originalSvg.cloneNode(true) as SVGSVGElement;
-        
+
         // 3. Explicitly set dimensions on the clone to match pixel value
         clonedSvg.setAttribute("width", width.toString());
         clonedSvg.setAttribute("height", height.toString());
@@ -136,27 +136,27 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
         // Styles to copy
         const stylesToCopy = [
-          'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 
-          'opacity', 'font-family', 'font-size', 'font-weight', 
+          'fill', 'stroke', 'stroke-width', 'stroke-dasharray',
+          'opacity', 'font-family', 'font-size', 'font-weight',
           'transform', 'transform-origin', 'visibility', 'display'
         ];
-        
+
         // Copy root styles first
         const rootComputed = window.getComputedStyle(originalSvg);
         stylesToCopy.forEach(styleName => {
-             const value = rootComputed.getPropertyValue(styleName);
-             if (value) clonedSvg.style.setProperty(styleName, value);
+          const value = rootComputed.getPropertyValue(styleName);
+          if (value) clonedSvg.style.setProperty(styleName, value);
         });
 
         // Copy children styles
         originalNodes.forEach((orig: Element, index: number) => {
           const clone = clonedNodes[index] as unknown as SVGElement;
-          if (clone instanceof Element) { 
+          if (clone instanceof Element) {
             const computed = window.getComputedStyle(orig);
             stylesToCopy.forEach(styleName => {
               const value = computed.getPropertyValue(styleName);
               if (value && (clone instanceof HTMLElement || clone instanceof SVGElement)) {
-                 (clone as SVGElement | HTMLElement).style.setProperty(styleName, value);
+                (clone as SVGElement | HTMLElement).style.setProperty(styleName, value);
               }
             });
           }
@@ -184,12 +184,12 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         // 6. Serialize
         const serializer = new XMLSerializer();
         let source = serializer.serializeToString(wrapperSvg);
-        
+
         // Add xlink namespace if needed
         if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
           source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
         }
-        
+
         const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
         const link = document.createElement("a");
         link.href = url;
@@ -226,21 +226,27 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
       const handleRowClick = (row: any, index: number) => {
         // Try to find an ID field (case-insensitive)
-        const idKey = Object.keys(row).find(k => 
-          k.toLowerCase() === 'id' || 
-          k.toLowerCase() === 'elementid' || 
-          k.toLowerCase() === 'revitid'
+        const idKey = Object.keys(row).find(k =>
+          k.toLowerCase() === 'id' ||
+          k.toLowerCase() === 'elementid' ||
+          k.toLowerCase() === 'revitid' ||
+          k.toLowerCase() === 'element id' ||
+          k.toLowerCase() === 'revit id'
         );
 
         if (idKey) {
           const val = row[idKey];
           // Robustly parse ID (handle string or number)
           const id = typeof val === 'string' ? parseInt(val, 10) : Number(val);
-          
+
           if (!isNaN(id) && id > 0) {
             setActiveRowIndex(index);
             handleSelectElements([id]);
+          } else {
+            showNotification("Invalid Element ID detected.", "warning");
           }
+        } else {
+          console.warn("Row clicked but no ID column found.", row);
         }
       };
 
@@ -262,17 +268,23 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
               {tableData.map((row: any, rowIndex: number) => {
-                const hasId = Object.keys(row).some(k => k.toLowerCase() === 'id' || k.toLowerCase() === 'elementid');
+                const hasId = Object.keys(row).some(k =>
+                  k.toLowerCase() === 'id' ||
+                  k.toLowerCase() === 'elementid' ||
+                  k.toLowerCase() === 'revitid' ||
+                  k.toLowerCase() === 'element id' ||
+                  k.toLowerCase() === 'revit id'
+                );
                 const isActive = activeRowIndex === rowIndex;
-                
+
                 return (
-                  <tr 
-                    key={rowIndex} 
+                  <tr
+                    key={rowIndex}
                     onClick={() => handleRowClick(row, rowIndex)}
                     className={`
                       ${hasId ? "cursor-pointer transition-colors" : ""}
-                      ${isActive 
-                        ? "bg-blue-100 dark:bg-blue-800/40 border-l-4 border-blue-500" 
+                      ${isActive
+                        ? "bg-blue-100 dark:bg-blue-800/40 border-l-4 border-blue-500"
                         : "hover:bg-blue-50 dark:hover:bg-blue-900/20"}
                     `}
                   >
@@ -296,20 +308,20 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           </table>
         </div>
       );
-    } 
-    
+    }
+
     if (item.type === 'chart-bar') {
       return (
         <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ height: '300px', width: '100%', minHeight: '300px' }}>
           <div className="absolute top-2 right-2 z-10 flex gap-1">
-            <button 
+            <button
               onClick={handleDownloadCsv}
               className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500"
               title="Download Data as CSV"
             >
               <FontAwesomeIcon icon={faFileCsv} className="text-xs" />
             </button>
-            <button 
+            <button
               onClick={handleDownloadSvg}
               className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500"
               title="Download Chart as SVG"
@@ -322,7 +334,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis dataKey="name" fontSize={10} />
               <YAxis fontSize={10} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
                 itemStyle={{ color: '#60a5fa' }}
               />
@@ -338,14 +350,14 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       return (
         <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ height: '300px', width: '100%', minHeight: '300px' }}>
           <div className="absolute top-2 right-2 z-10 flex gap-1">
-            <button 
+            <button
               onClick={handleDownloadCsv}
               className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500"
               title="Download Data as CSV"
             >
               <FontAwesomeIcon icon={faFileCsv} className="text-xs" />
             </button>
-            <button 
+            <button
               onClick={handleDownloadSvg}
               className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500"
               title="Download Chart as SVG"
@@ -381,14 +393,14 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       return (
         <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ height: '300px', width: '100%', minHeight: '300px' }}>
           <div className="absolute top-2 right-2 z-10 flex gap-1">
-            <button 
+            <button
               onClick={handleDownloadCsv}
               className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500"
               title="Download Data as CSV"
             >
               <FontAwesomeIcon icon={faFileCsv} className="text-xs" />
             </button>
-            <button 
+            <button
               onClick={handleDownloadSvg}
               className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500"
               title="Download Chart as SVG"
@@ -401,7 +413,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis dataKey="name" fontSize={10} />
               <YAxis fontSize={10} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
               />
               <Legend wrapperStyle={{ fontSize: '10px' }} />

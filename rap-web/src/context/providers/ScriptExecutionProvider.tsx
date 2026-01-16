@@ -883,7 +883,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
           // Case 2: List Options Update (including empty lists)
           if (!isRangeUpdate) {
-            let nextValue = p.value;
+            let nextValue: any = p.value;
             // If the new list is empty, or the current value isn't in the new list, reset value.
             // Exception: If the current value is empty/null, keep it empty.
             if (options.length === 0) {
