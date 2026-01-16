@@ -85,6 +85,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const [isUpdatePresetModalOpen, setIsUpdatePresetModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [infoModalMessage, setInfoModalMessage] = useState('');
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
 
   const isRunning = runningScriptPath === script.id;
@@ -285,11 +286,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
             <div className="flex space-x-2 pl-4">
               <button
                 className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 text-xs flex items-center px-2 py-1 rounded transition-colors"
-                onClick={() => {
-                  if (confirm('Are you sure you want to reset all parameters to their original defaults? This will clear your local changes.')) {
-                    resetScriptParameters(script.id);
-                  }
-                }}
+                onClick={() => setIsResetModalOpen(true)}
                 disabled={!isActionable || isRunning}
                 title="Hard Reset: Clear local cache and reload defaults from engine"
               >
@@ -448,6 +445,21 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         confirmButtonText="Update"
         confirmButtonColor="blue"
       />
+
+      <ConfirmActionModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onConfirm={() => {
+          resetScriptParameters(script.id);
+          setIsResetModalOpen(false);
+        }}
+        title="Reset Parameters"
+        message="Are you sure you want to reset all parameters to their original defaults? This will clear your local changes."
+        confirmButtonText="Reset"
+        confirmButtonColor="red"
+      />
+
+
 
 
 
