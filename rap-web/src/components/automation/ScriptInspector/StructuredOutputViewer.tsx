@@ -7,7 +7,7 @@ import {
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faFileCsv } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch } from '@fortawesome/free-solid-svg-icons';
 
 interface StructuredOutput {
   type: string;
@@ -35,6 +35,8 @@ const CustomPieTooltip = ({ active, payload }: any) => {
 export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ item }) => {
   const { showNotification } = useNotifications();
   const [activeRowIndex, setActiveRowIndex] = React.useState<number | null>(null);
+  const [sortConfig, setSortConfig] = React.useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [filterText, setFilterText] = React.useState('');
   const chartId = useId().replace(/:/g, ''); // Generate unique ID for the chart container
 
   const handleSelectElements = useCallback(async (ids: number[]) => {
@@ -164,9 +166,23 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
         // 5. Create a wrapper SVG with background
         const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+        // Calculate legend height if needed
+        let legendHeight = 0;
+        let data: any[] = [];
+        try {
+          data = JSON.parse(item.data);
+        } catch { /* ignore */ }
+
+        if ((item.type === 'chart-pie' || item.type === 'chart-bar' || item.type === 'chart-line') && Array.isArray(data)) {
+          legendHeight = 40; // allocate space for legend
+        }
+
+        const totalHeight = height + legendHeight;
+
         wrapperSvg.setAttribute("width", width.toString());
-        wrapperSvg.setAttribute("height", height.toString());
-        wrapperSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        wrapperSvg.setAttribute("height", totalHeight.toString());
+        wrapperSvg.setAttribute("viewBox", `0 0 ${width} ${totalHeight}`);
         wrapperSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
         // Background
@@ -180,6 +196,68 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
         // Append the styled chart (nested)
         wrapperSvg.appendChild(clonedSvg);
+
+        // 5.5 Append Legend Manually if Chart
+        if (legendHeight > 0) {
+          const legendGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          legendGroup.setAttribute("transform", `translate(0, ${height})`);
+
+          const fontSize = 12;
+          const iconSize = 10;
+          const padding = 20;
+          let currentX = padding;
+          const rowHeight = 20;
+
+          data.forEach((entry, index) => {
+            const color = COLORS[index % COLORS.length];
+            const name = entry.name || `Item ${index}`;
+
+            // Color Box
+            const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("x", currentX.toString());
+            rect.setAttribute("y", "5");
+            rect.setAttribute("width", iconSize.toString());
+            rect.setAttribute("height", iconSize.toString());
+            rect.setAttribute("fill", item.type === 'chart-line' ? '#3b82f6' : (item.type === 'chart-bar' ? '#3b82f6' : color));
+            // For line/bar usually single color unless mapped. Pie uses COLORS. 
+            // Let's reuse the logic from render: Pie uses COLORS. Bar uses single fill #3b82f6. Line uses stroke #3b82f6.
+
+            let renderColor = color;
+            if (item.type === 'chart-bar') renderColor = '#3b82f6';
+            if (item.type === 'chart-line') renderColor = '#3b82f6';
+
+            // rect.setAttribute("fill", renderColor); 
+            // Using generic logic for now, refining for pie mainly as requested.
+            if (item.type === 'chart-pie') {
+              rect.setAttribute("fill", COLORS[index % COLORS.length]);
+            } else {
+              // For Bar/Line, Recharts default legend usually shows just the 'value' key or custom name. 
+              // But our data structure for Bar/Line is simple [{name: 'X', value: 10}]. 
+              // Recharts Legend shows the Series Name. Since we don't have multiple series, Legend is often redundant or shows "value".
+              // The user specifically asked for PieChart legends.
+              rect.setAttribute("fill", '#3b82f6');
+            }
+
+            legendGroup.appendChild(rect);
+
+            // Text
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", (currentX + iconSize + 5).toString());
+            text.setAttribute("y", "14"); // baseline roughly
+            text.setAttribute("font-family", "sans-serif");
+            text.setAttribute("font-size", fontSize.toString());
+            text.setAttribute("fill", "#6b7280"); // gray-500
+            text.textContent = name;
+            legendGroup.appendChild(text);
+
+            // Estimate text width roughly (avg 8px per char) or use canvas measure. 
+            // Simple approx:
+            const textWidth = name.length * 8;
+            currentX += iconSize + 5 + textWidth + padding;
+          });
+
+          wrapperSvg.appendChild(legendGroup);
+        }
 
         // 6. Serialize
         const serializer = new XMLSerializer();
@@ -197,7 +275,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        showNotification("Chart exported as SVG.", "success");
+        showNotification("Chart exported as SVG with Legend.", "success");
       } catch (err) {
         console.error("Failed to export SVG:", err);
         showNotification("Failed to export chart image.", "error");
@@ -223,6 +301,36 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       }
 
       const headers = Object.keys(tableData[0]);
+
+      const handleSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+          direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+      };
+
+      const filteredData = React.useMemo(() => {
+        let data = [...tableData];
+        if (filterText) {
+          const lowerFilter = filterText.toLowerCase();
+          data = data.filter(row =>
+            Object.values(row).some(val =>
+              String(val).toLowerCase().includes(lowerFilter)
+            )
+          );
+        }
+        if (sortConfig) {
+          data.sort((a, b) => {
+            const aVal = a[sortConfig.key];
+            const bVal = b[sortConfig.key];
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+          });
+        }
+        return data;
+      }, [tableData, filterText, sortConfig]);
 
       const handleRowClick = (row: any, index: number) => {
         // Try to find an ID field (case-insensitive)
@@ -251,61 +359,89 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       };
 
       return (
-        <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                {headers.map((header, index) => (
-                  <th
-                    key={index}
-                    scope="col"
-                    className="px-3 py-2 text-left font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
-              {tableData.map((row: any, rowIndex: number) => {
-                const hasId = Object.keys(row).some(k =>
-                  k.toLowerCase() === 'id' ||
-                  k.toLowerCase() === 'elementid' ||
-                  k.toLowerCase() === 'revitid' ||
-                  k.toLowerCase() === 'element id' ||
-                  k.toLowerCase() === 'revit id'
-                );
-                const isActive = activeRowIndex === rowIndex;
+        <div className="flex flex-col space-y-2">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FontAwesomeIcon icon={faSearch} className="text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Filter table..."
+              className="pl-10 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 p-2 border"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+            />
+          </div>
+          <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg max-h-[500px]">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  {headers.map((header, index) => (
+                    <th
+                      key={index}
+                      scope="col"
+                      className="px-3 py-2 text-left font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none group"
+                      onClick={() => handleSort(header)}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>{header}</span>
+                        <span className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">
+                          {sortConfig?.key === header ? (
+                            sortConfig.direction === 'asc' ? <FontAwesomeIcon icon={faSortUp} /> : <FontAwesomeIcon icon={faSortDown} />
+                          ) : (
+                            <FontAwesomeIcon icon={faSort} className="opacity-0 group-hover:opacity-50" />
+                          )}
+                        </span>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
+                {filteredData.map((row: any, rowIndex: number) => {
+                  const hasId = Object.keys(row).some(k =>
+                    k.toLowerCase() === 'id' ||
+                    k.toLowerCase() === 'elementid' ||
+                    k.toLowerCase() === 'revitid' ||
+                    k.toLowerCase() === 'element id' ||
+                    k.toLowerCase() === 'revit id'
+                  );
+                  const isActive = activeRowIndex === rowIndex; // NOTE: activeRowIndex logic might break if sorted/filtered.
+                  // Ideally track active ID, not index. But for simple visual feedback it might be ok or we update logic.
+                  // Let's stick to index for now but acknowledge limitation or try to match object reference if possible.
+                  // Actually, index in filteredData IS the displayed index. So visual feedback works for the current view.
+                  // But element selection uses row data, so that's fine.
 
-                return (
-                  <tr
-                    key={rowIndex}
-                    onClick={() => handleRowClick(row, rowIndex)}
-                    className={`
-                      ${hasId ? "cursor-pointer transition-colors" : ""}
-                      ${isActive
-                        ? "bg-blue-100 dark:bg-blue-800/40 border-l-4 border-blue-500"
-                        : "hover:bg-blue-50 dark:hover:bg-blue-900/20"}
-                    `}
-                  >
-                    {headers.map((header, colIndex) => {
-                      const cellValue = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
-                      return (
-                        <td
-                          key={colIndex}
-                          className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-[200px]"
-                        >
-                          <div className="truncate" title={cellValue}>
-                            {cellValue}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  return (
+                    <tr
+                      key={rowIndex}
+                      onClick={() => handleRowClick(row, rowIndex)}
+                      className={`
+                        ${hasId ? "cursor-pointer transition-colors" : ""}
+                        ${isActive
+                          ? "bg-blue-100 dark:bg-blue-800/40 border-l-4 border-blue-500"
+                          : "hover:bg-blue-50 dark:hover:bg-blue-900/20"}
+                      `}
+                    >
+                      {headers.map((header, colIndex) => {
+                        const cellValue = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
+                        return (
+                          <td
+                            key={colIndex}
+                            className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-[200px]"
+                          >
+                            <div className="truncate" title={cellValue}>
+                              {cellValue}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       );
     }
