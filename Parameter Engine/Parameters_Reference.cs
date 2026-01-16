@@ -161,12 +161,21 @@ public class Params
     // -----------------------------------------------------
     #region 6. File System
 
+    /// <summary>
+    /// File Input: Opens a native "Open File" dialog filtering for csv and xlsx files.
+    /// </summary>
     [InputFile("csv,xlsx")] 
     public string SourceFile { get; set; }
 
+    /// <summary>
+    /// Folder Input: Opens a native "Select Folder" dialog.
+    /// </summary>
     [FolderPath]           
     public string ExportDir { get; set; }
 
+    /// <summary>
+    /// File Output: Opens a native "Save File" dialog.
+    /// </summary>
     [OutputFile("json")]      
     public string OutputPath { get; set; }
 
