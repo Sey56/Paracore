@@ -23,6 +23,9 @@ namespace CoreScript.Engine.Globals
 
         public void ChartBar(object data) => Show("chart-bar", data);
         public void ChartPie(object data) => Show("chart-pie", data);
+        public void Table(object data) => Show("table", data);
+        public void ChartBar(object data) => Show("chart-bar", data);
+        public void ChartPie(object data) => Show("chart-pie", data);
         public void ChartLine(object data) => Show("chart-line", data);
     }
 
@@ -90,6 +93,12 @@ namespace CoreScript.Engine.Globals
         public void Print(string message) => _context.Print(message);
         public void LogError(string message) => _context.LogError(message);
         public void SetInternalData(string data) => _context.SetInternalData(data);
+
+        // Visualization Globals
+        public void Table(object data) => Output.Table(data);
+        public void BarChart(object data) => Output.ChartBar(data);
+        public void PieChart(object data) => Output.ChartPie(data);
+        public void LineChart(object data) => Output.ChartLine(data);
 
         // Old method for backward compatibility
         public void Transact(string name, Action<Document> action)
