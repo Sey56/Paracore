@@ -144,10 +144,10 @@ public class Params
 
     /// <summary>
     /// UI: "Select" Button.
-    /// Returns Element ID (string).
+    /// Returns Element ID (long).
     /// </summary>
     [Select(SelectionType.Element)]
-    public string TargetElementId { get; set; }
+    public long TargetElementId { get; set; }
 
     /// <summary>
     /// UI: "Pick Face" Button.

@@ -344,6 +344,42 @@ namespace CoreScript.Engine.Core
                     FileLogger.LogError($"[CodeRunner] Failed to inject defaults: {ex.Message}");
                 }
 
+                // V2 FIX: Coerce types based on extracted definition (Fixes CS0029 when JSON says "string" but C# says "long")
+                try
+                {
+                    var paramDefs = extractedParams.ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
+                    // Use ToList to allow modification of the dictionary during iteration
+                    foreach (var key in parameters.Keys.ToList()) 
+                    {
+                        if (paramDefs.TryGetValue(key, out var def))
+                        {
+                            var currentValue = parameters[key];
+                            
+                            // 1. Coerce String -> Long/Int/Double
+                            if (def.Type == "number" && currentValue is string sVal && !string.IsNullOrWhiteSpace(sVal))
+                            {
+                                if (def.NumericType == "int")
+                                {
+                                    if (long.TryParse(sVal, out long l)) parameters[key] = l;
+                                }
+                                else
+                                {
+                                    if (double.TryParse(sVal, out double d)) parameters[key] = d;
+                                }
+                            }
+                            // 2. Coerce String -> Boolean
+                            else if (def.Type == "boolean" && currentValue is string sBool)
+                            {
+                                if (bool.TryParse(sBool, out bool b)) parameters[key] = b;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError($"[CodeRunner] Type coercion failed: {ex.Message}");
+                }
+
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(combinedScriptContent);
 
                 // Set Globals Context EARLY so Rewriters can access Doc/Context
