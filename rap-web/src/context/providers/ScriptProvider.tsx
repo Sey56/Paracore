@@ -192,15 +192,24 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
               localStorage.removeItem(key);
             }
           } else {
-            // For local folders or published scripts, restore directly
+            // For local folders, restore directly AND ensure it's in the list
             setActiveScriptSource(parsed);
+            if (parsed.type === 'local' && parsed.path) {
+              setCustomScriptFolders(prev => {
+                if (!prev.includes(parsed.path)) {
+                  // Verify we aren't adding duplicates
+                  return [...prev, parsed.path];
+                }
+                return prev;
+              });
+            }
           }
         } catch (e) {
           console.error("Failed to parse saved active script source:", e);
         }
       }
     }
-  }, [activeTeam, userWorkspacesLoaded, userWorkspacePaths, activeScriptSource, setActiveScriptSource]);
+  }, [activeTeam, userWorkspacesLoaded, userWorkspacePaths, activeScriptSource, setActiveScriptSource, setCustomScriptFolders]);
 
 
   const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false): Promise<Script[] | undefined> => {
