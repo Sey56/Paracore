@@ -287,7 +287,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               <button
                 className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 text-xs flex items-center px-2 py-1 rounded transition-colors"
                 onClick={() => setIsResetModalOpen(true)}
-                disabled={!isActionable || isRunning}
+                disabled={!isActionable || isRunning || !isDefaultPreset}
                 title="Hard Reset: Clear local cache and reload defaults from engine"
               >
                 <FontAwesomeIcon icon={faUndo} />
