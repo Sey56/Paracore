@@ -262,10 +262,11 @@ namespace CoreScript.Engine.Core
                 var combinedScriptContent = SemanticCombinator.Combine(scriptFiles);
                 
                 // V2 FIX: Ensure defaults (with unit conversions) are applied even if input JSON is empty (VSCode case)
+                List<ScriptParameter> extractedParams = new List<ScriptParameter>();
                 try 
                 {
                     var extractor = new ParameterExtractor(new RunnerLogger());
-                    var extractedParams = extractor.ExtractParameters(combinedScriptContent);
+                    extractedParams = extractor.ExtractParameters(combinedScriptContent);
                     
                     foreach (var p in extractedParams)
                     {
