@@ -24,8 +24,6 @@ namespace CoreScript.Engine.Globals
         public void ChartBar(object data) => Show("chart-bar", data);
         public void ChartPie(object data) => Show("chart-pie", data);
         public void Table(object data) => Show("table", data);
-        public void ChartBar(object data) => Show("chart-bar", data);
-        public void ChartPie(object data) => Show("chart-pie", data);
         public void ChartLine(object data) => Show("chart-line", data);
     }
 

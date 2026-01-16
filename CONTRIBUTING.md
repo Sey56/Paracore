@@ -75,4 +75,4 @@ Be respectful, constructive, and professional. We're all here to make Revit auto
 
 ---
 
-**Built by architects, for architects.** 🏗️
+**Making Revit automation accessible to the entire AEC industry.** 🏗️
