@@ -10,4 +10,5 @@ export interface Playlist {
     filePath?: string;
     isFavorite?: boolean;
     sourcePath?: string; // To match how Scripts handle source paths (optional)
+    lastExecutionResults?: Record<number, any>; // Record<index, ExecutionResult>
 }

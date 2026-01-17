@@ -16,6 +16,7 @@ class Playlist(BaseModel):
     items: List[PlaylistItem]
     filePath: Optional[str] = None # Absolute path on disk
     isFavorite: bool = False
+    lastExecutionResults: Optional[Dict[str, Any]] = None
 
 class PlaylistService:
     def __init__(self):
@@ -69,7 +70,8 @@ class PlaylistService:
                 description=data.get('description', ''),
                 items=items,
                 filePath=file_path,
-                isFavorite=data.get('isFavorite', False)
+                isFavorite=data.get('isFavorite', False),
+                lastExecutionResults=data.get('lastExecutionResults')
             )
         except Exception as e:
             logger.error(f"Error parsing playlist {file_path}: {e}")
@@ -81,7 +83,8 @@ class PlaylistService:
                 "name": playlist.name,
                 "description": playlist.description,
                 "items": [item.dict() for item in playlist.items],
-                "isFavorite": playlist.isFavorite
+                "isFavorite": playlist.isFavorite,
+                "lastExecutionResults": playlist.lastExecutionResults
             }
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)

@@ -46,11 +46,24 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
 
     // Sync state if prop changes
     useEffect(() => {
-        setEditedPlaylist(JSON.parse(JSON.stringify(playlist)));
+        const cloned = JSON.parse(JSON.stringify(playlist));
+        setEditedPlaylist(cloned);
         setIsDirty(false);
         setSelectedItemIndex(null);
-        setExecutionStatus({});
-        setExecutionResults({});
+
+        // Restore previous execution results and statuses if they exist
+        if (playlist.lastExecutionResults) {
+            setExecutionResults(playlist.lastExecutionResults);
+            const initialStatus: Record<number, 'success' | 'error'> = {};
+            Object.entries(playlist.lastExecutionResults).forEach(([indexStr, result]) => {
+                const index = Number(indexStr);
+                initialStatus[index] = result.isSuccess ? 'success' : 'error';
+            });
+            setExecutionStatus(initialStatus);
+        } else {
+            setExecutionStatus({});
+            setExecutionResults({});
+        }
     }, [playlist]);
 
     const handleSave = async () => {
@@ -60,23 +73,20 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
         }
     };
 
-    const handleRunPlaylist = async () => {
+    // Helper to run and save (local accumulation)
+    const handleRunPlaylistAndSave = async () => {
         if (isDirty) {
-            // Auto-save before running? Or warn? 
-            // For V1, let's auto-save to ensure consistency
             await handleSave();
         }
 
         setExecutionStatus({}); // Reset status
+        const newResults: Record<number, ExecutionResult> = {};
 
         for (let i = 0; i < editedPlaylist.items.length; i++) {
             const item = editedPlaylist.items[i];
-
-            // 1. Update Status
             setExecutionStatus(prev => ({ ...prev, [i]: 'running' }));
             setSelectedItemIndex(i);
 
-            // 2. Find Script Object
             const normalizedPath = item.scriptPath.replace(/\\/g, '/').toLowerCase();
             const script = scripts.find(s => {
                 const normalizedScriptPath = s.absolutePath.replace(/\\/g, '/').toLowerCase();
@@ -88,18 +98,9 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
 
             if (!script) {
                 setExecutionStatus(prev => ({ ...prev, [i]: 'error' }));
-                console.error(`Script not found: ${item.scriptPath}`);
-                return; // Stop execution
+                return;
             }
 
-            // 3. Prepare Parameters (Naive Merge for V1)
-            // We construct ScriptParameter objects from the saved key-value pairs.
-            // Ideally we should merge with script defaults, but for execution, 
-            // we primarily need to pass the values to the backend.
-            // The backend might expect a specific structure.
-            // Let's coerce the saved parameters into a flat list resembling ScriptParameter[]
-
-            // If the script has parameters loaded in memory, use them as a base.
             const baseParams = script.parameters || [];
             const finalParams = baseParams.map(p => {
                 const savedValue = item.parameters[p.name];
@@ -111,27 +112,35 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
                 };
             });
 
-            // 4. Run Script
             try {
-                // We must await the result!
                 const result = await runScript(script, finalParams);
-
                 if (result) {
                     setExecutionResults(prev => ({ ...prev, [i]: result }));
-                }
+                    newResults[i] = result;
 
-                if (result?.isSuccess) {
-                    setExecutionStatus(prev => ({ ...prev, [i]: 'success' }));
+                    if (result.isSuccess) {
+                        setExecutionStatus(prev => ({ ...prev, [i]: 'success' }));
+                    } else {
+                        setExecutionStatus(prev => ({ ...prev, [i]: 'error' }));
+                        break; // Stop on error
+                    }
                 } else {
                     setExecutionStatus(prev => ({ ...prev, [i]: 'error' }));
-                    return; // Stop on error
+                    break;
                 }
             } catch (err) {
-                console.error("Critical Execution Error", err);
                 setExecutionStatus(prev => ({ ...prev, [i]: 'error' }));
-                return;
+                break;
             }
         }
+
+        // Final Save
+        const finalPlaylist = {
+            ...editedPlaylist,
+            lastExecutionResults: newResults
+        };
+        setEditedPlaylist(finalPlaylist);
+        await updatePlaylist(finalPlaylist);
     };
 
     const handleDeleteItem = (index: number) => {
@@ -253,7 +262,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
                     onAdd={() => setIsScriptPickerOpen(true)}
                     onBack={onBack}
                     onEditDetails={() => setIsEditDetailsModalOpen(true)}
-                    onRun={handleRunPlaylist}
+                    onRun={handleRunPlaylistAndSave}
                     onSave={handleSave}
                     isDirty={isDirty}
                     executionStatus={executionStatus}
