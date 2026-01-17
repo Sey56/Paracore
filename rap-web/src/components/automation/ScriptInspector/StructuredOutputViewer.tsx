@@ -164,25 +164,27 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           }
         });
 
-        // 5. Create a wrapper SVG with background
+        // 5. Create a wrapper SVG with background and padding
         const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 
-        // Calculate legend height if needed
-        let legendHeight = 0;
+        const canvasPadding = 20; // Consistent breathable margin
         let data: any[] = [];
         try {
           data = JSON.parse(item.data);
         } catch { /* ignore */ }
 
-        if ((item.type === 'chart-pie' || item.type === 'chart-bar' || item.type === 'chart-line') && Array.isArray(data)) {
-          legendHeight = 40; // allocate space for legend
+        // Only add legend height for Pie charts
+        let legendHeight = 0;
+        if (item.type === 'chart-pie' && Array.isArray(data)) {
+          legendHeight = 40;
         }
 
-        const totalHeight = height + legendHeight;
+        const totalWidth = width + (canvasPadding * 2);
+        const totalHeight = height + legendHeight + (canvasPadding * 2);
 
-        wrapperSvg.setAttribute("width", width.toString());
+        wrapperSvg.setAttribute("width", totalWidth.toString());
         wrapperSvg.setAttribute("height", totalHeight.toString());
-        wrapperSvg.setAttribute("viewBox", `0 0 ${width} ${totalHeight}`);
+        wrapperSvg.setAttribute("viewBox", `0 0 ${totalWidth} ${totalHeight}`);
         wrapperSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
         // Background
@@ -194,142 +196,58 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         bgRect.setAttribute("fill", bgColor);
         wrapperSvg.appendChild(bgRect);
 
-        // Append the styled chart (nested)
-        wrapperSvg.appendChild(clonedSvg);
+        // Chart Group (to handle padding)
+        const chartGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        chartGroup.setAttribute("transform", `translate(${canvasPadding}, ${canvasPadding})`);
+        chartGroup.appendChild(clonedSvg);
+        wrapperSvg.appendChild(chartGroup);
 
-        // 5.5 Append Legend Manually if Chart
-        if (legendHeight > 0) {
+        // 5.5 Append Legend Manually ONLY for Pie Charts
+        if (item.type === 'chart-pie' && legendHeight > 0) {
           const legendGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-          legendGroup.setAttribute("transform", `translate(0, ${height})`);
 
-          const fontSize = 12;
+          // Position legend on the right side, accounting for padding
+          const legendX = totalWidth - 120 - canvasPadding;
+          const fontSize = 11;
           const iconSize = 10;
-          const padding = 20;
-          let currentX = padding;
           const rowHeight = 20;
+          const totalLegendRowsHeight = data.length * rowHeight;
+
+          // Center legend vertically relative to the chart height
+          const legendStartY = canvasPadding + (height / 2) - (totalLegendRowsHeight / 2);
+
+          legendGroup.setAttribute("transform", `translate(${legendX}, ${legendStartY})`);
+
+          let currentY = 0;
 
           data.forEach((entry, index) => {
-            const color = COLORS[index % COLORS.length];
             const name = entry.name || `Item ${index}`;
+            const color = COLORS[index % COLORS.length];
 
-            // Color Box
+            // Icon/Color box
             const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-            rect.setAttribute("x", currentX.toString());
-            rect.setAttribute("y", "5");
+            rect.setAttribute("x", "0");
+            rect.setAttribute("y", currentY.toString());
             rect.setAttribute("width", iconSize.toString());
             rect.setAttribute("height", iconSize.toString());
-            rect.setAttribute("fill", item.type === 'chart-line' ? '#3b82f6' : (item.type === 'chart-bar' ? '#3b82f6' : color));
-            // For line/bar usually single color unless mapped. Pie uses COLORS. 
-            // Let's reuse the logic from render: Pie uses COLORS. Bar uses single fill #3b82f6. Line uses stroke #3b82f6.
-
-            let renderColor = color;
-            if (item.type === 'chart-bar') renderColor = '#3b82f6';
-            if (item.type === 'chart-line') renderColor = '#3b82f6';
-
-            // rect.setAttribute("fill", renderColor); 
-            // Using generic logic for now, refining for pie mainly as requested.
-            if (item.type === 'chart-pie') {
-              rect.setAttribute("fill", COLORS[index % COLORS.length]);
-            } else {
-              // For Bar/Line, Recharts default legend usually shows just the 'value' key or custom name. 
-              // But our data structure for Bar/Line is simple [{name: 'X', value: 10}]. 
-              // Recharts Legend shows the Series Name. Since we don't have multiple series, Legend is often redundant or shows "value".
-              // The user specifically asked for PieChart legends.
-              rect.setAttribute("fill", '#3b82f6');
-            }
-
+            rect.setAttribute("fill", COLORS[index % COLORS.length]);
             legendGroup.appendChild(rect);
 
             // Text
             const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            text.setAttribute("x", (currentX + iconSize + 5).toString());
-            text.setAttribute("y", "14"); // baseline roughly
+            text.setAttribute("x", (iconSize + 5).toString());
+            text.setAttribute("y", (currentY + iconSize).toString());
             text.setAttribute("font-family", "sans-serif");
             text.setAttribute("font-size", fontSize.toString());
-            text.setAttribute("fill", "#6b7280"); // gray-500
+            text.setAttribute("fill", COLORS[index % COLORS.length]);
+            text.setAttribute("dominant-baseline", "middle");
             text.textContent = name;
             legendGroup.appendChild(text);
 
-            // Estimate text width roughly (avg 8px per char) or use canvas measure. 
-            // Simple approx:
-            const textWidth = name.length * 8;
-            currentX += iconSize + 5 + textWidth + padding;
+            currentY += rowHeight;
           });
 
           wrapperSvg.appendChild(legendGroup);
-        }
-
-        // 5.6 Append Pie Labels Manually (Lines + Values)
-        if (item.type === 'chart-pie' && legendHeight > 0) { // Reuse the data check from legend
-          const labelsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-          // Pie Geometry Assumptions (matching the Recharts render in this file)
-          // cx="50%", cy="50%" -> center of the SVG viewbox
-          const cx = width / 2;
-          const cy = height / 2;
-          const outerRadius = 80; // Hardcoded in Pie component above
-          const labelRadius = outerRadius + 20; // Distance for text
-
-          const total = data.reduce((sum, entry) => sum + (Number(entry.value) || 0), 0);
-          let currentAngle = 0; // Recharts default start angle 0? verified: 0 is 3 o'clock. CCW.
-
-          data.forEach((entry) => {
-            const value = Number(entry.value) || 0;
-            if (total === 0) return;
-
-            const sliceAngle = (value / total) * 360;
-            const midAngle = currentAngle + (sliceAngle / 2);
-
-            // Recharts: 0 is 3 o'clock, Motion is Counter-Clockwise.
-            // SVG Trig: x = cos(a), y = -sin(a) (since y is down) for mathematical angle 'a' from x-axis.
-            // This matches Recharts 0=3oclock CCW convention.
-            const midAngleRad = (-midAngle) * (Math.PI / 180); // Negative for SVG CCW behavior visually? 
-            // Wait. Standard Trig: 0=East, 90=North (CCW).
-            // SVG Screen: 0=East, 90=South (CW).
-            // Recharts Default: 0=East (3 oclock), Direction=CCW (so 90 is North).
-            // To Map Recharts Angle to Screen Angle (CW):
-            // Recharts 0 -> Screen 0
-            // Recharts 90 (North) -> Screen 270 (or -90)
-            // Screen Y is flipped. 
-            // x = cx + r * cos(recharts_angle_rad)
-            // y = cy - r * sin(recharts_angle_rad)  <-- minus because screen Y increases downwards
-
-            const angleRad = midAngle * (Math.PI / 180);
-
-            const x1_edge = cx + outerRadius * Math.cos(-angleRad);
-            const y1_edge = cy + outerRadius * Math.sin(-angleRad);
-
-            const x2_label = cx + labelRadius * Math.cos(-angleRad);
-            const y2_label = cy + labelRadius * Math.sin(-angleRad);
-
-            // Line
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", x1_edge.toString());
-            line.setAttribute("y1", y1_edge.toString());
-            line.setAttribute("x2", x2_label.toString());
-            line.setAttribute("y2", y2_label.toString());
-            line.setAttribute("stroke", "#6b7280"); // gray-500
-            line.setAttribute("stroke-width", "1");
-            labelsGroup.appendChild(line);
-
-            // Text
-            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            text.setAttribute("x", x2_label.toString());
-            text.setAttribute("y", y2_label.toString());
-            text.setAttribute("fill", "#374151"); // gray-700
-            text.setAttribute("font-size", "10");
-            text.setAttribute("text-anchor", Math.cos(-angleRad) > 0 ? "start" : "end"); // Align based on side
-            text.setAttribute("dominant-baseline", "middle");
-            // Offset slightly
-            text.setAttribute("dx", Math.cos(-angleRad) > 0 ? "5" : "-5");
-
-            text.textContent = String(value);
-            labelsGroup.appendChild(text);
-
-            currentAngle += sliceAngle;
-          });
-
-          wrapperSvg.appendChild(labelsGroup);
         }
 
         // 6. Serialize
@@ -585,13 +503,19 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
                 paddingAngle={5}
                 dataKey="value"
                 label={{ fontSize: 10 }}
+                isAnimationActive={false}
               >
                 {parsedData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip content={<CustomPieTooltip />} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
+              <Legend
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                wrapperStyle={{ fontSize: '10px' }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -618,7 +542,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
             </button>
           </div>
           <ResponsiveContainer width="100%" height="100%" minWidth="100px" minHeight="100px">
-            <LineChart data={parsedData}>
+            <LineChart data={parsedData} margin={{ right: 30 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis dataKey="name" fontSize={10} />
               <YAxis fontSize={10} />
