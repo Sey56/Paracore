@@ -74,8 +74,8 @@ export interface UIContextProps {
   setThreadId: React.Dispatch<React.SetStateAction<string | null>>;
 
   // Main View Toggle
-  activeMainView: 'scripts' | 'agent' | 'generation';
-  setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'generation'>>;
+  activeMainView: 'scripts' | 'agent' | 'generation' | 'playlists';
+  setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'generation' | 'playlists'>>;
 }
 
 export const UIContext = createContext<UIContextProps | undefined>(undefined);

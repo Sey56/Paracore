@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode, faListUl } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -129,6 +129,13 @@ export const TopBar: React.FC = () => {
           title="Automation Mode"
         >
           <FontAwesomeIcon icon={faRectangleList} />
+        </button>
+        <button
+          onClick={() => setActiveMainView('playlists')}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'playlists' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          title="Playlists Mode"
+        >
+          <FontAwesomeIcon icon={faListUl} />
         </button>
         <button
           onClick={() => {

@@ -20,6 +20,7 @@ import { AddFolderModal } from '@/components/common/AddFolderModal'; // Import A
 import { AddCategoryModal } from '@/components/common/AddCategoryModal'; // Import AddCategoryModal
 import { AgentView } from "@/components/agent/AgentView";
 import { GenerationView } from "@/components/generation/GenerationView";
+import { PlaylistsTab } from "@/components/automation/Playlists/PlaylistsTab";
 
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
@@ -128,22 +129,23 @@ export const AppLayout: React.FC = () => {
         >
           <div className="flex flex-1 overflow-hidden">
             {/* Main Content based on activeMainView */}
-            <div style={{ flex: activeMainView === 'generation' ? 1 : galleryWidth }} className={`overflow-y-auto ${activeMainView === 'generation' ? '' : 'p-4 lg:p-6'} ${isMobile ? 'pt-4' : ''}`}>
+            <div style={{ flex: (activeMainView === 'generation' || activeMainView === 'playlists') ? 1 : galleryWidth }} className={`overflow-y-auto ${activeMainView === 'generation' ? '' : 'p-4 lg:p-6'} ${isMobile ? 'pt-4' : ''}`}>
               {activeMainView === 'scripts' && <ScriptGallery />}
               {activeMainView === 'agent' && <AgentView />}
               {activeMainView === 'generation' && <GenerationView />}
+              {activeMainView === 'playlists' && <PlaylistsTab />}
             </div>
 
-            {/* Resizer - Hidden in Generation Mode */}
-            {activeMainView !== 'generation' && (
+            {/* Resizer - Hidden in Generation and Playlists Mode */}
+            {activeMainView !== 'generation' && activeMainView !== 'playlists' && (
               <div
                 className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
                 onMouseDown={handleMouseDown}
               ></div>
             )}
 
-            {/* Inspector Panel (Desktop) - Hidden in Generation Mode */}
-            {activeMainView !== 'generation' && (
+            {/* Inspector Panel (Desktop) - Hidden in Generation and Playlists Mode */}
+            {activeMainView !== 'generation' && activeMainView !== 'playlists' && (
               <div style={{ flex: inspectorWidth }} className="hidden lg:block p-6 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto overflow-hidden min-w-0">
                 <ScriptInspector />
               </div>

@@ -72,7 +72,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   }, [threadId]);
 
   // Main View Toggle
-  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'generation'>('scripts'); // Default to 'scripts'
+  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'generation' | 'playlists'>('scripts'); // Default to 'scripts'
 
   const openSettingsModal = useCallback(() => setSettingsModalOpen(true), []);
   const closeSettingsModal = useCallback(() => setSettingsModalOpen(false), []);

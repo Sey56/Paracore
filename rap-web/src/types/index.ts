@@ -1,5 +1,6 @@
 export * from './common';
 export * from './scriptModel';
+export * from './playlistModel';
 
 export interface Workspace {
   id: number;
