@@ -28,7 +28,7 @@ Traditional Revit API development often involves a heavy "tax" on creativity:
 - ✅ **Flexible Deployment**: Share scripts via Git workspaces, allowing teams to sync updates immediately.
 - ✅ **Rich Features**: Use simple helpers like `Transact()`, auto-generate UIs, and access full C# power.
 
-## 🆕 Latest Release (v2.1.0)
+## 🆕 Latest Release (v2.1.1)
 
 **Core Parameter Engine Refinements:**
 - **Automatic Unit Conversion:** The engine now handles `[Unit("m2")]`, `[Unit("ft3")]` inputs transparently, injecting Revit internal units into the script execution scope.
