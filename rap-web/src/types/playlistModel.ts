@@ -8,5 +8,6 @@ export interface Playlist {
     description: string;
     items: PlaylistItem[];
     filePath?: string;
+    isFavorite?: boolean;
     sourcePath?: string; // To match how Scripts handle source paths (optional)
 }

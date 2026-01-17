@@ -39,3 +39,16 @@ async def save_playlist(req: SavePlaylistRequest):
     # Update the playlist object with the new file path before returning
     req.playlist.filePath = full_path
     return req.playlist
+
+class DeletePlaylistRequest(BaseModel):
+    filePath: str
+
+@router.post("/delete")
+async def delete_playlist(req: DeletePlaylistRequest):
+    """
+    Deletes a playlist file from disk.
+    """
+    success = playlist_service.delete_playlist(req.filePath)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to delete playlist.")
+    return {"success": True}

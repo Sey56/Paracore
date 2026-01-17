@@ -8,7 +8,7 @@ export interface ScriptExecutionContextProps {
   runningScriptPath: string | null;
   executionResult: ExecutionResult | null;
   setExecutionResult: React.Dispatch<React.SetStateAction<ExecutionResult | null>>;
-  runScript: (script: Script, parameters?: ScriptParameter[]) => Promise<void>;
+  runScript: (script: Script, parameters?: ScriptParameter[]) => Promise<ExecutionResult | undefined>;
   clearExecutionResult: () => void;
   userEditedScriptParameters: Record<string, ScriptParameter[]>;
   updateUserEditedParameters: (scriptId: string, parameters: ScriptParameter[], isPresetLoad?: boolean) => void;

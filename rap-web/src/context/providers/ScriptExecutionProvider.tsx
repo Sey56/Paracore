@@ -819,6 +819,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       } else {
         showNotification(`Script '${script.name}' executed successfully.`, "success");
       }
+      return frontendExecutionResult;
     } catch (err: any) {
       // Check for Axios error response
       let message = err.response?.data?.detail || (err instanceof Error ? err.message : "An unknown error occurred.");
@@ -833,7 +834,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       }
 
       showNotification(`Failed to execute script: ${message}`, "error");
-      setExecutionResult({ output: "", isSuccess: false, error: message });
+      const errorResult = { output: "", isSuccess: false, error: message };
+      setExecutionResult(errorResult);
+      return errorResult;
     } finally {
       setRunningScriptPath(null);
     }

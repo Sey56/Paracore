@@ -8,8 +8,9 @@ export interface PlaylistContextProps {
 
     selectPlaylist: (playlist: Playlist | null) => void;
     loadPlaylists: (folderPath: string) => Promise<void>;
-    createPlaylist: (name: string, folderPath: string) => Promise<Playlist | undefined>;
+    createPlaylist: (name: string, description: string, folderPath: string) => Promise<Playlist | undefined>;
     updatePlaylist: (playlist: Playlist) => Promise<boolean>;
+    deletePlaylist: (playlist: Playlist) => Promise<boolean>;
     runPlaylist: (playlist: Playlist) => Promise<void>;
 }
 
@@ -22,5 +23,6 @@ export const PlaylistContext = createContext<PlaylistContextProps>({
     loadPlaylists: async () => { },
     createPlaylist: async () => undefined,
     updatePlaylist: async () => false,
+    deletePlaylist: async () => false,
     runPlaylist: async () => { },
 } as PlaylistContextProps);

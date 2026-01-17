@@ -2,14 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { usePlaylist } from '@/hooks/usePlaylist';
 import { useUI } from '@/hooks/useUI';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSync, faPlay, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faSync, faPlay, faPlus, faTrash, faEllipsisV, faStar } from '@fortawesome/free-solid-svg-icons';
 import { NewPlaylistModal } from './NewPlaylistModal';
+import { DeletePlaylistModal } from './DeletePlaylistModal';
 import { PlaylistEditor } from './PlaylistEditor';
+import { PlaylistCard } from './PlaylistCard';
+import { Playlist } from '@/types/playlistModel';
 
 export const PlaylistsTab: React.FC = () => {
-    const { playlists, isLoading, loadPlaylists, selectPlaylist, selectedPlaylist, runPlaylist, createPlaylist } = usePlaylist();
+    const { playlists, isLoading, loadPlaylists, selectPlaylist, selectedPlaylist, runPlaylist, createPlaylist, deletePlaylist, updatePlaylist } = usePlaylist();
     const { activeScriptSource } = useUI();
     const [isNewPlaylistModalOpen, setIsNewPlaylistModalOpen] = useState(false);
+
+    // Deletion State
+    const [playlistToDelete, setPlaylistToDelete] = useState<Playlist | null>(null);
+    const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
     useEffect(() => {
         // Auto-load playlists when the source changes
@@ -20,16 +27,51 @@ export const PlaylistsTab: React.FC = () => {
         }
     }, [activeScriptSource, loadPlaylists]);
 
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (activeMenuId) {
+                // If the click is inside a dropdown or button, we might want to ignore?
+                // But generally clicking anywhere else should close it.
+                // We rely on stopPropagation in usage to keep it open.
+                setActiveMenuId(null);
+            }
+        };
+
+        if (activeMenuId) {
+            document.addEventListener('click', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, [activeMenuId]);
+
     const handleRefresh = () => {
         if (activeScriptSource && 'path' in activeScriptSource) {
             loadPlaylists(activeScriptSource.path);
         }
     };
 
-    const handleCreatePlaylist = async (name: string) => {
+    const handleCreatePlaylist = async (name: string, description: string) => {
         if (activeScriptSource && 'path' in activeScriptSource) {
-            await createPlaylist(name, activeScriptSource.path);
+            await createPlaylist(name, description, activeScriptSource.path);
         }
+    };
+
+    const confirmDelete = async () => {
+        if (playlistToDelete) {
+            await deletePlaylist(playlistToDelete);
+            setPlaylistToDelete(null);
+        }
+    };
+
+    const toggleFavorite = async (playlist: Playlist) => {
+        // Optimistic update? updatePlaylist handles it
+        // We need to re-pass the whole object with the flipped boolean
+        await updatePlaylist({
+            ...playlist,
+            isFavorite: !playlist.isFavorite
+        });
     };
 
     if (selectedPlaylist) {
@@ -76,42 +118,62 @@ export const PlaylistsTab: React.FC = () => {
                 onSubmit={handleCreatePlaylist}
             />
 
-            <div className="flex-1 overflow-y-auto">
+            <DeletePlaylistModal
+                isOpen={!!playlistToDelete}
+                onClose={() => setPlaylistToDelete(null)}
+                onConfirm={confirmDelete}
+                playlistName={playlistToDelete?.name || ''}
+            />
+
+            {/* Playlists Grid */}
+            <div className="flex-1 overflow-y-auto p-2">
                 {playlists.length === 0 ? (
                     <div className="text-center text-gray-500 mt-10">
-                        <p>No playlists found in the current workspace.</p>
+                        No playlists found. Create one to get started!
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {playlists.map((playlist, index) => (
-                            <div
-                                key={index}
-                                className={`bg-white dark:bg-gray-800 p-4 rounded-lg shadow border cursor-pointer transition-all
-                  ${selectedPlaylist === playlist ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 dark:border-gray-700 hover:shadow-md'}
-                `}
-                                onClick={() => selectPlaylist(playlist)}
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200">{playlist.name}</h3>
-                                    <button
-                                        className="text-green-500 hover:text-green-600 p-1"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            runPlaylist(playlist);
-                                        }}
-                                        title="Run Playlist"
-                                    >
-                                        <FontAwesomeIcon icon={faPlay} />
-                                    </button>
-                                </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                                    {playlist.description || "No description provided."}
-                                </p>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    {playlist.items.length} steps
+                    <div className="space-y-8">
+                        {/* Favorites Section */}
+                        {playlists.some(p => p.isFavorite) && (
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+                                    Favorites
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {playlists.filter(p => p.isFavorite).map((playlist, index) => (
+                                        <PlaylistCard
+                                            key={`fav-${playlist.filePath || index}`}
+                                            playlist={playlist}
+                                            selected={selectedPlaylist?.filePath === playlist.filePath}
+                                            onSelect={selectPlaylist}
+                                            onRun={runPlaylist}
+                                            onDelete={setPlaylistToDelete}
+                                            onToggleFavorite={toggleFavorite}
+                                        />
+                                    ))}
                                 </div>
                             </div>
-                        ))}
+                        )}
+
+                        {/* All Playlists */}
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+                                {playlists.some(p => p.isFavorite) ? 'Other Playlists' : 'All Playlists'}
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {playlists.filter(p => !p.isFavorite).map((playlist, index) => (
+                                    <PlaylistCard
+                                        key={`all-${playlist.filePath || index}`}
+                                        playlist={playlist}
+                                        selected={selectedPlaylist?.filePath === playlist.filePath}
+                                        onSelect={selectPlaylist}
+                                        onRun={runPlaylist}
+                                        onDelete={setPlaylistToDelete}
+                                        onToggleFavorite={toggleFavorite}
+                                    />
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

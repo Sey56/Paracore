@@ -28,12 +28,12 @@ export const PlaylistProvider = ({ children }: { children: React.ReactNode }) =>
         }
     }, [showNotification]);
 
-    const createPlaylist = useCallback(async (name: string, folderPath: string): Promise<Playlist | undefined> => {
+    const createPlaylist = useCallback(async (name: string, description: string, folderPath: string): Promise<Playlist | undefined> => {
         setIsLoading(true);
         try {
             const newPlaylist: Playlist = {
                 name,
-                description: "",
+                description,
                 items: []
             };
 
@@ -90,6 +90,29 @@ export const PlaylistProvider = ({ children }: { children: React.ReactNode }) =>
         }
     }, [showNotification]);
 
+    const deletePlaylist = useCallback(async (playlist: Playlist): Promise<boolean> => {
+        if (!playlist.filePath) return false;
+
+        setIsLoading(true);
+        try {
+            await api.post('/playlists/delete', { filePath: playlist.filePath });
+            setPlaylists(prev => prev.filter(p => p.filePath !== playlist.filePath));
+
+            if (selectedPlaylist && selectedPlaylist.filePath === playlist.filePath) {
+                setSelectedPlaylist(null);
+            }
+
+            showNotification(`Playlist '${playlist.name}' deleted.`, "info");
+            return true;
+        } catch (error) {
+            console.error("Failed to delete playlist:", error);
+            showNotification("Failed to delete playlist.", "error");
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [selectedPlaylist, showNotification]);
+
     const runPlaylist = useCallback(async (playlist: Playlist) => {
         // Placeholder for runner logic
         showNotification(`Running playlist: ${playlist.name}`, "info");
@@ -104,8 +127,9 @@ export const PlaylistProvider = ({ children }: { children: React.ReactNode }) =>
         loadPlaylists,
         createPlaylist,
         updatePlaylist,
+        deletePlaylist,
         runPlaylist
-    }), [playlists, selectedPlaylist, isLoading, loadPlaylists, createPlaylist, updatePlaylist, runPlaylist]);
+    }), [playlists, selectedPlaylist, isLoading, loadPlaylists, createPlaylist, updatePlaylist, deletePlaylist, runPlaylist]);
 
     return (
         <PlaylistContext.Provider value={contextValue}>

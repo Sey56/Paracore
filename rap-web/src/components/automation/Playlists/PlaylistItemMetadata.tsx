@@ -28,6 +28,7 @@ export const PlaylistItemMetadata: React.FC<PlaylistItemMetadataProps> = ({ scri
                     script={script}
                     onToggleFavorite={handleToggleFavorite}
                     isFavoriteProp={script.isFavorite ?? false}
+                    hideFavoriteButton={true}
                 />
 
                 <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">

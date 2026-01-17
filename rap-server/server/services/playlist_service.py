@@ -15,6 +15,7 @@ class Playlist(BaseModel):
     description: str
     items: List[PlaylistItem]
     filePath: Optional[str] = None # Absolute path on disk
+    isFavorite: bool = False
 
 class PlaylistService:
     def __init__(self):
@@ -67,7 +68,8 @@ class PlaylistService:
                 name=data.get('name', 'Untitled Playlist'),
                 description=data.get('description', ''),
                 items=items,
-                filePath=file_path
+                filePath=file_path,
+                isFavorite=data.get('isFavorite', False)
             )
         except Exception as e:
             logger.error(f"Error parsing playlist {file_path}: {e}")
@@ -78,13 +80,26 @@ class PlaylistService:
             data = {
                 "name": playlist.name,
                 "description": playlist.description,
-                "items": [item.dict() for item in playlist.items]
+                "items": [item.dict() for item in playlist.items],
+                "isFavorite": playlist.isFavorite
             }
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
             return True
         except Exception as e:
             logger.error(f"Failed to save playlist to {file_path}: {e}")
+            return False
+
+    def delete_playlist(self, file_path: str) -> bool:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                return True
+            else:
+                logger.warning(f"Playlist file not found for deletion: {file_path}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to delete playlist at {file_path}: {e}")
             return False
 
 # Global instance
