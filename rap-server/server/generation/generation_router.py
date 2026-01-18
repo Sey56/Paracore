@@ -154,7 +154,7 @@ async def generate_script(
 from utils import get_or_create_script, resolve_script_path, redact_secrets
 from auth import get_current_user, CurrentUser
 from generation.gemini_client import generate_code_with_gemini, explain_and_fix_with_gemini
-from workspace_manager import get_scripts_dir
+from workspace_manager import get_scripts_dir, get_active_workspace
 import glob
 
 router = APIRouter(prefix="/generation", tags=["Generation"])
@@ -208,19 +208,45 @@ async def explain_error(
         # If files not provided explicitly, try to load from disk/workspace
         if not files_to_process and request.script_path:
             try:
-                target_dir = get_scripts_dir(request.script_path, request.type)
-                print(f"[Generation] Loading script context from: {target_dir}")
+                # Step 1: Check for an active workspace. If present, read from there.
+                workspace_path = get_active_workspace(request.script_path)
                 
-                if os.path.exists(target_dir):
-                    if os.path.isfile(target_dir): # Single file case
-                         with open(target_dir, 'r', encoding='utf-8-sig') as f:
-                             files_to_process[os.path.basename(target_dir)] = f.read()
-                    else: # Directory case
-                        for file_path in glob.glob(os.path.join(target_dir, "*.cs")):
+                if workspace_path and os.path.isdir(workspace_path):
+                    # Workspace is active! Load from workspace/Scripts/
+                    workspace_scripts_dir = os.path.join(workspace_path, "Scripts")
+                    print(f"[Generation] Loading context from active workspace: {workspace_scripts_dir}")
+                    
+                    if os.path.isfile(request.script_path):
+                        # Single-file: Look for the matching filename in the workspace Scripts folder
+                        script_filename = os.path.basename(request.script_path)
+                        workspace_file = os.path.join(workspace_scripts_dir, script_filename)
+                        if os.path.exists(workspace_file):
+                            with open(workspace_file, 'r', encoding='utf-8-sig') as f:
+                                files_to_process[script_filename] = f.read()
+                    else:
+                        # Multi-file: Load all .cs from the workspace Scripts folder
+                        if os.path.isdir(workspace_scripts_dir):
+                            for file_path in glob.glob(os.path.join(workspace_scripts_dir, "*.cs")):
+                                with open(file_path, 'r', encoding='utf-8-sig') as f:
+                                    files_to_process[os.path.basename(file_path)] = f.read()
+                
+                # Step 2: Fallback to original source if workspace didn't yield files
+                if not files_to_process:
+                    if os.path.isfile(request.script_path):
+                        # Single-file: Load only this specific file
+                        print(f"[Generation] Loading single-file from source: {request.script_path}")
+                        with open(request.script_path, 'r', encoding='utf-8-sig') as f:
+                            files_to_process[os.path.basename(request.script_path)] = f.read()
+                    elif os.path.isdir(request.script_path):
+                        # Multi-file: Load all .cs from the script folder (NOT the parent source)
+                        print(f"[Generation] Loading multi-file from source: {request.script_path}")
+                        for file_path in glob.glob(os.path.join(request.script_path, "*.cs")):
                             with open(file_path, 'r', encoding='utf-8-sig') as f:
                                 files_to_process[os.path.basename(file_path)] = f.read()
+                                
             except Exception as load_err:
                 print(f"[Generation] Warning: Failed to load files from disk: {load_err}")
+
 
         # 2. Construct Combined Content
         script_content_to_send = ""

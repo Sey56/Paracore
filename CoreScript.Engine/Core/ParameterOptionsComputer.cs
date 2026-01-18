@@ -50,6 +50,8 @@ namespace CoreScript.Engine.Core
                     "DimensionType" => GetDimensionTypes(),
                     "TextNoteType" => GetTextNoteTypes(),
                     "FilledRegionType" => GetFilledRegionTypes(),
+                    "Sheet" => GetSheets(),
+                    "ViewSheet" => GetSheets(),
                     _ => GetGenericElements(revitElementType, category)
                 };
             }
@@ -240,6 +242,16 @@ namespace CoreScript.Engine.Core
                 .OfClass(typeof(FilledRegionType))
                 .Cast<FilledRegionType>()
                 .Select(frt => frt.Name)
+                .OrderBy(n => n)
+                .ToList();
+        }
+
+        private List<string> GetSheets()
+        {
+            return new FilteredElementCollector(_doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Select(s => $"{s.SheetNumber} - {s.Name}")
                 .OrderBy(n => n)
                 .ToList();
         }
