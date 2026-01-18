@@ -398,7 +398,7 @@ namespace CoreScript.Engine.Core
                 
 
 
-                var finalScriptCode = "using static CoreScript.Engine.Globals.ScriptApi;\n" + modifiedUserCode;
+                var finalScriptCode = "#line hidden\nusing static CoreScript.Engine.Globals.ScriptApi;\n#line default\n" + modifiedUserCode;
 
                 // DEBUG: Dump the compiled script to verify #line directives and rewriter output
                 try
