@@ -133,7 +133,40 @@ async def run_script(
                 print(f"Warning: Failed to inject working set. Reason: {e}")
         # --- END INJECTION LOGIC ---
 
+        # Inject __script_name__ for Dashboard reporting
+        # Default to basename of source path if script object isn't found (e.g. generated code or external path)
+        script_name_for_dashboard = os.path.basename(path) if path else "Generated Script"
+        
+        if script:
+            script_name_for_dashboard = script.name
+        elif generated_code:
+             script_name_for_dashboard = "Generated Code"
+             
+        if parameters is None:
+            # CodeRunner expects a List<ScriptParameter> by default
+            parameters = []
+        elif isinstance(parameters, str):
+            try:
+                parameters = json.loads(parameters)
+            except json.JSONDecodeError:
+                print(f"Warning: Failed to parse parameters JSON: {parameters}")
+                parameters = []
+            
+        # Inject __script_name__ (handle both List and Dict formats)
+        if isinstance(parameters, list):
+            # It's a list (CoreScript standard), so append a new parameter object
+            parameters.append({
+                "Name": "__script_name__",
+                "Value": script_name_for_dashboard,
+                "Type": "string",
+                "Description": "Hidden parameter for dashboard reporting"
+            })
+        elif isinstance(parameters, dict):
+            # It's a flat dict (rare/legacy), set the key directly
+            parameters["__script_name__"] = script_name_for_dashboard
+
         script_content_json = json.dumps(script_files_payload)
+        # Dump back to JSON string for the gRPC call
         parameters_json = json.dumps(parameters)
 
         # Single call to the gRPC service
