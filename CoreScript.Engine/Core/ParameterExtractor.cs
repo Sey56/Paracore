@@ -145,7 +145,9 @@ namespace CoreScript.Engine.Core
                 if (expr != null) param.Options = ExtractOptions(expr, root);
 
                 // Inference: If we have a logic-based provider, it requires compute in Revit
-                if (IsLogicBasedProvider(optionsProvider))
+                // V2 FIX: Only require compute if we FAILED to statically extract options. 
+                // If we successfully extracted options (e.g. from a simple return statement), we don't need runtime compute.
+                if (IsLogicBasedProvider(optionsProvider) && (param.Options == null || param.Options.Count == 0))
                 {
                     param.RequiresCompute = true;
                 }
