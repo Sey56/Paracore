@@ -113,7 +113,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
             });
 
             try {
-                const result = await runScript(script, finalParams);
+                const result = await runScript(script, finalParams, false);
                 if (result) {
                     setExecutionResults(prev => ({ ...prev, [i]: result }));
                     newResults[i] = result;

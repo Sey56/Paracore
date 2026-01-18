@@ -144,7 +144,7 @@ export const PlaylistsTab: React.FC = () => {
                                         <PlaylistCard
                                             key={`fav-${playlist.filePath || index}`}
                                             playlist={playlist}
-                                            selected={selectedPlaylist?.filePath === playlist.filePath}
+                                            selected={false}
                                             onSelect={selectPlaylist}
                                             onRun={runPlaylist}
                                             onDelete={setPlaylistToDelete}
@@ -165,7 +165,7 @@ export const PlaylistsTab: React.FC = () => {
                                     <PlaylistCard
                                         key={`all-${playlist.filePath || index}`}
                                         playlist={playlist}
-                                        selected={selectedPlaylist?.filePath === playlist.filePath}
+                                        selected={false}
                                         onSelect={selectPlaylist}
                                         onRun={runPlaylist}
                                         onDelete={setPlaylistToDelete}

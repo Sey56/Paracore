@@ -77,10 +77,51 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
         onUpdateParameters(newParams);
     };
 
-    const handlePickObject = (selectionType: string, index: number) => {
+    const handlePickObject = async (selectionType: string, index: number) => {
         const param = mergedParameters[index];
         if (param && script) {
-            pickObject(script, param.name, selectionType);
+            const result = await pickObject(script, param.name, selectionType, false);
+            if (result && result.is_success && result.value !== undefined) {
+                // Update local playlist parameters
+                const newParams = { ...savedParameters, [param.name]: result.value };
+                onUpdateParameters(newParams);
+            }
+        }
+    };
+
+    const handleCompute = async (_s: any, paramName: string) => {
+        if (!script) return;
+        const result = await computeParameterOptions(script, paramName, false);
+
+        if (result && result.is_success) {
+            // If it's a range update, we don't necessarily have a new 'value' to save,
+            // but the UI (ParameterInput) will need the new min/max.
+            // However, PlaylistItemConfig gets its 'baseParams' from the global script object.
+            // If we don't update the global script, the next render will still have old min/max.
+            // USER REQUEST: "one should not affect the other".
+            // BUT: Available options (metadata) are usually okay to share.
+            // Let's re-run the compute WITH global update for the METADATA part if needed,
+            // OR just accept that for now, 'Compute' in Playlist mode might not update the UI
+            // available options unless we store them in PlaylistItem too (overkill?).
+
+            // Actually, let's just update the value if the compute forced a value change (e.g. current invalid).
+            // computeParameterOptions currently returns { options, ... }.
+
+            // For now, let's at least handle the value sync if the compute returned a specific reset value.
+            // Note: computeParameterOptions (global) does auto-selection.
+            // Our local version (false) just returns the data.
+
+            if (result.options && result.options.length > 0) {
+                const param = mergedParameters.find(p => p.name === paramName);
+                if (param && !param.multiSelect) {
+                    const currentValueStr = String(param.value || "");
+                    if (!currentValueStr || !result.options.includes(currentValueStr)) {
+                        const nextValue = result.options[0];
+                        const newParams = { ...savedParameters, [param.name]: nextValue };
+                        onUpdateParameters(newParams);
+                    }
+                }
+            }
         }
     };
 
@@ -144,7 +185,7 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
                         param={param}
                         index={originalIndex}
                         onChange={handleParameterChange}
-                        onCompute={(paramName) => script && computeParameterOptions(script, paramName)}
+                        onCompute={(pName) => handleCompute(script, pName)}
                         onPickObject={handlePickObject}
                         isComputing={isComputingOptions[param.name]}
                         disabled={false}
@@ -161,7 +202,7 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
                     allParameters={mergedParameters}
                     handleParameterChange={handleParameterChange}
                     script={script}
-                    computeParameterOptions={computeParameterOptions}
+                    computeParameterOptions={handleCompute}
                     onPickObject={handlePickObject}
                     isComputingOptions={isComputingOptions}
                     isActionable={true}
