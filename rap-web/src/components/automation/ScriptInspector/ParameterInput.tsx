@@ -83,14 +83,17 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             <button
               onClick={() => onCompute(param.name)}
               disabled={disabled || isComputing}
-              className={`px-2 py-1 text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100 transition-colors ${isComputing ? 'animate-pulse' : ''}`}
-              title="Compute options from Revit"
+              className={`px-2 py-1 text-[10px] border transition-colors ${param.options && param.options.length > 0
+                  ? "bg-gray-50 dark:bg-gray-700/30 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:bg-gray-100"
+                  : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-100"
+                } ${isComputing ? 'animate-pulse' : ''}`}
+              title={param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options from Revit"}
             >
               <FontAwesomeIcon
                 icon={isComputing ? faSpinner : faSync}
                 className={`${isComputing ? 'animate-spin' : ''} mr-1`}
               />
-              {isComputing ? 'Computing...' : 'Compute'}
+              {isComputing ? 'Computing...' : (param.options && param.options.length > 0 ? 'Refresh' : 'Compute')}
             </button>
           )}
         </div>
