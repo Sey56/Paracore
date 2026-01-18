@@ -90,8 +90,10 @@ namespace CoreScript.Engine.Core
                 
                 foreach (var decl in fileTypeDecls)
                 {
-                    string content = decl.ToFullString().Trim();
-                    int line = decl.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
+                    string content = decl.ToFullString().TrimEnd();
+                    // Use FullSpan to include leading trivia (comments) in line calculation
+                    var fullSpanLineSpan = root.SyntaxTree.GetLineSpan(decl.FullSpan);
+                    int line = fullSpanLineSpan.StartLinePosition.Line + 1;
                     
                     // Check if this is the Params class
                     if (decl is ClassDeclarationSyntax classDecl && classDecl.Identifier.Text == "Params")

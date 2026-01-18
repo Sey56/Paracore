@@ -9,8 +9,8 @@
 		<AssemblyTitle>CoreScript.Engine</AssemblyTitle>
 		<AssemblyName>CoreScript.Engine</AssemblyName>
 		<Company>Codarch</Company>
-		<AssemblyVersion>2.1.1.0</AssemblyVersion>
-		<FileVersion>2.1.1.0</FileVersion>
+		<AssemblyVersion>2.2.0.0</AssemblyVersion>
+		<FileVersion>2.2.0.0</FileVersion>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
