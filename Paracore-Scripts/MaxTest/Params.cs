@@ -1,15 +1,11 @@
-using System;
-using System.Collections.Generic;
-using Autodesk.Revit.DB;
-
 public class Params
 {
 
     #region Room Selection
 
     /// Select multiple rooms to get their areas.
-    [RevitElements(TargetType = "Room", MultiSelect = true)]
-    public List<string> SelectedRooms { get; set; } = new();
+    [RevitElements(TargetType = "Room")]
+    public List<string> SelectedRooms { get; set; }
 
     #endregion
 
@@ -22,13 +18,13 @@ public class Params
     public long SelectedWallId { get; set; }
 
     /// <summary>
-    /// Point selection requires the XYZ type
+    /// Select a level
     /// </summary>
     [Select(SelectionType.Element)]
     public long BaseLevel { get; set; }
 
     [Select(SelectionType.Edge)]
-    public Reference? MyEdge { get; set; }
+    public Referenc? MyEdge { get; set; }
 
     #endregion
 

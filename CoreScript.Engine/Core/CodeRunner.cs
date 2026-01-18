@@ -239,9 +239,25 @@ namespace CoreScript.Engine.Core
                 
                 // DEBUG: Log all parameters that CodeRunner thinks it has
                 FileLogger.Log($"[CodeRunner] Final Parameters Dictionary Keys: {string.Join(", ", parameters.Keys)}");
+                if (parameters.ContainsKey("__script_name__"))
+                {
+                    FileLogger.Log($"[CodeRunner] Found magic parameter __script_name__: {parameters["__script_name__"]}");
+                }
                 foreach (var kvp in parameters)
                 {
                     FileLogger.Log($"[CodeRunner] Param '{kvp.Key}' = {kvp.Value} (Type: {kvp.Value?.GetType().Name ?? "null"})");
+                }
+
+                // V2.2.0: Prioritize passed "__script_name__" parameter for dashboard reporting (e.g. Folder Name)
+                if (parameters.ContainsKey("__script_name__"))
+                {
+                    var forcedName = parameters["__script_name__"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(forcedName))
+                    {
+                        topLevelScriptName = forcedName;
+                        FileLogger.Log($"[CodeRunner] Set topLevelScriptName to: {topLevelScriptName}");
+                    }
+                    parameters.Remove("__script_name__"); // Don't pollute script scope
                 }
 
                 List<ScriptFile> scriptFiles = new List<ScriptFile>();
@@ -258,7 +274,13 @@ namespace CoreScript.Engine.Core
                 }
 
                 var topLevelScriptFile = ScriptParser.IdentifyTopLevelScript(scriptFiles);
-                topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
+                
+                // If we haven't forced a name yet, try to get it from the file
+                if (topLevelScriptName == "Unknown Script")
+                {
+                    topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
+                }
+
                 var combinedScriptContent = SemanticCombinator.Combine(scriptFiles);
                 
                 // V2 FIX: Ensure defaults (with unit conversions) are applied even if input JSON is empty (VSCode case)
@@ -497,7 +519,7 @@ namespace CoreScript.Engine.Core
                 foreach (var err in errs) FileLogger.LogError($"[COMPILATION] {err}");
                 
                 var failureResult = ExecutionResult.Failure(failureMessage, context.PrintLog.ToArray());
-                failureResult.ScriptName = "Unknown Script";
+                failureResult.ScriptName = topLevelScriptName ?? "Unknown Script";
                 return failureResult;
             }
             catch (AggregateException ex) when (ex.InnerException is TimeoutException)
