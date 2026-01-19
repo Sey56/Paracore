@@ -244,7 +244,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setCombinedScriptContent('// No source path available for this script type.');
       return null;
     }
-    
+
     // Robust Fetch with Retries
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -256,7 +256,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           await new Promise(resolve => setTimeout(resolve, 300));
         } else {
           // Final attempt failed
-          console.error(`[ScriptExecutionProvider] Failed to fetch content for ${script.name} after 3 attempts. Status:`, error.response?.status, error.message);
+          const err = error as any;
+          console.error(`[ScriptExecutionProvider] Failed to fetch content for ${script.name} after 3 attempts. Status:`, err.response?.status, err.message);
           return null;
         }
       }
