@@ -74,6 +74,21 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   // Main View Toggle
   const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'generation'>('scripts'); // Default to 'scripts'
 
+  // Global InfoModal state
+  const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
+    isOpen: false,
+    title: '',
+    message: '',
+  });
+
+  const showInfoModal = useCallback((title: string, message: string) => {
+    setInfoModalState({ isOpen: true, title, message });
+  }, []);
+
+  const closeInfoModal = useCallback(() => {
+    setInfoModalState(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
   const openSettingsModal = useCallback(() => setSettingsModalOpen(true), []);
   const closeSettingsModal = useCallback(() => setSettingsModalOpen(false), []);
 
@@ -192,6 +207,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     setAgentSelectedScriptPath,
     activeMainView,
     setActiveMainView,
+    infoModalState,
+    showInfoModal,
+    closeInfoModal,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -222,6 +240,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     pendingToolCall,
     agentSelectedScriptPath,
     activeMainView,
+    infoModalState,
+    showInfoModal,
+    closeInfoModal,
   ]);
 
   return (

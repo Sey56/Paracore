@@ -70,3 +70,23 @@ export const filterVisibleParameters = (params: ScriptParameter[]): ScriptParame
         return true;
     });
 };
+
+/**
+ * Validates parameters according to their `required` and `pattern` attributes.
+ * @param params - The parameters to validate (should be visible params).
+ * @returns An array of validation error strings. Empty if all valid.
+ */
+export const validateParameters = (params: ScriptParameter[]): string[] => {
+    const errors: string[] = [];
+    params.forEach(p => {
+        const valStr = p.value === undefined || p.value === null ? '' : String(p.value).trim();
+
+        if (p.required && valStr === '') {
+            errors.push(`- '${p.name}' is required`);
+        }
+        if (p.pattern && valStr !== '' && !new RegExp(p.pattern).test(valStr)) {
+            errors.push(`- '${p.name}' format is invalid`);
+        }
+    });
+    return errors;
+};

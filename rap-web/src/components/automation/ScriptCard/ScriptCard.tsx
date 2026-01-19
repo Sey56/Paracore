@@ -15,6 +15,7 @@ import { Script } from "@/types/scriptModel";
 import { useScriptExecution } from "@/hooks/useScriptExecution";
 import { useScripts } from "@/hooks/useScripts";
 import { useUI } from "@/hooks/useUI";
+import { filterVisibleParameters, validateParameters } from '@/utils/parameterVisibility';
 import styles from './ScriptCard.module.css';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -35,7 +36,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     editScript
   } = useScriptExecution();
   const { toggleFavoriteScript } = useScripts();
-  const { setActiveInspectorTab } = useUI();
+  const { setActiveInspectorTab, showInfoModal } = useUI();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
   const { isAuthenticated } = useAuth();
   const [showMenu, setShowMenu] = React.useState(false);
@@ -110,9 +111,23 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
   const handleRunClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRunButtonDisabled) return;
+
+    // Get the current parameters for this script
+    const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
+    const visibleParams = filterVisibleParameters(currentParams);
+    const validationErrors = validateParameters(visibleParams);
+
+    if (validationErrors.length > 0) {
+      // Use the global InfoModal for consistent UI
+      setActiveInspectorTab('parameters');
+      await setSelectedScript(script);
+      showInfoModal('Validation Error', `Please correct the following issues:\n${validationErrors.join('\n')}`);
+      return;
+    }
+
     await setSelectedScript(script);
     setActiveInspectorTab('console');
-    runScript(script, userEditedScriptParameters[script.id] || script.parameters);
+    runScript(script, currentParams);
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -165,8 +180,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
           <button
             onClick={handleFavoriteClick}
             className={`${script.isFavorite
-                ? "text-yellow-400 hover:text-yellow-500"
-                : "text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300"
+              ? "text-yellow-400 hover:text-yellow-500"
+              : "text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300"
               }`}
           >
             {script.isFavorite ? (
