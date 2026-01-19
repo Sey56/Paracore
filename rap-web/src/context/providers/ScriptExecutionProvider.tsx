@@ -244,12 +244,24 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setCombinedScriptContent('// No source path available for this script type.');
       return null;
     }
-    try {
-      const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(script.sourcePath)}&type=${script.type}`);
-      return response.data.sourceCode;
-    } catch (_) {
-      return null;
+    
+    // Robust Fetch with Retries
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(script.sourcePath)}&type=${script.type}`);
+        return response.data.sourceCode;
+      } catch (error) {
+        if (attempt < 2) {
+          // Wait before retrying (backoff)
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } else {
+          // Final attempt failed
+          console.error(`[ScriptExecutionProvider] Failed to fetch content for ${script.name} after 3 attempts. Status:`, error.response?.status, error.message);
+          return null;
+        }
+      }
     }
+    return null;
   }, [setCombinedScriptContent]);
 
   const savePresets = async (newPresets: ParameterPreset[]) => {
@@ -435,8 +447,11 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     // If no cached params, proceed with fetching (unless it's a refresh sync that already has params)
     const canReusePassedParameters = source === 'refresh' && (script.parameters && script.parameters.length > 0);
 
-    setCombinedScriptContent("// Loading script content...");
-    setPresets([]);
+    // FIX: Don't clear content/presets on refresh to prevent UI flashing
+    if (source !== 'refresh') {
+      setCombinedScriptContent("// Loading script content...");
+      setPresets([]);
+    }
 
     try {
       const promises = [];
@@ -545,7 +560,15 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       updateUserEditedParameters(script.id, finalParameters);
 
       // Final state updates
-      setCombinedScriptContent(contentResult || "// Failed to load script content.");
+      // Fail-safe: If refreshing and content load failed, keep existing content
+      if (contentResult) {
+        setCombinedScriptContent(contentResult);
+      } else if (source !== 'refresh') {
+        setCombinedScriptContent("// Failed to load script content.");
+      } else {
+        console.warn(`[ScriptExecutionProvider] Refresh failed to load content for ${script.name}. Keeping existing content.`);
+      }
+
       setScripts((prev: Script[]) => prev.map((s: Script) => s.id === updatedScript.id ? updatedScript : s));
       setSelectedScriptState(updatedScript);
 

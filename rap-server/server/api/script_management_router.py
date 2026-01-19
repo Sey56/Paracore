@@ -384,43 +384,67 @@ async def get_script_content(scriptPath: str, type: str):
     if not scriptPath or not type:
         raise HTTPException(status_code=400, detail="scriptPath and type are required")
     try:
-        # Check if there is an active workspace for this script
-        workspace_path = get_active_workspace(scriptPath)
-        if workspace_path and os.path.isdir(workspace_path):
-            absolute_path = os.path.join(workspace_path, "Scripts")
-             # If absolute_path doesn't exist (e.g. single file script workspace structure differs), try workspace root
-            if not os.path.exists(absolute_path):
-                 absolute_path = workspace_path
-        else:
-            absolute_path = resolve_script_path(scriptPath)
-        if type == "single-file":
-            with open(absolute_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            return JSONResponse(content={"sourceCode": content})
-        elif type == "multi-file":
-            if not os.path.isdir(absolute_path):
-                raise HTTPException(status_code=400, detail="Path for multi-file script must be a directory.")
-            script_files = []
-            for file_path in glob.glob(os.path.join(absolute_path, "*.cs")):
-                with open(file_path, 'r', encoding='utf-8-sig') as f:
-                    source_code = f.read()
-                script_files.append({
-                    "file_name": os.path.basename(file_path),
-                    "content": source_code
-                })
-            if not script_files:
-                raise HTTPException(status_code=404, detail="No script files found at the specified path.")
+        absolute_path = resolve_script_path(scriptPath)
+        
+        # Retry logic for file locking issues on Windows
+        max_retries = 3
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                if type == "single-file":
+                    with open(absolute_path, "r", encoding="utf-8-sig") as f:
+                        content = f.read()
+                    return JSONResponse(content={"sourceCode": content})
+                elif type == "multi-file":
+                    if not os.path.isdir(absolute_path):
+                        raise HTTPException(status_code=400, detail="Path for multi-file script must be a directory.")
+                    
+                    script_files = []
+                    cs_files = glob.glob(os.path.join(absolute_path, "*.cs"))
+                    
+                    if not cs_files:
+                         # Retry if directory exists but looks empty (race condition?)
+                         if attempt < max_retries - 1:
+                             await asyncio.sleep(0.2)
+                             continue
+                         # If truly empty, return empty
+                         raise HTTPException(status_code=404, detail="No .cs files found at path.")
 
-            response = get_combined_script(script_files)
-            return JSONResponse(content={"sourceCode": response.get("combined_script")})
-        else:
-            raise HTTPException(status_code=400, detail=f"Invalid script type: {type}")
+                    for file_path in cs_files:
+                        with open(file_path, 'r', encoding='utf-8-sig') as f:
+                            source_code = f.read()
+                        script_files.append({
+                            "file_name": os.path.basename(file_path),
+                            "content": source_code
+                        })
+                    
+                    response = get_combined_script(script_files)
+                    return JSONResponse(content={"sourceCode": response.get("combined_script")})
+                else:
+                    raise HTTPException(status_code=400, detail=f"Invalid script type: {type}")
+            
+            except (OSError, UnicodeDecodeError) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    print(f"[ScriptManagement] File access failed (attempt {attempt+1}): {e}. Retrying...")
+                    await asyncio.sleep(0.2)
+                else:
+                    print(f"[ScriptManagement] File access failed permanently: {e}")
+                    raise HTTPException(status_code=500, detail=f"File access error: {str(e)}")
+            except Exception as e:
+                # Non-retryable errors
+                traceback.print_exc()
+                raise e
 
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except grpc.RpcError as e:
         raise HTTPException(status_code=500, detail=f"gRPC Error: {e.details()}")
+    except HTTPException:
+        raise
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
