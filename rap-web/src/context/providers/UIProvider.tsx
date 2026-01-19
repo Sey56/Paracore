@@ -89,6 +89,21 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     setInfoModalState(prev => ({ ...prev, isOpen: false }));
   }, []);
 
+  // Global InfoModal state
+  const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
+    isOpen: false,
+    title: '',
+    message: '',
+  });
+
+  const showInfoModal = useCallback((title: string, message: string) => {
+    setInfoModalState({ isOpen: true, title, message });
+  }, []);
+
+  const closeInfoModal = useCallback(() => {
+    setInfoModalState(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
   const openSettingsModal = useCallback(() => setSettingsModalOpen(true), []);
   const closeSettingsModal = useCallback(() => setSettingsModalOpen(false), []);
 
