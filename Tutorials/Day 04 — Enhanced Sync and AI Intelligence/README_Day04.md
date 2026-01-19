@@ -1,45 +1,81 @@
-# Day 04 — The "Magic to Freedom" Parameter Engine
+# Day 04 — Build Your First Auditor: The Wall Length Filter
 
-## Scene 1: Introduction (5-Minute Fast Flow)
-> [!IMPORTANT]
-> Today is about **Parameter Engine v2 (v2.1.1)** — how your C# properties become a professional UI instantly.
-> **Principle:** WYSIWYG (What You See Is What You Get). Inspect the UI, and if the "Magic" isn't what you want, use your "Freedom" to override it.
+## Introduction
+Today we move from theory to reality. Paracore is not just an add-in; it is a **Top-Level Scripting Environment**. This means you don't have to worry about boilerplates, classes, or complex setups. You just write your logic and press **Run**.
 
-## Scene 2: The Fast-Paced Recap (Static Params)
-- **Concept:** Simple C# properties = Standard UI elements.
-- **Examples:**
-    - `bool` -> Toggle Switch.
-    - `double` + `[Range]` + `[Unit]` -> A slider with automatic metric/imperial conversion.
-    - `List<string>` -> Dynamic Multi-Select checklist.
+We are going to build a **Wall Length Auditor** script. This script will identify "Short Walls" (under a specific length) on a level of your choice.
 
-## Scene 3: The Four Pillars of `[RevitElements]`
-We'll demonstrate how Paracore finds Revit elements using four real-world scenarios:
+---
 
-### 1. The Strategy 1 Shortcut (The Precise Path)
-- **Attribute:** `[RevitElements(TargetType = "WallType")]`
-- **Behavior:** Hits a hardcoded, optimized map. Instantly returns **Wall Types**.
+## Scene 1: Defining the Parameters
+Look at the bottom of `Wall_Length_Auditor.cs`. We define our settings in a simple `Params` class.
 
-### 2. The Strategy 2 Category (The Type Bias)
-- **Attribute:** `[RevitElements(TargetType = "Walls")]`
-- **Behavior:** Skips the shortcut, finds the "Walls" category, and defaults to **Types** to help you build things.
+```csharp
+public class Params
+{
+    [RevitElements(TargetType = "Levels")]
+    public string TargetLevel { get; set; } = "Level 1";
 
-### 3. The Strategy 3 Reflection (The Literal Path)
-- **Attribute:** `[RevitElements(TargetType = "Dimension")]`
-- **Behavior:** Hits the literal C# class in the Revit API. Returns **Instances** (the placed dimensions) because that's what the class represents.
+    [Range(0, 50000, 100)]
+    [Unit("mm")]
+    public double MaxLengthThreshold { get; set; } = 3000;
+}
+```
 
-### 4. The "Freedom" Layer (_Options Masterpiece)
-- **Attribute:** `[RevitElements(TargetType = "ViewSheet")]`
-- **Problem:** In v2.1.1, "Magic" might get confused and return all Views instead of just Sheets.
-- **The Solution:** Use `SheetName_Options` for total control. Get exactly what you want with professional formatting (`Number - Name`).
+### The Magic: How Paracore Finds "Levels"
+When you use `[RevitElements(TargetType = "Levels")]`, Paracore follows a 4-tiered discovery strategy:
 
-## Scene 4: AI Debugging (The Safety Net)
-- **Explain & Fix:** Deliberately break a script with a typo.
-- **The Wow:** One click for a plain-language explanation and an automated fix that updates your code live.
+1.  **Hard-Coded Strategy:** Paracore has a fast-track map for common types. "Levels" is one of them. It instantly finds all `Autodesk.Revit.DB.Level` elements.
+2.  **Category Match:** If it wasn't hard-coded, Paracore would look for a Revit Category named "Levels".
+3.  **Literal Class (Reflection):** If the category search fails, it looks for an actual C# class in the Revit API named `Level`.
+4.  **The "Never Fail" Strategy (`_Options`):** If all else fails, or if you want custom formatting (like `Number - Name`), you can define a `TargetLevel_Options` property to provide the list manually.
 
-## Wrap Up: The WYSIWYG Workflow
-1. **Define** your property.
-2. **Inspect** the UI immediately.
-3. **Validate** the data.
-4. **Adjust** (Refine with `TargetType` or override with `_Options`).
+---
 
-**Paracore isn't just about automation — it's about the freedom to build exactly what you need.**
+## Scene 2: The Script (Flat & Fast)
+At the top of the file, we just write our code. No main method, no wrapping class.
+
+```csharp
+using Autodesk.Revit.DB.Architecture;
+
+// 1. Initialize Parameters
+var p = new Params();
+
+// 2. Find the target level (or throw an exception for the engine to catch)
+Level level = new FilteredElementCollector(Doc)
+    .OfClass(typeof(Level))
+    .Cast<Level>()
+    .FirstOrDefault(l => l.Name == p.TargetLevel);
+
+if (level == null) throw new Exception($"Level '{p.TargetLevel}' not found.");
+
+// 3. Collect all walls on that level (using .Value for IDs)
+List<Wall> shortWalls = new FilteredElementCollector(Doc)
+    .OfClass(typeof(Wall))
+    .Cast<Wall>()
+    .Where(w => w.LevelId.Value == level.Id.Value)
+    .Where(w => w.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH).AsDouble() < p.MaxLengthThreshold)
+    .ToList();
+```
+
+---
+
+## Scene 3: The Enhanced Summary
+Instead of just printing text, we use the direct `Table()` helper. This turns your results into a professional, searchable grid in the **Summary** tab.
+
+```csharp
+Table(shortWalls.Select(w => new {
+    Id = w.Id.Value,
+    Name = w.Name,
+    Length_mm = UnitUtils.ConvertFromInternalUnits(...)
+}).ToList());
+```
+
+---
+
+## The Workflow
+1.  **Draft** your logic directly in the `.cs` file.
+2.  **Inspect** the auto-generated UI in Paracore.
+3.  **Execute** and see your filtered data in the Summary tab instantly.
+
+**Congratulations! You've just built a professional-grade Revit Auditor in a few lines of code.**
