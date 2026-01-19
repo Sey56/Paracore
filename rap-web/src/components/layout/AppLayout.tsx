@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar/Sidebar";
 import { ScriptGallery } from "@/components/automation/ScriptGallery/ScriptGallery";
 import { ScriptInspector } from "@/components/automation/ScriptInspector/ScriptInspector";
 import { FloatingCodeViewer } from "@/components/automation/ScriptInspector/FloatingCodeViewer";
+import { InfoModal } from "@/components/automation/ScriptInspector/InfoModal";
 import { useScriptExecution } from "@/hooks/useScriptExecution";
 import { useUI } from "@/hooks/useUI";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
@@ -41,6 +42,8 @@ export const AppLayout: React.FC = () => {
     isFloatingCodeViewerOpen,
     closeFloatingCodeViewer,
     activeMainView, // Access activeMainView
+    infoModalState, // Access global InfoModal state
+    closeInfoModal, // Access closeInfoModal function
   } = useUI();
 
   const isMobile = useBreakpoint();
@@ -100,6 +103,7 @@ export const AppLayout: React.FC = () => {
       <SettingsModal />
       <NewScriptModal isOpen={isNewScriptModalOpen} onClose={closeNewScriptModal} selectedFolder="" /> {/* Render NewScriptModal */}
       <TeamManagementModal />
+      <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
 
       {selectedScript && (
         <FloatingCodeViewer

@@ -76,6 +76,11 @@ export interface UIContextProps {
   // Main View Toggle
   activeMainView: 'scripts' | 'agent' | 'generation' | 'playlists';
   setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'generation' | 'playlists'>>;
+
+  // Global InfoModal
+  infoModalState: { isOpen: boolean; title: string; message: string };
+  showInfoModal: (title: string, message: string) => void;
+  closeInfoModal: () => void;
 }
 
 export const UIContext = createContext<UIContextProps | undefined>(undefined);

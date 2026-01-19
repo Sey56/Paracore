@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { filterVisibleParameters } from '@/utils/parameterVisibility';
+import { filterVisibleParameters, validateParameters } from '@/utils/parameterVisibility';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheckCircle,
@@ -178,19 +178,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   };
 
   const handleRunScript = async () => {
-    // Validation
-    const validationErrors = visibleParameters.flatMap(p => {
-      const errors = [];
-      const valStr = p.value === undefined || p.value === null ? '' : String(p.value).trim();
-
-      if (p.required && valStr === '') {
-        errors.push(`- ${p.description || p.name} is required`);
-      }
-      if (p.pattern && valStr !== '' && !new RegExp(p.pattern).test(valStr)) {
-        errors.push(`- ${p.description || p.name} format is invalid`);
-      }
-      return errors;
-    });
+    // Validation using shared utility
+    const validationErrors = validateParameters(visibleParameters);
 
     if (validationErrors.length > 0) {
       setInfoModalMessage(`Please correct the following issues:\n${validationErrors.join('\n')}`);
