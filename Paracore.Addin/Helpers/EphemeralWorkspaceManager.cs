@@ -39,6 +39,10 @@ namespace Paracore.Addin.Helpers
                 }
                 else if (Directory.Exists(workspacePath))
                 {
+                    // CRITICAL FIX: Stop watchers BEFORE deleting the directory to prevent
+                    // the watcher from thinking the user deleted the files and syncing that deletion to source.
+                    StopWatchersForWorkspace(workspacePath);
+
                     FileLogger.Log($"Deleting existing (stale) workspace directory: {workspacePath}");
                     try
                     {
@@ -265,6 +269,27 @@ namespace Paracore.Addin.Helpers
             catch (Exception ex) { FileLogger.LogError($"HandleFileRenamed: {ex.Message}"); }
         }
 
+        private static void StopWatchersForWorkspace(string workspacePath)
+        {
+            var keysToRemove = new List<string>();
+            lock (ActiveWatchers)
+            {
+                foreach (var key in ActiveWatchers.Keys)
+                {
+                    if (key.StartsWith(workspacePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                }
+            }
+
+            foreach (var key in keysToRemove)
+            {
+                FileLogger.Log($"Stopping watcher for stale workspace: {key}");
+                StopWatcher(key);
+            }
+        }
+
         private static void StopWatcher(string sourcePath)
         {
             lock (ActiveWatchers)
@@ -294,13 +319,15 @@ namespace Paracore.Addin.Helpers
                 var watcher = new FileSystemWatcher(Path.GetDirectoryName(sourcePath))
                 {
                     Filter = Path.GetFileName(sourcePath),
-                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
+                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName | NotifyFilters.CreationTime,
                     EnableRaisingEvents = true,
                     IncludeSubdirectories = false
                 };
 
                 watcher.Changed += (s, e) => DebounceSync(sourcePath, targetPath);
                 watcher.Renamed += (s, e) => DebounceSync(sourcePath, targetPath);
+                watcher.Created += (s, e) => DebounceSync(sourcePath, targetPath); // Capture atomic saves (delete+create)
+                watcher.Error += (s, e) => FileLogger.LogError($"FileWatcher Error: {e.GetException().Message}");
                 
                 lock (ActiveWatchers)
                 {
