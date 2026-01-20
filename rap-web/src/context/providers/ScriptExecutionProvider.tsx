@@ -783,7 +783,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [isAuthenticated, selectedScript, setAgentSelectedScriptPath]);
 
-  const runScript = async (script: Script, parameters?: ScriptParameter[]) => {
+  const runScript = async (script: Script, parameters?: ScriptParameter[], shouldUpdateGlobalState: boolean = true) => {
     if (runningScriptPath) {
       showNotification("A script is already running. Please wait.", "warning");
       return;
@@ -792,7 +792,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     addRecentScript(script.id);
     updateScriptLastRunTime(script.id);
     setRunningScriptPath(script.id);
-    setExecutionResult(null);
+    if (shouldUpdateGlobalState) {
+      setExecutionResult(null);
+    }
     showNotification(`Running script: ${script.name}...`, "info");
 
     let sourceFolder: string | undefined;
@@ -836,13 +838,17 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         structuredOutput: result.structured_output,
         internalData: result.internal_data, // Add the new internal data field
       };
-      setExecutionResult(frontendExecutionResult);
+
+      if (shouldUpdateGlobalState) {
+        setExecutionResult(frontendExecutionResult);
+      }
 
       if (!frontendExecutionResult.isSuccess) {
         showNotification("Code execution failed", "error");
       } else {
         showNotification(`Script '${script.name}' executed successfully.`, "success");
       }
+      return frontendExecutionResult;
     } catch (err: any) {
       // Check for Axios error response
       let message = err.response?.data?.detail || (err instanceof Error ? err.message : "An unknown error occurred.");
@@ -857,13 +863,17 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       }
 
       showNotification(`Failed to execute script: ${message}`, "error");
-      setExecutionResult({ output: "", isSuccess: false, error: message });
+      const errorResult = { output: "", isSuccess: false, error: message };
+      if (shouldUpdateGlobalState) {
+        setExecutionResult(errorResult);
+      }
+      return errorResult;
     } finally {
       setRunningScriptPath(null);
     }
   };
 
-  const computeParameterOptions = useCallback(async (script: Script, parameterName: string) => {
+  const computeParameterOptions = useCallback(async (script: Script, parameterName: string, shouldUpdateGlobalState: boolean = true) => {
     setIsComputingOptions(prev => ({ ...prev, [parameterName]: true }));
     try {
       const response = await api.post("/api/compute-parameter-options", {
@@ -875,9 +885,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       const { options, is_success, error_message, min, max, step } = response.data;
 
       if (is_success) {
-
         // --- NEW LOGIC: Handle Range vs Options ---
-        // Fix: Backend returns null, which is !== undefined. Must check type or null explicitly.
         const isRangeUpdate = (typeof min === 'number') || (typeof max === 'number');
 
         // CRITICAL: Treat compute as an explicit fetch to block background sync for 2s
@@ -890,95 +898,81 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           showNotification(`Computed ${options.length} options for ${parameterName}`, "success");
         }
 
-        const updateParamWithOptions = (p: ScriptParameter) => {
+        const updateParamMetadata = (p: ScriptParameter) => {
           if (p.name !== parameterName) return p;
-
-          let newValue = p.value;
-
-          // Case 1: Range Update
           if (isRangeUpdate) {
-            return {
-              ...p,
-              min: min ?? p.min,
-              max: max ?? p.max,
-              step: step ?? p.step
-            };
+            return { ...p, min: min ?? p.min, max: max ?? p.max, step: step ?? p.step };
+          } else {
+            return { ...p, options: options };
           }
-
-          // Case 2: List Options Update (including empty lists)
-          if (!isRangeUpdate) {
-            let nextValue: any = p.value;
-            // If the new list is empty, or the current value isn't in the new list, reset value.
-            // Exception: If the current value is empty/null, keep it empty.
-            if (options.length === 0) {
-              nextValue = "";
-            } else {
-
-              // Fix: For MultiSelect, do NOT auto-select the first option.
-              // Users should explicitly select items.
-              if (p.multiSelect) {
-                // Keep current value if valid? Or just keep it as is.
-                // If options changed, maybe current selection is invalid?
-                // For now, let's just NOT force a value.
-                nextValue = p.value || []; // Ensure array
-              } else {
-                // Single Select: Auto-select first option if current is invalid/empty
-                const currentValueStr = String(p.value || "");
-                if (!currentValueStr || !options.includes(currentValueStr)) {
-                  nextValue = options[0];
-                }
-              }
-            }
-
-            return { ...p, options: options, value: nextValue };
-          }
-
-          return { ...p, options: options, value: newValue };
         };
 
-        // Update the parameter with the new options AND potentially new value
-        setUserEditedScriptParameters(prev => {
-          // IMPORTANT: If we don't have cached parameters yet, we must start from the script's defaults
-          const params = prev[script.id] || script.parameters || [];
+        const updateParamValueIfInvalid = (p: ScriptParameter) => {
+          if (p.name !== parameterName || isRangeUpdate || options.length === 0) return p;
 
-          const updatedParams = params.map(updateParamWithOptions);
+          if (p.multiSelect) return p; // Don't auto-select for multi-select
 
-          return {
-            ...prev,
-            [script.id]: updatedParams
-          };
-        });
+          const currentValueStr = String(p.value || "");
+          if (!currentValueStr || !options.includes(currentValueStr)) {
+            return { ...p, value: options[0] };
+          }
+          return p;
+        };
 
-        // Also update selectedScript if it's the same script
-        if (selectedScript?.id === script.id) {
-          setSelectedScriptState(prev => {
-            if (!prev) return null;
-            const updatedParams = (prev.parameters || []).map(updateParamWithOptions);
-            return { ...prev, parameters: updatedParams };
-          });
-        }
-
-        // CRITICAL: Update the global scripts list in ScriptProvider so background reloads preserve these options
+        // 1. Update Global Scripts (Metadata only)
         setScripts(prev => prev.map(s => {
           if (s.id !== script.id) return s;
-          const updatedParams = (s.parameters || []).map(updateParamWithOptions);
+          const updatedParams = (s.parameters || []).map(updateParamMetadata);
           return { ...s, parameters: updatedParams };
         }));
+
+        // 2. Update Context State (Metadata + Value if needed/allowed)
+        if (shouldUpdateGlobalState) {
+          setUserEditedScriptParameters(prev => {
+            const params = prev[script.id] || script.parameters || [];
+            const updatedParams = params.map(p => updateParamValueIfInvalid(updateParamMetadata(p)));
+            return { ...prev, [script.id]: updatedParams };
+          });
+
+          if (selectedScript?.id === script.id) {
+            setSelectedScriptState(prev => {
+              if (!prev) return null;
+              const updatedParams = (prev.parameters || []).map(p => updateParamValueIfInvalid(updateParamMetadata(p)));
+              return { ...prev, parameters: updatedParams };
+            });
+          }
+        } else {
+          // If isolated, we still update the metadata in the caches so it's not lost on re-selection,
+          // but we do NOT update the value.
+          setUserEditedScriptParameters(prev => {
+            const params = prev[script.id] || script.parameters || [];
+            const updatedParams = params.map(updateParamMetadata);
+            return { ...prev, [script.id]: updatedParams };
+          });
+
+          if (selectedScript?.id === script.id) {
+            setSelectedScriptState(prev => {
+              if (!prev) return null;
+              const updatedParams = (prev.parameters || []).map(updateParamMetadata);
+              return { ...prev, parameters: updatedParams };
+            });
+          }
+        }
       } else {
         showNotification(error_message || "Failed to compute options.", "error");
       }
+
+      return { options, is_success, error_message, min, max, step };
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        showNotification(err.message || "Failed to compute options.", "error");
-      } else {
-        showNotification("Failed to compute options.", "error");
-      }
+      const msg = err instanceof Error ? err.message : "Failed to compute options.";
+      showNotification(msg, "error");
+      return { is_success: false, error_message: msg };
     } finally {
       setIsComputingOptions(prev => ({ ...prev, [parameterName]: false }));
     }
   }, [selectedScript, showNotification, setUserEditedScriptParameters, setScripts]);
 
-  const pickObject = useCallback(async (script: Script, paramName: string, selectionType: string) => {
+  const pickObject = useCallback(async (script: Script, paramName: string, selectionType: string, shouldUpdateGlobalState: boolean = true) => {
     setIsComputingOptions(prev => ({ ...prev, [paramName]: true })); // Use computing state for spinner
     try {
       // Find the parameter to get potential filters
@@ -996,40 +990,46 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
       if (is_success) {
         showNotification("Selection successful!", "success");
-        // Update parameter value
-        setUserEditedScriptParameters(prev => {
-          const params = prev[script.id] || script.parameters || [];
-          const updatedParams = params.map(p => {
-            if (p.name === paramName) {
-              return { ...p, value: value };
-            }
-            return p;
-          });
-          return { ...prev, [script.id]: updatedParams };
-        });
 
-        // Sync selected script state
-        if (selectedScriptRef.current?.id === script.id) {
-          setSelectedScriptState(prev => {
-            if (!prev) return null;
-            const updatedParams = (prev.parameters || []).map(p =>
-              p.name === paramName ? { ...p, value: value } : p
-            );
-            return { ...prev, parameters: updatedParams };
+        if (shouldUpdateGlobalState) {
+          // Update parameter value
+          setUserEditedScriptParameters(prev => {
+            const params = prev[script.id] || script.parameters || [];
+            const updatedParams = params.map(p => {
+              if (p.name === paramName) {
+                return { ...p, value: value };
+              }
+              return p;
+            });
+            return { ...prev, [script.id]: updatedParams };
           });
+
+          // Sync selected script state
+          if (selectedScriptRef.current?.id === script.id) {
+            setSelectedScriptState(prev => {
+              if (!prev) return null;
+              const updatedParams = (prev.parameters || []).map(p =>
+                p.name === paramName ? { ...p, value: value } : p
+              );
+              return { ...prev, parameters: updatedParams };
+            });
+          }
         }
-
       } else if (cancelled) {
         showNotification("Selection cancelled.", "info");
       } else {
         showNotification(error_message || "Selection failed.", "error");
       }
+
+      return { value, is_success, cancelled, error_message };
     } catch (err: any) {
-      showNotification(err.message || "Failed to pick object.", "error");
+      const msg = err.message || "Failed to pick object.";
+      showNotification(msg, "error");
+      return { is_success: false, error_message: msg };
     } finally {
       setIsComputingOptions(prev => ({ ...prev, [paramName]: false }));
     }
-  }, [showNotification, setUserEditedScriptParameters]);
+  }, [showNotification, setUserEditedScriptParameters, userEditedScriptParameters]);
 
   const resetScriptParameters = useCallback(async (scriptId: string) => {
     // 1. Clear from user edits cache

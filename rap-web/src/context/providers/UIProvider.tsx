@@ -72,7 +72,22 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   }, [threadId]);
 
   // Main View Toggle
-  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'generation'>('scripts'); // Default to 'scripts'
+  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'generation' | 'playlists'>('scripts'); // Default to 'scripts'
+
+  // Global InfoModal state
+  const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
+    isOpen: false,
+    title: '',
+    message: '',
+  });
+
+  const showInfoModal = useCallback((title: string, message: string) => {
+    setInfoModalState({ isOpen: true, title, message });
+  }, []);
+
+  const closeInfoModal = useCallback(() => {
+    setInfoModalState(prev => ({ ...prev, isOpen: false }));
+  }, []);
 
   // Global InfoModal state
   const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({

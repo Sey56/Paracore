@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 
 from database_config import Base, engine
 
-from api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router, manifest_router
+from api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router, manifest_router, playlist_router
 
 from agent import agent_router
 from generation import router as generation_router
@@ -77,6 +77,7 @@ app.include_router(user_settings_router.router)
 app.include_router(agent_router.router)
 app.include_router(manifest_router.router)
 app.include_router(generation_router)
+app.include_router(playlist_router.router, prefix="/playlists", tags=["Playlists"])
 
 @app.get("/")
 def read_root():

@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "package": {
     "productName": "Paracore",
-    "version": "2.1.2"
+    "version": "2.2.0"
   },
   "build": {
     "beforeBuildCommand": "npm run build",
@@ -97,8 +97,3 @@
     }
   }
 }
-
-
-
-
-

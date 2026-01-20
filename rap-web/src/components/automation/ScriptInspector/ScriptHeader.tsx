@@ -11,9 +11,10 @@ interface ScriptHeaderProps {
   onToggleFavorite: (scriptId: string) => void;
   disabled?: boolean;
   isFavoriteProp: boolean;
+  hideFavoriteButton?: boolean;
 }
 
-export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavorite, disabled, isFavoriteProp }) => {
+export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavorite, disabled, isFavoriteProp, hideFavoriteButton }) => {
   const [gitLog, setGitLog] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { activeScriptSource } = useUI();
@@ -60,32 +61,34 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
           </button>
           {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
         </h3>
-        <button
-          onClick={() => onToggleFavorite(script.id)}
-          className={`${isFavoriteProp ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300'}`}
-        >
-          {isFavoriteProp ? (
-            <FontAwesomeIcon icon={fasStar} />
-          ) : (
-            <FontAwesomeIcon icon={farStar} />
-          )}
-        </button>
+        {!hideFavoriteButton && (
+          <button
+            onClick={() => onToggleFavorite(script.id)}
+            className={`${isFavoriteProp ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300'}`}
+          >
+            {isFavoriteProp ? (
+              <FontAwesomeIcon icon={fasStar} />
+            ) : (
+              <FontAwesomeIcon icon={farStar} />
+            )}
+          </button>
+        )}
       </div>
 
       {!isCollapsed && (
         <div className="animate-in fade-in slide-in-from-top-1 duration-200">
           {/* Categories */}
           {script.metadata.categories && script.metadata.categories.length > 0 && (
-              <div className="text-sm text-gray-500 dark:text-gray-400 mb-2 pl-6">
-                  {script.metadata.categories.join(', ')}
-              </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2 pl-6">
+              {script.metadata.categories.join(', ')}
+            </div>
           )}
 
           {/* Description */}
           {script.metadata.description && (
             <p className="text-gray-600 dark:text-gray-300 mb-4 pl-6 text-sm leading-relaxed">{script.metadata.description}</p>
           )}
-          
+
           {/* Author */}
           <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 pl-6">
             <span>{script.metadata.author || 'Unknown Author'}</span>

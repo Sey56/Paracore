@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode, faListUl } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -131,6 +131,13 @@ export const TopBar: React.FC = () => {
           <FontAwesomeIcon icon={faRectangleList} />
         </button>
         <button
+          onClick={() => setActiveMainView('playlists')}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'playlists' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          title="Playlists Mode"
+        >
+          <FontAwesomeIcon icon={faListUl} />
+        </button>
+        <button
           onClick={() => {
             if (activeTeam && activeTeam.team_id !== 0) setActiveMainView('generation');
           }}
@@ -195,7 +202,7 @@ export const TopBar: React.FC = () => {
           <div className="space-y-2 pt-2">
             <div className="flex justify-between">
               <span className="font-medium text-gray-700 dark:text-gray-300">Version:</span>
-              <span className="text-gray-600 dark:text-gray-400">2.1.2</span>
+              <span className="text-gray-600 dark:text-gray-400">2.2.0</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium text-gray-700 dark:text-gray-300">Developer:</span>
