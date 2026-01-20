@@ -2,6 +2,22 @@
 
 using Autodesk.Revit.DB;
 
+/*
+DocumentType: Project
+Categories: Architectural, Structural
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
+Description:
+The "Hello World" of Revit automation. Creates a twisting skyscraper form
+by rotating rectangular wall loops on every level of the project.
+
+UsageExamples:
+- "Create a twisting house form"
+- "Generate walls on all levels with 5 degree rotation"
+- "Build a simple rectangular tower"
+*/
+
 var p = new Params();
 
 var allLevels = new FilteredElementCollector(Doc)

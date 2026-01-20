@@ -4,6 +4,22 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
+/*
+DocumentType: Project
+Categories: Architectural, Structural
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
+Description:
+Generates a grid of small floor tiles within a selected room. 
+Supports random offsets for a more natural or decorative tiling effect.
+
+UsageExamples:
+- "Generate floor tiles in the Kitchen"
+- "Create a tiling pattern with 1m spacing"
+- "Randomize floor tile positions in Room 101"
+*/
+
 // 1. Instantiate Parameters
 var p = new Params();
 

@@ -3,8 +3,17 @@ using System.Collections.Generic;
 
 /*
 DocumentType: Project
+Categories: Learning, Prototyping
 Author: Paracore Team
-Description: Test script for region-based parameter grouping
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
+Description:
+Demonstrates the #region organization strategy in Paracore V3. 
+Groups parameters into collapsible UI sections based on their code regions.
+
+UsageExamples:
+- "Test parameter grouping"
+- "Show region-based UI organization"
 */
 
 var p = new Params();

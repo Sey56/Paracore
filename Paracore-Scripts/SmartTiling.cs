@@ -5,6 +5,22 @@ using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB.Architecture;
 
+/*
+DocumentType: Project
+Categories: Architectural, Structural
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
+Description:
+Advanced tiling tool for creating individual floor elements within room boundaries.
+Includes automated selection of room levels and randomization for organic patterns.
+
+UsageExamples:
+- "smart tiling for the living room"
+- "create tile patterns from CSV"
+- "generate floor tiles with random offset"
+*/
+
 // 1. Setup Parameters
 var p = new Params();
 

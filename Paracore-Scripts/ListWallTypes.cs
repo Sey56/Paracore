@@ -2,19 +2,17 @@ using Autodesk.Revit.DB;
 
 /*
 DocumentType: Project
-Categories: Architectural, Structural, MEP
+Categories: Architectural, Structural
 Author: Paracore Team
-Dependencies: RevitAPI 2025, RScript.Engine, Paracore.Addin
-
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
-Lists all wall types (WallType) available in the current Revit project document.
+Lists all wall types available in the current project document. 
+Prints ID and Name for each type.
 
 UsageExamples:
-- "list available wall types":
-- "List all wall types in the current project":'":
-- "list wall types":
-    
+- "list available wall types"
+- "identify all wall types in the project"
 */
 
 

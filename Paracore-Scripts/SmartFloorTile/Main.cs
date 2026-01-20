@@ -1,6 +1,22 @@
 // File: Main.cs
 using Autodesk.Revit.DB;
 
+/*
+DocumentType: Project
+Categories: Architectural, Structural
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
+Description:
+Modular tiling script that uses helper classes to generate individual floor elements.
+Includes robust room boundary checking and randomized grid placement.
+
+UsageExamples:
+- "Run modular floor tiling"
+- "Create tiles in room via Main script"
+- "Test randomized grid placement"
+*/
+
 // 1. Instantiate Parameters
 var p = new Params();
 

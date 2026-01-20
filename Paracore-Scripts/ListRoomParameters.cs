@@ -7,16 +7,18 @@ using CoreScript.Engine.Globals; // For attributes
 
 /*
 DocumentType: Project
-Categories: Architecture, Data
+Categories: General, Prototyping
 Author: Seyoum Hagos
 Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
-Select a Room from a dynamic dropdown list and view its detailed parameters in a Table.
+Lists all parameters of a selected room from the active Revit document. 
+Displays parameter name, value, and storage type in a structured table.
 
 UsageExamples:
-- "Print room parameters"
-
+- "list all parameters of a room"
+- "show room parameter data in a table"
+- "inspect room storage types"
 */
 
 var p = new Params();

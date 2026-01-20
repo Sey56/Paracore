@@ -7,17 +7,15 @@ using System.Linq;
 DocumentType: ConceptualMass
 Categories: Architectural, Conceptual, Prototyping
 Author: Paracore Team
-Version: 1.0.0
-LastRun: null
-IsDefault: true
-Dependencies: RevitAPI 2025, RScript.Engine, Paracore.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 Creates a spiral lofted mass between two user-defined levels with customizable parameters including height, rotation, tapering, and a bulge/squeeze effect that preserves the base and top profiles. Ideal for conceptual architectural forms.
 
-History:
-- 2025-07-01: Initial release
-- 2025-08-10: Added height parameter
+UsageExamples:
+- "Create a spiral lofted mass"
+- "Add a twisting mass between Level 1 and Level 2"
+- "Generate a concept form with 1000cm side length"
 */
 
 // ===== PARAMETERS =====

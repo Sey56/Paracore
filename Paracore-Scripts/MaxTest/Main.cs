@@ -1,8 +1,19 @@
 using Autodesk.Revit.DB.Architecture;
 
 /*
-Description: Calculates areas for selected rooms.
-Globals available: Doc, UIDoc, UIApp, Transact, Println, Table.
+DocumentType: Project
+Categories: Analysis, Quality Control
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
+Description:
+Diagnostic tool for room area calculations. Efficiently retrieves selected 
+rooms and prints their areas in square meters to the console.
+
+UsageExamples:
+- "calculate areas for selected rooms"
+- "test room area unit conversion"
+- "run room calculation diagnostic"
 */
 
 Params p = new();

@@ -4,15 +4,16 @@ using Autodesk.Revit.DB;
 DocumentType: Project
 Categories: Architectural, Cleanup
 Author: Paracore Team
-Dependencies: RevitAPI 2025, RScript.Engine, Paracore.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
 Deletes all wall elements in the active document. Useful for prototyping resets,
-batch cleanup, or preparing a fresh layout canvas.
+batch cleanup, or preparing a fresh layout canvas. Requires confirmation.
 
 UsageExamples:
-- "Delete all walls in the current project":
-  
+- "Delete all walls in the current project"
+- "Clear all walls for a new layout"
+- "Reset project walls"
 */
 
 // Initialize Parameters

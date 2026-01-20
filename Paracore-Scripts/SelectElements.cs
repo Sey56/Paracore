@@ -10,9 +10,9 @@ Description:
 Selects elements in the Revit UI from multiple categories based on user selection.
 
 UsageExamples:
-- "Select walls and doors":
-- "Highlight windows and furniture":
-- "Select elements from multiple categories":
+- "Select walls and doors"
+- "Highlight windows and furniture"
+- "Select elements from multiple categories"
 */
 
 

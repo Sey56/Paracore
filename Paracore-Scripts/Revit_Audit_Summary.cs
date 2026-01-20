@@ -1,5 +1,21 @@
 using Autodesk.Revit.DB.Architecture;
 
+/*
+DocumentType: Project
+Categories: Analysis, Quality Control
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
+Description:
+Consolidated audit tool that demonstrates different parameter selection strategies.
+Provides a summary table comparing optimized shortcuts with precise Revit queries.
+
+UsageExamples:
+- "Run a parameter engine audit"
+- "Compare different element selection strategies"
+- "Show a summary of project wall types and sheets"
+*/
+
 // Revit_Audit_Summary.cs - Tutorial Day 04: The "Magic to Freedom" Demo
 // Structure: Single-File Consolidated Script (Imports -> Logic -> Helper Classes -> Params)
 

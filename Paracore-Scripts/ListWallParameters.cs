@@ -4,16 +4,15 @@ using Autodesk.Revit.DB;
 DocumentType: Project
 Categories: General, Prototyping
 Author: Seyoum Hagos
-Version: 1.0.0
-LastRun: null
-IsDefault: true
-Dependencies: RevitAPI 2025, RScript.Engine, RServer.Addin
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
-Lists all parameters of the first wall found in the active Revit document, including name, value, and storage type.
+Lists all parameters of the first wall found in the active Revit document, including name, value, and storage type. Useful for inspecting element schema.
 
-History:
-- 2025-08-26: Initial prototype for Output.Show table integration
+UsageExamples:
+- "list all parameters of a wall"
+- "show wall parameter data in a table"
+- "inspect wall storage types"
 */
 
 // Comment just to test git commit

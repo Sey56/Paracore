@@ -2,16 +2,19 @@ using System.Collections.Generic;
 using Autodesk.Revit.DB;
 
 /*
-** PARACORE FEATURES DEMO **
-This script showcases the advanced capabilities of the Paracore Automation Ecosystem (V2).
+DocumentType: Project
+Categories: Learning, Prototyping
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
-Features Demonstrated:
-1. "Pick Object" for Integer/Long IDs
-2. "Pick Point" (XYZ) Input
-3. "Pick Edge" (Reference Object)
-4. "Pick Face" (Reference Object)
-5. Standard Parameters (String, Number, Bool)
-6. Convention-based Output (Table, Charts)
+Description: 
+Showcases advanced Paracore V2 features including native Point, Edge, and Face 
+selection, along with convention-based chart and table outputs.
+
+UsageExamples:
+- "Showcase all Paracore features"
+- "Test point and edge selection"
+- "Display demo data in charts"
 */
 
 Params p = new();

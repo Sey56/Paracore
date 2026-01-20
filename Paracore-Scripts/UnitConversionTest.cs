@@ -3,9 +3,18 @@ using System;
 using System.Collections.Generic;
 
 /*
+DocumentType: Project
+Categories: Utility, Testing
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
 Description:
-Test script for Automatic Unit Conversion.
-Input mm, cm, m, ft, in -> Output should be roughly equivalent in internal units (feet).
+Diagnostic tool for verifying Paracore's automatic unit conversion engine. 
+Checks mm, m, m2, and m3 conversions against Revit's internal feet/sqft/cuft units.
+
+UsageExamples:
+- "Run unit conversion test"
+- "Verify internal unit mappings"
 */
 
 var p = new Params();

@@ -7,12 +7,16 @@ using System.Collections.Generic;
 DocumentType: Project
 Categories: Analysis, Dashboard
 Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
 Description: 
-Demonstrates ALL Data Visualization features.
-1. Bar Chart: Element counts by Category.
-2. Pie Chart: Wall Type distribution.
-3. Line Chart: Element distribution by Level elevation.
-4. Table: Interactive list of walls.
+Demonstrates ALL Data Visualization features. Renders bar, pie, and line charts 
+along with interactive tables for a comprehensive project overview.
+
+UsageExamples:
+- "Generate a project dashboard"
+- "Show element distribution by category"
+- "list walls in an interactive table"
 */
 
 Println("📊 Generating Project Dashboard...");

@@ -3,14 +3,19 @@ using System;
 using System.Linq;
 
 /*
+DocumentType: Project
+Categories: Learning, Prototyping
+Author: Paracore Team
+Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
+
 Description: 
 Demonstrates the Paracore V3 "Dynamic Range" feature. 
-Compare a Static range (using Attributes) with a Dynamic range (using the _Range convention).
+Compares a static [Range] attribute with a dynamic {Param}_Range property.
 
-Usage:
-1. Select this script in the Library.
-2. Note that 'DynamicDistance' has a [Compute] button.
-3. Clicking [Compute] will update the Max range based on the number of Levels in your project.
+UsageExamples:
+- "Run dynamic range demo"
+- "Test computable parameters"
+- "Show dynamic slider bounds"
 */
 
 var p = new Params();
