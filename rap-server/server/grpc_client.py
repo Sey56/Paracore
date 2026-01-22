@@ -335,3 +335,35 @@ def pick_object(selection_type: str, category_filter: str = None):
             "is_success": False,
             "error_message": f"Unexpected error: {str(e)}"
         }
+
+def rename_script(old_path: str, new_name: str):
+    """
+    Calls the gRPC service to rename a script file.
+    """
+    logging.info(f"Attempting to rename script '{old_path}' to '{new_name}' via gRPC.")
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.RenameScriptRequest(
+                old_path=old_path,
+                new_name=new_name
+            )
+            response = stub.RenameScript(request)
+            return {
+                "is_success": response.is_success,
+                "new_path": response.new_path,
+                "error_message": response.error_message
+            }
+    except grpc.RpcError as e:
+        logging.error(f"gRPC RenameScript call failed: {e.code()} - {e.details()}")
+        return {
+            "is_success": False,
+            "new_path": "",
+            "error_message": f"gRPC error: {e.details()}"
+        }
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during gRPC RenameScript call: {e}")
+        return {
+            "is_success": False,
+            "new_path": "",
+            "error_message": f"Unexpected error: {str(e)}"
+        }

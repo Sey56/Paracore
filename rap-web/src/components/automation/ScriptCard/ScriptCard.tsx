@@ -8,6 +8,8 @@ import {
   faExclamationTriangle,
   faCodeBranch,
   faEdit,
+  faICursor,
+  faFolder,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import { useRevitStatus } from "@/hooks/useRevitStatus";
@@ -33,14 +35,18 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     runScript,
     setSelectedScript,
     userEditedScriptParameters,
-    editScript
+    editScript,
+    renameScript
   } = useScriptExecution();
   const { toggleFavoriteScript } = useScripts();
   const { setActiveInspectorTab, showInfoModal } = useUI();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
   const { isAuthenticated } = useAuth();
   const [showMenu, setShowMenu] = React.useState(false);
+  const [isRenaming, setIsRenaming] = React.useState(false);
+  const [renameValue, setRenameValue] = React.useState('');
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const renameInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -163,20 +169,75 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
     );
   }
 
+  const isMultiFile = script.type === 'multi-file';
+
+  const handleStartRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    const baseName = script.name.replace(/\.cs$/, '');
+    setRenameValue(baseName);
+    setIsRenaming(true);
+    setTimeout(() => renameInputRef.current?.focus(), 50);
+  };
+
+  const handleRenameSubmit = async () => {
+    const newName = renameValue.trim();
+    if (!newName || newName === script.name.replace(/\.cs$/, '')) {
+      setIsRenaming(false);
+      return;
+    }
+    try {
+      await renameScript(script, newName);
+    } catch (err) {
+      console.error("Rename submission failed:", err);
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleRenameSubmit();
+    } else if (e.key === 'Escape') {
+      setIsRenaming(false);
+    }
+  };
+
   return (
     <div
-      className={`script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
-        } ${isRunning ? "opacity-70" : ""} ${!ParacoreConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""} ${isCompact ? "min-h-0" : ""}`}
+      className={`${styles.scriptCard} script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
+        } ${isRunning ? "opacity-70" : ""} ${!ParacoreConnected || !isCompatibleWithDocument || !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""} ${isCompact ? "min-h-0" : ""} ${isMultiFile ? styles.multiFile : ""}`}
       onClick={handleSelect}
     >
       <div className={`p-4 flex-grow flex flex-col ${isCompact ? "py-2" : ""}`}>
         <div className="flex justify-between items-start mb-2">
-          <h3 className={`font-medium text-gray-800 dark:text-gray-100 ${isCompact ? "text-base" : "text-lg"}`}>
-            {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
-            {isFromActiveWorkspace && (
-              <FontAwesomeIcon icon={faCodeBranch} className="ml-2 text-blue-500" title="From active workspace" />
-            )}
-          </h3>
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={handleRenameKeyDown}
+              onBlur={handleRenameSubmit}
+              onClick={(e) => e.stopPropagation()}
+              className={`${styles.renameInput} text-gray-800 dark:text-gray-100`}
+              autoFocus
+            />
+          ) : (
+            <h3 className={`font-medium text-gray-800 dark:text-gray-100 ${isCompact ? "text-base" : "text-lg"}`}>
+              {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
+              {isMultiFile && (
+                <span className={styles.multiFileBadge}>
+                  <FontAwesomeIcon icon={faFolder} className="mr-1" style={{ fontSize: '0.6rem' }} />
+                  Multi
+                </span>
+              )}
+              {isFromActiveWorkspace && (
+                <FontAwesomeIcon icon={faCodeBranch} className="ml-2 text-blue-500" title="From active workspace" />
+              )}
+            </h3>
+          )}
           <button
             onClick={handleFavoriteClick}
             className={`${script.isFavorite
@@ -263,6 +324,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({ script, onSelect, isFrom
               >
                 <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
                 Edit in VSCode
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center"
+                onClick={handleStartRename}
+              >
+                <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
+                Rename
               </button>
               {/* Additional menu items can be added here */}
             </div>

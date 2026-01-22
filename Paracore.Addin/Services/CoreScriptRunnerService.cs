@@ -13,6 +13,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Text.Json;
+using Paracore.Addin.App;
 
 namespace Paracore.Addin.Services
 {
@@ -943,6 +944,98 @@ namespace Paracore.Addin.Services
             }
 
             return response;
+        }
+
+        public override Task<RenameScriptResponse> RenameScript(RenameScriptRequest request, ServerCallContext context)
+        {
+            var response = new RenameScriptResponse();
+            try
+            {
+                string oldPath = request.OldPath;
+                string newName = request.NewName?.Trim() ?? "";
+
+                // Validate new name
+                if (string.IsNullOrWhiteSpace(newName))
+                {
+                    response.IsSuccess = false;
+                    response.ErrorMessage = "New name cannot be empty.";
+                    return Task.FromResult(response);
+                }
+
+                // Check for invalid characters
+                char[] invalidChars = System.IO.Path.GetInvalidFileNameChars();
+                if (newName.IndexOfAny(invalidChars) >= 0)
+                {
+                    response.IsSuccess = false;
+                    response.ErrorMessage = $"New name contains invalid characters.";
+                    return Task.FromResult(response);
+                }
+
+                bool isDirectory = System.IO.Directory.Exists(oldPath);
+                bool isFile = System.IO.File.Exists(oldPath);
+
+                if (!isDirectory && !isFile)
+                {
+                    response.IsSuccess = false;
+                    response.ErrorMessage = $"Source script not found at path: {oldPath}";
+                    return Task.FromResult(response);
+                }
+
+                // Compute new path
+                string directory = System.IO.Path.GetDirectoryName(oldPath) ?? "";
+                string newPath = "";
+                
+                if (isDirectory)
+                {
+                    newPath = System.IO.Path.Combine(directory, newName);
+                    if (System.IO.Directory.Exists(newPath))
+                    {
+                        response.IsSuccess = false;
+                        response.ErrorMessage = $"A folder with the name '{newName}' already exists.";
+                        return Task.FromResult(response);
+                    }
+                }
+                else
+                {
+                    newPath = System.IO.Path.Combine(directory, newName + ".cs");
+                    if (System.IO.File.Exists(newPath))
+                    {
+                        response.IsSuccess = false;
+                        response.ErrorMessage = $"A script with the name '{newName}' already exists.";
+                        return Task.FromResult(response);
+                    }
+                }
+
+                // Cleanup: Stop watchers and remove from ActiveWorkspaces
+                // This prevents orphaned watchers and allows the old workspace to be deleted
+                if (ParacoreApp.ActiveWorkspaces.TryGetValue(oldPath, out string? workspacePath))
+                {
+                    _logger.Log($"[RenameScript] Cleaning up workspace for old path: {oldPath}", LogLevel.Info);
+                    ParacoreApp.ActiveWorkspaces.Remove(oldPath);
+                }
+
+                // Perform the rename
+                if (isDirectory)
+                {
+                    System.IO.Directory.Move(oldPath, newPath);
+                }
+                else
+                {
+                    System.IO.File.Move(oldPath, newPath);
+                }
+
+                _logger.Log($"[RenameScript] Renamed '{(isDirectory ? "folder" : "file")}' '{oldPath}' to '{newPath}'", LogLevel.Info);
+                response.IsSuccess = true;
+                response.NewPath = newPath;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[CoreScriptRunnerService] RenameScript failed: {ex.Message}");
+                response.IsSuccess = false;
+                response.ErrorMessage = ex.Message;
+            }
+
+            return Task.FromResult(response);
         }
     }
 

@@ -19,29 +19,31 @@ Strategy 1 handles the most frequently used types through optimized, direct API 
 - `DimensionType`, `TextNoteType`, `FilledRegionType`
 
 ### 2. The Smart Category Resolver (The Dynamic Pillar)
-If a string is not in the explicit map, the engine uses Strategy 2. This is the "Decision Fork" where the engine decides what to return based on the category's content.
 
-**The Step-by-Step Logic:**
-1.  **Search**: It looks for a category match.
-    - **Developer Convenience**: The engine automatically tries pluralizing your input. If you type "Dimension", it automatically searches for "Dimensions". This is because Revit categories are almost always named plurally (Walls, Sheets, Rooms) while developers prefer typing singular names in code.
-2.  **Type Check**: It immediately runs a collector: `OfCategoryId(catId).WhereElementIsElementType()`.
+If a string is not in the explicit map, the engine uses Strategy 2. This resolver has **two internal stages** and a strong **Type Bias**, with a hard-coded exception for spatial elements.
+
+**Stage 1: Localized Name Match**
+1.  **Fuzzy Search**: It scans the Document's categories for a name match. It handles singular/plural fuzzy matching (e.g., "Wall" vs "Walls", "Dimension" vs "Dimensions").
+2.  **The Type Interceptor**: It immediately runs a collector for all **Types** in that category.
 3.  **The Priority Exit**: 
-    *   **IF** it finds any Types (like WallTypes or PipeTypes), it **returns them immediately** and stops. 
-    *   *Exception*: If the word **"Room"**, **"Area"**, or **"Space"** is in the name, it skips this check.
-4.  **Instance Fallback**: **ONLY IF** zero types were found (or it's a Spatial Element), it runs a second collector: `OfCategoryId(catId).WhereElementIsNotElementType()`.
+    - **IF** any Types exist **AND** your search term is NOT exactly **"Room"**, it returns the Types immediately and stops. This is the "Type Bias".
+    - This is why `TargetType = "Wall"` always returns WallTypes—it is "intercepted" here because "Wall" != "Room".
+
+**Stage 2: Built-In Enum Match (Language Independent)**
+If Stage 1 fails (e.g., in a non-English Revit version where the "Walls" category name is different), the engine uses the `BuiltInCategory` enum (the `OST_` names).
+1.  **The Spatial Exception**: If your search term contains **"Room"**, **"Area"**, or **"Space"**, it flips its bias. It pulls **Instances** (`WhereElementIsNotElementType()`) first.
+2.  **Standard Fallback**: For everything else, it looks for **Types** first, then falls back to **Instances** only if zero types are found in the project.
 
 **Example Flow: `TargetType = "Walls"`**
-- Strategy 1 (Hardcoded): Fails ("Walls" vs "WallType").
-- Strategy 2 (Category): Finds the **Walls** category.
-- Decision: It finds standard **WallTypes** in the document.
+- Strategy 1 (Hardcoded): Fails.
+- Strategy 2 (Stage 1): Finds the **Walls** category. Since it finds standard **WallTypes** and the name is not "Room", it hits the Type Interceptor.
 - Result: Returns the **Types** list and exits.
 
-**Example Flow: `TargetType = "Rooms"` (The Spatial Exception)**
+**Example Flow: `TargetType = "Rooms"`**
 - Strategy 1 (Hardcoded): Fails.
-- Strategy 2 (Category): Finds the **Rooms** category.
-- Decision: Although Revit might have hidden "Settings" types, the engine recognizes "Room" as a **Spatial Element**.
-- Fallback: It skips the Type check and moves directly to `WhereElementIsNotElementType()`.
-- Result: Returns the list of **Placed Rooms** (Instances).
+- Strategy 2 (Stage 1): Finds the **Rooms** category. Since the search term is exactly **"Room"**, it **skips** the Type Interceptor.
+- Strategy 2 (Stage 2): Matches against `BuiltInCategory.OST_Rooms`. Because the term contains "Room", it pulls the **Instance** collector.
+- Result: Returns the list of **Placed Rooms**.
 
 ---
 

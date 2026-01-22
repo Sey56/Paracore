@@ -87,8 +87,18 @@ const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter
 
 export const ScriptExecutionProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
-  const { setScripts, addRecentScript, fetchScriptMetadata, setCombinedScriptContent, updateScriptLastRunTime, reloadScript } = useScripts();
-  const { scripts: allScriptsFromScriptProvider, teamWorkspaces, selectedFolder } = useScripts(); // Get all scripts and teamWorkspaces from ScriptProvider
+  const {
+    scripts: allScriptsFromScriptProvider,
+    teamWorkspaces,
+    selectedFolder,
+    setScripts,
+    addRecentScript,
+    fetchScriptMetadata,
+    setCombinedScriptContent,
+    updateScriptLastRunTime,
+    reloadScript,
+    loadScriptsForFolder: loadScriptsFromPath
+  } = useScripts();
   const { isAuthenticated, activeTeam } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, messages, setActiveMainView, setActiveInspectorTab, threadId } = useUI();
 
@@ -206,6 +216,43 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
   const { user, cloudToken } = useAuth();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
+
+  const renameScript = useCallback(async (script: Script, newName: string) => {
+    if (!script || !isAuthenticated || !ParacoreConnected) {
+      return { success: false, message: "Prerequisites not met (Auth/Connection)." };
+    }
+
+    try {
+      const response = await api.post("/api/rename-script", {
+        oldPath: script.absolutePath,
+        newName: newName
+      });
+
+      if (response.data.success) {
+        showNotification(`Script renamed to ${newName} successfully.`, "success");
+
+        // Refresh the current script list to reflect the rename in the gallery
+        if (selectedFolder) {
+          loadScriptsFromPath(selectedFolder, true);
+        }
+
+        // If the renamed script was selected, clear it or update its reference
+        if (selectedScriptRef.current?.id === script.id) {
+          setSelectedScriptState(null);
+          setCombinedScriptContent(null);
+        }
+
+        return { success: true, message: "Script renamed successfully." };
+      } else {
+        throw new Error(response.data.message || "Failed to rename script.");
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || error.message || "Failed to rename script.";
+      console.error("Rename script failed:", error);
+      showNotification(errorMsg, "error");
+      return { success: false, message: errorMsg };
+    }
+  }, [isAuthenticated, ParacoreConnected, selectedFolder, loadScriptsFromPath, showNotification, setCombinedScriptContent]);
 
   const editScript = useCallback(async (script: Script) => {
     if (!script || !user || !ParacoreConnected) return;
@@ -1078,6 +1125,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     pickObject, // Add pickObject
     isComputingOptions,
     editScript,
+    renameScript,
     resetScriptParameters,
   }), [
     selectedScript,
@@ -1101,6 +1149,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     pickObject, // Add pickObject
     isComputingOptions,
     editScript,
+    renameScript,
     resetScriptParameters,
   ]);
 

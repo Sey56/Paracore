@@ -13,6 +13,7 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { NewScriptModal } from '@/components/common/NewScriptModal';
 import { FilterPills } from '@/components/common/FilterPills';
 import { defaultCategories } from '@/data/categories';
+import styles from './ScriptGallery.module.css';
 
 import { useAuth } from '@/hooks/useAuth';
 
@@ -139,6 +140,7 @@ export const ScriptGallery: React.FC = () => {
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
   const [isCompactView, setIsCompactView] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'single-file' | 'multi-file'>('all');
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
 
@@ -203,12 +205,16 @@ export const ScriptGallery: React.FC = () => {
       )
       : filteredBySidebarCategory;
 
-    let searchedScripts = filteredByDefaultCategories;
+    const filteredByType = typeFilter === 'all'
+      ? filteredByDefaultCategories
+      : filteredByDefaultCategories.filter(script => script.type === typeFilter);
+
+    let searchedScripts = filteredByType;
 
     if (searchTerm) {
       const { author, param, desc, doctype, created, modified, general, categories } = filters;
 
-      searchedScripts = filteredBySidebarCategory.filter((script: Script) => {
+      searchedScripts = filteredByType.filter((script: Script) => {
         const lowercasedName = script.name.toLowerCase();
         const lowercasedDisplayName = (script.metadata?.displayName || '').toLowerCase();
         const lowercasedDescription = (script.metadata?.description || '').toLowerCase();
@@ -281,7 +287,7 @@ export const ScriptGallery: React.FC = () => {
     const otherScripts = sortedScripts.filter(script => !script.isFavorite);
 
     return { favoriteScripts, otherScripts };
-  }, [scripts, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories]);
+  }, [scripts, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories, typeFilter]);
 
   const handleScriptSelect = (script: Script) => {
     setSelectedScript(script);
@@ -486,6 +492,49 @@ export const ScriptGallery: React.FC = () => {
           selectedFolder={selectedFolder as string}
         />
       )}
+
+      {/* Script Type Filter Bar */}
+      <div className={styles.filterBar}>
+        <div
+          className={`${styles.filterItem} ${typeFilter === 'all' ? styles.activeFilter : ''}`}
+          onClick={() => setTypeFilter('all')}
+        >
+          <input
+            type="radio"
+            id="type-all"
+            name="script-type"
+            checked={typeFilter === 'all'}
+            onChange={() => setTypeFilter('all')}
+          />
+          <label htmlFor="type-all">All</label>
+        </div>
+        <div
+          className={`${styles.filterItem} ${typeFilter === 'single-file' ? styles.activeFilter : ''}`}
+          onClick={() => setTypeFilter('single-file')}
+        >
+          <input
+            type="radio"
+            id="type-single"
+            name="script-type"
+            checked={typeFilter === 'single-file'}
+            onChange={() => setTypeFilter('single-file')}
+          />
+          <label htmlFor="type-single">Single</label>
+        </div>
+        <div
+          className={`${styles.filterItem} ${typeFilter === 'multi-file' ? styles.activeFilter : ''}`}
+          onClick={() => setTypeFilter('multi-file')}
+        >
+          <input
+            type="radio"
+            id="type-multi"
+            name="script-type"
+            checked={typeFilter === 'multi-file'}
+            onChange={() => setTypeFilter('multi-file')}
+          />
+          <label htmlFor="type-multi">Multi</label>
+        </div>
+      </div>
     </div>
   );
 }

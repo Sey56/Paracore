@@ -20,7 +20,8 @@ from grpc_client import (
     get_script_parameters,
     get_combined_script,
     create_and_open_workspace,
-    compute_parameter_options
+    compute_parameter_options,
+    rename_script
 )
 from utils import get_or_create_script, resolve_script_path
 from auth import get_current_user, CurrentUser
@@ -101,6 +102,10 @@ class ComputeOptionsRequest(BaseModel):
     scriptPath: str
     type: str
     parameterName: str
+
+class RenameRequest(BaseModel):
+    oldPath: str
+    newName: str
 
 @router.post("/api/scripts/new", tags=["Script Management"])
 async def create_new_script(request: NewScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
@@ -733,4 +738,27 @@ async def compute_parameter_options_endpoint(request: ComputeOptionsRequest):
     except grpc.RpcError as e:
         raise HTTPException(status_code=500, detail=f"gRPC Error: {e.details()}")
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/api/rename-script", tags=["Script Management"])
+async def rename_script_endpoint(request: RenameRequest, current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Renames a script file via gRPC and cleans up workspace state.
+    """
+    if not os.path.isabs(request.oldPath):
+        raise HTTPException(status_code=400, detail="An absolute script path is required.")
+    
+    try:
+        response = rename_script(request.oldPath, request.newName)
+        if not response.get("is_success"):
+            raise HTTPException(status_code=400, detail=response.get("error_message"))
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": f"Successfully renamed script to {request.newName}",
+            "newPath": response.get("new_path")
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
