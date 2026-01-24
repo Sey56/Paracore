@@ -667,6 +667,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       const rawParams = (paramsResponse.data.parameters || []) as RawScriptParameterData[];
 
       const updateLogic = (s: Script) => {
+        if (!s?.id || !script?.id) return s;
         const normalizedSid = s.id.replace(/\\/g, '/');
         const normalizedTargetId = script.id.replace(/\\/g, '/');
 

@@ -212,6 +212,10 @@ def get_context():
                 {"id": item.id, "category": item.category} 
                 for item in response.selected_elements
             ],
+            "levels": [
+                {"id": l.id, "name": l.name, "elevation": l.elevation}
+                for l in response.levels
+            ],
             "project_info": {
                 "name": response.project_info.name,
                 "number": response.project_info.number,

@@ -8,42 +8,52 @@ interface LLMSettingsProps {
 }
 
 const llmProviders = [
-  // ... (keep existing providers)
   {
     name: 'Google',
     models: [
-      'gemini-3-pro-preview', 
-      'gemini-3-flash-preview', 
-      'gemini-3-pro', 
-      'gemini-3-flash', 
-      'gemini-2.5-pro', 
-      'gemini-2.5-flash', 
-      'gemini-2.0-pro-exp',
-      'gemini-2.0-flash-exp',
+      'gemini-1.5-flash',
       'gemini-1.5-pro',
-      'gemini-1.5-flash'
+      'gemini-2.0-flash-exp',
+      'gemini-2.0-pro-exp',
+      'gemini-2.5-flash',
+      'gemini-2.5-pro',
+      'gemini-3-flash-preview',
+      'gemini-3-pro-preview',
     ],
     apiKeyName: 'GEMINI_API_KEY',
   },
   {
     name: 'OpenAI',
-    models: ['GPT-4', 'GPT-3.5 Turbo'],
+    models: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
     apiKeyName: 'OPENAI_API_KEY',
   },
   {
-    name: 'Anthropic',
-    models: ['Claude 3 Opus', 'Claude 3 Sonnet', 'Claude 3 Haiku'],
-    apiKeyName: 'ANTHROPIC_API_KEY',
+    name: 'Deepseek',
+    models: ['deepseek-chat', 'deepseek-reasoner'],
+    apiKeyName: 'DEEPSEEK_API_KEY',
   },
   {
     name: 'OpenRouter',
-    models: ['Auto'],
+    models: [
+      'google/gemini-2.0-flash-exp:free',
+      'google/gemini-flash-1.5',
+      'deepseek/deepseek-r1',
+      'deepseek/deepseek-chat',
+      'x-ai/grok-2',
+      'x-ai/grok-2-1212',
+      'x-ai/grok-2-vision-1212',
+      'x-ai/grok-code-fast-1',
+      'meta-llama/llama-3.1-70b-instruct',
+      'anthropic/claude-3-haiku',
+      'openai/gpt-4o-mini',
+      'custom'
+    ],
     apiKeyName: 'OPENROUTER_API_KEY',
   },
   {
-    name: 'Ollama',
-    models: ['Auto'],
-    apiKeyName: 'OLLAMA_API_KEY',
+    name: 'Anthropic',
+    models: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+    apiKeyName: 'ANTHROPIC_API_KEY',
   },
 ];
 
@@ -53,6 +63,7 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isAuthenticated, isReadOnly =
 
   const [selectedProvider, setSelectedProvider] = useState<string>(llmProviders[0].name);
   const [selectedModel, setSelectedModel] = useState<string>(llmProviders[0].models[0]);
+  const [customModelValue, setCustomModelValue] = useState<string>('');
   const [apiKeyName, setApiKeyName] = useState<string>('');
   const [apiKeyValue, setApiKeyValue] = useState<string>('');
 
@@ -70,8 +81,13 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isAuthenticated, isReadOnly =
       initialProvider = savedProviderName;
       const provider = llmProviders.find(p => p.name === savedProviderName);
       if (provider) {
-        if (savedModelName && provider.models.includes(savedModelName)) {
-          initialModel = savedModelName;
+        if (savedModelName) {
+          if (provider.models.includes(savedModelName)) {
+            initialModel = savedModelName;
+          } else {
+            initialModel = 'custom';
+            setCustomModelValue(savedModelName);
+          }
         } else if (provider.models.length > 0) {
           initialModel = provider.models[0];
         }
@@ -91,8 +107,9 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isAuthenticated, isReadOnly =
 
   const handleSave = () => {
     if (isReadOnly) return;
+    const finalModel = selectedModel === 'custom' ? customModelValue : selectedModel;
     localStorage.setItem('llmProvider', selectedProvider);
-    localStorage.setItem('llmModel', selectedModel);
+    localStorage.setItem('llmModel', finalModel);
     localStorage.setItem('llmApiKeyName', apiKeyName);
     localStorage.setItem('llmApiKeyValue', apiKeyValue);
     showNotification('LLM settings saved successfully!', 'success');
@@ -166,6 +183,25 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isAuthenticated, isReadOnly =
               ))}
             </select>
           </div>
+
+          {/* Custom Model Input (shown if 'custom' is selected) */}
+          {selectedModel === 'custom' && (
+            <div className="sm:col-span-2">
+              <label htmlFor="customModelValue" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Custom Model ID
+              </label>
+              <input
+                type="text"
+                id="customModelValue"
+                name="customModelValue"
+                className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-800"
+                value={customModelValue}
+                onChange={(e) => setCustomModelValue(e.target.value)}
+                placeholder="e.g., google/gemini-2.0-flash-exp:free"
+                disabled={isReadOnly}
+              />
+            </div>
+          )}
 
           {/* API Key Name Input */}
           <div>

@@ -21,6 +21,7 @@ export type Message = {
   tool_calls?: ToolCall[];
   tool_call_id?: string;
   id?: string; // Langchain message ID
+  plan?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
 

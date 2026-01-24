@@ -164,12 +164,33 @@ namespace Paracore.Addin.Services
 
             if (serverContext?.StructuredOutputLog != null)
             {
+                _logger.Log($"[CoreScriptRunnerService] Found {serverContext.StructuredOutputLog.Count} structured output items in context.", LogLevel.Debug);
                 foreach (var item in serverContext.StructuredOutputLog)
                 {
                     response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { Type = item.Type, Data = item.Data });
                 }
             }
+
+            // Sync with result.StructuredOutput if context was somehow inconsistent (Fail-safe)
+            if (finalResult.StructuredOutput != null && finalResult.StructuredOutput.Count > response.StructuredOutput.Count)
+            {
+                _logger.Log($"[CoreScriptRunnerService] Syncing {finalResult.StructuredOutput.Count} items from finalResult.StructuredOutput.", LogLevel.Debug);
+                foreach (var jsonStr in finalResult.StructuredOutput)
+                {
+                    try
+                    {
+                        var item = JsonSerializer.Deserialize<CoreScript.StructuredOutputItem>(jsonStr, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (item != null && !response.StructuredOutput.Any(existing => existing.Type == item.Type && existing.Data == item.Data))
+                        {
+                            response.StructuredOutput.Add(item);
+                        }
+                    }
+                    catch { /* Skip invalid JSON */ }
+                }
+            }
+
             response.InternalData = finalResult.InternalData ?? "";
+            _logger.Log($"[CoreScriptRunnerService] Returning ExecuteScriptResponse. Success: {response.IsSuccess}, Output Length: {response.Output.Length}, Structured Items: {response.StructuredOutput.Count}", LogLevel.Debug);
             return response;
         }
 
@@ -359,6 +380,23 @@ namespace Paracore.Addin.Services
                             Username = _uiApp.Application.Username
                         };
                     }
+
+                    // Collect all Levels
+                    var levels = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Level))
+                        .Cast<Level>()
+                        .ToList();
+
+                    foreach (var level in levels)
+                    {
+                        response.Levels.Add(new CoreScript.LevelInfo
+                        {
+                            Id = (int)level.Id.Value,
+                            Name = level.Name,
+                            Elevation = level.Elevation
+                        });
+                    }
+
                     return response;
                 });
                 return result;
@@ -391,49 +429,93 @@ namespace Paracore.Addin.Services
             var response = new GetScriptManifestResponse();
             try
             {
-                string rootPath = request.ScriptPath;
+                string manifestPathRequest = request.ScriptPath;
+                string rootPath = manifestPathRequest;
+                List<string> targetPaths = new List<string>();
+
+                // Handle multi-path format from Agent (ROOT|path1,path2)
+                if (manifestPathRequest.Contains("|"))
+                {
+                    var parts = manifestPathRequest.Split('|');
+                    rootPath = parts[0];
+                    if (parts.Length > 1 && !string.IsNullOrEmpty(parts[1]))
+                    {
+                        targetPaths = parts[1].Split(',').ToList();
+                    }
+                }
+                else
+                {
+                    targetPaths.Add(rootPath);
+                }
+
                 if (!System.IO.Directory.Exists(rootPath))
                 {
-                    response.ErrorMessage = $"Script path does not exist: {rootPath}";
+                    response.ErrorMessage = $"Root script path does not exist: {rootPath}";
                     return Task.FromResult(response);
                 }
 
-                var scriptMetadataList = new List<CoreScript.ScriptMetadata>();
-                // Level 1: Domains (e.g. Architectural, Documentation)
-                var domainDirectories = System.IO.Directory.GetDirectories(rootPath);
-
-                foreach (var domainDir in domainDirectories)
+                var scriptInfoList = new List<InternalScriptInfo>();
+                
+                // 1. Determine the "Source Folders" to scan
+                List<string> sourceFolders = new List<string>();
+                if (targetPaths.Count == 1 && targetPaths[0] == rootPath)
                 {
-                    if (System.IO.Path.GetFileName(domainDir).StartsWith(".")) continue;
-                    if (domainDir.EndsWith("bin") || domainDir.EndsWith("obj")) continue;
-                    // Level 2: Script Sources (e.g. Walls, Sheets)
-                    var sourceDirectories = System.IO.Directory.GetDirectories(domainDir);
+                    // If just the root is provided, every subdirectory of the root is a "Source Folder"
+                    sourceFolders = System.IO.Directory.GetDirectories(rootPath)
+                        .Where(d => {
+                            string name = System.IO.Path.GetFileName(d);
+                            return !name.StartsWith(".") && name != "bin" && name != "obj";
+                        }).ToList();
+                }
+                else
+                {
+                    sourceFolders = targetPaths;
+                }
 
-                    foreach (var sourceDir in sourceDirectories)
+                // 2. Scan each Source Folder for scripts (No deep recursion)
+                foreach (var sourcePath in sourceFolders)
+                {
+                    if (System.IO.Directory.Exists(sourcePath))
                     {
-                        if (System.IO.Path.GetFileName(sourceDir).StartsWith(".")) continue;
-                        // Level 3: Scripts (Single-file or Multi-file) inside the Script Source
-                        ScanScriptSource(sourceDir, rootPath, scriptMetadataList);
+                        ScanSourceFolder(sourcePath, rootPath, scriptInfoList);
                     }
                 }
 
                 // Serialize to JSON matching the legacy format expected by frontend/agent
-                var dictList = scriptMetadataList.Select(m => new
+                var dictList = scriptInfoList.Select(info => new
                 {
-                    name = m.Name,
-                    type = m.ScriptType,
-                    absolutePath = System.IO.Path.Combine(rootPath, m.FilePath), // Reconstruct absolute path
+                    name = info.Metadata.Name,
+                    type = info.Metadata.ScriptType,
+                    absolutePath = System.IO.Path.Combine(rootPath, info.Metadata.FilePath),
                     metadata = new
                     {
-                        description = m.Description,
-                        displayName = m.Name,
-                        author = m.Author,
-                        categories = m.Categories,
-                        usage_examples = m.UsageExamples,
-                        dependencies = m.Dependencies,
-                        document_type = m.DocumentType,
-                        lastRun = m.LastRun
-                    }
+                        description = info.Metadata.Description,
+                        displayName = info.Metadata.Name,
+                        relativePath = info.Metadata.FilePath,
+                        author = info.Metadata.Author,
+                        categories = info.Metadata.Categories,
+                        usage_examples = info.Metadata.UsageExamples,
+                        dependencies = info.Metadata.Dependencies,
+                        document_type = info.Metadata.DocumentType,
+                        lastRun = info.Metadata.LastRun
+                    },
+                    parameters = info.Parameters.Select(p => new {
+                        name = p.Name,
+                        type = p.Type,
+                        description = p.Description,
+                        defaultValue = p.DefaultValueJson,
+                        numericType = p.NumericType,
+                        unit = p.Unit,
+                        min = p.HasMin ? (double?)p.Min : null,
+                        max = p.HasMax ? (double?)p.Max : null,
+                        step = p.HasStep ? (double?)p.Step : null,
+                        options = p.Options,
+                        isRevitElement = p.IsRevitElement,
+                        revitElementType = p.RevitElementType,
+                        revitElementCategory = p.RevitElementCategory,
+                        required = p.Required,
+                        group = p.Group
+                    }).ToList()
                 }).ToList();
                 response.ManifestJson = JsonSerializer.Serialize(dictList);
             }
@@ -445,95 +527,168 @@ namespace Paracore.Addin.Services
             return Task.FromResult(response);
         }
 
-        private void ScanScriptSource(string sourcePath, string rootPath, List<CoreScript.ScriptMetadata> scripts)
+        private class InternalScriptInfo
+        {
+            public CoreScript.ScriptMetadata Metadata { get; set; }
+            public List<CoreScript.ScriptParameter> Parameters { get; set; }
+        }
+
+        /// <summary>
+        /// Scans a "Source Folder" (e.g. 'Walls' or 'Auditing') for scripts.
+        /// Inside a source folder: 
+        /// - Every .cs file is a single-file script.
+        /// - Every subdirectory is a multi-file script folder.
+        /// No further recursion occurs.
+        /// </summary>
+        private void ScanSourceFolder(string sourcePath, string rootPath, List<InternalScriptInfo> scripts)
         {
             try
             {
-                // 1. Single-file Scripts: .cs files directly in the Script Source folder
+                // 1. Every .cs file in the source folder is a single-file script
                 var csFiles = System.IO.Directory.GetFiles(sourcePath, "*.cs", System.IO.SearchOption.TopDirectoryOnly);
                 foreach (var filePath in csFiles)
                 {
                     if (System.IO.Path.GetFileName(filePath).StartsWith(".")) continue;
-
-                    try
-                    {
-                        string content = System.IO.File.ReadAllText(filePath);
-                        var metadata = _metadataExtractor.ExtractMetadata(content);
-
-                        if (string.IsNullOrEmpty(metadata.Name))
-                            metadata.Name = System.IO.Path.GetFileNameWithoutExtension(filePath);
-                        string relativePath = System.IO.Path.GetRelativePath(rootPath, filePath);
-
-                        scripts.Add(new CoreScript.ScriptMetadata
-                        {
-                            Name = metadata.Name,
-                            FilePath = relativePath,
-                            ScriptType = "single-file",
-                            Description = metadata.Description,
-                            Author = metadata.Author,
-                            Website = metadata.Website,
-                            Categories = { metadata.Categories },
-                            LastRun = metadata.LastRun,
-                            Dependencies = { metadata.Dependencies },
-                            DocumentType = metadata.DocumentType,
-                            UsageExamples = { metadata.UsageExamples }
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Log($"[CoreScriptRunnerService] Failed to parse single script {filePath}: {ex.Message}", LogLevel.Warning);
-                    }
+                    AddSingleFileScript(filePath, rootPath, scripts);
                 }
 
-                // 2. Multi-file Scripts: Folders directly in the Script Source folder
+                // 2. Every subdirectory in the source folder is a multi-file script
                 var subDirs = System.IO.Directory.GetDirectories(sourcePath);
                 foreach (var dir in subDirs)
                 {
-                    if (System.IO.Path.GetFileName(dir).StartsWith(".")) continue;
-                    if (dir.EndsWith("bin") || dir.EndsWith("obj")) continue;
-                    // Any folder here is treated as a Multi-file Script
-                    // We try to combine its contents to extract metadata
-                    if (IsMultiFileScript(dir, out var metadataSourceContent))
+                    string dirName = System.IO.Path.GetFileName(dir);
+                    if (dirName.StartsWith(".") || dirName == "bin" || dirName == "obj") continue;
+
+                    if (IsMultiFileScript(dir, out string metadataContent, out List<CoreScript.ScriptParameter> parameters))
                     {
-                        try
-                        {
-                            var metadata = _metadataExtractor.ExtractMetadata(metadataSourceContent);
-
-                            if (string.IsNullOrEmpty(metadata.Name))
-                                metadata.Name = System.IO.Path.GetFileName(dir);
-                            string relativePath = System.IO.Path.GetRelativePath(rootPath, dir);
-
-                            scripts.Add(new CoreScript.ScriptMetadata
-                            {
-                                Name = metadata.Name,
-                                FilePath = relativePath,
-                                ScriptType = "multi-file",
-                                Description = metadata.Description,
-                                Author = metadata.Author,
-                                Website = metadata.Website,
-                                Categories = { metadata.Categories },
-                                LastRun = metadata.LastRun,
-                                Dependencies = { metadata.Dependencies },
-                                DocumentType = metadata.DocumentType,
-                                UsageExamples = { metadata.UsageExamples }
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Log($"[CoreScriptRunnerService] Failed to parse multi-file script {dir}: {ex.Message}", LogLevel.Warning);
-                        }
+                        AddMultiFileScript(dir, metadataContent, parameters, rootPath, scripts);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.Log($"[CoreScriptRunnerService] Error scanning script source {sourcePath}: {ex.Message}", LogLevel.Warning);
+                _logger.Log($"[CoreScriptRunnerService] Error scanning source folder {sourcePath}: {ex.Message}", LogLevel.Warning);
             }
         }
 
-        private bool IsMultiFileScript(string dirPath, out string metadataSourceContent)
+        private void AddSingleFileScript(string filePath, string rootPath, List<InternalScriptInfo> scripts)
+        {
+            try
+            {
+                string content = System.IO.File.ReadAllText(filePath);
+                var metadata = _metadataExtractor.ExtractMetadata(content);
+                var paramList = MapToProtoParameters(_parameterExtractor.ExtractParameters(content));
+
+                if (string.IsNullOrEmpty(metadata.Name))
+                    metadata.Name = System.IO.Path.GetFileNameWithoutExtension(filePath);
+                string relativePath = System.IO.Path.GetRelativePath(rootPath, filePath);
+
+                scripts.Add(new InternalScriptInfo
+                {
+                    Metadata = new CoreScript.ScriptMetadata
+                    {
+                        Name = metadata.Name,
+                        FilePath = relativePath,
+                        ScriptType = "single-file",
+                        Description = metadata.Description,
+                        Author = metadata.Author,
+                        Website = metadata.Website,
+                        Categories = { metadata.Categories },
+                        LastRun = metadata.LastRun,
+                        Dependencies = { metadata.Dependencies },
+                        DocumentType = metadata.DocumentType,
+                        UsageExamples = { metadata.UsageExamples }
+                    },
+                    Parameters = paramList
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"[CoreScriptRunnerService] Failed to parse single script {filePath}: {ex.Message}", LogLevel.Warning);
+            }
+        }
+
+        private void AddMultiFileScript(string dirPath, string metadataSourceContent, List<CoreScript.ScriptParameter> parameters, string rootPath, List<InternalScriptInfo> scripts)
+        {
+            try
+            {
+                var metadata = _metadataExtractor.ExtractMetadata(metadataSourceContent);
+
+                if (string.IsNullOrEmpty(metadata.Name))
+                    metadata.Name = System.IO.Path.GetFileName(dirPath);
+                string relativePath = System.IO.Path.GetRelativePath(rootPath, dirPath);
+
+                scripts.Add(new InternalScriptInfo
+                {
+                    Metadata = new CoreScript.ScriptMetadata
+                    {
+                        Name = metadata.Name,
+                        FilePath = relativePath,
+                        ScriptType = "multi-file",
+                        Description = metadata.Description,
+                        Author = metadata.Author,
+                        Website = metadata.Website,
+                        Categories = { metadata.Categories },
+                        LastRun = metadata.LastRun,
+                        Dependencies = { metadata.Dependencies },
+                        DocumentType = metadata.DocumentType,
+                        UsageExamples = { metadata.UsageExamples }
+                    },
+                    Parameters = parameters
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"[CoreScriptRunnerService] Failed to parse multi-file script {dirPath}: {ex.Message}", LogLevel.Warning);
+            }
+        }
+
+        private List<CoreScript.ScriptParameter> MapToProtoParameters(List<CoreScript.Engine.Models.ScriptParameter> extractedParams)
+        {
+            var protoParams = new List<CoreScript.ScriptParameter>();
+            foreach (var p in extractedParams)
+            {
+                var protoParam = new CoreScript.ScriptParameter
+                {
+                    Name = p.Name,
+                    Type = p.Type,
+                    DefaultValueJson = p.DefaultValueJson,
+                    Description = p.Description,
+                    MultiSelect = p.MultiSelect,
+                    VisibleWhen = p.VisibleWhen ?? "",
+                    NumericType = p.NumericType ?? "",
+                    IsRevitElement = p.IsRevitElement,
+                    RevitElementType = p.RevitElementType ?? "",
+                    RevitElementCategory = p.RevitElementCategory ?? "",
+                    RequiresCompute = p.RequiresCompute,
+                    Group = p.Group ?? "",
+                    InputType = p.InputType ?? "",
+                    Required = p.Required,
+                    Suffix = p.Suffix ?? "",
+                    Pattern = p.Pattern ?? "",
+                    EnabledWhenParam = p.EnabledWhenParam ?? "",
+                    EnabledWhenValue = p.EnabledWhenValue ?? "",
+                    Unit = p.Unit ?? "",
+                    SelectionType = p.SelectionType ?? ""
+                };
+                
+                protoParam.Options.AddRange(p.Options);
+                
+                if (p.Min.HasValue) protoParam.Min = p.Min.Value;
+                if (p.Max.HasValue) protoParam.Max = p.Max.Value;
+                if (p.Step.HasValue) protoParam.Step = p.Step.Value;
+                
+                protoParams.Add(protoParam);
+            }
+            return protoParams;
+        }
+
+
+        private bool IsMultiFileScript(string dirPath, out string metadataSourceContent, out List<CoreScript.ScriptParameter> parameters)
         {
             metadataSourceContent = "";
+            parameters = new List<CoreScript.ScriptParameter>();
+
             var files = System.IO.Directory.GetFiles(dirPath, "*.cs", System.IO.SearchOption.TopDirectoryOnly);
 
             if (files.Length == 0)
@@ -552,6 +707,7 @@ namespace Paracore.Addin.Services
             if (topLevelScript != null)
             {
                 metadataSourceContent = topLevelScript.Content;
+                parameters = MapToProtoParameters(_parameterExtractor.ExtractParameters(topLevelScript.Content));
             }
             else
             {
@@ -559,6 +715,7 @@ namespace Paracore.Addin.Services
                 // we might just use the first file or combine them.
                 // For metadata purposes, let's try the combined version as a fallback.
                 metadataSourceContent = CoreScript.Engine.Core.SemanticCombinator.Combine(scriptFiles);
+                parameters = MapToProtoParameters(_parameterExtractor.ExtractParameters(metadataSourceContent));
             }
             return true;
         }

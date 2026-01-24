@@ -194,11 +194,20 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       previous.path !== current?.path
     );
 
+    // CRITICAL: Only clear result if the ACTUAL script ID has changed.
+    // This allows the agent to update source-paths or metadata (e.g. during summary) 
+    // without wiping the Table or Console tabs.
+    const isNewScript = selectedScriptRef.current && current?.id && selectedScriptRef.current.id !== current.id;
+
     if (hasSourceChanged) {
-      console.log("[ScriptExecutionProvider] Script source changed. Clearing inspector selection.");
-      setSelectedScriptState(null);
-      setCombinedScriptContent(null);
-      setExecutionResult(null);
+      console.log(`[ScriptExecutionProvider] Source metadata changed. ScriptID: ${selectedScriptRef.current?.id} -> ${current?.id}`);
+
+      // We only wipe selection and results if it's truly a different script identity
+      if (isNewScript || !current) {
+        setSelectedScriptState(null);
+        setCombinedScriptContent(null);
+        setExecutionResult(null);
+      }
     }
 
     lastSourceRef.current = activeScriptSource ? { ...activeScriptSource } : null;
@@ -402,58 +411,52 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
 
     if (source === 'agent') {
-      // If the agent is setting the script, we already have the full script object
-      // and its metadata. We just need to fetch parameters and content.
+      const agentSuggestedParams = script.parameters || [];
       setSelectedScriptState(script);
-      setAgentSelectedScriptPath(script.absolutePath); // Set agent selected path
-      setCombinedScriptContent("// Loading script content...");
+      setAgentSelectedScriptPath(script.absolutePath);
+      setCombinedScriptContent("// Loading script context...");
       setPresets([]);
       setExecutionResult(null);
 
       try {
-        const promises = [];
-        promises.push(
-          api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
-            .then(response => response.data)
-            .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }))
-        );
-        promises.push(fetchScriptContent(script));
+        const paramsResult = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
+          .then(response => response.data)
+          .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }));
 
-        const [paramsResult, contentResult] = await Promise.all(promises);
+        let mergedParameters: ScriptParameter[] = [];
 
-        let finalParameters: ScriptParameter[] = [];
-        if (paramsResult.error) {
-          showNotification(paramsResult.error, "error");
-        } else if (paramsResult.parameters) {
-          finalParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
-            let value: string | number | boolean = p.defaultValueJson;
-            try {
-              value = JSON.parse(p.defaultValueJson);
-            } catch { /* Ignore if not JSON */ }
-            if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
-            else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
+        if (paramsResult.parameters) {
+          mergedParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
+            let val: any = p.defaultValueJson;
+            try { val = JSON.parse(p.defaultValueJson); } catch { }
+            if (p.type === 'number' && typeof val === 'string') val = parseFloat(val) || 0;
+            else if (p.type === 'boolean' && typeof val === 'string') val = val.toLowerCase() === 'true';
 
-            const newParamObject: ScriptParameter = {
+            const richParam: ScriptParameter = {
               ...p,
               type: p.type as ScriptParameter['type'],
-              value: value,
-              defaultValue: value
+              value: val,
+              defaultValue: val
             };
-            return newParamObject;
+
+            const suggested = agentSuggestedParams.find(sp => sp.name === p.name);
+            if (suggested && suggested.value !== undefined && suggested.value !== null && String(suggested.value) !== "") {
+              richParam.value = suggested.value;
+            }
+            return richParam;
           });
         }
-        const updatedScript = { ...script, parameters: finalParameters };
-        updateUserEditedParameters(script.id, finalParameters);
-        setCombinedScriptContent(contentResult || "// Failed to load script content.");
-        setScripts((prev: Script[]) => prev.map((s: Script) => s.id === updatedScript.id ? updatedScript : s));
+
+        const updatedScript = { ...script, parameters: mergedParameters };
+        updateUserEditedParameters(script.id, mergedParameters);
+        fetchScriptContent(script).then(content => {
+          setCombinedScriptContent(content || "// Failed to load script content.");
+        });
+
         lastExplicitParameterFetchTimeRef.current = Date.now();
         setSelectedScriptState(updatedScript);
-
       } catch (err) {
-        console.error("[RAP] Critical error in setSelectedScript (agent source):", err);
-        showNotification("An unexpected error occurred while loading the script.", "error");
-        setSelectedScriptState(script);
-        setCombinedScriptContent("// Error loading script. Please try again.");
+        console.error("[RAP] Error in setSelectedScript (agent):", err);
       }
       return;
     }
@@ -635,6 +638,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   useEffect(() => {
     if (selectedScript) {
       const updatedScriptFromProvider = allScriptsFromScriptProvider.find(s => {
+        if (!s?.id || !selectedScript?.id) return false;
         const normalizedSid = s.id.replace(/\\/g, '/');
         const normalizedTargetId = selectedScript.id.replace(/\\/g, '/');
         return normalizedSid === normalizedTargetId;

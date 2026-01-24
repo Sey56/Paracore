@@ -15,7 +15,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
-using System.Runtime.Loader;
 using System.Text.Json;
 using Autodesk.Revit.DB;
 
@@ -42,7 +41,6 @@ namespace CoreScript.Engine.Core
                 var parameters = new Dictionary<string, object>();
                 if (!string.IsNullOrWhiteSpace(parametersJson))
                 {
-
                     try
                     {
                         string unescapedParametersJson = parametersJson;
@@ -52,7 +50,12 @@ namespace CoreScript.Engine.Core
                         }
 
                         var paramJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                        var paramList = JsonSerializer.Deserialize<List<ScriptParameter>>(unescapedParametersJson, paramJsonOptions);
+                        
+                        List<ScriptParameter> paramList = null;
+                        
+                        // Deserialization solely supports V2 Format (List of Objects)
+                        paramList = JsonSerializer.Deserialize<List<ScriptParameter>>(unescapedParametersJson, paramJsonOptions);
+
                         if (paramList != null)
                         {
                             foreach (var param in paramList)

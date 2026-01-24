@@ -33,18 +33,25 @@ async def generate_manifest(request: GenerateManifestRequest):
         full_manifest = json.loads(manifest_json_str)
         
         # 2. Create lightweight version
-        # We keep essential fields for search and execution: Name, Description, AbsolutePath, Categories, Type
-        # We strip potentially large fields like UsageExamples (unless needed for search?), Author, Website, History
         lightweight_manifest = []
         for script in full_manifest:
+            # Generate standardized ID (slug) matching Registry logic
+            metadata = script.get("metadata", {})
+            name = script.get("name", "unnamed_script")
+            # manifest absolutePath is used as reference for slug if relative is missing
+            rel_path = metadata.get("relativePath") or script.get("absolutePath") or name
+            tool_id = rel_path.lower().replace(".cs", "").replace("\\", "_").replace("/", "_").replace(" ", "_").replace(".", "_")
+
             lightweight_script = {
+                "id": tool_id, # CRITICAL: Unified ID for selection
                 "name": script.get("name"),
-                "type": script.get("type"), # CRITICAL: Keep type for execution logic
+                "type": script.get("type"), 
                 "absolutePath": script.get("absolutePath"),
+                "parameters": script.get("parameters", []), 
                 "metadata": {
                     "description": script.get("metadata", {}).get("description", "No description"),
                     "categories": script.get("metadata", {}).get("categories", []),
-                    # We can add more fields here if the agent needs them for filtering
+                    "usage_examples": script.get("metadata", {}).get("usage_examples", []),
                 }
             }
             lightweight_manifest.append(lightweight_script)

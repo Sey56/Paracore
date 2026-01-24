@@ -282,13 +282,20 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     if (item.type === 'table') {
       let tableData = parsedData;
 
+      // Log for debugging (only in development)
+      console.log(`[StructuredOutputViewer] Rendering table of type "${item.type}". Data length: ${Array.isArray(tableData) ? tableData.length : 'object'}`);
+
       // Handle single object: wrap in array
       if (!Array.isArray(parsedData) && typeof parsedData === 'object' && parsedData !== null) {
         tableData = [parsedData];
       }
 
       if (!Array.isArray(tableData) || tableData.length === 0) {
-        return <p className="text-gray-600 dark:text-gray-400 text-xs italic">No data for table.</p>;
+        return (
+          <div className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-xs italic">No data returned for this table.</p>
+          </div>
+        );
       }
 
       const headers = Object.keys(tableData[0]);

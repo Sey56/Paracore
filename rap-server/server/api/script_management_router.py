@@ -30,65 +30,44 @@ from workspace_manager import get_active_workspace, set_active_workspace
 router = APIRouter()
 
 # --- Template for new single-file scripts ---
-CSHARP_TEMPLATE = """using Autodesk.Revit.DB;
+CSHARP_TEMPLATE = """// 1. Setup
+var p = new Params();
 
-/*
-** SINGLE-FILE SCRIPT **
-This is a standalone script. All code, helpers, and the Params class must be in THIS file.
+// 2. Execution logic
+Transact("Hello World", () => {
+    Println($"Hello {p.TargetName} from {Doc.Title}!");
+});
 
-DocumentType: Project
-Categories: Multi-Category
-Author: Paracore User
-Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
-
-Description:
-Single-file template script.
-Globals available: Doc, UIDoc, UIApp, Transact, Println, Show.
-
-UsageExamples:
-- "Run script"
-*/
-
-// [ScriptParameter]
-string targetName = "Paracore";
-
-// Use Println with string interpolation ($"...") for clear output
-Println($"Hello {targetName} from {Doc.Title}!");
-
-// Example: Using Show to display data in a table
-// Show("table", new { Name = targetName, Time = DateTime.Now });
+// 3. Parameters (MUST BE LAST)
+public class Params {
+    #region Settings
+    
+    /// <summary>
+    /// The name to greet.
+    /// </summary>
+    public string TargetName { get; set; } = "Paracore User";
+    
+    #endregion
+}
 """
 
 # --- Template for Main.cs in multi-file scripts ---
-MULTI_FILE_MAIN_TEMPLATE = """using Autodesk.Revit.DB;
-using System;
-using System.Linq;
-using System.Collections.Generic;
+MULTI_FILE_MAIN_TEMPLATE = """// 1. Setup
+var p = new Params();
 
-/*
-** MULTI-FILE SCRIPT (Entry Point) **
-This is a modular script. You can put all code here OR modularize by creating
-other .cs files in this folder (e.g., Utils.cs, Params.cs) and referencing them here.
+// 2. Execution
+Transact("Modular Loop", () => {
+    Println($"Hello modular world from {Doc.Title}!");
+});
 
-DocumentType: Project
-Categories: Multi-Category
-Author: Paracore User
-Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
-
-Description:
-Modular script template. Add your logic here or organize helpers in separate files.
-Globals available: Doc, UIDoc, UIApp, Transact, Println, Show.
-
-UsageExamples:
-- "Run script"
-*/
-
-// Example: Instantiate parameters from Params.cs (if created)
-// var p = new Params();
-
-Println($"Hello from Main.cs in {Doc.Title}!");
-
-// Your modular logic goes here...
+// 3. Parameters (In Main.cs or Params.cs)
+public class Params {
+    #region Configuration
+    
+    public string ExampleInput { get; set; } = "Value";
+    
+    #endregion
+}
 """
 
 # --- Pydantic Models for New Script Creation ---

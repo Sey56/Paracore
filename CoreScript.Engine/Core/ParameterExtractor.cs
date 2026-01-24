@@ -29,10 +29,7 @@ namespace CoreScript.Engine.Core
                 var root = tree.GetRoot() as CompilationUnitSyntax;
                 if (root == null) return parameters;
                 
-                // 1. Scan Top-Level Statements (Default/Backward Compatibility)
-                ExtractFromTopLevelStatements(root, parameters);
-                
-                // 2. Scan Classes (The "Pro" Pattern)
+                // Scan Classes (The "Pro" Pattern)
                 ExtractFromClasses(root, parameters);
 
                 _logger.Log($"[ParameterExtractor] Extracted {parameters.Count} parameters.", LogLevel.Debug);
@@ -42,22 +39,6 @@ namespace CoreScript.Engine.Core
                 _logger.LogError($"[ParameterExtractor] Error extracting parameters: {ex.Message}");
             }
             return parameters;
-        }
-
-        private void ExtractFromTopLevelStatements(CompilationUnitSyntax root, List<ScriptParameter> parameters)
-        {
-            var potentialParameters = root.Members
-                .OfType<GlobalStatementSyntax>()
-                .Select(gs => gs.Statement)
-                .OfType<LocalDeclarationStatementSyntax>();
-
-            foreach (var declaration in potentialParameters)
-            {
-                var attributes = declaration.AttributeLists.SelectMany(al => al.Attributes);
-                var triviaList = declaration.GetLeadingTrivia();
-                
-                ProcessVariableDeclaration(declaration.Declaration, attributes, triviaList, parameters, root);
-            }
         }
 
         private void ExtractFromClasses(CompilationUnitSyntax root, List<ScriptParameter> parameters)
@@ -89,18 +70,6 @@ namespace CoreScript.Engine.Core
             }
         }
 
-        private void ProcessVariableDeclaration(VariableDeclarationSyntax declaration, IEnumerable<AttributeSyntax> attributes, SyntaxTriviaList triviaList, List<ScriptParameter> parameters, CompilationUnitSyntax root)
-        {
-            if (!HasAnyParameterMarker(attributes, triviaList)) return;
-
-            var declarator = declaration.Variables.FirstOrDefault();
-            if (declarator == null || declarator.Initializer == null) return;
-
-            var param = ParseParameter(declarator.Identifier.Text, declaration.Type.ToString(), declarator.Initializer.Value, 
-                                     attributes, triviaList, root);
-            
-            if (param != null) parameters.Add(param);
-        }
 
         private void ProcessPropertyDeclarationV2(PropertyDeclarationSyntax prop, ClassDeclarationSyntax paramsClass, List<ScriptParameter> parameters, CompilationUnitSyntax root, Dictionary<int, string> regionMap)
         {
@@ -295,20 +264,11 @@ namespace CoreScript.Engine.Core
 
         private bool HasAnyParameterMarker(IEnumerable<AttributeSyntax> attributes, SyntaxTriviaList triviaList)
         {
-             // V2: Marker optional for class properties, but still used for top-level or descriptions
-             var hasAttr = attributes.Any(a => 
-                a.Name.ToString().Contains("ScriptParameter") || 
+             // V2: Marker is optional for class properties, but still used for top-level script descriptions
+             return attributes.Any(a => 
                 a.Name.ToString().Contains("RevitElements") ||
                 a.Name.ToString().Contains("Required") ||
                 a.Name.ToString().Contains("Description"));
-             
-             if (hasAttr) return true;
-
-             var hasComment = triviaList.Any(t => 
-                t.IsKind(SyntaxKind.SingleLineCommentTrivia) && 
-                Regex.IsMatch(t.ToString(), @"^\s*//\s*\[ScriptParameter"));
-
-             return hasComment;
         }
 
         private ScriptParameter ParseParameter(string name, string csharpType, ExpressionSyntax initializer, 

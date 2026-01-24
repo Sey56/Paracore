@@ -11,7 +11,7 @@ from database_config import get_db
 from grpc_client import execute_script, validate_working_set_grpc, select_elements, pick_object
 from utils import get_or_create_script, resolve_script_path
 from auth import get_current_user, CurrentUser
-from agent.graph import get_app # Import agent app
+# Agent graph import removed for Operation Simple
 
 
 router = APIRouter()
@@ -96,41 +96,9 @@ async def run_script(
         needs_injection = any(placeholder_line in sf["Content"] for sf in script_files_payload)
 
         if thread_id and needs_injection:
-            try:
-                app_instance = await get_app()
-                config = {"configurable": {"thread_id": thread_id}}
-                latest_state = await app_instance.aget_state(config)
-                working_set = latest_state.values.get('working_set') if latest_state else None
-                
-                if working_set:
-                    all_ids = []
-                    if isinstance(working_set, dict):
-                        for ids in working_set.values():
-                            all_ids.extend(ids)
-                    elif isinstance(working_set, list):
-                        all_ids = working_set
-                    
-                    # Deduplicate
-                    all_ids = list(set(all_ids))
-
-                    # VALIDATION STEP: Ensure we only inject IDs that actually exist in the document
-                    if all_ids:
-                        valid_ids = validate_working_set_grpc(all_ids)
-                        # print(f"DEBUG: Validated working set for injection. {len(all_ids)} -> {len(valid_ids)} valid IDs.")
-                        all_ids = valid_ids
-
-                    # Construct the C# code for List<ElementId> initialization
-                    # Example: List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> { new ElementId(123L), new ElementId(456L) };
-                    # Ensure IDs are integers to avoid "365799.0L" syntax errors
-                    element_id_initializers = ", ".join([f"new Autodesk.Revit.DB.ElementId({int(eid)}L)" for eid in all_ids])
-                    csharp_list_code = f"List<Autodesk.Revit.DB.ElementId> targetWallIds = new List<Autodesk.Revit.DB.ElementId> {{ {element_id_initializers} }};"
-
-                    for script_file in script_files_payload:
-                        if placeholder_line in script_file["Content"]:
-                             script_file["Content"] = script_file["Content"].replace(placeholder_line, csharp_list_code)
-            except Exception as e:
-                # Log the error but don't block execution
-                print(f"Warning: Failed to inject working set. Reason: {e}")
+            # Working set injection disabled for Operation Simple
+            # This will be replaced with a UI-driven property injection in the future
+            pass
         # --- END INJECTION LOGIC ---
 
         # Inject __script_name__ for Dashboard reporting

@@ -1,6 +1,7 @@
 import sys
 import os
 import logging
+import asyncio
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -11,6 +12,10 @@ load_dotenv()
 # for relative imports when the module is not run as part of a package.
 if __name__ == "__main__" and __package__ is None:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Original imports start here
 from fastapi import FastAPI
@@ -31,7 +36,6 @@ from config import settings
 # Configure Uvicorn logging to suppress access logs
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
-from agent.graph import close_app
 from grpc_client import init_channel, close_channel
 
 @asynccontextmanager
@@ -45,12 +49,23 @@ async def lifespan(app: FastAPI):
     
     # Initialize singleton gRPC channel
     init_channel()
+
+# Start Phase 3: Git Sync Background Task
+    from sync.git_sync_service import start_git_sync_loop
+    app.state.git_sync_task = asyncio.create_task(start_git_sync_loop())
     
     yield
     
     # Shutdown events
+    if hasattr(app.state, "git_sync_task"):
+        logger.info("Stopping Git Sync Background Service...")
+        app.state.git_sync_task.cancel()
+        try:
+            await app.state.git_sync_task
+        except asyncio.CancelledError:
+            pass
+            
     close_channel()
-    await close_app()
 
 app = FastAPI(lifespan=lifespan)
 

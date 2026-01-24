@@ -13,14 +13,7 @@ import type { Message, ToolCall } from '@/context/providers/UIContext';
 import { Modal } from '@/components/common/Modal';
 import WorkingSetPanel from './WorkingSetPanel';
 import { useRapServerUrl } from '@/hooks/useRapServerUrl';
-
-// This component will be responsible for rendering the new HITL modal
-// It will be created in a subsequent step. For now, we define the props.
-interface HITLModalProps {
-  toolCall: ToolCall;
-  onApprove: (parameters: Record<string, any>) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
-  onReject: () => void;
-}
+import OrchestrationPlanCard from './OrchestrationPlanCard';
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
@@ -35,12 +28,12 @@ export const AgentView: React.FC = () => {
     setActiveInspectorTab,
   } = useUI();
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
-  const [workingSet, setWorkingSet] = useState<Record<string, number[]>>({}); // State for the working set
+  const [workingSet, setWorkingSet] = useState<Record<string, number[]>>({});
 
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
   const { selectedScript, setSelectedScript, runScript, executionResult, clearExecutionResult, userEditedScriptParameters } = useScriptExecution();
-  const { toolLibraryPath, scripts: allScriptsFromScriptProvider } = useScripts();
+  const { scripts, toolLibraryPath } = useScripts();
   const rapServerUrl = useRapServerUrl();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -48,15 +41,13 @@ export const AgentView: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: string | null; raw_output?: Record<string, any> | null }) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: string | null; raw_output?: Record<string, any> | null }) => {
     setIsLoading(true);
 
-    // Optimistically add the user's message to the UI for responsiveness, but only if it's not internal
     if (!options?.isInternal && newMessages.some(m => m.type === 'human')) {
       setMessages(prev => [...prev, ...newMessages]);
       setInput('');
@@ -69,12 +60,11 @@ export const AgentView: React.FC = () => {
       const llmApiKeyValue = localStorage.getItem('llmApiKeyValue');
 
       if (!llmProvider || !llmModel || !llmApiKeyValue) {
-        showNotification("LLM configuration (Provider, Model, or API Key) is missing. Please check your settings under 'AI'.", "error");
+        showNotification("LLM configuration is missing. Check your settings.", "error");
         setIsLoading(false);
         return;
       }
 
-      // Extract the last human message content
       const lastHumanMessage = newMessages.findLast(m => m.type === 'human');
       const messageContent = lastHumanMessage ? lastHumanMessage.content : '';
 
@@ -83,13 +73,13 @@ export const AgentView: React.FC = () => {
         currentParamsArray.reduce((acc, param) => {
           acc[param.name] = param.value;
           return acc;
-        }, {} as Record<string, any>) : undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+        }, {} as Record<string, any>) : undefined;
 
       const effectiveUrl = rapServerUrl ? `${rapServerUrl}/agent/chat` : "/agent/chat";
       const response = await api.post(effectiveUrl, {
         thread_id: threadId,
-        message: messageContent, // Send a single string message
-        workspace_path: activeScriptSource?.type !== 'published' ? activeScriptSource?.path || "" : "",
+        message: messageContent,
+        history: messages,
         agent_scripts_path: toolLibraryPath,
         token: cloudToken,
         llm_provider: llmProvider,
@@ -97,432 +87,313 @@ export const AgentView: React.FC = () => {
         llm_api_key_name: llmApiKeyName,
         llm_api_key_value: llmApiKeyValue,
         user_edited_parameters: currentParamsDict,
-        execution_summary: options?.summary,
         raw_output_for_summary: options?.raw_output,
+        tool_call_id: newMessages[0].type === 'tool' ? (newMessages[0] as any).tool_call_id : undefined,
+        tool_output: newMessages[0].type === 'tool' ? newMessages[0].content : undefined,
       });
 
-      // IMPORTANT: Add a check here to ensure response.data is not null/undefined
       if (!response.data) {
-        console.error("AgentView: Received empty or null response data from backend.");
         showNotification("Received an empty response from the agent.", "error");
-        setMessages(prev => [...prev, { type: 'ai', content: "Sorry, I received an empty response from the agent.", id: `error-${Date.now()}` }]);
-        return; // Stop further processing
+        return;
       }
 
-      // After any response, update the threadId and working set if the backend provides them
-      if (response.data) {
-        if (response.data.thread_id) {
-          setThreadId(response.data.thread_id);
-        }
-        // Handle working set update (expecting a dictionary now)
-        if (response.data.working_set && typeof response.data.working_set === 'object') {
-          setWorkingSet(response.data.working_set);
-        } else if (Array.isArray(response.data.working_set)) {
-          // Fallback for legacy array format - put in "Unknown" category
-          setWorkingSet({ "Unknown": response.data.working_set });
-        }
-      }
+      if (response.data.thread_id) setThreadId(response.data.thread_id);
+      if (response.data.working_set) setWorkingSet(response.data.working_set);
 
-      // The API now returns only the new, user-facing messages. We append them.
       if (response.data.status === 'complete' && response.data.message) {
-        console.log("AgentView: Received complete message from backend:", response.data.message);
-        const agentMessage: Message = { type: 'ai', content: response.data.message, id: `ai-${Date.now()}` };
+        const agentMessage: Message = {
+          type: 'ai',
+          content: response.data.message,
+          id: `ai-${Date.now()}`,
+          plan: response.data.current_plan
+        };
         setMessages(prev => [...prev, agentMessage]);
 
-        // If this message is the result of a script run, clear the execution result now
-        if (agentRunTriggeredRef.current) {
-          clearExecutionResult();
-          agentRunTriggeredRef.current = false; // Reset for the next run
-        }
-
-        // --- Handle active_script if present ---
         if (response.data.active_script) {
           const scriptInfo = response.data.active_script;
-          console.log("AgentView: Detected active_script in response:", scriptInfo);
-          const selected = {
-            id: scriptInfo.absolutePath, // Use absolutePath as the unique ID
-            name: scriptInfo.name,
-            type: scriptInfo.type,
-            absolutePath: scriptInfo.absolutePath,
-            sourcePath: scriptInfo.absolutePath, // Use absolutePath for sourcePath as well
-            metadata: scriptInfo.metadata,
-            parameters: [],
-          };
-          setSelectedScript(selected, 'agent');
-          setActiveInspectorTab('parameters'); // Switch to parameters tab
-          showNotification(`Agent selected script: ${selected.name}.`, 'info');
+          if (selectedScript?.id !== scriptInfo.id) {
+            setSelectedScript(scriptInfo, 'agent_executed_full_output');
+          }
         }
-        // --- Handle tool_call for set_active_script_source_tool if present ---
-        else if (response.data.tool_call && response.data.tool_call.name === 'set_active_script_source_tool') {
-          const scriptInfo = response.data.tool_call.arguments;
-          console.log("AgentView: Detected set_active_script_source_tool call:", scriptInfo);
-          // Simulate a script object for setSelectedScript
-          const selected = {
-            id: scriptInfo.absolutePath, // Use absolutePath as ID
-            name: scriptInfo.absolutePath.split('/').pop(), // Extract name from path
-            type: scriptInfo.type,
-            absolutePath: scriptInfo.absolutePath,
-            sourcePath: scriptInfo.absolutePath,
-            metadata: {
-              displayName: scriptInfo.absolutePath.split('/').pop() || 'Unknown',
-              lastRun: null,
-              dependencies: [],
-              description: 'Metadata will be fetched...',
-              categories: [],
-            }, // Metadata will be fetched by ScriptExecutionProvider
-            parameters: [], // Add empty parameters to satisfy the type
-          };
-          setSelectedScript(selected, 'agent');
-          setActiveInspectorTab('metadata'); // Switch to metadata tab
-          showNotification(`Agent selected script: ${selected.name}.`, 'info');
-        }
-      } else if (response.data.agent_summary) { // NEW BLOCK FOR AGENT SUMMARY
-        console.log("AgentView: Received agent_summary from backend:", response.data.agent_summary);
-        const agentSummaryMessage: Message = { type: 'ai', content: response.data.agent_summary, id: `ai-summary-${Date.now()}` };
-        setMessages(prev => [...prev, agentSummaryMessage]);
       }
       else if (response.data.status === 'interrupted' && response.data.tool_call) {
-        console.log("AgentView: Received interrupted status with tool_call:", response.data.tool_call);
+        // --- SOVEREIGN CONDUCTOR LOGIC ---
+        const t_name = response.data.tool_call.name;
+        const isSelectionTool = t_name === 'set_active_script';
+        const isRunTool = t_name.startsWith('run_') && t_name !== 'run_script_by_name';
+
+        if (isSelectionTool || isRunTool) {
+          let scriptToSelect = null;
+
+          if (response.data.active_script) {
+            scriptToSelect = response.data.active_script;
+          } else {
+            const s_id = isSelectionTool ? response.data.tool_call.arguments.script_id : t_name.replace('run_', '');
+            scriptToSelect = scripts.find((s: any) => {
+              const manualSlug = s.id.toLowerCase().replace(/\\/g, '/').replace('.cs', '').split('/').join('_').replace(/ /g, '_').replace(/\./g, '_');
+              const targetSlug = s_id.toLowerCase().replace(/\\/g, '_').replace('.cs', '');
+              return manualSlug.endsWith(targetSlug);
+            });
+          }
+
+          if (scriptToSelect) {
+            const args = response.data.tool_call.arguments || {};
+            const prefilled = isSelectionTool ? (args.prefilled_parameters || {}) : args;
+            const selected = {
+              ...scriptToSelect,
+              sourcePath: scriptToSelect.absolutePath,
+              parameters: (scriptToSelect.parameters || []).map((p: any) => ({
+                ...p,
+                value: prefilled[p.name] !== undefined ? prefilled[p.name] : p.value
+              }))
+            };
+            if (selectedScript?.id !== scriptToSelect.id) {
+              setSelectedScript(selected, 'agent');
+            }
+            setActiveInspectorTab('parameters');
+          }
+        }
+
         const toolCallMessage: Message = {
           type: 'ai',
           content: `Agent requested tool: ${response.data.tool_call.name}`,
           id: `ai-tool-${Date.now()}`,
           tool_calls: [{
-            id: `tool-call-${Date.now()}`, // Generate a unique ID for the frontend
+            id: response.data.tool_call.id || `tool-call-${Date.now()}`,
             name: response.data.tool_call.name,
             args: response.data.tool_call.arguments
           }]
         };
         setMessages(prev => [...prev, toolCallMessage]);
-      } else if (response.data.status === 'processing_internal') {
-        console.log("AgentView: Backend is processing internally. No new user-facing message.");
-        // Do nothing, the agent will send a new message when it's ready for user interaction
-      } else {
-        console.warn("AgentView: Received unexpected response data:", response.data);
-        showNotification("Received unexpected response from agent.", "warning");
       }
-
-    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       console.error("Agent invoke error:", error);
-      // Add detailed logging for the error object
-      if (error.response) {
-        console.error("Agent invoke error - Server Response Data:", error.response.data);
-        console.error("Agent invoke error - Server Response Status:", error.response.status);
-        console.error("Agent invoke error - Server Response Headers:", error.response.headers);
-      } else if (error.request) {
-        console.error("Agent invoke error - No Response Received:", error.request);
-      } else {
-        console.error("Agent invoke error - Request Setup Error:", error.message);
-      }
-
       showNotification("Failed to communicate with the agent.", "error");
-      setMessages(prev => [...prev, { type: 'ai', content: "Sorry, I couldn't connect to the agent.", id: `error-${Date.now()}` }]);
     } finally {
       setIsLoading(false);
     }
-  }, [threadId, activeScriptSource, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, setSelectedScript, clearExecutionResult, setActiveInspectorTab]);
+  }, [threadId, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, setSelectedScript, clearExecutionResult, setActiveInspectorTab, rapServerUrl, scripts, messages]);
 
-  // Listen for execution results from agent-led runs
   useEffect(() => {
     if (executionResult && agentRunTriggeredRef.current) {
-      // First, determine which tab to activate based on the output
       const hasTableOutput = executionResult.structuredOutput?.some(item => item.type === 'table');
-      if (hasTableOutput) {
-        setActiveInspectorTab('table');
-      } else {
-        setActiveInspectorTab('console');
-      }
+      setActiveInspectorTab(hasTableOutput ? 'table' : 'console');
 
-      // Now, package the raw output for the agent to process for summary
-      const internalMessage = "System: Script execution was successful.";
       const rawOutputPayload = {
         structuredOutput: executionResult.structuredOutput,
-        output: executionResult.output, // Use 'output' to match the python agent's expectation
+        output: executionResult.output,
         internal_data: executionResult.internalData,
       };
 
       invokeAgent(
-        [{ type: 'human', content: internalMessage, id: `system-${Date.now()}` }],
-        {
-          isInternal: true,
-          summary: null, // Explicitly set summary to null
-          raw_output: rawOutputPayload
-        }
+        [{ type: 'human', content: "System: Script execution was successful.", id: `system-${Date.now()}` }],
+        { isInternal: true, summary: null, raw_output: rawOutputPayload }
       );
-
-      // Reset the trigger, but not the result yet
       agentRunTriggeredRef.current = false;
     }
   }, [executionResult, invokeAgent, setActiveInspectorTab]);
 
   const sendMessage = (messageText: string) => {
     if (!messageText.trim()) return;
-    const newMessage: Message = { type: 'human', content: messageText, id: `user-${Date.now()}` };
-    invokeAgent([newMessage]);
+    invokeAgent([{ type: 'human', content: messageText, id: `user-${Date.now()}` }]);
   };
 
   const handleToolResponse = (toolCall: ToolCall, userDecision: 'approve' | 'reject') => {
-    // Immediately add a tool message to the state to disable the buttons
+    const isScriptRun = toolCall.name.startsWith('run_');
+    const parameters = isScriptRun ?
+      (toolCall.name === 'run_script_by_name' ? toolCall.args.parameters : toolCall.args) :
+      {};
+
     const toolMessageContent = {
       user_decision: userDecision,
-      parameters: userDecision === 'approve' ? toolCall.args.parameters : {},
+      parameters: userDecision === 'approve' ? parameters : {},
     };
-    const newMessage: Message = {
+
+    setMessages(prev => [...prev, {
       type: 'tool',
       content: JSON.stringify(toolMessageContent),
       tool_call_id: toolCall.id,
-    };
-    setMessages(prev => [...prev, newMessage]);
+    }]);
 
-    // If this is the final approval step, call the runScript function directly
-    if (toolCall.name === 'run_script_by_name' && userDecision === 'approve') {
+    if (isScriptRun && userDecision === 'approve') {
       if (selectedScript) {
-        agentRunTriggeredRef.current = true; // Set the flag before running
-        // The `runScript` function from `useScriptExecution` expects the full Script object
-        // and an array of ScriptParameter objects.
-        const finalParams = selectedScript.parameters.map(p => ({
-          ...p,
-          value: toolCall.args.parameters[p.name] ?? p.value,
-        }));
+        agentRunTriggeredRef.current = true;
+        const currentParamsArray = userEditedScriptParameters[selectedScript.id] || [];
+
+        console.log(`[AgentView] Executing: ${selectedScript.name} (${selectedScript.id})`);
+        console.log(`[AgentView] UI Store:`, currentParamsArray);
+        console.log(`[AgentView] Agent Args:`, parameters);
+
+        const finalParams = selectedScript.parameters.map(p => {
+          let val = p.defaultValue;
+          const agentVal = parameters[p.name];
+          const uiMatch = currentParamsArray.find(up => up.name === p.name);
+
+          if (agentVal !== undefined) val = agentVal;
+          if (uiMatch && uiMatch.value !== undefined) val = uiMatch.value;
+
+          return { ...p, value: val };
+        });
+
+        console.log(`[AgentView] Merged Params:`, finalParams);
         runScript(selectedScript, finalParams);
-        // setActiveInspectorTab('table'); // This was the hardcoded line to remove
       } else {
-        showNotification("Error: No script is selected for execution.", "error");
+        showNotification("Error: No script is active for execution.", "error");
       }
     } else if (userDecision === 'reject') {
-      // If the user rejects, we can just send a message to the agent
       invokeAgent([{ type: 'human', content: `I have rejected the action.`, id: `user-${Date.now()}` }]);
     }
-    // For other tool calls in the future, we might re-invoke the agent
-    // else {
-    //   invokeAgent([newMessage]);
-    // }
   };
 
-
   const handleClearChat = useCallback(() => {
-    setMessages([]); // Set to an empty array
+    setMessages([]);
     setThreadId(null);
-    setWorkingSet({}); // Clear the working set state
+    setWorkingSet({});
     setInput('');
     setIsClearChatModalOpen(false);
     localStorage.removeItem(LOCAL_STORAGE_KEY_MESSAGES);
     localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
-    showNotification('Chat history cleared.', 'info');
-  }, [setMessages, setThreadId, showNotification]);
+  }, [setMessages, setThreadId]);
 
-  // --- Derived State for Rendering ---
-
-  const { activePendingToolCall, resolvedToolCallIds } = useMemo<{ activePendingToolCall: ToolCall | null; resolvedToolCallIds: Set<string> }>(() => {
-    const resolvedIds = new Set<string>();
-    messages.forEach(msg => {
-      if (msg.type === 'tool' && msg.tool_call_id) {
-        resolvedIds.add(msg.tool_call_id);
-      }
-    });
-
+  const { activePendingToolCall } = useMemo(() => {
+    const resolvedIds = new Set(messages.filter(m => m.type === 'tool').map(m => m.tool_call_id));
     let activeCall: ToolCall | null = null;
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
-      if (msg.type === 'ai' && msg.tool_calls && msg.tool_calls.length > 0) {
-        const unresolvedCall = msg.tool_calls.find((tc: ToolCall) => !resolvedIds.has(tc.id));
-        if (unresolvedCall) {
-          activeCall = unresolvedCall;
-          break;
-        }
+      if (msg.type === 'ai' && msg.tool_calls) {
+        const unresolved = msg.tool_calls.find((tc: ToolCall) => !resolvedIds.has(tc.id));
+        if (unresolved) { activeCall = unresolved; break; }
       }
     }
-    return { activePendingToolCall: activeCall, resolvedToolCallIds: resolvedIds };
+    return { activePendingToolCall: activeCall };
   }, [messages]);
-
-  // --- Rendering ---
 
   const renderMessageContent = (msg: Message) => {
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       const toolCall = msg.tool_calls[0];
-      const isPending = activePendingToolCall?.id === toolCall.id;
-
-      // Filter parameters to show only visible ones
-      let displayArgs = toolCall.args;
-      if (toolCall.name === 'run_script_by_name' && toolCall.args.parameters && selectedScript) {
-        // Convert parameters object to array format for filtering
-        const paramsArray = selectedScript.parameters.map(p => ({
-          ...p,
-          value: toolCall.args.parameters[p.name] ?? p.value
-        }));
-
-        // Filter to only visible parameters
-        const visibleParams = filterVisibleParameters(paramsArray);
-
-        // Convert back to object format for display
-        const filteredParameters: Record<string, any> = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
-        visibleParams.forEach(p => {
-          filteredParameters[p.name] = toolCall.args.parameters[p.name];
-        });
-
-        displayArgs = {
-          ...toolCall.args,
-          parameters: filteredParameters
-        };
-      }
+      const { script_metadata, ...displayArgs } = toolCall.args;
 
       return (
-        <div>
-          <p className="font-semibold">Tool Call Request:</p>
-          <p><strong>Name:</strong> {toolCall.name}</p>
-          <p><strong>Arguments:</strong> {JSON.stringify(displayArgs, null, 2)}</p>
-          {isPending && (
-            <div className="flex space-x-2 mt-2">
-              <button
-                onClick={() => handleToolResponse(toolCall, 'approve')}
-                className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
-                disabled={isLoading}
-              >
-                <FontAwesomeIcon icon={faCheckCircle} className="mr-1" /> Approve
-              </button>
-              <button
-                onClick={() => handleToolResponse(toolCall, 'reject')}
-                className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm"
-                disabled={isLoading}
-              >
-                <FontAwesomeIcon icon={faTimesCircle} className="mr-1" /> Reject
-              </button>
+        <div className="space-y-2">
+          <p className="font-semibold text-xs uppercase tracking-wider opacity-60">Action: {toolCall.name}</p>
+          {Object.keys(displayArgs).length > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 text-[10px] font-mono opacity-80 overflow-x-auto">
+              {JSON.stringify(displayArgs, null, 2)}
             </div>
           )}
         </div>
       );
     }
 
-    // Handle complex content structures from LangChain
-    let contentToRender = '';
-    if (typeof msg.content === 'string') {
-      contentToRender = msg.content;
-    } else if (Array.isArray(msg.content)) {
-      // It's an array of content blocks
-      contentToRender = msg.content
-        .map((item: any) => (typeof item === 'object' && item.text ? item.text : '')) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .join('\n');
-    } else if (typeof msg.content === 'object' && msg.content !== null) {
-      // It's a single content block object
-      contentToRender = msg.content.text || '';
+    if (msg.plan) {
+      return (
+        <div className="space-y-2">
+          <p className="whitespace-pre-wrap">{msg.content}</p>
+          <OrchestrationPlanCard
+            plan={msg.plan}
+            isPending={messages[messages.length - 1].id === msg.id}
+            onExecute={() => sendMessage("confirm")}
+            onSwitchTab={(tab) => setActiveInspectorTab(tab)}
+            onCompute={() => { }}
+            onUpdateParameter={() => { }}
+          />
+        </div>
+      );
     }
 
-    return <p className="whitespace-pre-wrap leading-tight">{contentToRender}</p>;
+    const content = typeof msg.content === 'string' ? msg.content : Array.isArray(msg.content) ? msg.content.map((i: any) => i.text || '').join('\n') : (msg.content as any)?.text || '';
+    return <p className="whitespace-pre-wrap leading-relaxed">{content}</p>;
   };
 
   return (
-    <div className="flex flex-col h-full relative">
-      {/* Static Header */}
-      <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-        <p className="text-sm text-gray-500 dark:text-gray-400">Hello, How can I help you today?</p>
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      {/* Header */}
+      <div className="flex justify-between items-center px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div>
+          <h2 className="text-lg font-bold text-gray-800 dark:text-white">Paracore Assistant</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Powered by Revit Automation Engine</p>
+        </div>
         <div className="flex space-x-2">
-
-          <button
-            onClick={async () => {
-              if (toolLibraryPath) {
-                try {
-                  showNotification("Regenerating script manifest...", "info");
-                  const effectiveUrl = rapServerUrl ? `${rapServerUrl}/api/manifest/generate` : "http://localhost:8000/api/manifest/generate";
-                  const response = await fetch(effectiveUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ agent_scripts_path: toolLibraryPath })
-                  });
-                  const data = await response.json();
-                  showNotification(`Manifest regenerated successfully! Found ${data.count} scripts.`, "success");
-                } catch (error) {
-                  showNotification("Failed to regenerate manifest.", "error");
-                }
-              } else {
-                showNotification("Agent scripts path not set.", "error");
-              }
-            }}
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-            title="Regenerate Script Manifest"
-            disabled={isLoading}
-          >
-            <FontAwesomeIcon icon={faSyncAlt} />
-          </button>
-          <button
-            onClick={() => setIsClearChatModalOpen(true)}
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-            title="Clear Chat History"
-            disabled={isLoading}
-          >
-            <FontAwesomeIcon icon={faTrash} />
+          <button onClick={() => setIsClearChatModalOpen(true)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all">
+            <FontAwesomeIcon icon={faTrash} size="sm" />
           </button>
         </div>
       </div>
 
-      {/* Scrollable Chat History */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Messages */}
-        {messages.map((msg: Message, index: number) => {
-          const sender = msg.type === 'human' ? 'user' : 'agent';
-          // We don't render tool messages directly
-          if (msg.type === 'tool') return null;
-
-          return (
-            <div key={index} className={`flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`flex items-start max-w-xs lg:max-w-md ${sender === 'user' ? 'flex-row-reverse space-x-2 space-x-reverse' : 'space-x-2'}`}>
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-700'}`}>
-                  <FontAwesomeIcon icon={sender === 'user' ? faUser : faRobot} />
-                </div>
-                <div className={`p-3 rounded-lg shadow-md ${sender === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-700'}`}>
-                  {renderMessageContent(msg)}
-                </div>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6">
+        {messages.filter(m => m.type !== 'tool').map((msg) => (
+          <div key={msg.id} className={`flex ${msg.type === 'human' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex max-w-[85%] space-x-3 ${msg.type === 'human' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.type === 'human' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                <FontAwesomeIcon icon={msg.type === 'human' ? faUser : faRobot} size="xs" />
+              </div>
+              <div className={`p-4 rounded-2xl shadow-sm text-sm ${msg.type === 'human' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none border border-gray-100 dark:border-gray-700'}`}>
+                {renderMessageContent(msg)}
               </div>
             </div>
-          );
-        })}
-
+          </div>
+        ))}
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="flex items-start space-x-2">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-300 dark:bg-gray-700">
-                <FontAwesomeIcon icon={faRobot} />
-              </div>
-              <div className="p-3 rounded-lg shadow-md bg-white dark:bg-gray-700">
-                <FontAwesomeIcon icon={faSpinner} spin /> Thinking...
-              </div>
+          <div className="flex justify-start items-center space-x-3 animate-pulse">
+            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+              <FontAwesomeIcon icon={faRobot} size="xs" className="text-gray-400" />
             </div>
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-700 flex space-x-1">
+              <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        )}
+
+        {/* Global PROCEED Button */}
+        {activePendingToolCall && (
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => {
+                if (!activePendingToolCall) return;
+                handleToolResponse(activePendingToolCall, 'approve');
+              }}
+              className="group flex items-center space-x-3 bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-full shadow-2xl hover:shadow-blue-500/40 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-500 ring-4 ring-white dark:ring-gray-800"
+            >
+              <FontAwesomeIcon icon={faCheckCircle} className="group-hover:scale-125 transition-transform text-lg" />
+              <span className="font-bold text-base tracking-tight italic">Proceed with {selectedScript?.name || 'Action'}</span>
+            </button>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Form */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex space-x-2">
+      {/* Input */}
+      <div className="p-6 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex space-x-3 bg-gray-50 dark:bg-gray-700/50 p-1 rounded-xl border border-gray-200 dark:border-gray-600 focus-within:ring-2 focus-within:ring-blue-500/50 transition-all">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1 p-2 border rounded-md bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Tell me what you want to automate in Revit..."
+            className="flex-1 bg-transparent px-4 py-2.5 text-sm focus:outline-none dark:text-white"
             disabled={isLoading}
           />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-            disabled={isLoading}
-          >
-            <FontAwesomeIcon icon={faPaperPlane} />
+          <button type="submit" disabled={isLoading || !input.trim()} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 shadow-sm">
+            <FontAwesomeIcon icon={faPaperPlane} size="sm" />
           </button>
         </form>
       </div>
 
-      {/* Clear Chat Modal */}
-      <Modal isOpen={isClearChatModalOpen} onClose={() => setIsClearChatModalOpen(false)} title="Clear Chat History">
-        <div className="p-4 text-center">
-          <p className="mb-4">Are you sure you want to clear the entire chat history?</p>
-          <div className="flex justify-center space-x-4">
-            <button onClick={() => setIsClearChatModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Cancel</button>
-            <button onClick={handleClearChat} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Clear Chat</button>
+      {/* Modals */}
+      <Modal isOpen={isClearChatModalOpen} onClose={() => setIsClearChatModalOpen(false)} title="Clear History">
+        <div className="p-6 text-center space-y-4">
+          <p className="text-gray-600 dark:text-gray-400">This will permanently delete your conversation history. Continue?</p>
+          <div className="flex justify-center space-x-3">
+            <button onClick={() => setIsClearChatModalOpen(false)} className="px-6 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg font-medium text-sm">Cancel</button>
+            <button onClick={handleClearChat} className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700">Clear All</button>
           </div>
         </div>
       </Modal>
+
       <WorkingSetPanel workingSet={workingSet} />
-    </div >
+    </div>
   );
 };
