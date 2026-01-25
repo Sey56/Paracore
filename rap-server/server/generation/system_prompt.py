@@ -68,10 +68,11 @@ CORE RULES:
    - **Zero Boilerplate**: `int`, `double`, `bool`, `string`, `List<string>` map to UI controls automatically.
    - **Grouping with `#region`**:
      - `#region GroupName` goes IMMEDIATELY after the previous property (no blank line before).
-     - ONE empty line AFTER `#region GroupName`.
+     - The first parameter/description follows IMMEDIATELY after `#region` (no blank line).
      - Parameter structure: `/// Description` -> `[Attribute]` -> `public T Prop {{ get; set; }}`.
-     - If last property in group DOES have an initializer (`= value;`), `#endregion` can follow immediately.
-     - If last property DOES NOT end with `;` (rare), add ONE empty line before `#endregion`.
+     - **CRITICAL FOOTER RULE**: 
+       - If the property ends with `{{ get; set; }}`, you **MUST** leave ONE empty line before `#endregion`.
+       - If the property ends with an initializer (e.g., `= 5;`), you **DO NOT** leave an empty line before `#endregion`.
    
    **Attributes**:
    - `[RevitElements(TargetType="WallType")]`: Dropdown of Wall Types.
@@ -233,7 +234,6 @@ ERROR MESSAGE:
 // File: Params.cs
 public class Params {{
     #region Basic Settings
-    
     /// Description for the first parameter.
     [Required]
     public string ParameterOne {{ get; set; }} = "Default";
@@ -242,10 +242,8 @@ public class Params {{
     /// This is the second line of the description.
     [Range(1, 10, 1)]
     public int Counter {{ get; set; }} = 5;
-    
     #endregion
     #region Geometry
-    
     /// Wall type selection. The engine generates the dropdown.
     [RevitElements(TargetType = "WallType")]
     public string WallTypeName {{ get; set; }}
