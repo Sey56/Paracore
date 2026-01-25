@@ -14,13 +14,15 @@ Follow these instructions to generate high-quality, C#-based Revit automation sc
 ## Parameter Engine (V2)
 All script parameters must be defined inside a \`public class Params\` (bottom of \`Main.cs\` or in \`Params.cs\`).
 
-### 1. Grouping (Zero Boilerplate)
+### 1. Grouping with \`#region\` (Zero Boilerplate)
 - Use C# \`#region GroupName\` ... \`#endregion\` to automatically group UI inputs.
-- **CRITICAL**: Always leave an **EMPTY LINE** before and after \`#region\` and \`#endregion\` directives.
-- Use C# \`#region GroupName\` ... \`#endregion\` to automatically group UI inputs.
-- **CRITICAL**: \`#region\` does NOT start with a space. \`#endregion\` **MUST** be followed by a space if you add a label.
-- **CRITICAL**: Always leave an **EMPTY LINE** before and after \`#region\` and \`#endregion\` directives.
-- **NOTE**: Keep attributes attached directly to the property (no empty line).
+- **Formatting Rules**:
+  - \`#region GroupName\` goes IMMEDIATELY after the previous property (no blank line before).
+  - ONE empty line AFTER \`#region GroupName\`.
+  - Parameter structure: \`/// Description\` -> \`[Attribute]\` -> \`public T Prop { get; set; }\`.
+  - If last property in group HAS an initializer (\`= value;\`), \`#endregion\` can follow immediately.
+  - If last property DOES NOT end with \`;\` (rare), add ONE empty line before \`#endregion\`.
+  - Description comments (\`///\`) go DIRECTLY above attributes (no blank line between them).
 
 ### 2. Supported Attributes & Types (Zero Boilerplate)
 - **Automatic Types**: \`int\`, \`double\`, \`bool\`, \`string\`, and \`List<string>\` map to UI controls automatically.
@@ -61,7 +63,7 @@ All script parameters must be defined inside a \`public class Params\` (bottom o
 - **Simple Scripts**: If the task is simple, keep everything in \`Main.cs\`. \`Params\` class MUST be at the bottom or in \`Params.cs\`.
 
 ## Revit 2025+ API Rules (CRITICAL)
-1.  **ElementId**: Use \`ElementId.Value\` (long). **NEVER use \`.IntegerValue\`**.
+1.  **ElementId**: **FORBIDDEN**: \`ElementId.IntegerValue\`. Use \`ElementId.Value\` (long) instead.
 2.  **Geometry**:
     - \`Curve\` does NOT have \`GetBoundingBoxXYZ()\`. Use \`curve.GetEndPoint(0)\` and \`curve.GetEndPoint(1)\`.
     - Ensure curves are > 0.0026 ft before creation.
@@ -102,10 +104,10 @@ All script parameters must be defined inside a \`public class Params\` (bottom o
 
 ## Casting & Filtering (CRITICAL)
 - **ALWAYS** use \`.Cast<Type>()\` after \`FilteredElementCollector\`.
-- **FORBIDDEN**: \`OfClass(typeof(Room))\` causes an API error.
-- **CORRECT**: Use \`OfCategory(BuiltInCategory.OST_Rooms)\` for Rooms.
-- **CORRECT**: Use \`OfCategory(BuiltInCategory.OST_Materials)\` for Materials.
-- **General Rule**: If \`typeof(T)\` fails, use \`OfCategory(BuiltInCategory.OST_T)\`.
+- **Use \`OfClass\`** for: \`Wall\`, \`WallType\`, \`Floor\`, \`Ceiling\`, \`RoofBase\`, \`FamilySymbol\`, \`Level\`, \`View\`, \`ViewSheet\`.
+- **Use \`OfCategory\`** for: \`Room\` (OST_Rooms), \`Material\` (OST_Materials), \`Door Instance\` (OST_Doors), \`Window Instance\` (OST_Windows), \`Area\` (OST_Areas).
+- **Example OfClass**: \`new FilteredElementCollector(Doc).OfClass(typeof(Wall)).Cast<Wall>();\`
+- **Example OfCategory**: \`new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).Cast<Room>();\`
 
 ## Implicit Globals (Do Not Import)
 These are provided by the engine at runtime and available in **ALL FILES** (Main.cs, Params.cs, Utils.cs, etc.):
@@ -147,27 +149,32 @@ Transact("Add Note", () => {
 
 // 4. Classes (MUST BE LAST)
 public class Params {
-    #region Geometry
-
-    // Automatic Unit Conversion
-    [Unit("mm")]
-    public double Offset { get; set; } = 500;
-
-    // Native XYZ Support
-    [Select(SelectionType.Point)]
-    public XYZ StartPoint { get; set; }
-
+    #region Basic Settings
+    
+    /// Description for the first parameter.
+    [Required]
+    public string ParameterOne { get; set; } = "Default";
+    
+    /// Multi-line descriptions use three slashes per line.
+    /// This is the second line of the description.
+    [Range(1, 10, 1)]
+    public int Counter { get; set; } = 5;
+    
     #endregion
-
-    #region Selection
-
-    // Native Reference Support
-    [Select(SelectionType.Edge)]
-    public Reference SelectedEdge { get; set; }
-
+    #region Geometry
+    
+    /// Wall type selection. The engine generates the dropdown.
     [RevitElements(TargetType = "WallType")]
     public string WallTypeName { get; set; }
-
+    
+    /// Unit is auto-converted to Feet. Script sees internal units.
+    [Unit("mm")]
+    public double Offset { get; set; } = 500;
+    
+    /// Native XYZ Support
+    [Select(SelectionType.Point)]
+    public XYZ StartPoint { get; set; }
+    
     #endregion
 }
 \`\`\`

@@ -52,7 +52,7 @@ CORE RULES:
    - **FORBIDDEN**: `Transact.Run`, `Transaction.Run`, or any other variations.
 {architecture_rules}
 4. **Revit 2025+ API Specifics**:
-   - **Use `ElementId.Value`** (long). **FORBIDDEN**: `ElementId.IntegerValue`.
+   - **FORBIDDEN**: `ElementId.IntegerValue`. Use `ElementId.Value` (long) instead.
    - Ensure all API calls are compatible with .NET 8 (Revit 2025 and 2026).
 5. **Error Handling & Early Exits**:
    - **CRITICAL**: Do NOT use the `return` keyword for early exits on errors.
@@ -60,14 +60,18 @@ CORE RULES:
    - This allows the Paracore engine to correctly flag the run as "Failed" in the console, instead of a misleading "Success" status.
 6. **Casting & Filtering (CRITICAL)**:
    - **ALWAYS** use `.Cast<Type>()` after `FilteredElementCollector`.
-   - **FORBIDDEN**: `OfClass(typeof(Room))` causes an API error.
-   - **CORRECT**: Use `OfCategory(BuiltInCategory.OST_Rooms)` for Rooms.
-   - **CORRECT**: Use `OfCategory(BuiltInCategory.OST_Materials)` for Materials.
-   - **General Rule**: If `typeof(T)` fails, use `OfCategory(BuiltInCategory.OST_T)`.
+   - **Use `OfClass`** for: `Wall`, `WallType`, `Floor`, `Ceiling`, `RoofBase`, `FamilySymbol`, `Level`, `View`, `ViewSheet`.
+   - **Use `OfCategory`** for: `Room` (OST_Rooms), `Material` (OST_Materials), `Door Instance` (OST_Doors), `Window Instance` (OST_Windows), `Area` (OST_Areas).
+   - **Example**: `new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).Cast<Room>()`.
 7. **Parameters (V2 Engine)**:
-   - **Definition**: All parameters MUST be in `public class Params` (at bottom of file).
+   - **Definition**: All parameters MUST be in `public class Params` (at bottom of file or in `Params.cs`).
    - **Zero Boilerplate**: `int`, `double`, `bool`, `string`, `List<string>` map to UI controls automatically.
-   - **Grouping**: Use `#region GroupName` ... `#endregion`. *CRITICAL*: No space needed after `#region`. Space REQUIRED before/after `#endregion` label if present (e.g. `#endregion MyRegion`). Always leave an EMPTY LINE before and after `#region` and `#endregion`.
+   - **Grouping with `#region`**:
+     - `#region GroupName` goes IMMEDIATELY after the previous property (no blank line before).
+     - ONE empty line AFTER `#region GroupName`.
+     - Parameter structure: `/// Description` -> `[Attribute]` -> `public T Prop {{ get; set; }}`.
+     - If last property in group DOES have an initializer (`= value;`), `#endregion` can follow immediately.
+     - If last property DOES NOT end with `;` (rare), add ONE empty line before `#endregion`.
    
    **Attributes**:
    - `[RevitElements(TargetType="WallType")]`: Dropdown of Wall Types.
@@ -224,35 +228,45 @@ ERROR MESSAGE:
    - Do NOT consolidate modular scripts into a single file unless explicitly requested.
    - Always return the updated content for every file that needs a fix.
 
-### ✅ GOLDEN REFERENCE EXAMPLE (MODULAR)
+### ✅ GOLDEN REFERENCE EXAMPLE (Params Class Format)
 ```csharp
-// File: Main.cs
-using Autodesk.Revit.DB.Architecture;
-
-var p = new Params();
-var room = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).Cast<Room>().FirstOrDefault(r => r.Name == p.RoomName);
-if (room == null) throw new Exception("Room not found.");
-
-Transact("Fix", () => {{ /* ... */ }});
-Println("Done.");
-
 // File: Params.cs
 public class Params {{
-    #region Settings
-
-    [Unit("m")]
-    public double Height {{ get; set; }} = 3.0;
-
-    [Select(SelectionType.Point)]
-    public XYZ Location {{ get; set; }}
+    #region Basic Settings
     
-    [RevitElements(TargetType="Room")]
-    public string RoomName {{ get; set; }}
-
-    #region Settings
-    // ...
+    /// Description for the first parameter.
+    [Required]
+    public string ParameterOne {{ get; set; }} = "Default";
+    
+    /// Multi-line descriptions use three slashes per line.
+    /// This is the second line of the description.
+    [Range(1, 10, 1)]
+    public int Counter {{ get; set; }} = 5;
+    
+    #endregion
+    #region Geometry
+    
+    /// Wall type selection. The engine generates the dropdown.
+    [RevitElements(TargetType = "WallType")]
+    public string WallTypeName {{ get; set; }}
+    
+    /// Unit is auto-converted to Feet. Script sees internal units.
+    [Unit("mm")]
+    public double Offset {{ get; set; }} = 500;
+    
     #endregion
 }}
+```
+
+### ✅ GOLDEN REFERENCE EXAMPLE (Filtering)
+```csharp
+// For Walls, WallTypes, Floors, Levels, etc. use OfClass:
+var walls = new FilteredElementCollector(Doc).OfClass(typeof(Wall)).Cast<Wall>();
+var wallTypes = new FilteredElementCollector(Doc).OfClass(typeof(WallType)).Cast<WallType>();
+
+// For Rooms, Materials, Areas, etc. use OfCategory:
+var rooms = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).Cast<Room>();
+var materials = new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Materials).Cast<Material>();
 ```
 
 ### RESPONSE FORMAT
