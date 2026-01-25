@@ -498,8 +498,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     // If no cached params, proceed with fetching (unless it's a refresh sync that already has params)
     const canReusePassedParameters = source === 'refresh' && (script.parameters && script.parameters.length > 0);
 
-    // FIX: Don't clear content/presets on refresh to prevent UI flashing
-    if (source !== 'refresh') {
+    // FIX: Don't clear content/presets on refresh OR hard_reset to prevent data loss
+    if (source !== 'refresh' && source !== 'hard_reset') {
       setCombinedScriptContent("// Loading script content...");
       setPresets([]);
     }

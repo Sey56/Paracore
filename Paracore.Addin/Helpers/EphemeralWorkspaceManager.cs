@@ -448,6 +448,11 @@ namespace Paracore.Addin.Helpers
                     </Reference>
                     {{roslynReferences.Replace("\n", "\n                    ")}}
                   </ItemGroup>
+                  <ItemGroup>
+                    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+                    <PackageReference Include="RestSharp" Version="113.1.0" />
+                    <PackageReference Include="MiniExcel" Version="1.31.2" />
+                  </ItemGroup>
                 </Project>
                 """;
 
@@ -473,10 +478,18 @@ namespace Paracore.Addin.Helpers
                 "global using System.Collections.Generic;\n" +
                 "global using System.Linq;\n" +
                 "global using System.Text.Json;\n" +
+                "global using Microsoft.CSharp;\n" +
                 "global using Autodesk.Revit.DB;\n" +
+                "global using Autodesk.Revit.DB.Architecture;\n" +
+                "global using Autodesk.Revit.DB.Structure;\n" +
                 "global using Autodesk.Revit.UI;\n" +
                 "global using CoreScript.Engine.Globals;\n" +
-                "global using static CoreScript.Engine.Globals.DesignTimeGlobals;");
+                "global using static CoreScript.Engine.Globals.DesignTimeGlobals;\n" +
+                "global using SixLabors.ImageSharp;\n" +
+                "global using SixLabors.ImageSharp.Processing;\n" +
+                "global using SixLabors.ImageSharp.PixelFormats;\n" +
+                "global using RestSharp;\n" +
+                "global using MiniExcelLibs;");
         }
 
         private static void WriteEditorConfig(string folderPath)

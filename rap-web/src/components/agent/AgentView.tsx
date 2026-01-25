@@ -41,6 +41,10 @@ export const AgentView: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // PLAN ORCHESTRATION STATE
+  const [activePlan, setActivePlan] = useState<any>(null);
+  const [currentPlanStepIndex, setCurrentPlanStepIndex] = useState(-1);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
@@ -68,6 +72,9 @@ export const AgentView: React.FC = () => {
       const lastHumanMessage = newMessages.findLast(m => m.type === 'human');
       const messageContent = lastHumanMessage ? lastHumanMessage.content : '';
 
+      // Get latest raw history for high-fidelity persistence
+      const latestRawHistory = messages.findLast(m => m.raw_history)?.raw_history;
+
       const currentParamsArray = selectedScript ? userEditedScriptParameters[selectedScript.id] : undefined;
       const currentParamsDict = currentParamsArray ?
         currentParamsArray.reduce((acc, param) => {
@@ -80,6 +87,7 @@ export const AgentView: React.FC = () => {
         thread_id: threadId,
         message: messageContent,
         history: messages,
+        raw_history: latestRawHistory, // The Steel Shield
         agent_scripts_path: toolLibraryPath,
         token: cloudToken,
         llm_provider: llmProvider,
@@ -91,6 +99,7 @@ export const AgentView: React.FC = () => {
         tool_call_id: newMessages[0].type === 'tool' ? (newMessages[0] as any).tool_call_id : undefined,
         tool_output: newMessages[0].type === 'tool' ? newMessages[0].content : undefined,
       });
+
 
       if (!response.data) {
         showNotification("Received an empty response from the agent.", "error");
@@ -105,14 +114,40 @@ export const AgentView: React.FC = () => {
           type: 'ai',
           content: response.data.message,
           id: `ai-${Date.now()}`,
-          plan: response.data.current_plan
+          plan: response.data.current_plan,
+          raw_history: response.data.raw_history_json // Capture the Steel Shield
         };
         setMessages(prev => [...prev, agentMessage]);
+
 
         if (response.data.active_script) {
           const scriptInfo = response.data.active_script;
           if (selectedScript?.id !== scriptInfo.id) {
             setSelectedScript(scriptInfo, 'agent_executed_full_output');
+          }
+        }
+
+        // --- SCRIPT GENERATION HANDLER ---
+        if (response.data.generated_script) {
+          const gen = response.data.generated_script;
+          try {
+            // 1. Save to temp file
+            const saveRes = await api.post("/api/generation/save_temp_script", {
+              script_code: gen.code,
+              filename: `AgentGen_${Date.now()}.cs`
+            });
+
+            if (saveRes.data?.success) {
+              const tempPath = saveRes.data.path;
+              // 2. We need to find this script in our registry or manually construct it
+              // For now, we'll try to find it (might need a refresh)
+              // but a simpler way is to just trigger a notification or 
+              // construct a 'virtual' script object for the inspector.
+              showNotification("Custom script generated and saved to temp.", "success");
+              // Force a script refresh might be needed here.
+            }
+          } catch (err) {
+            console.error("Failed to save generated script:", err);
           }
         }
       }
@@ -124,11 +159,10 @@ export const AgentView: React.FC = () => {
 
         if (isSelectionTool || isRunTool) {
           let scriptToSelect = null;
-
           if (response.data.active_script) {
             scriptToSelect = response.data.active_script;
           } else {
-            const s_id = isSelectionTool ? response.data.tool_call.arguments.script_id : t_name.replace('run_', '');
+            const s_id = isSelectionTool ? (response.data.tool_call.arguments.script_id) : t_name.replace('run_', '');
             scriptToSelect = scripts.find((s: any) => {
               const manualSlug = s.id.toLowerCase().replace(/\\/g, '/').replace('.cs', '').split('/').join('_').replace(/ /g, '_').replace(/\./g, '_');
               const targetSlug = s_id.toLowerCase().replace(/\\/g, '_').replace('.cs', '');
@@ -156,15 +190,18 @@ export const AgentView: React.FC = () => {
 
         const toolCallMessage: Message = {
           type: 'ai',
-          content: `Agent requested tool: ${response.data.tool_call.name}`,
+          content: response.data.message || `Agent requested tool: ${response.data.tool_call.name}`,
           id: `ai-tool-${Date.now()}`,
+          plan: response.data.current_plan, // ATTACH PLAN HERE
           tool_calls: [{
             id: response.data.tool_call.id || `tool-call-${Date.now()}`,
             name: response.data.tool_call.name,
             args: response.data.tool_call.arguments
-          }]
+          }],
+          raw_history: response.data.raw_history_json // Capture the Steel Shield
         };
         setMessages(prev => [...prev, toolCallMessage]);
+
       }
     } catch (error: any) {
       console.error("Agent invoke error:", error);
@@ -173,6 +210,50 @@ export const AgentView: React.FC = () => {
       setIsLoading(false);
     }
   }, [threadId, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, setSelectedScript, clearExecutionResult, setActiveInspectorTab, rapServerUrl, scripts, messages]);
+
+  const executePlanStep = useCallback((plan: any, stepIndex: number) => {
+    let steps = plan.steps;
+    if (typeof steps === 'string') {
+      try { steps = JSON.parse(steps); } catch { }
+    }
+
+    if (!Array.isArray(steps)) {
+      showNotification("Error: Invalid plan steps format.", "error");
+      return;
+    }
+
+    const step = steps[stepIndex];
+    if (!step) return;
+
+    console.log(`[AgentView] Executing Plan Step ${stepIndex + 1}: ${step.script_id}`);
+
+    // Resolve script locally
+    const localScript = scripts.find((s: any) => {
+      const ms = s.id.toLowerCase().replace(/\\/g, '/').replace('.cs', '').split('/').join('_').replace(/ /g, '_').replace(/\./g, '_');
+      const ts = step.script_id.toLowerCase().replace(/\\/g, '_').replace('.cs', '');
+      return ms.endsWith(ts);
+    });
+
+    if (localScript) {
+      agentRunTriggeredRef.current = true;
+      const finalParams = localScript.parameters.map((p: any) => ({
+        ...p,
+        value: step.deduced_parameters[p.name] !== undefined ? step.deduced_parameters[p.name] : p.value
+      }));
+
+      setSelectedScript({ ...localScript, parameters: finalParams }, 'agent');
+      setActiveInspectorTab('parameters');
+
+      // Actually run after a tiny delay to ensure selection caught up
+      setTimeout(() => {
+        runScript(localScript, finalParams);
+      }, 100);
+    } else {
+      showNotification(`Error: Script ${step.script_id} not found for plan step.`, "error");
+      setActivePlan(null);
+      setCurrentPlanStepIndex(-1);
+    }
+  }, [scripts, setSelectedScript, setActiveInspectorTab, runScript, showNotification]);
 
   useEffect(() => {
     if (executionResult && agentRunTriggeredRef.current) {
@@ -185,13 +266,32 @@ export const AgentView: React.FC = () => {
         internal_data: executionResult.internalData,
       };
 
-      invokeAgent(
-        [{ type: 'human', content: "System: Script execution was successful.", id: `system-${Date.now()}` }],
-        { isInternal: true, summary: null, raw_output: rawOutputPayload }
-      );
+      // Handle Plan Progression
+      if (activePlan) {
+        const nextIndex = currentPlanStepIndex + 1;
+        if (nextIndex < activePlan.steps.length) {
+          setCurrentPlanStepIndex(nextIndex);
+          executePlanStep(activePlan, nextIndex);
+        } else {
+          // Plan finished!
+          invokeAgent(
+            [{ type: 'human', content: `System: Automation plan "${activePlan.action}" finished successfully. summarize results.`, id: `system-${Date.now()}` }],
+            { isInternal: true, summary: null, raw_output: rawOutputPayload }
+          );
+          setActivePlan(null);
+          setCurrentPlanStepIndex(-1);
+        }
+      } else {
+        // Standard single-script summary
+        invokeAgent(
+          [{ type: 'human', content: "System: Script execution was successful.", id: `system-${Date.now()}` }],
+          { isInternal: true, summary: null, raw_output: rawOutputPayload }
+        );
+      }
+
       agentRunTriggeredRef.current = false;
     }
-  }, [executionResult, invokeAgent, setActiveInspectorTab]);
+  }, [executionResult, invokeAgent, setActiveInspectorTab, activePlan, currentPlanStepIndex, executePlanStep]);
 
   const sendMessage = (messageText: string) => {
     if (!messageText.trim()) return;
@@ -219,26 +319,16 @@ export const AgentView: React.FC = () => {
       if (selectedScript) {
         agentRunTriggeredRef.current = true;
         const currentParamsArray = userEditedScriptParameters[selectedScript.id] || [];
-
-        console.log(`[AgentView] Executing: ${selectedScript.name} (${selectedScript.id})`);
-        console.log(`[AgentView] UI Store:`, currentParamsArray);
-        console.log(`[AgentView] Agent Args:`, parameters);
-
         const finalParams = selectedScript.parameters.map(p => {
-          let val = p.defaultValue;
-          const agentVal = parameters[p.name];
           const uiMatch = currentParamsArray.find(up => up.name === p.name);
-
-          if (agentVal !== undefined) val = agentVal;
-          if (uiMatch && uiMatch.value !== undefined) val = uiMatch.value;
-
-          return { ...p, value: val };
+          return {
+            ...p,
+            value: uiMatch ? uiMatch.value : (parameters[p.name] ?? p.value)
+          }
         });
-
-        console.log(`[AgentView] Merged Params:`, finalParams);
         runScript(selectedScript, finalParams);
       } else {
-        showNotification("Error: No script is active for execution.", "error");
+        showNotification("Error: No script is selected.", "error");
       }
     } else if (userDecision === 'reject') {
       invokeAgent([{ type: 'human', content: `I have rejected the action.`, id: `user-${Date.now()}` }]);
@@ -286,16 +376,46 @@ export const AgentView: React.FC = () => {
     }
 
     if (msg.plan) {
+      const isExecuting = activePlan === msg.plan;
       return (
         <div className="space-y-2">
           <p className="whitespace-pre-wrap">{msg.content}</p>
           <OrchestrationPlanCard
             plan={msg.plan}
-            isPending={messages[messages.length - 1].id === msg.id}
-            onExecute={() => sendMessage("confirm")}
+            isPending={messages[messages.length - 1].id === msg.id && !isExecuting}
+            onExecute={() => {
+              setActivePlan(msg.plan);
+              setCurrentPlanStepIndex(0);
+              executePlanStep(msg.plan, 0);
+            }}
             onSwitchTab={(tab) => setActiveInspectorTab(tab)}
-            onCompute={() => { }}
-            onUpdateParameter={() => { }}
+            onCompute={(stepIdx, paramName) => {
+              const step = msg.plan?.steps[stepIdx];
+              if (!step) return;
+              const localScript = scripts.find(s => s.id.toLowerCase().endsWith(step.script_id.replace('.cs', '').toLowerCase()));
+              if (localScript) {
+                setSelectedScript(localScript, 'agent');
+                setActiveInspectorTab('parameters');
+              }
+            }}
+            onUpdateParameter={(stepIdx, paramName, value) => {
+              setMessages(prev => prev.map(m => {
+                if (m.id === msg.id && m.plan) {
+                  const newSteps = [...m.plan.steps];
+                  newSteps[stepIdx] = {
+                    ...newSteps[stepIdx],
+                    deduced_parameters: {
+                      ...newSteps[stepIdx].deduced_parameters,
+                      [paramName]: value
+                    },
+                    satisfied_parameters: Array.from(new Set([...newSteps[stepIdx].satisfied_parameters, paramName])),
+                    missing_parameters: newSteps[stepIdx].missing_parameters.filter((p: string) => p !== paramName)
+                  };
+                  return { ...m, plan: { ...m.plan, steps: newSteps } };
+                }
+                return m;
+              }));
+            }}
           />
         </div>
       );

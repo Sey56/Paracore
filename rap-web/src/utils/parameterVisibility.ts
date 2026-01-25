@@ -84,8 +84,30 @@ export const validateParameters = (params: ScriptParameter[]): string[] => {
         if (p.required && valStr === '') {
             errors.push(`- '${p.name}' is required`);
         }
-        if (p.pattern && valStr !== '' && !new RegExp(p.pattern).test(valStr)) {
-            errors.push(`- '${p.name}' format is invalid`);
+
+        if (p.pattern && valStr !== '') {
+            if (p.inputType === 'File' || p.inputType === 'SaveFile') {
+                // File extension validation (e.g., "*.jpg;*.png")
+                const extensions = p.pattern.split(';')
+                    .map(ext => ext.replace('*', '').toLowerCase().trim())
+                    .filter(ext => ext !== '');
+
+                const valLower = valStr.toLowerCase();
+                const isValid = extensions.some(ext => valLower.endsWith(ext));
+
+                if (!isValid) {
+                    errors.push(`- '${p.name}' must match: ${p.pattern}`);
+                }
+            } else {
+                // Standard Regex validation
+                try {
+                    if (!new RegExp(p.pattern).test(valStr)) {
+                        errors.push(`- '${p.name}' format is invalid`);
+                    }
+                } catch (e) {
+                    console.error(`Invalid regex pattern for parameter ${p.name}:`, p.pattern);
+                }
+            }
         }
     });
     return errors;

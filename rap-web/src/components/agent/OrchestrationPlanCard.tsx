@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faEdit, faInfoCircle, faCheck, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 
@@ -41,6 +41,15 @@ interface OrchestrationPlanCardProps {
 }
 
 const OrchestrationPlanCard: React.FC<OrchestrationPlanCardProps> = ({ plan, onExecute, onUpdateParameter, onSwitchTab, onCompute, isPending }) => {
+    // ROBUSTNESS: Handle case where 'steps' might be a JSON string
+    const resolvedSteps = useMemo(() => {
+        if (Array.isArray(plan.steps)) return plan.steps;
+        if (typeof plan.steps === 'string') {
+            try { return JSON.parse(plan.steps); } catch { return []; }
+        }
+        return [];
+    }, [plan.steps]);
+
     return (
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600 mt-2 space-y-3">
             <div className="flex items-start space-x-2">
@@ -49,7 +58,7 @@ const OrchestrationPlanCard: React.FC<OrchestrationPlanCardProps> = ({ plan, onE
             </div>
 
             <div className="space-y-4">
-                {plan.steps.map((step, idx) => (
+                {resolvedSteps.map((step: any, idx: number) => (
                     <div key={idx} className="bg-white dark:bg-gray-700 rounded-md p-3 shadow-sm border border-gray-100 dark:border-gray-600">
                         <div className="flex justify-between items-center mb-2">
                             <h4 className="font-bold text-sm">{idx + 1}. {step.script_metadata.name}</h4>
@@ -81,7 +90,7 @@ const OrchestrationPlanCard: React.FC<OrchestrationPlanCardProps> = ({ plan, onE
 
                             {/* Missing Parameters */}
                             {step.missing_parameters.map((param: string) => {
-                                const def = step.parameter_definitions.find(d => d.name === param);
+                                const def = step.parameter_definitions.find((d: any) => d.name === param);
                                 const canCompute = def?.isRevitElement || (def?.options && def.options.length === 0 && def.revitElementType);
 
                                 return (
@@ -130,7 +139,7 @@ const OrchestrationPlanCard: React.FC<OrchestrationPlanCardProps> = ({ plan, onE
                 ))}
             </div>
 
-            {isPending && !plan.steps.some(s => s.status === 'success') && (
+            {isPending && !resolvedSteps.some((s: any) => s.status === 'success') && (
                 <div className="flex space-x-2 pt-2 border-t border-gray-200 dark:border-gray-600">
                     <button
                         onClick={onExecute}

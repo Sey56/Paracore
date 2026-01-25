@@ -443,12 +443,58 @@ namespace CoreScript.Engine.Core
 
                 var revitDllPaths = Directory.GetFiles(revitInstallPath, "RevitAPI*.dll");
                 var revitRefs = revitDllPaths.Where(IsManagedAssembly).Select(path => MetadataReference.CreateFromFile(path)).ToList();
-                var coreTypes = new[] { typeof(object), typeof(Enumerable), typeof(Assembly), typeof(List<>), typeof(Math), typeof(CodeRunner), typeof(JsonSerializer) };
-                var coreRefs = coreTypes.Select(t => MetadataReference.CreateFromFile(t.Assembly.Location));
+                var coreTypes = new[] { 
+                    typeof(object), 
+                    typeof(Enumerable), 
+                    typeof(Assembly), 
+                    typeof(List<>), 
+                    typeof(Math), 
+                    typeof(CodeRunner), 
+                    typeof(JsonSerializer),
+                    typeof(Microsoft.CSharp.RuntimeBinder.Binder), // Microsoft.CSharp
+                    typeof(System.Runtime.CompilerServices.DynamicAttribute), // System.Runtime
+                    typeof(System.Linq.Expressions.Expression), // System.Linq.Expressions
+                    typeof(System.Dynamic.DynamicObject) // System.Dynamic.Runtime
+                };
+                var coreRefs = coreTypes.Select(t => MetadataReference.CreateFromFile(t.Assembly.Location)).ToList();
+
+                // Dynamic Addition of External Libraries (Safe Reference Strategy)
+                // We add these by Path to avoid forcing an immediate, potentially conflicting assembly load 
+                // in the engine's default context before the script starts.
+                string engineDir = Path.GetDirectoryName(typeof(CodeRunner).Assembly.Location) ?? "";
+                string[] extraDlls = { "SixLabors.ImageSharp.dll", "RestSharp.dll", "MiniExcel.dll" };
+                
+                foreach (var dllName in extraDlls)
+                {
+                    string dllPath = Path.Combine(engineDir, dllName);
+                    if (File.Exists(dllPath))
+                    {
+                        try { coreRefs.Add(MetadataReference.CreateFromFile(dllPath)); }
+                        catch (Exception ex) { FileLogger.LogError($"[CodeRunner] Failed to add metadata ref for {dllName}: {ex.Message}"); }
+                    }
+                }
 
                 var options = ScriptOptions.Default
                     .WithReferences(coreRefs.Concat(revitRefs))
-                    .WithImports("System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", "System.Text.Json.Serialization", "Autodesk.Revit.DB", "Autodesk.Revit.UI", "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime")
+                    .WithImports(
+                        "System", 
+                        "System.IO", 
+                        "System.Linq", 
+                        "System.Collections.Generic", 
+                        "System.Text.Json", 
+                        "System.Text.Json.Serialization", 
+                        "Autodesk.Revit.DB", 
+                        "Autodesk.Revit.DB.Architecture",
+                        "Autodesk.Revit.DB.Structure",
+                        "Autodesk.Revit.UI", 
+                        "CoreScript.Engine.Globals", 
+                        "CoreScript.Engine.Runtime",
+                        "SixLabors.ImageSharp",
+                        "SixLabors.ImageSharp.Processing",
+                        "SixLabors.ImageSharp.PixelFormats",
+                        "RestSharp",
+                        "MiniExcelLibs"
+                    )
                     .WithFilePath(topLevelScriptName);
 
                 var script = CSharpScript.Create(finalScriptCode, options);

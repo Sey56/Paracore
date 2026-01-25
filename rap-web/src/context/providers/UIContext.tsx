@@ -22,7 +22,9 @@ export type Message = {
   tool_call_id?: string;
   id?: string; // Langchain message ID
   plan?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  raw_history?: string; // High-fidelity PydanticAI history blob
 };
+
 
 
 export interface UIContextProps {

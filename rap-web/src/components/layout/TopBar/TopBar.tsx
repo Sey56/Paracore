@@ -143,7 +143,7 @@ export const TopBar: React.FC = () => {
           }}
           disabled={!activeTeam || activeTeam.team_id === 0}
           className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'generation' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
-          title={(!activeTeam || activeTeam.team_id === 0) ? "AI Script Generation (Enterprise Feature)" : "Generation Mode"}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "AI Script Generation (Cloud Infrastructure Required)" : "Generation Mode"}
         >
           <FontAwesomeIcon icon={faCode} />
         </button>
@@ -153,7 +153,7 @@ export const TopBar: React.FC = () => {
           }}
           disabled={!activeTeam || activeTeam.team_id === 0}
           className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
-          title={(!activeTeam || activeTeam.team_id === 0) ? "Agentic Mode (Enterprise Feature)" : "Agent Mode"}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "Agentic Mode (Cloud Infrastructure Required)" : "Agent Mode"}
         >
           <FontAwesomeIcon icon={faRobot} />
         </button>

@@ -2,6 +2,11 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.PixelFormats;
+using RestSharp;
+using MiniExcelLibs;
 
 namespace CoreScript.Engine.Globals
 {
