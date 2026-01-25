@@ -7,6 +7,10 @@ using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using RestSharp;
 using MiniExcelLibs;
+using MathNet.Numerics;
+using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.Statistics;
+using Microsoft.CSharp;
 
 namespace CoreScript.Engine.Globals
 {

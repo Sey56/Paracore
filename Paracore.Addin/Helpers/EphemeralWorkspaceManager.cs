@@ -452,6 +452,7 @@ namespace Paracore.Addin.Helpers
                     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
                     <PackageReference Include="RestSharp" Version="113.1.0" />
                     <PackageReference Include="MiniExcel" Version="1.31.2" />
+                    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
                   </ItemGroup>
                 </Project>
                 """;
@@ -489,7 +490,10 @@ namespace Paracore.Addin.Helpers
                 "global using SixLabors.ImageSharp.Processing;\n" +
                 "global using SixLabors.ImageSharp.PixelFormats;\n" +
                 "global using RestSharp;\n" +
-                "global using MiniExcelLibs;");
+                "global using MiniExcelLibs;\n" +
+                "global using MathNet.Numerics;\n" +
+                "global using MathNet.Numerics.LinearAlgebra;\n" +
+                "global using MathNet.Numerics.Statistics;");
         }
 
         private static void WriteEditorConfig(string folderPath)

@@ -462,7 +462,7 @@ namespace CoreScript.Engine.Core
                 // We add these by Path to avoid forcing an immediate, potentially conflicting assembly load 
                 // in the engine's default context before the script starts.
                 string engineDir = Path.GetDirectoryName(typeof(CodeRunner).Assembly.Location) ?? "";
-                string[] extraDlls = { "SixLabors.ImageSharp.dll", "RestSharp.dll", "MiniExcel.dll" };
+                string[] extraDlls = { "SixLabors.ImageSharp.dll", "RestSharp.dll", "MiniExcel.dll", "MathNet.Numerics.dll" };
                 
                 foreach (var dllName in extraDlls)
                 {
@@ -493,7 +493,10 @@ namespace CoreScript.Engine.Core
                         "SixLabors.ImageSharp.Processing",
                         "SixLabors.ImageSharp.PixelFormats",
                         "RestSharp",
-                        "MiniExcelLibs"
+                        "MiniExcelLibs",
+                        "MathNet.Numerics",
+                        "MathNet.Numerics.LinearAlgebra",
+                        "MathNet.Numerics.Statistics"
                     )
                     .WithFilePath(topLevelScriptName);
 
