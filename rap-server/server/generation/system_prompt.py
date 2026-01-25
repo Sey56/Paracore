@@ -69,7 +69,7 @@ CORE RULES:
    - **Grouping with `#region`**:
      - `#region GroupName` goes IMMEDIATELY after the previous property (no blank line before).
      - The first parameter/description follows IMMEDIATELY after `#region` (no blank line).
-     - Parameter structure: `/// Description` -> `[Attribute]` -> `public T Prop {{ get; set; }}`.
+     - Parameter structure: `/// Single line description` OR `/// <summary> Multi-line description </summary>` -> `[Attribute]` -> `public T Prop {{ get; set; }}`.
      - **CRITICAL FOOTER RULE**: 
        - If the property ends with `{{ get; set; }}`, you **MUST** leave ONE empty line before `#endregion`.
        - If the property ends with an initializer (e.g., `= 5;`), you **DO NOT** leave an empty line before `#endregion`.
@@ -121,8 +121,8 @@ GLOBALS (IMPLICITLY AVAILABLE - DO NOT IMPORT):
 - `Table(object)`, `ChartBar(object)`, `ChartPie(object)`, `ChartLine(object)`: Visualization (Available in ALL FILES).
 - `Transact(string name, Action action)`: Database write transaction (Available in ALL FILES).
 - `SetExecutionTimeout(int seconds)`: Extend runtime.
-- `System`, `System.Linq`, `System.Collections.Generic`, `System.Text.Json`, `Autodesk.Revit.DB`, `Autodesk.Revit.UI`: Implicitly imported. DO NOT add `using` statements for these.
-- **Explicit Imports**: You MUST import `Autodesk.Revit.DB.Architecture` or `Structure` if using `Room`, `Wall`, etc.
+- `System`, `System.Linq`, `System.Collections.Generic`, `System.Text.Json`, `Autodesk.Revit.DB`, `Autodesk.Revit.UI`, `Autodesk.Revit.DB.Architecture`, `Autodesk.Revit.DB.Structure`: Implicitly imported. DO NOT add `using` statements for these.
+- **Explicit Imports**: NONE for standard Revit operations. Only import external libraries like `System.Data` if explicitly needed.
 
 {retry_context}
 
@@ -189,8 +189,8 @@ ERROR MESSAGE:
 2. **GLOBALS** (Always Available):
    - `Doc`, `UIDoc`, `UIApp`: Available in ALL FILES.
    - `Println(string)`, `Table(object)`, `Transact`, etc.: Available in ALL FILES.
-   - `System`, `System.Linq`, `System.Collections.Generic`, `System.Text.Json`, `Autodesk.Revit.DB`, `Autodesk.Revit.UI`: Implicitly imported. DO NOT add `using` statements for these.
-   - **Explicit Imports**: You MUST import `Autodesk.Revit.DB.Architecture` or `Structure` if using `Room`, `Wall`, etc.
+   - `System`, `System.Linq`, `System.Collections.Generic`, `System.Text.Json`, `Autodesk.Revit.DB`, `Autodesk.Revit.UI`, `Autodesk.Revit.DB.Architecture`, `Autodesk.Revit.DB.Structure`: Implicitly imported. DO NOT add `using` statements for these.
+   - **Explicit Imports**: NONE for standard Revit operations.
 {structure_rule}
 4. **PARAMETERS (V2 Engine)**:
    - **Definition**: All parameters MUST be in `public class Params` (at bottom of file).
@@ -238,8 +238,10 @@ public class Params {{
     [Required]
     public string ParameterOne {{ get; set; }} = "Default";
     
-    /// Multi-line descriptions use three slashes per line.
-    /// This is the second line of the description.
+    /// <summary>
+    /// This multi-line description uses summary tags.
+    /// It is necessary for long explanations.
+    /// </summary>
     [Range(1, 10, 1)]
     public int Counter {{ get; set; }} = 5;
     #endregion

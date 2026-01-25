@@ -45,7 +45,7 @@ All script parameters must be defined inside a \`public class Params\` (bottom o
 - \`[InputFile("csv,xlsx")]\`: Open File Dialog.
 - \`[FolderPath]\`: Select Folder Dialog.
 - \`[OutputFile("json")]\`: Save File Dialog.
-- \`///\` or \`/// <summary>\`: Tooltip description (tagless style preferred).
+- \`/// Single line description\` OR \`/// <summary> Multi-line description </summary>\`
 
 ### 3. Dynamic Logic (Conventions)
 - **Magic Extraction**: For simple lists (e.g. All Rooms), DO NOT define a helper. Just use \`[RevitElements(TargetType="Room")]\`.
@@ -114,19 +114,13 @@ All script parameters must be defined inside a \`public class Params\` (bottom o
 These are provided by the engine at runtime and available in **ALL FILES** (Main.cs, Params.cs, Utils.cs, etc.):
 - \`Doc\`, \`UIDoc\`, \`UIApp\`
 - \`Println\`, \`Table\`, \`ChartBar\`, \`ChartPie\`, \`ChartLine\`, \`Transact\`, \`SetExecutionTimeout\`
-- \`System\`, \`System.Linq\`, \`System.Collections.Generic\`, \`System.Text.Json\`, \`Autodesk.Revit.DB\`, \`Autodesk.Revit.UI\` (Explicitly imported by engine. DO NOT re-import.)
+- \`System\`, \`System.Linq\`, \`System.Collections.Generic\`, \`System.Text.Json\`, \`Autodesk.Revit.DB\`, \`Autodesk.Revit.UI\`, \`Autodesk.Revit.DB.Architecture\`, \`Autodesk.Revit.DB.Structure\` (Explicitly imported by engine. DO NOT re-import.)
 
 ## Required Imports (If Needed)
-You MUST import specific sub-namespaces if you use types from them (e.g. \`Room\`, \`Wall\`, \`StructuralType\`):
-\`\`\`csharp
-using Autodesk.Revit.DB.Architecture;
-using Autodesk.Revit.DB.Structure;
-\`\`\`
+NONE for standard Revit operations. Only import external libraries if needed.
 
 ## Example Structure
 \`\`\`csharp
-using Autodesk.Revit.DB.Architecture;
-
 // 1. Setup
 var p = new Params();
 
@@ -155,8 +149,10 @@ public class Params {
     [Required]
     public string ParameterOne { get; set; } = "Default";
     
-    /// Multi-line descriptions use three slashes per line.
-    /// This is the second line of the description.
+    /// <summary>
+    /// This multi-line description uses summary tags.
+    /// It is necessary for long explanations.
+    /// </summary>
     [Range(1, 10, 1)]
     public int Counter { get; set; } = 5;
     #endregion
