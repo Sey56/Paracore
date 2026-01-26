@@ -411,6 +411,10 @@ namespace CoreScript.Engine.Core
                         pattern = ExtractString(attr.ArgumentList.Arguments[0].Expression);
                 }
 
+                if (attrName.Contains("Color")) inputType = "Color";
+                if (attrName.Contains("Stepper")) inputType = "Stepper";
+                if (attrName.Contains("Segmented")) inputType = "Segmented";
+
                 // Main Attributes (ScriptParameter / RevitElements)
                 if (attrName.Contains("ScriptParameter") || attrName.Contains("RevitElements"))
                 {

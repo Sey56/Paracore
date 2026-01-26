@@ -118,6 +118,51 @@ class ParacoreMCPClient:
             tools.append(tool)
         return tools
 
+    async def get_pydantic_ai_tools(self) -> List[Any]:
+        """Converts cached MCP tools to Pydantic-AI Tool objects."""
+        if not self.session:
+            await self.initialize()
+
+        from pydantic import create_model, Field
+        from pydantic_ai import Tool
+        
+        tools = []
+        for tool_def in self._tools_cache:
+            # 1. Map JSON Schema to Pydantic fields
+            input_schema = tool_def.inputSchema
+            properties = input_schema.get("properties", {})
+            required_fields = input_schema.get("required", [])
+            
+            field_definitions = {}
+            for field_name, field_info in properties.items():
+                python_type = Any
+                js_type = field_info.get("type")
+                if js_type == "string": python_type = str
+                elif js_type == "integer": python_type = int
+                elif js_type == "number": python_type = float
+                elif js_type == "boolean": python_type = bool
+                elif js_type == "array": python_type = List[Any]
+                
+                default_value = ... if field_name in required_fields else None
+                field_definitions[field_name] = (python_type, Field(default=default_value, description=field_info.get("description", "")))
+
+            ArgsModel = create_model(f"{tool_def.name}_args", **field_definitions)
+
+            # 2. Create the tool wrapper
+            async def _execute(ctx, args: ArgsModel, name=tool_def.name):
+                # PydanticAI passes the model instance as 'args'
+                return await self.call_tool(name, args.model_dump())
+            
+            # Use Tool class for explicit control
+            tool = Tool(
+                _execute,
+                name=tool_def.name,
+                description=tool_def.description or "",
+                takes_ctx=True
+            )
+            tools.append(tool)
+        return tools
+
     async def call_tool(self, name: str, arguments: dict) -> Any:
         if not self.session:
             await self.initialize()
@@ -125,8 +170,6 @@ class ParacoreMCPClient:
         logger.info(f"[MCPClient] Calling tool: {name}")
         try:
             result = await self.session.call_tool(name, arguments)
-            # Result is a CallToolResult object with content list
-            # We flatten it to string for the LLM
             output_text = ""
             for content in result.content:
                 if content.type == "text":
@@ -145,8 +188,14 @@ class ParacoreMCPClient:
         await self.exit_stack.aclose()
         self.session = None
 
-# Global helper
+# Global helpers
 async def get_mcp_tools():
     client = ParacoreMCPClient.get_instance()
     await client.initialize()
     return await client.get_langchain_tools()
+
+async def get_mcp_pydantic_tools():
+    client = ParacoreMCPClient.get_instance()
+    await client.initialize()
+    return await client.get_pydantic_ai_tools()
+

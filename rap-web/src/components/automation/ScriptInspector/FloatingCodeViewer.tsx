@@ -64,10 +64,14 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
       onResizeStop={onDragResizeStop}
     >
       <div
-        className="handle absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-3 cursor-move bg-gray-200 dark:bg-gray-700"
+        className="handle absolute top-0 left-0 right-0 h-11 flex items-center justify-between px-4 cursor-move bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700/60 rounded-t-lg"
       >
-        <span className="font-bold text-gray-800 dark:text-white">{script.name}</span>
-        <button onClick={onClose} className="bg-transparent border-none text-gray-800 dark:text-white cursor-pointer">
+        <span className="font-bold text-gray-700 dark:text-gray-200 text-sm tracking-tight">{script.name}</span>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-red-500 transition-colors p-1"
+          title="Close Viewer"
+        >
           <FontAwesomeIcon icon={faTimes} />
         </button>
       </div>

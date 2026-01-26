@@ -5,6 +5,9 @@ import { open, save } from "@tauri-apps/api/dialog";
 import type { ScriptParameter } from "@/types/scriptModel";
 import { SliderInput } from "./SliderInput";
 import { PointInput } from "./PointInput";
+import { StepperInput } from "./StepperInput";
+import { SegmentedControl } from "./SegmentedControl";
+import { ColorInput } from "./ColorInput";
 
 interface ParameterInputProps {
   param: ScriptParameter;
@@ -84,8 +87,8 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
               onClick={() => onCompute(param.name)}
               disabled={disabled || isComputing}
               className={`px-2 py-1 text-[10px] border transition-colors ${param.options && param.options.length > 0
-                  ? "bg-gray-50 dark:bg-gray-700/30 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:bg-gray-100"
-                  : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-100"
+                ? "bg-gray-50 dark:bg-gray-700/30 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:bg-gray-100"
+                : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-100"
                 } ${isComputing ? 'animate-pulse' : ''}`}
               title={param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options from Revit"}
             >
@@ -187,6 +190,17 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
 
     // Case 1: Dropdown (Single Select)
     if (param.options && param.options.length > 0 && !param.multiSelect) {
+      if (param.inputType === 'Segmented') {
+        return (
+          <SegmentedControl
+            options={param.options ?? []}
+            value={param.value as string}
+            onChange={(val) => onChange(index, val)}
+            disabled={disabled}
+          />
+        );
+      }
+
       return (
         <div className="flex items-center w-full">
           <select
@@ -243,8 +257,8 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
     if (param.type === "number") {
       const isDecimal = param.numericType === 'double';
       const step = param.step || (isDecimal ? 0.1 : 1);
-      const min = param.min !== undefined ? param.min : undefined;
-      const max = param.max !== undefined ? param.max : undefined;
+      const min = (param.min !== undefined && param.min !== null) ? param.min : undefined;
+      const max = (param.max !== undefined && param.max !== null) ? param.max : undefined;
 
       const hasSlider = min !== undefined && max !== undefined && max > min;
 
@@ -258,6 +272,23 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             onChange={(val) => onChange(index, val)}
             disabled={disabled}
             suffix={param.suffix}
+          />
+        );
+      }
+
+      if (param.inputType === 'Stepper') {
+        // V2.5 Fix: Ensure 0 is not treated as falsy by || 0
+        const stepperVal = (param.value !== null && param.value !== undefined && param.value !== "")
+          ? Number(param.value)
+          : (param.defaultValue !== undefined && param.defaultValue !== null ? Number(param.defaultValue) : (min ?? 0));
+        return (
+          <StepperInput
+            value={isNaN(stepperVal) ? 0 : stepperVal}
+            min={min}
+            max={max}
+            step={step}
+            onChange={(val) => onChange(index, val)}
+            disabled={disabled}
           />
         );
       }
@@ -300,6 +331,17 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           onPick={() => onPickObject && onPickObject('Point', index)}
           disabled={disabled}
           isPicking={isComputing} // reusing isComputing for loading state
+        />
+      );
+    }
+
+    // Case Y: Color Input
+    if (param.inputType === 'Color') {
+      return (
+        <ColorInput
+          value={String(param.value || "#000000")}
+          onChange={(val) => onChange(index, val)}
+          disabled={disabled}
         />
       );
     }

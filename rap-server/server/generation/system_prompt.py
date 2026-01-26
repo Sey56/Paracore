@@ -220,6 +220,7 @@ ERROR MESSAGE:
    - `_Visible` / `_Enabled` (returns `bool`): UI state.
    - `_Range` (returns `(double, double, double)`): Dynamic slider.
    - `_Unit` (returns `string`): Dynamic unit.
+   - **V2 Rich Controls**: Use `[Color]` for hex color swatches, `[Stepper]` for +/- numeric buttons, and `[Segmented]` for horizontal button toggles (on small lists).
    - **Magic Extraction**: For simple lists (e.g. All Rooms), DO NOT define a helper. Just use `[RevitElements(TargetType="Room")]`.
 
 5. **PRESERVE ARCHITECTURE (CRITICAL)**:
@@ -253,6 +254,19 @@ public class Params {{
     /// Unit is auto-converted to Feet. Script sees internal units.
     [Unit("mm")]
     public double Offset {{ get; set; }} = 500;
+    
+    /// Precision numeric control.
+    [Stepper]
+    public int Iterations {{ get; set; }} = 10;
+    
+    /// Visual color override.
+    [Color]
+    public string WallColor {{ get; set; }} = "#FF0000";
+
+    /// Sleek horizontal toggle.
+    [Segmented]
+    public string Orientation {{ get; set; }} = "Horizontal";
+    public List<string> Orientation_Options => new() {{ "Horizontal", "Vertical" }};
     
     #endregion
 }}

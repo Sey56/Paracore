@@ -24,6 +24,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>("parameters");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [isFocusMode, setFocusMode] = useState(false);
 
   const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(null);
 
@@ -210,6 +211,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     infoModalState,
     showInfoModal,
     closeInfoModal,
+    isFocusMode,
+    setFocusMode,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -243,6 +246,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     infoModalState,
     showInfoModal,
     closeInfoModal,
+    isFocusMode,
   ]);
 
   return (

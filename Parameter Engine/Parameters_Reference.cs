@@ -65,7 +65,7 @@ public class Params
     public List<string> CaseOption_Options => ["UPPERCASE", "lowercase", "Camel Case"];
 
     /// <summary>
-    /// Renders as Checkboxes because the type is 'List&lt;string&gt;'.
+    /// Renders as Checkboxes because the type is 'List<string>'.
     /// "Revit" is checked by default.
     /// Options are defined by AppNames_Options.
     /// </summary>
@@ -119,7 +119,7 @@ public class Params
 
     /// <summary>
     /// Automatically Populated Checkboxes of all Wall Types.
-    /// (Multi-selection inferred because type is List&lt;string&gt;)
+    /// (Multi-selection inferred because type is List<string>)
     /// </summary>
     [RevitElements(TargetType = "WallType")]
     public List<string> SelectMultipleWallTypes { get; set; }
@@ -204,5 +204,32 @@ public class Params
     public string SecretKey { get; set; }
     public bool SecretKey_Visible => UseAdvancedSettings;
  
+    #endregion
+
+    // -----------------------------------------------------
+    #region 8. High-End UI Controls (V2.5)
+
+    /// <summary>
+    /// Stepper: +/- Buttons for precise numeric control.
+    /// Good for iterations, counts, or small steps.
+    /// </summary>
+    [Stepper]
+    public int Iterations { get; set; } = 10;
+
+    /// <summary>
+    /// Color Picker: Visual hex color swatch.
+    /// Useful for element color overrides or material settings.
+    /// </summary>
+    [Color]
+    public string WallColor { get; set; } = "#3B82F6";
+
+    /// <summary>
+    /// Segmented Toggle: Modern horizontal button group.
+    /// Replaces dropdowns for parameters with 2-4 options.
+    /// </summary>
+    [Segmented]
+    public string ViewOrientation { get; set; } = "Horizontal";
+    public List<string> ViewOrientation_Options => ["Horizontal", "Vertical", "Axonometric"];
+
     #endregion
 }

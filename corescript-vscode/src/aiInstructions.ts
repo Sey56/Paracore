@@ -46,6 +46,9 @@ All script parameters must be defined inside a \`public class Params\` (bottom o
 - \`[FolderPath]\`: Select Folder Dialog.
 - \`[OutputFile("json")]\`: Save File Dialog.
 - \`/// Single line description\` OR \`/// <summary> Multi-line description </summary>\`
+- \`[Color]\`: Hex color swatch & picker (Use for element overrides).
+- \`[Stepper]\`: +/- Buttons for exact numeric control.
+- \`[Segmented]\`: Horizontal button group for parameters with small options list.
 
 ### 3. Dynamic Logic (Conventions)
 - **Magic Extraction**: For simple lists (e.g. All Rooms), DO NOT define a helper. Just use \`[RevitElements(TargetType="Room")]\`.
@@ -164,6 +167,19 @@ public class Params {
     /// Unit is auto-converted to Feet. Script sees internal units.
     [Unit("mm")]
     public double Offset { get; set; } = 500;
+    
+    /// Precision numeric control.
+    [Stepper]
+    public int Iterations { get; set; } = 10;
+    
+    /// Visual color override.
+    [Color]
+    public string WallColor { get; set; } = "#FF0000";
+
+    /// Sleek horizontal toggle.
+    [Segmented]
+    public string Orientation { get; set; } = "Horizontal";
+    public List<string> Orientation_Options => new() { "Horizontal", "Vertical" };
     
     /// Native XYZ Support
     [Select(SelectionType.Point)]

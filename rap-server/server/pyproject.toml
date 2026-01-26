@@ -44,6 +44,7 @@ dependencies = [
     "pyasn1>=0.6.1",
     "pycparser>=2.23",
     "pydantic>=2.12.3",
+    "pydantic-ai[gemini]>=1.47.0",
     "pydantic-core>=2.41.4",
     "python-dotenv>=1.2.1",
     "python-jose>=3.5.0",

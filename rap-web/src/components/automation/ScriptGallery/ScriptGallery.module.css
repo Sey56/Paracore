@@ -60,3 +60,98 @@
 :global(.dark) .activeFilter label {
     color: #60a5fa;
 }
+
+/* -----------------------------------------
+   FOCUS MODE & GLASSMORPHISM
+   ----------------------------------------- */
+
+.focusOverlayContainer {
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+    /* Removed overflow:hidden to prevent clipping of floating card buttons */
+    animation: fadeIn 0.3s ease-out;
+}
+
+.inlineFocusEffects {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* Base grid for focus card */
+.heroGrid {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin: auto;
+    max-width: 600px;
+    padding: 4rem;
+    /* V2.5: High padding to allow card buttons to overflow freely */
+    box-sizing: border-box;
+    z-index: 10;
+    /* Removed overflow:hidden to prevent clipping of floating exit controls */
+}
+
+.heroGrid>div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.animatedBackdrop {
+    position: absolute;
+    inset: -100%;
+    z-index: -2;
+    pointer-events: none;
+    background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.02) 0%, transparent 60%);
+    animation: rotateBackdrop 40s linear infinite;
+    backdrop-filter: blur(16px);
+}
+
+@keyframes rotateBackdrop {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+
+    50% {
+        transform: rotate(180deg) scale(1.1);
+    }
+
+    100% {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes heroEntrance {
+    from {
+        opacity: 0;
+        transform: scale(0.85) translateY(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}

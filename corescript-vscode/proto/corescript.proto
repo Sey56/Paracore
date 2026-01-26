@@ -15,6 +15,7 @@ service CoreScriptRunner {
   rpc ComputeParameterOptions (ComputeParameterOptionsRequest) returns (ComputeParameterOptionsResponse);
   rpc SelectElements (SelectElementsRequest) returns (SelectElementsResponse);
   rpc PickObject (PickObjectRequest) returns (PickObjectResponse);
+  rpc RenameScript (RenameScriptRequest) returns (RenameScriptResponse);
 }
 
 message PickObjectRequest {
@@ -173,6 +174,13 @@ message GetContextResponse {
   int32 active_view_scale = 6;
   string active_view_detail_level = 7;
   repeated ElementInfo selected_elements = 8;
+  repeated LevelInfo levels = 9;
+}
+
+message LevelInfo {
+  int32 id = 1;
+  string name = 2;
+  double elevation = 3;
 }
 
 message ElementInfo {
@@ -220,4 +228,15 @@ message ComputeParameterOptionsResponse {
   optional double min = 4;
   optional double max = 5;
   optional double step = 6;
+}
+
+message RenameScriptRequest {
+  string old_path = 1;       // Full path to the existing script file
+  string new_name = 2;       // New filename (without extension)
+}
+
+message RenameScriptResponse {
+  bool is_success = 1;
+  string new_path = 2;       // Full path to the renamed script file
+  string error_message = 3;
 }

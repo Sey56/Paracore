@@ -330,7 +330,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 const originalIndex = editedParameters.findIndex(p => p.name === param.name);
                 return (
                   <ParameterInput
-                    key={originalIndex}
+                    key={`${param.name}-${originalIndex}`}
                     param={param}
                     index={originalIndex}
                     onChange={handleParameterChange}
@@ -391,11 +391,11 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
             </div>
             {activeRole !== Role.User && (
               <button
-                title="View Code in New Window"
-                className="text-gray-600 dark:text-gray-300 hover:text-blue-600"
+                title="View Code in Floating Window"
+                className="p-1 px-2.5 text-gray-500 hover:text-blue-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 flex items-center justify-center shadow-sm hover:border-blue-400 group"
                 onClick={onViewCodeClick}
               >
-                <FontAwesomeIcon icon={faExternalLinkAlt} />
+                <FontAwesomeIcon icon={faExternalLinkAlt} className="text-sm group-hover:scale-110 transition-transform" />
               </button>
             )}
           </div>

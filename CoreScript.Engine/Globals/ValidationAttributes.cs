@@ -142,4 +142,15 @@ namespace CoreScript.Engine.Globals
         public string Filter { get; set; }
         public OutputFileAttribute(string filter = null) { Filter = filter; }
     }
+
+    // --- High-End UI Controls (Day 05 Enhancements) ---
+    
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class ColorAttribute : Attribute { }
+
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class StepperAttribute : Attribute { }
+
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class SegmentedAttribute : Attribute { }
 }

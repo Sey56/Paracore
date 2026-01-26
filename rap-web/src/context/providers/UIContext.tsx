@@ -84,6 +84,10 @@ export interface UIContextProps {
   infoModalState: { isOpen: boolean; title: string; message: string };
   showInfoModal: (title: string, message: string) => void;
   closeInfoModal: () => void;
+
+  // Focus Mode
+  isFocusMode: boolean;
+  setFocusMode: (focused: boolean) => void;
 }
 
 export const UIContext = createContext<UIContextProps | undefined>(undefined);

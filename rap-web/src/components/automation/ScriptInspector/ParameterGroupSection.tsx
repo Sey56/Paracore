@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
@@ -28,9 +28,19 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
     isActionable
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isExpanded && containerRef.current) {
+            // Delay slightly to allow content to render before scrolling
+            setTimeout(() => {
+                containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 50);
+        }
+    }, [isExpanded]);
 
     return (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg mb-3 w-full">
+        <div ref={containerRef} className="border border-gray-200 dark:border-gray-700 rounded-lg mb-3 w-full">
             {/* Header */}
             <div
                 className={`bg-gray-50 dark:bg-gray-800 px-4 py-2 cursor-pointer flex items-center justify-between select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}

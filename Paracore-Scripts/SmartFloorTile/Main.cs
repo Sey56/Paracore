@@ -8,13 +8,13 @@ Author: Paracore Team
 Dependencies: RevitAPI 2025, CoreScript.Engine, Paracore.Addin
 
 Description:
-Modular tiling script that uses helper classes to generate individual floor elements.
-Includes robust room boundary checking and randomized grid placement.
+Advanced modular tiling script supporting Uniform, Checkerboard, and Random patterns.
+Generates floor elements within a selected room's boundary.
 
 UsageExamples:
-- "Run modular floor tiling"
-- "Create tiles in room via Main script"
-- "Test randomized grid placement"
+- "Create checkerboard floor in Living Room"
+- "Generate random tile mix"
+- "Tile room with offsets"
 */
 
 // 1. Instantiate Parameters
@@ -27,103 +27,145 @@ if (room == null)
     throw new Exception($"🚫 Room '{p.RoomName}' not found or is unnamed. Please select a valid room.");
 }
 
-var floorType = new FilteredElementCollector(Doc)
+// Resolve Floor Types
+var floorTypes = new FilteredElementCollector(Doc)
     .OfClass(typeof(FloorType))
     .Cast<FloorType>()
-    .FirstOrDefault(ft => ft.Name.Equals(p.FloorTypeName, StringComparison.OrdinalIgnoreCase));
+    .Where(ft => ft.Name.Equals(p.PrimaryFloorType, StringComparison.OrdinalIgnoreCase) || 
+                 ft.Name.Equals(p.SecondaryFloorType, StringComparison.OrdinalIgnoreCase))
+    .ToList();
 
-if (floorType == null)
+var primaryType = floorTypes.FirstOrDefault(ft => ft.Name.Equals(p.PrimaryFloorType, StringComparison.OrdinalIgnoreCase));
+if (primaryType == null) throw new Exception($"🚫 Primary Floor Type '{p.PrimaryFloorType}' not found.");
+
+FloorType secondaryType = null;
+if (p.Pattern != "Uniform")
 {
-    throw new Exception($"🚫 Floor Type '{p.FloorTypeName}' not found. Please select a valid floor type.");
+    // Secondary type is required for non-Uniform patterns, unless user selected same type for both (which is valid but effectively uniform)
+    secondaryType = floorTypes.FirstOrDefault(ft => ft.Name.Equals(p.SecondaryFloorType, StringComparison.OrdinalIgnoreCase));
+    
+    // If user hasn't selected a valid secondary type yet, default to primary to prevent crash
+    if (secondaryType == null && !string.IsNullOrEmpty(p.SecondaryFloorType))
+    {
+         throw new Exception($"🚫 Secondary Floor Type '{p.SecondaryFloorType}' not found.");
+    }
+    else if (secondaryType == null)
+    {
+         // Fallback if empty
+         secondaryType = primaryType;
+    }
 }
 
 var level = Doc.GetElement(room.LevelId) as Level;
-if (level == null)
-{
-    throw new Exception($"🚫 Level for room '{room.Name}' not found. Cannot create floors without a valid level.");
-}
+if (level == null) throw new Exception($"🚫 Level for room '{room.Name}' not found.");
 
-// Convert user-defined spacing and offset to internal units (feet)
+// Unit conversions
 double tileSpacingInternal = UnitUtils.ConvertToInternalUnits(p.TileSpacing, UnitTypeId.Meters);
 double maxOffsetInternal = p.RandomizeOffset 
     ? UnitUtils.ConvertToInternalUnits(p.MaxOffset, UnitTypeId.Meters) 
     : 0.0;
 
-// Get room boundary extent for grid generation.
-// We expand the range slightly to ensure we cover the entire room even if its boundary points don't align perfectly with the grid.
+// Grid Setup
 var roomExtent = Utils.GetRoomBoundingBoxXY(room);
 double minX = roomExtent.minX - tileSpacingInternal; 
 double minY = roomExtent.minY - tileSpacingInternal;
 double maxX = roomExtent.maxX + tileSpacingInternal;
 double maxY = roomExtent.maxY + tileSpacingInternal;
 
-// Prepare a list to hold all valid floor profiles
-var floorProfiles = new List<CurveLoop>();
+// Prepare operations list: (Profile, FloorTypeId)
+var tilesToCreate = new List<(CurveLoop Profile, ElementId TypeId)>();
 var random = new Random();
-int createdCount = 0;
+int gridCol = 0;
 
-// Generate tile profiles
+// Generate Grid
 for (double x = minX; x < maxX; x += tileSpacingInternal)
 {
+    int gridRow = 0;
     for (double y = minY; y < maxY; y += tileSpacingInternal)
     {
-        // Calculate the base center point of the potential tile
+        // 1. Determine Floor Type based on Pattern
+        ElementId selectedTypeId = primaryType.Id;
+        
+        if (p.Pattern == "Checker")
+        {
+            // Alternate based on grid position
+            if ((gridCol + gridRow) % 2 != 0)
+            {
+                selectedTypeId = secondaryType.Id;
+            }
+        }
+        else if (p.Pattern == "Random")
+        {
+            // Random chance based on mix percentage
+            if (random.Next(100) < p.RandomMixPct)
+            {
+                selectedTypeId = secondaryType.Id;
+            }
+        }
+
+        // 2. Calculate Geometry
         XYZ baseCenter = new XYZ(x + tileSpacingInternal / 2, y + tileSpacingInternal / 2, level.Elevation);
 
-        // Apply random offset if enabled and a meaningful offset is provided
         double currentOffsetX = 0;
         double currentOffsetY = 0;
-        if (p.RandomizeOffset && maxOffsetInternal > 0.0026) // Minimum valid offset is > 0.0026 feet
+        if (p.RandomizeOffset && maxOffsetInternal > 0.0026)
         {
-            currentOffsetX = (random.NextDouble() * 2 - 1) * maxOffsetInternal; // Random value between -maxOffset and +maxOffset
+            currentOffsetX = (random.NextDouble() * 2 - 1) * maxOffsetInternal;
             currentOffsetY = (random.NextDouble() * 2 - 1) * maxOffsetInternal;
         }
 
         XYZ tileCenter = baseCenter.Add(new XYZ(currentOffsetX, currentOffsetY, 0));
 
-        // CRUCIAL: Check if the *center* of the proposed tile is within the room boundary.
-        // This is a heuristic to keep tiles mostly inside the room while handling irregular room shapes.
+        // Spatial Check
         if (!Utils.IsPointInRoom(room, tileCenter))
         {
-            continue; // Skip this tile if its center is outside the room
+            gridRow++;
+            continue;
         }
 
-        // Create the four corner points of the square tile
-        XYZ p1 = new XYZ(tileCenter.X - tileSpacingInternal / 2, tileCenter.Y - tileSpacingInternal / 2, level.Elevation);
-        XYZ p2 = new XYZ(tileCenter.X + tileSpacingInternal / 2, tileCenter.Y - tileSpacingInternal / 2, level.Elevation);
-        XYZ p3 = new XYZ(tileCenter.X + tileSpacingInternal / 2, tileCenter.Y + tileSpacingInternal / 2, level.Elevation);
-        XYZ p4 = new XYZ(tileCenter.X - tileSpacingInternal / 2, tileCenter.Y + tileSpacingInternal / 2, level.Elevation);
+        // Create Profile
+        double halfSize = tileSpacingInternal / 2;
+        XYZ p1 = new XYZ(tileCenter.X - halfSize, tileCenter.Y - halfSize, level.Elevation);
+        XYZ p2 = new XYZ(tileCenter.X + halfSize, tileCenter.Y - halfSize, level.Elevation);
+        XYZ p3 = new XYZ(tileCenter.X + halfSize, tileCenter.Y + halfSize, level.Elevation);
+        XYZ p4 = new XYZ(tileCenter.X - halfSize, tileCenter.Y + halfSize, level.Elevation);
 
-        // Create the curve loop for the tile
         var profile = new CurveLoop();
         profile.Append(Line.CreateBound(p1, p2));
         profile.Append(Line.CreateBound(p2, p3));
         profile.Append(Line.CreateBound(p3, p4));
         profile.Append(Line.CreateBound(p4, p1));
 
-        // Add to the list if the profile is valid (i.e., has non-zero length segments)
-        if (profile.Any(curve => curve.Length > 0.0026)) // Revit's minimum curve length tolerance
+        if (profile.Any(c => c.Length > 0.0026))
         {
-            floorProfiles.Add(profile);
+            tilesToCreate.Add((profile, selectedTypeId));
         }
+
+        gridRow++;
     }
+    gridCol++;
 }
 
-if (!floorProfiles.Any())
+if (!tilesToCreate.Any())
 {
-    throw new Exception($"🚫 No valid floor tile profiles could be generated within the room boundary of '{room.Name}' with the given tile spacing.");
+    throw new Exception($"🚫 No valid floor tile profiles generated for '{room.Name}'. Check tile spacing and room boundaries.");
 }
 
-// 3. Execution (Single Transaction for all modifications)
+// 3. Execution
 Transact("Create Floor Pattern", () =>
 {
-    foreach (var profile in floorProfiles)
+    foreach (var tile in tilesToCreate)
     {
-        // Floor.Create(Doc, profile, floorTypeId, levelId) is the correct overload for architectural floors.
-        // In Revit 2025+, it expects an IList<CurveLoop>.
-        Floor.Create(Doc, new List<CurveLoop> { profile }, floorType.Id, level.Id);
-        createdCount++;
+        Floor.Create(Doc, new List<CurveLoop> { tile.Profile }, tile.TypeId, level.Id);
     }
 });
 
-Println($"✅ Created {createdCount} floor tiles in room '{room.Name}' using Floor Type '{floorType.Name}'.");
+// Summary
+Println($"✅ Created {tilesToCreate.Count} tiles in '{room.Name}'.");
+if (p.Pattern != "Uniform")
+{
+    int primaryCount = tilesToCreate.Count(t => t.TypeId == primaryType.Id);
+    int secondaryCount = tilesToCreate.Count - primaryCount;
+    Println($"   - Primary ({primaryType.Name}): {primaryCount}");
+    Println($"   - Secondary ({secondaryType.Name}): {secondaryCount}");
+}

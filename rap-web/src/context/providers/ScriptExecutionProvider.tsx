@@ -146,17 +146,25 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, []);
 
   const updateUserEditedParameters = useCallback((scriptId: string, parameters: ScriptParameter[], isPresetLoad: boolean = false) => {
+    // V2.5 Fix: SYNCHRONOUS Ref update to eliminate race condition between edits and 'Run' clicks
+    userEditedParametersRef.current = {
+      ...userEditedParametersRef.current,
+      [scriptId]: parameters
+    };
+
     setUserEditedScriptParameters(prev => ({
       ...prev,
       [scriptId]: parameters,
     }));
 
     // If we are in "<Default Parameters>" mode AND this is NOT a preset load, update the draft cache.
-    // This prevents values from a just-loaded preset from leaking into the "Default" draft 
-    // before the activePreset state has finished updating.
     if (!isPresetLoad) {
       const currentPreset = activePresets[scriptId] || "<Default Parameters>";
       if (currentPreset === "<Default Parameters>") {
+        defaultDraftParametersRef.current = {
+          ...defaultDraftParametersRef.current,
+          [scriptId]: parameters
+        };
         setDefaultDraftParameters(prev => ({
           ...prev,
           [scriptId]: parameters,
@@ -227,8 +235,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const { revitStatus, ParacoreConnected } = useRevitStatus();
 
   const renameScript = useCallback(async (script: Script, newName: string) => {
-    if (!script || !isAuthenticated || !ParacoreConnected) {
-      return { success: false, message: "Prerequisites not met (Auth/Connection)." };
+    if (!script || !isAuthenticated) {
+      return { success: false, message: "Authentication required." };
     }
 
     try {
@@ -264,7 +272,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, [isAuthenticated, ParacoreConnected, selectedFolder, loadScriptsFromPath, showNotification, setCombinedScriptContent]);
 
   const editScript = useCallback(async (script: Script) => {
-    if (!script || !user || !ParacoreConnected) return;
+    if (!script || !user) return;
 
     try {
       const response = await fetch("http://localhost:8000/api/edit-script", {
@@ -862,13 +870,15 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       }
     }
 
-    // DEBUG: Ensure parameters are what we expect
-    console.log(`[ScriptExecutionProvider] Running ${script.name} with params:`, parameters);
+    // V2.5 Fix: Robust Parameter injection fallback
+    // Priority: Explicitly passed > Cached user edits > Script defaults
+    const finalParameters = parameters || userEditedParametersRef.current[script.id] || script.parameters || [];
+    console.log(`[ScriptExecutionProvider] Final params for execution of ${script.name}:`, finalParameters);
 
     const body = {
       path: script.absolutePath || "",
       type: script.type,
-      parameters: parameters ? JSON.stringify(parameters) : undefined,
+      parameters: finalParameters ? JSON.stringify(finalParameters) : undefined,
       source_folder: sourceFolder, // New field
       source_workspace: sourceWorkspace, // New field
       thread_id: threadId, // Add thread_id for working set injection
@@ -1083,14 +1093,17 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, [showNotification, setUserEditedScriptParameters, userEditedScriptParameters]);
 
   const resetScriptParameters = useCallback(async (scriptId: string) => {
-    // 1. Clear from user edits cache
+    // 1. Clear from user edits cache Ref synchronously
+    delete userEditedParametersRef.current[scriptId];
+    delete defaultDraftParametersRef.current[scriptId];
+
+    // 2. Clear from state
     setUserEditedScriptParameters(prev => {
       const next = { ...prev };
       delete next[scriptId];
       return next;
     });
 
-    // 2. Clear from draft cache 
     setDefaultDraftParameters(prev => {
       const next = { ...prev };
       delete next[scriptId];
@@ -1099,11 +1112,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     showNotification("Parameters reset to defaults.", "info");
 
-    // 3. Reload the script to fetch fresh defaults from engine
-    // We pass 'hard_reset' to skip the cache check in setSelectedScript
-    if (selectedScriptRef.current && selectedScriptRef.current.id === scriptId) {
-      // Force a re-fetch by passing the hard_reset flag
-      await setSelectedScript(selectedScriptRef.current, 'hard_reset');
+    // 3. Reload from engine
+    const scriptToReset = selectedScriptRef.current;
+    if (scriptToReset && scriptToReset.id === scriptId) {
+      await setSelectedScript(scriptToReset, 'hard_reset');
     }
   }, [setUserEditedScriptParameters, setDefaultDraftParameters, setSelectedScript, showNotification]);
 
