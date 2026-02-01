@@ -73,76 +73,121 @@ try {
     }
     $configObject.tauri.bundle.windows.wix.fragmentPaths = @("wix/cleanup.wxs")
 
-    if ($Release) {
-        # --- RELEASE BUILD: Standalone Executable (Slow) ---
-        Write-Host "Compiling Python server into a standalone distribution (Release Mode)..." -ForegroundColor Yellow
-        Push-Location (Join-Path -Path $ProjectRoot -ChildPath 'rap-server')
-        
-        # Add 'server' directory to PYTHONPATH so Nuitka can find 'main' module
-        $env:PYTHONPATH = (Join-Path -Path (Get-Location) -ChildPath 'server')
+        if ($Release) {
 
-        $nuitkaArgs = @(
-            "run",
-            "--project", "server",
-            "python",
-            "-m", "nuitka",
-            "--standalone",
-            "--windows-console-mode=disable",
-            "--nofollow-import-to=sqlalchemy.dialects.mysql",
-            "--nofollow-import-to=sqlalchemy.dialects.postgresql",
-            "--nofollow-import-to=sqlalchemy.dialects.oracle",
-            "--nofollow-import-to=sqlalchemy.dialects.mssql",
-            "--nofollow-import-to=nuitka",
-            "--nofollow-import-to=markdown",
-            "--include-package=langchain_core",
-            "--include-package=langgraph",
-            "--include-module=main",
-            "--output-dir=$distDir",
-            "--output-filename=bootstrap",
-            "bootstrap.py"
-        )
-        
-        # Use 'uv' to run the command in the project environment
-        uv @nuitkaArgs
-        
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "Nuitka compilation failed with exit code $LASTEXITCODE"
+            # --- RELEASE BUILD: Embeddable Python (Fast & Reliable) ---
+
+            Write-Host "Preparing optimized Embeddable Python environment for Release..." -ForegroundColor Yellow
+
+    
+
+            $serverReleaseDir = Join-Path -Path $webDir -ChildPath 'src-tauri\server-release'
+
+            if (Test-Path $serverReleaseDir) {
+
+                Remove-Item -Path $serverReleaseDir -Recurse -Force
+
+            }
+
+            New-Item -ItemType Directory -Path $serverReleaseDir | Out-Null
+
+    
+
+            # 1. Unzip the official Python embeddable package
+
+            $assetsDir = Join-Path -Path $webDir -ChildPath 'src-tauri\assets'
+
+            $embeddableZip = Join-Path -Path $assetsDir -ChildPath 'python-3.12.3-embed-amd64.zip'
+
+            Write-Host "Unzipping $embeddableZip..."
+
+            Expand-Archive -Path $embeddableZip -DestinationPath $serverReleaseDir -Force
+
+    
+
+            # 2. Configure .pth file to enable site-packages
+
+            $pthFile = Join-Path -Path $serverReleaseDir -ChildPath 'python312._pth'
+
+            $pthContent = "python312.zip`n.`nLib/site-packages`nimport site"
+
+            Set-Content -Path $pthFile -Value $pthContent -Force
+
+    
+
+            # 3. Copy site-packages from the active 'uv' environment
+
+            # This is the 'Secret Sauce' - it takes exactly what works in dev and bundles it.
+
+            Write-Host "Bundling dependencies from local environment..." -ForegroundColor Cyan
+
+            $venvSitePackages = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages"
+
+            $destSitePackages = Join-Path -Path $serverReleaseDir -ChildPath "Lib\site-packages"
+
+            New-Item -ItemType Directory -Path $destSitePackages -Force | Out-Null
+
+            
+
+                    # Use robocopy for speed and to exclude bloat (pycache, tests, etc.)
+
+            
+
+                    # We MUST include *.dist-info because many libraries (FastAPI, Pydantic) 
+
+            
+
+                    # use importlib.metadata to check versions at runtime.
+
+            
+
+                    robocopy $venvSitePackages $destSitePackages /E /XD "__pycache__" "tests" "docs" "examples" /NJH /NJS /NDL /NC /NS /NP | Out-Null
+
+            
+
+            
+
+    
+
+            # 4. Copy the application scripts
+
+            Write-Host "Copying application source..."
+
+            $serverSourceDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-server'
+
+            Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $serverReleaseDir
+
+            robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
+
+    
+
+            # 5. Copy the RAP Auth Server public key
+
+            $releaseAuthDest = Join-Path -Path $serverReleaseDir -ChildPath 'rap-auth-server\server'
+
+            New-Item -ItemType Directory -Path $releaseAuthDest -Force | Out-Null
+
+            Copy-Item -Path "$ProjectRoot\rap-auth-server\server\jwt_public.pem" -Destination $releaseAuthDest -Force     
+
+    
+
+            # Configure Tauri to bundle the server-release directory
+
+            if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {
+
+                Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'resources' -Value $null
+
+            }
+
+            $configObject.tauri.bundle.resources = @("server-release")
+
+            
+
+            Write-Host 'Python server has been bundled for release (Embeddable Mode).' -ForegroundColor Green
+
         }
 
-        # Clean up PYTHONPATH
-        $env:PYTHONPATH = ""
-
-        Pop-Location
-        Write-Host 'Python server has been compiled for release.' -ForegroundColor Green
-
-        # Bundle the standalone server as a resource, bypassing the externalBin system
-        $serverReleaseDir = Join-Path -Path $webDir -ChildPath 'src-tauri\server-release'
-        if (Test-Path $serverReleaseDir) {
-            Remove-Item -Path $serverReleaseDir -Recurse -Force
-        }
-        New-Item -ItemType Directory -Path $serverReleaseDir | Out-Null
-
-        $nuitkaOutputDir = Join-Path -Path $ProjectRoot -ChildPath "rap-server\$distDir\bootstrap.dist"
-        Copy-Item -Path (Join-Path $nuitkaOutputDir '*') -Destination $serverReleaseDir -Recurse
-
-        # Copy the JWT key to the release folder as well, keeping the structure config.py expects
-        # config.py looks for ../../rap-auth-server/server/jwt_public.pem relative to itself.
-        # Nuitka layout can vary, but ensuring the file exists in the bundle is step 1.
-        # We will place it in a 'rap-auth-server/server' folder inside the release dir.
-        $releaseAuthDest = Join-Path -Path $serverReleaseDir -ChildPath 'rap-auth-server\server'
-        New-Item -ItemType Directory -Path $releaseAuthDest -Force | Out-Null
-        Copy-Item -Path "$ProjectRoot\rap-auth-server\server\jwt_public.pem" -Destination $releaseAuthDest -Force
-
-        # Configure Tauri to bundle the server-release directory
-        if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {
-            Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'resources' -Value $null
-        }
-        if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'externalBin')) {
-            Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'externalBin' -Value @()
-        }
-        $configObject.tauri.bundle.externalBin = @() # Ensure externalBin is empty
-        $configObject.tauri.bundle.resources = @("server-release")
-    }
+    
     else {
         # --- DEVELOPMENT BUILD: Embeddable Python (Fast) ---
         Write-Host "Embeddable Python environment prepared for fast build."
@@ -204,7 +249,7 @@ import site
         $serverSourceDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-server'
         Write-Host "Copying application source from $serverSourceDir to $bundleDir..."
         Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $bundleDir
-        robocopy (Join-Path $serverSourceDir "server") (Join-Path $bundleDir "server") /E /XD .venv __pycache__
+        robocopy (Join-Path $serverSourceDir "server") (Join-Path $bundleDir "server") /E /XD .venv __pycache__ .ruff_cache /XF test_*.py reproduce_*.py debug_*.py render_markdown.py rserver_listener.py checkpoints.sqlite paracore_local.db
 
         # 6. Copy the RAP Auth Server public key (Crucial for generic "relative path" config)
         $authServerSource = Join-Path -Path $ProjectRoot -ChildPath 'rap-auth-server\server'

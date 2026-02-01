@@ -1,0 +1,30 @@
+❯ ./RAP-installer.ps1 -Release
+Syncing versions to 3.0.0...
+Updating all projects to version 3.0.0...
+Updated rap-web/package.json
+Updated corescript-vscode/package.json
+Updated rap-web/src-tauri/tauri.conf.json
+Updated TopBar.tsx
+Version sync complete!
+=================================
+   Building Paracore Installer
+=================================
+
+[0/2] Checking for prerequisites...
+Found uv at: C:\Users\seyou\.local\bin\uv.exe
+
+[1/2] Building rap-web...
+Rebranding application to 'Paracore' for this build...
+Compiling Python server into a standalone distribution (Release Mode)...
+Nuitka-Options: Used command line options:
+Nuitka-Options:   --standalone --windows-console-mode=disable --nofollow-import-to=sqlalchemy.dialects.mysql
+Nuitka-Options:   --nofollow-import-to=sqlalchemy.dialects.postgresql --nofollow-import-to=sqlalchemy.dialects.oracle
+Nuitka-Options:   --nofollow-import-to=sqlalchemy.dialects.mssql --nofollow-import-to=nuitka --nofollow-import-to=markdown
+Nuitka-Options:   --include-package=langchain_core --include-package=langgraph --include-module=main --output-dir=rap-server-dist
+Nuitka-Options:   --output-filename=bootstrap bootstrap.py
+Nuitka: Starting Python compilation with:
+Nuitka:   Version '2.8.6' on Python 3.12 (flavor 'CPython Official') commercial grade 'not installed'.
+Nuitka-Plugins:WARNING: anti-bloat: Undesirable import of 'setuptools' in 'logfire._internal.utils' (at
+Nuitka-Plugins:WARNING: '~\Paracore\rap-server\server\.venv\Lib\site-packages\logfire\_internal\utils.py:234') encountered. It may
+Nuitka-Plugins:WARNING: slow down compilation.
+Nuitka-Plugins:WARNING:     Complex topic! More information can be found at https://nuitka.net/info/unwanted-module.html

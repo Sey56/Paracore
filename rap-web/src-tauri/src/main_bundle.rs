@@ -100,13 +100,13 @@ fn launch_main_app(handle: AppHandle, state: State<AppState>) -> Result<(), Stri
         .ok_or_else(|| "Failed to resolve resource dir".to_string())?;
 
     let (exe_path, working_dir) = if !cfg!(debug_assertions) {
-        // Release Mode: Run the standalone executable from the bundled resources.
-        info!("Release mode detected. Looking for standalone server executable...");
+        // Release Mode: Run the embedded Python from the 'server-release' bundle.
+        info!("Release mode detected. Using embedded Python in server-release...");
         let dir = resource_path.join("server-release");
-        (dir.join("bootstrap.exe"), dir)
+        (dir.join("python.exe"), dir)
     } else {
-        // Fast Dev Mode: Run the embedded Python script.
-        info!("Debug mode detected. Looking for embedded python environment...");
+        // Dev Mode: Run the embedded Python from 'server-modules'.
+        info!("Debug mode detected. Using embedded Python in server-modules...");
         let dir = resource_path.join("server-modules");
         (dir.join("python.exe"), dir)
     };
@@ -121,10 +121,8 @@ fn launch_main_app(handle: AppHandle, state: State<AppState>) -> Result<(), Stri
     command.current_dir(&working_dir);
     command.env("RAP_DATABASE_PATH", db_path);
 
-    if cfg!(debug_assertions) {
-        // Only add the script argument for Python in debug mode
-        command.arg("run_server.py");
-    }
+    // ALWAYS add the script argument since we are now using python.exe in all modes
+    command.arg("run_server.py");
 
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x08000000;

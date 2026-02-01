@@ -1,9 +1,30 @@
-import uvicorn
 import sys
 import os
-import logging.config
-import logging
 import traceback
+
+# Immediate logging to a file that doesn't depend on logging.config
+def bootstrap_log(msg):
+    try:
+        log_dir = os.path.join(os.getenv('APPDATA'), 'paracore-data', 'logs')
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        with open(os.path.join(log_dir, "bootstrap_debug.log"), "a") as f:
+            f.write(f"{msg}\n")
+    except:
+        pass
+
+bootstrap_log("--- run_server.py bootstrap started ---")
+bootstrap_log(f"PYTHONPATH: {sys.path}")
+bootstrap_log(f"CWD: {os.getcwd()}")
+
+try:
+    import uvicorn
+    import logging.config
+    import logging
+    bootstrap_log("Basic imports successful")
+except Exception as e:
+    bootstrap_log(f"CRITICAL IMPORT ERROR: {e}\n{traceback.format_exc()}")
+    sys.exit(1)
 
 def run_server():
     """

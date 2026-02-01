@@ -4,7 +4,6 @@ import sys
 from contextlib import AsyncExitStack
 from typing import Any, List, Optional
 
-from langchain_core.tools import StructuredTool
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -69,53 +68,6 @@ class ParacoreMCPClient:
             logger.info(f"[MCPClient] Discovered {len(self._tools_cache)} tools.")
         except Exception as e:
             logger.error(f"[MCPClient] Failed to list tools: {e}")
-
-    async def get_langchain_tools(self) -> List[StructuredTool]:
-        """Converts cached MCP tools to LangChain StructuredTools."""
-        if not self.session:
-            await self.initialize()
-
-        from pydantic import Field, create_model
-
-        tools = []
-        for tool_def in self._tools_cache:
-            # 1. Map JSON Schema to Pydantic fields
-            # MCP inputSchema is roughly: {"type": "object", "properties": {...}, "required": [...]}
-            input_schema = tool_def.inputSchema
-            properties = input_schema.get("properties", {})
-            required_fields = input_schema.get("required", [])
-
-            field_definitions = {}
-            for field_name, field_info in properties.items():
-                # Extract basic type
-                python_type = Any
-                js_type = field_info.get("type")
-                if js_type == "string": python_type = str
-                elif js_type == "integer": python_type = int
-                elif js_type == "number": python_type = float
-                elif js_type == "boolean": python_type = bool
-                elif js_type == "array": python_type = List[Any]
-
-                # Check if required
-                default_value = ... if field_name in required_fields else None
-
-                field_definitions[field_name] = (python_type, Field(default=default_value, description=field_info.get("description", "")))
-
-            # Create the dynamic model
-            ArgsModel = create_model(f"{tool_def.name}_args", **field_definitions)
-
-            # 2. Create a closure for execution
-            async def _execute(name=tool_def.name, **kwargs):
-                return await self.call_tool(name, kwargs)
-
-            tool = StructuredTool.from_function(
-                coroutine=_execute,
-                name=tool_def.name,
-                description=tool_def.description or "",
-                args_schema=ArgsModel
-            )
-            tools.append(tool)
-        return tools
 
     async def get_pydantic_ai_tools(self) -> List[Any]:
         """Converts cached MCP tools to Pydantic-AI Tool objects."""
@@ -188,11 +140,6 @@ class ParacoreMCPClient:
         self.session = None
 
 # Global helpers
-async def get_mcp_tools():
-    client = ParacoreMCPClient.get_instance()
-    await client.initialize()
-    return await client.get_langchain_tools()
-
 async def get_mcp_pydantic_tools():
     client = ParacoreMCPClient.get_instance()
     await client.initialize()
