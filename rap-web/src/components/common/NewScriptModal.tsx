@@ -3,7 +3,7 @@ import { useScripts } from '@/hooks/useScripts';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { Modal } from './Modal';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileCode, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
+import { faFileCode, faFolderOpen, faSync } from '@fortawesome/free-solid-svg-icons';
 
 interface NewScriptModalProps {
   isOpen: boolean;
