@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faStar as fasStar, faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faStar as fasStar, faChevronUp, faChevronDown, faTools } from '@fortawesome/free-solid-svg-icons';
 import { faStar as farStar } from '@fortawesome/free-regular-svg-icons';
 import { Script } from '@/types/scriptModel';
 import { getScriptLog } from '@/api/workspaces';
@@ -60,6 +60,12 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
             <FontAwesomeIcon icon={isCollapsed ? faChevronDown : faChevronUp} />
           </button>
           {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
+          {script.metadata.isProtected && (
+            <span className="ml-2 px-1.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded border border-amber-200 dark:border-amber-800 flex items-center inline-flex">
+              <FontAwesomeIcon icon={faTools} className="mr-1" style={{ fontSize: '0.6rem' }} />
+              Tool
+            </span>
+          )}
         </h3>
         {!hideFavoriteButton && (
           <button

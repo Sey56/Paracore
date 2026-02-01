@@ -1,8 +1,9 @@
-from typing import List, Dict, Optional, Any
-from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
 import json
 import logging
+from typing import Any, Dict, List, Optional
+
+from langchain_core.tools import StructuredTool
+from pydantic import BaseModel, Field
 
 from agent.mcp_client import get_mcp_tools
 from agent.orchestrator.registry import ScriptRegistry
@@ -85,24 +86,19 @@ async def read_script(script_id: str, agent_scripts_path: str = None, **kwargs) 
         registry = ScriptRegistry(agent_scripts_path)
         script = registry.find_script_by_tool_id(script_id)
         if not script: return f"Error: Script {script_id} not found."
-        
+
         path = script.get("absolutePath")
-        if not os.path.exists(path): return f"Error: File not found at {path}"
-        
+        if not path or not os.path.exists(path): return f"Error: File not found at {path}"
+
+        if path.endswith(".ptool") or script.get("metadata", {}).get("is_protected"):
+            return "This is a protected Paracore tool. Source code is not available for reading."
+
         with open(path, 'r', encoding='utf-8-sig') as f:
             return f.read()
     except Exception as e:
         return f"Error reading script: {str(e)}"
 
-class GenerateCustomScriptArgs(BaseModel):
-    requirement: str = Field(..., description="The user requirement to solve with code.")
-    reference_script_ids: Optional[List[str]] = Field(default_factory=list, description="IDs of existing scripts to use as style/logic templates.")
 
-async def generate_custom_script(requirement: str, reference_script_ids: Optional[List[str]] = None) -> str:
-    """Generates a high-fidelity Paracore-standard C# script specialized for a Revit task.
-    You MUST provide reference_script_ids if you want the code to follow specific library patterns.
-    """
-    return f"Generating custom script for requirement: {requirement}. Please wait..."
 
 async def get_project_summary(**kwargs) -> str:
     """Returns a high-level summary of the current Revit project.
@@ -111,8 +107,7 @@ async def get_project_summary(**kwargs) -> str:
     """
     # This calls the C# backend via the gRPC client (placeholder logic for now)
     try:
-        from grpc_client import run_script_sync
-        # Ideally this would be a dedicated gRPC endpoint, but for V2, 
+        # Ideally this would be a dedicated gRPC endpoint, but for V2,
         # we can run a lightning-fast 'Summary' script.
         summary_script = """
         var categories = new List<BuiltInCategory> { BuiltInCategory.OST_Walls, BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows, BuiltInCategory.OST_Floors };
@@ -132,7 +127,7 @@ async def get_tools(config: Dict[str, Any]) -> List:
     Retrieves the full toolset: Local Infrastructure + MCP Scripts.
     """
     scripts_path = config.get("agent_scripts_path")
-    
+
     local_tools = [
         StructuredTool.from_function(
             coroutine=list_scripts,
@@ -161,19 +156,14 @@ async def get_tools(config: Dict[str, Any]) -> List:
             name="read_script",
             description="Reads the C# code of an existing script for reference.",
         ),
-        StructuredTool.from_function(
-            coroutine=generate_custom_script,
-            name="generate_custom_script",
-            description="Generates a specialized C# script for a unique Revit task.",
-            args_schema=GenerateCustomScriptArgs
-        ),
+
         StructuredTool.from_function(
             coroutine=get_project_summary,
             name="get_project_summary",
             description="Returns a high-level overview of the Revit model status.",
         )
     ]
-    
+
     # Add MCP tools
     try:
         mcp_tools = await get_mcp_tools()

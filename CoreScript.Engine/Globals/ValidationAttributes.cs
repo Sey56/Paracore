@@ -66,6 +66,15 @@ namespace CoreScript.Engine.Globals
     public class RequiredAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class MandatoryAttribute : Attribute { }
+
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class ConfirmAttribute : Attribute {
+        public string Value { get; }
+        public ConfirmAttribute(string value) { Value = value; }
+    }
+
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class MinAttribute : Attribute { 
         public double Value { get; }
         public MinAttribute(double value) { Value = value; }

@@ -1,12 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
 import logging
-import json
-import os
+from typing import List, Optional
 
+from fastapi import APIRouter, HTTPException
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/agent/generate", tags=["agent"])
 logger = logging.getLogger(__name__)
@@ -55,19 +53,19 @@ async def generate_script(request: GenerationRequest):
 
         # Build Context
         ref_text = "\n\n".join([f"--- REFERENCE SCRIPT ---\n{s}" for s in request.context_scripts])
-        
+
         messages = [
             SystemMessage(content=GENERATOR_PROMPT),
             HumanMessage(content=f"Reference Scripts for Style:\n{ref_text}\n\nTask: {request.requirement}")
         ]
 
         response = await llm.ainvoke(messages)
-        
+
         # Parse result (very simple split for now)
         content = response.content
         code = ""
         explanation = ""
-        
+
         if "```csharp" in content:
             parts = content.split("```csharp")
             explanation_pre = parts[0]

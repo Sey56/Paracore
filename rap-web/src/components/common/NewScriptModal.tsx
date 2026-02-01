@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useScripts } from '@/hooks/useScripts';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { Modal } from './Modal';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFileCode, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
 
 interface NewScriptModalProps {
   isOpen: boolean;
@@ -66,71 +68,112 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Script" size="md">
-      <div className="mb-4">
-        <p className="text-sm text-gray-600 dark:text-gray-400">Creating in: <span className="font-mono bg-gray-100 dark:bg-gray-700 p-1 rounded">{selectedFolder}</span></p>
-      </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <span className="block sm:inline">{error}</span>
+      <div className="space-y-6">
+        {/* Location Info */}
+        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+          <FontAwesomeIcon icon={faFolderOpen} className="mr-2 text-blue-500" />
+          <span className="mr-1">Creating in:</span>
+          <span className="font-mono font-medium text-gray-700 dark:text-gray-300 truncate" title={selectedFolder}>
+            {selectedFolder}
+          </span>
         </div>
-      )}
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Script Type</label>
-        <div className="flex rounded-md shadow-sm">
-          <button
-            type="button"
-            className={`relative inline-flex items-center rounded-l-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium ${scriptType === 'single'
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-              } focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500`}
-            onClick={() => setScriptType('single')}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 px-4 py-3 rounded-lg text-sm" role="alert">
+            {error}
+          </div>
+        )}
+
+        {/* Script Type Selection */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Script Type</label>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                scriptType === 'single'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+              onClick={() => setScriptType('single')}
+            >
+              <FontAwesomeIcon icon={faFileCode} className={`text-2xl mb-2 ${scriptType === 'single' ? 'text-blue-500' : 'text-gray-400'}`} />
+              <span className="font-medium text-sm">Single-File</span>
+            </button>
+            <button
+              type="button"
+              className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                scriptType === 'multi'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+              onClick={() => setScriptType('multi')}
+            >
+              <div className="relative">
+                <FontAwesomeIcon icon={faFolderOpen} className={`text-2xl mb-2 ${scriptType === 'multi' ? 'text-blue-500' : 'text-gray-400'}`} />
+                <FontAwesomeIcon icon={faFileCode} className={`absolute -right-2 -bottom-1 text-xs bg-white dark:bg-gray-800 rounded-full p-0.5 border border-white dark:border-gray-800 ${scriptType === 'multi' ? 'text-blue-500' : 'text-gray-400'}`} />
+              </div>
+              <span className="font-medium text-sm">Multi-File</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Inputs */}
+        <div className="space-y-4">
+          {scriptType === 'multi' ? (
+            <div>
+              <label htmlFor="folderName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Folder Name</label>
+              <input
+                type="text"
+                id="folderName"
+                value={folderName}
+                onChange={(e) => setFolderName(e.target.value)}
+                className="block w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:text-white"
+                placeholder="e.g., MyNewProject"
+                autoFocus
+              />
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                A <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">Main.cs</span> entry point will be created automatically.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="scriptName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Script Name (.cs)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="scriptName"
+                  value={scriptName}
+                  onChange={(e) => setScriptName(e.target.value)}
+                  className="block w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:text-white"
+                  placeholder="e.g., HelloWorld"
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex justify-end space-x-3 pt-2">
+          <button 
+            onClick={onClose} 
+            disabled={isLoading} 
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:z-10 focus:ring-2 focus:ring-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 transition-all"
           >
-            Single Script
+            Cancel
           </button>
-          <button
-            type="button"
-            className={`relative -ml-px inline-flex items-center rounded-r-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium ${scriptType === 'multi'
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-              } focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500`}
-            onClick={() => setScriptType('multi')}
+          <button 
+            onClick={handleCreate} 
+            disabled={isLoading} 
+            className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-900 shadow-md hover:shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
           >
-            Multi-script Folder
+            {isLoading && <FontAwesomeIcon icon={faSync} className="animate-spin mr-2" />}
+            {isLoading ? 'Creating...' : 'Create'}
           </button>
         </div>
-      </div>
-
-      {scriptType === 'multi' && (
-        <div className="mb-4">
-          <label htmlFor="folderName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Folder Name</label>
-          <input type="text" id="folderName" value={folderName} onChange={(e) => setFolderName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., MyNewProject" />
-        </div>
-      )}
-
-      {scriptType === 'single' && (
-        <div className="mb-6">
-          <label htmlFor="scriptName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Script Name (.cs)
-          </label>
-          <input type="text" id="scriptName" value={scriptName} onChange={(e) => setScriptName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., HelloWorld" />
-        </div>
-      )}
-
-      {scriptType === 'multi' && (
-        <div className="mb-6">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            A <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">Main.cs</span> entry point will be created automatically.
-          </p>
-        </div>
-      )}
-
-      <div className="flex justify-end space-x-3">
-        <button onClick={onClose} disabled={isLoading} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500">Cancel</button>
-        <button onClick={handleCreate} disabled={isLoading} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
-          {isLoading ? 'Creating...' : 'Create'}
-        </button>
       </div>
     </Modal>
   );

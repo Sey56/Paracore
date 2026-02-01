@@ -1,8 +1,10 @@
-import logging
 import json
+import logging
 import time
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
+
 from .registry import ScriptRegistry
 
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ class StrategicDispatcher:
     The 'Brain' of the Paracore Agent.
     Responsible for analyzing user intent and choosing between curated tools and AI generation.
     """
-    
+
     def __init__(self, registry: ScriptRegistry, llm: Any):
         self.registry = registry
         self.llm = llm
@@ -29,7 +31,7 @@ class StrategicDispatcher:
         Classifies the user query against the available curated scripts.
         """
         catalog = self.registry.get_catalog()
-        
+
         # Inject context summary into the prompt if available
         context_summary = "None"
         if context:
@@ -58,10 +60,10 @@ Rules:
                 {"role": "user", "content": query}
             ])
             end_time = time.time()
-            
+
             if not intent:
                 raise ValueError("LLM returned empty intent")
-                
+
             logger.info(f"[dispatcher] Intent classified: {intent.action_type} in {end_time - start_time:.2f}s")
             return intent
         except Exception as e:
@@ -79,7 +81,7 @@ Rules:
         deduced = {}
         param_defs = script_metadata.get("parameters", [])
         selected_elements = context.get("selected_elements", [])
-        
+
         for p in param_defs:
             name = p.get("name").lower()
             desc = p.get("description", "").lower()
@@ -99,7 +101,7 @@ Rules:
 
             # 2. Match Levels
             elif "level" in name:
-                # Placeholder for active level logic. 
+                # Placeholder for active level logic.
                 # If the context has an active level, use it.
                 if context.get("active_view_name"): # Crude level detection from view name for now
                     if "level 1" in context["active_view_name"].lower(): deduced[p["name"]] = "Level 1"
@@ -128,17 +130,17 @@ Rules:
                     deduced_params = {}
                     if context:
                         deduced_params = self.deduce_parameters(script, context)
-                        
+
                     # Logic for workflow chaining:
                     # If this is not the first script, and it needs a parameter like 'elementId'
                     # and the previous script produces it, we mark it as 'chained'.
                     # (This is a simplified version for the model to refine during execution)
-                    
+
                     llm_deduced = intent.parameter_mappings.get(name, {})
-                    
+
                     # Merge: LLM-deduced first, then manual context fallback
                     final_deduced = {**deduced_params, **llm_deduced}
-                    
+
                     plan["steps"].append({
                         "type": "curated_script",
                         "script_metadata": script,
@@ -148,7 +150,7 @@ Rules:
                         "parameter_definitions": script.get("parameters", []), # Include full defs
                         "status": "pending"
                     })
-        
+
         return plan
 
     async def update_plan_from_chat(self, plan: Dict, chat: str) -> Dict:
@@ -192,12 +194,12 @@ Rules:
             idx = update.get("step_index")
             name = update.get("parameter_name")
             val = update.get("value")
-            
+
             if idx is not None and idx < len(plan["steps"]):
                 step = plan["steps"][idx]
                 if "deduced_parameters" not in step: step["deduced_parameters"] = {}
                 step["deduced_parameters"][name] = val
-                
+
                 # Update missing/satisfied lists
                 if name in step.get("missing_parameters", []):
                     step["missing_parameters"].remove(name)

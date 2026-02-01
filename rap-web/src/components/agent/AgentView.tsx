@@ -9,11 +9,12 @@ import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { useScripts } from '@/hooks/useScripts';
 import { filterVisibleParameters } from '@/utils/parameterVisibility';
 
-import type { Message, ToolCall } from '@/context/providers/UIContext';
+import type { Message, ToolCall, OrchestrationPlan } from '@/context/providers/UIContext';
 import { Modal } from '@/components/common/Modal';
 import WorkingSetPanel from './WorkingSetPanel';
 import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import OrchestrationPlanCard from './OrchestrationPlanCard';
+import { Script, ScriptParameter } from '@/types/scriptModel';
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
@@ -42,14 +43,14 @@ export const AgentView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // PLAN ORCHESTRATION STATE
-  const [activePlan, setActivePlan] = useState<any>(null);
+  const [activePlan, setActivePlan] = useState<OrchestrationPlan | null>(null);
   const [currentPlanStepIndex, setCurrentPlanStepIndex] = useState(-1);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: string | null; raw_output?: Record<string, any> | null }) => {
+  const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: string | null; raw_output?: Record<string, unknown> | null }) => {
     setIsLoading(true);
 
     if (!options?.isInternal && newMessages.some(m => m.type === 'human')) {
@@ -78,9 +79,11 @@ export const AgentView: React.FC = () => {
       const currentParamsArray = selectedScript ? userEditedScriptParameters[selectedScript.id] : undefined;
       const currentParamsDict = currentParamsArray ?
         currentParamsArray.reduce((acc, param) => {
-          acc[param.name] = param.value;
+          if (param.name) {
+            acc[param.name] = param.value ?? '';
+          }
           return acc;
-        }, {} as Record<string, any>) : undefined;
+        }, {} as Record<string, string | number | boolean>) : undefined;
 
       const effectiveUrl = rapServerUrl ? `${rapServerUrl}/agent/chat` : "/agent/chat";
       const response = await api.post(effectiveUrl, {
@@ -96,7 +99,7 @@ export const AgentView: React.FC = () => {
         llm_api_key_value: llmApiKeyValue,
         user_edited_parameters: currentParamsDict,
         raw_output_for_summary: options?.raw_output,
-        tool_call_id: newMessages[0].type === 'tool' ? (newMessages[0] as any).tool_call_id : undefined,
+        tool_call_id: newMessages[0].type === 'tool' ? (newMessages[0] as { tool_call_id: string }).tool_call_id : undefined,
         tool_output: newMessages[0].type === 'tool' ? newMessages[0].content : undefined,
       });
 
@@ -127,29 +130,7 @@ export const AgentView: React.FC = () => {
           }
         }
 
-        // --- SCRIPT GENERATION HANDLER ---
-        if (response.data.generated_script) {
-          const gen = response.data.generated_script;
-          try {
-            // 1. Save to temp file
-            const saveRes = await api.post("/api/generation/save_temp_script", {
-              script_code: gen.code,
-              filename: `AgentGen_${Date.now()}.cs`
-            });
 
-            if (saveRes.data?.success) {
-              const tempPath = saveRes.data.path;
-              // 2. We need to find this script in our registry or manually construct it
-              // For now, we'll try to find it (might need a refresh)
-              // but a simpler way is to just trigger a notification or 
-              // construct a 'virtual' script object for the inspector.
-              showNotification("Custom script generated and saved to temp.", "success");
-              // Force a script refresh might be needed here.
-            }
-          } catch (err) {
-            console.error("Failed to save generated script:", err);
-          }
-        }
       }
       else if (response.data.status === 'interrupted' && response.data.tool_call) {
         // --- SOVEREIGN CONDUCTOR LOGIC ---
@@ -163,7 +144,7 @@ export const AgentView: React.FC = () => {
             scriptToSelect = response.data.active_script;
           } else {
             const s_id = isSelectionTool ? (response.data.tool_call.arguments.script_id) : t_name.replace('run_', '');
-            scriptToSelect = scripts.find((s: any) => {
+            scriptToSelect = scripts.find((s: Script) => {
               const manualSlug = s.id.toLowerCase().replace(/\\/g, '/').replace('.cs', '').split('/').join('_').replace(/ /g, '_').replace(/\./g, '_');
               const targetSlug = s_id.toLowerCase().replace(/\\/g, '_').replace('.cs', '');
               return manualSlug.endsWith(targetSlug);
@@ -176,7 +157,7 @@ export const AgentView: React.FC = () => {
             const selected = {
               ...scriptToSelect,
               sourcePath: scriptToSelect.absolutePath,
-              parameters: (scriptToSelect.parameters || []).map((p: any) => ({
+              parameters: (scriptToSelect.parameters || []).map((p: ScriptParameter) => ({
                 ...p,
                 value: prefilled[p.name] !== undefined ? prefilled[p.name] : p.value
               }))
@@ -203,7 +184,7 @@ export const AgentView: React.FC = () => {
         setMessages(prev => [...prev, toolCallMessage]);
 
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Agent invoke error:", error);
       showNotification("Failed to communicate with the agent.", "error");
     } finally {
@@ -211,10 +192,10 @@ export const AgentView: React.FC = () => {
     }
   }, [threadId, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, setSelectedScript, clearExecutionResult, setActiveInspectorTab, rapServerUrl, scripts, messages]);
 
-  const executePlanStep = useCallback((plan: any, stepIndex: number) => {
+  const executePlanStep = useCallback((plan: OrchestrationPlan, stepIndex: number) => {
     let steps = plan.steps;
     if (typeof steps === 'string') {
-      try { steps = JSON.parse(steps); } catch { }
+      try { steps = JSON.parse(steps); } catch (e) { console.error("Failed to parse plan steps:", e); }
     }
 
     if (!Array.isArray(steps)) {
@@ -228,7 +209,7 @@ export const AgentView: React.FC = () => {
     console.log(`[AgentView] Executing Plan Step ${stepIndex + 1}: ${step.script_id}`);
 
     // Resolve script locally
-    const localScript = scripts.find((s: any) => {
+    const localScript = scripts.find((s: Script) => {
       const ms = s.id.toLowerCase().replace(/\\/g, '/').replace('.cs', '').split('/').join('_').replace(/ /g, '_').replace(/\./g, '_');
       const ts = step.script_id.toLowerCase().replace(/\\/g, '_').replace('.cs', '');
       return ms.endsWith(ts);
@@ -236,7 +217,7 @@ export const AgentView: React.FC = () => {
 
     if (localScript) {
       agentRunTriggeredRef.current = true;
-      const finalParams = localScript.parameters.map((p: any) => ({
+      const finalParams = localScript.parameters.map((p: ScriptParameter) => ({
         ...p,
         value: step.deduced_parameters[p.name] !== undefined ? step.deduced_parameters[p.name] : p.value
       }));
@@ -321,9 +302,10 @@ export const AgentView: React.FC = () => {
         const currentParamsArray = userEditedScriptParameters[selectedScript.id] || [];
         const finalParams = selectedScript.parameters.map(p => {
           const uiMatch = currentParamsArray.find(up => up.name === p.name);
+          const toolArgs = parameters as Record<string, string | number | boolean>;
           return {
             ...p,
-            value: uiMatch ? uiMatch.value : (parameters[p.name] ?? p.value)
+            value: uiMatch ? uiMatch.value : (toolArgs[p.name] ?? p.value)
           }
         });
         runScript(selectedScript, finalParams);
@@ -379,11 +361,18 @@ export const AgentView: React.FC = () => {
       const isExecuting = activePlan === msg.plan;
       return (
         <div className="space-y-2">
-          <p className="whitespace-pre-wrap">{msg.content}</p>
+          <p className="whitespace-pre-wrap">
+            {typeof msg.content === 'string'
+              ? msg.content
+              : Array.isArray(msg.content)
+                ? msg.content.map(i => i.text).join('\n')
+                : ''}
+          </p>
           <OrchestrationPlanCard
             plan={msg.plan}
             isPending={messages[messages.length - 1].id === msg.id && !isExecuting}
             onExecute={() => {
+              if (!msg.plan) return;
               setActivePlan(msg.plan);
               setCurrentPlanStepIndex(0);
               executePlanStep(msg.plan, 0);
@@ -421,7 +410,11 @@ export const AgentView: React.FC = () => {
       );
     }
 
-    const content = typeof msg.content === 'string' ? msg.content : Array.isArray(msg.content) ? msg.content.map((i: any) => i.text || '').join('\n') : (msg.content as any)?.text || '';
+    const content = typeof msg.content === 'string'
+      ? msg.content
+      : Array.isArray(msg.content)
+        ? (msg.content as { text: string }[]).map((i) => i.text || '').join('\n')
+        : '';
     return <p className="whitespace-pre-wrap leading-relaxed">{content}</p>;
   };
 
@@ -430,8 +423,8 @@ export const AgentView: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div>
-          <h2 className="text-lg font-bold text-gray-800 dark:text-white">Paracore Assistant</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Powered by Revit Automation Engine</p>
+          <h2 className="text-lg font-bold text-gray-800 dark:text-white">Paracore Agent</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Powered by CoreScript.Engine</p>
         </div>
         <div className="flex space-x-2">
           <button onClick={() => setIsClearChatModalOpen(true)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all">
@@ -449,7 +442,11 @@ export const AgentView: React.FC = () => {
                 <FontAwesomeIcon icon={msg.type === 'human' ? faUser : faRobot} size="xs" />
               </div>
               <div className={`p-4 rounded-2xl shadow-sm text-sm ${msg.type === 'human' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none border border-gray-100 dark:border-gray-700'}`}>
-                {renderMessageContent(msg)}
+                {typeof msg.content === 'string'
+                  ? renderMessageContent(msg)
+                  : Array.isArray(msg.content)
+                    ? msg.content.map((i, idx) => <p key={idx}>{i.text}</p>)
+                    : renderMessageContent(msg)}
               </div>
             </div>
           </div>

@@ -101,13 +101,6 @@
     /* Removed overflow:hidden to prevent clipping of floating exit controls */
 }
 
-.heroGrid>div {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-}
-
 .animatedBackdrop {
     position: absolute;
     inset: -100%;

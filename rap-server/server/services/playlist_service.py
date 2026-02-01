@@ -1,7 +1,8 @@
-import os
 import json
 import logging
-from typing import List, Dict, Optional, Any
+import os
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class PlaylistService:
                 # Skip .git and node_modules for performance
                 if '.git' in dirs: dirs.remove('.git')
                 if 'node_modules' in dirs: dirs.remove('node_modules')
-                
+
                 for file in files:
                     if file.endswith('.playlist.json'):
                         full_path = os.path.join(root, file)
@@ -45,14 +46,14 @@ class PlaylistService:
                                 playlists.append(playlist)
                         except Exception as e:
                             logger.error(f"Failed to load playlist {full_path}: {e}")
-        
+
         return playlists
 
     def _load_playlist(self, file_path: str) -> Optional[Playlist]:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
+
             # Basic validation
             if 'name' not in data or 'items' not in data:
                 logger.warning(f"Invalid playlist structure in {file_path}")

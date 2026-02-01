@@ -1,12 +1,10 @@
-import os
 import logging
+import os
 from contextlib import contextmanager
-import grpc
+
 import corescript_pb2
 import corescript_pb2_grpc
-from google.protobuf import json_format
-
-import json
+import grpc
 
 # Global channel variable
 _channel = None
@@ -33,7 +31,7 @@ def get_corescript_runner_stub():
     global _channel
     # Fallback if channel wasn't initialized (e.g. running outside main app)
     local_channel = None
-    
+
     try:
         if _channel is None:
             logging.warning("Global gRPC channel not initialized. Creating temporary channel.")
@@ -61,12 +59,13 @@ def get_status():
         logging.error(f"An unexpected error occurred during gRPC GetStatus call: {e}")
         raise # Re-raise the unexpected error
 
-def execute_script(script_content, parameters_json):
+def execute_script(script_content, parameters_json, compiled_assembly=None):
     # logging.info("Attempting to execute script via gRPC.")
     with get_corescript_runner_stub() as stub:
         request = corescript_pb2.ExecuteScriptRequest(
-            script_content=script_content.encode('utf-8'),
+            script_content=script_content.encode('utf-8') if script_content else b"",
             parameters_json=parameters_json.encode('utf-8'),
+            compiled_assembly=compiled_assembly if compiled_assembly else b"",
             source="Paracore"
         )
         try:
@@ -74,7 +73,7 @@ def execute_script(script_content, parameters_json):
             # logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
             structured_output_data = [{"type": item.type, "data": item.data} for item in response.structured_output]
-            
+
             return {
                 "is_success": response.is_success,
                 "output": response.output,
@@ -92,7 +91,7 @@ def get_script_metadata(script_files):
         grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
         request = corescript_pb2.GetScriptMetadataRequest(script_files=grpc_script_files)
         response = stub.GetScriptMetadata(request)
-    
+
     # Manually construct the dictionary to ensure empty fields are included (Proto3 omits them by default in MessageToDict)
     # and to avoid version-specific keyword arguments errors.
     m = response.metadata
@@ -107,7 +106,9 @@ def get_script_metadata(script_files):
         "document_type": m.document_type,
         "usage_examples": list(m.usage_examples),
         "website": m.website,
-        "last_run": m.last_run
+        "last_run": m.last_run,
+        "is_protected": m.is_protected,
+        "is_compiled": m.is_compiled
     }
 
     return {
@@ -162,7 +163,7 @@ def get_combined_script(script_files):
         grpc_script_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in script_files]
         request = corescript_pb2.GetCombinedScriptRequest(script_files=grpc_script_files)
         response = stub.GetCombinedScript(request)
-    
+
     return {
         "combined_script": response.combined_script,
         "error_message": response.error_message
@@ -200,7 +201,7 @@ def get_context():
             request = corescript_pb2.GetContextRequest()
             response = stub.GetContext(request)
             print("DEBUG: Received GetContextResponse")
-        
+
         return {
             "active_view_name": response.active_view_name,
             "active_view_type": response.active_view_type,
@@ -209,7 +210,7 @@ def get_context():
             "selection_count": response.selection_count,
             "selected_element_ids": list(response.selected_element_ids),
             "selected_elements": [
-                {"id": item.id, "category": item.category} 
+                {"id": item.id, "category": item.category}
                 for item in response.selected_elements
             ],
             "levels": [
@@ -369,5 +370,33 @@ def rename_script(old_path: str, new_name: str):
         return {
             "is_success": False,
             "new_path": "",
+            "error_message": f"Unexpected error: {str(e)}"
+        }
+def build_script(script_content):
+    """
+    Calls the gRPC service to compile a script and return the assembly bytes.
+    """
+    logging.info("Attempting to build script via gRPC.")
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.BuildScriptRequest(
+                script_content=script_content
+            )
+            response = stub.BuildScript(request)
+            return {
+                "is_success": response.is_success,
+                "compiled_assembly": response.compiled_assembly,
+                "error_message": response.error_message
+            }
+    except grpc.RpcError as e:
+        logging.error(f"gRPC BuildScript call failed: {e.code()} - {e.details()}")
+        return {
+            "is_success": False,
+            "error_message": f"gRPC error: {e.details()}"
+        }
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during gRPC BuildScript call: {e}")
+        return {
+            "is_success": False,
             "error_message": f"Unexpected error: {str(e)}"
         }

@@ -1,14 +1,15 @@
-import httpx
 import json
+from typing import List, Optional  # Added List
+
+from config import settings
+from database_config import get_db
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List # Added List
-from sqlalchemy.orm import Session # Added Session
-from database_config import get_db
+from sqlalchemy.orm import Session  # Added Session
+
 import models
-from config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -45,7 +46,7 @@ async def get_current_user(
         if token == "rap-local-token":
             local_email = "local@paracore.app"
             local_user = db.query(models.User).filter(models.User.email == local_email).first()
-            
+
             if not local_user:
                 # Create the local user if it doesn't exist
                 # Use a specific ID range or let DB handle it. Since sqlite is local, auto-increment is fine.
@@ -102,7 +103,7 @@ async def get_current_user(
             return current_user
 
         memberships = json.loads(local_profile.memberships_json) if local_profile.memberships_json else []
-        
+
         current_user = CurrentUser(
             id=int(user_id),
             email=email,

@@ -81,15 +81,15 @@ export const validateParameters = (params: ScriptParameter[]): string[] => {
     params.forEach(p => {
         const valStr = p.value === undefined || p.value === null ? '' : String(p.value).trim();
 
-        if (p.required && valStr === '') {
+        if ((p.required || p.pattern) && valStr === '') {
             errors.push(`- '${p.name}' is required`);
         }
 
         if (p.pattern && valStr !== '') {
             if (p.inputType === 'File' || p.inputType === 'SaveFile') {
-                // File extension validation (e.g., "*.jpg;*.png")
-                const extensions = p.pattern.split(';')
-                    .map(ext => ext.replace('*', '').toLowerCase().trim())
+                // File extension validation (e.g., "*.jpg;*.png" or "jpg,png")
+                const extensions = p.pattern.split(/[,;]/)
+                    .map(ext => ext.replace('*', '').replace('.', '').toLowerCase().trim())
                     .filter(ext => ext !== '');
 
                 const valLower = valStr.toLowerCase();
@@ -102,7 +102,14 @@ export const validateParameters = (params: ScriptParameter[]): string[] => {
                 // Standard Regex validation
                 try {
                     if (!new RegExp(p.pattern).test(valStr)) {
-                        errors.push(`- '${p.name}' format is invalid`);
+                        // V3 Enhancement: If the pattern is a simple anchored string (like ^APPLY$), 
+                        // extract the word and show a helpful hint.
+                        const match = p.pattern.match(/^\^([a-zA-Z0-9_-]+)\$$/);
+                        if (match) {
+                            errors.push(`- '${p.name}' must be exactly: ${match[1]}`);
+                        } else {
+                            errors.push(`- '${p.name}' format is invalid`);
+                        }
                     }
                 } catch (e) {
                     console.error(`Invalid regex pattern for parameter ${p.name}:`, p.pattern);

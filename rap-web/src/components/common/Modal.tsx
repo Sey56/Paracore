@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Portal from './Portal';
 
 interface ModalProps {
@@ -7,38 +7,63 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   title: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'; // Added 2xl size
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md' }) => {
-  if (!isOpen) return null;
+  const [show, setShow] = useState(false);
+  const [render, setRender] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setRender(true);
+      requestAnimationFrame(() => setShow(true));
+    } else {
+      setShow(false);
+      const timer = setTimeout(() => setRender(false), 200); // Match transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!render) return null;
 
   const maxWidthClass = {
     sm: 'max-w-sm',
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
-    '2xl': 'max-w-screen-lg', // Custom wider size
+    '2xl': 'max-w-screen-lg',
   }[size];
 
   return (
     <Portal wrapperId="modal-portal">
-      <div className="fixed inset-0 bg-black/20 z-[9999] flex justify-center items-center p-4" onClick={onClose}>
+      <div 
+        className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-200 ease-out ${
+          show ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'
+        }`}
+        onClick={onClose}
+      >
         <div 
-          className={`bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full ${maxWidthClass} flex flex-col`}
-          onClick={(e) => e.stopPropagation()} // Prevent clicks inside the modal from closing it
+          className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-gray-100 dark:border-gray-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
+          }`}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+          {/* Header */}
+          <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{title}</h2>
             <button 
               onClick={onClose}
-              className="p-1 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="group p-2 rounded-full text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title="Close"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
+          
+          {/* Content */}
           <div className="p-6">
             {children}
           </div>

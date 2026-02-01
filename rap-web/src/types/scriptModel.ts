@@ -84,6 +84,8 @@ export interface ScriptMetadata {
   dateModified?: string;
   gitInfo?: GitInfo;
   usage_examples?: string[];
+  isProtected?: boolean;
+  isCompiled?: boolean;
 }
 
 export interface RawGitInfoFromApi {
@@ -105,6 +107,8 @@ export interface RawScriptMetadataFromApi {
   usage_examples?: string[];
   dateCreated?: string;
   dateModified?: string;
+  is_protected?: boolean;
+  is_compiled?: boolean;
 }
 
 export interface RawScriptFromApi {

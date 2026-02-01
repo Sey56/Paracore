@@ -28,7 +28,14 @@ namespace CoreScript.Engine.Core
                 return ScriptParser.CombineScriptFiles(scriptFiles);
             }
 
-            var syntaxTrees = scriptFiles.ToDictionary(
+            // Filter out any script files with null or empty filenames
+            var validScriptFiles = scriptFiles.Where(sf => !string.IsNullOrEmpty(sf.FileName)).ToList();
+            if (!validScriptFiles.Any())
+            {
+                throw new InvalidDataException("No valid script files with filenames found.");
+            }
+
+            var syntaxTrees = validScriptFiles.ToDictionary(
                 sf => sf.FileName, 
                 sf => CSharpSyntaxTree.ParseText(sf.Content, path: sf.FileName),
                 StringComparer.OrdinalIgnoreCase);
@@ -84,7 +91,7 @@ namespace CoreScript.Engine.Core
                 }
             }
 
-            var scriptsToCombine = scriptFiles
+            var scriptsToCombine = validScriptFiles
                 .Where(sf => referencedFiles.Contains(sf.FileName))
                 .ToList();
 

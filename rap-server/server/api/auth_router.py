@@ -1,12 +1,15 @@
+import json  # Added json import
+
+import auth
+import httpx
+from config import settings
+from database_config import get_db  # Added get_db import
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-import httpx
-import json # Added json import
-from sqlalchemy.orm import Session # Added Session import
+from sqlalchemy.orm import Session  # Added Session import
 
-import schemas, auth, models # Added models import
-from config import settings
-from database_config import get_db # Added get_db import
+import models
+import schemas  # Added models import
 
 router = APIRouter()
 
@@ -31,11 +34,11 @@ async def google_verify(
                 json=payload
             )
             auth_server_response.raise_for_status()
-            
+
             # The auth server now returns the user object and the cloud token
             # We will just pass this through to the client.
             auth_server_data = auth_server_response.json()
-            
+
             # Extract user data from auth_server_data
             user_data = auth_server_data.get("user", {})
             user_id = user_data.get("id")
@@ -61,7 +64,7 @@ async def google_verify(
 
             # Find or create LocalUserProfile
             local_profile = db.query(models.LocalUserProfile).filter(models.LocalUserProfile.user_id == user_id).first()
-            
+
             memberships_json = json.dumps(memberships) # Serialize memberships
 
             if not local_profile:
@@ -76,7 +79,7 @@ async def google_verify(
                 local_profile.memberships_json = memberships_json
                 local_profile.active_team_id = active_team
                 local_profile.active_role = active_role
-            
+
             db.commit()
             db.refresh(local_profile)
 

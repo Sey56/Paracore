@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from 'react';
 import { useScripts } from '@/hooks/useScripts';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
-import { ScriptParameter } from '@/types/scriptModel';
+import { Script, ScriptParameter } from '@/types/scriptModel';
 import { ParameterInput } from '../ScriptInspector/ParameterInput';
 import { ParameterGroupSection } from '../ScriptInspector/ParameterGroupSection';
 import { filterVisibleParameters } from '@/utils/parameterVisibility';
@@ -10,8 +10,8 @@ import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 
 interface PlaylistItemConfigProps {
     scriptPath: string;
-    savedParameters: Record<string, any>;
-    onUpdateParameters: (newParams: Record<string, any>) => void;
+    savedParameters: Record<string, string | number | boolean>;
+    onUpdateParameters: (newParams: Record<string, string | number | boolean>) => void;
 }
 
 export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPath, savedParameters, onUpdateParameters }) => {
@@ -89,7 +89,7 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
         }
     };
 
-    const handleCompute = async (_s: any, paramName: string) => {
+    const handleCompute = async (_s: Script, paramName: string) => {
         if (!script) return;
         const result = await computeParameterOptions(script, paramName, false);
 

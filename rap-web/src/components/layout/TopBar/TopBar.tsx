@@ -130,32 +130,26 @@ export const TopBar: React.FC = () => {
         >
           <FontAwesomeIcon icon={faRectangleList} />
         </button>
-        <button
-          onClick={() => setActiveMainView('playlists')}
-          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'playlists' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-          title="Playlists Mode"
-        >
-          <FontAwesomeIcon icon={faListUl} />
-        </button>
-        <button
-          onClick={() => {
-            if (activeTeam && activeTeam.team_id !== 0) setActiveMainView('generation');
-          }}
-          disabled={!activeTeam || activeTeam.team_id === 0}
-          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'generation' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
-          title={(!activeTeam || activeTeam.team_id === 0) ? "AI Script Generation (Cloud Infrastructure Required)" : "Generation Mode"}
-        >
-          <FontAwesomeIcon icon={faCode} />
-        </button>
+
         <button
           onClick={() => {
             if (activeTeam && activeTeam.team_id !== 0) handleAgentModeClick();
           }}
           disabled={!activeTeam || activeTeam.team_id === 0}
-          className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
-          title={(!activeTeam || activeTeam.team_id === 0) ? "Agentic Mode (Cloud Infrastructure Required)" : "Agent Mode"}
+          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "Agentic Mode (Cloud feature)" : "Agent Mode"}
         >
           <FontAwesomeIcon icon={faRobot} />
+        </button>
+        <button
+          onClick={() => {
+            if (activeTeam && activeTeam.team_id !== 0) setActiveMainView('playlists');
+          }}
+          disabled={!activeTeam || activeTeam.team_id === 0}
+          className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'playlists' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
+          title={(!activeTeam || activeTeam.team_id === 0) ? "Playlists Mode (Cloud feature)" : "Playlists Mode"}
+        >
+          <FontAwesomeIcon icon={faListUl} />
         </button>
 
         <div className="action-icons flex items-center space-x-2 border-r border-gray-200 dark:border-gray-700 pr-4">
@@ -213,10 +207,12 @@ export const TopBar: React.FC = () => {
               <span className="text-gray-600 dark:text-gray-400">codarch46@gmail.com</span>
             </div>
           </div>
-          <div className="pt-4 text-center">
-            <a href="https://sey56.github.io/paracore-help" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+          <div className="pt-4 text-center space-y-3">
+            <a href="https://sey56.github.io/paracore-help" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline block text-xs">
               Online Documentation
             </a>
+
+
           </div>
         </div>
       </Modal>

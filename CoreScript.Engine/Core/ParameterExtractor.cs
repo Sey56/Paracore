@@ -23,6 +23,32 @@ namespace CoreScript.Engine.Core
         public List<ScriptParameter> ExtractParameters(string scriptContent)
         {
             var parameters = new List<ScriptParameter>();
+            if (string.IsNullOrWhiteSpace(scriptContent)) return parameters;
+
+            // --- .ptool Support ---
+            // If the content is JSON, it's a proprietary tool package
+            if (scriptContent.Trim().StartsWith("{") && scriptContent.Trim().EndsWith("}"))
+            {
+                try
+                {
+                    using (JsonDocument doc = JsonDocument.Parse(scriptContent))
+                    {
+                        var rootElement = doc.RootElement;
+                        if (rootElement.TryGetProperty("parameters", out var paramsElem))
+                        {
+                            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                            parameters = JsonSerializer.Deserialize<List<ScriptParameter>>(paramsElem.GetRawText(), options) ?? parameters;
+                            return parameters;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[ParameterExtractor] Failed to parse .ptool JSON: {ex.Message}");
+                }
+            }
+            // ---------------------
+
             try
             {
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(scriptContent);
@@ -338,7 +364,7 @@ namespace CoreScript.Engine.Core
                 string attrName = attr.Name.ToString();
 
                 // Validation Attributes (New in V2.0.0)
-                if (attrName.Contains("Required")) required = true;
+                if (attrName.Contains("Required") || attrName.Contains("Mandatory")) required = true;
                 if (attrName.Contains("Min") && attr.ArgumentList?.Arguments.Count > 0) 
                     min = ExtractDouble(attr.ArgumentList.Arguments[0].Expression);
                 if (attrName.Contains("Max") && attr.ArgumentList?.Arguments.Count > 0)
@@ -358,6 +384,8 @@ namespace CoreScript.Engine.Core
                     suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
                 if (attrName.Contains("Pattern") && attr.ArgumentList?.Arguments.Count > 0)
                     pattern = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                if (attrName.Contains("Confirm") && attr.ArgumentList?.Arguments.Count > 0)
+                    pattern = $"^{ExtractString(attr.ArgumentList.Arguments[0].Expression)}$";
                 if (attrName == "Description" && attr.ArgumentList?.Arguments.Count > 0)
                     description = ExtractString(attr.ArgumentList.Arguments[0].Expression); // Attribute overrides XML if present
 
@@ -491,51 +519,44 @@ namespace CoreScript.Engine.Core
             bool isXyz = baseType == "XYZ" || baseType == "Autodesk.Revit.DB.XYZ";
             bool isReference = baseType == "Reference" || baseType == "Autodesk.Revit.DB.Reference";
 
-            if (initializer == null)
+            // 3. Infer Type from Property Type (Standard V3 Inference)
+            if (baseType == "int" || baseType == "long" || baseType == "double" || baseType == "float" || baseType == "decimal" || baseType == "number")
             {
-                // V2: Support implicit defaults if no initializer is present
-                if (baseType == "int" || baseType == "long" || baseType == "double" || baseType == "float" || baseType == "decimal" || baseType == "number")
-                {
-                    type = "number";
-                    numericType = (baseType == "int" || baseType == "long") ? "int" : "double";
-                    defaultValueJson = "0";
-                }
-                else if (baseType == "bool" || baseType == "boolean")
-                {
-                    type = "boolean";
-                    defaultValueJson = "false";
-                }
-                else if (baseType == "string")
-                {
-                    type = "string";
-                    defaultValueJson = "\"\"";
-                }
-                else if (isXyz)
-                {
-                    type = "xyz";
-                    defaultValueJson = JsonSerializer.Serialize("0,0,0");
-                    if (string.IsNullOrEmpty(selectionType)) selectionType = "Point";
-                }
-                else if (isReference)
-                {
-                    type = "reference";
-                    defaultValueJson = JsonSerializer.Serialize("");
-                    if (string.IsNullOrEmpty(selectionType)) selectionType = "Element";
-                }
-                else if (baseType.StartsWith("List<") || baseType.Contains("[]") || baseType.StartsWith("IList<") || baseType.Contains("IEnumerable<"))
-                {
-                    // V2 Inference: If it's a List/Array, it's a MultiSelect parameter
-                    type = "string"; // Usually string array for options
-                    multiSelect = true;
-                    defaultValueJson = "[]";
-                }
-                else // Default fallback
-                {
-                    type = "string";
-                    defaultValueJson = "\"\"";
-                }
+                type = "number";
+                numericType = (baseType == "int" || baseType == "long") ? "int" : "double";
+                defaultValueJson = "0";
             }
-            else if (initializer is LiteralExpressionSyntax literal)
+            else if (baseType == "bool" || baseType == "boolean")
+            {
+                type = "boolean";
+                defaultValueJson = "false";
+            }
+            else if (baseType == "string")
+            {
+                type = "string";
+                defaultValueJson = "\"\"";
+            }
+            else if (isXyz)
+            {
+                type = "xyz";
+                defaultValueJson = JsonSerializer.Serialize("0,0,0");
+                if (string.IsNullOrEmpty(selectionType)) selectionType = "Point";
+            }
+            else if (isReference)
+            {
+                type = "reference";
+                defaultValueJson = JsonSerializer.Serialize("");
+                if (string.IsNullOrEmpty(selectionType)) selectionType = "Element";
+            }
+            else if (baseType.StartsWith("List<") || baseType.Contains("[]") || baseType.StartsWith("IList<") || baseType.Contains("IEnumerable<"))
+            {
+                type = "string";
+                multiSelect = true;
+                defaultValueJson = "[]";
+            }
+
+            // 4. Refine Default Value & Type from Initializer (if present)
+            if (initializer is LiteralExpressionSyntax literal)
             {
                 var val = literal.Token.Value;
                 if (val is string s)
@@ -571,9 +592,17 @@ namespace CoreScript.Engine.Core
                     if (double.TryParse(literal.Token.ValueText, out double num))
                     {
                         defaultValueJson = JsonSerializer.Serialize(num);
-                        if (csharpType == "int") numericType = "int"; 
-                        else numericType = "double";
                     }
+                }
+            }
+            else if (initializer is PrefixUnaryExpressionSyntax pre && pre.OperatorToken.IsKind(SyntaxKind.MinusToken))
+            {
+                // Robust support for negative numbers as defaults
+                type = "number";
+                var val = ExtractDouble(pre);
+                if (val.HasValue)
+                {
+                    defaultValueJson = JsonSerializer.Serialize(val.Value);
                 }
             }
             else if (initializer is ObjectCreationExpressionSyntax objCreation && isXyz)

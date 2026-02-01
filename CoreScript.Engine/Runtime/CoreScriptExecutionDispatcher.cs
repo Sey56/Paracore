@@ -9,8 +9,9 @@ namespace CoreScript.Engine.Runtime
     {
         private readonly ICodeRunner _runner;
         private ExternalEvent _codeExecutionEvent;
-                private string _pendingScriptContent = string.Empty;
-        private string _pendingParametersJson = string.Empty; // New field
+        private string _pendingScriptContent = string.Empty;
+        private string _pendingParametersJson = string.Empty; 
+        private byte[]? _pendingCompiledAssembly; // New field for proprietary tools
         private ICoreScriptContext? _pendingContext;
         private Func<object> _pendingUIFunc;
         private TaskCompletionSource<object> _uiTaskCompletionSource;
@@ -55,23 +56,28 @@ namespace CoreScript.Engine.Runtime
         {
             FileLogger.Log("[CoreScriptExecutionDispatcher] Entering QueueScriptFromServer.");
             _pendingScriptContent = scriptContent;
-            _pendingParametersJson = parametersJson; // Store parametersJson
+            _pendingParametersJson = parametersJson;
+            _pendingCompiledAssembly = null; 
             _pendingContext = context;
 
-            FileLogger.Log($"[CoreScriptExecutionDispatcher] Script content length: {scriptContent.Length}");
-            FileLogger.Log($"[CoreScriptExecutionDispatcher] Parameters JSON length: {parametersJson.Length}");
-
-            if (_codeExecutionEvent == null)
-            {
-                var errorMessage = "External event is not initialized.";
-                LogErrorToFile(errorMessage);
-                FileLogger.Log("[CoreScriptExecutionDispatcher] External event not initialized. Returning failure.");
-                return ExecutionResult.Failure(errorMessage);
-            }
+            if (_codeExecutionEvent == null) return ExecutionResult.Failure("External event is not initialized.");
 
             _codeExecutionEvent.Raise();
-            FileLogger.Log("[CoreScriptExecutionDispatcher] External event raised. Returning success.");
             return ExecutionResult.Success("Script queued for execution.");
+        }
+
+        public ExecutionResult QueueBinaryScriptFromServer(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context)
+        {
+            FileLogger.Log("[CoreScriptExecutionDispatcher] Entering QueueBinaryScriptFromServer.");
+            _pendingScriptContent = string.Empty;
+            _pendingParametersJson = parametersJson;
+            _pendingCompiledAssembly = compiledAssembly;
+            _pendingContext = context;
+
+            if (_codeExecutionEvent == null) return ExecutionResult.Failure("External event is not initialized.");
+
+            _codeExecutionEvent.Raise();
+            return ExecutionResult.Success("Binary tool queued for execution.");
         }
 
         public ExecutionResult ExecuteCodeInRevit(ICoreScriptContext context)
@@ -99,21 +105,29 @@ namespace CoreScript.Engine.Runtime
 
             try
             {
-                if (string.IsNullOrEmpty(_pendingScriptContent) || _pendingContext == null)
+                if (_pendingContext == null)
                 {
-                    var errorMessage = "No script content or context available to execute.";
+                    var errorMessage = "No context available to execute.";
                     LogErrorToFile(errorMessage);
-                    FileLogger.Log("[CoreScriptExecutionDispatcher] No script content or context. Returning failure.");
                     scriptResult = ExecutionResult.Failure(errorMessage);
+                }
+                else if (_pendingCompiledAssembly != null)
+                {
+                    FileLogger.Log("[CoreScriptExecutionDispatcher] Executing BINARY tool via CodeRunner.");
+                    scriptResult = _runner.ExecuteBinary(_pendingCompiledAssembly, _pendingParametersJson, _pendingContext);
+                }
+                else if (!string.IsNullOrEmpty(_pendingScriptContent))
+                {
+                    FileLogger.Log("[CoreScriptExecutionDispatcher] Executing SOURCE script via CodeRunner.");
+                    scriptResult = _runner.Execute(_pendingScriptContent, _pendingParametersJson, _pendingContext);
                 }
                 else
                 {
-                    FileLogger.Log("[CoreScriptExecutionDispatcher] Executing script via CodeRunner.");
-                    scriptResult = _runner.Execute(_pendingScriptContent, _pendingParametersJson, _pendingContext);
-
-                    if (!scriptResult.IsSuccess)
-                        LogErrorToFile(scriptResult.ErrorMessage ?? "Unknown error.");
+                    scriptResult = ExecutionResult.Failure("No script content or binary assembly provided.");
                 }
+
+                if (!scriptResult.IsSuccess)
+                    LogErrorToFile(scriptResult.ErrorMessage ?? "Unknown error.");
             }
             catch (Exception ex)
             {
@@ -144,6 +158,7 @@ namespace CoreScript.Engine.Runtime
             {
                 _pendingScriptContent = string.Empty;
                 _pendingParametersJson = string.Empty;
+                _pendingCompiledAssembly = null;
                 _pendingContext = null;
 
                 OnExecutionComplete?.Invoke(scriptResult);
@@ -151,6 +166,11 @@ namespace CoreScript.Engine.Runtime
             }
 
             return scriptResult;
+        }
+
+        public byte[] BuildScript(string scriptContent)
+        {
+            return _runner.CompileToBytes(scriptContent);
         }
 
         private static void LogErrorToFile(string errorMessage)

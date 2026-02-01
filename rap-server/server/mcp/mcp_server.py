@@ -1,20 +1,20 @@
 import asyncio
-import os
 import json
 import logging
-from typing import List, Optional
+import os
 
-from mcp.server import Server, InitializationOptions
-from mcp.server.stdio import stdio_server
 import mcp.types as types
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
 
 # Local imports
 if __name__ == "__main__" and __package__ is None:
     import sys
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from grpc_client import close_channel, execute_script, get_context, init_channel
+
 from agent.orchestrator.registry import ScriptRegistry
-from grpc_client import init_channel, get_script_parameters, execute_script, close_channel, get_context
 
 # Configure logging
 log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcp_debug.log")
@@ -33,14 +33,14 @@ def get_scripts_path():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--scripts-path", type=str, help="Root path for script discovery")
     args, _ = parser.parse_known_args()
-    
+
     if args.scripts_path:
         return args.scripts_path
-        
+
     env_path = os.getenv("PARACORE_SCRIPTS_PATH")
     if env_path:
         return env_path
-        
+
     # Derived fallback: {RepoRoot}/Agent-Library
     # mcp_server.py is in rap-server/server/mcp
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -58,7 +58,7 @@ async def handle_list_tools() -> list[types.Tool]:
     """List available Paracore scripts and context tools."""
     logger.info(f"Listing tools for path: {SCRIPTS_PATH}")
     mcp_tools = registry.get_mcp_tools()
-    
+
     tools = []
     for t in mcp_tools:
         tools.append(types.Tool(
@@ -66,7 +66,7 @@ async def handle_list_tools() -> list[types.Tool]:
             description=t["description"],
             inputSchema=t["input_schema"]
         ))
-    
+
     # Add specialized Revit tools
     tools.append(types.Tool(
         name="get_revit_context",
@@ -97,7 +97,7 @@ async def handle_list_tools() -> list[types.Tool]:
             "required": ["script_tool_id", "parameter_name"]
         },
     ))
-    
+
     return tools
 
 @server.call_tool()
@@ -125,7 +125,7 @@ async def handle_call_tool(
     if name == "get_parameter_options":
         tool_id = arguments.get("script_tool_id")
         param_name = arguments.get("parameter_name")
-        
+
         target_script = registry.find_script_by_tool_id(tool_id)
         if not target_script:
             return [types.TextContent(type="text", text=f"Error: Script '{tool_id}' not found.")]
@@ -134,10 +134,11 @@ async def handle_call_tool(
         script_type = target_script.get("type", "single-file")
 
         try:
-            from utils import resolve_script_path
             import glob
+
+            from utils import resolve_script_path
             absolute_path = resolve_script_path(script_path)
-            
+
             # For options computation, we need the main script content
             source_code = ""
             if script_type == "single-file":
@@ -147,7 +148,7 @@ async def handle_call_tool(
                 # Find the top-level script (usually the one with 'public class Params' or just use first .cs)
                 cs_files = glob.glob(os.path.join(absolute_path, "*.cs"))
                 if not cs_files: return [types.TextContent(type="text", text="Error: No files found in multi-file script.")]
-                
+
                 # Simple check: try to find the one with 'Params'
                 found_main = False
                 for f_path in cs_files:
@@ -171,7 +172,7 @@ async def handle_call_tool(
     if name.startswith("run_"):
         tool_id = name.replace("run_", "")
         target_script = registry.find_script_by_tool_id(tool_id)
-        
+
         if not target_script:
             return [types.TextContent(type="text", text=f"Error: Script tool '{name}' not found.")]
 
@@ -180,14 +181,15 @@ async def handle_call_tool(
         script_type = target_script.get("type", "single-file")
 
         logger.info(f"Executing {script_name} via MCP")
-        
+
         try:
-            from utils import resolve_script_path
             import glob
-            
+
+            from utils import resolve_script_path
+
             absolute_path = resolve_script_path(script_path)
             script_files_payload = []
-            
+
             if script_type == "single-file":
                 with open(absolute_path, 'r', encoding='utf-8-sig') as f:
                     source_code = f.read()
@@ -199,12 +201,12 @@ async def handle_call_tool(
                     script_files_payload.append({"FileName": os.path.basename(file_path), "Content": source_code})
 
             if not script_files_payload:
-                return [types.TextContent(type="text", text=f"Error: No script files found.")]
+                return [types.TextContent(type="text", text="Error: No script files found.")]
 
             # Standardized Parameter Mapping
             parameters = []
             param_defs = {p.get("name"): p for p in target_script.get("parameters", [])}
-            
+
             for k, v in arguments.items():
                 p_def = param_defs.get(k, {})
                 parameters.append({
@@ -215,20 +217,20 @@ async def handle_call_tool(
                     "MultiSelect": p_def.get("multiSelect", False),
                     "SelectionType": p_def.get("selectionType", "")
                 })
-            
+
             # Metadata injection
             parameters.append({"Name": "__script_name__", "Value": script_name, "Type": "string"})
 
             response = execute_script(json.dumps(script_files_payload), json.dumps(parameters))
-            
+
             result = f"Execution {'Successful' if response.get('is_success') else 'Failed'}\n"
             if response.get('output'):
                 result += f"Output:\n{response.get('output')}\n"
             if response.get('error_message'):
                 result += f"\nError: {response['error_message']}"
-            
+
             return [types.TextContent(type="text", text=result)]
-            
+
         except Exception as e:
             logger.exception("MCP Execution Failure")
             return [types.TextContent(type="text", text=f"Error: {str(e)}")]
@@ -254,7 +256,7 @@ async def main():
     # Trigger a fresh script scan on startup
     logger.info("Triggering fresh script registry refresh...")
     registry.refresh(force=True)
-    
+
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())
     close_channel()

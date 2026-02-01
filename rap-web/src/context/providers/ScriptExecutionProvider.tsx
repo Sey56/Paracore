@@ -14,7 +14,7 @@ import useLocalStorage from '@/hooks/useLocalStorage';
 
 
 // Helper function for robust value comparison
-const areValuesEqual = (val1: any, val2: any, type?: string): boolean => {
+const areValuesEqual = (val1: unknown, val2: unknown, type?: string): boolean => {
   if (val1 === val2) return true;
   if ((val1 === null || val1 === undefined) && (val2 === null || val2 === undefined)) return true;
 
@@ -32,13 +32,13 @@ const areValuesEqual = (val1: any, val2: any, type?: string): boolean => {
   }
 
   if (Array.isArray(val1) || Array.isArray(val2)) {
-    const toArr = (v: any) => {
+    const toArr = (v: unknown): unknown[] => {
       if (Array.isArray(v)) return v;
       if (typeof v === 'string') {
         const trimmed = v.trim();
         if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
           try {
-            return JSON.parse(trimmed);
+            return JSON.parse(trimmed) as unknown[];
           } catch (e) {
             return [];
           }
@@ -191,45 +191,34 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const lastSourceRef = useRef<{ type?: string; id?: string; path?: string } | null>(null);
 
   useEffect(() => {
-    // Determine if the source has actually changed since the last effect run
-    // Cast to any to safely compare properties across different union types
-    const current = activeScriptSource as any;
-    const previous = lastSourceRef.current as any;
+    // Determine if the source has actually changed
+    const current = activeScriptSource as Record<string, unknown>;
+    const previous = lastSourceRef.current as Record<string, unknown>;
 
-    const hasSourceChanged = previous && (
+    const hasSourceChanged = (previous && (
       previous.type !== current?.type ||
       previous.id !== current?.id ||
       previous.path !== current?.path
-    );
+    )) || (previous && !current);
 
-    // CRITICAL: Only clear result if the ACTUAL script ID has changed.
-    // This allows the agent to update source-paths or metadata (e.g. during summary) 
-    // without wiping the Table or Console tabs.
-    const isNewScript = selectedScriptRef.current && current?.id && selectedScriptRef.current.id !== current.id;
-
-    if (hasSourceChanged) {
-      console.log(`[ScriptExecutionProvider] Source metadata changed. ScriptID: ${selectedScriptRef.current?.id} -> ${current?.id}`);
-
-      // We only wipe selection and results if it's truly a different script identity
-      if (isNewScript || !current) {
-        setSelectedScriptState(null);
-        setCombinedScriptContent(null);
-        setExecutionResult(null);
-      }
+    if (hasSourceChanged || !current) {
+      console.log("[ScriptExecutionProvider] Source cleared or changed. Resetting inspector.");
+      setSelectedScriptState(null);
+      setCombinedScriptContent(null);
+      setExecutionResult(null);
     }
 
     lastSourceRef.current = activeScriptSource ? { ...activeScriptSource } : null;
   }, [activeScriptSource, setCombinedScriptContent]);
 
-  // Effect to clear selection on team switch
+  // Effect to clear selection on team switch or logout
   useEffect(() => {
-    if (activeTeam?.team_id) {
-      console.log("[ScriptExecutionProvider] Team changed. Clearing inspector selection.");
-      setSelectedScriptState(null);
-      setCombinedScriptContent(null);
-      setExecutionResult(null);
-    }
-  }, [activeTeam?.team_id, setCombinedScriptContent]);
+    console.log("[ScriptExecutionProvider] Team context changed. Resetting inspector.");
+    setSelectedScriptState(null);
+    setCombinedScriptContent(null);
+    setExecutionResult(null);
+    setAgentSelectedScriptPath(null);
+  }, [activeTeam?.team_id, setCombinedScriptContent, setAgentSelectedScriptPath]);
 
   const { user, cloudToken } = useAuth();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
@@ -263,13 +252,43 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       } else {
         throw new Error(response.data.message || "Failed to rename script.");
       }
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || error.message || "Failed to rename script.";
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      const errorMsg = err.response?.data?.detail || err.message || "Failed to rename script.";
       console.error("Rename script failed:", error);
       showNotification(errorMsg, "error");
       return { success: false, message: errorMsg };
     }
   }, [isAuthenticated, ParacoreConnected, selectedFolder, loadScriptsFromPath, showNotification, setCombinedScriptContent]);
+
+  const buildTool = useCallback(async (script: Script) => {
+    if (!script || !script.absolutePath) {
+      return { success: false, message: "Invalid script path." };
+    }
+
+    try {
+      showNotification(`Building protected tool for ${script.name}...`, "info");
+      const response = await api.post("/api/scripts/build-tool", {
+        scriptPath: script.absolutePath
+      });
+
+      if (response.data.is_success) {
+        showNotification(response.data.message, "success");
+        // Reload the gallery to show the new .ptool
+        if (selectedFolder) {
+          loadScriptsFromPath(selectedFolder, true);
+        }
+        return { success: true, message: response.data.message };
+      } else {
+        throw new Error(response.data.detail || "Failed to build tool.");
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.detail || error.message || "Failed to build tool.";
+      console.error("Build tool failed:", error);
+      showNotification(message, "error");
+      return { success: false, message };
+    }
+  }, [showNotification, selectedFolder, loadScriptsFromPath]);
 
   const editScript = useCallback(async (script: Script) => {
     if (!script || !user) return;
@@ -320,7 +339,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           await new Promise(resolve => setTimeout(resolve, 300));
         } else {
           // Final attempt failed
-          const err = error as any;
+          const err = error as { response?: { status: number }; message: string };
           console.error(`[ScriptExecutionProvider] Failed to fetch content for ${script.name} after 3 attempts. Status:`, err.response?.status, err.message);
           return null;
         }
@@ -435,8 +454,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
         if (paramsResult.parameters) {
           mergedParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
-            let val: any = p.defaultValueJson;
-            try { val = JSON.parse(p.defaultValueJson); } catch { }
+            let val: string | number | boolean = p.defaultValueJson;
+            try { val = JSON.parse(p.defaultValueJson); } catch (e) { console.error("JSON parse error:", e); }
             if (p.type === 'number' && typeof val === 'string') val = parseFloat(val) || 0;
             else if (p.type === 'boolean' && typeof val === 'string') val = val.toLowerCase() === 'true';
 
@@ -653,12 +672,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       });
 
       if (!updatedScriptFromProvider) {
-        if (selectedFolder && selectedScript.absolutePath?.replace(/\\/g, '/').startsWith(selectedFolder.replace(/\\/g, '/'))) {
-          console.log(`[ScriptExecutionProvider] Selected script ${selectedScript.name} is missing from ${selectedFolder}. Clearing inspector.`);
-          setSelectedScriptState(null);
-          setCombinedScriptContent(null);
-          setExecutionResult(null);
-        }
+        console.log(`[ScriptExecutionProvider] Selected script ${selectedScript.name} is no longer in the gallery. Clearing inspector.`);
+        setSelectedScriptState(null);
+        setCombinedScriptContent(null);
+        setExecutionResult(null);
         return;
       }
 
@@ -910,9 +927,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         showNotification(`Script '${script.name}' executed successfully.`, "success");
       }
       return frontendExecutionResult;
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { status?: number; data?: { detail?: string | object } }; message?: string };
       // Check for Axios error response
-      let message = err.response?.data?.detail || (err instanceof Error ? err.message : "An unknown error occurred.");
+      let message = err.response?.data?.detail || (error instanceof Error ? error.message : "An unknown error occurred.");
 
       // If detail is an object (common in FastAPI validation errors), stringify it or extract message
       if (typeof message === 'object') {
@@ -953,7 +971,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         lastExplicitParameterFetchTimeRef.current = Date.now();
 
         if (isRangeUpdate) {
-          const fmt = (n: any) => typeof n === 'number' ? n.toFixed(2) : n;
+          const fmt = (n: unknown) => typeof n === 'number' ? n.toFixed(2) : n;
           showNotification(`Range updated: ${fmt(min)} to ${fmt(max)} (Step: ${fmt(step)})`, "success");
         } else {
           showNotification(`Computed ${options.length} options for ${parameterName}`, "success");
@@ -1083,8 +1101,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       }
 
       return { value, is_success, cancelled, error_message };
-    } catch (err: any) {
-      const msg = err.message || "Failed to pick object.";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to pick object.";
       showNotification(msg, "error");
       return { is_success: false, error_message: msg };
     } finally {
@@ -1143,6 +1161,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     editScript,
     renameScript,
     resetScriptParameters,
+    buildTool,
   }), [
     selectedScript,
     setSelectedScript,
@@ -1167,6 +1186,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     editScript,
     renameScript,
     resetScriptParameters,
+    buildTool,
   ]);
 
   return (

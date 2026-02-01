@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { filterVisibleParameters, validateParameters } from '@/utils/parameterVisibility';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -11,15 +11,12 @@ import {
   faSync,
   faTrash,
   faExternalLinkAlt,
-  faChevronDown,
-  faChevronRight,
   faUndo,
 } from "@fortawesome/free-solid-svg-icons";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/hooks/useScriptExecution";
-import { ParameterInput } from "./ParameterInput";
-import { ParameterGroupSection } from "./ParameterGroupSection";
+import { ScriptParametersForm } from "./ScriptParametersForm";
 import { NewPresetNameModal } from './NewPresetNameModal';
 import { ConfirmActionModal } from './ConfirmActionModal';
 import { InfoModal } from './InfoModal';
@@ -70,11 +67,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     const cachedParams = userEditedScriptParameters[script.id];
     setEditedParameters(cachedParams || script.parameters || []);
   }, [script.id, userEditedScriptParameters, script.parameters]);
-
-  // Memoize visible parameters to prevent unnecessary re-renders
-  const visibleParameters = useMemo(() => {
-    return filterVisibleParameters(editedParameters);
-  }, [editedParameters]);
 
   const selectedPreset = activePresets[script.id] || "<Default Parameters>";
 
@@ -178,15 +170,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   };
 
   const handleRunScript = async () => {
-    // Validation using shared utility
-    const validationErrors = validateParameters(visibleParameters);
-
-    if (validationErrors.length > 0) {
-      setInfoModalMessage(`Please correct the following issues:\n${validationErrors.join('\n')}`);
-      setIsInfoModalOpen(true);
-      return;
-    }
-
     if (script) {
       await setSelectedScript(script);
       runScript(script, editedParameters);
@@ -205,74 +188,86 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const showStatusIcon = !isRunning && executionResult;
   const runSucceeded = showStatusIcon && !executionResult?.error;
 
-  const isRunDisabled = !!runningScriptPath || !isActionable;
+  const validationErrors = validateParameters(filterVisibleParameters(editedParameters));
+  const isParamsValid = validationErrors.length === 0;
 
-  const finalTooltipMessage = tooltipMessage;
+  const isRunDisabled = !!runningScriptPath || !isActionable || !isParamsValid;
+
+  const finalTooltipMessage = !isParamsValid
+    ? `Issues: ${validationErrors.join(', ')}`
+    : tooltipMessage;
 
   return (
     <div className={`tab-content p-4`}>
       <div className="space-y-3">
         {/* Preset Selector + Actions */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
-          <div className="relative flex items-center justify-end">
-            <select
-              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-auto"
-              value={selectedPreset}
-              onChange={(e) => {
-                const presetName = e.target.value;
-                internalSetSelectedPreset(presetName);
-                if (presetName === "<Default Parameters>") {
-                  // Load from the isolated "Default" draft cache if it exists, otherwise fall back to script defaults
-                  const draftParams = defaultDraftParameters[script.id];
-                  const finalDefaultParams = draftParams || initializeParameters(script.parameters ?? []);
-                  updateUserEditedParameters(script.id, finalDefaultParams, true); // isPresetLoad = true
-                  setEditedParameters(finalDefaultParams);
-                } else {
-                  const preset = presets.find((p) => p.name === presetName);
-                  if (preset) {
-                    // ... (merge logic)
-                    const mergedParams = (script.parameters ?? []).map(scriptParam => {
-                      const presetParam = preset.parameters.find(p => p.name === scriptParam.name);
+          <div className="flex items-center gap-4 mb-2">
+            <div className="relative flex-1 group">
+              <select
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm appearance-none pr-8"
+                value={selectedPreset}
+                onChange={(e) => {
+                  const presetName = e.target.value;
+                  internalSetSelectedPreset(presetName);
+                  if (presetName === "<Default Parameters>") {
+                    // Load from the isolated "Default" draft cache if it exists, otherwise fall back to script defaults
+                    const draftParams = defaultDraftParameters[script.id];
+                    const finalDefaultParams = draftParams || initializeParameters(script.parameters ?? []);
+                    updateUserEditedParameters(script.id, finalDefaultParams, true); // isPresetLoad = true
+                    setEditedParameters(finalDefaultParams);
+                  } else {
+                    const preset = presets.find((p) => p.name === presetName);
+                    if (preset) {
+                      // ... (merge logic)
+                      const mergedParams = (script.parameters ?? []).map(scriptParam => {
+                        const presetParam = preset.parameters.find(p => p.name === scriptParam.name);
 
-                      if (presetParam) {
-                        let newValue = presetParam.value;
+                        if (presetParam) {
+                          let newValue = presetParam.value;
 
-                        // Handle Multi-Select deserialization if necessary (though state isolation usually handles this)
-                        if (scriptParam.multiSelect && typeof newValue === 'string') {
-                          try {
-                            const parsed = JSON.parse(newValue);
-                            if (Array.isArray(parsed)) newValue = JSON.stringify(parsed);
-                          } catch {
-                            const arrayValue = newValue.split(',').map(v => v.trim()).filter(v => v.length > 0);
-                            newValue = JSON.stringify(arrayValue);
+                          // Handle Multi-Select deserialization if necessary (though state isolation usually handles this)
+                          if (scriptParam.multiSelect && typeof newValue === 'string') {
+                            try {
+                              const parsed = JSON.parse(newValue);
+                              if (Array.isArray(parsed)) newValue = JSON.stringify(parsed);
+                            } catch {
+                              const arrayValue = newValue.split(',').map(v => v.trim()).filter(v => v.length > 0);
+                              newValue = JSON.stringify(arrayValue);
+                            }
                           }
+
+                          // Also restore 'options' from the preset if they exist, 
+                          // as they might represent a previous "Fetch" state.
+                          const finalOptions = presetParam.options && presetParam.options.length > 0
+                            ? presetParam.options
+                            : scriptParam.options;
+
+                          return { ...scriptParam, value: newValue, options: finalOptions };
                         }
 
-                        // Also restore 'options' from the preset if they exist, 
-                        // as they might represent a previous "Fetch" state.
-                        const finalOptions = presetParam.options && presetParam.options.length > 0
-                          ? presetParam.options
-                          : scriptParam.options;
+                        return { ...scriptParam };
+                      });
 
-                        return { ...scriptParam, value: newValue, options: finalOptions };
-                      }
-
-                      return { ...scriptParam };
-                    });
-
-                    updateUserEditedParameters(script.id, mergedParams, true); // isPresetLoad = true
-                    setEditedParameters(mergedParams);
+                      updateUserEditedParameters(script.id, mergedParams, true); // isPresetLoad = true
+                      setEditedParameters(mergedParams);
+                    }
                   }
-                }
-              }}
-            >
-              <option value="<Default Parameters>">&lt;Default Parameters&gt;</option>
-              {presets.map((preset, i) => (
-                <option key={i} value={preset.name}>{preset.name}</option>
-              ))}
-            </select>
+                }}
+              >
+                <option value="<Default Parameters>" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">&lt;Default Parameters&gt;</option>
+                {presets.map((preset, i) => (
+                  <option key={i} value={preset.name} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">{preset.name}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
 
-            <div className="flex space-x-2 pl-4">
+            <div className="flex items-center space-x-2 shrink-0 border-l border-gray-200 dark:border-gray-700 pl-4 h-8">
               {isDefaultPreset && (
                 <button
                   className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 text-xs flex items-center px-2 py-1 rounded transition-colors"
@@ -283,83 +278,32 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                   <FontAwesomeIcon icon={faUndo} />
                 </button>
               )}
-              <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 self-center mx-2"></div>
-              <button title="New Preset" className="text-gray-600 dark:text-gray-300 hover:text-blue-600" onClick={handleNewPreset}>
-                <FontAwesomeIcon icon={faPlus} />
+              <button title="New Preset" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 p-1" onClick={handleNewPreset}>
+                <FontAwesomeIcon icon={faPlus} className="w-3.5 h-3.5" />
               </button>
-              <button key="rename-preset-button" title="Rename Preset" className={`hover:text-blue-600 ${isDefaultPreset || !isActionable ? "text-gray-400 dark:text-gray-500 cursor-not-allowed" : "text-gray-600 dark:text-gray-300"}`} disabled={isDefaultPreset || !isActionable} onClick={handleRenamePreset}>
-                <FontAwesomeIcon icon={faEdit} />
+              <button key="rename-preset-button" title="Rename Preset" className={`hover:text-blue-600 p-1 ${isDefaultPreset || !isActionable ? "text-gray-400 dark:text-gray-500 cursor-not-allowed" : "text-gray-600 dark:text-gray-300"}`} disabled={isDefaultPreset || !isActionable} onClick={handleRenamePreset}>
+                <FontAwesomeIcon icon={faEdit} className="w-3.5 h-3.5" />
               </button>
-              <button key="update-preset-button" title="Update Preset" className={`hover:text-blue-600 ${isDefaultPreset ? "text-gray-400 dark:text-gray-500 cursor-not-allowed" : "text-gray-600 dark:text-gray-300"}`} disabled={isDefaultPreset} onClick={handleUpdatePreset}>
-                <FontAwesomeIcon icon={faSync} />
+              <button key="update-preset-button" title="Update Preset" className={`hover:text-blue-600 p-1 ${isDefaultPreset ? "text-gray-400 dark:text-gray-500 cursor-not-allowed" : "text-gray-600 dark:text-gray-300"}`} disabled={isDefaultPreset} onClick={handleUpdatePreset}>
+                <FontAwesomeIcon icon={faSync} className="w-3.5 h-3.5" />
               </button>
-              <button key="delete-preset-button" title="Delete Preset" className={`hover:text-red-600 ${isDefaultPreset ? "text-gray-400 dark:text-gray-500 cursor-not-allowed" : "text-gray-600 dark:text-gray-300"}`} disabled={isDefaultPreset} onClick={handleDeletePreset}>
-                <FontAwesomeIcon icon={faTrash} />
+              <button key="delete-preset-button" title="Delete Preset" className={`hover:text-red-600 p-1 ${isDefaultPreset ? "text-gray-400 dark:text-gray-500 cursor-not-allowed" : "text-gray-600 dark:text-gray-300"}`} disabled={isDefaultPreset} onClick={handleDeletePreset}>
+                <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         )}
 
-        {/* Parameter Inputs - Grouped */}
-        {(() => {
-          // 1. Group parameters
-          const groupedParams: { name: string; params: ScriptParameter[] }[] = [];
-          const ungroupedParams: ScriptParameter[] = [];
-          const groups: Record<string, ScriptParameter[]> = {};
-
-          visibleParameters.forEach(p => {
-            if (p.group && p.group.trim().length > 0) {
-              if (!groups[p.group]) groups[p.group] = [];
-              groups[p.group].push(p);
-            } else {
-              ungroupedParams.push(p);
-            }
-          });
-
-          // Sort groups alphabetically or keep insertion order? 
-          // Let's keep insertion order of the FIRST appearance of the group in the script to determine group order?
-          // Or just standard alphabetical? Let's do alphabetical for stability.
-          Object.keys(groups).sort().forEach(groupName => {
-            groupedParams.push({ name: groupName, params: groups[groupName] });
-          });
-
-          return (
-            <>
-              {/* Render Ungrouped Parameters First */}
-              {ungroupedParams.map((param) => {
-                const originalIndex = editedParameters.findIndex(p => p.name === param.name);
-                return (
-                  <ParameterInput
-                    key={`${param.name}-${originalIndex}`}
-                    param={param}
-                    index={originalIndex}
-                    onChange={handleParameterChange}
-                    onCompute={(paramName) => computeParameterOptions(script, paramName)}
-                    onPickObject={handlePickObject}
-                    isComputing={isComputingOptions[param.name]}
-                    disabled={!isActionable}
-                  />
-                );
-              })}
-
-              {/* Render Groups */}
-              {groupedParams.map((group) => (
-                <ParameterGroupSection
-                  key={group.name}
-                  groupName={group.name}
-                  parameters={group.params}
-                  allParameters={editedParameters}
-                  handleParameterChange={handleParameterChange}
-                  script={script}
-                  computeParameterOptions={computeParameterOptions}
-                  onPickObject={handlePickObject}
-                  isComputingOptions={isComputingOptions}
-                  isActionable={isActionable}
-                />
-              ))}
-            </>
-          );
-        })()}
+        {/* Parameter Inputs - Rendered by ScriptParametersForm */}
+        <ScriptParametersForm
+          script={script}
+          parameters={editedParameters}
+          onChange={handleParameterChange}
+          onComputeOptions={(paramName: string) => computeParameterOptions(script, paramName)}
+          onPickObject={handlePickObject}
+          isComputingOptions={isComputingOptions}
+          isActionable={isActionable}
+        />
 
         {/* Run Script Button */}
         {activeMainView === 'scripts' && (
@@ -389,7 +333,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 )}
               </div>
             </div>
-            {activeRole !== Role.User && (
+            {activeRole !== Role.User && !script.metadata.isProtected && (
               <button
                 title="View Code in Floating Window"
                 className="p-1 px-2.5 text-gray-500 hover:text-blue-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 flex items-center justify-center shadow-sm hover:border-blue-400 group"

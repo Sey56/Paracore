@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown, faChevronRight } from "@fortawesome/free-solid-svg-icons";
+import { faChevronDown, faChevronRight, faExclamationCircle } from "@fortawesome/free-solid-svg-icons";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { ParameterInput } from "./ParameterInput";
+import { validateParameters } from '@/utils/parameterVisibility';
 
 interface ParameterGroupSectionProps {
     groupName: string;
     parameters: ScriptParameter[];
     allParameters: ScriptParameter[];
-    handleParameterChange: (index: number, value: any) => void;
+    handleParameterChange: (index: number, value: string | number | boolean) => void;
     script: Script;
     computeParameterOptions: (script: Script, paramName: string) => void;
     onPickObject: (selectionType: string, index: number) => void;
@@ -30,6 +31,9 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
     const [isExpanded, setIsExpanded] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
+    const validationErrors = validateParameters(parameters);
+    const hasErrors = validationErrors.length > 0;
+
     useEffect(() => {
         if (isExpanded && containerRef.current) {
             // Delay slightly to allow content to render before scrolling
@@ -49,8 +53,15 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
                 <div className="flex items-center space-x-2 font-medium text-sm text-gray-700 dark:text-gray-300">
                     <FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronRight} className="text-gray-400 text-xs w-3" />
                     <span>{groupName}</span>
+                    {hasErrors && (
+                        <FontAwesomeIcon
+                            icon={faExclamationCircle}
+                            className="text-red-500 text-xs animate-pulse ml-1"
+                            title={`${validationErrors.length} validation issues in this group`}
+                        />
+                    )}
                 </div>
-                <span className="text-xs text-gray-400 bg-gray-200 dark:bg-gray-600 rounded-full px-2 py-0.5">
+                <span className={`text-xs rounded-full px-2 py-0.5 ${hasErrors && !isExpanded ? 'bg-red-100 text-red-600 dark:bg-red-900/30' : 'text-gray-400 bg-gray-200 dark:bg-gray-600'}`}>
                     {parameters.length}
                 </span>
             </div>

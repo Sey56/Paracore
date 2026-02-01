@@ -22,5 +22,16 @@ namespace CoreScript.Engine.Core
         /// ExecutionResult describing success, failure, output logs, and return value.
         /// </returns>
         ExecutionResult Execute(string scriptContent, string parametersJson, ICoreScriptContext context);
+
+        /// <summary>
+        /// Executes a pre-compiled C# assembly binary.
+        /// Used for protected/proprietary tools.
+        /// </summary>
+        ExecutionResult ExecuteBinary(byte[] assemblyBytes, string parametersJson, ICoreScriptContext context);
+
+        /// <summary>
+        /// Compiles a script into a binary assembly and returns the bytes.
+        /// </summary>
+        byte[] CompileToBytes(string scriptContent);
     }
 }

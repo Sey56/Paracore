@@ -4,8 +4,8 @@ import type { ScriptExecutionResult } from "@/types/scriptModel";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCopy, faFileCsv } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
-import { save } from '@tauri-apps/api/dialog'; // Import save from dialog
-import { writeTextFile } from '@tauri-apps/api/fs'; // Import writeTextFile from fs
+import { save } from '@tauri-apps/api/dialog';
+import { writeTextFile } from '@tauri-apps/api/fs';
 
 interface TableTabContentProps {
   executionResult: ScriptExecutionResult | null;
@@ -20,22 +20,20 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
   const handleCopy = () => {
     if (!executionResult?.structuredOutput) return;
 
-    // Only copy from the table component
     const tableDataItem = executionResult.structuredOutput.find(item => item.type === 'table');
 
     if (tableDataItem) {
       try {
         let tableData = JSON.parse(tableDataItem.data);
 
-        // Handle single object
         if (!Array.isArray(tableData) && typeof tableData === 'object' && tableData !== null) {
           tableData = [tableData];
         }
 
         if (Array.isArray(tableData) && tableData.length > 0) {
           const headers = Object.keys(tableData[0]).join('\t');
-          const rows = tableData.map((row: any) =>
-            Object.values(row).map(String).join('\t')
+          const rows = tableData.map((row: Record<string, unknown>) =>
+            Object.values(row).map(v => String(v ?? '')).join('\t')
           );
           const textToCopy = [headers, ...rows].join('\n');
           navigator.clipboard.writeText(textToCopy);
@@ -48,7 +46,6 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
       }
     }
 
-    // Fallback for non-table data or if table is empty or parsing fails
     const textToCopy = executionResult.structuredOutput.map(item => item.data).join('\n\n');
     navigator.clipboard.writeText(textToCopy);
     showNotification('Raw output copied to clipboard.', 'info');
@@ -57,26 +54,23 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
   const handleExportCsv = async () => {
     if (!executionResult?.structuredOutput) return;
 
-    // Only export the table component
     const tableDataItem = executionResult.structuredOutput.find(item => item.type === 'table');
 
     if (tableDataItem) {
       try {
         let tableData = JSON.parse(tableDataItem.data);
 
-        // Handle single object
         if (!Array.isArray(tableData) && typeof tableData === 'object' && tableData !== null) {
           tableData = [tableData];
         }
 
         if (Array.isArray(tableData) && tableData.length > 0) {
           const headers = Object.keys(tableData[0]).join(',');
-          const rows = tableData.map((row: any) =>
-            Object.values(row).map((val: any) => `"${String(val).replace(/"/g, '""')}"`).join(',')
+          const rows = (tableData as Record<string, unknown>[]).map((row: Record<string, unknown>) =>
+            Object.values(row).map((val: unknown) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(',')
           );
           const csvContent = [headers, ...rows].join('\n');
 
-          // Use Tauri dialog to save the file
           const filePath = await save({
             filters: [{
               name: 'CSV',

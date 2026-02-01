@@ -19,6 +19,29 @@ namespace Paracore.Addin.Services
 {
     public class CoreScriptRunnerService : CoreScriptRunner.CoreScriptRunnerBase
     {
+        public override async Task<BuildScriptResponse> BuildScript(BuildScriptRequest request, ServerCallContext context)
+        {
+            _logger.Log("[CoreScriptRunnerService] Entering BuildScript.", LogLevel.Debug);
+            try
+            {
+                var assemblyBytes = ServerViewModel.Instance.BuildScript(request.ScriptContent);
+                return new BuildScriptResponse
+                {
+                    IsSuccess = true,
+                    CompiledAssembly = Google.Protobuf.ByteString.CopyFrom(assemblyBytes)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[CoreScriptRunnerService] Error in BuildScript: {ex.Message}");
+                return new BuildScriptResponse
+                {
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
+            }
+        }
+
         private readonly UIApplication? _uiApp;
         private readonly ILogger _logger;
         private readonly IMetadataExtractor _metadataExtractor;
@@ -88,10 +111,13 @@ namespace Paracore.Addin.Services
             _logger.Log("[CoreScriptRunnerService] ServerContext created.", LogLevel.Debug);
             string scriptContentStr = request.ScriptContent;
             string parametersJsonStr = request.ParametersJson.ToStringUtf8();
+            byte[]? compiledAssembly = request.CompiledAssembly?.ToByteArray();
+            bool hasCompiledAssembly = compiledAssembly != null && compiledAssembly.Length > 0;
 
-            if (string.IsNullOrWhiteSpace(scriptContentStr))
+            // Only require script content if there's no compiled assembly
+            if (string.IsNullOrWhiteSpace(scriptContentStr) && !hasCompiledAssembly)
             {
-                _logger.Log("[CoreScriptRunnerService] Script content is empty.", LogLevel.Debug);
+                _logger.Log("[CoreScriptRunnerService] Script content is empty and no compiled assembly provided.", LogLevel.Debug);
                 finalResult = new ExecutionResult
                 {
                     IsSuccess = false,
@@ -110,8 +136,17 @@ namespace Paracore.Addin.Services
                     handler = result => completionSource.TrySetResult(result);
                     ServerViewModel.Instance.OnExecutionComplete += handler;
                     ServerViewModel.Instance.LastClientSource = request.Source;
-                    ServerViewModel.Instance.DispatchScript(scriptContentStr, parametersJsonStr, serverContext);
-                    _logger.Log("[CoreScriptRunnerService] DispatchScript called. Waiting for completion.", LogLevel.Debug);
+                    
+                    if (hasCompiledAssembly)
+                    {
+                        ServerViewModel.Instance.DispatchBinaryScript(compiledAssembly, parametersJsonStr, serverContext);
+                        _logger.Log("[CoreScriptRunnerService] DispatchBinaryScript called. Waiting for completion.", LogLevel.Debug);
+                    }
+                    else
+                    {
+                        ServerViewModel.Instance.DispatchScript(scriptContentStr, parametersJsonStr, serverContext);
+                        _logger.Log("[CoreScriptRunnerService] DispatchScript called. Waiting for completion.", LogLevel.Debug);
+                    }
                     var timeoutTask = Task.Delay(TimeSpan.FromSeconds(45), context.CancellationToken);
                     var finishedTask = await Task.WhenAny(completionSource.Task, timeoutTask);
 
@@ -497,7 +532,9 @@ namespace Paracore.Addin.Services
                         usage_examples = info.Metadata.UsageExamples,
                         dependencies = info.Metadata.Dependencies,
                         document_type = info.Metadata.DocumentType,
-                        lastRun = info.Metadata.LastRun
+                        lastRun = info.Metadata.LastRun,
+                        is_protected = info.Metadata.IsProtected,
+                        is_compiled = info.Metadata.IsCompiled
                     },
                     parameters = info.Parameters.Select(p => new {
                         name = p.Name,

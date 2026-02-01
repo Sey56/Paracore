@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Body
-from typing import List, Optional
+from typing import List
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from services.playlist_service import playlist_service, Playlist
+from services.playlist_service import Playlist, playlist_service
 
 router = APIRouter()
 
@@ -26,16 +27,16 @@ async def save_playlist(req: SavePlaylistRequest):
     """
     import os
     import re
-    
+
     # Sanitize name for filename
     safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', req.playlist.name)
     filename = f"{safe_name}.playlist.json"
     full_path = os.path.join(req.folderPath, filename)
-    
+
     success = playlist_service.save_playlist(full_path, req.playlist)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save playlist to disk.")
-    
+
     # Update the playlist object with the new file path before returning
     req.playlist.filePath = full_path
     return req.playlist

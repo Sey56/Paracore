@@ -1,17 +1,18 @@
-from fastapi import APIRouter, HTTPException, Body, Depends, status
-import subprocess
+import logging  # Added logging
 import os
 import shutil
-import re
+import subprocess
 import traceback
-from pydantic import BaseModel, Field
 from typing import Annotated, List
-from sqlalchemy.orm import Session
-import logging # Added logging
 
-import models, schemas
+from auth import CurrentUser, get_current_user
 from database_config import get_db
-from auth import get_current_user, CurrentUser
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+import models
+import schemas
 
 logging.basicConfig(level=logging.INFO) # Configure basic logging
 
@@ -171,7 +172,7 @@ async def get_workspace_branches(workspace_path: str, current_user: CurrentUser 
             branch_name = line.strip()
             if branch_name.startswith('*'):
                 branch_name = branch_name[1:].strip() # Remove asterisk for current branch
-            
+
             # Filter out the "HEAD -> origin/main" line
             if "HEAD ->" in branch_name:
                 continue # Skip this line
@@ -180,7 +181,7 @@ async def get_workspace_branches(workspace_path: str, current_user: CurrentUser 
                 branch_name = branch_name.replace('remotes/origin/', '')
             if branch_name != 'HEAD' and branch_name not in all_branches:
                 all_branches.append(branch_name)
-        
+
         return {"current_branch": current_branch, "branches": sorted(all_branches)}
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Failed to list branches: {e.stderr}")
@@ -219,7 +220,7 @@ async def clone_repo(req: CloneRequest, current_user: CurrentUser = Depends(get_
                 message = "workspace exists in path, loading it..."
             else:
                 raise HTTPException(
-                    status_code=409, 
+                    status_code=409,
                     detail=f"A folder named '{repo_name}' already exists here but isn't a Git repository. Please remove it or choose a different location."
                 )
         else:
@@ -233,11 +234,11 @@ async def clone_repo(req: CloneRequest, current_user: CurrentUser = Depends(get_
                 creationflags=CREATE_NO_WINDOW
             )
             message = f"Repository cloned successfully to {cloned_path}"
-        
+
         return {"message": message, "cloned_path": cloned_path}
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Git operation failed: {e.stderr}")
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {traceback.format_exc()}")
 
 @router.get("/api/workspaces/status", tags=["Workspaces"])
@@ -267,7 +268,7 @@ async def get_workspace_status(workspace_path: str, db: Session = Depends(get_db
             text=True,
             creationflags=CREATE_NO_WINDOW
         ).stdout.strip()
-        
+
         lines = status_result.split('\n')
         branch_info = {}
         changed_files = []
@@ -287,7 +288,7 @@ async def get_workspace_status(workspace_path: str, db: Session = Depends(get_db
             else:
                 # Parse the porcelain v2 format for changed files
                 parts = line.split(' ')
-                if len(parts) >= 9: 
+                if len(parts) >= 9:
                     file_path = ' '.join(parts[8:])
                     changed_files.append(file_path)
                 else:
@@ -309,13 +310,13 @@ async def get_workspace_scripts(workspace_path: str) -> List[str]:
     """
     if not os.path.isdir(workspace_path):
         raise HTTPException(status_code=404, detail="Workspace path not found.")
-    
+
     script_files = []
     for root, _, files in os.walk(workspace_path):
         for file in files:
             if file.endswith(".cs"):
                 script_files.append(os.path.join(root, file))
-    
+
     return script_files
 
 @router.post("/api/workspaces/commit", tags=["Workspaces"])
@@ -327,7 +328,7 @@ async def commit_changes(req: CommitRequest, current_user: CurrentUser = Depends
         raise HTTPException(status_code=404, detail="Workspace path not found.")
     try:
         subprocess.run(["git", "add", "."], cwd=req.workspace_path, check=True, creationflags=CREATE_NO_WINDOW)
-        
+
         subprocess.run(
             ["git", "commit", "-m", req.message],
             cwd=req.workspace_path,
@@ -412,7 +413,7 @@ async def pull_team_workspaces(
             if req.branch:
                 command.insert(2, "origin")
                 command.insert(3, req.branch)
-            
+
             subprocess.run(
                 command,
                 cwd=path,
@@ -426,7 +427,7 @@ async def pull_team_workspaces(
             results.append({"path": path, "status": "failed", "message": f"Pull failed: {e.stderr}"})
         except Exception as e:
             results.append({"path": path, "status": "failed", "message": str(e)})
-    
+
     return {"message": "Pull operations completed.", "results": results}
 
 @router.delete("/api/workspaces/registered/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Workspaces"])
@@ -480,5 +481,5 @@ async def delete_local_workspace(
     except OSError as e:
         logging.error(f"Error deleting directory {workspace_path}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete workspace directory: {e}")
-    
+
     return {}

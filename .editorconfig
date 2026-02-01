@@ -1,0 +1,21 @@
+root = true
+
+[*.cs]
+# Default severity for all analyzers
+dotnet_analyzer_diagnostic.severity = warning
+
+# CA1031: Do not catch generic exception types
+# Reason: Crucial for script execution safety to catch all runtime faults.
+dotnet_diagnostic.CA1031.severity = suggestion
+
+# CA1822: Mark members as static
+# Reason: Stylistic enhancement, not a functional blocker.
+dotnet_diagnostic.CA1822.severity = suggestion
+
+# CA1062: Validate arguments of public methods
+# Reason: Lowering to suggestion for rapid development cycle.
+dotnet_diagnostic.CA1062.severity = suggestion
+
+# CA1852: Seal internal types
+# Reason: Minor performance optimization.
+dotnet_diagnostic.CA1852.severity = suggestion

@@ -1,13 +1,13 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+
 import json
 import logging
 import os
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.google import GoogleModel
 
 from agent.orchestrator.registry import ScriptRegistry
 from agent.prompt import SYSTEM_PROMPT
@@ -47,7 +47,7 @@ class AutomationPlan(BaseModel):
 # --- The Solid Steel Agent ---
 
 paracore_agent = Agent(
-    'google-gla:gemini-1.5-flash', 
+    'google-gla:gemini-1.5-flash',
     deps_type=RevitDeps,
     system_prompt=SYSTEM_PROMPT
 )
@@ -82,7 +82,7 @@ async def read_script(ctx: RunContext[RevitDeps], script_id: str) -> str:
         script = registry.find_script_by_tool_id(script_id)
         if not script or not script.get("absolutePath"):
             return f"Script source for {script_id} not found."
-        
+
         path = script["absolutePath"]
         with open(path, 'r', encoding='utf-8-sig') as f:
             return f.read()
@@ -122,34 +122,35 @@ async def get_revit_context(ctx: RunContext[RevitDeps]) -> str:
 
 # Seed with core tools already registered via decorators
 REGISTERED_CUSTOM_TOOLS = {
-    "list_scripts", "inspect_script", "read_script", 
-    "set_active_script", "propose_automation_plan", 
+    "list_scripts", "inspect_script", "read_script",
+    "set_active_script", "propose_automation_plan",
     "get_project_summary", "get_revit_context"
 }
 
 async def sync_v3_tools(agent_scripts_path: str):
     """Ensures all Revit MCP tools are registered on the Agent instance."""
+    from pydantic import create_model
+
     from agent.mcp_client import ParacoreMCPClient
-    from pydantic import create_model, Field
     global REGISTERED_CUSTOM_TOOLS
-    
+
     mcp = ParacoreMCPClient.get_instance()
     await mcp.initialize()
-    
+
     for tool_def in mcp._tools_cache:
         t_name = tool_def.name
-        
+
         # Robust Identity Check: Don't re-register tools that already exist
         if t_name in REGISTERED_CUSTOM_TOOLS:
             continue
-            
+
         logger.info(f"[V3] Registering dynamic tool: {t_name}")
-        
+
         # 1. Build Type-Safe Schema
         input_schema = tool_def.inputSchema
         properties = input_schema.get("properties", {})
         required_fields = input_schema.get("required", [])
-        
+
         field_definitions = {}
         for field_name, field_info in properties.items():
             python_type = Any
@@ -158,7 +159,7 @@ async def sync_v3_tools(agent_scripts_path: str):
             elif js_type == "integer": python_type = int
             elif js_type == "number": python_type = float
             elif js_type == "boolean": python_type = bool
-            
+
             default_value = ... if field_name in required_fields else None
             field_definitions[field_name] = (python_type, Field(default=default_value, description=field_info.get("description", "")))
 
@@ -177,10 +178,10 @@ async def sync_v3_tools(agent_scripts_path: str):
             mcp_inner = ParacoreMCPClient.get_instance()
             # args will be an instance of ArgsModel
             return await mcp_inner.call_tool(name, args.model_dump())
-        
+
         # KEY FIX: Manually set annotations and inject into globals for Pydantic schema generation
         _execute_mcp_tool.__annotations__['args'] = ArgsModel
-        
+
         # 3. Formal Registration (Solves serialization/unique_id bugs)
         paracore_agent.tool(
             _execute_mcp_tool,
@@ -200,7 +201,7 @@ async def run_v3_chat(
     provider: str = "Google"
 ):
     """Entry point for the V3 Agent chat loop."""
-    
+
     # Industrial Model Factory
     p_lower = provider.lower()
     if p_lower == "google":
@@ -208,10 +209,10 @@ async def run_v3_chat(
         from pydantic_ai.models.google import GoogleModel
         model = GoogleModel(model_name)
     elif p_lower == "openrouter":
-        os.environ["OPENAI_API_KEY"] = api_key 
+        os.environ["OPENAI_API_KEY"] = api_key
         from pydantic_ai.models.openai import OpenAIModel
         from pydantic_ai.providers.openai import OpenAIProvider
-        
+
         # In PydanticAI 1.47, configuration belongs to the Provider
         provider_obj = OpenAIProvider(
             base_url="https://openrouter.ai/api/v1",
@@ -225,7 +226,7 @@ async def run_v3_chat(
 
     # Industrial Tool Synchronization
     await sync_v3_tools(deps.agent_scripts_path)
-    
+
     # Run the agent with high-fidelity history and industrial token limits
     from pydantic_ai.settings import ModelSettings
     result = await paracore_agent.run(
@@ -233,9 +234,9 @@ async def run_v3_chat(
         deps=deps,
         message_history=history,
         model=model,
-        settings=ModelSettings(max_tokens=2048)
+        model_settings=ModelSettings(max_tokens=2048)
     )
 
-    
+
     return result
 

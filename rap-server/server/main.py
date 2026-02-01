@@ -1,11 +1,16 @@
-import sys
-import os
-import logging
 import asyncio
+import logging
+import os
+import sys
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Silence Google SDK warning by favoring GOOGLE_API_KEY if both are present
+if os.environ.get("GOOGLE_API_KEY") and os.environ.get("GEMINI_API_KEY"):
+    os.environ.pop("GEMINI_API_KEY", None)
 
 # This block allows running main.py directly from within the 'server' directory
 # by adding the current directory to sys.path. This is a development workaround
@@ -18,25 +23,34 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Original imports start here
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from database_config import Base, engine
-
-from api import script_execution_router, script_management_router, presets_router, runs_router, status_router, workspace_router, auth_router, user_settings_router, manifest_router, playlist_router
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from agent import agent_router
-from generation import router as generation_router
+from api import (
+    assist_router,
+    auth_router,
+    manifest_router,
+    playlist_router,
+    presets_router,
+    runs_router,
+    script_execution_router,
+    script_management_router,
+    status_router,
+    user_settings_router,
+    workspace_router,
+    tool_builder_router,
+)
 
-import models  # Ensure models are imported so that they are registered with SQLAlchemy
-
-from config import settings
 
 # Configure Uvicorn logging to suppress access logs
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
-from grpc_client import init_channel, close_channel
+from grpc_client import close_channel, init_channel
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -46,16 +60,16 @@ async def lifespan(app: FastAPI):
     """
     # Note: In a production environment with Alembic, you might remove this.
     Base.metadata.create_all(bind=engine)
-    
+
     # Initialize singleton gRPC channel
     init_channel()
 
 # Start Phase 3: Git Sync Background Task
     from sync.git_sync_service import start_git_sync_loop
     app.state.git_sync_task = asyncio.create_task(start_git_sync_loop())
-    
+
     yield
-    
+
     # Shutdown events
     if hasattr(app.state, "git_sync_task"):
         logger.info("Stopping Git Sync Background Service...")
@@ -64,7 +78,7 @@ async def lifespan(app: FastAPI):
             await app.state.git_sync_task
         except asyncio.CancelledError:
             pass
-            
+
     close_channel()
 
 app = FastAPI(lifespan=lifespan)
@@ -91,7 +105,9 @@ app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
 app.include_router(agent_router.router)
 app.include_router(manifest_router.router)
-app.include_router(generation_router)
+app.include_router(assist_router.router)
+app.include_router(tool_builder_router.router)
+
 app.include_router(playlist_router.router, prefix="/playlists", tags=["Playlists"])
 
 @app.get("/")

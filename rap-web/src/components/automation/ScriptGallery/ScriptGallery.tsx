@@ -1,6 +1,8 @@
 import {
   useMemo,
-  useState
+  useState,
+  useRef,
+  useLayoutEffect
 } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faSync, faCompressAlt, faExpandAlt, faBullseye } from '@fortawesome/free-solid-svg-icons';
@@ -105,7 +107,8 @@ export const ScriptGallery: React.FC = () => {
     isFocusMode,
     setFocusMode,
     setInspectorOpen,
-    selectedCategory
+    selectedCategory,
+    setActiveInspectorTab
   } = useUI();
   const { setSelectedScript, selectedScript } = useScriptExecution();
   const { isAuthenticated, activeRole } = useAuth();
@@ -115,7 +118,24 @@ export const ScriptGallery: React.FC = () => {
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
   const [isCompactView, setIsCompactView] = useState(true);
-  const [typeFilter, setTypeFilter] = useState<'all' | 'single-file' | 'multi-file'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'single-file' | 'multi-file' | 'tool'>('all');
+
+  // Scroll Preservation Logic
+  const galleryRef = useRef<HTMLDivElement>(null);
+  const savedScrollTop = useRef(0);
+
+  const handleEnterFocusMode = () => {
+    if (galleryRef.current && galleryRef.current.parentElement) {
+      savedScrollTop.current = galleryRef.current.parentElement.scrollTop;
+    }
+    setFocusMode(true);
+  };
+
+  useLayoutEffect(() => {
+    if (!isFocusMode && galleryRef.current && galleryRef.current.parentElement) {
+      galleryRef.current.parentElement.scrollTop = savedScrollTop.current;
+    }
+  }, [isFocusMode]);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
 
@@ -154,7 +174,9 @@ export const ScriptGallery: React.FC = () => {
       : filteredBySidebarCategory;
     const filteredByType = typeFilter === 'all'
       ? filteredByDefaultCategories
-      : filteredByDefaultCategories.filter(script => script.type === typeFilter);
+      : typeFilter === 'tool'
+        ? filteredByDefaultCategories.filter(script => script.metadata?.isProtected === true)
+        : filteredByDefaultCategories.filter(script => script.type === typeFilter && !script.metadata?.isProtected);
 
     let searchedScripts = filteredByType;
     if (searchTerm) {
@@ -208,6 +230,7 @@ export const ScriptGallery: React.FC = () => {
 
   const handleScriptSelect = (script: Script) => {
     setSelectedScript(script);
+    setActiveInspectorTab('parameters');
     if (isMobile) setInspectorOpen(true);
   };
 
@@ -226,7 +249,7 @@ export const ScriptGallery: React.FC = () => {
   };
 
   return (
-    <div className={`p-4 relative min-h-full ${isFocusMode ? 'overflow-hidden' : ''}`}>
+    <div ref={galleryRef} className={`p-4 relative min-h-full min-w-0 ${isFocusMode ? 'overflow-hidden' : ''}`}>
       {/* --- NORMAL VIEW CONTENT --- */}
       {!isFocusMode && (
         <>
@@ -315,6 +338,7 @@ export const ScriptGallery: React.FC = () => {
                       onSelect={() => handleScriptSelect(script)}
                       isFromActiveWorkspace={isFromActiveWorkspace(script)}
                       isCompact={true}
+                      onFocus={handleEnterFocusMode}
                     />
                   ))}
                 </div>
@@ -339,18 +363,6 @@ export const ScriptGallery: React.FC = () => {
                       disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
                     >
                       <FontAwesomeIcon icon={faSync} />
-                    </button>
-
-                    <button
-                      onClick={() => setFocusMode(!isFocusMode)}
-                      className={`p-1 px-2 rounded-md transition-all border h-8 w-8 flex items-center justify-center ${isFocusMode
-                        ? 'bg-blue-600 text-white border-blue-500 shadow-md ring-2 ring-blue-500/20'
-                        : 'text-gray-400 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:text-blue-500'
-                        }`}
-                      title={isFocusMode ? "Exit Focus Mode" : "Focus Selected Script"}
-                      disabled={!isAuthenticated || !selectedScript}
-                    >
-                      <FontAwesomeIcon icon={isFocusMode ? faCompressAlt : faBullseye} />
                     </button>
 
                     <button
@@ -392,6 +404,7 @@ export const ScriptGallery: React.FC = () => {
                       onSelect={() => handleScriptSelect(script)}
                       isFromActiveWorkspace={isFromActiveWorkspace(script)}
                       isCompact={isCompactView}
+                      onFocus={handleEnterFocusMode}
                     />
                   ))}
                 </div>
@@ -434,10 +447,10 @@ export const ScriptGallery: React.FC = () => {
       {/* 5. Type Filter Bar */}
       {!isFocusMode && (
         <div className={styles.filterBar}>
-          {['all', 'single-file', 'multi-file'].map(t => (
-            <div key={t} className={`${styles.filterItem} ${typeFilter === t ? styles.activeFilter : ''}`} onClick={() => setTypeFilter(t as any)}>
+          {['all', 'single-file', 'multi-file', 'tool'].map(t => (
+            <div key={t} className={`${styles.filterItem} ${typeFilter === t ? styles.activeFilter : ''}`} onClick={() => setTypeFilter(t as 'all' | 'single-file' | 'multi-file' | 'tool')}>
               <input type="radio" checked={typeFilter === t} readOnly />
-              <label className="capitalize cursor-pointer">{t.split('-')[0]}</label>
+              <label className="capitalize cursor-pointer">{t === 'single-file' ? 'Single' : t === 'multi-file' ? 'Multi' : t === 'tool' ? 'Tool' : 'All'}</label>
             </div>
           ))}
         </div>

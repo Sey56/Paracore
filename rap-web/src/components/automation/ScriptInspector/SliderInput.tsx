@@ -13,7 +13,7 @@ interface SliderInputProps {
 export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value, onChange, disabled, suffix }) => {
     const [localValue, setLocalValue] = useState(value);
     const [isDragging, setIsDragging] = useState(false);
-    const debounceTimeout = useRef<any>(null);
+    const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Sync with prop changes (e.g. preset selection) only if NOT dragging
     useEffect(() => {

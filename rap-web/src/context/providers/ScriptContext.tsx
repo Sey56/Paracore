@@ -14,7 +14,7 @@ export interface ScriptContextProps {
   updateScriptLastRunTime: (scriptId: string) => void;
   addCustomScriptFolder: (folderPath: string) => Promise<void>;
   removeCustomScriptFolder: (folderPath: string) => void;
-  loadScriptsForFolder: (folderPath: string, suppressNotification?: boolean) => Promise<any>;
+  loadScriptsForFolder: (folderPath: string, suppressNotification?: boolean) => Promise<Script[] | undefined>;
   createNewScript: (details: {
     parent_folder: string;
     script_type: 'single' | 'multi';

@@ -1,6 +1,8 @@
-from pydantic import BaseModel
-from typing import List, Optional, Any
 from datetime import datetime
+from typing import Any, List, Optional
+
+from pydantic import BaseModel
+
 
 # User schemas
 class UserBase(BaseModel):

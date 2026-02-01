@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using CoreScript.Engine.Logging;
 using System;
+using System.Text.Json;
 
 namespace CoreScript.Engine.Core
 {
@@ -26,6 +27,32 @@ namespace CoreScript.Engine.Core
             {
                 return metadata;
             }
+
+            // --- .ptool Support ---
+            // If the content is JSON, it's a proprietary tool package
+            if (scriptContent.Trim().StartsWith("{") && scriptContent.Trim().EndsWith("}"))
+            {
+                try
+                {
+                    using (JsonDocument doc = JsonDocument.Parse(scriptContent))
+                    {
+                        var rootElement = doc.RootElement;
+                        if (rootElement.TryGetProperty("metadata", out var metaElem))
+                        {
+                            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                            metadata = JsonSerializer.Deserialize<ScriptMetadata>(metaElem.GetRawText(), options) ?? metadata;
+                            metadata.IsCompiled = true;
+                            metadata.IsProtected = true;
+                            return metadata;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[MetadataExtractor] Failed to parse .ptool JSON: {ex.Message}");
+                }
+            }
+            // ---------------------
             
             metadata.DocumentType = "Any"; // Default value
 

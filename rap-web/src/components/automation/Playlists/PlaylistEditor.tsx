@@ -128,7 +128,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
                     setExecutionStatus(prev => ({ ...prev, [i]: 'error' }));
                     break;
                 }
-            } catch (err) {
+            } catch (err: unknown) {
                 setExecutionStatus(prev => ({ ...prev, [i]: 'error' }));
                 break;
             }
@@ -208,7 +208,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
                 if (!item) return null;
 
                 // Try to find display name
-                const scriptName = item.scriptPath.split(/[\\\/]/).pop()?.replace('.cs', '') || `Step ${index + 1}`;
+                const scriptName = item.scriptPath.split(/[\\/]/).pop()?.replace('.cs', '') || `Step ${index + 1}`;
 
                 return {
                     stepIndex: index,

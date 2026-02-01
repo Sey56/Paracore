@@ -96,7 +96,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
       </div>
 
       {/* Tab Content Area */}
-      <div className="mt-4 flex-grow min-h-0 w-full overflow-hidden relative">
+      <div className="mt-4 flex-grow min-h-0 min-w-0 w-full overflow-hidden relative">
         <div className={activeInspectorTab === 'parameters' ? 'h-full overflow-y-auto custom-scrollbar' : 'hidden'}>
           <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
         </div>

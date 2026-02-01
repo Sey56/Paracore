@@ -7,7 +7,8 @@ export const useRapServerUrl = () => {
   useEffect(() => {
     const fetchRapServerUrl = async () => {
       // Check if running in Tauri environment
-      const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_IPC__ !== undefined;
+      const isTauri = typeof window !== 'undefined' &&
+        (window as unknown as { __TAURI_IPC__?: unknown }).__TAURI_IPC__ !== undefined;
 
       if (isTauri) {
         try {
@@ -15,7 +16,7 @@ export const useRapServerUrl = () => {
           setRapServerUrl(url as string);
         } catch (error) {
           console.error('Failed to get rap server URL from Tauri backend:', error);
-          setRapServerUrl('http://localhost:8000'); 
+          setRapServerUrl('http://localhost:8000');
         }
       } else {
         // Fallback for browser development

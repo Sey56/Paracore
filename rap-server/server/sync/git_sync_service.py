@@ -1,11 +1,11 @@
+import asyncio
+import logging
 import os
 import subprocess
-import logging
-import asyncio
-from typing import List
-from sqlalchemy.orm import Session
-import models
+
 from database_config import SessionLocal
+
+import models
 
 logger = logging.getLogger("paracore-git-sync")
 logger.setLevel(logging.INFO)
@@ -28,7 +28,7 @@ async def start_git_sync_loop():
             await sync_all_workspaces()
         except Exception as e:
             logger.error(f"Error in Git Sync loop: {e}")
-        
+
         await asyncio.sleep(SYNC_INTERVAL_SECONDS)
 
 async def sync_all_workspaces():
@@ -38,7 +38,7 @@ async def sync_all_workspaces():
     db = SessionLocal()
     try:
         all_paths = set()
-        
+
         # 1. Local Workspaces (Cloned Repos)
         local_workspaces = db.query(models.Workspace).all()
         for w in local_workspaces:
@@ -79,17 +79,17 @@ def sync_repo(repo_path: str) -> str:
         # 2. Check for local changes
         status_cmd = ["git", "status", "--porcelain"]
         status_result = subprocess.run(status_cmd, cwd=repo_path, check=True, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
-        
+
         if status_result.stdout.strip():
             logger.info(f"Local changes detected in {repo_path}. Committing...")
             # 3. Add and Commit
             subprocess.run(["git", "add", "."], cwd=repo_path, check=True, creationflags=CREATE_NO_WINDOW)
             subprocess.run(["git", "commit", "-m", "Auto-sync from Paracore Agent"], cwd=repo_path, check=True, creationflags=CREATE_NO_WINDOW)
-            
+
             # 4. Push
             subprocess.run(["git", "push"], cwd=repo_path, check=True, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
             return "Pulled and Pushed local changes."
-        
+
         return "Already up to date."
 
     except subprocess.CalledProcessError as e:

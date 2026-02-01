@@ -24,6 +24,7 @@ namespace CoreScript.Engine.Globals
         public static Dictionary<string, object> Parameters => Globals.Parameters;
 
         public static void Println(string message) => Globals.Println(message);
+        public static void Println() => Globals.Println(""); // Restored for backward compatibility
         public static void Print(string message) => Globals.Print(message);
         public static void SetInternalData(string data) => Globals.SetInternalData(data);
         

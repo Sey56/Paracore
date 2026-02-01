@@ -1,6 +1,6 @@
 import logging
-import json
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
+
 from agent.api_helpers import read_local_script_manifest
 
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ class ScriptRegistry:
     A unified registry for Paracore scripts.
     Provides rich discovery and capability mapping for both UI and MCP clients.
     """
-    
+
     def __init__(self, agent_scripts_path: str):
         self.agent_scripts_path = agent_scripts_path
         self._scripts = []
@@ -43,7 +43,7 @@ class ScriptRegistry:
         for script in all_scripts:
             if self._get_tool_id(script) == name:
                 return script
-        
+
         # 2. Suffix match for tool_id (e.g. wall_auditor matching auditing_wall_auditor)
         for script in all_scripts:
             t_id = self._get_tool_id(script)
@@ -62,7 +62,7 @@ class ScriptRegistry:
         metadata = script.get("metadata", {})
         name = script.get("name", "unnamed_script")
         rel_path = metadata.get("relativePath") or script.get("path") or name
-        return rel_path.lower().replace(".cs", "").replace("\\", "_").replace("/", "_").replace(" ", "_").replace(".", "_")
+        return rel_path.lower().replace(".cs", "").replace(".ptool", "").replace("\\", "_").replace("/", "_").replace(" ", "_").replace(".", "_")
 
     def find_script_by_tool_id(self, tool_id: str) -> Optional[Dict]:
         """Finds a script by its tool ID."""
@@ -79,13 +79,13 @@ class ScriptRegistry:
         catalog = []
         for script in self.get_all_scripts():
             tool_id = self._get_tool_id(script)
-            
+
             # Ensure every script has a unified 'id' field for the UI
             collated_script = script.copy()
             collated_script['id'] = tool_id
             collated_script['tool_id'] = tool_id
             catalog.append(collated_script)
-            
+
         return catalog
 
     def get_mcp_tools(self) -> List[Dict]:
@@ -97,16 +97,16 @@ class ScriptRegistry:
             metadata = script.get("metadata", {})
             name = script.get("name", "unnamed_script")
             tool_id = self._get_tool_id(script)
-            
+
             # Map parameters to JSON Schema
             properties = {}
             required = []
-            
+
             params = script.get("parameters", [])
             for p in params:
                 p_name = p.get("name")
                 if not p_name: continue
-                
+
                 properties[p_name] = self._map_param_to_schema(p)
                 if p.get("required"):
                     required.append(p_name)
@@ -126,7 +126,7 @@ class ScriptRegistry:
         """Maps a Paracore parameter definition to a JSON Schema fragment."""
         p_type = str(p.get("type", "string")).lower()
         schema = {"description": p.get("description", "")}
-        
+
         if p.get("options"):
             schema["enum"] = p["options"]
             schema["type"] = "string"
@@ -138,5 +138,5 @@ class ScriptRegistry:
             schema["type"] = "boolean"
         else:
             schema["type"] = "string"
-            
+
         return schema

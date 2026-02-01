@@ -16,6 +16,7 @@ service CoreScriptRunner {
   rpc SelectElements (SelectElementsRequest) returns (SelectElementsResponse);
   rpc PickObject (PickObjectRequest) returns (PickObjectResponse);
   rpc RenameScript (RenameScriptRequest) returns (RenameScriptResponse);
+  rpc BuildScript (BuildScriptRequest) returns (BuildScriptResponse);
 }
 
 message PickObjectRequest {
@@ -58,6 +59,7 @@ message ExecuteScriptRequest {
   string script_content = 1;
   bytes parameters_json = 2;
   string source = 3;
+  bytes compiled_assembly = 4; // Binary C# assembly for proprietary tools
 }
 
 message StructuredOutputItem {
@@ -114,6 +116,8 @@ message ScriptMetadata {
   repeated string usage_examples = 9;        // New field for usage examples
   string website = 10; 
   string last_run = 11;
+  bool is_protected = 12;           // If true, UI hides Code and VS Code buttons
+  bool is_compiled = 13;            // If true, the tool is distributed as binary (.ptool)
 }
 
 
@@ -238,5 +242,15 @@ message RenameScriptRequest {
 message RenameScriptResponse {
   bool is_success = 1;
   string new_path = 2;       // Full path to the renamed script file
+  string error_message = 3;
+}
+
+message BuildScriptRequest {
+  string script_content = 1;
+}
+
+message BuildScriptResponse {
+  bool is_success = 1;
+  bytes compiled_assembly = 2;
   string error_message = 3;
 }

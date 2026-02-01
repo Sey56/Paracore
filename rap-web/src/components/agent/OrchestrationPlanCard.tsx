@@ -1,40 +1,12 @@
 import React, { useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faEdit, faInfoCircle, faCheck, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
-
-interface ScriptStep {
-    type: 'curated_script';
-    script_metadata: {
-        name: string;
-        metadata: {
-            description?: string;
-        };
-    };
-    deduced_parameters: Record<string, any>;
-    satisfied_parameters: string[];
-    missing_parameters: string[];
-    parameter_definitions: Array<{
-        name: string;
-        description: string;
-        isRevitElement: boolean;
-        revitElementType: string;
-        options: string[];
-        required: boolean;
-    }>;
-    status?: 'pending' | 'executing' | 'success' | 'error';
-    result_summary?: string;
-}
-
-interface OrchestrationPlan {
-    action: string;
-    explanation: string;
-    steps: ScriptStep[];
-}
+import { OrchestrationPlan, PlanStep as ScriptStep } from '@/context/providers/UIContext';
 
 interface OrchestrationPlanCardProps {
     plan: OrchestrationPlan;
     onExecute: () => void;
-    onUpdateParameter: (stepIndex: number, paramName: string, value: any) => void;
+    onUpdateParameter: (stepIndex: number, paramName: string, value: string | number | boolean) => void;
     onSwitchTab: (tab: 'console' | 'table') => void;
     onCompute: (stepIndex: number, paramName: string) => void;
     isPending: boolean;
@@ -58,7 +30,7 @@ const OrchestrationPlanCard: React.FC<OrchestrationPlanCardProps> = ({ plan, onE
             </div>
 
             <div className="space-y-4">
-                {resolvedSteps.map((step: any, idx: number) => (
+                {resolvedSteps.map((step: ScriptStep, idx: number) => (
                     <div key={idx} className="bg-white dark:bg-gray-700 rounded-md p-3 shadow-sm border border-gray-100 dark:border-gray-600">
                         <div className="flex justify-between items-center mb-2">
                             <h4 className="font-bold text-sm">{idx + 1}. {step.script_metadata.name}</h4>
@@ -90,8 +62,8 @@ const OrchestrationPlanCard: React.FC<OrchestrationPlanCardProps> = ({ plan, onE
 
                             {/* Missing Parameters */}
                             {step.missing_parameters.map((param: string) => {
-                                const def = step.parameter_definitions.find((d: any) => d.name === param);
-                                const canCompute = def?.isRevitElement || (def?.options && def.options.length === 0 && def.revitElementType);
+                                const def = (step.parameter_definitions || []).find((d: Record<string, unknown>) => d.name === param);
+                                const canCompute = def && ((def.isRevitElement as boolean) || (def.options && (def.options as unknown[]).length === 0 && def.revitElementType));
 
                                 return (
                                     <div key={param} className="flex justify-between items-center text-xs py-1">
@@ -139,7 +111,7 @@ const OrchestrationPlanCard: React.FC<OrchestrationPlanCardProps> = ({ plan, onE
                 ))}
             </div>
 
-            {isPending && !resolvedSteps.some((s: any) => s.status === 'success') && (
+            {isPending && !resolvedSteps.some((s: ScriptStep) => s.status === 'success') && (
                 <div className="flex space-x-2 pt-2 border-t border-gray-200 dark:border-gray-600">
                     <button
                         onClick={onExecute}

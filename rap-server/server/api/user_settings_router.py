@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Any
 import json
 
-import models, schemas, auth
+import auth
 from database_config import get_db
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+import models
+import schemas
 
 router = APIRouter()
 
@@ -26,7 +28,7 @@ def get_custom_script_folders(
             setting_key="custom_script_folders",
             setting_value=[]
         )
-    
+
     # Deserialize the value from JSON string to a list before returning
     user_setting.setting_value = json.loads(user_setting.setting_value)
     return user_setting
@@ -58,10 +60,10 @@ def set_custom_script_folders(
             setting_value=serialized_value
         )
         db.add(user_setting)
-    
+
     db.commit()
     db.refresh(user_setting)
-    
+
     # Deserialize the value back to a list for the response model
     user_setting.setting_value = json.loads(user_setting.setting_value)
     return user_setting
@@ -79,7 +81,7 @@ def delete_custom_script_folders(
     if user_setting:
         db.delete(user_setting)
         db.commit()
-    
+
     return {}
 
 @router.post("/api/user/profile/sync", tags=["User Settings"])

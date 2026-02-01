@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any
 import json
 import math
+from typing import List
 
-import models, schemas
+from auth import CurrentUser, get_current_user
 from database_config import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+import models
+import schemas
 from utils import get_or_create_script, resolve_script_path
-from auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
@@ -44,7 +46,7 @@ def are_parameters_equal_python(params1: List[schemas.ParameterSchema], params2:
         if isinstance(val1, list) and isinstance(val2, list):
             if len(val1) != len(val2):
                 return False
-            # Check if all elements match (assuming order doesn't strictly matter for multi-select, 
+            # Check if all elements match (assuming order doesn't strictly matter for multi-select,
             # but usually it's preserved or sorted)
             if sorted(str(v) for v in val1) != sorted(str(v) for v in val2):
                 return False
@@ -78,7 +80,7 @@ def get_presets(
             parameters_list = json.loads(preset_model.values) if preset_model.values else []
             # Convert dicts from JSON to ParameterSchema objects
             parameters_schema_list = [schemas.ParameterSchema(**p) for p in parameters_list]
-            
+
             presets_response.append(schemas.PresetResponse(
                 id=preset_model.id,
                 script_id=preset_model.script_id,
@@ -104,7 +106,7 @@ def save_presets(
         for j, preset_b in enumerate(request_data.presets):
             if i == j:  # Don't compare a preset with itself
                 continue
-            
+
             if are_parameters_equal_python(preset_a.parameters, preset_b.parameters):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

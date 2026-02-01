@@ -134,9 +134,20 @@ namespace Paracore.Addin.ViewModels
             return CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(scriptContent, parametersJson, context);
         }
 
+        public ExecutionResult DispatchBinaryScript(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context)
+        {
+            _stopwatch.Restart();
+            return CoreScriptExecutionDispatcher.Instance.QueueBinaryScriptFromServer(compiledAssembly, parametersJson, context);
+        }
+
         public ExecutionResult ExecuteCodeInRevit(ICoreScriptContext? context)
         {
             return CoreScriptExecutionDispatcher.Instance.ExecuteCodeInRevit(context);
+        }
+
+        public byte[] BuildScript(string scriptContent)
+        {
+            return CoreScriptExecutionDispatcher.Instance.BuildScript(scriptContent);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

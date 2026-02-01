@@ -12,8 +12,8 @@ import { StepExecutionViewer } from './StepExecutionViewer';
 interface UnifiedStepInspectorProps {
     script: Script;
     scriptPath: string;
-    savedParameters: Record<string, any>;
-    onUpdateParameters: (newParams: Record<string, any>) => void;
+    savedParameters: Record<string, string | number | boolean>;
+    onUpdateParameters: (newParams: Record<string, string | number | boolean>) => void;
     stepIndex: number;
     executionReport?: { stepIndex: number; scriptName: string; result: ExecutionResult }[];
 }
@@ -39,7 +39,7 @@ export const UnifiedStepInspector: React.FC<UnifiedStepInspectorProps> = ({
                         Step {stepIndex + 1}
                     </span>
                     <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 truncate max-w-[400px]">
-                        {script.metadata.displayName || scriptPath.split(/[\\\/]/).pop()?.replace('.cs', '')}
+                        {script.metadata.displayName || scriptPath.split(/[\\/]/).pop()?.replace('.cs', '')}
                     </h2>
                 </div>
 

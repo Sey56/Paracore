@@ -6,10 +6,11 @@ sys.path.append(os.path.abspath(r"c:\Users\seyou\RAP\rap-server\server"))
 
 from agent.tools import get_script_parameters_tool
 
+
 def test_get_parameters():
     script_path = r"c:\Users\seyou\RAP\agent-scripts\Create_Spiral_Wall"
     print(f"Testing get_script_parameters_tool with path: {script_path}")
-    
+
     # Try with "multi-file" type
     try:
         params = get_script_parameters_tool.run({"script_path": script_path, "script_type": "multi-file"})

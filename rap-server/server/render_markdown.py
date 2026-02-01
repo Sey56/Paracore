@@ -1,5 +1,6 @@
-import markdown
 from pathlib import Path
+
+import markdown
 
 md_file_path = "AboutParacore.md"
 html_file_path = "AboutParacore.html"

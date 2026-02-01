@@ -1,11 +1,11 @@
 import os
-import glob
-from sqlalchemy.orm import Session
+import re
+
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 import models
 
-import re
 
 def redact_secrets(text: str) -> str:
     """
@@ -14,13 +14,13 @@ def redact_secrets(text: str) -> str:
     """
     if not text:
         return text
-    
+
     # Redact Google AIza keys: AIza followed by ~35 chars
     redacted = re.sub(r'AIza[a-zA-Z0-9_-]{35}', '[REDACTED_API_KEY]', text)
-    
+
     # Redact 'key=' query parameters in URLs
     redacted = re.sub(r'key=[a-zA-Z0-9_-]{10,}', 'key=[REDACTED]', redacted)
-    
+
     return redacted
 
 def resolve_script_path(relative_or_absolute_path: str) -> str:
@@ -36,7 +36,7 @@ def resolve_script_path(relative_or_absolute_path: str) -> str:
         # Assuming scripts are typically in a 'src/data' like structure relative to the server
         script_root_for_defaults = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/data'))
         safe_path = os.path.abspath(os.path.join(script_root_for_defaults, relative_or_absolute_path))
-    
+
     # Ensure consistent forward slashes for storage/comparison
     safe_path = safe_path.replace('\\', '/')
 

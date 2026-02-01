@@ -3,6 +3,11 @@ using Autodesk.Revit.DB;
 using CoreScript.Engine.Context;
 using System.Text.Json;
 using System.Threading;
+using System.Collections.Generic;
+using System.Linq;
+using Autodesk.Revit.DB;
+using CoreScript.Engine.Models;
+using CoreScript.Engine.Logging;
 
 namespace CoreScript.Engine.Globals
 {
@@ -29,7 +34,7 @@ namespace CoreScript.Engine.Globals
 
     public class ExecutionGlobals
     {
-        internal static readonly AsyncLocal<ExecutionGlobals> Current = new AsyncLocal<ExecutionGlobals>();
+        public static readonly AsyncLocal<ExecutionGlobals> Current = new AsyncLocal<ExecutionGlobals>();
 
         // Timeout mechanism
         private static DateTime _executionDeadline;
@@ -81,6 +86,56 @@ namespace CoreScript.Engine.Globals
             _context = context;
             Parameters = parameters;
             Output = new Output(context);
+        }
+
+        /// <summary>
+        /// Retrieves a parameter value and safely converts it to the requested type.
+        /// Primarily used by compiled .ptool execution to handle type-safe parameter injection.
+        /// </summary>
+        public static T Get<T>(string key)
+        {
+            if (Current.Value == null || !Current.Value.Parameters.TryGetValue(key, out var val) || val == null)
+            {
+                return default(T);
+            }
+
+            if (val is T typedVal) return typedVal;
+
+            // Diagnostic logging for types
+            FileLogger.Log($"[ExecutionGlobals] Parameter '{key}' requested as {typeof(T).Name}. Current type: {val.GetType().Name}, Value: {val}");
+
+            // Optimization for primitive conversions (e.g., Int32 -> Double)
+            try
+            {
+                var targetType = typeof(T);
+                if (targetType.IsPrimitive || targetType == typeof(decimal))
+                {
+                    // Case: val is Int32, T is Double
+                    var converted = (T)System.Convert.ChangeType(val, targetType);
+                    FileLogger.Log($"[ExecutionGlobals] Successfully converted '{key}' via Convert.ChangeType to {typeof(T).Name}");
+                    return converted;
+                }
+            }
+            catch (Exception ex)
+            {
+                 FileLogger.LogError($"[ExecutionGlobals] Primitive conversion failed for '{key}' to {typeof(T).Name}: {ex.Message}");
+            }
+
+            try
+            {
+                // Structured solution: Use Json conversion for intermediate casting
+                // This handles cases like Int32 -> Double or dynamic List conversions
+                var json = JsonSerializer.Serialize(val);
+                var deserialized = JsonSerializer.Deserialize<T>(json);
+                FileLogger.Log($"[ExecutionGlobals] Successfully converted '{key}' via JSON pivot to {typeof(T).Name}");
+                return deserialized;
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"[ExecutionGlobals] JSON pivot failed for '{key}' to {typeof(T).Name}: {ex.Message}");
+                try { return (T)System.Convert.ChangeType(val, typeof(T)); }
+                catch { return default(T); }
+            }
         }
 
         public UIApplication? UIApp => _context.UIApp;

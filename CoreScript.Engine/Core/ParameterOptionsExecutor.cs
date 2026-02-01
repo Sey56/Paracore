@@ -268,12 +268,38 @@ using static CoreScript.Engine.Globals.ScriptApi;
                 _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
                 
                 // Execute and expect a tuple
-                var result = await CSharpScript.EvaluateAsync<(double, double, double)?>(
-                    executionScript,
-                    scriptOptions
-                );
+                // V2 FIX: Evaluate as object and manually convert to handle casting from (int, int, int) to (double, double, double)
+                var result = await CSharpScript.EvaluateAsync(executionScript, scriptOptions);
+                
+                if (result == null) return null;
 
-                return result;
+                // Use reflection or dynamic to extract tuple components safely
+                // Many tuples are ValueTuple<double, double, double> or ValueTuple<int, int, int> etc.
+                double min = 0, max = 0, step = 0;
+                bool success = false;
+
+                try 
+                {
+                    var type = result.GetType();
+                    if (type.IsGenericType && type.Name.StartsWith("ValueTuple"))
+                    {
+                        var fields = type.GetFields();
+                        if (fields.Length >= 3)
+                        {
+                            min = Convert.ToDouble(fields[0].GetValue(result));
+                            max = Convert.ToDouble(fields[1].GetValue(result));
+                            step = Convert.ToDouble(fields[2].GetValue(result));
+                            success = true;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[ParameterOptionsExecutor] Failed to convert range result: {ex.Message}");
+                }
+
+                if (success) return (min, max, step);
+                return null;
             }
             catch (CompilationErrorException ex)
             {

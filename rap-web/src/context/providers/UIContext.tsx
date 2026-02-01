@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import { Script } from "@/types/scriptModel";
 
 export type InspectorTab = "parameters" | "console" | "table" | "metadata";
 
@@ -10,18 +11,43 @@ export type ActiveScriptSource =
 
 export type ToolCall = {
   name: string;
-  args: { [key: string]: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  args: Record<string, string | number | boolean | Record<string, unknown> | unknown[]>;
   id: string;
 };
+
+export interface PlanStep {
+  script_id: string;
+  action: string;
+  script_metadata: Script; // ADDED THIS
+  deduced_parameters: Record<string, string | number | boolean>;
+  satisfied_parameters: string[];
+  missing_parameters: string[];
+  status?: 'pending' | 'executing' | 'success' | 'error';
+  result_summary?: string;
+  parameter_definitions?: Array<{
+    name: string;
+    description: string;
+    isRevitElement: boolean;
+    revitElementType: string;
+    options: string[];
+    required: boolean;
+  }>;
+}
+
+export interface OrchestrationPlan {
+  action: string;
+  explanation: string;
+  steps: PlanStep[];
+}
 
 // This defines the shape of messages coming directly from the LangGraph state
 export type Message = {
   type: 'human' | 'ai' | 'tool';
-  content: string | any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  content: string | { text: string }[];
   tool_calls?: ToolCall[];
   tool_call_id?: string;
   id?: string; // Langchain message ID
-  plan?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  plan?: OrchestrationPlan;
   raw_history?: string; // High-fidelity PydanticAI history blob
 };
 
@@ -77,8 +103,8 @@ export interface UIContextProps {
   setThreadId: React.Dispatch<React.SetStateAction<string | null>>;
 
   // Main View Toggle
-  activeMainView: 'scripts' | 'agent' | 'generation' | 'playlists';
-  setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'generation' | 'playlists'>>;
+  activeMainView: 'scripts' | 'agent' | 'playlists';
+  setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'playlists'>>;
 
   // Global InfoModal
   infoModalState: { isOpen: boolean; title: string; message: string };

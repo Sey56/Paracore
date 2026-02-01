@@ -14,179 +14,172 @@ Follow these instructions to generate high-quality, C#-based Revit automation sc
 ## Parameter Engine (V2)
 All script parameters must be defined inside a \`public class Params\` (bottom of \`Main.cs\` or in \`Params.cs\`).
 
-### 1. Grouping with \`#region\` (Zero Boilerplate)
-- Use C# \`#region GroupName\` ... \`#endregion\` to automatically group UI inputs.
-- **Formatting Rules**:
-  - \`#region GroupName\` goes IMMEDIATELY after the previous property (no blank line before).
-  - The first parameter/description follows IMMEDIATELY after \`#region\` (no blank line).
-  - Parameter structure: \`/// Description\` -> \`[Attribute]\` -> \`public T Prop { get; set; }\`.
-  - **CRITICAL FOOTER RULE**: 
-    - If the property ends with \`{ get; set; }\`, you **MUST** leave ONE empty line before \`#endregion\`.
-    - If the property ends with an initializer (e.g. \`= value;\`), you **DO NOT** leave an empty line before \`#endregion\`.
-  - Description comments (\`///\`) go DIRECTLY above attributes (no blank line between them).
+### 0. Instantiation (CRITICAL)
+- **REQUIRED**: You MUST manually instantiate the class at the start: \`var p = new Params();\`.
+- **ACCESS**: Access parameters ONLY via the instance (\`p.Name\`). **NEVER** use static access like \`Params.Name\`.
+- **Selection Contract**: \`[RevitElements(TargetType="...")]\` ONLY. \`OfClass\` is **FORBIDDEN**. No \`long.Parse\`.
+- **Spatial Magic**: \`TargetType = "Room"\`, \`"Area"\`, or \`"Space"\` is automatic. NO custom \`_Options\`.
 
-### 2. Supported Attributes & Types (Zero Boilerplate)
+### 1. Formatting & Documentation (STRICT)
+- **NAMING**: MUST use \`PropName_Suffix\` (e.g. \`RoomName_Options\`, \`TileSpacing_Range\`).
+- **SPACING**:
+  - Leave exactly ONE empty line space above both \`#region\` and \`#endregion\`.
+  - Every property must have ONE empty line space for visual distinction.
+- **DOCUMENTATION**:
+  - Use \`/// Description\` for short one-liners.
+  - Use \`/// <summary> ... </summary>\` ONLY for multi-line description.
+- **GROUPING**: Grouping similar parameters with \`#region\` is **ENCOURAGED**. Orphaned parameters are allowed but discouraged. Use \`#region\` strictly inside \`Params\`.
+
+### 2. Supported Attributes & Types
 - **Automatic Types**: \`int\`, \`double\`, \`bool\`, \`string\`, and \`List<string>\` map to UI controls automatically.
-- \`[RevitElements]\`: For Revit objects.
-  - Dropdown: \`[RevitElements(TargetType="WallType")]\`
-  - Filtered: \`[RevitElements(TargetType="FamilySymbol", Category="Doors")]\`
-  - Multi-Select: \`[RevitElements(TargetType="WallType", MultiSelect=true)]\` (Use \`List<string>\`)
-- \`[Select]\`: For interactive selection (Native Types supported).
-  - \`[Select(SelectionType.Point)]\`: Use \`public XYZ StartPoint { get; set; }\`.
-  - \`[Select(SelectionType.Edge)]\`: Use \`public Reference EdgeRef { get; set; }\`.
-  - \`[Select(SelectionType.Face)]\`: Use \`public Reference FaceRef { get; set; }\`.
-  - \`[Select(SelectionType.Element)]\`: Use \`public List<long> ElementIds { get; set; }\` (Supports Multi-Select).
-- \`[Range(min, max, step)]\`: Forces a UI Slider.
-- \`[Unit("unit")]\`: Handles input conversion (e.g. \`[Unit("mm")]\`). 
-  - *Note*: Input is auto-converted to feet. Script ALWAYS sees Internal Units (Feet).
-- \`[Required]\`: Marks input as mandatory.
-- \`[Pattern("regex")]\`: Validates string input against a regex pattern.
-- \`[EnabledWhen("PropName", "Value")]\`: Conditional enabling based on another parameter.
-- \`[InputFile("csv,xlsx")]\`: Open File Dialog.
-- \`[FolderPath]\`: Select Folder Dialog.
-- \`[OutputFile("json")]\`: Save File Dialog.
-- \`/// Single line description\` OR \`/// <summary> Multi-line description </summary>\`
-- \`[Color]\`: Hex color swatch & picker (Use for element overrides).
-- \`[Stepper]\`: +/- Buttons for exact numeric control.
-- \`[Segmented]\`: Horizontal button group for parameters with small options list.
-
-### 3. Dynamic Logic (Conventions)
-- **Magic Extraction**: For simple lists (e.g. All Rooms), DO NOT define a helper. Just use \`[RevitElements(TargetType="Room")]\`.
-- **Custom Filtering**: Define \`_Options\` (returns \`List<string>\`) ONLY if you need specific filtering (e.g. "Rooms on Level 1").
-- \`_Visible\` (returns \`bool\`): Show/Hide logic.
-- \`_Enabled\` (returns \`bool\`): Enable/Disable logic.
-- \`_Range\` (returns \`(double, double, double)\`): Dynamic slider limits (Min, Max, Step).
-- \`_Unit\` (returns \`string\`): Dynamic unit string (e.g. based on another dropdown).
-
-## Architecture & Modularization
-- **Context**: This is a VSCode extension workspace. Scripts are in the \`Scripts\` folder.
-- **Entry Point**: The main logic and top-level statements are in \`Main.cs\`.
-- **Modularization (Optional)**: If the script is complex, you may create additional files:
-  - \`Params.cs\`: The file containing \`Params\` **MUST** be named \`Params.cs\` (Case Sensitive).
-  - \`Utils.cs\` (or similar): For helper classes. Use meaningful names, NOT \`module_X.cs\`.
-- **Simple Scripts**: If the task is simple, keep everything in \`Main.cs\`. \`Params\` class MUST be at the bottom or in \`Params.cs\`.
+- \`[RevitElements]\`, \`[Select]\`, \`[Range]\`, \`[Unit]\`, \`[Required]\`, \`[Pattern]\`, \`[EnabledWhen]\`.
+- \`[InputFile]\`, \`[FolderPath]\`, \`[OutputFile]\`, \`[Color]\`, \`[Stepper]\`, \`[Segmented]\`.
 
 ## Revit 2025+ API Rules (CRITICAL)
-1.  **ElementId**: **FORBIDDEN**: \`ElementId.IntegerValue\`. Use \`ElementId.Value\` (long) instead.
-2.  **Geometry**:
-    - \`Curve\` does NOT have \`GetBoundingBoxXYZ()\`. Use \`curve.GetEndPoint(0)\` and \`curve.GetEndPoint(1)\`.
-    - Ensure curves are > 0.0026 ft before creation.
+1.  **ElementId**: **FORBIDDEN**: \`ElementId.IntegerValue\`. Use \`ElementId.Value\` (long).
+2.  **Geometry**: \`Curve.GetBoundingBoxXYZ()\` is **FORBIDDEN**. Use endpoints.
 3.  **SpatialElementBoundaryOptions**: Does NOT have a \`BoundaryOffset\` property.
-4.  **Floor.Create**:
-    - **FORBIDDEN**: Overloads with \`XYZ normal\` are deprecated.
-    - **CORRECT**: Use \`Floor.Create(Doc, profile, floorTypeId, levelId)\` for architectural floors.
-    - **CORRECT**: Use \`Floor.Create(Doc, profile, floorTypeId, levelId, isStructural, null, 0.0)\` for structural floors.
+4.  **Floor.Create**: Overloads with \`XYZ normal\` are **DEPRECATED**. Use standard overloads.
 
 ## Coding Standards
-1.  **Error Handling & Early Exits**: 
-    - **CRITICAL**: Do not use the \`return\` keyword for early exits on errors.
-    - Instead, \`throw new Exception("Clear error message")\`. 
-    - This allows the Paracore engine to catch the failure and display an "Execution Failed" status in the UI.
-2.  **Transactions & Fail-Fast**:
-    - Use exactly one \`Transact("Name", () => { ... })\` block.
-    - **FORBIDDEN**: \`Transact.Run\`, \`Transaction.Run\` or any other variations.
-    - **FORBIDDEN**: Do NOT use \`Transact\` for read-only operations (filtering, selection).
-    - **FORBIDDEN**: Do NOT use \`try-catch\` inside loops within a transaction.
-    - Let exceptions propagate so the transaction rolls back automatically.
-    - If one element fails, the whole batch should fail cleanly.
-3.  **Unit Handling Rules**:
-    -   **Input Parameters**: Do **NOT** manually convert input parameters to internal units if they have a \`[Unit("...")]\` attribute. The Engine automatically converts them to Internal Units (Feet) before your script runs.
-        -   *Example:* If \`[Unit("mm")] public double Width { get; set; }\` is \`500\`, the script receives \`1.6404...\` (Feet). Use it directly.
-    -   **Output/Display**: All Revit API geometry return values are in **Internal Units (Feet)**. If you need to display them in specific units (e.g. for \`Println\` or \`Table\`), you **MUST** convert them manually using \`UnitUtils.ConvertFromInternalUnits(...)\`.
-4.  **Timeouts**:
-    - Scripts default to a 10s timeout. If you expect long execution, call \`SetExecutionTimeout(seconds)\` at the start.
+1.  **Early Exits**: **CRITICAL**: Do NOT use \`return\` for early exits. \`throw new Exception("...")\`.
+2.  **Transactions**: One \`Transact("Name", () => { ... })\` block. No \`Transact.Run\`.
+3.  **Units**: Input with \`[Unit]\` is auto-converted to feet. Use directly.
+4.  **Logging**: \`Println($"Message {var}")\`. No ❌ emoji. No \`Println\` inside transaction loops.
+5.  **No Async (CRITICAL)**: Do NOT use \`await\` or \`async\`. Scripts run in a synchronous UI context.
+6.  **Safety Locks (CRITICAL)**: For destructive operations (Delete, Overwrite, Mass-Rename), you **MUST** implement a "Safety Lock" using \`[Mandatory]\` and \`[Confirm("TEXT")]\` attributes to disable the Run button until unlocked.
+7.  **Surgical Precision (CRITICAL)**:
+    - **DON'T TOUCH WHAT WORKS**: Only modify code directly related to the user's request or reported error. If a line of code is already functional, do NOT change, refactor, or "improve" it. 
+    - **PRESERVE GLOBALS**: Never change \`Doc\`, \`Uidoc\`, or \`Println()\` unless they are explicitly part of the task.
+8.  **Environment (STRICT SANDBOX)**:
+    - **CLOSED WORLD**: You operate in a restricted execution sandbox. Use ONLY the provided globals: \`Doc\` (Document), \`Uidoc\` (UIDocument), \`App\` (Application), and \`Println()\`.
+    - **STATIC ACCESS**: \`Doc\`, \`Uidoc\`, etc., are **STATIC**. Accessible from **ANY** scope.
+    - **CODE EXAMPLE (STRICT ADHERENCE)**:
+      \`\`\`csharp
+      public class Params {
+          public List<string> Options => new FilteredElementCollector(Doc).OfClass(typeof(WallType)).Cast<WallType>().Select(x => x.Name).ToList();
+      }
+      \`\`\`
+    - **FORBIDDEN**: Never use \`Paracore.Scripting\`, \`Context\`, or internal namespaces.
+    - **IMPLICIT USINGS**: \`System\`, \`System.Linq\`, and \`Autodesk.Revit.DB\` are ALREADY available globally.
 
-## Output Optimization & Visualization
-- **Console**: Use \`Println($"Message {var}")\`. 
-  - **WARNING**: Do NOT call \`Println\` inside loops within a \`Transact\` block (floods console).
-- **Data Tables**: Use \`Table(IEnumerable data)\` to render interactive grids.
-- **Charts**: 
-  - \`ChartBar(object data)\`: Bar chart (Properties: name, value).
-  - \`ChartPie(object data)\`: Pie chart (Properties: name, value).
-  - \`ChartLine(object data)\`: Line chart (Properties: name, value).
-- **Avoid** the ❌ emoji; use 🚫 or ⚠️.
+## Implicit Globals (FORBIDDEN TO IMPORT)
+These are already provided. Do NOT add \`using\` for:
+- \`System\`, \`System.Collections.Generic\`, \`System.Linq\`, \`System.Text.Json\`, \`Microsoft.CSharp\`
+- \`Autodesk.Revit.DB\`, \`Autodesk.Revit.DB.Architecture\`, \`Autodesk.Revit.DB.Structure\`, \`Autodesk.Revit.UI\`
+- \`CoreScript.Engine.Globals\`, \`static CoreScript.Engine.Globals.DesignTimeGlobals\`
+- \`SixLabors.ImageSharp\`, \`SixLabors.ImageSharp.Processing\`, \`SixLabors.ImageSharp.PixelFormats\`
+- \`RestSharp\`, \`MiniExcelLibs\`, \`MathNet.Numerics\`, \`MathNet.Numerics.LinearAlgebra\`, \`MathNet.Numerics.Statistics\`
 
-## Casting & Filtering (CRITICAL)
-- **ALWAYS** use \`.Cast<Type>()\` after \`FilteredElementCollector\`.
-- **Use \`OfClass\`** for: \`Wall\`, \`WallType\`, \`Floor\`, \`Ceiling\`, \`RoofBase\`, \`FamilySymbol\`, \`Level\`, \`View\`, \`ViewSheet\`.
-- **Use \`OfCategory\`** for: \`Room\` (OST_Rooms), \`Material\` (OST_Materials), \`Door Instance\` (OST_Doors), \`Window Instance\` (OST_Windows), \`Area\` (OST_Areas).
-- **Example OfClass**: \`new FilteredElementCollector(Doc).OfClass(typeof(Wall)).Cast<Wall>();\`
-- **Example OfCategory**: \`new FilteredElementCollector(Doc).OfCategory(BuiltInCategory.OST_Rooms).Cast<Room>();\`
-
-## Implicit Globals (Do Not Import)
-These are provided by the engine at runtime and available in **ALL FILES** (Main.cs, Params.cs, Utils.cs, etc.):
-- \`Doc\`, \`UIDoc\`, \`UIApp\`
-- \`Println\`, \`Table\`, \`ChartBar\`, \`ChartPie\`, \`ChartLine\`, \`Transact\`, \`SetExecutionTimeout\`
-- \`System\`, \`System.Linq\`, \`System.Collections.Generic\`, \`System.Text.Json\`, \`Autodesk.Revit.DB\`, \`Autodesk.Revit.UI\`, \`Autodesk.Revit.DB.Architecture\`, \`Autodesk.Revit.DB.Structure\` (Explicitly imported by engine. DO NOT re-import.)
-
-## Required Imports (If Needed)
-NONE for standard Revit operations. Only import external libraries if needed.
+### 📚 AVAILABLE ATTRIBUTES (Cheat Sheet)
+| Attribute | Syntax | UI Element |
+| :--- | :--- | :--- |
+| **Files** | \`[InputFile("csv,xlsx")]\` | Open File Dialog |
+| **Files** | \`[OutputFile("json")]\` | Save File Dialog |
+| **Files** | \`[FolderPath]\` | Folder Picker |
+| **Rich UI** | \`[Color]\` | Color Picker (Hex) |
+| **Rich UI** | \`[Stepper]\` | +/- Number Buttons |
+| **Rich UI** | \`[Segmented]\` | Horizontal Toggle Group |
+| **Logic** | \`[EnabledWhen("Prop", "Val")]\` | Conditional Enabling |
+| **Logic** | \`public bool Prop_Visible => ...\` | Dynamic Visibility |
 
 ## Example Structure
 \`\`\`csharp
-// 1. Setup
+// File: Main.cs
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Autodesk.Revit.DB;
+
+// 1. Instantiate Params at the top (CRITICAL)
 var p = new Params();
 
-// 2. Logic (Preparation)
-// Native Point Support!
-XYZ start = p.StartPoint ?? XYZ.Zero;
+// 2. Logic & Preparation
+if (p.IsActive)
+{
+    // Example: Select By Name
+    var wallType = new FilteredElementCollector(Doc)
+        .OfClass(typeof(WallType))
+        .Cast<WallType>()
+        .FirstOrDefault(x => x.Name == p.SelectOneWallType);
 
-var room = new FilteredElementCollector(Doc)
-    .OfCategory(BuiltInCategory.OST_Rooms)
-    .Cast<Room>()
-    .FirstOrDefault(r => r.Name == p.SelectedRoom);
+    if (wallType == null) throw new Exception("🚫 Wall Type '" + p.SelectOneWallType + "' not found.");
 
-if (room == null) {
-    throw new Exception("🚫 Room not found.");
+    // 3. Execution (Single Transaction)
+    Transact("Example Transaction", () =>
+    {
+        // ... Modify Revit DB ...
+    });
 }
 
-// 3. Execution
-Transact("Add Note", () => {
-    // DB modifications here
-});
+// 4. Output
+Println($"✅ Success: Operation complete for {p.UserName}");
 
-// 4. Classes (MUST BE LAST)
-public class Params {
-    #region Basic Settings
-    /// Description for the first parameter.
-    [Required]
-    public string ParameterOne { get; set; } = "Default";
-    
+// ---------------------------------------------------------
+// COMPREHENSIVE PARAMS REFERENCE (Golden Standard)
+// ---------------------------------------------------------
+public class Params
+{
+    #region 1. Basic Inputs
+    /// Your application name.
+    public string AppName { get; set; }
+
+    /// The name of the user.
+    public string UserName { get; set; } = "Default User";
+
+    /// Number of walls to process.
+    public int NumberOfWalls { get; set; }
+
+    /// Enable or disable the main logic.
+    public bool IsActive { get; set; } = true;
+
     /// <summary>
-    /// This multi-line description uses summary tags.
-    /// It is necessary for long explanations.
+    /// Renders as a Slider + Number Input.
+    /// Range: 1 to 10, Step: 1. Default: 5.
     /// </summary>
     [Range(1, 10, 1)]
     public int Counter { get; set; } = 5;
-    #endregion
-    #region Geometry
-    /// Wall type selection. The engine generates the dropdown.
-    [RevitElements(TargetType = "WallType")]
-    public string WallTypeName { get; set; }
-    
-    /// Unit is auto-converted to Feet. Script sees internal units.
-    [Unit("mm")]
-    public double Offset { get; set; } = 500;
-    
-    /// Precision numeric control.
-    [Stepper]
-    public int Iterations { get; set; } = 10;
-    
-    /// Visual color override.
-    [Color]
-    public string WallColor { get; set; } = "#FF0000";
 
-    /// Sleek horizontal toggle.
-    [Segmented]
-    public string Orientation { get; set; } = "Horizontal";
-    public List<string> Orientation_Options => new() { "Horizontal", "Vertical" };
-    
-    /// Native XYZ Support
+    #endregion
+
+    #region 2. Dropdowns & Logic
+    /// Choose the text case format.
+    public string CaseOption { get; set; } = "UPPERCASE";
+    public List<string> CaseOption_Options => ["UPPERCASE", "lowercase", "Camel Case"];
+
+    /// Select multiple tools.
+    public List<string> PreferredTools { get; set; } = ["Revit", "Paracore"];
+    public List<string> PreferredTools_Options => ["Revit", "Paracore", "Rhino", "Blender"];
+
+    #endregion
+
+    #region 3. Revit Selection
+    /// <summary>
+    /// Pick a specific Wall Type from the model.
+    /// The engine populates this dropdown automatically.
+    /// </summary>
+    [RevitElements(TargetType = "WallType")]
+    public string SelectOneWallType { get; set; }
+
+    /// Pick a point in the model.
     [Select(SelectionType.Point)]
-    public XYZ StartPoint { get; set; }
-    
+    public XYZ OriginPoint { get; set; }
+
+    #endregion
+
+    #region 4. Units & Files
+    /// <summary>
+    /// Input is in Meters, auto-converted to Feet.
+    /// Script always sees Feet (Internal Units).
+    /// </summary>
+    [Unit("m")]
+    public double Tolerance { get; set; } = 0.01;
+
+    /// Select a CSV or Excel file.
+    [InputFile("csv,xlsx")] 
+    public string SourceFile { get; set; }
+
     #endregion
 }
 \`\`\`
 `;
-;

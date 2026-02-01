@@ -1,12 +1,10 @@
-from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel
-import uuid
 import json
 import logging
-from typing import List, Dict, Any, Optional
-import os
+import uuid
+from typing import Any, Dict, List
 
-from agent.prompt import SYSTEM_PROMPT
+from fastapi import APIRouter, HTTPException, Response
+from pydantic import BaseModel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -46,10 +44,18 @@ async def chat_with_agent(request: ChatRequest):
         )
 
         # 2. Reconstruct High-Fidelity History (The Steel Shield)
-        from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart, ToolCallPart, ToolReturnPart
         from pydantic import TypeAdapter
+        from pydantic_ai.messages import (
+            ModelMessage,
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
         pydantic_history: List[ModelMessage] = []
-        
+
         if request.raw_history:
             # OPTION A: Industrial Fidelity Restore
             try:
@@ -99,7 +105,7 @@ async def chat_with_agent(request: ChatRequest):
         # 4. Process Result
         # confirmed: PydanticAI 1.47 uses '.output'
         final_message = result.output if isinstance(result.output, str) else "Processing complete."
-        
+
         response_data = {
             "thread_id": request.thread_id or str(uuid.uuid4()),
             "status": "complete",
@@ -109,19 +115,19 @@ async def chat_with_agent(request: ChatRequest):
             "current_plan": None
         }
 
-        # 5. Extract Tools for Sovereign Handoff
-        if result.all_messages():
+        # 5. Extract Tools for Sovereign Handoff (Current Turn ONLY)
+        if result.new_messages():
             from pydantic_ai.messages import ModelResponse, ToolCallPart
-            for msg in result.all_messages():
+            for msg in result.new_messages():
                 if isinstance(msg, ModelResponse):
                     for part in msg.parts:
                         if isinstance(part, ToolCallPart):
                             t_name = part.tool_name
                             t_args = part.args
-                            
+
                             is_selection = t_name == "set_active_script"
                             is_run_call = t_name.startswith("run_") and t_name != "run_script_by_name"
-                            
+
                             if is_selection or is_run_call:
                                 response_data["status"] = "interrupted"
                                 response_data["tool_call"] = {
@@ -139,7 +145,7 @@ async def chat_with_agent(request: ChatRequest):
                                         active_script["id"] = s_id
                                         response_data["active_script"] = active_script
                                 except: pass
-                            
+
                             if t_name == "propose_automation_plan":
                                 response_data["current_plan"] = t_args
 
@@ -148,7 +154,7 @@ async def chat_with_agent(request: ChatRequest):
         try:
             response_data["raw_history_json"] = result.all_messages_json().decode('utf-8')
             logger.info(f"[V3] Finalizing turnaround: {len(result.all_messages())} messages preserved.")
-        except Exception as e: 
+        except Exception as e:
             logger.warning(f"[V3] History preservation failed: {e}")
 
         return Response(content=json.dumps(response_data), media_type="application/json")

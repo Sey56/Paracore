@@ -1,5 +1,5 @@
 import json
-import re
+
 
 def generate_summary(raw_execution_result: dict) -> dict | None:
     """
@@ -17,7 +17,7 @@ def generate_summary(raw_execution_result: dict) -> dict | None:
                 rows = json.loads(table_item['data'])
                 if isinstance(rows, list):
                     summary = {'type': 'table', 'row_count': len(rows)}
-                    
+
                     # Add headers and preview
                     if len(rows) > 0:
                         first_row = rows[0]
@@ -25,7 +25,7 @@ def generate_summary(raw_execution_result: dict) -> dict | None:
                             summary['headers'] = list(first_row.keys())
                             # Preview first 2 rows
                             summary['preview'] = rows[:2]
-                    
+
                     return summary
             except (json.JSONDecodeError, TypeError):
                 # If data is invalid, fall through to other summary types
@@ -34,13 +34,13 @@ def generate_summary(raw_execution_result: dict) -> dict | None:
     # --- Priority 2: Console Summary (from 'Println' global) ---
     if console_output and isinstance(console_output, str):
         lines = console_output.strip().split('\n')
-        
+
         # Filter out the timestamp line only
         relevant_lines = [line for line in lines if not line.startswith("✅ Code executed") and not line.startswith("❌ Code execution")]
-        
+
         if relevant_lines:
             summary = {'type': 'console', 'line_count': len(relevant_lines)}
-            
+
             # Check for explicit SUMMARY: convention
             summary_lines = [line for line in relevant_lines if line.strip().startswith("SUMMARY:")]
             if summary_lines:
@@ -56,7 +56,7 @@ def generate_summary(raw_execution_result: dict) -> dict | None:
                 else:
                     # Fallback to first line if no result markers found
                     summary['preview'] = relevant_lines[:1]
-            
+
             return summary
 
     # --- Priority 3: Default Summary (Success/Failure message) ---

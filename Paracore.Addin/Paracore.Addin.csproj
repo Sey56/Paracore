@@ -25,6 +25,12 @@
     <!-- Allow override via command line or environment -->
 
     <Platforms>AnyCPU;x64</Platforms>
+    
+    <!-- Quality Automation -->
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
   <!-- Remove image from default build -->
@@ -89,7 +95,7 @@
 </RevitAddIns>]]>
       </AddinContent>
     </PropertyGroup>
-    <WriteLinesToFile File="$(PublishDir)Paracore.Addin.addin" Lines="$(AddinContent)" Overwrite="true" Encoding="utf-8" />
+    <WriteLinesToFile File="$(PublishDir)\Paracore.Addin.addin" Lines="$(AddinContent)" Overwrite="true" Encoding="utf-8" />
   </Target>
 
 </Project>

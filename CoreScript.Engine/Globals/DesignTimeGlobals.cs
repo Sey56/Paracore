@@ -39,6 +39,11 @@ namespace CoreScript.Engine.Globals
         public static void Println(string message) => throw DesignTimeOnlyException;
 
         /// <summary>
+        /// Prints an empty line to the unified output console.
+        /// </summary>
+        public static void Println() => throw DesignTimeOnlyException;
+
+        /// <summary>
         /// Alias for <see cref="Println(string)"/>. Prints a message to the console.
         /// </summary>
         public static void Print(string message) => throw DesignTimeOnlyException;

@@ -10,7 +10,10 @@ import {
   faEdit,
   faICursor,
   faFolder,
-  faCompressAlt
+  faCompressAlt,
+  faLock,
+  faTools,
+  faBullseye
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import { useRevitStatus } from "@/hooks/useRevitStatus";
@@ -29,6 +32,7 @@ export interface ScriptCardProps {
   isCompact?: boolean;
   showExitFocus?: boolean;
   onExitFocus?: () => void;
+  onFocus?: () => void;
 }
 
 export const ScriptCard: React.FC<ScriptCardProps> = ({
@@ -37,7 +41,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   isFromActiveWorkspace,
   isCompact = false,
   showExitFocus = false,
-  onExitFocus
+  onExitFocus,
+  onFocus
 }) => {
   const {
     selectedScript,
@@ -45,12 +50,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     runScript,
     setSelectedScript,
     editScript,
-    renameScript
+    renameScript,
+    userEditedScriptParameters
   } = useScriptExecution();
   const { toggleFavoriteScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
   const { ParacoreConnected } = useRevitStatus();
-  const { isAuthenticated, activeRole } = useAuth();
+  const { isAuthenticated, activeRole, user } = useAuth();
   const [showMenu, setShowMenu] = React.useState(false);
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [renameValue, setRenameValue] = React.useState('');
@@ -75,19 +81,29 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   const isSelected = selectedScript?.id === script.id;
   const isRunning = runningScriptPath === script.id;
   const isMultiFile = script.type === 'multi-file';
+  const isTool = script.metadata?.isProtected === true;
 
   // Connectivity logic
   const isParacoreConnected = ParacoreConnected;
   const isCompatibleWithDocument = true;
 
-  // Validation
-  const visibleParameters = filterVisibleParameters(script.parameters ?? []);
+  // Validation - use cached parameters if available
+  const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
+  const visibleParameters = filterVisibleParameters(currentParams);
   const validationErrors = validateParameters(visibleParameters);
   const isParamsValid = validationErrors.length === 0;
 
   // V2.5: Permissive UI treatment - only grayscale the RUN button if disconnected
   // File operations (Edit, Rename) should always be available if authenticated
-  const isRunButtonDisabled = !isParacoreConnected || isRunning || !validationErrors.length === 0 || !isAuthenticated;
+  const isRunButtonDisabled = !isParacoreConnected || isRunning || validationErrors.length > 0 || !isAuthenticated;
+  const canEdit = !!user && ParacoreConnected && !script.metadata.isProtected;
+
+  const getEditTitleMessage = () => {
+    if (!user) return "You must be signed in to edit scripts";
+    if (!ParacoreConnected) return "Paracore is disconnected. Please connect to Revit.";
+    if (script.metadata.isProtected) return "Source code for this tool is protected and cannot be edited.";
+    return "Edit Script";
+  };
 
   const tooltipMessage = !isAuthenticated
     ? "Please sign in to run scripts"
@@ -96,6 +112,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
       : validationErrors.length > 0
         ? `Issues: ${validationErrors.join(', ')}`
         : "Run this script";
+
+  const editTooltipMessage = getEditTitleMessage();
 
   const handleRunClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,23 +165,10 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   return (
     <div
-      className={`${styles.scriptCard} script-card bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
-        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isMultiFile ? styles.multiFile : ""} ${showExitFocus ? styles.focusHero : ""}`}
+      className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
+        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isMultiFile ? styles.multiFile : ""} ${isTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""}`}
       onClick={handleSelect}
     >
-      {/* Exit Focus Button (integrated) */}
-      {showExitFocus && onExitFocus && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onExitFocus();
-          }}
-          className={styles.focusExitButton}
-          title="Exit Focus Mode"
-        >
-          <FontAwesomeIcon icon={faCompressAlt} />
-        </button>
-      )}
 
       <div className={`p-4 flex-grow flex flex-col ${isCompact ? "py-2" : ""}`}>
         <div className="flex justify-between items-start mb-2">
@@ -180,12 +185,21 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
               autoFocus
             />
           ) : (
-            <h3 className={`font-medium text-gray-800 dark:text-gray-100 ${isCompact ? "text-base" : "text-lg"} truncate w-full pr-6`}>
+            <h3
+              className={`font-medium ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"} truncate w-full pr-6`}
+              title={script.metadata.displayName || script.name.replace(/\.cs$/, "")}
+            >
               {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
               {isMultiFile && (
                 <span className={styles.multiFileBadge}>
                   <FontAwesomeIcon icon={faFolder} className="mr-1" style={{ fontSize: '0.6rem' }} />
                   Multi
+                </span>
+              )}
+              {script.metadata.isProtected && (
+                <span className={`${styles.multiFileBadge} !bg-amber-100 !text-amber-700 dark:!bg-amber-900/30 dark:!text-amber-400 border border-amber-200 dark:border-amber-800 ml-2`}>
+                  <FontAwesomeIcon icon={faTools} className="mr-1" style={{ fontSize: '0.6rem' }} />
+                  Tool
                 </span>
               )}
             </h3>
@@ -237,6 +251,35 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
         </div>
 
         <div className="flex items-center relative" ref={menuRef}>
+          {((onFocus && !showExitFocus) || (onExitFocus && showExitFocus)) && (
+            <button
+              className={showExitFocus
+                ? "text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-full w-8 h-8 flex items-center justify-center mr-2 transition-all shadow-sm"
+                : "text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 p-1 mr-1"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (showExitFocus && onExitFocus) {
+                  onExitFocus();
+                } else if (onFocus) {
+                  onSelect();
+                  onFocus();
+                }
+              }}
+              title={showExitFocus ? "Exit Focus Mode" : "Focus View"}
+            >
+              <FontAwesomeIcon icon={showExitFocus ? faCompressAlt : faBullseye} />
+            </button>
+          )}
+          {isMultiFile && (
+            <div className="mr-2 text-blue-500" title="This is a multi-file script">
+              <FontAwesomeIcon icon={faFolder} />
+            </div>
+          )}
+          {script.metadata.isProtected && (
+            <div className="mr-2 text-amber-500" title="This is a protected tool">
+              <FontAwesomeIcon icon={faTools} />
+            </div>
+          )}
           <button
             className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1"
             onClick={(e) => {
@@ -253,6 +296,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                 onClick={(e) => {
                   e.stopPropagation();
+                  onSelect();
                   setActiveInspectorTab('metadata');
                   setSelectedScript(script);
                   setShowMenu(false);
@@ -261,23 +305,28 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                 <FontAwesomeIcon icon={faEllipsisH} className="mr-2 w-4" />
                 View Metadata
               </button>
-              {canCreateScripts && (
+              {canCreateScripts && !script.metadata.isProtected && (
                 <>
                   <button
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                     onClick={(e) => {
                       e.stopPropagation();
+                      onSelect();
                       // V2.5 FIX: Passing full object
                       editScript(script);
                       setShowMenu(false);
                     }}
+                    title={editTooltipMessage}
                   >
                     <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
                     Edit Code
                   </button>
                   <button
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                    onClick={handleStartRename}
+                    onClick={(e) => {
+                      onSelect();
+                      handleStartRename(e);
+                    }}
                   >
                     <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
                     Rename

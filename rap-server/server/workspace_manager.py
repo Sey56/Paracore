@@ -1,5 +1,5 @@
-import os
 import json
+import os
 from typing import Dict, Optional
 
 WORKSPACE_CACHE_FILE = "active_workspaces.json"
@@ -45,17 +45,17 @@ def get_scripts_dir(script_path: str, script_type: str = "multi-file") -> str:
     Prioritizes the Active Workspace if one exists.
     """
     workspace_path = get_active_workspace(script_path)
-    
+
     if workspace_path and os.path.isdir(workspace_path):
         # Redirect to workspace
         return os.path.join(workspace_path, "Scripts")
-    
+
     # Fallback to source
     # If multi-file, the script_path is the folder itself.
     # If single-file, script_path is the file, so we need the dirname.
     # HOWEVER, the 'script_path' passed from frontend for single-file is usually the file path.
     # For multi-file, it's the folder path.
-    
+
     # Simple check: is it a file or dir? (If it exists)
     if os.path.isfile(script_path):
         return os.path.dirname(script_path)

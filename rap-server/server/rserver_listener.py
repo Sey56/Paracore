@@ -1,6 +1,6 @@
 import logging
-from collections import defaultdict
 import threading
+from collections import defaultdict
 
 # Assuming the generated protobuf files are in the same directory or accessible
 import corescript_pb2
@@ -31,11 +31,11 @@ class RServerListenerServicer(corescript_pb2_grpc.RServerListenerServicer):
             for addition in request.additions:
                 category = addition.category
                 ids_to_add = set(addition.element_ids)
-                
+
                 if not category:
                     logger.warning("Received an addition with an empty category.")
                     continue
-                
+
                 CANONICAL_WORKING_SET[category].update(ids_to_add)
                 logger.info(f"Added/Updated {len(ids_to_add)} elements in category '{category}'")
 
@@ -43,17 +43,17 @@ class RServerListenerServicer(corescript_pb2_grpc.RServerListenerServicer):
             if request.deleted_ids:
                 ids_to_delete = set(request.deleted_ids)
                 categories_to_clean = []
-                
+
                 for category, id_set in CANONICAL_WORKING_SET.items():
                     id_set.difference_update(ids_to_delete)
                     # If a category becomes empty, mark it for removal
                     if not id_set:
                         categories_to_clean.append(category)
-                
+
                 # Remove empty categories from the working set
                 for category in categories_to_clean:
                     del CANONICAL_WORKING_SET[category]
-                    
+
                 logger.info(f"Removed {len(ids_to_delete)} elements from the working set.")
 
         # logger.debug(f"Current Canonical Working Set: {dict(CANONICAL_WORKING_SET)}")

@@ -1,11 +1,12 @@
-import sys
-import os
 import json
+import os
+import sys
 
 # Add the server directory to sys.path
 sys.path.append(os.path.abspath("c:/Users/seyou/RAP/rap-server/server"))
 
 from agent.nodes.working_set_utils import process_working_set_output
+
 
 def test_working_set_utils():
     print("Testing working_set_utils...")

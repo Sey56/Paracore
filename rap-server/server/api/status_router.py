@@ -1,9 +1,9 @@
-import grpc
 import json
+
+import grpc
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from google.protobuf import json_format
-
 from grpc_client import get_status
 
 router = APIRouter()

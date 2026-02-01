@@ -1,6 +1,8 @@
+import { ExecutionResult } from "./common";
+
 export interface PlaylistItem {
     scriptPath: string;
-    parameters: Record<string, unknown>;
+    parameters: Record<string, string | number | boolean>;
 }
 
 export interface Playlist {
@@ -10,5 +12,5 @@ export interface Playlist {
     filePath?: string;
     isFavorite?: boolean;
     sourcePath?: string; // To match how Scripts handle source paths (optional)
-    lastExecutionResults?: Record<number, any>; // Record<index, ExecutionResult>
+    lastExecutionResults?: Record<number, ExecutionResult>; // Record<index, ExecutionResult>
 }

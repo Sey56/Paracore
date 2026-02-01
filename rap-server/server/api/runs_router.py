@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import List, Optional, Dict
 from datetime import datetime
+from typing import Dict, List, Optional
 
-import models, schemas
+from auth import CurrentUser, get_current_user
 from database_config import get_db
+from fastapi import APIRouter, Depends
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+import models
+import schemas
 from utils import resolve_script_path
-from auth import get_current_user, CurrentUser
 
 router = APIRouter()
 
@@ -69,7 +71,7 @@ def get_last_run(script_path: str, db: Session = Depends(get_db), current_user: 
 
     # Find the script in the database using the resolved path.
     script = db.query(models.Script).filter(models.Script.path == resolved_path).first()
-    
+
     if not script:
         # If the script is not in our database, it has no runs.
         # This is not an error, it just means the script has never been indexed or run.
@@ -80,5 +82,5 @@ def get_last_run(script_path: str, db: Session = Depends(get_db), current_user: 
         .filter(models.ScriptRun.script_id == script.id)\
         .order_by(models.ScriptRun.timestamp.desc())\
         .first()
-    
+
     return last_run

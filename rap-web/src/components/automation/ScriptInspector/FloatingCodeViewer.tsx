@@ -3,7 +3,7 @@ import { Rnd } from 'react-rnd';
 const CodeViewer = lazy(() => import('./CodeViewer').then(module => ({ default: module.CodeViewer })));
 import type { Script } from '../../../types/scriptModel';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faEdit } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faEdit, faShieldAlt } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useScriptExecution } from '@/hooks/useScriptExecution';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,17 +19,18 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
   const { theme } = useTheme();
   const { user } = useAuth();
   const { ParacoreConnected } = useRevitStatus();
-  const { editScript } = useScriptExecution();
+  const { editScript, buildTool } = useScriptExecution();
 
   if (!isOpen) {
     return null;
   }
 
-  const canEdit = !!user && ParacoreConnected;
+  const canEdit = !!user && ParacoreConnected && !script.metadata.isProtected;
 
   const getTitleMessage = () => {
     if (!user) return "You must be signed in to edit scripts";
     if (!ParacoreConnected) return "Paracore is disconnected. Please connect to Revit.";
+    if (script.metadata.isProtected) return "Source code for this tool is protected and cannot be edited.";
     return "Edit Script";
   };
 
@@ -91,6 +92,18 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
           <FontAwesomeIcon icon={faEdit} className="mr-2" />
           Edit in VSCode
         </button>
+        {!script.metadata.isProtected && (
+          <button
+            onClick={() => buildTool(script)}
+            disabled={!ParacoreConnected}
+            className={`ml-3 bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold flex items-center ${!ParacoreConnected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'
+              }`}
+            title={ParacoreConnected ? "Compile this script into a protected .ptool distribution" : "Paracore is disconnected. Please connect to Revit to build tools."}
+          >
+            <FontAwesomeIcon icon={faShieldAlt} className="mr-2" />
+            Build Protected Tool
+          </button>
+        )}
       </div>
     </Rnd>
   );

@@ -1,0 +1,15 @@
+# Target Python 3.10+
+target-version = "py310"
+line-length = 120
+
+[lint]
+# Enable Pyflakes (F), pycodestyle (E, W), isort (I), and flake8-bugbear (B)
+select = ["F", "E", "W", "I", "B"]
+
+# F401: Unused imports (cleanliness)
+# F811: Redefinition of unused name (this would have caught the router blunder!)
+# B008: Do not perform function call in argument defaults (standard FastAPI best practice)
+ignore = []
+
+[lint.isort]
+known-first-party = ["api", "agent", "generation", "models", "schemas", "utils"]

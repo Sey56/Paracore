@@ -163,7 +163,7 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
                                             <h3 className={`text-xs font-bold truncate ${status === 'error' ? 'text-red-700 dark:text-red-400' :
                                                 selectedIndex === index ? 'text-slate-800 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'
                                                 }`}>
-                                                {item.scriptPath.split(/[\\\/]/).pop()?.replace('.cs', '')}
+                                                {item.scriptPath.split(/[\\/]/).pop()?.replace('.cs', '')}
                                             </h3>
                                         </div>
 

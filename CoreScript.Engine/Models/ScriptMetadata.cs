@@ -17,6 +17,7 @@ namespace CoreScript.Engine.Models
         public string History { get; set; } = "";
         public string? DocumentType { get; set; } = null;
         public List<string> UsageExamples { get; set; } = new List<string>();
-        
+        public bool IsProtected { get; set; } = false;
+        public bool IsCompiled { get; set; } = false;
     }
 }

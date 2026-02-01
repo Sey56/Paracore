@@ -11,14 +11,9 @@ const llmProviders = [
   {
     name: 'Google',
     models: [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-2.0-flash-exp',
-      'gemini-2.0-pro-exp',
       'gemini-2.5-flash',
       'gemini-2.5-pro',
-      'gemini-3-flash-preview',
-      'gemini-3-pro-preview',
+      'gemini-3-pro',
     ],
     apiKeyName: 'GEMINI_API_KEY',
   },
@@ -35,8 +30,6 @@ const llmProviders = [
   {
     name: 'OpenRouter',
     models: [
-      'google/gemini-2.0-flash-exp:free',
-      'google/gemini-flash-1.5',
       'deepseek/deepseek-r1',
       'deepseek/deepseek-chat',
       'x-ai/grok-2',
@@ -197,7 +190,7 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ isAuthenticated, isReadOnly =
                 className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-800"
                 value={customModelValue}
                 onChange={(e) => setCustomModelValue(e.target.value)}
-                placeholder="e.g., google/gemini-2.0-flash-exp:free"
+                placeholder="e.g., google/gemini-3-pro"
                 disabled={isReadOnly}
               />
             </div>

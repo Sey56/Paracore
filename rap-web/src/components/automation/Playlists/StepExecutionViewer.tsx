@@ -1,6 +1,6 @@
 import React from 'react';
 import { ExecutionResult } from '@/types/common';
-import { StructuredOutputViewer } from '../ScriptInspector/StructuredOutputViewer';
+import { StructuredOutput, StructuredOutputViewer } from '../ScriptInspector/StructuredOutputViewer';
 
 interface StepExecutionViewerProps {
     result: ExecutionResult;
@@ -12,7 +12,7 @@ export const StepExecutionViewer: React.FC<StepExecutionViewerProps> = ({ result
     const rawOutput = result.output || "";
     const lines = rawOutput.split('\n');
     // Initialize with the explicit structured output from the backend
-    const structuredItems: any[] = result.structuredOutput ? [...result.structuredOutput] : [];
+    const structuredItems: StructuredOutput[] = result.structuredOutput ? [...result.structuredOutput] : [];
     const logLines: string[] = [];
 
     lines.forEach(line => {

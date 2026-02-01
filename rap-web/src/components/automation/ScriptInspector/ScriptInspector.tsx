@@ -85,7 +85,7 @@ export const ScriptInspector: React.FC = () => {
   };
 
   return (
-    <div className={`flex flex-col h-full rounded-none shadow-none bg-white dark:bg-gray-800 overflow-hidden ${isExpanded ? 'p-0' : 'p-4'}`}>
+    <div className={`flex flex-col h-full rounded-none shadow-none bg-white dark:bg-gray-800 overflow-hidden min-w-0 ${isExpanded ? 'p-0' : 'p-4'}`}>
       {!script ? (
         <div className="text-center py-10 text-gray-400 dark:text-gray-500">
           <i className="fas fa-mouse-pointer text-4xl mb-3"></i>

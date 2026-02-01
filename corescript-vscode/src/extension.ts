@@ -52,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (!fs.existsSync(githubFolder)) {
           fs.mkdirSync(githubFolder);
         }
-        const contextHeader = "# Current Script Type: MULTI-FILE FOLDER (You can modularize across files)\n\n";
+        const contextHeader = "# Current Script Type: MULTI-FILE FOLDER\n# Modularization is OPTIONAL. Entry point is auto-detected by Roslyn.\n# If simple, keep everything in the entry file. If complex, create Utils.cs, Params.cs, etc.\n# PARAMETER GROUPING: use #region GroupName directives to organize parameters.\n\n";
         fs.writeFileSync(path.join(githubFolder, "copilot-instructions.md"), contextHeader + COPILOT_INSTRUCTIONS);
 
         // 📦 Create workspaceName.csproj
@@ -92,6 +92,19 @@ export function activate(context: vscode.ExtensionContext) {
           revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2025');
         }
 
+        const addinDirectory = path.dirname(enginePath);
+        const roslynDlls = fs.readdirSync(addinDirectory).filter(file =>
+          file.startsWith("Microsoft.CodeAnalysis") && file.endsWith(".dll")
+        );
+        const roslynReferences = roslynDlls.map(file => {
+          const name = path.basename(file, ".dll");
+          const fullPath = path.join(addinDirectory, file).replace(/\\/g, "/");
+          return `    <Reference Include="${name}">
+      <HintPath>${fullPath}</HintPath>
+      <Private>False</Private>
+    </Reference>`;
+        }).join("\n");
+
         const revitPathFormatted = revitPath.replace(/\\/g, "/");
         const enginePathFormatted = enginePath.replace(/\\/g, "/");
 
@@ -103,6 +116,8 @@ export function activate(context: vscode.ExtensionContext) {
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Library</OutputType>
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <RunAnalyzers>true</RunAnalyzers>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="RevitAPI">
@@ -117,6 +132,13 @@ export function activate(context: vscode.ExtensionContext) {
       <HintPath>${enginePathFormatted}</HintPath>
       <Private>False</Private>
     </Reference>
+${roslynReferences}
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    <PackageReference Include="RestSharp" Version="113.1.0" />
+    <PackageReference Include="MiniExcel" Version="1.31.2" />
+    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
   </ItemGroup>
 </Project>
 `.trim();
@@ -143,15 +165,35 @@ global using System;
 global using System.Collections.Generic;
 global using System.Linq;
 global using System.Text.Json;
+global using Microsoft.CSharp;
 global using Autodesk.Revit.DB;
+global using Autodesk.Revit.DB.Architecture;
+global using Autodesk.Revit.DB.Structure;
 global using Autodesk.Revit.UI;
 global using CoreScript.Engine.Globals;
 global using static CoreScript.Engine.Globals.DesignTimeGlobals;
+global using SixLabors.ImageSharp;
+global using SixLabors.ImageSharp.Processing;
+global using SixLabors.ImageSharp.PixelFormats;
+global using RestSharp;
+global using MiniExcelLibs;
+global using MathNet.Numerics;
+global using MathNet.Numerics.LinearAlgebra;
+global using MathNet.Numerics.Statistics;
 `.trim();
         fs.writeFileSync(path.join(rootPath, "Globals.cs"), globalsScript);
 
         // 📝 Main.cs script
         const mainScript = `
+/*
+DocumentType: Project
+Author: Paracore Developer
+Description: Entry point for the CoreScript automation.
+
+Note: When running directly from VSCode, parameters in the Params class must have 
+default values, as they cannot be intercepted and changed via UI like in the Paracore application.
+*/
+
 using Autodesk.Revit.DB;
 using System.Linq;
 
@@ -317,7 +359,8 @@ public class SpiralCreator
           .map((file) => {
             const filePath = path.join(scriptsPath, file);
             const content = fs.readFileSync(filePath, "utf-8");
-            return { fileName: file, content };
+            // C# ScriptFile uses snake_case: file_name, content
+            return { file_name: file, content };
           });
 
         if (scriptFiles.length === 0) {
@@ -328,6 +371,9 @@ public class SpiralCreator
         }
 
         // 2. Extract parameters from Main.cs
+        // DISABLED: When running from VS Code, we should strictly respect the defaults defined in the code.
+        // attempting to regex-extract parameters is fragile and can cause type mismatches (e.g. injecting string into List).
+        /*
         const mainScript = scriptFiles.find(
           (f) => f.fileName.toLowerCase() === "main.cs"
         );
@@ -335,6 +381,8 @@ public class SpiralCreator
         if (mainScript) {
           parameters = extractScriptParameters(mainScript.content);
         }
+        */
+        const parameters: any[] = [];
 
         // 3. Prepare payload
         const scriptContentString = JSON.stringify(scriptFiles);

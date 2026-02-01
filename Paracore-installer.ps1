@@ -92,6 +92,7 @@ $resolvedPublishDir = Get-ChildItem -Path "$addinDir\bin\Release" -Recurse -Filt
                       Select-Object -First 1 -ExpandProperty DirectoryName
 
 if (-not $resolvedPublishDir -or -not (Test-Path (Join-Path $resolvedPublishDir "Paracore.Addin.addin"))) {
+    Write-Host "Resolved Publish Directory: $resolvedPublishDir" -ForegroundColor Yellow
     Write-Host "Error: Could not find valid publish directory or .addin manifest." -ForegroundColor Red
     Pop-Location
     exit 1

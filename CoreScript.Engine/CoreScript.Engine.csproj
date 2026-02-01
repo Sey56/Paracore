@@ -5,6 +5,13 @@
 	    <NoWarn>$(NoWarn);CA1416</NoWarn>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<PlatformTarget>x64</PlatformTarget>
+		
+		<!-- Quality Automation -->
+		<AnalysisLevel>latest</AnalysisLevel>
+		<AnalysisMode>All</AnalysisMode>
+		<TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		
 		<RootNamespace>CoreScript.Engine</RootNamespace>
 		<AssemblyTitle>CoreScript.Engine</AssemblyTitle>
 		<AssemblyName>CoreScript.Engine</AssemblyName>

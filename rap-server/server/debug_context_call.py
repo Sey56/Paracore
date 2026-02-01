@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 # Add the server directory to sys.path so we can import grpc_client
 current_dir = os.path.dirname(os.path.abspath(__file__))

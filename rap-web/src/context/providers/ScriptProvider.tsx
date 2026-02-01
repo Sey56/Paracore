@@ -287,6 +287,8 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
                 lastCommitAuthor: s.metadata.git_info.last_commit_author,
                 lastCommitMessage: s.metadata.git_info.last_commit_message,
               } : undefined,
+              isProtected: s.metadata.is_protected,
+              isCompiled: s.metadata.is_compiled,
             },
           };
 
@@ -320,9 +322,19 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         }
         return uniqueScripts;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Failed to fetch scripts from ${folderPath}:`, error);
-      const message = error instanceof Error ? error.message : "Unknown error";
+
+      const err = error as { response?: { status?: number; data?: { detail?: string } } };
+      let message = error instanceof Error ? error.message : "Unknown error";
+
+      // V2.5 UI Polish: Descriptive message for missing folders (renamed/deleted)
+      if (err.response?.status === 400) {
+        message = "Can't find the script source. Make sure you have not deleted or renamed it.";
+      } else if (err.response?.data?.detail) {
+        message = err.response.data.detail;
+      }
+
       showNotification(`Failed to fetch scripts: ${message}`, "error");
       setScripts([]);
       return undefined;
@@ -700,7 +712,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
               : p.inputType,
             options: (existingParam?.options && existingParam.options.length > 0)
               ? existingParam.options
-              : ((p as any).options || []),
+              : ((p as RawScriptParameterData).options || []),
             unit: p.unit,
             selectionType: p.selectionType
           };
@@ -725,7 +737,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
               lastCommitDate: metadata.git_info.last_commit_date,
               lastCommitAuthor: metadata.git_info.last_commit_author,
               lastCommitMessage: metadata.git_info.last_commit_message,
-            } : s.metadata?.gitInfo
+            } : s.metadata?.gitInfo,
+            isProtected: metadata.is_protected ?? s.metadata?.isProtected,
+            isCompiled: metadata.is_compiled ?? s.metadata?.isCompiled
           },
           parameters: mergedParameters
         };
