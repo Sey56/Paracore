@@ -572,7 +572,11 @@ namespace CoreScript.Engine.Core
                 else if (val is int i)
                 {
                     type = "number";
-                    numericType = "int";
+                    // FIX: Only set to int if we haven't already determined it's a double/float base type
+                    if (numericType != "double") 
+                    {
+                        numericType = "int";
+                    }
                     defaultValueJson = JsonSerializer.Serialize(i);
                 }
                 else if (val is double d)
