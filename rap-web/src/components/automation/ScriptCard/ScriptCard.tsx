@@ -55,7 +55,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   } = useScriptExecution();
   const { toggleFavoriteScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
-  const { ParacoreConnected } = useRevitStatus();
+  const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { isAuthenticated, activeRole, user } = useAuth();
   const [showMenu, setShowMenu] = React.useState(false);
   const [isRenaming, setIsRenaming] = React.useState(false);
@@ -85,7 +85,16 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   // Connectivity logic
   const isParacoreConnected = ParacoreConnected;
-  const isCompatibleWithDocument = true;
+
+  // FIXED: Document Type Validation
+  const requiredDocType = script.metadata.documentType || 'Any';
+  const currentDocType = revitStatus?.documentType || 'Any';
+
+  const isCompatibleWithDocument = React.useMemo(() => {
+    if (!isParacoreConnected) return true; // Let connection check handle state
+    if (requiredDocType === 'Any' || currentDocType === 'Any') return true;
+    return requiredDocType.toLowerCase() === currentDocType.toLowerCase();
+  }, [isParacoreConnected, requiredDocType, currentDocType]);
 
   // Validation - use cached parameters if available
   const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
@@ -95,7 +104,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   // V2.5: Permissive UI treatment - only grayscale the RUN button if disconnected
   // File operations (Edit, Rename) should always be available if authenticated
-  const isRunButtonDisabled = !isParacoreConnected || isRunning || validationErrors.length > 0 || !isAuthenticated;
+  const isRunButtonDisabled = !isParacoreConnected || !isCompatibleWithDocument || isRunning || validationErrors.length > 0 || !isAuthenticated;
   const canEdit = !!user && ParacoreConnected && !script.metadata.isProtected;
 
   const getEditTitleMessage = () => {
@@ -109,9 +118,11 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     ? "Please sign in to run scripts"
     : !isParacoreConnected
       ? "Paracore is disconnected"
-      : validationErrors.length > 0
-        ? `Issues: ${validationErrors.join(', ')}`
-        : "Run this script";
+      : !isCompatibleWithDocument
+        ? `Script requires '${requiredDocType}' but current is '${currentDocType}'`
+        : validationErrors.length > 0
+          ? `Issues: ${validationErrors.join(', ')}`
+          : "Run this script";
 
   const editTooltipMessage = getEditTitleMessage();
 
