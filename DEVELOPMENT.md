@@ -1,7 +1,12 @@
 # Paracore Development Guide 🏗️⚡
 
-## 🧠 Philosophy: why Paracore?
-Paracore was built to eliminate the infrastructure overhead of Revit API development. By decoupling the UI from the execution engine, we provide a lightning-fast, iterative environment for professional automation.
+## 🧠 Philosophy: Why Paracore?
+Paracore was born from an architect's journey to solve the day-to-day bottlenecks of Revit automation. Starting with personal productivity tools, it evolved into a deliberate engineering project to build a robust, deterministic host for **AI Agents**.
+
+To bridge the gap between AI and the Revit API, we architected the system for safety and speed:
+1.  **Engineered for AI**: We built a dynamic, isolated execution engine so an AI agent can select, parameterize, and run scripts without the risks of manual compilation.
+2.  **Solves for the Developer**: The same features that make the environment safe for AI—like hot-reloading, auto-UI generation, and isolated contexts—provide an immense productivity boost for human developers.
+3.  **Cross-Ecosystem Connection**: By moving the platform logic outside of Revit's UI constraints (using React/Tauri), we unlock the power of modern software tools for the AEC industry.
 
 ## 🧱 Workflow: The Three Pillars
 
