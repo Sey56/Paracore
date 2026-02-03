@@ -32,10 +32,10 @@ Thank you for your interest in contributing to Paracore! We welcome contribution
 ## Development Setup
 
 ### Prerequisites
-- **Revit 2024 or later** (for testing the add-in)
+- **Revit 2025 or later** (for testing the add-in)
 - **.NET 8 SDK** (for C# projects)
 - **Node.js 18+** (for the web UI)
-- **Python 3.10+** (for the backend server)
+- **Python 3.12** (for the backend server)
 - **Rust** (for Tauri desktop app)
 
 ### Building the Projects
