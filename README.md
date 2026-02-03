@@ -4,11 +4,11 @@
 [![Revit 2025+](https://img.shields.io/badge/Revit-2025%2B-blue)](https://www.autodesk.com/products/revit/)
 [![Documentation](https://img.shields.io/badge/docs-live-brightgreen)](https://sey56.github.io/paracore-help/)
 
-**Paracore** is a dynamic automation platform designed to remove the friction from Revit API development, bridging the gap between simple macros and full-scale add-ins.
+**Paracore** is a dynamic automation platform designed to simplify Revit API development, providing a streamlined bridge between simple macros and full-scale add-ins.
 
 ## Overview
-Paracore addresses common workflow overheads in Revit API development:
-1.  **Reduce Infrastructure Overhead**: Traditional add-in development requires complex setup, manifest management, and DLL orchestration. Paracore provides a streamlined runtime that lets developers focus on the logic.
+Paracore provides a streamlined approach to several aspects of Revit API development:
+1.  **Streamlined Infrastructure**: Paracore handles low-level setup and context management, providing a unified runtime that lets developers focus directly on their automation logic.
 2.  **Accessible Automation**: By providing a pre-configured execution environment, sophisticated C# automation becomes more accessible to Architects and Engineers who need to automate design tasks without managing complex development environments.
 
 ## 📚 Developer Resources
@@ -17,7 +17,7 @@ Paracore addresses common workflow overheads in Revit API development:
 - **[Contributing](CONTRIBUTING.md)** - Guidelines for contributing to the project
 
 ## ✨ Why Paracore?
-Traditional Revit API development often involves a heavy "tax" on creativity:
+The traditional Revit API development workflow involves several preparatory steps that Paracore aims to simplify:
 - 🚧 **High Barrier to Entry**: Setting up a full project environment just to test an idea.
 - 📦 **Static Deployment**: Compiling and distributing DLLs makes updating tools slow and rigid.
 - 📄 **Complex Boilerplate**: Managing `IExternalCommand`, transactions, and manifests for every single command.
