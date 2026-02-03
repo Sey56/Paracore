@@ -31,6 +31,13 @@ The VS Code extension is a critical part of the authoring flow. Use `./build_ext
 ## 📦 Distribution
 Use `./RAP-installer.ps1 -Release` to generate the final MSI. This bundles the UI and Sidecar into a single, user-friendly package.
 
+## 📡 gRPC & Protobuf Synchronization
+Paracore uses gRPC for high-performance communication with Revit. The service definition is maintained in `corescript.proto`.
+- **Source of Truth**: `protos/corescript.proto`
+- **Synchronization**: If you modify the protocol (e.g., adding fields for `rap-server` or the Revit add-in), you must manually copy the file to the VS Code extension's directory:
+  - Copy `protos/corescript.proto` to `corescript-vscode/proto/corescript.proto`.
+- **Reasoning**: Both `rap-server` and the VS Code extension communicate with the same `Paracore.Addin` gRPC server. Keeping these files identical ensures the extension remains compatible with the core engine.
+
 ---
 
 *Focus on the logic. Let Paracore handle the rest.*
