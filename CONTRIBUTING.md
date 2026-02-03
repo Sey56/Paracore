@@ -1,78 +1,66 @@
 # Contributing to Paracore
 
-Thank you for your interest in contributing to Paracore! We welcome contributions from the community.
+Thank you for your interest in making Revit automation more accessible! To ensure a smooth development experience, please follow these project-specific setup and build instructions.
 
-## How to Contribute
+## 🛠️ Development Setup
 
-### Reporting Bugs
-- Open an issue on GitHub describing the problem
-- Include steps to reproduce
-- Mention your Revit version and OS
+Paracore is a multi-component system. Follow these steps in order to set up your local development environment.
 
-### Suggesting Features
-- Open an issue with the "enhancement" label
-- Describe the use case and why it would be valuable
-- If possible, provide examples from your workflow
+### 1. Revit Add-in & Core Engine (C#)
+1.  **Prerequisite**: Create an `installers` folder at the root of the repository.
+2.  **Build**: Open PowerShell and run the installer script:
+    ```powershell
+    ./Paracore-Installer.ps1
+    ```
+    This script builds the `Paracore.Addin` and the `CoreScript.Engine` (referenced as a dependency).
+3.  **Install**: Find `Paracore_Addin.exe` in the `installers` folder and run it to install the add-in.
+4.  **Activate**: Start Revit 2025+. In the **Paracore** ribbon tab, find the server icon (initially showing "Off"). Click it to start the listener; a TaskDialog will confirm the server is now **On**.
 
-### Submitting Code
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Test your changes thoroughly
-5. Commit with clear messages (`git commit -m 'Add amazing feature'`)
-6. Push to your branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+### 2. Desktop Application (React + Tauri)
+The UI must be built before starting the development server to ensure all assets are correctly registered.
+1.  Navigate to the web project: `cd rap-web`
+2.  **Build First**: `npm run build`
+3.  **Run Dev**: Once the build finishes without errors, start the Tauri app:
+    ```bash
+    npm run tauri dev
+    ```
 
-### Improving Documentation
-- Fix typos or unclear instructions
-- Add examples or clarifications
-- Update screenshots if UI has changed
-- Contribute to the help site at `paracore-help/`
+### 3. Local Backend Sidecar (Python)
+The backend uses `uv` for high-performance package management.
+1.  Navigate to the server project: `cd rap-server/server`
+2.  **Activate Environment**: `./.venv/Scripts/activate`
+3.  **Manage Dependencies**: Use `uv` strictly (e.g., `uv add <module>`). 
+4.  **Run**:
+    ```bash
+    uvicorn main:app --reload
+    ```
 
-## Development Setup
-
-### Prerequisites
-- **Revit 2025 or later** (for testing the add-in)
-- **.NET 8 SDK** (for C# projects)
-- **Node.js 18+** (for the web UI)
-- **Python 3.12** (for the backend server)
-- **Rust** (for Tauri desktop app)
-
-### Building the Projects
-
-**CoreScript.Engine & Paracore.Addin (C#):**
-```bash
-cd Paracore.Addin
-dotnet build
-```
-
-**rap-web (React + Tauri):**
-```bash
-cd rap-web
-npm install
-npm run tauri dev
-```
-
-**rap-server (Python):**
-```bash
-cd rap-server/server
-pip install -r requirements.txt
-uvicorn server.main:app --reload
-```
-
-## Code Style
-- **C#**: Follow standard .NET conventions
-- **TypeScript/React**: Use the existing ESLint configuration
-- **Python**: Follow PEP 8
-
-## Questions?
-- Open a discussion on GitHub
-- Email: codarch46@gmail.com
-- Documentation: https://sey56.github.io/paracore-help/
-
-## Code of Conduct
-Be respectful, constructive, and professional. We're all here to make Revit automation better for the AEC community.
+### 4. VS Code Extension (Optional)
+To develop or build the `corescript-vscode` extension, use **Git Bash**:
+1.  Run the build script from the root:
+    ```bash
+    ./build_extension.sh
+    ```
+    This script automates building the VSIX, uninstalling the previous version from VS Code, and installing the fresh build.
 
 ---
 
-**Making Revit automation accessible to the entire AEC industry.** 🏗️
+## 📦 Production Builds
+
+To generate the final production installer (MSI) for the entire ecosystem:
+1.  Open PowerShell.
+2.  Run the production entry script:
+    ```powershell
+    ./RAP-installer.ps1 -Release
+    ```
+    The resulting `Paracore` MSI will be generated in the `installers` folder.
+
+---
+
+## 🤝 Submission Process
+1.  **Fork** the repository and create your feature branch.
+2.  **Verify** your changes by checking the connection status in the Desktop App's **TopBar** (Connection Status: Green | Revit 2025 | Project).
+3.  **Commit** with clear, descriptive messages.
+4.  **Submit** a Pull Request against the `main` branch.
+
+**Questions?** Reach out to [codarch46@gmail.com](mailto:codarch46@gmail.com)
