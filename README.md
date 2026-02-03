@@ -7,10 +7,10 @@
 **Paracore** is a dynamic automation platform designed to simplify Revit API development, providing a streamlined bridge between simple macros and full-scale add-ins. It is built to be **Local-First**, ensuring your data and scripts remain entirely on your machine.
 
 ## Overview
-Paracore was born from a professional need to solve the repetitive, day-to-day architectural bottlenecks in Revit. It evolved into a high-performance execution layer engineered to reconcile the complexity of the Revit API with the dynamic needs of modern automation.
+Paracore was born from an architect's passion for Revit and a desire to expand the possibilities of design automation. Starting as a personal toolkit to solve everyday design challenges, it has grown into a high-performance execution layer designed to bridge the gap between heavy API development and the dynamic needs of modern automation.
 
-1.  **AI-First Environment**: Designed as a robust, safe host for AI Agents, providing the deterministic execution environment needed for LLMs to safely interact with a live Revit session.
-2.  **Architectural Efficiency**: Streamlines the transition from design idea to automation, allowing scripters to focus on their domain logic rather than the technical plumbing of the Revit ecosystem.
+1.  **AI-Ready Infrastructure**: Designed as a robust, safe host for AI Agents, providing the deterministic environment needed for LLMs to intelligently interact with your live Revit session.
+2.  **Design-First Automation**: Streamlines the journey from a design idea to an active tool, allowing scripters to focus on their domain logic and creative flow.
 
 ## 📚 Developer Resources
 - **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally (Build, Run, Contribute)
