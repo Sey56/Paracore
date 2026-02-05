@@ -955,10 +955,17 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const computeParameterOptions = useCallback(async (script: Script, parameterName: string, shouldUpdateGlobalState: boolean = true) => {
     setIsComputingOptions(prev => ({ ...prev, [parameterName]: true }));
     try {
+      const currentParamsArray = userEditedScriptParameters[script.id] || script.parameters || [];
+      const flatParams = currentParamsArray.reduce((acc, p) => {
+        acc[p.name] = p.value;
+        return acc;
+      }, {} as Record<string, any>);
+
       const response = await api.post("/api/compute-parameter-options", {
         scriptPath: script.absolutePath,
         type: script.type,
-        parameterName: parameterName
+        parameterName: parameterName,
+        parameters: flatParams
       });
 
       const { options, is_success, error_message, min, max, step } = response.data;

@@ -153,6 +153,11 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [showNotification]);
 
+  // Effect to reset Focus Mode when user logs out or source changes
+  useEffect(() => {
+    setFocusMode(false);
+  }, [user, activeScriptSource]);
+
   // Effect to save activeScriptSource to localStorage whenever it changes
   useEffect(() => {
     if (activeScriptSource) {
