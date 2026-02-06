@@ -82,6 +82,7 @@ namespace CoreScript.Engine.Core
             string csharpType = prop.Type.ToString();
             var attributes = prop.AttributeLists.SelectMany(al => al.Attributes).ToList();
             var triviaList = prop.GetLeadingTrivia();
+            var initializer = prop.Initializer?.Value;
 
             var p = new ScriptParameter { 
                 Name = name, 
@@ -149,9 +150,25 @@ namespace CoreScript.Engine.Core
             var visProv = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Visible");
             if (visProv != null) p.VisibleWhen = ParseVisibilityExpression(GetInitialExpression(visProv));
 
+            // V3 FIX: Explicitly apply Unit as Suffix for the UI labels
+            if (!string.IsNullOrEmpty(p.Unit)) p.Suffix = p.Unit;
+
             p.Group = GetRegionForLine(prop.GetLocation().GetLineSpan().StartLinePosition.Line, regionMap);
 
             if (p.IsRevitElement && (p.Options == null || p.Options.Count == 0)) p.RequiresCompute = true;
+
+            // V3 FIX: Apply the default value from the initializer
+            if (initializer != null)
+            {
+                if (initializer is LiteralExpressionSyntax lit)
+                {
+                    p.DefaultValueJson = JsonSerializer.Serialize(lit.Token.Value);
+                }
+                else if (IsSimpleStatic(initializer))
+                {
+                    p.DefaultValueJson = JsonSerializer.Serialize(ExtractStringsFromInitializer(initializer));
+                }
+            }
 
             return p;
         }
@@ -178,7 +195,20 @@ namespace CoreScript.Engine.Core
 
         private string GetMemberName(MemberDeclarationSyntax m) => m is PropertyDeclarationSyntax p ? p.Identifier.Text : (m is MethodDeclarationSyntax met ? met.Identifier.Text : "");
         private ExpressionSyntax GetInitialExpression(MemberDeclarationSyntax m) => m is PropertyDeclarationSyntax p ? (p.Initializer?.Value ?? p.ExpressionBody?.Expression ?? p.AccessorList?.Accessors.FirstOrDefault(a => a.IsKind(SyntaxKind.GetAccessorDeclaration))?.ExpressionBody?.Expression) : null;
-        private bool IsLogicBased(MemberDeclarationSyntax m) => m is MethodDeclarationSyntax || (m is PropertyDeclarationSyntax p && (p.ExpressionBody != null || (p.AccessorList?.Accessors.Any(a => a.Body != null) ?? false)) && !IsSimpleStatic(GetInitialExpression(p)));
+        private bool IsLogicBased(MemberDeclarationSyntax m)
+        {
+            if (m is MethodDeclarationSyntax) return true;
+            if (m is PropertyDeclarationSyntax p)
+            {
+                // V3 FIX: If it has a Body { ... }, it IS logic based.
+                if (p.AccessorList?.Accessors.Any(a => a.Body != null) == true) return true;
+                
+                // If it has an expression body, check if the expression is complex.
+                var expr = GetInitialExpression(p);
+                return expr != null && !IsSimpleStatic(expr);
+            }
+            return false;
+        }
         private bool IsSimpleStatic(ExpressionSyntax e) => e == null || e is LiteralExpressionSyntax || e is CollectionExpressionSyntax;
         
         private string ExtractString(ExpressionSyntax e) 

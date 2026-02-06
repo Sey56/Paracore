@@ -27,6 +27,9 @@ namespace CoreScript.Engine.Core
             if (e == null) return "";
             if (e is FamilySymbol fs) return $"{fs.FamilyName}: {fs.Name}";
             
+            // V3 FIX: Professional Sheet formatting
+            if (e is ViewSheet s) return $"{s.SheetNumber} - {s.Name}";
+
             string name = e.Name;
             var identityParams = new[] { 
                 BuiltInParameter.ROOM_NUMBER, 
