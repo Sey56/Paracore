@@ -551,7 +551,15 @@ namespace Paracore.Addin.Services
                         revitElementType = p.RevitElementType,
                         revitElementCategory = p.RevitElementCategory,
                         required = p.Required,
-                        group = p.Group
+                        group = p.Group,
+                        // Fix for Regressions: Include missing fields
+                        pattern = p.Pattern,
+                        inputType = p.InputType,
+                        suffix = p.Suffix,
+                        enabledWhenParam = p.EnabledWhenParam,
+                        enabledWhenValue = p.EnabledWhenValue,
+                        selectionType = p.SelectionType,
+                        multiSelect = p.MultiSelect
                     }).ToList()
                 }).ToList();
                 response.ManifestJson = JsonSerializer.Serialize(dictList);

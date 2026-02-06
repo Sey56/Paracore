@@ -107,6 +107,35 @@ namespace CoreScript.Engine.Core
                 if (aN.Contains("EnabledWhen")) { p.EnabledWhenParam = ExtractString(attr.ArgumentList.Arguments[0].Expression); p.EnabledWhenValue = attr.ArgumentList.Arguments[1].Expression.ToString().Trim('"', '\''); }
                 if (aN == "Select") p.SelectionType = (attr.ArgumentList.Arguments[0].Expression as MemberAccessExpressionSyntax)?.Name.Identifier.Text ?? "Element";
                 
+                // V3 FIX: Handle [Confirm("TEXT")] by generating a strict regex pattern
+                if (aN.Contains("Confirm") && attr.ArgumentList?.Arguments.Count > 0)
+                {
+                    string confirmText = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                    if (!string.IsNullOrEmpty(confirmText))
+                    {
+                        // Generate anchored regex for exact match
+                        p.Pattern = $"^{Regex.Escape(confirmText)}$";
+                    }
+                }
+
+                // V3 FIX: Handle [Range(min, max, step)] attribute
+                if (aN.Contains("Range") && attr.ArgumentList != null && attr.ArgumentList.Arguments.Count >= 2)
+                {
+                    // Assuming Range(min, max, step) or Range(min, max)
+                    // Arguments are expressions, need to extract values.
+                    // This is crude but strict extraction: Expecting literals or simple types.
+                    
+                    var args = attr.ArgumentList.Arguments;
+                    
+                    p.Min = ExtractDouble(args[0].Expression);
+                    p.Max = ExtractDouble(args[1].Expression);
+                    
+                    if (args.Count > 2)
+                    {
+                        p.Step = ExtractDouble(args[2].Expression);
+                    }
+                }
+
                 if (aN.Contains("RevitElements"))
                 {
                     if (attr.ArgumentList != null)
@@ -221,6 +250,23 @@ namespace CoreScript.Engine.Core
             if (e is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof" && inv.ArgumentList.Arguments.Count > 0)
                 return inv.ArgumentList.Arguments[0].Expression.ToString();
             return ""; 
+        }
+
+        private double? ExtractDouble(ExpressionSyntax e)
+        {
+            if (e == null) return null;
+            if (e is LiteralExpressionSyntax l && l.Token.Value != null)
+            {
+                if (double.TryParse(l.Token.Value.ToString(), out double d)) return d;
+                if (int.TryParse(l.Token.Value.ToString(), out int i)) return i;
+            }
+            // Simple prefix unary expression for negative numbers like -5
+            if (e is PrefixUnaryExpressionSyntax pre && pre.OperatorToken.IsKind(SyntaxKind.MinusToken) && pre.Operand is LiteralExpressionSyntax lit)
+            {
+                if (double.TryParse(lit.Token.Value?.ToString(), out double d)) return -d;
+                if (int.TryParse(lit.Token.Value?.ToString(), out int i)) return -i;
+            }
+            return null;
         }
 
         private List<string> ExtractStringsFromInitializer(ExpressionSyntax e) {
