@@ -166,10 +166,10 @@ public class ParamsWrapper
                     {
                         if (item == null) continue;
                         
-                        // V3 HYDRATION FIX: Convert Revit Elements to their Name or UniqueId for UI display
+                        // V3 HYDRATION FIX: Use the universal identity format for consistency
                         if (item is Element element)
                         {
-                            result.Add(element.Name);
+                            result.Add(ParameterOptionsComputer.GetElementIdentity(element));
                         }
                         else
                         {
