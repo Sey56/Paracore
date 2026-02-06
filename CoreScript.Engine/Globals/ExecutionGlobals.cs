@@ -3,18 +3,44 @@ using Autodesk.Revit.DB;
 using CoreScript.Engine.Context;
 using CoreScript.Engine.Core;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
-using Autodesk.Revit.DB;
 using CoreScript.Engine.Models;
 using CoreScript.Engine.Logging;
+using System;
+using System.Globalization;
 
 namespace CoreScript.Engine.Globals
 {
+    /// <summary>
+    /// V3 FIX: Custom converter to ensure ElementId serializes as a simple number in Tables/Charts.
+    /// This fixes the [object Object] issue in the UI.
+    /// </summary>
+    public class ElementIdConverter : JsonConverter<ElementId>
+    {
+        public override ElementId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number) return new ElementId(reader.GetInt64());
+            return ElementId.InvalidElementId;
+        }
+
+        public override void Write(Utf8JsonWriter writer, ElementId value, JsonSerializerOptions options)
+        {
+            writer.WriteNumberValue(value.Value);
+        }
+    }
+
     public class Output
     {
         private readonly ICoreScriptContext _context;
+        private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions 
+        { 
+            WriteIndented = true,
+            ReferenceHandler = ReferenceHandler.IgnoreCycles,
+            Converters = { new ElementIdConverter() } // Apply the fix here
+        };
 
         public Output(ICoreScriptContext context)
         {
@@ -23,7 +49,7 @@ namespace CoreScript.Engine.Globals
 
         public void Show(string type, object data)
         {
-            var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(data, _jsonOptions);
             _context.AddStructuredOutput(type, json);
         }
 
@@ -55,19 +81,12 @@ namespace CoreScript.Engine.Globals
             _timeoutSeconds = 10;
         }
 
-        /// <summary>
-        /// Sets the execution timeout for the current script. Call this at the start of your script if you need more than 10 seconds.
-        /// </summary>
-        /// <param name="seconds">Maximum execution time in seconds</param>
         public static void SetExecutionTimeout(int seconds)
         {
             _timeoutSeconds = seconds;
             _executionDeadline = DateTime.Now.AddSeconds(seconds);
         }
 
-        /// <summary>
-        /// Internal method called by injected timeout checks. Throws TimeoutException if deadline exceeded.
-        /// </summary>
         public static void CheckTimeout()
         {
             if (DateTime.Now > _executionDeadline)
@@ -89,10 +108,6 @@ namespace CoreScript.Engine.Globals
             Output = new Output(context);
         }
 
-        /// <summary>
-        /// Retrieves a parameter value and safely converts it to the requested type.
-        /// Primarily used by compiled .ptool execution to handle type-safe parameter injection.
-        /// </summary>
         public static T Get<T>(string key)
         {
             if (Current.Value == null || !Current.Value.Parameters.TryGetValue(key, out var val) || val == null)
@@ -102,11 +117,17 @@ namespace CoreScript.Engine.Globals
 
             if (val is T typedVal) return typedVal;
 
-            // Diagnostic logging for types
-            // FileLogger.Log($"[ExecutionGlobals] Parameter '{key}' requested as {typeof(T).Name}. Current type: {val.GetType().Name}, Value: {val}");
-
-            // 1. MAGIC HYDRATION: Revit Element Support (V3)
             var targetType = typeof(T);
+
+            // 0. ENUM HYDRATION: Support parsing enum names from strings (e.g. OST_Walls)
+            if (targetType.IsEnum && val != null)
+            {
+                if (Enum.TryParse(targetType, val.ToString(), true, out var enumResult))
+                {
+                    return (T)enumResult;
+                }
+            }
+
             bool isElement = typeof(Element).IsAssignableFrom(targetType);
             bool isElementList = targetType.IsGenericType && 
                                targetType.GetGenericTypeDefinition() == typeof(List<>) && 
@@ -156,10 +177,7 @@ namespace CoreScript.Engine.Globals
             {
                 if (targetType.IsPrimitive || targetType == typeof(decimal))
                 {
-                    // Case: val is Int32, T is Double
-                    var converted = (T)System.Convert.ChangeType(val, targetType);
-                    // FileLogger.Log($"[ExecutionGlobals] Successfully converted '{key}' via Convert.ChangeType to {typeof(T).Name}");
-                    return converted;
+                    return (T)System.Convert.ChangeType(val, targetType);
                 }
             }
             catch (Exception ex)
@@ -169,17 +187,14 @@ namespace CoreScript.Engine.Globals
 
             try
             {
-                // Structured solution: Use Json conversion for intermediate casting
-                // This handles cases like Int32 -> Double or dynamic List conversions
                 var json = JsonSerializer.Serialize(val);
                 var deserialized = JsonSerializer.Deserialize<T>(json);
-                // FileLogger.Log($"[ExecutionGlobals] Successfully converted '{key}' via JSON pivot to {typeof(T).Name}");
                 return deserialized;
             }
             catch (Exception ex)
             {
                 FileLogger.LogError($"[ExecutionGlobals] JSON pivot failed for '{key}' to {typeof(T).Name}: {ex.Message}");
-                try { return (T)System.Convert.ChangeType(val, typeof(T)); }
+                try { return (T)System.Convert.ChangeType(val, typeof(T), CultureInfo.InvariantCulture); }
                 catch { return default(T); }
             }
         }
@@ -189,7 +204,6 @@ namespace CoreScript.Engine.Globals
             var doc = Current.Value?.Doc;
             if (doc == null || val == null) return null;
 
-            // 1. Handle Reference objects
             if (val is Reference reference)
             {
                 var el = doc.GetElement(reference);
@@ -201,7 +215,6 @@ namespace CoreScript.Engine.Globals
 
             FileLogger.Log($"[Hydrator] Attempting to resolve '{identifier}' to {targetType.Name}");
 
-            // 2. Try UniqueId / ElementId
             try {
                 var el = doc.GetElement(identifier);
                 if (el != null && targetType.IsAssignableFrom(el.GetType())) 
@@ -223,25 +236,20 @@ namespace CoreScript.Engine.Globals
                 } catch {}
             }
 
-            // 3. Dynamic Name/Identity Search (Universal Fallback)
             if (targetType.IsClass)
             {
                 try 
                 {
                     bool isTypeRequested = targetType.Name.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
-                    
-                    // V3: Use Resilient Collector to handle SpatialElements and other API quirks
                     var collector = ParameterOptionsComputer.CreateResilientCollector(doc, targetType);
                     var candidates = collector.WhereElementIsNotElementType().Cast<Element>();
                     if (isTypeRequested || typeof(ElementType).IsAssignableFrom(targetType))
                     {
-                        // Switch to element types for the search
                         candidates = new FilteredElementCollector(doc).OfClass(targetType).WhereElementIsElementType().Cast<Element>();
                     }
                     
                     foreach (var e in candidates)
                     {
-                        // V3 FIX: Robust check against both Identity and raw Name
                         string elementIdentity = ParameterOptionsComputer.GetElementIdentity(e);
                         if (e.Name == identifier || elementIdentity == identifier)
                         {
@@ -275,7 +283,6 @@ namespace CoreScript.Engine.Globals
         public void PieChart(object data) => Output.ChartPie(data);
         public void LineChart(object data) => Output.ChartLine(data);
 
-        // Old method for backward compatibility
         public void Transact(string name, Action<Document> action)
         {
             if (_context.IsReadOnly)
@@ -288,7 +295,6 @@ namespace CoreScript.Engine.Globals
                 Tx.Transact(Doc, name, action);
         }
 
-        // New, preferred method
         public void Transact(string name, Action action)
         {
             if (_context.IsReadOnly)

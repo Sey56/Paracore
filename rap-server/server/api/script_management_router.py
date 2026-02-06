@@ -77,6 +77,7 @@ class ComputeOptionsRequest(BaseModel):
     scriptPath: str
     type: str
     parameterName: str
+    parameters: Optional[Dict] = None
 
 class RenameRequest(BaseModel):
     oldPath: str
@@ -770,7 +771,7 @@ async def compute_parameter_options_endpoint(request: ComputeOptionsRequest):
         if not source_code:
             raise HTTPException(status_code=404, detail="Script content not found.")
 
-        response = compute_parameter_options(source_code, request.parameterName)
+        response = compute_parameter_options(source_code, request.parameterName, request.parameters)
         return JSONResponse(content=response)
 
     except FileNotFoundError as e:

@@ -1,5 +1,6 @@
 import logging
 import os
+import json
 from contextlib import contextmanager
 
 import corescript_pb2
@@ -249,16 +250,18 @@ def validate_working_set_grpc(element_ids: list[int]) -> list[int]:
         logging.error(f"An unexpected error occurred during gRPC ValidateWorkingSet call: {e}")
         return [] # Return empty list on error
 
-def compute_parameter_options(script_content: str, parameter_name: str):
+def compute_parameter_options(script_content: str, parameter_name: str, parameters: dict = None):
     """
     Calls the gRPC service to execute the {parameter_name}_Options() function in Revit.
     """
     logging.info(f"Attempting to compute options for parameter '{parameter_name}' via gRPC.")
     try:
+        parameters_json = json.dumps(parameters or {})
         with get_corescript_runner_stub() as stub:
             request = corescript_pb2.ComputeParameterOptionsRequest(
                 script_content=script_content,
-                parameter_name=parameter_name
+                parameter_name=parameter_name,
+                parameters_json=parameters_json.encode('utf-8')
             )
             response = stub.ComputeParameterOptions(request)
             return {

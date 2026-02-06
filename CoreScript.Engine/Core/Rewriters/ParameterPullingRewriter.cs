@@ -31,24 +31,25 @@ namespace CoreScript.Engine.Core.Rewriters
             string type = node.Type.ToString();
             
             // 1. Create the GET accessor block
-            // return CoreScript.Engine.Globals.ExecutionGlobals.Get<TYPE>("NAME");
+            // V3 FIX: Use explicit space to prevent 'returnCoreScript' concatenation error
             var getStatement = SyntaxFactory.ReturnStatement(
-                SyntaxFactory.ParseExpression($"CoreScript.Engine.Globals.ExecutionGlobals.Get<{type}>(\"{name}\")")
+                SyntaxFactory.Token(SyntaxKind.ReturnKeyword).WithTrailingTrivia(SyntaxFactory.Space),
+                SyntaxFactory.ParseExpression($"ExecutionGlobals.Get<{type}>(\"{name}\")"),
+                SyntaxFactory.Token(SyntaxKind.SemicolonToken)
             );
             
             var getter = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                .WithBody(SyntaxFactory.Block(getStatement)); // Use Block body {} instead of expression body =>
+                .WithBody(SyntaxFactory.Block(getStatement));
 
             // 2. Create the SET accessor block (empty)
-            // set { }
             var setter = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
                 .WithBody(SyntaxFactory.Block()); 
 
             // 3. Construct the new property
             return node
                 .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { getter, setter })))
-                .WithInitializer(null) // Remove = "Default";
-                .WithSemicolonToken(default); // Remove ; at end
+                .WithInitializer(null) 
+                .WithSemicolonToken(default);
         }
     }
 }

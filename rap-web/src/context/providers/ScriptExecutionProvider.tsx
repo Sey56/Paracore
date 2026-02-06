@@ -984,62 +984,57 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           showNotification(`Computed ${options.length} options for ${parameterName}`, "success");
         }
 
-        const updateParamMetadata = (p: ScriptParameter) => {
+        const updateParamMetadataAndReset = (p: ScriptParameter) => {
           if (p.name !== parameterName) return p;
           if (isRangeUpdate) {
             return { ...p, min: min ?? p.min, max: max ?? p.max, step: step ?? p.step };
           } else {
-            return { ...p, options: options };
+            // V3.0.2 BREAKING CHANGE FIX: Always revert to script default on Compute
+            // This prevents "Ghost Selections" from previous documents.
+            let defaultValue: any = "";
+            try {
+              defaultValue = JSON.parse(p.defaultValueJson);
+            } catch (e) {
+              defaultValue = p.defaultValueJson;
+            }
+            return { ...p, options: options, value: defaultValue };
           }
-        };
-
-        const updateParamValueIfInvalid = (p: ScriptParameter) => {
-          if (p.name !== parameterName || isRangeUpdate || options.length === 0) return p;
-
-          if (p.multiSelect) return p; // Don't auto-select for multi-select
-
-          const currentValueStr = String(p.value || "");
-          if (!currentValueStr || !options.includes(currentValueStr)) {
-            return { ...p, value: options[0] };
-          }
-          return p;
         };
 
         // 1. Update Global Scripts (Metadata only)
         setScripts(prev => prev.map(s => {
           if (s.id !== script.id) return s;
-          const updatedParams = (s.parameters || []).map(updateParamMetadata);
+          const updatedParams = (s.parameters || []).map(updateParamMetadataAndReset);
           return { ...s, parameters: updatedParams };
         }));
 
-        // 2. Update Context State (Metadata + Value if needed/allowed)
+        // 2. Update Context State
         if (shouldUpdateGlobalState) {
           setUserEditedScriptParameters(prev => {
             const params = prev[script.id] || script.parameters || [];
-            const updatedParams = params.map(p => updateParamValueIfInvalid(updateParamMetadata(p)));
+            const updatedParams = params.map(updateParamMetadataAndReset);
             return { ...prev, [script.id]: updatedParams };
           });
 
           if (selectedScript?.id === script.id) {
             setSelectedScriptState(prev => {
               if (!prev) return null;
-              const updatedParams = (prev.parameters || []).map(p => updateParamValueIfInvalid(updateParamMetadata(p)));
+              const updatedParams = (prev.parameters || []).map(updateParamMetadataAndReset);
               return { ...prev, parameters: updatedParams };
             });
           }
         } else {
-          // If isolated, we still update the metadata in the caches so it's not lost on re-selection,
-          // but we do NOT update the value.
+          // Metadata update only (for isolated calls)
           setUserEditedScriptParameters(prev => {
             const params = prev[script.id] || script.parameters || [];
-            const updatedParams = params.map(updateParamMetadata);
+            const updatedParams = params.map(updateParamMetadataAndReset);
             return { ...prev, [script.id]: updatedParams };
           });
 
           if (selectedScript?.id === script.id) {
             setSelectedScriptState(prev => {
               if (!prev) return null;
-              const updatedParams = (prev.parameters || []).map(updateParamMetadata);
+              const updatedParams = (prev.parameters || []).map(updateParamMetadataAndReset);
               return { ...prev, parameters: updatedParams };
             });
           }

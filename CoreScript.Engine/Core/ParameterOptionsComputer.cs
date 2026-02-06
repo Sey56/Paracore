@@ -15,7 +15,7 @@ namespace CoreScript.Engine.Core
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
         }
 
-        public List<string> ComputeOptions(string revitElementType, string category = null)
+        public List<string> ComputeOptions(string revitElementType, string? category = null)
         {
             if (string.IsNullOrEmpty(revitElementType)) return new List<string>();
             try { return GetGenericElements(revitElementType, category); }
@@ -28,7 +28,7 @@ namespace CoreScript.Engine.Core
             if (e is FamilySymbol fs) return $"{fs.FamilyName}: {fs.Name}";
             
             // V3 FIX: Professional Sheet formatting
-            if (e is ViewSheet s) return $"{s.SheetNumber} - {s.Name}";
+            if (e is ViewSheet s) return $"[{s.SheetNumber}] {s.Name}";
 
             string name = e.Name;
             var identityParams = new[] { 
@@ -43,7 +43,7 @@ namespace CoreScript.Engine.Core
                 var p = e.get_Parameter(bip);
                 if (p != null && p.HasValue)
                 {
-                    string val = p.AsString();
+                    string? val = p.AsString();
                     if (!string.IsNullOrEmpty(val)) 
                     {
                         if (name.Contains(val)) return name;
@@ -51,6 +51,11 @@ namespace CoreScript.Engine.Core
                     }
                 }
             }
+
+            // V3 FIX: If it's an instance (not a Type), append the ID to ensure uniqueness in the UI and Hydration.
+            // Levels and Materials always have unique names in Revit, so we skip the noisy ID.
+            if (!(e is ElementType || e is Level || e is Material)) return $"{name} [{e.Id}]";
+
             return name;
         }
 
@@ -65,7 +70,7 @@ namespace CoreScript.Engine.Core
             catch { return new FilteredElementCollector(doc).WhereElementIsNotElementType(); }
         }
 
-        private List<string> GetGenericElements(string targetName, string categoryFilter = null)
+        private List<string> GetGenericElements(string targetName, string? categoryFilter = null)
         {
             try
             {

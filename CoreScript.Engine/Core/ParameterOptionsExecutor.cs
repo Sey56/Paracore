@@ -4,22 +4,24 @@ using CoreScript.Engine.Context;
 using CoreScript.Engine.Globals;
 using CoreScript.Engine.Logging;
 using CoreScript.Engine.Models;
+using CoreScript.Engine.Core.Rewriters;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Text;
+using System.Text.Json;
+using System.Globalization;
 
 namespace CoreScript.Engine.Core
 {
-    /// <summary>
-    /// Executes parameter options functions to compute dropdown values from Revit document.
-    /// </summary>
     public class ParameterOptionsExecutor
     {
         private readonly ILogger _logger;
@@ -29,336 +31,252 @@ namespace CoreScript.Engine.Core
             _logger = logger;
         }
 
-        /// <summary>
-        /// Executes the {parameterName}_Options() function to get a list of element names.
-        /// </summary>
-        /// <param name="scriptContent">The full script content</param>
-        /// <param name="parameterName">The parameter name (e.g., "wallTypeName")</param>
-        /// <param name="context">The Revit execution context</param>
-        /// <returns>List of element names for the dropdown</returns>
-        public async Task<List<string>> ExecuteOptionsFunction(string scriptContent, string parameterName, ICoreScriptContext context)
+        private ScriptOptions GetScriptOptions()
+        {
+            var refs = new List<Assembly> {
+                typeof(Autodesk.Revit.DB.Document).Assembly,
+                typeof(UIDocument).Assembly,
+                typeof(Autodesk.Revit.DB.Architecture.Room).Assembly,
+                Assembly.GetExecutingAssembly(),
+                typeof(ValueTuple<,,>).Assembly,
+                typeof(System.Collections.IEnumerable).Assembly,
+                typeof(object).Assembly,
+                typeof(Enumerable).Assembly
+            };
+
+            var scriptOptions = ScriptOptions.Default
+                .AddReferences(refs)
+                .AddImports(
+                    "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", 
+                    "Microsoft.CSharp",
+                    "Autodesk.Revit.DB", 
+                    "Autodesk.Revit.DB.Architecture", 
+                    "Autodesk.Revit.DB.Structure", 
+                    "Autodesk.Revit.DB.Mechanical",
+                    "Autodesk.Revit.DB.Plumbing",
+                    "Autodesk.Revit.DB.Electrical",
+                    "Autodesk.Revit.UI", 
+                    "CoreScript.Engine.Globals", 
+                    "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
+                    "RestSharp", "MiniExcelLibs", 
+                    "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
+                );
+
+            string engineDir = Path.GetDirectoryName(typeof(ParameterOptionsExecutor).Assembly.Location) ?? "";
+            string[] extraDlls = { "SixLabors.ImageSharp.dll", "RestSharp.dll", "MiniExcel.dll", "MathNet.Numerics.dll" };
+            foreach (var dllName in extraDlls)
+            {
+                string dllPath = Path.Combine(engineDir, dllName);
+                if (File.Exists(dllPath)) scriptOptions = scriptOptions.AddReferences(MetadataReference.CreateFromFile(dllPath));
+            }
+
+            return scriptOptions;
+        }
+
+        public async Task<List<string>> ExecuteOptionsFunction(string scriptContent, string parameterName, ICoreScriptContext context, string parametersJson, List<ScriptParameter> schema)
         {
             try
             {
                 _logger.Log($"[ParameterOptionsExecutor] Executing options function for parameter: {parameterName}", LogLevel.Debug);
 
-                // The function name is {parameterName}_Options or {parameterName}_Filter
+                // FIX: Use the authoritative schema passed from the service
+                var parameters = MapAndHarden(parametersJson, schema);
+
                 string functionName = $"{parameterName}_Options";
                 string filterName = $"{parameterName}_Filter";
                 
-                // 1. Parse the script and extract the function and usings
                 var tree = CSharpSyntaxTree.ParseText(scriptContent);
                 var root = tree.GetRoot();
-                
-                var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>()
-                    .Select(u => u.ToString())
-                    .ToList();
-                
-                // Find method, local function, or property (Options first, then Filter)
-                // V2: We look explicitly inside the 'Params' class to avoid capturing global helper functions by accident
-                var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
-                    .FirstOrDefault(c => c.Identifier.Text == "Params");
+                var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(c => c.Identifier.Text == "Params");
 
-                var functionNode = paramsClass?.Members
-                    .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
-                                         (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
-
+                var functionNode = paramsClass?.Members.FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) || (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
                 if (functionNode == null)
                 {
-                    functionNode = paramsClass?.Members
-                        .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == filterName) ||
-                                             (n is PropertyDeclarationSyntax p && p.Identifier.Text == filterName));
-                    
+                    functionNode = paramsClass?.Members.FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == filterName) || (n is PropertyDeclarationSyntax p && p.Identifier.Text == filterName));
                     if (functionNode != null) functionName = filterName;
                 }
 
-                if (functionNode == null)
+                if (functionNode == null) return new List<string>();
+
+                string membersSource;
+                if (paramsClass != null)
                 {
-                    _logger.Log($"[ParameterOptionsExecutor] Provider {functionName} or {filterName} not found.", LogLevel.Warning);
-                    return new List<string>();
+                    var rewriter = new ParameterPullingRewriter();
+                    var rewrittenClass = (ClassDeclarationSyntax)rewriter.Visit(paramsClass);
+                    membersSource = string.Join("\n", rewrittenClass.Members.Select(m => m.ToString()));
                 }
+                else membersSource = functionNode.ToString();
 
-                string allUsings = string.Join("\n", usings);
-                
-                // V2: We gather all other type declarations (classes, structs, etc.) to support modular dependencies like 'Utils'
-                var extraTypes = root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
-                    .Where(t => t != paramsClass)
-                    .Select(t => t.ToString());
-                string extraTypesSource = string.Join("\n\n", extraTypes);
+                var scriptOptions = GetScriptOptions();
 
-                string membersSource = paramsClass != null ? string.Join("\n", paramsClass.Members.Select(m => m.ToString())) : functionNode.ToString();
-
-                // Create script options with Revit API references
-                var scriptOptions = ScriptOptions.Default
-                    .AddReferences(
-                        typeof(Autodesk.Revit.DB.Document).Assembly,  // RevitAPI.dll
-                        typeof(Autodesk.Revit.UI.UIDocument).Assembly, // RevitAPIUI.dll
-                        typeof(Autodesk.Revit.DB.Architecture.Room).Assembly, // RevitAPI.dll (Architecture)
-                        Assembly.GetExecutingAssembly() // CoreScript.Engine.dll
-                    )
-                    .AddImports(
-                        "Autodesk.Revit.DB",
-                        "Autodesk.Revit.DB.Architecture",
-                        "Autodesk.Revit.UI",
-                        "System",
-                        "System.Collections.Generic",
-                        "System.Linq",
-                        "CoreScript.Engine.Globals"
-                    );
-
-                // Create execution globals
-                var executionGlobals = new ExecutionGlobals(context, new Dictionary<string, object>());
+                var executionGlobals = new ExecutionGlobals(context, parameters);
                 ExecutionGlobals.SetContext(executionGlobals);
-                
-                // V2 FIX: We invoke members by wrapping them in a class to preserve context (attributes, properties, etc.)
-                // This prevents CS1520 errors when using top-level property syntax or attributes in a script global scope.
-                
-                string executionScript = $@"
-{allUsings}
-using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Architecture;
-using Autodesk.Revit.UI;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using CoreScript.Engine.Globals;
-using static CoreScript.Engine.Globals.ScriptApi;
 
-{extraTypesSource}
+                var sb = new StringBuilder();
+                sb.AppendLine("using Autodesk.Revit.DB; using Autodesk.Revit.DB.Architecture; using Autodesk.Revit.UI; using System; using System.Collections.Generic; using System.Linq; using CoreScript.Engine.Globals; using static CoreScript.Engine.Globals.ScriptApi;");
+                sb.AppendLine("using Microsoft.CSharp; using Autodesk.Revit.DB.Structure; using Autodesk.Revit.DB.Mechanical; using Autodesk.Revit.DB.Plumbing; using Autodesk.Revit.DB.Electrical;");
+                sb.AppendLine($"var result = (new ParamsWrapper()).{(functionNode is PropertyDeclarationSyntax ? functionName : $"{functionName}()")};");
+                sb.AppendLine("return result;");
+                sb.AppendLine("public class ParamsWrapper { " + membersSource + " }");
 
-public class ParamsWrapper
-{{
-    {membersSource}
-}}
+                // --- V3 CRITICAL DEBUG LOGGING ---
+                try {
+                    string debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "OptionsDebug.cs");
+                    Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
+                    var debugContent = new StringBuilder();
+                    debugContent.AppendLine("// PARAMETERS STATE (HARDENED):");
+                    foreach (var kv in parameters) debugContent.AppendLine($"// {kv.Key}: {kv.Value} ({kv.Value?.GetType().Name})");
+                    debugContent.AppendLine("\n" + sb.ToString());
+                    File.WriteAllText(debugPath, debugContent.ToString());
+                } catch { }
 
-// Execution Call
-";
+                var rawResult = await CSharpScript.EvaluateAsync<object>(sb.ToString(), scriptOptions);
+                if (rawResult == null) return new List<string>();
 
-                // Determine invocation logic based on static/instance
-                bool isStatic = false;
-                if (functionNode is MethodDeclarationSyntax m) isStatic = m.Modifiers.Any(mod => mod.IsKind(SyntaxKind.StaticKeyword));
-                else if (functionNode is PropertyDeclarationSyntax p) isStatic = p.Modifiers.Any(mod => mod.IsKind(SyntaxKind.StaticKeyword));
-
-                string invocation = isStatic 
-                    ? $"return ParamsWrapper.{functionName}{(functionNode is MethodDeclarationSyntax ? "()" : "")};"
-                    : $"return (new ParamsWrapper()).{functionName}{(functionNode is MethodDeclarationSyntax ? "()" : "")};";
-
-                executionScript += invocation;
-                
-                _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
-                
-                // Execute the script as object to support dynamic return types (List<Room>, List<string>, etc.)
-                var rawResult = await CSharpScript.EvaluateAsync<object>(
-                    executionScript,
-                    scriptOptions
-                );
-
-                if (rawResult == null)
-                {
-                    _logger.Log($"[ParameterOptionsExecutor] Function {functionName} returned null", LogLevel.Warning);
-                    return new List<string>();
-                }
-
-                var result = new List<string>();
+                List<string> result = new List<string>();
                 if (rawResult is System.Collections.IEnumerable enumerable)
                 {
                     foreach (var item in enumerable)
                     {
                         if (item == null) continue;
-                        
-                        // V3 HYDRATION FIX: Use the universal identity format for consistency
-                        if (item is Element element)
-                        {
-                            result.Add(ParameterOptionsComputer.GetElementIdentity(element));
-                        }
-                        else
-                        {
-                            result.Add(item.ToString());
-                        }
+                        if (item is Element el) result.Add(ParameterOptionsComputer.GetElementIdentity(el));
+                        else result.Add(item.ToString() ?? "");
                     }
                 }
-                else
-                {
-                    result.Add(rawResult.ToString());
-                }
-
-                if (result.Count == 0)
-                {
-                    _logger.Log($"[ParameterOptionsExecutor] Function {functionName} returned empty list", LogLevel.Warning);
-                    return new List<string>();
-                }
-
-                _logger.Log($"[ParameterOptionsExecutor] Successfully computed {result.Count} options for {parameterName}", LogLevel.Debug);
                 return result;
-            }
-            catch (CompilationErrorException ex)
-            {
-                _logger.LogError($"[ParameterOptionsExecutor] Compilation error: {ex.Message}");
-                _logger.LogError($"Diagnostics: {string.Join("\n", ex.Diagnostics)}");
-                throw new InvalidOperationException($"Failed to compile options function: {ex.Message}");
             }
             catch (Exception ex)
             {
-                // Extract the most relevant error message
-                // If the script threw an exception, use that message
-                // Otherwise, use the outer exception message
-                string errorMessage = ex.InnerException?.Message ?? ex.Message;
-                
-                _logger.LogError($"[ParameterOptionsExecutor] Error executing options function: {errorMessage}");
-                
-                // Re-throw with the custom error message so it can be shown to the user
-                throw new InvalidOperationException(errorMessage);
+                _logger.LogError($"[ParameterOptionsExecutor] Error: {ex.Message}");
+                throw new InvalidOperationException(ex.Message);
             }
         }
 
-        /// <summary>
-        /// Executes the {parameterName}_Range property to get (min, max, step).
-        /// </summary>
-        public async Task<(double Min, double Max, double Step)?> ExecuteRangeFunction(string scriptContent, string parameterName, ICoreScriptContext context)
+        public async Task<(double Min, double Max, double Step)?> ExecuteRangeFunction(string scriptContent, string parameterName, ICoreScriptContext context, string parametersJson, List<ScriptParameter> schema)
         {
             try
             {
-                _logger.Log($"[ParameterOptionsExecutor] Executing range function for parameter: {parameterName}", LogLevel.Debug);
-
+                var parameters = MapAndHarden(parametersJson, schema);
                 string functionName = $"{parameterName}_Range";
-                
                 var tree = CSharpSyntaxTree.ParseText(scriptContent);
                 var root = tree.GetRoot();
-                
-                var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>()
-                    .Select(u => u.ToString())
-                    .ToList();
-                
-                // V2: For robustness, we collect ALL members of the parent class (usually 'Params')
-                // so the provider can call helper methods defined in the same class.
-                var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
-                    .FirstOrDefault(c => c.Identifier.Text == "Params");
+                var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(c => c.Identifier.Text == "Params");
+                var functionNode = paramsClass?.Members.FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) || (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
+                if (functionNode == null) return null;
 
-                var functionNode = paramsClass?.Members
-                    .FirstOrDefault(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == functionName) ||
-                                         (n is PropertyDeclarationSyntax p && p.Identifier.Text == functionName));
-
-                if (functionNode == null)
+                string membersSource;
+                if (paramsClass != null)
                 {
-                    _logger.Log($"[ParameterOptionsExecutor] Function or Property {functionName} not found.", LogLevel.Warning);
-                    return null;
+                    var rewriter = new ParameterPullingRewriter();
+                    var rewrittenClass = (ClassDeclarationSyntax)rewriter.Visit(paramsClass);
+                    membersSource = string.Join("\n", rewrittenClass.Members.Select(m => m.ToString()));
                 }
+                else membersSource = functionNode.ToString();
 
-                // V2: Support modular dependencies like 'Utils' in range providers
-                var extraTypes = root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
-                    .Where(t => t != paramsClass)
-                    .Select(t => t.ToString());
-                string extraTypesSource = string.Join("\n\n", extraTypes);
+                var scriptOptions = GetScriptOptions();
 
-                string membersSource = paramsClass != null ? string.Join("\n", paramsClass.Members.Select(m => m.ToString())) : functionNode.ToString();
-                bool isProperty = functionNode is PropertyDeclarationSyntax;
-                
-                string allUsings = string.Join("\n", usings);
-
-                var scriptOptions = ScriptOptions.Default
-                    .AddReferences(
-                        typeof(Autodesk.Revit.DB.Document).Assembly,
-                        typeof(Autodesk.Revit.UI.UIDocument).Assembly,
-                        typeof(Autodesk.Revit.DB.Architecture.Room).Assembly,
-                        Assembly.GetExecutingAssembly(),
-                        typeof(System.ValueTuple<,,>).Assembly // Ensure tuple support
-                    )
-                    .AddImports(
-                        "Autodesk.Revit.DB",
-                        "Autodesk.Revit.DB.Architecture",
-                        "Autodesk.Revit.UI",
-                        "System",
-                        "System.Collections.Generic",
-                        "System.Linq",
-                        "CoreScript.Engine.Globals" // Added for attributes
-                    );
-
-                var executionGlobals = new ExecutionGlobals(context, new Dictionary<string, object>());
+                var executionGlobals = new ExecutionGlobals(context, parameters);
                 ExecutionGlobals.SetContext(executionGlobals);
 
-                string executionScript = $@"
-{allUsings}
-using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Architecture;
-using Autodesk.Revit.UI;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using CoreScript.Engine.Globals;
-using static CoreScript.Engine.Globals.ScriptApi;
+                var sb = new StringBuilder();
+                sb.AppendLine("using Autodesk.Revit.DB; using Autodesk.Revit.DB.Architecture; using Autodesk.Revit.UI; using System; using System.Collections.Generic; using System.Linq; using CoreScript.Engine.Globals; using static CoreScript.Engine.Globals.ScriptApi;");
+                sb.AppendLine("using Microsoft.CSharp; using Autodesk.Revit.DB.Structure; using Autodesk.Revit.DB.Mechanical; using Autodesk.Revit.DB.Plumbing; using Autodesk.Revit.DB.Electrical;");
+                sb.AppendLine($"var result = (new ParamsWrapper()).{(functionNode is PropertyDeclarationSyntax ? functionName : $"{functionName}()")};");
+                sb.AppendLine("return result;");
+                sb.AppendLine("public class ParamsWrapper { " + membersSource + " }");
 
-{extraTypesSource}
-
-{membersSource}
-
-{(isProperty ? functionName : $"{functionName}()")}
-";
-
-                _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
-                
-                // Execute and expect a tuple
-                // V2 FIX: Evaluate as object and manually convert to handle casting from (int, int, int) to (double, double, double)
-                var result = await CSharpScript.EvaluateAsync(executionScript, scriptOptions);
-                
+                var result = await CSharpScript.EvaluateAsync(sb.ToString(), scriptOptions);
                 if (result == null) return null;
 
-                // Use reflection or dynamic to extract tuple components safely
-                // Many tuples are ValueTuple<double, double, double> or ValueTuple<int, int, int> etc.
-                double min = 0, max = 0, step = 0;
-                bool success = false;
-
-                try 
+                var type = result.GetType();
+                if (type.IsGenericType && type.Name.StartsWith("ValueTuple"))
                 {
-                    var type = result.GetType();
-                    if (type.IsGenericType && type.Name.StartsWith("ValueTuple"))
-                    {
-                        var fields = type.GetFields();
-                        if (fields.Length >= 3)
-                        {
-                            min = Convert.ToDouble(fields[0].GetValue(result));
-                            max = Convert.ToDouble(fields[1].GetValue(result));
-                            step = Convert.ToDouble(fields[2].GetValue(result));
-                            success = true;
-                        }
-                    }
+                    var fields = type.GetFields();
+                    if (fields.Length >= 3) return (Convert.ToDouble(fields[0].GetValue(result)), Convert.ToDouble(fields[1].GetValue(result)), Convert.ToDouble(fields[2].GetValue(result)));
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"[ParameterOptionsExecutor] Failed to convert range result: {ex.Message}");
-                }
-
-                if (success) return (min, max, step);
                 return null;
             }
-            catch (CompilationErrorException ex)
-            {
-                _logger.LogError($"[ParameterOptionsExecutor] Compilation error: {ex.Message}");
-                throw new InvalidOperationException($"Failed to compile range function: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                string errorMessage = ex.InnerException?.Message ?? ex.Message;
-                _logger.LogError($"[ParameterOptionsExecutor] Error executing range function: {errorMessage}");
-                throw new InvalidOperationException(errorMessage);
-            }
+            catch { return null; }
         }
 
-        public bool HasOptionsFunction(string scriptContent, string parameterName)
+        private Dictionary<string, object> MapAndHarden(string json, List<ScriptParameter> schema)
         {
-            string functionName = $"{parameterName}_Options";
-            string filterName = $"{parameterName}_Filter";
-            string rangeName = $"{parameterName}_Range";
-            
-            // Simple check: does the script contain a function or property with this name?
-            return scriptContent.Contains($" {functionName}") || 
-                   scriptContent.Contains($" {filterName}") ||
-                   scriptContent.Contains($" {rangeName}");
+            var dict = new Dictionary<string, object>();
+            if (string.IsNullOrWhiteSpace(json)) return dict;
+            try
+            {
+                using (JsonDocument doc = JsonDocument.Parse(json))
+                {
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        var rich = JsonSerializer.Deserialize<List<ScriptParameter>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<ScriptParameter>();
+                        foreach (var p in rich) if (!string.IsNullOrEmpty(p.Name)) dict[p.Name] = ConvertJsonElement(p.Value);
+                        Harden(dict, rich);
+                    }
+                    else
+                    {
+                        var raw = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+                        foreach (var kv in raw) if (!string.IsNullOrEmpty(kv.Key)) dict[kv.Key] = kv.Value is JsonElement e ? ConvertJsonElement(e) : kv.Value;
+                        Harden(dict, schema); // FIX: Use the authoritative schema passed as argument
+                    }
+                }
+            } catch (Exception ex) { FileLogger.LogError($"[MapAndHarden] Failed: {ex.Message}"); }
+            return dict;
         }
 
-        public bool HasRangeFunction(string scriptContent, string parameterName)
+        private void Harden(Dictionary<string, object> parameters, List<ScriptParameter> schema)
         {
-             return scriptContent.Contains($" {parameterName}_Range");
+            if (schema == null) return;
+            foreach (var p in schema)
+            {
+                if (parameters.TryGetValue(p.Name, out var val) && !string.IsNullOrEmpty(p.Unit))
+                {
+                    try {
+                        double d = 0;
+                        bool success = false;
+                        if (val is double dv) { d = dv; success = true; }
+                        else if (val is int iv) { d = (double)iv; success = true; }
+                        else if (val is long lv) { d = (double)lv; success = true; }
+                        else if (val != null) success = double.TryParse(val.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out d);
+
+                        if (success) {
+                            ForgeTypeId unitTypeId = null;
+                            string u = p.Unit.ToLower().Trim();
+                            if (u == "mm") unitTypeId = UnitTypeId.Millimeters;
+                            else if (u == "cm") unitTypeId = UnitTypeId.Centimeters;
+                            else if (u == "m") unitTypeId = UnitTypeId.Meters;
+                            else if (u == "ft") unitTypeId = UnitTypeId.Feet;
+                            else if (u == "in" || u == "inch") unitTypeId = UnitTypeId.Inches;
+                            else if (u == "m2" || u == "sqm" || u == "square meters") unitTypeId = UnitTypeId.SquareMeters;
+                            else if (u == "ft2" || u == "sqft" || u == "square feet") unitTypeId = UnitTypeId.SquareFeet;
+                            else if (u == "m3" || u == "cum" || u == "cubic meters") unitTypeId = UnitTypeId.CubicMeters;
+                            else if (u == "ft3" || u == "cuft" || u == "cubic feet") unitTypeId = UnitTypeId.CubicFeet;
+
+                            if (unitTypeId != null) 
+                            {
+                                double internalVal = UnitUtils.ConvertToInternalUnits(d, unitTypeId);
+                                parameters[p.Name] = internalVal;
+                                _logger.Log($"[OptionsExecutor] Hardened parameter '{p.Name}': {d} {u} -> {internalVal} (Internal)", LogLevel.Debug);
+                            }
+                        }
+                    } catch {}
+                }
+            }
         }
 
+        private object ConvertJsonElement(JsonElement element)
+        {
+            switch (element.ValueKind) {
+                case JsonValueKind.String: return element.GetString() ?? "";
+                case JsonValueKind.Number: return element.TryGetInt32(out int i) ? i : element.GetDouble();
+                case JsonValueKind.True: return true;
+                case JsonValueKind.False: return false;
+                case JsonValueKind.Array: return element.EnumerateArray().Select(ConvertJsonElement).ToList();
+                default: return element.GetRawText();
+            }
+        }
+
+        public bool HasOptionsFunction(string scriptContent, string parameterName) => scriptContent.Contains($" {parameterName}_Options") || scriptContent.Contains($" {parameterName}_Filter");
+        public bool HasRangeFunction(string scriptContent, string parameterName) => scriptContent.Contains($" {parameterName}_Range");
     }
 }

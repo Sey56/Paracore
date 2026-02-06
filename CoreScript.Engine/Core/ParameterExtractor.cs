@@ -71,12 +71,12 @@ namespace CoreScript.Engine.Core
                 bool hasSetter = prop.AccessorList?.Accessors.Any(a => a.IsKind(SyntaxKind.SetAccessorDeclaration) || a.IsKind(SyntaxKind.InitAccessorDeclaration)) ?? false;
                 if (!hasSetter && prop.Initializer == null) continue;
 
-                var param = ParsePropertyV3(prop, paramsClass, root, regionMap);
+                var param = ParsePropertyV3(prop, paramsClass, regionMap);
                 if (param != null) parameters.Add(param);
             }
         }
 
-        private ScriptParameter ParsePropertyV3(PropertyDeclarationSyntax prop, ClassDeclarationSyntax paramsClass, CompilationUnitSyntax root, Dictionary<int, string> regionMap)
+        private ScriptParameter ParsePropertyV3(PropertyDeclarationSyntax prop, ClassDeclarationSyntax paramsClass, Dictionary<int, string> regionMap)
         {
             string name = prop.Identifier.Text;
             string csharpType = prop.Type.ToString();
@@ -116,6 +116,16 @@ namespace CoreScript.Engine.Core
                 }
             }
 
+            // V3 RESTORATION: Name-based unit detection (e.g. Length_mm)
+            if (string.IsNullOrEmpty(p.Unit))
+            {
+                if (name.EndsWith("_mm")) p.Unit = "mm";
+                else if (name.EndsWith("_cm")) p.Unit = "cm";
+                else if (name.EndsWith("_m")) p.Unit = "m";
+                else if (name.EndsWith("_ft")) p.Unit = "ft";
+                else if (name.EndsWith("_in")) p.Unit = "in";
+            }
+
             string baseT = csharpType.TrimEnd('?');
             if (new[] { "int", "long", "double", "float", "decimal" }.Contains(baseT)) { p.Type = "number"; p.NumericType = baseT.Contains("int") ? "int" : "double"; p.DefaultValueJson = "0"; }
             else if (baseT == "bool") { p.Type = "boolean"; p.DefaultValueJson = "false"; }
@@ -150,24 +160,16 @@ namespace CoreScript.Engine.Core
             var visProv = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Visible");
             if (visProv != null) p.VisibleWhen = ParseVisibilityExpression(GetInitialExpression(visProv));
 
-            // V3 FIX: Explicitly apply Unit as Suffix for the UI labels
             if (!string.IsNullOrEmpty(p.Unit)) p.Suffix = p.Unit;
 
             p.Group = GetRegionForLine(prop.GetLocation().GetLineSpan().StartLinePosition.Line, regionMap);
 
             if (p.IsRevitElement && (p.Options == null || p.Options.Count == 0)) p.RequiresCompute = true;
 
-            // V3 FIX: Apply the default value from the initializer
             if (initializer != null)
             {
-                if (initializer is LiteralExpressionSyntax lit)
-                {
-                    p.DefaultValueJson = JsonSerializer.Serialize(lit.Token.Value);
-                }
-                else if (IsSimpleStatic(initializer))
-                {
-                    p.DefaultValueJson = JsonSerializer.Serialize(ExtractStringsFromInitializer(initializer));
-                }
+                if (initializer is LiteralExpressionSyntax lit) p.DefaultValueJson = JsonSerializer.Serialize(lit.Token.Value);
+                else if (IsSimpleStatic(initializer)) p.DefaultValueJson = JsonSerializer.Serialize(ExtractStringsFromInitializer(initializer));
             }
 
             return p;
@@ -200,10 +202,7 @@ namespace CoreScript.Engine.Core
             if (m is MethodDeclarationSyntax) return true;
             if (m is PropertyDeclarationSyntax p)
             {
-                // V3 FIX: If it has a Body { ... }, it IS logic based.
                 if (p.AccessorList?.Accessors.Any(a => a.Body != null) == true) return true;
-                
-                // If it has an expression body, check if the expression is complex.
                 var expr = GetInitialExpression(p);
                 return expr != null && !IsSimpleStatic(expr);
             }
@@ -217,8 +216,6 @@ namespace CoreScript.Engine.Core
             if (e is LiteralExpressionSyntax l) return l.Token.ValueText;
             if (e is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof" && inv.ArgumentList.Arguments.Count > 0)
                 return inv.ArgumentList.Arguments[0].Expression.ToString();
-            
-            // V3 FIX: Remove raw e.ToString() fallback to prevent code leaking into UI.
             return ""; 
         }
 
@@ -227,8 +224,6 @@ namespace CoreScript.Engine.Core
             if (e is ImplicitArrayCreationExpressionSyntax imp) return imp.Initializer.Expressions.Select(ExtractString).Where(s => !string.IsNullOrEmpty(s)).ToList();
             string s = ExtractString(e); return string.IsNullOrEmpty(s) ? new List<string>() : (s.Contains(",") ? s.Split(',').Select(x => x.Trim()).ToList() : new List<string> { s });
         }
-        private double? ExtractDouble(ExpressionSyntax e) => e is LiteralExpressionSyntax lit ? Convert.ToDouble(lit.Token.Value) : (double?)null;
-        private bool ExtractBool(ExpressionSyntax e) => e is LiteralExpressionSyntax lit && lit.Token.Value is bool b && b;
         private string ParseVisibilityExpression(ExpressionSyntax e) => e?.ToString() ?? "";
         private Dictionary<int, string> BuildRegionMap(ClassDeclarationSyntax c) {
             var map = new Dictionary<int, string>();

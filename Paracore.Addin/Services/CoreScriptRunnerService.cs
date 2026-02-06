@@ -845,13 +845,18 @@ namespace Paracore.Addin.Services
                     {
                         try
                         {
+                            string parametersJson = request.ParametersJson != null ? request.ParametersJson.ToStringUtf8() : "";
+                            _logger.Log($"[CoreScriptRunnerService] Incoming Parameters JSON: {parametersJson}", LogLevel.Debug);
+
                             // 2a. Dynamic Range (_Range)
                             if (optionsExecutor.HasRangeFunction(request.ScriptContent, request.ParameterName))
                             {
                                 var range = optionsExecutor.ExecuteRangeFunction(
                                     request.ScriptContent,
                                     request.ParameterName,
-                                    serverContext
+                                    serverContext,
+                                    parametersJson,
+                                    parameters // Pass authoritative schema
                                 ).GetAwaiter().GetResult();
 
                                 if (range.HasValue)
@@ -860,18 +865,16 @@ namespace Paracore.Addin.Services
                                     response.Max = range.Value.Max;
                                     response.Step = range.Value.Step;
                                     response.IsSuccess = true;
-                                    // Range usually doesn't return options, but if it's Just a range check, we return empty list
                                 }
                             }
 
                             // 2b. Manual Options (_Options / _Filter)
-                            // V4 FIX: If a custom provider exists, it is AUTHORITATIVE. 
-                            // We do NOT fallback to automatic extraction if it returns empty.
-                            // An empty list means "no matches found", not "try something else".
                             var options = optionsExecutor.ExecuteOptionsFunction(
                                 request.ScriptContent,
                                 request.ParameterName,
-                                serverContext
+                                serverContext,
+                                parametersJson,
+                                parameters // Pass authoritative schema
                             ).GetAwaiter().GetResult();
                             
                             return options ?? new List<string>();

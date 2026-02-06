@@ -73,7 +73,7 @@ namespace CoreScript.Engine.Core
                     var extractor = new ParameterExtractor(new RunnerLogger());
                     extractedParams = extractor.ExtractParameters(combinedScriptContent);
                     var finalScriptParams = richParams.Count > 0 ? richParams : extractedParams;
-                    HardenParameters(parameters, finalScriptParams, context);
+                    HardenParameters(parameters, finalScriptParams);
                 }
                 catch (Exception ex)
                 {
@@ -129,6 +129,7 @@ namespace CoreScript.Engine.Core
                     .WithReferences(coreRefs.Concat(revitRefs))
                     .WithImports(
                         "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", 
+                        "Microsoft.CSharp",
                         "Autodesk.Revit.DB", 
                         "Autodesk.Revit.DB.Architecture", 
                         "Autodesk.Revit.DB.Structure", 
@@ -137,7 +138,9 @@ namespace CoreScript.Engine.Core
                         "Autodesk.Revit.DB.Electrical",
                         "Autodesk.Revit.UI", 
                         "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime",
-                        "SixLabors.ImageSharp", "RestSharp", "MiniExcelLibs", "MathNet.Numerics"
+                        "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
+                        "RestSharp", "MiniExcelLibs", 
+                        "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
                     )
                     .WithFilePath(topLevelScriptName);
 
@@ -180,7 +183,7 @@ namespace CoreScript.Engine.Core
             try
             {
                 var parameters = MapParameters(parametersJson, out var richParams);
-                if (richParams.Count > 0) HardenParameters(parameters, richParams, context);
+                if (richParams.Count > 0) HardenParameters(parameters, richParams);
                 ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters));
 
                 using (var ms = new MemoryStream(assemblyBytes))
@@ -239,7 +242,7 @@ namespace CoreScript.Engine.Core
             return dict;
         }
 
-        private void HardenParameters(Dictionary<string, object> parameters, List<ScriptParameter> scriptParams, ICoreScriptContext context)
+        private void HardenParameters(Dictionary<string, object> parameters, List<ScriptParameter> scriptParams)
         {
             if (scriptParams == null) return;
             foreach (var p in scriptParams)

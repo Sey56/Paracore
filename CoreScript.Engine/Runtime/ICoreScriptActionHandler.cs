@@ -12,6 +12,6 @@ namespace CoreScript.Engine.Runtime
         /// Gets the name of the execution handler for diagnostic or debug purposes.
         /// </summary>
         /// <returns>Handler name.</returns>
-        string GetName();
+        new string GetName();
     }
 }
