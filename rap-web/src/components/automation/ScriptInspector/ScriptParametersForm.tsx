@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
 import { ParameterInput } from "./ParameterInput";
 import { ParameterGroupSection } from "./ParameterGroupSection";
-import { filterVisibleParameters } from '@/utils/parameterVisibility';
+import { filterVisibleParameters, isParameterEnabled } from '@/utils/parameterVisibility';
 
 interface ScriptParametersFormProps {
     script: Script | null; // Nullable for Generation View where we might not have a full script entity
@@ -65,6 +65,7 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
             {ungroupedParams.map((param) => {
                 // Find original index in the main array to pass back to onChange
                 const originalIndex = parameters.findIndex(p => p.name === param.name);
+                const isEnabled = isParameterEnabled(param, parameters);
                 return (
                     <ParameterInput
                         key={`${param.name}-${originalIndex}`}
@@ -74,7 +75,7 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
                         onCompute={() => onComputeOptions(param.name)}
                         onPickObject={(type) => onPickObject(type, originalIndex)}
                         isComputing={isComputingOptions[param.name]}
-                        disabled={!isActionable}
+                        disabled={!isActionable || !isEnabled}
                     />
                 );
             })}

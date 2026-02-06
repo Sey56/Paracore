@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faChevronRight, faExclamationCircle } from "@fortawesome/free-solid-svg-icons";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { ParameterInput } from "./ParameterInput";
-import { validateParameters } from '@/utils/parameterVisibility';
+import { validateParameters, isParameterEnabled } from '@/utils/parameterVisibility';
 
 interface ParameterGroupSectionProps {
     groupName: string;
@@ -71,6 +71,7 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
                 <div className="p-3 space-y-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 w-full rounded-b-lg">
                     {parameters.map((param) => {
                         const originalIndex = allParameters.findIndex(p => p.name === param.name);
+                        const isEnabled = isParameterEnabled(param, allParameters);
                         return (
                             <ParameterInput
                                 key={originalIndex}
@@ -80,7 +81,7 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
                                 onCompute={(paramName) => computeParameterOptions(script, paramName)}
                                 onPickObject={onPickObject}
                                 isComputing={isComputingOptions[param.name]}
-                                disabled={!isActionable}
+                                disabled={!isActionable || !isEnabled}
                             />
                         );
                     })}

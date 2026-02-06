@@ -1,6 +1,7 @@
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
 using CoreScript.Engine.Context;
+using CoreScript.Engine.Core;
 using System.Text.Json;
 using System.Threading;
 using System.Collections.Generic;
@@ -102,17 +103,62 @@ namespace CoreScript.Engine.Globals
             if (val is T typedVal) return typedVal;
 
             // Diagnostic logging for types
-            FileLogger.Log($"[ExecutionGlobals] Parameter '{key}' requested as {typeof(T).Name}. Current type: {val.GetType().Name}, Value: {val}");
+            // FileLogger.Log($"[ExecutionGlobals] Parameter '{key}' requested as {typeof(T).Name}. Current type: {val.GetType().Name}, Value: {val}");
+
+            // 1. MAGIC HYDRATION: Revit Element Support (V3)
+            var targetType = typeof(T);
+            bool isElement = typeof(Element).IsAssignableFrom(targetType);
+            bool isElementList = targetType.IsGenericType && 
+                               targetType.GetGenericTypeDefinition() == typeof(List<>) && 
+                               typeof(Element).IsAssignableFrom(targetType.GetGenericArguments()[0]);
+
+            if (isElement || isElementList)
+            {
+                try
+                {
+                    if (isElement)
+                    {
+                        var resolved = ResolveRevitElement(val, targetType);
+                        if (resolved != null) return (T)resolved;
+                    }
+                    else // List<Element>
+                    {
+                        var itemType = targetType.GetGenericArguments()[0];
+                        var resultList = (System.Collections.IList)Activator.CreateInstance(targetType);
+                        
+                        IEnumerable<object> sourceItems = null;
+                        if (val is string json && json.TrimStart().StartsWith("["))
+                            sourceItems = JsonSerializer.Deserialize<List<object>>(json);
+                        else if (val is IEnumerable<object> ie)
+                            sourceItems = ie;
+                        
+                        if (sourceItems != null)
+                        {
+                            foreach (var item in sourceItems)
+                            {
+                                var resolved = ResolveRevitElement(item, itemType);
+                                if (resolved != null) resultList.Add(resolved);
+                            }
+                            return (T)resultList;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError($"[ExecutionGlobals] Magic Hydration failed for '{key}' ({targetType.Name}): {ex.Message}");
+                }
+                
+                return default(T);
+            }
 
             // Optimization for primitive conversions (e.g., Int32 -> Double)
             try
             {
-                var targetType = typeof(T);
                 if (targetType.IsPrimitive || targetType == typeof(decimal))
                 {
                     // Case: val is Int32, T is Double
                     var converted = (T)System.Convert.ChangeType(val, targetType);
-                    FileLogger.Log($"[ExecutionGlobals] Successfully converted '{key}' via Convert.ChangeType to {typeof(T).Name}");
+                    // FileLogger.Log($"[ExecutionGlobals] Successfully converted '{key}' via Convert.ChangeType to {typeof(T).Name}");
                     return converted;
                 }
             }
@@ -127,7 +173,7 @@ namespace CoreScript.Engine.Globals
                 // This handles cases like Int32 -> Double or dynamic List conversions
                 var json = JsonSerializer.Serialize(val);
                 var deserialized = JsonSerializer.Deserialize<T>(json);
-                FileLogger.Log($"[ExecutionGlobals] Successfully converted '{key}' via JSON pivot to {typeof(T).Name}");
+                // FileLogger.Log($"[ExecutionGlobals] Successfully converted '{key}' via JSON pivot to {typeof(T).Name}");
                 return deserialized;
             }
             catch (Exception ex)
@@ -136,6 +182,77 @@ namespace CoreScript.Engine.Globals
                 try { return (T)System.Convert.ChangeType(val, typeof(T)); }
                 catch { return default(T); }
             }
+        }
+
+        private static object ResolveRevitElement(object val, Type targetType)
+        {
+            var doc = Current.Value?.Doc;
+            if (doc == null || val == null) return null;
+
+            // 1. Handle Reference objects
+            if (val is Reference reference)
+            {
+                var el = doc.GetElement(reference);
+                if (el != null && targetType.IsAssignableFrom(el.GetType())) return el;
+            }
+
+            string identifier = val.ToString();
+            if (string.IsNullOrEmpty(identifier)) return null;
+
+            FileLogger.Log($"[Hydrator] Attempting to resolve '{identifier}' to {targetType.Name}");
+
+            // 2. Try UniqueId / ElementId
+            try {
+                var el = doc.GetElement(identifier);
+                if (el != null && targetType.IsAssignableFrom(el.GetType())) 
+                {
+                    FileLogger.Log($"[Hydrator] Found match via UniqueId.");
+                    return el;
+                }
+            } catch {}
+
+            if (long.TryParse(identifier, out long idLong))
+            {
+                try {
+                    var elId = doc.GetElement(new ElementId(idLong));
+                    if (elId != null && targetType.IsAssignableFrom(elId.GetType())) 
+                    {
+                        FileLogger.Log($"[Hydrator] Found match via ElementId.");
+                        return elId;
+                    }
+                } catch {}
+            }
+
+            // 3. Dynamic Name/Identity Search (Universal Fallback)
+            if (targetType.IsClass)
+            {
+                try 
+                {
+                    // V3: Use Resilient Collector to handle SpatialElements and other API quirks
+                    var collector = ParameterOptionsComputer.CreateResilientCollector(doc, targetType);
+                    var candidates = collector.WhereElementIsNotElementType().Cast<Element>();
+                    
+                    foreach (var e in candidates)
+                    {
+                        // Ensure it's actually the type we want (Filter broader results like SpatialElement)
+                        if (!targetType.IsAssignableFrom(e.GetType())) continue;
+
+                        string elementIdentity = ParameterOptionsComputer.GetElementIdentity(e);
+                        if (e.Name == identifier || elementIdentity == identifier)
+                        {
+                            FileLogger.Log($"[Hydrator] Found match via Identity: {e.Name} (ID: {elementIdentity})");
+                            return e;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError($"[Hydrator] Identity search error for {targetType.Name}: {ex.Message}");
+                }
+            }
+            
+            FileLogger.LogError($"[Hydrator] FAILED to resolve '{identifier}' to {targetType.Name}. Property will be NULL.");
+            return null;
         }
 
         public UIApplication? UIApp => _context.UIApp;

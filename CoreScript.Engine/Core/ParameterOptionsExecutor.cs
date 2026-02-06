@@ -147,13 +147,42 @@ public class ParamsWrapper
                 
                 _logger.Log($"[ParameterOptionsExecutor] Compiling and executing isolated {functionName}...", LogLevel.Debug);
                 
-                // Execute the script
-                var result = await CSharpScript.EvaluateAsync<List<string>>(
+                // Execute the script as object to support dynamic return types (List<Room>, List<string>, etc.)
+                var rawResult = await CSharpScript.EvaluateAsync<object>(
                     executionScript,
                     scriptOptions
                 );
 
-                if (result == null || result.Count == 0)
+                if (rawResult == null)
+                {
+                    _logger.Log($"[ParameterOptionsExecutor] Function {functionName} returned null", LogLevel.Warning);
+                    return new List<string>();
+                }
+
+                var result = new List<string>();
+                if (rawResult is System.Collections.IEnumerable enumerable)
+                {
+                    foreach (var item in enumerable)
+                    {
+                        if (item == null) continue;
+                        
+                        // V3 HYDRATION FIX: Convert Revit Elements to their Name or UniqueId for UI display
+                        if (item is Element element)
+                        {
+                            result.Add(element.Name);
+                        }
+                        else
+                        {
+                            result.Add(item.ToString());
+                        }
+                    }
+                }
+                else
+                {
+                    result.Add(rawResult.ToString());
+                }
+
+                if (result.Count == 0)
                 {
                     _logger.Log($"[ParameterOptionsExecutor] Function {functionName} returned empty list", LogLevel.Warning);
                     return new List<string>();
