@@ -26,7 +26,6 @@ namespace CoreScript.Engine.Core
             var parameters = new List<ScriptParameter>();
             if (string.IsNullOrWhiteSpace(scriptContent)) return parameters;
 
-            // .ptool support preserved
             if (scriptContent.Trim().StartsWith("{") && scriptContent.Trim().EndsWith("}"))
             {
                 try
@@ -69,9 +68,8 @@ namespace CoreScript.Engine.Core
                 string propName = prop.Identifier.Text;
                 if (propName.EndsWith("_Options") || propName.EndsWith("_Range") || propName.EndsWith("_Visible") || propName.EndsWith("_Enabled") || propName.EndsWith("_Filter") || propName.EndsWith("_Unit")) continue;
 
-                // Skip read-only unless it has an initializer (standard parameter rule)
-                bool isReadOnly = prop.ExpressionBody != null || (prop.AccessorList != null && !prop.AccessorList.Accessors.Any(a => a.IsKind(SyntaxKind.SetAccessorDeclaration)));
-                if (isReadOnly && prop.Initializer == null) continue;
+                bool hasSetter = prop.AccessorList?.Accessors.Any(a => a.IsKind(SyntaxKind.SetAccessorDeclaration) || a.IsKind(SyntaxKind.InitAccessorDeclaration)) ?? false;
+                if (!hasSetter && prop.Initializer == null) continue;
 
                 var param = ParsePropertyV3(prop, paramsClass, root, regionMap);
                 if (param != null) parameters.Add(param);
@@ -85,7 +83,6 @@ namespace CoreScript.Engine.Core
             var attributes = prop.AttributeLists.SelectMany(al => al.Attributes).ToList();
             var triviaList = prop.GetLeadingTrivia();
 
-            // 1. Initial State
             var p = new ScriptParameter { 
                 Name = name, 
                 Description = ExtractXmlDescription(triviaList), 
@@ -93,18 +90,19 @@ namespace CoreScript.Engine.Core
                 DefaultValueJson = JsonSerializer.Serialize("") 
             };
 
-            // 2. Parse Attributes (Validation, UI hints, Units)
             foreach (var attr in attributes)
             {
-                string attrName = attr.Name.ToString();
-                if (attrName.Contains("Required") || attrName.Contains("Mandatory")) p.Required = true;
-                if (attrName.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0) p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
-                if (attrName.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0) p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
-                if (attrName.Contains("EnabledWhen")) { p.EnabledWhenParam = ExtractString(attr.ArgumentList.Arguments[0].Expression); p.EnabledWhenValue = attr.ArgumentList.Arguments[1].Expression.ToString().Trim('"', '\''); }
-                if (attrName == "Select") p.SelectionType = (attr.ArgumentList.Arguments[0].Expression as MemberAccessExpressionSyntax)?.Name.Identifier.Text ?? "Element";
+                string aN = attr.Name.ToString();
+                if (aN.Contains("Segmented")) p.InputType = "Segmented";
+                else if (aN.Contains("Color")) p.InputType = "Color";
+                else if (aN.Contains("Stepper")) p.InputType = "Stepper";
+                if (aN.Contains("Required") || aN.Contains("Mandatory")) p.Required = true;
+                if (aN.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0) p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                if (aN.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0) p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                if (aN.Contains("EnabledWhen")) { p.EnabledWhenParam = ExtractString(attr.ArgumentList.Arguments[0].Expression); p.EnabledWhenValue = attr.ArgumentList.Arguments[1].Expression.ToString().Trim('"', '\''); }
+                if (aN == "Select") p.SelectionType = (attr.ArgumentList.Arguments[0].Expression as MemberAccessExpressionSyntax)?.Name.Identifier.Text ?? "Element";
                 
-                // RevitElements attribute is now just for extra metadata (Category)
-                if (attrName.Contains("RevitElements"))
+                if (aN.Contains("RevitElements"))
                 {
                     if (attr.ArgumentList != null)
                     {
@@ -117,7 +115,6 @@ namespace CoreScript.Engine.Core
                 }
             }
 
-            // 3. TYPE-SAFE FIRST: Analyze the C# Type
             string baseT = csharpType.TrimEnd('?');
             if (new[] { "int", "long", "double", "float", "decimal" }.Contains(baseT)) { p.Type = "number"; p.NumericType = baseT.Contains("int") ? "int" : "double"; p.DefaultValueJson = "0"; }
             else if (baseT == "bool") { p.Type = "boolean"; p.DefaultValueJson = "false"; }
@@ -131,33 +128,29 @@ namespace CoreScript.Engine.Core
             }
             else if (char.IsUpper(baseT[0]))
             {
-                // Is this a Revit Class or an Enum?
                 if (IsRevitType(baseT, out bool isEnum))
                 {
                     if (isEnum) p.Type = "enum";
                     else { p.IsRevitElement = true; p.RevitElementType = baseT; p.Type = "reference"; }
                 }
-                else p.Type = "enum"; // Fallback for custom enums
+                else p.Type = "enum";
                 p.DefaultValueJson = JsonSerializer.Serialize("");
             }
 
-            // 4. Resolve Providers (Maintain escape hatches)
             var members = paramsClass.Members;
             var optProv = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Options" || GetMemberName(m) == $"{name}_Filter");
             if (optProv != null)
             {
                 var expr = GetInitialExpression(optProv);
-                if (expr != null) p.Options = ExtractStringList(expr);
+                if (expr != null) p.Options = ExtractStringsFromInitializer(expr);
                 if (IsLogicBased(optProv) && (p.Options == null || p.Options.Count == 0)) p.RequiresCompute = true;
             }
 
             var visProv = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Visible");
             if (visProv != null) p.VisibleWhen = ParseVisibilityExpression(GetInitialExpression(visProv));
 
-            // Apply Grouping
             p.Group = GetRegionForLine(prop.GetLocation().GetLineSpan().StartLinePosition.Line, regionMap);
 
-            // Final Rule: If it's a Revit Element and no static options exist, it REQUIRES COMPUTE
             if (p.IsRevitElement && (p.Options == null || p.Options.Count == 0)) p.RequiresCompute = true;
 
             return p;
@@ -177,19 +170,35 @@ namespace CoreScript.Engine.Core
             return false;
         }
 
-        private string ExtractXmlDescription(SyntaxTriviaList trivia)
-        {
-            var joined = string.Join("\n", trivia.Select(t => t.ToFullString().Trim()).Where(s => s.StartsWith("///")));
-            var match = Regex.Match(joined, @"<summary>(.*?)</summary>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+        private string ExtractXmlDescription(SyntaxTriviaList trivia) {
+            var lines = trivia.Select(t => t.ToFullString().Trim()).Where(s => s.StartsWith("///"));
+            var match = Regex.Match(string.Join("\n", lines), @"<summary>(.*?)</summary>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
             return match.Success ? match.Groups[1].Value.Trim('/', ' ', '\n', '\r') : "";
         }
 
         private string GetMemberName(MemberDeclarationSyntax m) => m is PropertyDeclarationSyntax p ? p.Identifier.Text : (m is MethodDeclarationSyntax met ? met.Identifier.Text : "");
-        private ExpressionSyntax GetInitialExpression(MemberDeclarationSyntax m) => m is PropertyDeclarationSyntax p ? (p.Initializer?.Value ?? p.ExpressionBody?.Expression) : null;
-        private bool IsLogicBased(MemberDeclarationSyntax m) => m is MethodDeclarationSyntax || (m is PropertyDeclarationSyntax p && p.ExpressionBody != null && !IsSimpleStatic(p.ExpressionBody.Expression));
-        private bool IsSimpleStatic(ExpressionSyntax e) => e is LiteralExpressionSyntax || e is CollectionExpressionSyntax;
-        private string ExtractString(ExpressionSyntax e) => e is LiteralExpressionSyntax l ? l.Token.ValueText : e.ToString().Trim('"', '\'');
-        private List<string> ExtractStringList(ExpressionSyntax e) => e is CollectionExpressionSyntax col ? col.Elements.Select(el => ExtractString(((ExpressionElementSyntax)el).Expression)).ToList() : new List<string>();
+        private ExpressionSyntax GetInitialExpression(MemberDeclarationSyntax m) => m is PropertyDeclarationSyntax p ? (p.Initializer?.Value ?? p.ExpressionBody?.Expression ?? p.AccessorList?.Accessors.FirstOrDefault(a => a.IsKind(SyntaxKind.GetAccessorDeclaration))?.ExpressionBody?.Expression) : null;
+        private bool IsLogicBased(MemberDeclarationSyntax m) => m is MethodDeclarationSyntax || (m is PropertyDeclarationSyntax p && (p.ExpressionBody != null || (p.AccessorList?.Accessors.Any(a => a.Body != null) ?? false)) && !IsSimpleStatic(GetInitialExpression(p)));
+        private bool IsSimpleStatic(ExpressionSyntax e) => e == null || e is LiteralExpressionSyntax || e is CollectionExpressionSyntax;
+        
+        private string ExtractString(ExpressionSyntax e) 
+        {
+            if (e == null) return "";
+            if (e is LiteralExpressionSyntax l) return l.Token.ValueText;
+            if (e is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof" && inv.ArgumentList.Arguments.Count > 0)
+                return inv.ArgumentList.Arguments[0].Expression.ToString();
+            
+            // V3 FIX: Remove raw e.ToString() fallback to prevent code leaking into UI.
+            return ""; 
+        }
+
+        private List<string> ExtractStringsFromInitializer(ExpressionSyntax e) {
+            if (e is CollectionExpressionSyntax col) return col.Elements.Select(el => ExtractString(((ExpressionElementSyntax)el).Expression)).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            if (e is ImplicitArrayCreationExpressionSyntax imp) return imp.Initializer.Expressions.Select(ExtractString).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            string s = ExtractString(e); return string.IsNullOrEmpty(s) ? new List<string>() : (s.Contains(",") ? s.Split(',').Select(x => x.Trim()).ToList() : new List<string> { s });
+        }
+        private double? ExtractDouble(ExpressionSyntax e) => e is LiteralExpressionSyntax lit ? Convert.ToDouble(lit.Token.Value) : (double?)null;
+        private bool ExtractBool(ExpressionSyntax e) => e is LiteralExpressionSyntax lit && lit.Token.Value is bool b && b;
         private string ParseVisibilityExpression(ExpressionSyntax e) => e?.ToString() ?? "";
         private Dictionary<int, string> BuildRegionMap(ClassDeclarationSyntax c) {
             var map = new Dictionary<int, string>();
