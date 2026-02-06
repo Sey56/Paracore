@@ -13,7 +13,7 @@ export const ScriptInspector: React.FC = () => {
   const { toggleFloatingCodeViewer, agentSelectedScriptPath } = useUI();
   const { revitStatus } = useRevitStatus(); // Get Revit status
   const { isAuthenticated, user } = useAuth();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   useEffect(() => {
     if (agentSelectedScriptPath && scripts.length > 0) {

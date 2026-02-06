@@ -97,6 +97,10 @@ namespace CoreScript.Engine.Core
                 if (aN.Contains("Segmented")) p.InputType = "Segmented";
                 else if (aN.Contains("Color")) p.InputType = "Color";
                 else if (aN.Contains("Stepper")) p.InputType = "Stepper";
+                else if (aN.Contains("InputFile")) p.InputType = "File";
+                else if (aN.Contains("OutputFile")) p.InputType = "SaveFile";
+                else if (aN.Contains("FolderPath")) p.InputType = "Folder";
+
                 if (aN.Contains("Required") || aN.Contains("Mandatory")) p.Required = true;
                 if (aN.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0) p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
                 if (aN.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0) p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
@@ -141,11 +145,10 @@ namespace CoreScript.Engine.Core
             {
                 if (IsRevitType(baseT, out bool isEnum))
                 {
-                    if (isEnum) p.Type = "enum";
-                    else { p.IsRevitElement = true; p.RevitElementType = baseT; p.Type = "reference"; }
+                    if (isEnum) { p.Type = "enum"; p.DefaultValueJson = JsonSerializer.Serialize(""); }
+                    else { p.IsRevitElement = true; p.RevitElementType = baseT; p.Type = "reference"; p.DefaultValueJson = "null"; }
                 }
-                else p.Type = "enum";
-                p.DefaultValueJson = JsonSerializer.Serialize("");
+                else { p.Type = "enum"; p.DefaultValueJson = JsonSerializer.Serialize(""); }
             }
 
             var members = paramsClass.Members;
@@ -164,7 +167,8 @@ namespace CoreScript.Engine.Core
 
             p.Group = GetRegionForLine(prop.GetLocation().GetLineSpan().StartLinePosition.Line, regionMap);
 
-            if (p.IsRevitElement && (p.Options == null || p.Options.Count == 0)) p.RequiresCompute = true;
+            if (p.IsRevitElement && (p.Options == null || p.Options.Count == 0) && string.IsNullOrEmpty(p.SelectionType)) 
+                p.RequiresCompute = true;
 
             if (initializer != null)
             {

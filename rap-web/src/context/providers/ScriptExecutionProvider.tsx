@@ -984,57 +984,64 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           showNotification(`Computed ${options.length} options for ${parameterName}`, "success");
         }
 
-        const updateParamMetadataAndReset = (p: ScriptParameter) => {
+        const updateParamMetadata = (p: ScriptParameter) => {
           if (p.name !== parameterName) return p;
           if (isRangeUpdate) {
             return { ...p, min: min ?? p.min, max: max ?? p.max, step: step ?? p.step };
           } else {
-            // V3.0.2 BREAKING CHANGE FIX: Always revert to script default on Compute
-            // This prevents "Ghost Selections" from previous documents.
-            let defaultValue: any = "";
-            try {
-              defaultValue = JSON.parse(p.defaultValueJson);
-            } catch (e) {
-              defaultValue = p.defaultValueJson;
-            }
-            return { ...p, options: options, value: defaultValue };
+            return { ...p, options: options };
           }
+        };
+
+        const updateParamValueAndReset = (p: ScriptParameter) => {
+          if (p.name !== parameterName || isRangeUpdate) return p;
+
+          // V3.0.2 REFINED: Always revert to script default on successful Compute
+          let defaultValue: any = "";
+          try {
+            // Using existing defaultValue property from the stable model
+            defaultValue = p.defaultValue !== undefined ? p.defaultValue : "";
+          } catch (e) {
+            defaultValue = "";
+          }
+
+          return { ...p, value: defaultValue };
         };
 
         // 1. Update Global Scripts (Metadata only)
         setScripts(prev => prev.map(s => {
           if (s.id !== script.id) return s;
-          const updatedParams = (s.parameters || []).map(updateParamMetadataAndReset);
+          const updatedParams = (s.parameters || []).map(updateParamMetadata);
           return { ...s, parameters: updatedParams };
         }));
 
-        // 2. Update Context State
+        // 2. Update Context State (Metadata + Reset Value)
         if (shouldUpdateGlobalState) {
           setUserEditedScriptParameters(prev => {
             const params = prev[script.id] || script.parameters || [];
-            const updatedParams = params.map(updateParamMetadataAndReset);
+            const updatedParams = params.map(p => updateParamValueAndReset(updateParamMetadata(p)));
             return { ...prev, [script.id]: updatedParams };
           });
 
           if (selectedScript?.id === script.id) {
             setSelectedScriptState(prev => {
               if (!prev) return null;
-              const updatedParams = (prev.parameters || []).map(updateParamMetadataAndReset);
+              const updatedParams = (prev.parameters || []).map(p => updateParamValueAndReset(updateParamMetadata(p)));
               return { ...prev, parameters: updatedParams };
             });
           }
         } else {
-          // Metadata update only (for isolated calls)
+          // Metadata update only
           setUserEditedScriptParameters(prev => {
             const params = prev[script.id] || script.parameters || [];
-            const updatedParams = params.map(updateParamMetadataAndReset);
+            const updatedParams = params.map(updateParamMetadata);
             return { ...prev, [script.id]: updatedParams };
           });
 
           if (selectedScript?.id === script.id) {
             setSelectedScriptState(prev => {
               if (!prev) return null;
-              const updatedParams = (prev.parameters || []).map(updateParamMetadataAndReset);
+              const updatedParams = (prev.parameters || []).map(updateParamMetadata);
               return { ...prev, parameters: updatedParams };
             });
           }
