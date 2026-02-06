@@ -144,14 +144,6 @@ namespace CoreScript.Engine.Core
                 var script = CSharpScript.Create(finalScriptCode, options);
                 var state = script.RunAsync().Result;
 
-                bool scriptReportedError = context.PrintLog.Any(logEntry => logEntry.Contains("❌"));
-                if (scriptReportedError)
-                {
-                    var failureResult = ExecutionResult.Failure("❌ Script execution failed", context.PrintLog.ToArray());
-                    failureResult.ScriptName = topLevelScriptName;
-                    return failureResult;
-                }
-
                 context.Println("✅ Code executed successfully | " + timestamp);
                 var result = ExecutionResult.Success("✅ Code executed successfully", state.ReturnValue);
                 result.PrintLog = context.PrintLog.ToList();

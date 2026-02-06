@@ -228,15 +228,20 @@ namespace CoreScript.Engine.Globals
             {
                 try 
                 {
+                    bool isTypeRequested = targetType.Name.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
+                    
                     // V3: Use Resilient Collector to handle SpatialElements and other API quirks
                     var collector = ParameterOptionsComputer.CreateResilientCollector(doc, targetType);
                     var candidates = collector.WhereElementIsNotElementType().Cast<Element>();
+                    if (isTypeRequested || typeof(ElementType).IsAssignableFrom(targetType))
+                    {
+                        // Switch to element types for the search
+                        candidates = new FilteredElementCollector(doc).OfClass(targetType).WhereElementIsElementType().Cast<Element>();
+                    }
                     
                     foreach (var e in candidates)
                     {
-                        // Ensure it's actually the type we want (Filter broader results like SpatialElement)
-                        if (!targetType.IsAssignableFrom(e.GetType())) continue;
-
+                        // V3 FIX: Robust check against both Identity and raw Name
                         string elementIdentity = ParameterOptionsComputer.GetElementIdentity(e);
                         if (e.Name == identifier || elementIdentity == identifier)
                         {

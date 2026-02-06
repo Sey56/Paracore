@@ -19,19 +19,23 @@ namespace CoreScript.Engine.Core
         {
             if (string.IsNullOrEmpty(revitElementType)) return new List<string>();
             try { return GetGenericElements(revitElementType, category); }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error computing options for {revitElementType}: {ex.Message}");
-                return new List<string>();
-            }
+            catch (Exception ex) { Console.WriteLine($"Error computing options for {revitElementType}: {ex.Message}"); return new List<string>(); }
         }
 
         /// <summary>
-        /// A category-agnostic identity engine. Finds the best "User Name" for any Revit Element.
+        /// Gets a unique, user-friendly identity for any element.
+        /// Formats: "Family: Type", "Room [101]", "Sheet - AR01", or just "Name".
         /// </summary>
         public static string GetElementIdentity(Element e)
         {
             if (e == null) return "";
+            
+            // Format A: Loadable Types (FamilySymbol) -> "Family Name: Type Name"
+            if (e is FamilySymbol fs)
+            {
+                return $"{fs.FamilyName}: {fs.Name}";
+            }
+
             string name = e.Name;
 
             // Universal identifying parameters
@@ -50,7 +54,6 @@ namespace CoreScript.Engine.Core
                     string val = p.AsString();
                     if (!string.IsNullOrEmpty(val)) 
                     {
-                        // Clean formatting: "Name [Number]"
                         if (name.Contains(val)) return name;
                         return $"{name} [{val}]";
                     }
@@ -59,21 +62,10 @@ namespace CoreScript.Engine.Core
             return name;
         }
 
-        /// <summary>
-        /// Creates a collector that is resilient to Revit's "Native Object Model" errors.
-        /// </summary>
         public static FilteredElementCollector CreateResilientCollector(Document doc, Type targetType)
         {
-            // Quirk 1: Spatial Elements (Room, Area, Space) must use SpatialElement class
-            if (typeof(SpatialElement).IsAssignableFrom(targetType))
+            if (typeof(SpatialElement).IsAssignableFrom(targetType) || targetType.Name == "Area" || targetType.Name == "Room")
                 return new FilteredElementCollector(doc).OfClass(typeof(SpatialElement));
-
-            // Quirk 2: Annotation Symbols / Tags often fail OfClass
-            if (targetType.Name.Contains("Tag") || targetType.Name.Contains("Symbol"))
-            {
-                try { return new FilteredElementCollector(doc).OfClass(targetType); }
-                catch { return new FilteredElementCollector(doc).WhereElementIsNotElementType(); }
-            }
 
             try { return new FilteredElementCollector(doc).OfClass(targetType); }
             catch { return new FilteredElementCollector(doc).WhereElementIsNotElementType(); }
@@ -84,9 +76,37 @@ namespace CoreScript.Engine.Core
             try
             {
                 var cleanName = targetName.Trim();
+                var isTypeRequested = cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
                 var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
 
-                // 1. Built-in Category Match
+                // 1. CLASS REFLECTION
+                if (_revitTypes == null) _revitTypes = typeof(Element).Assembly.GetTypes();
+                var classType = _revitTypes.FirstOrDefault(t => 
+                    (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)) && 
+                    typeof(Element).IsAssignableFrom(t));
+
+                if (classType != null)
+                {
+                    var collector = CreateResilientCollector(_doc, classType);
+                    
+                    IEnumerable<Element> elements = collector.Cast<Element>().Where(e => classType.IsAssignableFrom(e.GetType()));
+
+                    if (isTypeRequested || typeof(ElementType).IsAssignableFrom(classType))
+                        elements = elements.Where(e => e is ElementType);
+                    else
+                        elements = elements.Where(e => !(e is ElementType));
+
+                    if (!string.IsNullOrEmpty(categoryFilter))
+                    {
+                        elements = elements.Where(e => 
+                            e.Category?.Name.Equals(categoryFilter, StringComparison.OrdinalIgnoreCase) == true ||
+                            e.Category?.BuiltInCategory.ToString().Contains(categoryFilter) == true);
+                    }
+
+                    return elements.Select(e => GetElementIdentity(e)).Distinct().OrderBy(n => n).ToList();
+                }
+
+                // 2. BUILT-IN CATEGORY FALLBACK
                 var categories = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>();
                 var builtin = categories.FirstOrDefault(c => 
                     c.ToString().Equals($"OST_{cleanName}", StringComparison.OrdinalIgnoreCase) ||
@@ -97,33 +117,10 @@ namespace CoreScript.Engine.Core
                 if (builtin != default)
                 {
                     var collector = new FilteredElementCollector(_doc).OfCategoryId(new ElementId(builtin));
+                    if (isTypeRequested) collector.WhereElementIsElementType();
+                    else collector.WhereElementIsNotElementType();
+
                     return collector.Cast<Element>().Select(e => GetElementIdentity(e)).Where(s => !string.IsNullOrEmpty(s)).Distinct().OrderBy(n => n).ToList();
-                }
-
-                // 2. Class Reflection with Resilience
-                if (_revitTypes == null) _revitTypes = typeof(Element).Assembly.GetTypes();
-                var classType = _revitTypes.FirstOrDefault(t => (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)) && typeof(Element).IsAssignableFrom(t));
-
-                if (classType != null)
-                {
-                    var collector = CreateResilientCollector(_doc, classType);
-                    
-                    // V3 FIX: Distinction between Instance and Type
-                    if (typeof(ElementType).IsAssignableFrom(classType))
-                    {
-                        collector.WhereElementIsElementType();
-                    }
-                    else if (typeof(Element).IsAssignableFrom(classType))
-                    {
-                        // Standard classes like Wall, Duct, Pipe should return instances
-                        if (classType == typeof(Wall) || classType == typeof(Floor) || classType.Name.Contains("Duct") || classType.Name.Contains("Pipe"))
-                        {
-                            collector.WhereElementIsNotElementType();
-                        }
-                    }
-
-                    return collector.Cast<Element>().Where(e => classType.IsAssignableFrom(e.GetType()))
-                        .Select(e => GetElementIdentity(e)).Distinct().OrderBy(n => n).ToList();
                 }
 
                 return new List<string>();
