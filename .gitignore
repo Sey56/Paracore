@@ -84,7 +84,6 @@ coverage/
 !global.json
 !appsettings.json
 package-lock.json
-paracore-help/
 
 # RAP Specific
 rap-web/server-modules/

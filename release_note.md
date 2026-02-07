@@ -11,7 +11,7 @@ Paracore now speaks the native language of the Revit API. You can define your pa
 - **⚠️ Breaking Change**: Legacy string-based element extraction (where `[RevitElements]` was used on `string` properties) is replaced by Type-Safe Hydration. While the `[RevitElements]` attribute is still required for loadable components (e.g., `Doors`) to specify the target category, the parameter must now be defined as a Revit class (e.g., `FamilyInstance`) rather than a string.
 
 ### ⚡ Reactive Custom Filtering
-The "Compute" action logic is now **Reactive**. Your `_Options` and `_Filter` providers now have access to the current state of other UI parameters.
+The "Compute" action logic is now **Reactive**. Your `_Options` providers now have access to the current state of other UI parameters.
 - **Context-Aware Dropdowns**: Dynamically filter element lists in real-time based on the state of other parameters (like sliders or toggles).
 - **Unit-Aware Hardening**: Parameters passed to `_Options` providers are automatically converted to Revit Internal Units, ensuring consistency with the main script execution.
 
