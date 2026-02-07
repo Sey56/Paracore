@@ -117,7 +117,7 @@ export const ScriptGallery: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
-  const [isCompactView, setIsCompactView] = useState(true);
+  const [isCompactView, setIsCompactView] = useState(false);
   const [typeFilter, setTypeFilter] = useState<'all' | 'single-file' | 'multi-file' | 'tool'>('all');
 
   // Scroll Preservation Logic

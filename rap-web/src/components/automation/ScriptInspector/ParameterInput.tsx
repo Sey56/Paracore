@@ -258,7 +258,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
                ${param.options && param.options.length > 0
                 ? "text-gray-500 hover:text-blue-600 hover:bg-gray-200 dark:hover:bg-gray-700"
                 : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800"}`}
-            title={param.options && param.options.length > 0 ? "Refresh options" : "Compute options"}
+            title={param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options"}
           >
             <FontAwesomeIcon icon={isComputing ? faSpinner : faSync} className={isComputing ? 'animate-spin' : ''} />
           </button>
@@ -563,7 +563,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           <button
             onClick={() => onCompute(param.name)}
             disabled={disabled || isComputing}
-            className={`flex-shrink-0 p-2.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm ${isComputing ? 'animate-pulse' : ''}`}
+            className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm ${isComputing ? 'animate-pulse' : ''}`}
             title={param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options from Revit"}
           >
             <FontAwesomeIcon

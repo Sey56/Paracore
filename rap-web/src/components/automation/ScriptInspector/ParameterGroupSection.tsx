@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faChevronRight, faExclamationCircle } from "@fortawesome/free-solid-svg-icons";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
@@ -15,6 +15,8 @@ interface ParameterGroupSectionProps {
     onPickObject: (selectionType: string, index: number) => void;
     isComputingOptions: Record<string, boolean>;
     isActionable: boolean;
+    isExpanded: boolean;
+    onToggleExpand: (expanded: boolean) => void;
 }
 
 export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
@@ -26,29 +28,21 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
     computeParameterOptions,
     onPickObject,
     isComputingOptions,
-    isActionable
+    isActionable,
+    isExpanded,
+    onToggleExpand
 }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const validationErrors = validateParameters(parameters);
     const hasErrors = validationErrors.length > 0;
-
-    useEffect(() => {
-        if (isExpanded && containerRef.current) {
-            // Delay slightly to allow content to render before scrolling
-            setTimeout(() => {
-                containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 50);
-        }
-    }, [isExpanded]);
 
     return (
         <div ref={containerRef} className="border border-gray-200 dark:border-gray-700 rounded-lg mb-3 w-full">
             {/* Header */}
             <div
                 className={`bg-gray-50 dark:bg-gray-800 px-4 py-2 cursor-pointer flex items-center justify-between select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => onToggleExpand(!isExpanded)}
             >
                 <div className="flex items-center space-x-2 font-medium text-sm text-gray-700 dark:text-gray-300">
                     <FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronRight} className="text-gray-400 text-xs w-3" />

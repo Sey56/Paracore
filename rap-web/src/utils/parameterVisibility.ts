@@ -2,7 +2,7 @@ import type { ScriptParameter } from '@/types/scriptModel';
 
 /**
  * Evaluates a visibility condition for a parameter
- * @param condition - The condition string (e.g., "creationMode == 'Grid'")
+ * @param condition - The condition string (e.g., "creationMode == 'Grid'" or just "ShowAdvanced")
  * @param allParams - All parameters to evaluate against
  * @returns true if the parameter should be visible, false otherwise
  */
@@ -16,7 +16,19 @@ export const evaluateVisibilityCondition = (
     const operator = operators.find(op => condition.includes(op));
 
     if (!operator) {
-        return true;
+        // No operator found - treat as a simple boolean property reference
+        // e.g., "ShowAdvanced" means "visible when ShowAdvanced is true"
+        const paramName = condition.trim();
+        const param = allParams.find(p => p.name === paramName);
+        if (!param) {
+            return true; // If referenced param doesn't exist, default to visible
+        }
+        // Evaluate truthiness: true, "true", "True", non-empty strings, non-zero numbers
+        const val = param.value;
+        if (typeof val === 'boolean') return val;
+        if (typeof val === 'string') return val.toLowerCase() === 'true';
+        if (typeof val === 'number') return val !== 0;
+        return false;
     }
 
     const parts = condition.split(operator);
@@ -47,6 +59,7 @@ export const evaluateVisibilityCondition = (
 
     return result;
 };
+
 
 /**
  * Filters parameters based on their visibility conditions

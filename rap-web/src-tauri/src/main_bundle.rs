@@ -165,29 +165,31 @@ pub fn main() {
                 let app_handle = event.window().app_handle();
                 let state: State<AppState> = app_handle.state();
                 
-                let mut py_process_guard = state.py_process.lock().unwrap();
+                // Take the process out of state
+                let child_opt = {
+                    let mut py_process_guard = state.py_process.lock().unwrap();
+                    py_process_guard.take()
+                };
 
-                if let Some(child) = py_process_guard.take() {
+                if let Some(child) = child_opt {
                     // Show a closing message to the user
-                    let _ = window.eval("document.body.style.opacity = '0.5'; document.body.insertAdjacentHTML('afterbegin', '<div style=\'position: fixed; z-index: 9999; top: 50%; left: 50%; transform: translate(-50%, -50%); color: black; background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5);\'>Closing server, please wait...</div>');");
+                    let _ = window.eval("document.body.style.opacity = '0.5'; document.body.insertAdjacentHTML('afterbegin', '<div style=\"position: fixed; z-index: 9999; top: 50%; left: 50%; transform: translate(-50%, -50%); color: black; background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5);\">Closing server, please wait...</div>');");
 
-                    let app_handle_clone = app_handle.clone();
-                    // Spawn a background thread to perform the blocking kill operation
-                    std::thread::spawn(move || {
-                        info!("Attempting to terminate Python sidecar process with PID: {}", child.id());
-                        if let Err(e) = child.kill() {
-                            error!("Failed to send termination signal to Python process: {}", e);
-                        } else {
-                            info!("Termination signal sent successfully.");
-                        }
-                        
-                        // Now, exit the app from the background thread
-                        app_handle_clone.exit(0);
-                    });
-                } else {
-                    // If there's no process to kill, exit immediately
-                    app_handle.exit(0);
+                    info!("Attempting to terminate Python sidecar process with PID: {}", child.id());
+                    
+                    // Kill synchronously - this is blocking but necessary to ensure cleanup
+                    if let Err(e) = child.kill() {
+                        error!("Failed to send termination signal to Python process: {}", e);
+                    } else {
+                        info!("Termination signal sent successfully.");
+                    }
+                    
+                    // Small delay to allow taskkill to complete
+                    std::thread::sleep(std::time::Duration::from_millis(200));
                 }
+                
+                // Now exit the app
+                app_handle.exit(0);
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -197,5 +199,7 @@ pub fn main() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_app_handle, _event| {});
+        .run(|_app_handle, _event| {
+            // RunEvent handler - backup cleanup already done in on_window_event
+        });
 }

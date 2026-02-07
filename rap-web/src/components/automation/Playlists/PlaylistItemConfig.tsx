@@ -18,6 +18,7 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
     const { scripts, reloadScript } = useScripts();
     const { computeParameterOptions, pickObject, isComputingOptions } = useScriptExecution();
     const [isLoading, setIsLoading] = React.useState(false);
+    const [expandedGroups, setExpandedGroups] = React.useState<Record<string, boolean>>({});
 
     const script = useMemo(() => {
         // Try multiple matching strategies
@@ -206,6 +207,8 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
                     onPickObject={handlePickObject}
                     isComputingOptions={isComputingOptions}
                     isActionable={true}
+                    isExpanded={expandedGroups[group.name] ?? false}
+                    onToggleExpand={(expanded) => setExpandedGroups(prev => ({ ...prev, [group.name]: expanded }))}
                 />
             ))}
         </div>

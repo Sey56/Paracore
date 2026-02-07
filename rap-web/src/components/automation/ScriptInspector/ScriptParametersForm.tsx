@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
 import { ParameterInput } from "./ParameterInput";
 import { ParameterGroupSection } from "./ParameterGroupSection";
 import { filterVisibleParameters, isParameterEnabled } from '@/utils/parameterVisibility';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faExpandAlt, faCompressAlt } from "@fortawesome/free-solid-svg-icons";
 
 interface ScriptParametersFormProps {
     script: Script | null; // Nullable for Generation View where we might not have a full script entity
@@ -14,6 +16,9 @@ interface ScriptParametersFormProps {
     isActionable: boolean;
 }
 
+// Global cache to persist expand state across script navigations (resets on app refresh)
+const expandedGroupsCache: Record<string, Record<string, boolean>> = {};
+
 export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
     script,
     parameters,
@@ -23,6 +28,15 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
     isComputingOptions,
     isActionable
 }) => {
+    const scriptId = script?.id || '__generation__';
+
+    // Initialize cache for this script if it doesn't exist
+    if (!expandedGroupsCache[scriptId]) {
+        expandedGroupsCache[scriptId] = {};
+    }
+
+    // Force re-render trigger
+    const [, forceUpdate] = React.useReducer(x => x + 1, 0);
 
     // Filter visibility
     const visibleParameters = useMemo(() => {
@@ -51,6 +65,29 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
         return { groupedParams: grouped, ungroupedParams: ungrouped };
     }, [visibleParameters]);
 
+    const isGroupExpanded = useCallback((groupName: string) => {
+        return expandedGroupsCache[scriptId][groupName] ?? false;
+    }, [scriptId]);
+
+    const setGroupExpanded = useCallback((groupName: string, expanded: boolean) => {
+        expandedGroupsCache[scriptId][groupName] = expanded;
+        forceUpdate();
+    }, [scriptId]);
+
+    const handleExpandAll = useCallback(() => {
+        groupedParams.forEach(g => {
+            expandedGroupsCache[scriptId][g.name] = true;
+        });
+        forceUpdate();
+    }, [scriptId, groupedParams]);
+
+    const handleCollapseAll = useCallback(() => {
+        groupedParams.forEach(g => {
+            expandedGroupsCache[scriptId][g.name] = false;
+        });
+        forceUpdate();
+    }, [scriptId, groupedParams]);
+
     if (parameters.length === 0) {
         return (
             <div className="text-center py-8 text-gray-400 italic">
@@ -59,8 +96,32 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
         );
     }
 
+    const hasGroups = groupedParams.length > 0;
+
     return (
         <div className="space-y-4">
+            {/* Expand All / Collapse All buttons */}
+            {hasGroups && (
+                <div className="flex justify-end gap-2 mb-2">
+                    <button
+                        onClick={handleExpandAll}
+                        className="text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        title="Expand All Groups"
+                    >
+                        <FontAwesomeIcon icon={faExpandAlt} className="text-[10px]" />
+                        <span>Expand All</span>
+                    </button>
+                    <button
+                        onClick={handleCollapseAll}
+                        className="text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        title="Collapse All Groups"
+                    >
+                        <FontAwesomeIcon icon={faCompressAlt} className="text-[10px]" />
+                        <span>Collapse All</span>
+                    </button>
+                </div>
+            )}
+
             {/* Render Ungrouped Parameters First */}
             {ungroupedParams.map((param) => {
                 // Find original index in the main array to pass back to onChange
@@ -93,6 +154,8 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
                     onPickObject={(type, idx) => onPickObject(type, idx)} // Adapter
                     isComputingOptions={isComputingOptions}
                     isActionable={isActionable}
+                    isExpanded={isGroupExpanded(group.name)}
+                    onToggleExpand={(expanded) => setGroupExpanded(group.name, expanded)}
                 />
             ))}
         </div>
