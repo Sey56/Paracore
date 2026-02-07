@@ -26,7 +26,7 @@ The "Compute" action logic is now **Reactive**. Your `_Options` and `_Filter` pr
 - **Sheet Standards**: ViewSheets now follow the `[Number] Name` format.
 
 ## 🛠️ Engine Hardening
-- **Global Synchronization**: Aligned all execution paths (IntelliSense, Main Engine, and Options Executor) to use the exact same master list of 25+ namespaces and libraries.
+- **Global Synchronization**: Aligned all execution paths (IntelliSense, Main Engine, and Options Executor) to use the same stabilized list of 20+ namespaces and libraries.
 - **Code Leak Prevention**: Hardened the parameter extractor to prevent internal C# logic from appearing in user-facing UI labels.
 
 ---
