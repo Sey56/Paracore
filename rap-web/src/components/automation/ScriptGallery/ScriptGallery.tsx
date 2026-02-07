@@ -20,6 +20,122 @@ import styles from './ScriptGallery.module.css';
 import { useAuth } from '@/hooks/useAuth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 
+interface FocusOverlayProps {
+  script: Script;
+  sourceRect: DOMRect | null;
+  onExit: () => void;
+  isFromActiveWorkspace: boolean;
+  targetElement: HTMLElement | null;
+}
+
+const FocusOverlay: React.FC<FocusOverlayProps> = ({ script, sourceRect, onExit, isFromActiveWorkspace, targetElement }) => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // 1. Position & Resize Logic (Must run before animation)
+  useLayoutEffect(() => {
+    if (!targetElement || !wrapperRef.current) return;
+
+    const updatePosition = () => {
+      const rect = targetElement.getBoundingClientRect();
+      if (wrapperRef.current) {
+        wrapperRef.current.style.top = `${rect.top}px`;
+        wrapperRef.current.style.left = `${rect.left}px`;
+        wrapperRef.current.style.width = `${rect.width}px`;
+        wrapperRef.current.style.height = `${rect.height}px`;
+      }
+    };
+
+    // Initial position
+    updatePosition();
+
+    // Track resize/layout changes (zero-latency direct DOM)
+    const observer = new ResizeObserver(updatePosition);
+    observer.observe(targetElement); // Observe parent size changes
+    // Also track window resize just in case
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [targetElement]);
+
+  // 2. Scroll Initialization (Center content)
+  useLayoutEffect(() => {
+    if (!overlayRef.current) return;
+    // Scroll to center (80px is half of ~160px extra height added in CSS)
+    overlayRef.current.scrollTop = 80;
+  }, []);
+
+  // 3. FLIP Animation
+  useLayoutEffect(() => {
+    if (!containerRef.current || !sourceRect) return;
+
+    // Measure Last (final state) - Wrapper is already positioned by previous effect
+    const lastRect = containerRef.current.getBoundingClientRect();
+
+    const deltaX = sourceRect.left - lastRect.left;
+    const deltaY = sourceRect.top - lastRect.top;
+    const deltaW = sourceRect.width / lastRect.width;
+    // const deltaH = sourceRect.height / lastRect.height; // We allow height to change
+
+    containerRef.current.animate([
+      {
+        transformOrigin: 'top left',
+        transform: `translate(${deltaX}px, ${deltaY}px) scale(${deltaW})`,
+        opacity: 1 // Ensure visibility start
+      },
+      {
+        transformOrigin: 'top left',
+        transform: 'none',
+        opacity: 1
+      }
+    ], {
+      duration: 350,
+      easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      fill: 'both'
+    });
+  }, [sourceRect]);
+
+  return (
+    <div
+      ref={wrapperRef}
+      style={{
+        position: 'fixed',
+        zIndex: 1000,
+        // Dimensions set by JS
+      }}
+    >
+      <div className={styles.inlineFocusEffects}>
+        <div className={styles.animatedBackdrop}></div>
+      </div>
+
+      <div
+        ref={overlayRef}
+        className={styles.focusOverlayContainer}
+        style={{
+          width: '100%',
+          height: '100%',
+          overflowY: 'auto'
+        }}
+      >
+        <div ref={containerRef} className={styles.heroGrid}>
+          <ScriptCard
+            script={script}
+            onSelect={() => { }}
+            isFromActiveWorkspace={isFromActiveWorkspace}
+            isCompact={false}
+            showExitFocus={true}
+            onExitFocus={onExit}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const parseSearchTerm = (term: string) => {
   const filters: {
     author: string[];
@@ -124,16 +240,37 @@ export const ScriptGallery: React.FC = () => {
   const galleryRef = useRef<HTMLDivElement>(null);
   const savedScrollTop = useRef(0);
 
-  const handleEnterFocusMode = () => {
+  // FLIP Animation: Store source card position
+  const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
+
+  const handleEnterFocusMode = (rect: DOMRect) => {
     if (galleryRef.current && galleryRef.current.parentElement) {
       savedScrollTop.current = galleryRef.current.parentElement.scrollTop;
     }
+    setSourceRect(rect);
     setFocusMode(true);
   };
 
+  const handleExitFocusMode = () => {
+    setFocusMode(false);
+    setSourceRect(null);
+  };
+
   useLayoutEffect(() => {
-    if (!isFocusMode && galleryRef.current && galleryRef.current.parentElement) {
-      galleryRef.current.parentElement.scrollTop = savedScrollTop.current;
+    const parent = galleryRef.current?.parentElement;
+    if (!parent) return;
+
+    if (isFocusMode) {
+      // Lock parent scroll
+      const originalOverflow = parent.style.overflow;
+      parent.style.overflow = 'hidden';
+
+      return () => {
+        parent.style.overflow = originalOverflow;
+      };
+    } else {
+      // Restore scroll position
+      parent.scrollTop = savedScrollTop.current;
     }
   }, [isFocusMode]);
 
@@ -249,9 +386,9 @@ export const ScriptGallery: React.FC = () => {
   };
 
   return (
-    <div ref={galleryRef} className={`p-4 relative min-h-full min-w-0 ${isFocusMode ? 'overflow-hidden' : ''}`}>
+    <div ref={galleryRef} className={`relative min-h-full min-w-0 ${isFocusMode ? 'overflow-hidden' : ''}`}>
       {/* --- NORMAL VIEW CONTENT --- */}
-      {!isFocusMode && (
+      <div className={`p-4 transition-opacity duration-300 ${isFocusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <>
           {/* 1. Main Header */}
           <div className="flex justify-between items-center mb-4 transition-all">
@@ -419,25 +556,17 @@ export const ScriptGallery: React.FC = () => {
             )}
           </div>
         </>
-      )}
+      </div>
 
       {/* --- FOCUS MODE OVERLAY --- */}
       {isFocusMode && selectedScript && (
-        <div className={styles.focusOverlayContainer}>
-          <div className={styles.inlineFocusEffects}>
-            <div className={styles.animatedBackdrop}></div>
-          </div>
-          <div className={styles.heroGrid}>
-            <ScriptCard
-              script={selectedScript}
-              onSelect={() => { }}
-              isFromActiveWorkspace={isFromActiveWorkspace(selectedScript)}
-              isCompact={false}
-              showExitFocus={true}
-              onExitFocus={() => setFocusMode(false)}
-            />
-          </div>
-        </div>
+        <FocusOverlay
+          script={selectedScript}
+          sourceRect={sourceRect}
+          onExit={handleExitFocusMode}
+          isFromActiveWorkspace={isFromActiveWorkspace(selectedScript)}
+          targetElement={galleryRef.current?.parentElement || null}
+        />
       )}
 
       {selectedFolder && (
@@ -445,7 +574,7 @@ export const ScriptGallery: React.FC = () => {
       )}
 
       {/* 5. Type Filter Bar */}
-      {!isFocusMode && (
+      <div className={`p-4 transition-opacity duration-300 ${isFocusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <div className={styles.filterBar}>
           {['all', 'single-file', 'multi-file', 'tool'].map(t => (
             <div key={t} className={`${styles.filterItem} ${typeFilter === t ? styles.activeFilter : ''}`} onClick={() => setTypeFilter(t as 'all' | 'single-file' | 'multi-file' | 'tool')}>
@@ -454,7 +583,7 @@ export const ScriptGallery: React.FC = () => {
             </div>
           ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

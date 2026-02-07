@@ -597,11 +597,18 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
               } else {
                 // User has explicitly overridden this value, preserve it.
                 // But update metadata (min/max/options) from the new param.
+                // IMPORTANT: If new param has empty options (e.g. computed), keep existing options.
+                const resolvedOptions = (newParam.options && newParam.options.length > 0)
+                  ? newParam.options
+                  : (existingParam.options || []);
+
                 return {
                   ...newParam,
                   value: existingParam.value,
+                  options: resolvedOptions,
                   unit: newParam.unit,
-                  selectionType: newParam.selectionType
+                  selectionType: newParam.selectionType,
+                  computedInDocument: existingParam.computedInDocument
                 };
               }
             }
@@ -733,7 +740,20 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
         const mergedParameters = (updatedScriptFromProvider.parameters || []).map(newParam => {
           const existingEdit = currentEdits.find(e => e.name === newParam.name);
-          return existingEdit ? { ...newParam, value: existingEdit.value } : newParam;
+          if (existingEdit) {
+            // Preserve value AND options if new options are empty (prevents computed options from being wiped by background sync)
+            const resolvedOptions = (newParam.options && newParam.options.length > 0)
+              ? newParam.options
+              : (existingEdit.options || []);
+
+            return {
+              ...newParam,
+              value: existingEdit.value,
+              options: resolvedOptions,
+              computedInDocument: existingEdit.computedInDocument
+            };
+          }
+          return newParam;
         });
 
         return { ...prev, [selectedScript.id]: mergedParameters };
@@ -987,9 +1007,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         const updateParamMetadata = (p: ScriptParameter) => {
           if (p.name !== parameterName) return p;
           if (isRangeUpdate) {
-            return { ...p, min: min ?? p.min, max: max ?? p.max, step: step ?? p.step };
+            return { ...p, min: min ?? p.min, max: max ?? p.max, step: step ?? p.step, computedInDocument: revitStatus.document || undefined };
           } else {
-            return { ...p, options: options };
+            return { ...p, options: options, computedInDocument: revitStatus.document || undefined };
           }
         };
 
@@ -1069,7 +1089,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     } finally {
       setIsComputingOptions(prev => ({ ...prev, [parameterName]: false }));
     }
-  }, [selectedScript, showNotification, setUserEditedScriptParameters, setScripts]);
+  }, [selectedScript, showNotification, setUserEditedScriptParameters, setScripts, revitStatus]);
 
   const pickObject = useCallback(async (script: Script, paramName: string, selectionType: string, shouldUpdateGlobalState: boolean = true) => {
     setIsComputingOptions(prev => ({ ...prev, [paramName]: true })); // Use computing state for spinner
@@ -1096,7 +1116,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             const params = prev[script.id] || script.parameters || [];
             const updatedParams = params.map(p => {
               if (p.name === paramName) {
-                return { ...p, value: value };
+                return { ...p, value: value, computedInDocument: revitStatus.document || undefined };
               }
               return p;
             });
@@ -1108,7 +1128,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             setSelectedScriptState(prev => {
               if (!prev) return null;
               const updatedParams = (prev.parameters || []).map(p =>
-                p.name === paramName ? { ...p, value: value } : p
+                p.name === paramName ? { ...p, value: value, computedInDocument: revitStatus.document || undefined } : p
               );
               return { ...prev, parameters: updatedParams };
             });
@@ -1128,7 +1148,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     } finally {
       setIsComputingOptions(prev => ({ ...prev, [paramName]: false }));
     }
-  }, [showNotification, setUserEditedScriptParameters, userEditedScriptParameters]);
+  }, [showNotification, setUserEditedScriptParameters, userEditedScriptParameters, revitStatus]);
 
   const resetScriptParameters = useCallback(async (scriptId: string) => {
     // 1. Clear from user edits cache Ref synchronously

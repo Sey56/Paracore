@@ -200,13 +200,30 @@ using System.Linq;
 // 1. Setup Parameters
 var p = new Params();
 
+// Hydration Fallback for VSCode Execution (Engine doesn't inject UI selections here)
+// If BaseLevel is null (default), we find a level automatically.
+if (p.BaseLevel == null)
+{
+    p.BaseLevel = new FilteredElementCollector(Doc)
+        .OfClass(typeof(Level))
+        .Cast<Level>()
+        .FirstOrDefault(l => l.Name == "Level 1") 
+        ?? new FilteredElementCollector(Doc).OfClass(typeof(Level)).FirstElement() as Level;
+}
+
 Println($"Starting execution for: {p.ProjectName}...");
+
+if (p.BaseLevel == null)
+{
+    Println("❌ No Level found in the project.");
+    return;
+}
 
 // 2. Execution Logic
 Transact("Create Spiral", () =>
 {
     var spiral = new SpiralCreator();
-    spiral.CreateSpiral(Doc, p.LevelName, p.Radius, p.Turns, p.Resolution);
+    spiral.CreateSpiral(Doc, p.BaseLevel, p.Radius, p.Turns, p.Resolution);
 });
 
 Println("Execution finished successfully! ✅");
@@ -224,8 +241,7 @@ public class Params
     /// <summary>
     /// The level to create the spiral on.
     /// </summary>
-    [RevitElements(Category = "Levels"), Required]
-    public string LevelName { get; set; } = "Level 1";
+    public Level BaseLevel { get; set; }
 
     #endregion
 
@@ -255,14 +271,8 @@ using System.Linq;
 
 public class SpiralCreator
 {
-    public void CreateSpiral(Document doc, string levelName, double maxRadiusFeet, int numTurns, double angleResolutionDegrees)
+    public void CreateSpiral(Document doc, Level level, double maxRadiusFeet, int numTurns, double angleResolutionDegrees)
     {
-        Level level = new FilteredElementCollector(doc)
-            .OfClass(typeof(Level))
-            .Cast<Level>()
-            .FirstOrDefault(l => l.Name == levelName)
-            ?? throw new Exception($"Level \\"{levelName}\\" not found.");
-
         // Radius is already in Feet because the Engine handles [Unit] conversion automatically.
         double angleResRad = angleResolutionDegrees * Math.PI / 180;
 

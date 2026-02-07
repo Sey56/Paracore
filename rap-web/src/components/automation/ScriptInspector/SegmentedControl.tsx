@@ -9,7 +9,7 @@ interface SegmentedControlProps {
 
 export const SegmentedControl: React.FC<SegmentedControlProps> = ({ options, value, onChange, disabled }) => {
     return (
-        <div className="flex flex-wrap w-full bg-gray-100 dark:bg-gray-800/50 rounded-md p-1 border border-gray-200 dark:border-gray-700 gap-1">
+        <div className="flex flex-wrap w-full h-9 bg-gray-100 dark:bg-gray-800/50 rounded-md p-1 border border-gray-200 dark:border-gray-700 gap-1 overflow-hidden">
             {(options ?? []).map((option) => {
                 const isActive = value === option;
                 return (
@@ -18,10 +18,10 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({ options, val
                         type="button"
                         disabled={disabled}
                         onClick={() => onChange(option)}
-                        className={`flex-grow px-3 py-1.5 text-xs rounded-md transition-all duration-200 
+                        className={`flex-grow h-full py-0 flex items-center justify-center text-xs rounded-md transition-all duration-200  
                             ${isActive
-                            ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-100 shadow-sm font-semibold'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 font-medium'
+                                ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-100 shadow-sm font-semibold'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 font-medium'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                         {option}

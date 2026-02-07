@@ -32,7 +32,8 @@ export interface ScriptCardProps {
   isCompact?: boolean;
   showExitFocus?: boolean;
   onExitFocus?: () => void;
-  onFocus?: () => void;
+  onFocus?: (rect: DOMRect) => void;
+  isHidden?: boolean;
 }
 
 export const ScriptCard: React.FC<ScriptCardProps> = ({
@@ -42,8 +43,10 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   isCompact = false,
   showExitFocus = false,
   onExitFocus,
-  onFocus
+  onFocus,
+  isHidden = false
 }) => {
+  const cardRef = React.useRef<HTMLDivElement>(null);
   const {
     selectedScript,
     runningScriptPath,
@@ -176,8 +179,9 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   return (
     <div
+      ref={cardRef}
       className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
-        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isMultiFile ? styles.multiFile : ""} ${isTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""}`}
+        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isMultiFile ? styles.multiFile : ""} ${isTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
       onClick={handleSelect}
     >
 
@@ -271,9 +275,9 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                 e.stopPropagation();
                 if (showExitFocus && onExitFocus) {
                   onExitFocus();
-                } else if (onFocus) {
+                } else if (onFocus && cardRef.current) {
                   onSelect();
-                  onFocus();
+                  onFocus(cardRef.current.getBoundingClientRect());
                 }
               }}
               title={showExitFocus ? "Exit Focus Mode" : "Focus View"}

@@ -11,7 +11,7 @@ export const ColorInput: React.FC<ColorInputProps> = ({ value, onChange, disable
     const hexValue = value.startsWith('#') ? value : '#000000';
 
     return (
-        <div className="flex items-center w-full gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1.5 focus-within:ring-1 focus-within:ring-blue-500">
+        <div className="flex items-center w-full gap-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 h-9 focus-within:ring-1 focus-within:ring-blue-500">
             <div
                 className="relative w-6 h-6 rounded-md shadow-sm border border-gray-200 dark:border-gray-500 transition-transform active:scale-95"
                 style={{ backgroundColor: hexValue }}

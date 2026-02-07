@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSync, faSpinner, faFolderOpen, faMousePointer, faCrosshairs, faSearch, faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faSync, faSpinner, faFolderOpen, faMousePointer, faCrosshairs, faSearch, faCheck, faExclamationTriangle } from "@fortawesome/free-solid-svg-icons";
 import { open, save } from "@tauri-apps/api/dialog";
+import { useRevitStatus } from "@/hooks/useRevitStatus";
 import type { ScriptParameter } from "@/types/scriptModel";
 import { SliderInput } from "./SliderInput";
 import { PointInput } from "./PointInput";
@@ -134,13 +135,13 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
   };
 
   return (
-    <div className="relative w-full">
+    <div className={`relative w-full ${isOpen ? 'z-50' : ''}`}>
       {/* Trigger Button */}
       <button
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 text-left flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`w-full h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 text-sm bg-white dark:bg-gray-800 text-left flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <span className="truncate mr-2 block text-gray-800 dark:text-gray-200 min-w-0">
           {value || <span className="text-gray-400 italic">Select...</span>}
@@ -156,10 +157,10 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
           {/* Backdrop to close on click outside */}
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
 
-          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top">
+          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top">
 
             {/* Search */}
-            <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                   <FontAwesomeIcon icon={faSearch} className="text-gray-400 text-xs" />
@@ -176,7 +177,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
             </div>
 
             {/* Virtual List */}
-            <div className="bg-white dark:bg-gray-900/50">
+            <div className="bg-white dark:bg-gray-900">
               {filteredOptions.length > 0 ? (
                 <VirtualList
                   items={filteredOptions}
@@ -200,7 +201,10 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
 };
 
 const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onChange, onCompute, isComputing, disabled }) => {
+  const { revitStatus } = useRevitStatus();
   const [searchTerm, setSearchTerm] = useState("");
+
+  const isContextMismatch = param.computedInDocument && revitStatus.document && param.computedInDocument !== revitStatus.document;
 
   const getMultiSelectValues = (): string[] => {
     try {
@@ -235,7 +239,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
   return (
     <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-sm overflow-hidden w-full min-w-0">
       {/* Search Header */}
-      <div className="flex items-center px-2 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+      <div className="flex items-center px-2 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <div className="relative flex-grow min-w-0">
           <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
             <FontAwesomeIcon icon={faSearch} className="text-gray-400 text-xs" />
@@ -258,15 +262,20 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
                ${param.options && param.options.length > 0
                 ? "text-gray-500 hover:text-blue-600 hover:bg-gray-200 dark:hover:bg-gray-700"
                 : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800"}`}
-            title={param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options"}
+            title={isContextMismatch
+              ? `Value computed in '${param.computedInDocument}'. Click to update for '${revitStatus.document}'.`
+              : (param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options")}
           >
-            <FontAwesomeIcon icon={isComputing ? faSpinner : faSync} className={isComputing ? 'animate-spin' : ''} />
+            <FontAwesomeIcon
+              icon={isComputing ? faSpinner : (isContextMismatch ? faExclamationTriangle : faSync)}
+              className={`${isComputing ? 'animate-spin' : ''} ${isContextMismatch ? 'text-amber-500' : ''}`}
+            />
           </button>
         )}
       </div>
 
       {/* Virtualized Options List */}
-      <div className="bg-white dark:bg-gray-900/50">
+      <div className="bg-white dark:bg-gray-900">
         {filteredOptions.length > 0 ? (
           <VirtualList
             items={filteredOptions}
@@ -284,7 +293,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
       </div>
 
       {/* Footer Actions */}
-      <div className="flex justify-between items-center px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 text-xs">
+      <div className="flex justify-between items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 text-xs">
         <span className="text-gray-400 dark:text-gray-500">
           {selectedValues.length} selected
         </span>
@@ -311,7 +320,10 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
 };
 
 export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, onPickObject, isComputing, disabled }) => {
+  const { revitStatus } = useRevitStatus();
   const [showTooltip, setShowTooltip] = useState(false);
+
+  const isContextMismatch = param.computedInDocument && revitStatus.document && param.computedInDocument !== revitStatus.document;
 
   const handleFileBrowse = async () => {
     try {
@@ -348,14 +360,14 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             type="text"
             value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
             onChange={(e) => onChange(index, e.target.value)}
-            className="flex-grow border border-gray-300 dark:border-gray-600 rounded-l-md px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+            className="flex-grow h-9 border border-gray-300 dark:border-gray-600 rounded-l-md px-3 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
             disabled={disabled}
             placeholder={param.inputType === 'Folder' ? "Select folder..." : (param.inputType === 'SaveFile' ? "Enter save path..." : "Select file...")}
           />
           <button
             onClick={handleFileBrowse}
             disabled={disabled}
-            className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-r-md border border-l-0 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
+            className="w-9 h-9 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-r-md border border-l-0 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 transition-colors flex items-center justify-center flex-shrink-0"
             title="Browse..."
           >
             <FontAwesomeIcon icon={faFolderOpen} />
@@ -469,17 +481,22 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
               const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
               onChange(index, val);
             }}
-            className="flex-grow border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm"
+            className="flex-grow h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm"
             disabled={disabled}
           />
           {param.selectionType && param.selectionType !== "None" && onPickObject && (
             <button
               onClick={() => onPickObject(param.selectionType!, index)}
               disabled={disabled || isComputing}
-              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center min-w-[40px] transition-colors shadow-sm"
-              title={`Select ${param.selectionType} in Revit`}
+              className="w-9 h-9 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-colors shadow-sm flex-shrink-0 p-0"
+              title={isContextMismatch
+                ? `Selected in '${param.computedInDocument}'. Click to re-select for '${revitStatus.document}'.`
+                : `Select ${param.selectionType} in Revit`}
             >
-              <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} />
+              <FontAwesomeIcon
+                icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)}
+                className={isContextMismatch ? 'text-amber-500' : ''}
+              />
             </button>
           )}
         </div>
@@ -495,6 +512,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           onPick={() => onPickObject && onPickObject('Point', index)}
           disabled={disabled}
           isPicking={isComputing} // reusing isComputing for loading state
+          computedInDocument={param.computedInDocument}
         />
       );
     }
@@ -517,17 +535,22 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           type="text"
           value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
           onChange={(e) => onChange(index, e.target.value)}
-          className="flex-grow border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm"
+          className="flex-grow h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm"
           disabled={disabled}
         />
         {param.selectionType && param.selectionType !== "None" && onPickObject && (
           <button
             onClick={() => onPickObject(param.selectionType!, index)}
             disabled={disabled || isComputing}
-            className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center min-w-[40px] transition-colors shadow-sm"
-            title={`Select ${param.selectionType} in Revit`}
+            className="w-9 h-9 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-colors shadow-sm flex-shrink-0 p-0"
+            title={isContextMismatch
+              ? `Selected in '${param.computedInDocument}'. Click to re-select for '${revitStatus.document}'.`
+              : `Select ${param.selectionType} in Revit`}
           >
-            <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} />
+            <FontAwesomeIcon
+              icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)}
+              className={isContextMismatch ? 'text-amber-500' : ''}
+            />
           </button>
         )}
       </div>
@@ -564,11 +587,13 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             onClick={() => onCompute(param.name)}
             disabled={disabled || isComputing}
             className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm ${isComputing ? 'animate-pulse' : ''}`}
-            title={param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options from Revit"}
+            title={isContextMismatch
+              ? `Value computed in '${param.computedInDocument}'. Click to update for '${revitStatus.document}'.`
+              : (param.options && param.options.length > 0 ? `Refresh options (Current: ${param.options.length})` : "Compute options from Revit")}
           >
             <FontAwesomeIcon
-              icon={isComputing ? faSpinner : faSync}
-              className={`${isComputing ? 'animate-spin' : ''} ${param.options && param.options.length > 0 ? 'text-gray-500 dark:text-gray-400' : 'text-blue-600 dark:text-blue-400'}`}
+              icon={isComputing ? faSpinner : (isContextMismatch ? faExclamationTriangle : faSync)}
+              className={`${isComputing ? 'animate-spin' : ''} ${isContextMismatch ? 'text-amber-500' : (param.options && param.options.length > 0 ? 'text-gray-500 dark:text-gray-400' : 'text-blue-600 dark:text-blue-400')}`}
             />
           </button>
         )}

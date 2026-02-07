@@ -24,6 +24,7 @@ export interface ScriptParameter {
   enabledWhenValue?: string;
   unit?: string;
   selectionType?: string;
+  computedInDocument?: string;
 }
 
 export interface RawScriptParameterData {

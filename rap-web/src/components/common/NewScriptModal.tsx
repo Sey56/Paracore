@@ -90,11 +90,10 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
           <div className="grid grid-cols-2 gap-4">
             <button
               type="button"
-              className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${
-                scriptType === 'single'
+              className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${scriptType === 'single'
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
                   : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
+                }`}
               onClick={() => setScriptType('single')}
             >
               <FontAwesomeIcon icon={faFileCode} className={`text-2xl mb-2 ${scriptType === 'single' ? 'text-blue-500' : 'text-gray-400'}`} />
@@ -102,11 +101,10 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
             </button>
             <button
               type="button"
-              className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${
-                scriptType === 'multi'
+              className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${scriptType === 'multi'
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
                   : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
+                }`}
               onClick={() => setScriptType('multi')}
             >
               <div className="relative">
@@ -131,6 +129,11 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
                 className="block w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:text-white"
                 placeholder="e.g., MyNewProject"
                 autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreate();
+                  }
+                }}
               />
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 A <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">Main.cs</span> entry point will be created automatically.
@@ -150,6 +153,11 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
                   className="block w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:text-white"
                   placeholder="e.g., HelloWorld"
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCreate();
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -158,16 +166,16 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder }: NewScriptMod
 
         {/* Footer Actions */}
         <div className="flex justify-end space-x-3 pt-2">
-          <button 
-            onClick={onClose} 
-            disabled={isLoading} 
+          <button
+            onClick={onClose}
+            disabled={isLoading}
             className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:z-10 focus:ring-2 focus:ring-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 transition-all"
           >
             Cancel
           </button>
-          <button 
-            onClick={handleCreate} 
-            disabled={isLoading} 
+          <button
+            onClick={handleCreate}
+            disabled={isLoading}
             className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-900 shadow-md hover:shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
           >
             {isLoading && <FontAwesomeIcon icon={faSync} className="animate-spin mr-2" />}

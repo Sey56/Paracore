@@ -69,13 +69,10 @@
     position: absolute;
     inset: 0;
     z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    display: block;
+    /* Removed flex centering to avoid clipping and allow margin:auto scrolling */
     background: transparent;
     /* Removed overflow:hidden to prevent clipping of floating card buttons */
-    animation: fadeIn 0.3s ease-out;
 }
 
 .inlineFocusEffects {
@@ -93,8 +90,10 @@
     align-items: center;
     width: 100%;
     margin: auto;
-    max-width: 600px;
+    max-width: 700px;
     padding: 4rem;
+    min-height: calc(100% + 160px);
+    /* Enable vertical scrolling breathing room */
     /* V2.5: High padding to allow card buttons to overflow freely */
     box-sizing: border-box;
     z-index: 10;
@@ -110,7 +109,6 @@
         radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%),
         radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.02) 0%, transparent 60%);
     animation: rotateBackdrop 40s linear infinite;
-    backdrop-filter: blur(16px);
 }
 
 @keyframes rotateBackdrop {
@@ -138,13 +136,14 @@
 }
 
 @keyframes heroEntrance {
-    from {
-        opacity: 0;
-        transform: scale(0.85) translateY(40px);
+    0% {
+        opacity: 1;
+        transform: translate(calc(var(--source-x) - 50vw),
+                calc(var(--source-y) - 50vh)) scale(var(--source-scale));
     }
 
-    to {
+    100% {
         opacity: 1;
-        transform: scale(1) translateY(0);
+        transform: translate(0, 0) scale(1.05);
     }
 }
