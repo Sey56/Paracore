@@ -221,6 +221,7 @@ message ValidateWorkingSetResponse {
 message ComputeParameterOptionsRequest {
   string script_content = 1;
   string parameter_name = 2;
+  bytes parameters_json = 3;
 }
 
 message ComputeParameterOptionsResponse {

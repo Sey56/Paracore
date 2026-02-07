@@ -172,6 +172,53 @@ namespace CoreScript.Engine.Globals
                 return default(T);
             }
 
+            // OPTIMIZATION: XYZ Hydration from string "x,y,z"
+            if (targetType == typeof(XYZ) && val is string xyzString)
+            {
+                try
+                {
+                    var parts = xyzString.Split(',');
+                    if (parts.Length == 3)
+                    {
+                        double x = double.Parse(parts[0], CultureInfo.InvariantCulture);
+                        double y = double.Parse(parts[1], CultureInfo.InvariantCulture);
+                        double z = double.Parse(parts[2], CultureInfo.InvariantCulture);
+                        return (T)(object)new XYZ(x, y, z);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError($"[ExecutionGlobals] Failed to parse XYZ from '{xyzString}': {ex.Message}");
+                }
+            }
+            
+            // OPTIMIZATION: Reference/Face/Edge Hydration from Stable Representation String
+            if ((targetType == typeof(Reference) || typeof(GeometryObject).IsAssignableFrom(targetType)) && val is string refString)
+            {
+                try
+                {
+                     // 1. Parse Reference
+                     var refObj = Reference.ParseFromStableRepresentation(Current.Value?.Doc, refString);
+                     if (refObj != null)
+                     {
+                         if (targetType == typeof(Reference)) return (T)(object)refObj;
+
+                         // 2. Resolve Geometry (Face/Edge)
+                         if (typeof(GeometryObject).IsAssignableFrom(targetType))
+                         {
+                             var el = Current.Value?.Doc.GetElement(refObj);
+                             var geom = el?.GetGeometryObjectFromReference(refObj);
+                             if (geom != null && targetType.IsAssignableFrom(geom.GetType()))
+                                 return (T)(object)geom;
+                         }
+                     }
+                }
+                catch (Exception ex)
+                {
+                     FileLogger.LogError($"[ExecutionGlobals] Failed to parse {targetType.Name} from StableRef: {ex.Message}");
+                }
+            }
+
             // Optimization for primitive conversions (e.g., Int32 -> Double)
             try
             {

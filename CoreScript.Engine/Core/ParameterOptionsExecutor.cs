@@ -115,7 +115,49 @@ namespace CoreScript.Engine.Core
                 var sb = new StringBuilder();
                 sb.AppendLine("using Autodesk.Revit.DB; using Autodesk.Revit.DB.Architecture; using Autodesk.Revit.UI; using System; using System.Collections.Generic; using System.Linq; using CoreScript.Engine.Globals; using static CoreScript.Engine.Globals.ScriptApi;");
                 sb.AppendLine("using Microsoft.CSharp; using Autodesk.Revit.DB.Structure; using Autodesk.Revit.DB.Mechanical; using Autodesk.Revit.DB.Plumbing; using Autodesk.Revit.DB.Electrical;");
-                sb.AppendLine($"var result = (new ParamsWrapper()).{(functionNode is PropertyDeclarationSyntax ? functionName : $"{functionName}()")};");
+                
+                // V3 FIX: Populate the wrapper with current parameter values so dependencies work naturally (e.g. this.Mode)
+                sb.AppendLine("var wrapper = new ParamsWrapper();");
+                
+                // Identify all public properties in the Params class to populate them
+                var properties = paramsClass?.Members
+                    .OfType<PropertyDeclarationSyntax>()
+                    .Where(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)))
+                    .ToList() ?? new List<PropertyDeclarationSyntax>(); // Changed to store Syntax nodes directly
+
+                foreach (var propSyntax in properties)
+                {
+                    string propName = propSyntax.Identifier.Text;
+                    
+                    // Skip the property we are currently computing to avoid cycles
+                    if (propName == parameterName) continue;
+
+                    // V3 FIX: Check if property is writable before attempting to set it.
+                    // Arrow expression properties (public int Foo => 5) are read-only.
+                    if (propSyntax.ExpressionBody != null) continue;
+
+                    // Check for 'set' or 'init' accessor
+                    bool hasSetter = false;
+                    if (propSyntax.AccessorList != null)
+                    {
+                        hasSetter = propSyntax.AccessorList.Accessors.Any(probs => 
+                            probs.IsKind(SyntaxKind.SetAccessorDeclaration) || 
+                            probs.IsKind(SyntaxKind.InitAccessorDeclaration));
+                    }
+                    else
+                    {
+                        // Auto-properties { get; set; } have no expression body but might be read-only { get; }
+                        // If AccessorList is null but ExpressionBody is null... arguably invalid syntax unless abstract, but let's be safe.
+                        // Actually, auto-props DO have an AccessorList.
+                    }
+
+                    if (!hasSetter) continue;
+
+                    var typeName = propSyntax.Type.ToString();
+                    sb.AppendLine($"try {{ wrapper.{propName} = ExecutionGlobals.Get<{typeName}>(\"{propName}\"); }} catch {{ }}");
+                }
+
+                sb.AppendLine($"var result = wrapper.{(functionNode is PropertyDeclarationSyntax ? functionName : $"{functionName}()")};");
                 sb.AppendLine("return result;");
                 sb.AppendLine("public class ParamsWrapper { " + membersSource + " }");
 

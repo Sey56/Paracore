@@ -1119,8 +1119,17 @@ namespace Paracore.Addin.Services
                                 reference = uidoc.Selection.PickObject(objType, $"Pick {request.SelectionType}");
                             }
                             
-                            // Return Element ID
-                            return reference.ElementId.Value.ToString();
+                            // Return Element ID for Elements, Stable Representation for Geometry
+                            if (objType == Autodesk.Revit.UI.Selection.ObjectType.Element)
+                            {
+                                return reference.ElementId.Value.ToString();
+                            }
+                            else
+                            {
+                                // Return the Stable Representation string (e.g. for Face, Edge)
+                                // This string can be re-hydrated by the Engine into a specific geometry object
+                                return reference.ConvertToStableRepresentation(uidoc.Document);
+                            }
                         }
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException)

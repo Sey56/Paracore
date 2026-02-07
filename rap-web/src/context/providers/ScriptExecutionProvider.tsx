@@ -1005,6 +1005,17 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             defaultValue = "";
           }
 
+          // V3.1 FIX: Auto-Select First Option Logic
+          // If the defaultValue is null/empty or not in the new options list, 
+          // we must auto-select the first option to ensure UI state consistency.
+          // Otherwise, the dropdown shows the first item visually, but internal state is null.
+          if (options && options.length > 0) {
+            const isValueInOptions = options.includes(defaultValue);
+            if (!isValueInOptions) {
+              defaultValue = options[0];
+            }
+          }
+
           return { ...p, value: defaultValue };
         };
 

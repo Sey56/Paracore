@@ -47,6 +47,158 @@ const ToggleSwitch = ({ checked, onChange, disabled }: { checked: boolean; onCha
   </button>
 );
 
+const VirtualList: React.FC<{
+  items: string[];
+  selectedValues: string[];
+  onChange: (option: string, checked: boolean) => void;
+  rowHeight: number;
+  height: number;
+  disabled?: boolean;
+  type?: 'single' | 'multi';
+}> = ({ items, selectedValues, onChange, rowHeight, height, disabled, type = 'multi' }) => {
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const totalHeight = items.length * rowHeight;
+  const visibleCount = Math.ceil(height / rowHeight);
+  const startIndex = Math.floor(scrollTop / rowHeight);
+  const endIndex = Math.min(items.length, startIndex + visibleCount + 5); // Buffer
+
+  const activeItems = items.slice(startIndex, endIndex).map((item, index) => ({
+    item,
+    index: startIndex + index,
+  }));
+
+  return (
+    <div
+      className="overflow-y-auto overflow-x-hidden custom-scrollbar w-full relative"
+      style={{ height }}
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+    >
+      <div style={{ height: totalHeight, position: "relative" }}>
+        {activeItems.map(({ item }) => {
+          const isSelected = selectedValues.includes(item);
+          // Calculate absolute position
+          const top = items.indexOf(item) * rowHeight;
+
+          return (
+            <div
+              key={item}
+              onClick={() => !disabled && onChange(item, !isSelected)}
+              className={`absolute left-0 right-0 grid grid-cols-[1fr_auto] gap-2 items-center px-3 rounded cursor-pointer transition-colors text-xs select-none
+                ${isSelected
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+              style={{ top, height: rowHeight }}
+            >
+              <div className="min-w-0" title={item}>
+                <div className="truncate w-full block">{item}</div>
+              </div>
+
+              {type === 'multi' && (
+                <div className="flex items-center flex-shrink-0">
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors
+                    ${isSelected
+                      ? 'bg-blue-500 border-blue-500 text-white'
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'}`}>
+                    {isSelected && <FontAwesomeIcon icon={faCheck} className="text-[10px]" />}
+                  </div>
+                </div>
+              )}
+              {type === 'single' && isSelected && (
+                <div className="flex items-center flex-shrink-0 text-blue-600 dark:text-blue-400">
+                  <FontAwesomeIcon icon={faCheck} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onChange, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const value = param.value as string;
+
+  const filteredOptions = (param.options || []).filter(opt =>
+    opt.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSelect = (option: string) => {
+    onChange(index, option);
+    setIsOpen(false);
+    setSearchTerm("");
+  };
+
+  return (
+    <div className="relative w-full">
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 text-left flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        <span className="truncate mr-2 block text-gray-800 dark:text-gray-200 min-w-0">
+          {value || <span className="text-gray-400 italic">Select...</span>}
+        </span>
+        <svg className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Dropdown Popover */}
+      {isOpen && (
+        <>
+          {/* Backdrop to close on click outside */}
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+
+          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top">
+
+            {/* Search */}
+            <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                  <FontAwesomeIcon icon={faSearch} className="text-gray-400 text-xs" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  autoFocus
+                  className="w-full pl-8 pr-2 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Virtual List */}
+            <div className="bg-white dark:bg-gray-900/50">
+              {filteredOptions.length > 0 ? (
+                <VirtualList
+                  items={filteredOptions}
+                  selectedValues={value ? [value] : []}
+                  onChange={(opt) => handleSelect(opt)}
+                  rowHeight={32}
+                  height={Math.min(filteredOptions.length * 32, 250)} // Auto height up to 250px
+                  type="single"
+                />
+              ) : (
+                <div className="py-4 text-center text-xs text-gray-400 italic">
+                  No matching options
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onChange, onCompute, isComputing, disabled }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -72,11 +224,19 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
     onChange(index, JSON.stringify(newValues));
   };
 
+  const handleItemChange = (option: string, checked: boolean) => {
+    const newValues = checked
+      ? [...selectedValues, option]
+      : selectedValues.filter(v => v !== option);
+    onChange(index, JSON.stringify(newValues));
+  };
+
+
   return (
-    <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+    <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-sm overflow-hidden w-full min-w-0">
       {/* Search Header */}
       <div className="flex items-center px-2 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <div className="relative flex-grow">
+        <div className="relative flex-grow min-w-0">
           <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
             <FontAwesomeIcon icon={faSearch} className="text-gray-400 text-xs" />
           </div>
@@ -89,61 +249,35 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             disabled={disabled}
           />
         </div>
-        
+
         {param.requiresCompute && onCompute && (
-           <button
-             onClick={() => onCompute(param.name)}
-             disabled={disabled || isComputing}
-             className={`ml-2 p-1.5 rounded-md text-xs transition-colors ${isComputing ? 'animate-pulse' : ''} 
-               ${param.options && param.options.length > 0 
-                 ? "text-gray-500 hover:text-blue-600 hover:bg-gray-200 dark:hover:bg-gray-700" 
-                 : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800"}`}
-             title={param.options && param.options.length > 0 ? "Refresh options" : "Compute options"}
-           >
-             <FontAwesomeIcon icon={isComputing ? faSpinner : faSync} className={isComputing ? 'animate-spin' : ''} />
-           </button>
+          <button
+            onClick={() => onCompute(param.name)}
+            disabled={disabled || isComputing}
+            className={`ml-2 p-1.5 rounded-md text-xs transition-colors ${isComputing ? 'animate-pulse' : ''} 
+               ${param.options && param.options.length > 0
+                ? "text-gray-500 hover:text-blue-600 hover:bg-gray-200 dark:hover:bg-gray-700"
+                : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800"}`}
+            title={param.options && param.options.length > 0 ? "Refresh options" : "Compute options"}
+          >
+            <FontAwesomeIcon icon={isComputing ? faSpinner : faSync} className={isComputing ? 'animate-spin' : ''} />
+          </button>
         )}
       </div>
 
-      {/* Options List */}
-      <div className="max-h-48 overflow-y-auto custom-scrollbar p-1 bg-white dark:bg-gray-900/50">
+      {/* Virtualized Options List */}
+      <div className="bg-white dark:bg-gray-900/50">
         {filteredOptions.length > 0 ? (
-          <div className="space-y-0.5">
-            {filteredOptions.map((option: string, i: number) => {
-               const isSelected = selectedValues.includes(option);
-               return (
-                <label 
-                  key={i} 
-                  className={`flex items-center justify-between px-3 py-1.5 rounded cursor-pointer transition-colors text-xs select-none
-                    ${isSelected 
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium' 
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
-                >
-                  <span className="truncate flex-1 mr-2" title={option}>{option}</span>
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors
-                    ${isSelected 
-                      ? 'bg-blue-500 border-blue-500 text-white' 
-                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'}`}>
-                    {isSelected && <FontAwesomeIcon icon={faCheck} className="text-[10px]" />}
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={(e) => {
-                      const newValues = e.target.checked
-                        ? [...selectedValues, option]
-                        : selectedValues.filter(v => v !== option);
-                      onChange(index, JSON.stringify(newValues));
-                    }}
-                    className="hidden" // Hide native checkbox
-                    disabled={disabled}
-                  />
-                </label>
-               );
-            })}
-          </div>
+          <VirtualList
+            items={filteredOptions}
+            selectedValues={selectedValues}
+            onChange={handleItemChange}
+            rowHeight={28}
+            height={192} // 48 * 4 = 192px (approx 6-7 items visible)
+            disabled={disabled}
+          />
         ) : (
-          <div className="py-4 text-center text-xs text-gray-400 italic">
+          <div className="h-48 py-4 text-center text-xs text-gray-400 italic">
             No matching options
           </div>
         )}
@@ -244,26 +378,12 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       }
 
       return (
-        <div className="relative w-full">
-          <select
-            className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm appearance-none"
-            value={param.value as string}
-            onChange={(e) => onChange(index, e.target.value)}
-            disabled={disabled}
-          >
-            {param.options.map((option: string, i: number) => (
-              <option key={i} value={option} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                {option}
-              </option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-             {/* Custom Chevron for better look across browsers */}
-             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-             </svg>
-          </div>
-        </div>
+        <SingleSelectInput
+          param={param}
+          index={index}
+          onChange={onChange}
+          disabled={disabled}
+        />
       );
     }
 

@@ -27,6 +27,14 @@ namespace CoreScript.Engine.Core
             if (e == null) return "";
             if (e is FamilySymbol fs) return $"{fs.FamilyName}: {fs.Name}";
             
+            // V3 FIX: Better FamilyInstance display (Family: Type [Mark])
+            if (e is FamilyInstance fi)
+            {
+               string mark = fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+               string idPart = !string.IsNullOrEmpty(mark) ? $"[Mark: {mark}]" : $"[{fi.Id}]";
+               return $"{fi.Symbol.FamilyName}: {fi.Name} {idPart}";
+            }
+
             // V3 FIX: Professional Sheet formatting
             if (e is ViewSheet s) return $"[{s.SheetNumber}] {s.Name}";
 
@@ -65,7 +73,11 @@ namespace CoreScript.Engine.Core
             if (typeof(SpatialElement).IsAssignableFrom(targetType) || targetType.Name == "Area" || targetType.Name == "Room")
                 return new FilteredElementCollector(doc).OfClass(typeof(SpatialElement));
 
-            // Quirk 2: Generic fallback
+            // Quirk 2: Element Types (Base class or specific types like WallSweepType)
+            if (typeof(ElementType).IsAssignableFrom(targetType) || targetType.Name.EndsWith("Type"))
+                return new FilteredElementCollector(doc).WhereElementIsElementType();
+
+            // Quirk 3: Generic fallback
             try { return new FilteredElementCollector(doc).OfClass(targetType); }
             catch { return new FilteredElementCollector(doc).WhereElementIsNotElementType(); }
         }
