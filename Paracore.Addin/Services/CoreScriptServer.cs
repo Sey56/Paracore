@@ -8,8 +8,9 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using CoreScript.Engine.Logging; // Added
-using CoreScript.Engine.Globals; // Added
+using CoreScript.Engine.Logging;
+using CoreScript.Engine.Globals;
+using Paracore.Addin.Handlers;
 
 namespace Paracore.Addin.Services
 {
@@ -19,17 +20,17 @@ namespace Paracore.Addin.Services
         private readonly string _logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "CoreScriptServerLog.txt");
         private IHost? _webHost;
         private readonly UIApplication _uiApp;
-        private readonly ILogger _logger; // Added
+        private readonly ILogger _logger;
 
-        public CoreScriptServer(UIApplication uiApp, ILogger logger) // Modified
+        public CoreScriptServer(UIApplication uiApp, ILogger logger)
         {
             _uiApp = uiApp;
-            _logger = logger; // Added
+            _logger = logger;
             _running = false;
-            _logger.Log($"Server initialized: {DateTime.Now}", LogLevel.Debug); // Modified
+            _logger.Log($"Server initialized: {DateTime.Now}", LogLevel.Debug);
         }
 
-        public ILogger GetLogger() => _logger; // Added
+        public ILogger GetLogger() => _logger;
 
         public void Start()
         {
@@ -45,12 +46,18 @@ namespace Paracore.Addin.Services
                         options.Limits.MaxRequestBodySize = 50 * 1024 * 1024; // 50 MB
                         options.Limits.MaxResponseBufferSize = 50 * 1024 * 1024; // 50 MB
                     });
-                    // webBuilder.UseUrls("http://localhost:50051"); // Removed as Kestrel is now explicitly configured
+                    
                     webBuilder.ConfigureServices(services =>
                     {
                         services.AddGrpc();
                         services.AddSingleton(_uiApp); // Register UIApplication as a singleton
                         services.AddCoreScriptEngineServices(); // Add CoreScript.Engine services
+                        
+                        // Register Handlers
+                        services.AddSingleton<ScriptExecutionHandler>();
+                        services.AddSingleton<MetadataHandler>();
+                        services.AddSingleton<ContextHandler>();
+                        services.AddSingleton<FileSystemHandler>();
                     });
                     webBuilder.Configure(app =>
                     {

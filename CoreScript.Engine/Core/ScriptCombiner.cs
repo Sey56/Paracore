@@ -8,9 +8,16 @@ using System.Linq;
 
 namespace CoreScript.Engine.Core
 {
-    public static class SemanticCombinator
+    public class ScriptCombiner : IScriptCombiner
     {
-        public static string Combine(List<ScriptFile> scriptFiles)
+        private readonly IScriptParser _scriptParser;
+
+        public ScriptCombiner(IScriptParser scriptParser)
+        {
+            _scriptParser = scriptParser;
+        }
+
+        public string Combine(List<ScriptFile> scriptFiles)
         {
             if (scriptFiles == null || !scriptFiles.Any())
             {
@@ -19,13 +26,13 @@ namespace CoreScript.Engine.Core
 
             if (scriptFiles.Count == 1)
             {
-                return ScriptParser.CombineScriptFiles(scriptFiles);
+                return _scriptParser.CombineScriptFiles(scriptFiles);
             }
 
-            var topLevelScript = ScriptParser.IdentifyTopLevelScript(scriptFiles);
+            var topLevelScript = _scriptParser.IdentifyTopLevelScript(scriptFiles);
             if (topLevelScript == null)
             {
-                return ScriptParser.CombineScriptFiles(scriptFiles);
+                return _scriptParser.CombineScriptFiles(scriptFiles);
             }
 
             // Filter out any script files with null or empty filenames
@@ -53,7 +60,7 @@ namespace CoreScript.Engine.Core
             filesToProcess.Enqueue(topLevelScript.FileName);
             referencedFiles.Add(topLevelScript.FileName);
 
-            // V2 FIX: Always include 'Params.cs' if it exists, even if not referenced.
+            // Always include 'Params.cs' if it exists, even if not referenced.
             // This ensures parameters are visible to the engine even if 'new Params()' isn't called yet.
             // We specifically look for "Params.cs" per the project convention.
             var paramsFileKey = syntaxTrees.Keys.FirstOrDefault(k => 
@@ -95,7 +102,7 @@ namespace CoreScript.Engine.Core
                 .Where(sf => referencedFiles.Contains(sf.FileName))
                 .ToList();
 
-            return ScriptParser.CombineScriptFiles(scriptsToCombine);
+            return _scriptParser.CombineScriptFiles(scriptsToCombine);
         }
     }
 }

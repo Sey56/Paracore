@@ -9,9 +9,9 @@ using System.Linq;
 
 namespace CoreScript.Engine.Core
 {
-    public static class ScriptParser
+    public class ScriptParser : IScriptParser
     {
-        public static ScriptFile IdentifyTopLevelScript(List<ScriptFile> scriptFiles)
+        public ScriptFile IdentifyTopLevelScript(List<ScriptFile> scriptFiles)
         {
             if (scriptFiles == null || !scriptFiles.Any())
             {
@@ -51,7 +51,7 @@ namespace CoreScript.Engine.Core
             return topLevelScriptFile;
         }
 
-        public static string CombineScriptFiles(List<ScriptFile> scriptFiles)
+        public string CombineScriptFiles(List<ScriptFile> scriptFiles)
         {
             if (scriptFiles is not { Count: > 0 })
                 throw new InvalidDataException("No valid script files to combine.");
@@ -160,7 +160,7 @@ namespace CoreScript.Engine.Core
                     parts.Add(mainScriptBody);
             }
             
-            // Add Params class immediately after logic (Top Priority)
+            // Add Params class immediately after logic
             if (paramsClassData.HasValue)
             {
                 // Combine directive and content to avoid extra newlines from Join

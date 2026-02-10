@@ -107,7 +107,7 @@ namespace CoreScript.Engine.Core
                 if (aN.Contains("EnabledWhen")) { p.EnabledWhenParam = ExtractString(attr.ArgumentList.Arguments[0].Expression); p.EnabledWhenValue = attr.ArgumentList.Arguments[1].Expression.ToString().Trim('"', '\''); }
                 if (aN == "Select") p.SelectionType = (attr.ArgumentList.Arguments[0].Expression as MemberAccessExpressionSyntax)?.Name.Identifier.Text ?? "Element";
                 
-                // V3 FIX: Handle [Confirm("TEXT")] by generating a strict regex pattern
+                // Handle [Confirm("TEXT")] by generating a strict regex pattern
                 if (aN.Contains("Confirm") && attr.ArgumentList?.Arguments.Count > 0)
                 {
                     string confirmText = ExtractString(attr.ArgumentList.Arguments[0].Expression);
@@ -118,7 +118,7 @@ namespace CoreScript.Engine.Core
                     }
                 }
 
-                // V3 FIX: Handle [Range(min, max, step)] attribute
+                // Handle [Range(min, max, step)] attribute
                 if (aN.Contains("Range") && attr.ArgumentList != null && attr.ArgumentList.Arguments.Count >= 2)
                 {
                     // Assuming Range(min, max, step) or Range(min, max)
@@ -149,7 +149,7 @@ namespace CoreScript.Engine.Core
                 }
             }
 
-            // V3 RESTORATION: Name-based unit detection (e.g. Length_mm)
+            // Name-based unit detection (e.g. Length_mm)
             if (string.IsNullOrEmpty(p.Unit))
             {
                 if (name.EndsWith("_mm")) p.Unit = "mm";

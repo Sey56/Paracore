@@ -27,7 +27,7 @@ namespace CoreScript.Engine.Core
             if (e == null) return "";
             if (e is FamilySymbol fs) return $"{fs.FamilyName}: {fs.Name}";
             
-            // V3 FIX: Better FamilyInstance display (Family: Type [Mark])
+            // Better FamilyInstance display (Family: Type [Mark])
             if (e is FamilyInstance fi)
             {
                string mark = fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
@@ -35,7 +35,7 @@ namespace CoreScript.Engine.Core
                return $"{fi.Symbol.FamilyName}: {fi.Name} {idPart}";
             }
 
-            // V3 FIX: Professional Sheet formatting
+            // Professional Sheet formatting
             if (e is ViewSheet s) return $"[{s.SheetNumber}] {s.Name}";
 
             string name = e.Name;
@@ -60,7 +60,7 @@ namespace CoreScript.Engine.Core
                 }
             }
 
-            // V3 FIX: If it's an instance (not a Type), append the ID to ensure uniqueness in the UI and Hydration.
+            // If it's an instance (not a Type), append the ID to ensure uniqueness in the UI and Hydration.
             // Levels and Materials always have unique names in Revit, so we skip the noisy ID.
             if (!(e is ElementType || e is Level || e is Material)) return $"{name} [{e.Id}]";
 
@@ -90,7 +90,7 @@ namespace CoreScript.Engine.Core
                 var isTypeRequested = cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
                 var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
 
-                // V3 CLEAN ARCHITECTURE: Pure Class-Based Discovery
+                // Pure Class-Based Discovery
                 // We no longer guess categories from strings. We use the C# Type Truth.
                 if (_revitTypes == null) _revitTypes = typeof(Element).Assembly.GetTypes();
                 var classType = _revitTypes.FirstOrDefault(t => 

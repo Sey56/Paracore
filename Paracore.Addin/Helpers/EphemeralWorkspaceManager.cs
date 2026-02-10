@@ -39,7 +39,7 @@ namespace Paracore.Addin.Helpers
                 }
                 else if (Directory.Exists(workspacePath))
                 {
-                    // CRITICAL FIX: Stop watchers BEFORE deleting the directory to prevent
+                    // Stop watchers BEFORE deleting the directory to prevent
                     // the watcher from thinking the user deleted the files and syncing that deletion to source.
                     StopWatchersForWorkspace(workspacePath);
 

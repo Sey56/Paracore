@@ -3,13 +3,13 @@ using CoreScript.Engine.Context;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Runtime;
 using Paracore.Addin.Context;
-using CoreScript.Engine.Logging; // Added for logging
+using CoreScript.Engine.Logging;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Text.Json; // Added for JSON parsing
-using System.Linq; // Added for LINQ
-using System.Windows.Input; // Added for ICommand
-using Paracore.Addin.Helpers; // Added for RelayCommand
+using System.Text.Json;
+using System.Linq;
+using System.Windows.Input;
+using Paracore.Addin.Helpers;
 
 namespace Paracore.Addin.ViewModels
 {
@@ -103,8 +103,6 @@ namespace Paracore.Addin.ViewModels
 
                 OnExecutionComplete?.Invoke(result);
                 FileLogger.Log($"[ServerViewModel] OnExecutionComplete fired. ScriptName: {result.ScriptName}, IsSuccess: {result.IsSuccess}");
-
-                // --- Removed: Custom ScriptName extraction ---
 
                 // Ensure ObservableCollection modification happens on the WPF UI thread
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>

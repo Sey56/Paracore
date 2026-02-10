@@ -25,6 +25,7 @@ namespace CoreScript.Engine.Core
     public class ParameterOptionsExecutor
     {
         private readonly ILogger _logger;
+        private readonly IParameterService _parameterService = new ParameterService();
 
         public ParameterOptionsExecutor(ILogger logger)
         {
@@ -79,8 +80,8 @@ namespace CoreScript.Engine.Core
             {
                 _logger.Log($"[ParameterOptionsExecutor] Executing options function for parameter: {parameterName}", LogLevel.Debug);
 
-                // FIX: Use the authoritative schema passed from the service
-                var parameters = MapAndHarden(parametersJson, schema);
+                var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
+                _parameterService.HardenParameters(parameters, schema);
 
                 string functionName = $"{parameterName}_Options";
                 string filterName = $"{parameterName}_Filter";
@@ -116,39 +117,25 @@ namespace CoreScript.Engine.Core
                 sb.AppendLine("using Autodesk.Revit.DB; using Autodesk.Revit.DB.Architecture; using Autodesk.Revit.UI; using System; using System.Collections.Generic; using System.Linq; using CoreScript.Engine.Globals; using static CoreScript.Engine.Globals.ScriptApi;");
                 sb.AppendLine("using Microsoft.CSharp; using Autodesk.Revit.DB.Structure; using Autodesk.Revit.DB.Mechanical; using Autodesk.Revit.DB.Plumbing; using Autodesk.Revit.DB.Electrical;");
                 
-                // V3 FIX: Populate the wrapper with current parameter values so dependencies work naturally (e.g. this.Mode)
                 sb.AppendLine("var wrapper = new ParamsWrapper();");
                 
-                // Identify all public properties in the Params class to populate them
                 var properties = paramsClass?.Members
                     .OfType<PropertyDeclarationSyntax>()
                     .Where(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)))
-                    .ToList() ?? new List<PropertyDeclarationSyntax>(); // Changed to store Syntax nodes directly
+                    .ToList() ?? new List<PropertyDeclarationSyntax>();
 
                 foreach (var propSyntax in properties)
                 {
                     string propName = propSyntax.Identifier.Text;
-                    
-                    // Skip the property we are currently computing to avoid cycles
                     if (propName == parameterName) continue;
-
-                    // V3 FIX: Check if property is writable before attempting to set it.
-                    // Arrow expression properties (public int Foo => 5) are read-only.
                     if (propSyntax.ExpressionBody != null) continue;
 
-                    // Check for 'set' or 'init' accessor
                     bool hasSetter = false;
                     if (propSyntax.AccessorList != null)
                     {
                         hasSetter = propSyntax.AccessorList.Accessors.Any(probs => 
                             probs.IsKind(SyntaxKind.SetAccessorDeclaration) || 
                             probs.IsKind(SyntaxKind.InitAccessorDeclaration));
-                    }
-                    else
-                    {
-                        // Auto-properties { get; set; } have no expression body but might be read-only { get; }
-                        // If AccessorList is null but ExpressionBody is null... arguably invalid syntax unless abstract, but let's be safe.
-                        // Actually, auto-props DO have an AccessorList.
                     }
 
                     if (!hasSetter) continue;
@@ -161,7 +148,6 @@ namespace CoreScript.Engine.Core
                 sb.AppendLine("return result;");
                 sb.AppendLine("public class ParamsWrapper { " + membersSource + " }");
 
-                // --- V3 CRITICAL DEBUG LOGGING ---
                 try {
                     string debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "OptionsDebug.cs");
                     Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
@@ -198,7 +184,9 @@ namespace CoreScript.Engine.Core
         {
             try
             {
-                var parameters = MapAndHarden(parametersJson, schema);
+                var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
+                _parameterService.HardenParameters(parameters, schema);
+
                 string functionName = $"{parameterName}_Range";
                 var tree = CSharpSyntaxTree.ParseText(scriptContent);
                 var root = tree.GetRoot();
@@ -239,83 +227,6 @@ namespace CoreScript.Engine.Core
                 return null;
             }
             catch { return null; }
-        }
-
-        private Dictionary<string, object> MapAndHarden(string json, List<ScriptParameter> schema)
-        {
-            var dict = new Dictionary<string, object>();
-            if (string.IsNullOrWhiteSpace(json)) return dict;
-            try
-            {
-                using (JsonDocument doc = JsonDocument.Parse(json))
-                {
-                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                    {
-                        var rich = JsonSerializer.Deserialize<List<ScriptParameter>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<ScriptParameter>();
-                        foreach (var p in rich) if (!string.IsNullOrEmpty(p.Name)) dict[p.Name] = ConvertJsonElement(p.Value);
-                        Harden(dict, rich);
-                    }
-                    else
-                    {
-                        var raw = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
-                        foreach (var kv in raw) if (!string.IsNullOrEmpty(kv.Key)) dict[kv.Key] = kv.Value is JsonElement e ? ConvertJsonElement(e) : kv.Value;
-                        Harden(dict, schema); // FIX: Use the authoritative schema passed as argument
-                    }
-                }
-            } catch (Exception ex) { FileLogger.LogError($"[MapAndHarden] Failed: {ex.Message}"); }
-            return dict;
-        }
-
-        private void Harden(Dictionary<string, object> parameters, List<ScriptParameter> schema)
-        {
-            if (schema == null) return;
-            foreach (var p in schema)
-            {
-                if (parameters.TryGetValue(p.Name, out var val) && !string.IsNullOrEmpty(p.Unit))
-                {
-                    try {
-                        double d = 0;
-                        bool success = false;
-                        if (val is double dv) { d = dv; success = true; }
-                        else if (val is int iv) { d = (double)iv; success = true; }
-                        else if (val is long lv) { d = (double)lv; success = true; }
-                        else if (val != null) success = double.TryParse(val.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out d);
-
-                        if (success) {
-                            ForgeTypeId unitTypeId = null;
-                            string u = p.Unit.ToLower().Trim();
-                            if (u == "mm") unitTypeId = UnitTypeId.Millimeters;
-                            else if (u == "cm") unitTypeId = UnitTypeId.Centimeters;
-                            else if (u == "m") unitTypeId = UnitTypeId.Meters;
-                            else if (u == "ft") unitTypeId = UnitTypeId.Feet;
-                            else if (u == "in" || u == "inch") unitTypeId = UnitTypeId.Inches;
-                            else if (u == "m2" || u == "sqm" || u == "square meters") unitTypeId = UnitTypeId.SquareMeters;
-                            else if (u == "ft2" || u == "sqft" || u == "square feet") unitTypeId = UnitTypeId.SquareFeet;
-                            else if (u == "m3" || u == "cum" || u == "cubic meters") unitTypeId = UnitTypeId.CubicMeters;
-                            else if (u == "ft3" || u == "cuft" || u == "cubic feet") unitTypeId = UnitTypeId.CubicFeet;
-
-                            if (unitTypeId != null) 
-                            {
-                                double internalVal = UnitUtils.ConvertToInternalUnits(d, unitTypeId);
-                                parameters[p.Name] = internalVal;
-                                _logger.Log($"[OptionsExecutor] Hardened parameter '{p.Name}': {d} {u} -> {internalVal} (Internal)", LogLevel.Debug);
-                            }
-                        }
-                    } catch {}
-                }
-            }
-        }
-
-        private object ConvertJsonElement(JsonElement element)
-        {
-            switch (element.ValueKind) {
-                case JsonValueKind.String: return element.GetString() ?? "";
-                case JsonValueKind.Number: return element.TryGetInt32(out int i) ? i : element.GetDouble();
-                case JsonValueKind.True: return true;
-                case JsonValueKind.False: return false;
-                case JsonValueKind.Array: return element.EnumerateArray().Select(ConvertJsonElement).ToList();
-                default: return element.GetRawText();
-            }
         }
 
         public bool HasOptionsFunction(string scriptContent, string parameterName) => scriptContent.Contains($" {parameterName}_Options") || scriptContent.Contains($" {parameterName}_Filter");

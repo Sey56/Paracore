@@ -10,7 +10,15 @@ namespace CoreScript.Engine.Globals
         {
             services.AddSingleton<ILogger, FileLoggerWrapper>();
             services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
-            services.AddSingleton<IParameterExtractor, ParameterExtractor>(); // Register ParameterExtractor
+            services.AddSingleton<IParameterExtractor, ParameterExtractor>();
+            
+            services.AddSingleton<IParameterService, ParameterService>();
+            services.AddSingleton<IScriptCompiler, ScriptCompiler>();
+            services.AddSingleton<IScriptParser, ScriptParser>();
+            services.AddSingleton<IScriptCombiner, ScriptCombiner>();
+            services.AddSingleton<IScriptExecutor, ScriptExecutor>();
+            services.AddSingleton<IScriptRewriter, ScriptRewriter>();
+            services.AddSingleton<ICodeRunner, CodeRunner>();
 
             return services;
         }

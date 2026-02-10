@@ -31,7 +31,6 @@ namespace CoreScript.Engine.Core.Rewriters
             string type = node.Type.ToString();
             
             // 1. Create the GET accessor block
-            // V3 FIX: Use explicit space to prevent 'returnCoreScript' concatenation error
             var getStatement = SyntaxFactory.ReturnStatement(
                 SyntaxFactory.Token(SyntaxKind.ReturnKeyword).WithTrailingTrivia(SyntaxFactory.Space),
                 SyntaxFactory.ParseExpression($"ExecutionGlobals.Get<{type}>(\"{name}\")"),

@@ -1,12 +1,12 @@
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Microsoft.Extensions.DependencyInjection; // Added
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using CoreScript.Engine.Globals; // Added
+using CoreScript.Engine.Globals;
 using CoreScript.Engine.Logging;
 using Paracore.Addin.Commands;
-using Paracore.Addin.Helpers; // Added for CustomAssemblyResolver
+using Paracore.Addin.Helpers;
 using Paracore.Addin.Services;
 using Paracore.Addin.ViewModels;
 using Paracore.Addin.Views;
@@ -29,7 +29,7 @@ namespace Paracore.Addin.App
         private static PushButton? _toggleButton;
         private static ServerActionHandler? _serverActionHandler;
         private static ExternalEvent? _externalEvent;
-        private static IServiceProvider? _serviceProvider; // Added
+        private static IServiceProvider? _serviceProvider;
         public static Dictionary<string, string> ActiveWorkspaces = new();
 
         public static bool TryGetWorkspace(string scriptPath, out string workspaceRoot) =>

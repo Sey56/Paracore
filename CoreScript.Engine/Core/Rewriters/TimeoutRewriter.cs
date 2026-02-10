@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace CoreScript.Engine.Core
+namespace CoreScript.Engine.Core.Rewriters
 {
     /// <summary>
     /// Roslyn syntax rewriter that injects timeout checks into all loop constructs.
