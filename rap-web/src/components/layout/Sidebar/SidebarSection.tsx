@@ -26,10 +26,10 @@ export const SidebarSection: React.FC<SidebarSectionProps> = ({
   return (
     <div className={`mb-2 ${className}`}>
       <div 
-        className="flex items-center justify-between py-2 px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-md group transition-colors select-none"
+        className="flex items-center py-2 px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-md transition-colors select-none group/section"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-2 overflow-hidden">
+        <div className="flex items-center gap-2 overflow-hidden shrink-0">
           <FontAwesomeIcon 
             icon={isExpanded ? faChevronDown : faChevronRight} 
             className="text-[10px] text-gray-400 dark:text-gray-500 w-3"
@@ -43,7 +43,7 @@ export const SidebarSection: React.FC<SidebarSectionProps> = ({
         </div>
         
         {actions && (
-          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+          <div className="flex-1 flex items-center pr-2 opacity-0 group-hover/section:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
             {actions}
           </div>
         )}

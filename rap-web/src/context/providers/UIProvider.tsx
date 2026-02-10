@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useUserWorkspaces } from "@/hooks/useUserWorkspaces"; // Import useUserWorkspaces
-import { useAuth } from "@/hooks/useAuth"; // Import useAuth
+import { useUserWorkspaces } from "@/features/workspaces"; // Import useUserWorkspaces
+import { useAuth } from "@/features/auth"; // Import useAuth
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
@@ -25,8 +25,19 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [isFocusMode, setFocusMode] = useState(false);
+  const [isLayoutSwapped, setIsLayoutSwapped] = useState(() => {
+    return localStorage.getItem('isLayoutSwapped') === 'true';
+  });
 
   const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(null);
+
+  const toggleLayoutSwap = useCallback(() => {
+    setIsLayoutSwapped(prev => {
+      const newValue = !prev;
+      localStorage.setItem('isLayoutSwapped', String(newValue));
+      return newValue;
+    });
+  }, []);
 
   // Agent related state
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -218,6 +229,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     closeInfoModal,
     isFocusMode,
     setFocusMode,
+    isLayoutSwapped,
+    toggleLayoutSwap,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -252,6 +265,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     showInfoModal,
     closeInfoModal,
     isFocusMode,
+    isLayoutSwapped,
+    toggleLayoutSwap,
   ]);
 
   return (

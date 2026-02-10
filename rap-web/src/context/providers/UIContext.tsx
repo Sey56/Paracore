@@ -1,5 +1,6 @@
 import { createContext } from "react";
 import { Script } from "@/types/scriptModel";
+import { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/agentTypes";
 
 export type InspectorTab = "parameters" | "console" | "table" | "metadata";
 
@@ -9,47 +10,7 @@ export type ActiveScriptSource =
   | { type: 'published'; id: string }
   | null;
 
-export type ToolCall = {
-  name: string;
-  args: Record<string, string | number | boolean | Record<string, unknown> | unknown[]>;
-  id: string;
-};
-
-export interface PlanStep {
-  script_id: string;
-  action: string;
-  script_metadata: Script; // ADDED THIS
-  deduced_parameters: Record<string, string | number | boolean>;
-  satisfied_parameters: string[];
-  missing_parameters: string[];
-  status?: 'pending' | 'executing' | 'success' | 'error';
-  result_summary?: string;
-  parameter_definitions?: Array<{
-    name: string;
-    description: string;
-    isRevitElement: boolean;
-    revitElementType: string;
-    options: string[];
-    required: boolean;
-  }>;
-}
-
-export interface OrchestrationPlan {
-  action: string;
-  explanation: string;
-  steps: PlanStep[];
-}
-
-// This defines the shape of messages coming directly from the LangGraph state
-export type Message = {
-  type: 'human' | 'ai' | 'tool';
-  content: string | { text: string }[];
-  tool_calls?: ToolCall[];
-  tool_call_id?: string;
-  id?: string; // Langchain message ID
-  plan?: OrchestrationPlan;
-  raw_history?: string; // High-fidelity PydanticAI history blob
-};
+export type { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/agentTypes";
 
 
 
@@ -114,6 +75,10 @@ export interface UIContextProps {
   // Focus Mode
   isFocusMode: boolean;
   setFocusMode: (focused: boolean) => void;
+
+  // Layout Swap
+  isLayoutSwapped: boolean;
+  toggleLayoutSwap: () => void;
 }
 
 export const UIContext = createContext<UIContextProps | undefined>(undefined);

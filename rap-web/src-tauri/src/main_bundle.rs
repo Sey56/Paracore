@@ -2,7 +2,9 @@ use tauri::{
     AppHandle, Manager, State
 };
 use log::{error, info};
-use std::{fs};
+use std::fs;
+use std::path::{Path};
+use walkdir::WalkDir;
 use std::sync::{Mutex};
 use std::time::Duration;
 use tokio::sync::oneshot;
@@ -31,6 +33,46 @@ fn get_rap_server_url(state: State<AppState>) -> String {
         error!("Python server port not set in AppState. Falling back to default.");
         "http://localhost:8000".to_string() // Fallback to default
     }
+}
+
+#[tauri::command]
+fn discover_script_sources(path: String) -> Vec<String> {
+    let mut sources = Vec::new();
+    let root = Path::new(&path);
+
+    // If the root itself has a marker, we treat it as a source and stop
+    if root.join(".paracore").exists() || root.join(".scriptsource").exists() {
+        sources.push(path);
+        return sources;
+    }
+
+    let walker = WalkDir::new(root).into_iter();
+    let mut it = walker.filter_entry(|e| {
+        // Skip hidden directories (like .git)
+        let file_name = e.file_name().to_string_lossy();
+        if file_name.starts_with('.') && file_name != ".paracore" && file_name != ".scriptsource" {
+            return false;
+        }
+        true
+    });
+
+    while let Some(entry) = it.next() {
+        match entry {
+            Ok(e) => {
+                let path = e.path();
+                if path.is_dir() {
+                    if path.join(".paracore").exists() || path.join(".scriptsource").exists() {
+                        sources.push(path.to_string_lossy().to_string());
+                        // Important: Skip descending further into this folder once it's marked as a source
+                        it.skip_current_dir();
+                    }
+                }
+            }
+            Err(_) => continue,
+        }
+    }
+
+    sources
 }
 
 #[tauri::command]
@@ -195,7 +237,8 @@ pub fn main() {
         .invoke_handler(tauri::generate_handler![
             google_oauth_login,
             get_rap_server_url,
-            launch_main_app
+            launch_main_app,
+            discover_script_sources
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

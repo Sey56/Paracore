@@ -9,9 +9,52 @@ use tauri::Manager;
 // Google OAuth client ID for desktop app
 const GOOGLE_CLIENT_ID: &str = "367583834715-rlm1en39oh0sj4dq4qhtaks6j23u5q6d.apps.googleusercontent.com";
 
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
+
 #[tauri::command]
 fn get_rap_server_url() -> String {
     "http://localhost:8000".to_string()
+}
+
+#[tauri::command]
+fn discover_script_sources(path: String) -> Vec<String> {
+    let mut sources = Vec::new();
+    let root = Path::new(&path);
+
+    // If the root itself has a marker, we treat it as a source and stop
+    if root.join(".paracore").exists() || root.join(".scriptsource").exists() {
+        sources.push(path);
+        return sources;
+    }
+
+    let walker = WalkDir::new(root).into_iter();
+    let mut it = walker.filter_entry(|e| {
+        // Skip hidden directories (like .git)
+        let file_name = e.file_name().to_string_lossy();
+        if file_name.starts_with('.') && file_name != ".paracore" && file_name != ".scriptsource" {
+            return false;
+        }
+        true
+    });
+
+    while let Some(entry) = it.next() {
+        match entry {
+            Ok(e) => {
+                let path = e.path();
+                if path.is_dir() {
+                    if path.join(".paracore").exists() || path.join(".scriptsource").exists() {
+                        sources.push(path.to_string_lossy().to_string());
+                        // Important: Skip descending further into this folder once it's marked as a source
+                        it.skip_current_dir();
+                    }
+                }
+            }
+            Err(_) => continue,
+        }
+    }
+
+    sources
 }
 
 #[tauri::command]
@@ -67,7 +110,8 @@ pub fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             google_oauth_login,
-            get_rap_server_url
+            get_rap_server_url,
+            discover_script_sources
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             let window = app.get_window("main").unwrap();

@@ -22,23 +22,24 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import { open } from '@tauri-apps/api/dialog';
+import { invoke } from '@tauri-apps/api';
 import { useUI } from "@/hooks/useUI";
-import { useScripts } from "@/hooks/useScripts";
-import { useScriptExecution } from "@/hooks/useScriptExecution";
+import { useScripts } from "@/features/automation";
+import { useScriptExecution } from "@/features/automation";
 import { useState, useMemo } from 'react';
-import { RegisterWorkspaceModal } from '@/components/common/RegisterWorkspaceModal';
-import { SetupWorkspaceModal } from '@/components/common/SetupWorkspaceModal';
-import { AddCategoryModal } from '@/components/common/AddCategoryModal';
-import { AddFolderModal } from '@/components/common/AddFolderModal';
-import { ConfirmActionModal } from '@/components/automation/ScriptInspector/ConfirmActionModal';
+import { RegisterWorkspaceModal } from '@/features/workspaces/components/RegisterWorkspaceModal';
+import { SetupWorkspaceModal } from '@/features/workspaces/components/SetupWorkspaceModal';
+import { AddCategoryModal } from '@/features/automation/components/AddCategoryModal';
+import { AddFolderModal } from '@/features/automation/components/AddFolderModal';
+import { ConfirmActionModal } from '@/features/automation/components/ScriptInspector/ConfirmActionModal';
 import { useNotifications } from '@/hooks/useNotifications';
-import { cloneWorkspace, deleteLocalWorkspace } from '@/api/workspaces';
-import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
+import { cloneWorkspace, deleteLocalWorkspace } from '@/features/workspaces/services/workspaces';
+import { useUserWorkspaces } from '@/features/workspaces';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { Script, Workspace } from '@/types/index';
-import { Role } from '@/context/authTypes';
+import { Role } from '@/features/auth';
 
 import { defaultCategories } from '@/data/categories';
 import { getFolderNameFromPath } from '@/utils/pathHelpers';
@@ -60,7 +61,24 @@ export const Sidebar = () => {
   const isDisabled = !user || !ParacoreConnected;
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource, setActiveInspectorTab } = useUI();
-  const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, scripts, recentScripts, clearFavoriteScripts, clearRecentScripts, teamWorkspaces, addTeamWorkspace, pullAllTeamWorkspaces, clearScriptsForWorkspace, pullWorkspace, fetchTeamWorkspaces, loadScriptsForFolder } = useScripts();
+  const { 
+    customScriptFolders, 
+    addCustomScriptFolder, 
+    addCustomScriptFolders, 
+    removeCustomScriptFolder, 
+    clearAllCustomScriptFolders, 
+    scripts, 
+    recentScripts, 
+    clearFavoriteScripts, 
+    clearRecentScripts, 
+    teamWorkspaces, 
+    addTeamWorkspace, 
+    pullAllTeamWorkspaces, 
+    clearScriptsForWorkspace, 
+    pullWorkspace, 
+    fetchTeamWorkspaces, 
+    loadScriptsForFolder 
+  } = useScripts();
   const { setSelectedScript } = useScriptExecution();
 
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -72,7 +90,7 @@ export const Sidebar = () => {
   const [workspaceToRemove, setWorkspaceToRemove] = useState<Workspace | null>(null);
   const [selectedUnclonedWorkspaceId, setSelectedUnclonedWorkspaceId] = useState<number | null>(null); // Changed to number
   const [isClearConfirmModalOpen, setIsClearConfirmModalOpen] = useState(false);
-  const [clearActionType, setClearActionType] = useState<'favorites' | 'recents' | null>(null);
+  const [clearActionType, setClearActionType] = useState<'favorites' | 'recents' | 'local-folders' | null>(null);
 
   const { userWorkspacePaths, setWorkspacePath, removeWorkspacePath } = useUserWorkspaces();
 
@@ -242,8 +260,22 @@ export const Sidebar = () => {
     if (window.__TAURI__) {
       const selected = await open({ directory: true, multiple: false });
       if (typeof selected === 'string') {
-        addCustomScriptFolder(selected);
-        setActiveScriptSource({ type: 'local', path: selected });
+        try {
+          showNotification("Scanning for script sources...", "info");
+          // Recursive discovery of script sources
+          const discoveredSources: string[] = await invoke('discover_script_sources', { path: selected });
+          
+          if (discoveredSources.length > 0) {
+            await addCustomScriptFolders(discoveredSources);
+            // Set the first discovered source as active
+            setActiveScriptSource({ type: 'local', path: discoveredSources[0] });
+          } else {
+            showNotification("No .paracore or .scriptsource markers found in the selected hierarchy.", "warning");
+          }
+        } catch (err) {
+          console.error("Discovery failed:", err);
+          showNotification("Failed to scan folder. Make sure the app has permissions.", "error");
+        }
       }
     } else {
       setIsAddFolderModalOpen(true);
@@ -265,7 +297,7 @@ export const Sidebar = () => {
     setIsAddCategoryModalOpen(false);
   };
 
-  const handleOpenClearConfirmModal = (type: 'favorites' | 'recents') => {
+  const handleOpenClearConfirmModal = (type: 'favorites' | 'recents' | 'local-folders') => {
     setClearActionType(type);
     setIsClearConfirmModalOpen(true);
   };
@@ -277,6 +309,8 @@ export const Sidebar = () => {
     } else if (clearActionType === 'recents') {
       clearRecentScripts();
       showNotification("Recents cleared.", "success");
+    } else if (clearActionType === 'local-folders') {
+      clearAllCustomScriptFolders();
     }
     setIsClearConfirmModalOpen(false);
     setClearActionType(null);
@@ -335,8 +369,8 @@ export const Sidebar = () => {
           isOpen={isClearConfirmModalOpen}
           onClose={() => setIsClearConfirmModalOpen(false)}
           onConfirm={handleClearConfirm}
-          title={`Clear All ${clearActionType === 'favorites' ? 'Favorites' : 'Recents'}`}
-          message={`Are you sure you want to clear all your ${clearActionType === 'favorites' ? 'favorite scripts' : 'recently used scripts'}? This action cannot be undone.`}
+          title={`Clear All ${clearActionType === 'favorites' ? 'Favorites' : (clearActionType === 'recents' ? 'Recents' : 'Script Sources')}`}
+          message={`Are you sure you want to clear all your ${clearActionType === 'favorites' ? 'favorite scripts' : (clearActionType === 'recents' ? 'recently used scripts' : 'script sources')}? This action cannot be undone.`}
           confirmButtonText="Clear"
           confirmButtonColor="red"
         />
@@ -440,23 +474,41 @@ export const Sidebar = () => {
           </SidebarSection>
         )}
 
-        {/* Local Folders */}
+        {/* Script Sources */}
         {isPersonalTeamActive && (
           <SidebarSection
-            title="Local Folders"
+            title="Script Sources"
             icon={faFolder}
             iconColor="text-amber-500"
             defaultExpanded={true}
             actions={
-              <button
-                className="text-gray-400 hover:text-blue-500 p-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAddCustomFolder();
-                }}
-                title="Add Local Folder">
-                <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
-              </button>
+              <div className="flex-1 flex items-center relative h-full">
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+                  <button
+                    className="text-gray-400 hover:text-blue-500 p-1 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddCustomFolder();
+                    }}
+                    title="Add Script Source">
+                    <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="ml-auto flex items-center">
+                  {customScriptFolders.length > 0 && (
+                    <button
+                      className="text-gray-400 hover:text-red-500 p-1 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenClearConfirmModal('local-folders');
+                      }}
+                      title="Clear All Script Sources"
+                    >
+                      <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
             }
           >
             {customScriptFolders.length > 0 ? (
@@ -490,9 +542,9 @@ export const Sidebar = () => {
                           setSelectedScript(null);
                         }
                       }}
-                      title="Remove Folder"
+                      title="Unload Active Source"
                     >
-                      <FontAwesomeIcon icon={faTimes} className="w-3 h-3" />
+                      <FontAwesomeIcon icon={faTimes} className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
@@ -511,16 +563,18 @@ export const Sidebar = () => {
           defaultExpanded={true}
           actions={
             scripts.some(s => s.isFavorite) && (
-              <button
-                className="text-gray-400 hover:text-red-500 p-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenClearConfirmModal('favorites');
-                }}
-                title="Clear Favorites"
-              >
-                <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
-              </button>
+              <div className="flex-1 flex justify-end">
+                <button
+                  className="text-gray-400 hover:text-red-500 p-1 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenClearConfirmModal('favorites');
+                  }}
+                  title="Clear Favorites"
+                >
+                  <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
+                </button>
+              </div>
             )
           }
         >
@@ -549,16 +603,18 @@ export const Sidebar = () => {
           defaultExpanded={false}
           actions={
             recentScripts.length > 0 && (
-              <button
-                className="text-gray-400 hover:text-red-500 p-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenClearConfirmModal('recents');
-                }}
-                title="Clear Recents"
-              >
-                <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
-              </button>
+              <div className="flex-1 flex justify-end">
+                <button
+                  className="text-gray-400 hover:text-red-500 p-1 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenClearConfirmModal('recents');
+                  }}
+                  title="Clear Recents"
+                >
+                  <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
+                </button>
+              </div>
             )
           }
         >
@@ -585,15 +641,17 @@ export const Sidebar = () => {
           iconColor="text-purple-400"
           defaultExpanded={false}
           actions={
-            <button
-              className="text-gray-400 hover:text-blue-500 p-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsAddCategoryModalOpen(true);
-              }}
-              title="Add Category">
-              <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
-            </button>
+            <div className="flex-1 flex justify-end">
+              <button
+                className="text-gray-400 hover:text-blue-500 p-1 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAddCategoryModalOpen(true);
+                }}
+                title="Add Category">
+                <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
+              </button>
+            </div>
           }
         >
           <ul className="space-y-0.5 pr-2">

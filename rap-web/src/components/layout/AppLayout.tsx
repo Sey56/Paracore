@@ -2,25 +2,25 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import { TopBar } from "@/components/layout/TopBar/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar/Sidebar";
-import { ScriptGallery } from "@/components/automation/ScriptGallery/ScriptGallery";
-import { ScriptInspector } from "@/components/automation/ScriptInspector/ScriptInspector";
-import { FloatingCodeViewer } from "@/components/automation/ScriptInspector/FloatingCodeViewer";
-import { InfoModal } from "@/components/automation/ScriptInspector/InfoModal";
-import { useScriptExecution } from "@/hooks/useScriptExecution";
+import { ScriptGallery } from "@/features/automation/components/ScriptGallery/ScriptGallery";
+import { ScriptInspector } from "@/features/automation/components/ScriptInspector/ScriptInspector";
+import { FloatingCodeViewer } from "@/features/automation/components/ScriptInspector/FloatingCodeViewer";
+import { InfoModal } from "@/features/automation/components/ScriptInspector/InfoModal";
+import { useScriptExecution } from "@/features/automation";
 import { useUI } from "@/hooks/useUI";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
-import { useScripts } from "@/hooks/useScripts"; // Import useScripts
-import { GitStatusPanel } from "@/components/layout/GitStatusPanel"; // Import GitStatusPanel
+import { useScripts } from "@/features/automation";
+import { GitStatusPanel } from "@/features/workspaces/components/GitStatusPanel";
 import React, { useState, useCallback } from 'react';
-import { useAuth } from "@/hooks/useAuth";
-import { Role } from '@/context/authTypes'; // Import Role
-import SettingsModal from '@/components/settings/SettingsModal';
-import TeamManagementModal from '@/components/settings/TeamManagementModal'; // Import TeamManagementModal
-import { NewScriptModal } from '@/components/common/NewScriptModal'; // Import NewScriptModal
-import { AddFolderModal } from '@/components/common/AddFolderModal'; // Import AddFolderModal
-import { AddCategoryModal } from '@/components/common/AddCategoryModal'; // Import AddCategoryModal
-import { AgentView } from "@/components/agent/AgentView";
-import { PlaylistsTab } from "@/components/automation/Playlists/PlaylistsTab";
+import { useAuth } from "@/features/auth";
+import { Role } from '@/features/auth';
+import SettingsModal from '@/features/settings/components/SettingsModal';
+import TeamManagementModal from '@/features/settings/components/TeamManagementModal';
+import { NewScriptModal } from '@/features/automation/components/NewScriptModal';
+import { AddFolderModal } from '@/features/automation/components/AddFolderModal';
+import { AddCategoryModal } from '@/features/automation/components/AddCategoryModal';
+import { AgentView } from "@/features/agent/components/AgentView";
+import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
 
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
@@ -43,6 +43,7 @@ export const AppLayout: React.FC = () => {
     activeMainView, // Access activeMainView
     infoModalState, // Access global InfoModal state
     closeInfoModal, // Access closeInfoModal function
+    isLayoutSwapped,
   } = useUI();
 
   const isMobile = useBreakpoint();
@@ -64,8 +65,16 @@ export const AppLayout: React.FC = () => {
     if (!container) return;
 
     const containerRect = container.getBoundingClientRect();
-    const newInspectorWidth = (containerRect.right - e.clientX) / containerRect.width;
-    const newGalleryWidth = 1 - newInspectorWidth;
+    let newInspectorWidth: number;
+    let newGalleryWidth: number;
+
+    if (isLayoutSwapped) {
+      newInspectorWidth = (e.clientX - containerRect.left) / containerRect.width;
+      newGalleryWidth = 1 - newInspectorWidth;
+    } else {
+      newInspectorWidth = (containerRect.right - e.clientX) / containerRect.width;
+      newGalleryWidth = 1 - newInspectorWidth;
+    }
 
     const minGalleryWidth = 0.3;
     const maxGalleryWidth = 0.7;
@@ -77,7 +86,7 @@ export const AppLayout: React.FC = () => {
       setGalleryWidth(newGalleryWidth);
       setInspectorWidth(newInspectorWidth);
     }
-  }, [isResizing, setGalleryWidth, setInspectorWidth]);
+  }, [isResizing, setGalleryWidth, setInspectorWidth, isLayoutSwapped]);
 
   const handleMouseUp = useCallback(() => {
     setIsResizing(false);
@@ -115,7 +124,7 @@ export const AppLayout: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div
-          className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} bg-gray-50 dark:bg-gray-800 shadow-lg z-30 border-t border-gray-200 dark:border-gray-700`}
+          className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} bg-gray-50/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg z-30 border-t border-gray-200 dark:border-gray-700`}
         >
           <Sidebar />
         </div>
@@ -131,26 +140,55 @@ export const AppLayout: React.FC = () => {
           }}
         >
           <div className="flex flex-1 overflow-hidden">
-            {/* Main Content based on activeMainView */}
-            <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''}`}>
-              {activeMainView === 'scripts' && <ScriptGallery />}
-              {activeMainView === 'agent' && <AgentView />}
-              {activeMainView === 'playlists' && <PlaylistsTab />}
-            </div>
+            {/* Left/Right Panels based on layout swap */}
+            {isLayoutSwapped ? (
+              <>
+                {/* Inspector Panel (Swapped to Left) */}
+                {activeMainView !== 'playlists' && (
+                  <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 border-r border-gray-200 dark:border-gray-700 transition-all duration-500">
+                    <ScriptInspector />
+                  </div>
+                )}
 
-            {/* Resizer - Hidden in Playlists Mode */}
-            {activeMainView !== 'playlists' && (
-              <div
-                className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
-                onMouseDown={handleMouseDown}
-              ></div>
-            )}
+                {/* Resizer */}
+                {activeMainView !== 'playlists' && (
+                  <div
+                    className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
+                    onMouseDown={handleMouseDown}
+                  ></div>
+                )}
 
-            {/* Inspector Panel (Desktop) - Hidden in Playlists Mode */}
-            {activeMainView !== 'playlists' && (
-              <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto overflow-x-hidden min-w-0">
-                <ScriptInspector />
-              </div>
+                {/* Main Content Area (Swapped to Right) */}
+                <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''} transition-all duration-500`}>
+                  {activeMainView === 'scripts' && <ScriptGallery />}
+                  {activeMainView === 'agent' && <AgentView />}
+                  {activeMainView === 'playlists' && <PlaylistsTab />}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Main Content Area (Original Left) */}
+                <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''} transition-all duration-500`}>
+                  {activeMainView === 'scripts' && <ScriptGallery />}
+                  {activeMainView === 'agent' && <AgentView />}
+                  {activeMainView === 'playlists' && <PlaylistsTab />}
+                </div>
+
+                {/* Resizer */}
+                {activeMainView !== 'playlists' && (
+                  <div
+                    className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
+                    onMouseDown={handleMouseDown}
+                  ></div>
+                )}
+
+                {/* Inspector Panel (Original Right) */}
+                {activeMainView !== 'playlists' && (
+                  <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 transition-all duration-500">
+                    <ScriptInspector />
+                  </div>
+                )}
+              </>
             )}
           </div>
           {activeScriptSource?.type === 'workspace' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}

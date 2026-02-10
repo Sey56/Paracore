@@ -1,12 +1,12 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode, faListUl } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
 import { useNotifications } from '@/hooks/useNotifications';
 
-import { useAuth } from '@/hooks/useAuth';
-import { useScripts } from '@/hooks/useScripts';
+import { useAuth } from '@/features/auth';
+import { useScripts } from '@/features/automation';
 import React, { useState, useRef, useEffect } from 'react';
 import { UserMenu } from './UserMenu';
 import { Workspace } from '@/types';
@@ -14,7 +14,7 @@ import { Modal } from '@/components/common/Modal';
 import { shell } from '@tauri-apps/api';
 
 export const TopBar: React.FC = () => {
-  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView } = useUI();
+  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
@@ -150,6 +150,16 @@ export const TopBar: React.FC = () => {
           title={(!activeTeam || activeTeam.team_id === 0) ? "Playlists Mode (Cloud feature)" : "Playlists Mode"}
         >
           <FontAwesomeIcon icon={faListUl} />
+        </button>
+
+        <div className="h-6 w-[1px] bg-gray-200 dark:border-gray-700 mx-2"></div>
+
+        <button
+          onClick={toggleLayoutSwap}
+          className={`p-2 rounded-full transition-all duration-300 ${isLayoutSwapped ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+          title="Swap Layout"
+        >
+          <FontAwesomeIcon icon={faExchangeAlt} className={isLayoutSwapped ? "rotate-180 transition-transform duration-500" : "transition-transform duration-500"} />
         </button>
 
         <div className="action-icons flex items-center space-x-2 border-r border-gray-200 dark:border-gray-700 pr-4">
