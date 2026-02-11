@@ -9,7 +9,7 @@ use tauri::Manager;
 // Google OAuth client ID for desktop app
 const GOOGLE_CLIENT_ID: &str = "367583834715-rlm1en39oh0sj4dq4qhtaks6j23u5q6d.apps.googleusercontent.com";
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::WalkDir;
 
 #[tauri::command]
