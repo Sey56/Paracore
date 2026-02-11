@@ -46,7 +46,8 @@ namespace CoreScript.Engine.Core
 
             FileLogger.Log("🟢 Starting CodeRunner.Execute");
 
-            string topLevelScriptName = "Unknown Script"; 
+            string topLevelScriptName = "Unknown Script";
+            string finalScriptCode = string.Empty; // Store for error mapping
 
             try
             {
@@ -104,10 +105,10 @@ namespace CoreScript.Engine.Core
                 string combinedUserCode = _scriptCombiner.Combine(scriptFiles);
                 string modifiedUserCode = _scriptRewriter.Rewrite(combinedUserCode, parameters);
                 
-                // Inject our internal static using without shifting user line numbers
-                var finalScriptCode = "#line hidden" + Environment.NewLine + 
-                                      "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
-                                      modifiedUserCode;
+                // Inject our internal static using WITHOUT shifting lines. #line hidden ensures it's not reported in errors.
+                finalScriptCode = "#line hidden" + Environment.NewLine + 
+                                  "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+                                  modifiedUserCode;
 
                 try
                 {
@@ -140,44 +141,41 @@ namespace CoreScript.Engine.Core
             {
                 FileLogger.LogError("🛑 CodeRunner Exception: " + ex.ToString());
                 
-                string errorMessage = ex.Message;
+                string summaryMessage;
                 List<string> details = new List<string>();
 
                 if (ex is CompilationErrorException cex)
                 {
-                    // For compilation errors, we want each diagnostic on its own line
-                    var diagnostics = cex.Diagnostics
-                        .Where(d => d.Severity == DiagnosticSeverity.Error)
-                        .Select(d => d.ToString())
-                        .ToList();
+                    summaryMessage = "Compilation Failed";
                     
-                    if (diagnostics.Any())
-                    {
-                        errorMessage = "Compilation Failed";
-                        details.AddRange(diagnostics);
-                    }
+                    // Use DiagnosticMapper to get correct file/line mappings
+                    var mappedErrors = DiagnosticMapper.MapAndDeduplicate(
+                        cex.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
+                        finalScriptCode);
+                    
+                    details = mappedErrors.Select(e => e.ToString()).ToList();
                 }
-                else if (ex is AggregateException aex)
+                else if (ex is AggregateException aex && aex.InnerException is CompilationErrorException ccex)
                 {
-                    errorMessage = aex.InnerException?.Message ?? aex.Message;
-                    foreach(var inner in aex.InnerExceptions)
-                    {
-                        if (inner is CompilationErrorException ccex)
-                        {
-                            details.AddRange(ccex.Diagnostics.Select(d => d.ToString()));
-                        }
-                        else
-                        {
-                            details.Add(inner.Message);
-                        }
-                    }
+                    summaryMessage = "Compilation Failed";
+                    
+                    // Use DiagnosticMapper to get correct file/line mappings
+                    var mappedErrors = DiagnosticMapper.MapAndDeduplicate(
+                        ccex.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
+                        finalScriptCode);
+                    
+                    details = mappedErrors.Select(e => e.ToString()).ToList();
+                }
+                else
+                {
+                    summaryMessage = ex.Message;
                 }
 
-                var failureResult = ExecutionResult.Failure($"❌ {errorMessage}", context.PrintLog.ToArray());
+                var failureResult = ExecutionResult.Failure($"❌ {summaryMessage}", context.PrintLog.ToArray());
                 if (details.Any())
                 {
-                    // Add details to both ErrorMessage (for summary) and ErrorDetails (for log)
-                    failureResult.ErrorMessage = $"❌ {errorMessage}:{Environment.NewLine}{string.Join(Environment.NewLine, details)}";
+                    // Format multiple errors with newlines for clean wrap in frontend
+                    failureResult.ErrorMessage = $"❌ {summaryMessage}:{Environment.NewLine}{string.Join(Environment.NewLine, details)}";
                     failureResult.ErrorDetails = details.ToArray();
                 }
                 

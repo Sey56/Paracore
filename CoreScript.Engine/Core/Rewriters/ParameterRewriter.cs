@@ -24,13 +24,17 @@ namespace CoreScript.Engine.Core.Rewriters
             {
                 var pullExpression = SyntaxFactory.ParseExpression("CoreScript.Engine.Globals.ExecutionGlobals.Get<" + node.Type.ToString() + ">(\"" + paramName + "\")");
                 
-                // Ensure trivia (like #endregion) starts on a new line by attaching trailing trivia to the semicolon after a newline.
-                var originalTrailingTrivia = node.GetTrailingTrivia();
+                // Create the initializer with a space before the equals sign
+                var initializer = SyntaxFactory.EqualsValueClause(pullExpression)
+                    .WithLeadingTrivia(SyntaxFactory.Space)
+                    .WithTrailingTrivia(SyntaxFactory.Space);
                 
-                var updatedNode = node.WithInitializer(SyntaxFactory.EqualsValueClause(pullExpression).WithLeadingTrivia(SyntaxFactory.Space))
-                                    .WithTrailingTrivia(SyntaxFactory.TriviaList()) // Clear from property
-                                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)
-                                        .WithTrailingTrivia(SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed).Concat(originalTrailingTrivia)));
+                // Remove any existing initializer and add the new one
+                // Keep everything on the same line by preserving only the trailing trivia from the original node
+                var updatedNode = node
+                    .WithInitializer(initializer)
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)
+                        .WithTrailingTrivia(node.GetTrailingTrivia()));
                 
                 return updatedNode;
             }

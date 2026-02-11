@@ -9,6 +9,7 @@ namespace CoreScript.Engine.Core
     {
         public string Rewrite(string code, Dictionary<string, object> parameters)
         {
+            // Parse the code (which already has #line directives from ScriptParser)
             SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
             var root = tree.GetRoot();
 
@@ -20,6 +21,8 @@ namespace CoreScript.Engine.Core
             var timeoutRewriter = new TimeoutRewriter();
             root = timeoutRewriter.Visit(root);
 
+            // Roslyn's ToFullString() preserves trivia including #line directives
+            // No need to manually re-insert them
             return root.ToFullString();
         }
     }
