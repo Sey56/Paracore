@@ -174,7 +174,7 @@ namespace CoreScript.Engine.Core
             {
                 if (IsRevitType(baseT, out bool isEnum))
                 {
-                    if (isEnum) { p.Type = "enum"; p.DefaultValueJson = JsonSerializer.Serialize(""); }
+                if (isEnum) { p.Type = "enum"; p.IsRevitElement = true; p.RevitElementType = baseT; p.DefaultValueJson = JsonSerializer.Serialize(""); }
                     else { p.IsRevitElement = true; p.RevitElementType = baseT; p.Type = "reference"; p.DefaultValueJson = "null"; }
                 }
                 else { p.Type = "enum"; p.DefaultValueJson = JsonSerializer.Serialize(""); }

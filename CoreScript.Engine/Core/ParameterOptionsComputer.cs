@@ -90,9 +90,18 @@ namespace CoreScript.Engine.Core
                 var isTypeRequested = cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
                 var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
 
-                // Pure Class-Based Discovery
-                // We no longer guess categories from strings. We use the C# Type Truth.
+                // Enum Discovery — for types like BuiltInParameter, BuiltInCategory, etc.
                 if (_revitTypes == null) _revitTypes = typeof(Element).Assembly.GetTypes();
+                var enumType = _revitTypes.FirstOrDefault(t =>
+                    (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)) &&
+                    t.IsEnum);
+
+                if (enumType != null)
+                {
+                    return Enum.GetNames(enumType).OrderBy(n => n).ToList();
+                }
+
+                // Pure Class-Based Discovery
                 var classType = _revitTypes.FirstOrDefault(t => 
                     (t.Name.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || t.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase)) && 
                     typeof(Element).IsAssignableFrom(t));
