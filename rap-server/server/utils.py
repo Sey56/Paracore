@@ -1,11 +1,20 @@
 import os
 import re
+import grpc
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import models
 
+def format_grpc_error(e: grpc.RpcError) -> str:
+    """
+    Formats a gRPC error into a user-friendly message.
+    """
+    details = e.details()
+    if "failed to connect to all addresses" in details or "10061" in details:
+        return "Failed to connect to Paracore server. Please ensure Revit is open and the Paracore Add-in server is running, then refresh."
+    return f"Error: {details}"
 
 def redact_secrets(text: str) -> str:
     """

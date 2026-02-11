@@ -6,6 +6,7 @@ from contextlib import contextmanager
 import corescript_pb2
 import corescript_pb2_grpc
 import grpc
+from utils import format_grpc_error
 
 # Global channel variable
 _channel = None
@@ -54,7 +55,7 @@ def get_status():
             response = stub.GetStatus(corescript_pb2.GetStatusRequest())
         return response
     except grpc.RpcError as e:
-        logging.error(f"gRPC GetStatus call failed: {e.code()} - {e.details()}")
+        logging.error(format_grpc_error(e))
         raise # Re-raise the gRPC error
     except Exception as e:
         logging.error(f"An unexpected error occurred during gRPC GetStatus call: {e}")
@@ -84,7 +85,7 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
                 "internal_data": response.internal_data,
             }
         except grpc.RpcError as e:
-            logging.error(f"gRPC ExecuteScript call failed: {e.code()} - {e.details()}")
+            logging.error(format_grpc_error(e))
             raise # Re-raise the gRPC error
 
 def get_script_metadata(script_files):
@@ -244,7 +245,7 @@ def validate_working_set_grpc(element_ids: list[int]) -> list[int]:
             logging.info(f"gRPC ValidateWorkingSet call successful. {len(valid_ids)} IDs are valid.")
             return valid_ids
     except grpc.RpcError as e:
-        logging.error(f"gRPC ValidateWorkingSet call failed: {e.code()} - {e.details()}")
+        logging.error(format_grpc_error(e))
         return [] # Return empty list on error
     except Exception as e:
         logging.error(f"An unexpected error occurred during gRPC ValidateWorkingSet call: {e}")
@@ -273,7 +274,7 @@ def compute_parameter_options(script_content: str, parameter_name: str, paramete
                 "step": response.step if response.HasField('step') else None
             }
     except grpc.RpcError as e:
-        logging.error(f"gRPC ComputeParameterOptions call failed: {e.code()} - {e.details()}")
+        logging.error(format_grpc_error(e))
         return {
             "options": [],
             "is_success": False,
@@ -301,7 +302,7 @@ def select_elements(element_ids: list[int]):
                     "error_message": response.error_message
                 }
         except grpc.RpcError as e:
-            logging.error(f"gRPC SelectElements call failed: {e.code()} - {e.details()}")
+            logging.error(format_grpc_error(e))
             return {
                 "is_success": False,
                 "error_message": f"gRPC error: {e.details()}"
@@ -332,7 +333,7 @@ def pick_object(selection_type: str, category_filter: str = None):
                 "error_message": response.error_message
             }
     except grpc.RpcError as e:
-        logging.error(f"gRPC PickObject call failed: {e.code()} - {e.details()}")
+        logging.error(format_grpc_error(e))
         return {
             "is_success": False,
             "error_message": f"gRPC error: {e.details()}"
@@ -362,7 +363,7 @@ def rename_script(old_path: str, new_name: str):
                 "error_message": response.error_message
             }
     except grpc.RpcError as e:
-        logging.error(f"gRPC RenameScript call failed: {e.code()} - {e.details()}")
+        logging.error(format_grpc_error(e))
         return {
             "is_success": False,
             "new_path": "",
@@ -392,7 +393,7 @@ def build_script(script_content):
                 "error_message": response.error_message
             }
     except grpc.RpcError as e:
-        logging.error(f"gRPC BuildScript call failed: {e.code()} - {e.details()}")
+        logging.error(format_grpc_error(e))
         return {
             "is_success": False,
             "error_message": f"gRPC error: {e.details()}"

@@ -50,6 +50,10 @@ from api import (
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 from grpc_client import close_channel, init_channel
+import grpc
+from utils import format_grpc_error
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 
 @asynccontextmanager
@@ -82,6 +86,13 @@ async def lifespan(app: FastAPI):
     close_channel()
 
 app = FastAPI(lifespan=lifespan)
+
+@app.exception_handler(grpc.RpcError)
+async def grpc_exception_handler(request: Request, exc: grpc.RpcError):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": format_grpc_error(exc)},
+    )
 
 # --- CORS Middleware ---
 # In a production environment, you would want to restrict this to your actual frontend URL

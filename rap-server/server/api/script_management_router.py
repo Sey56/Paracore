@@ -21,7 +21,7 @@ from grpc_client import (
 from pydantic import BaseModel, Field
 from workspace_manager import get_active_workspace, set_active_workspace
 
-from utils import resolve_script_path
+from utils import resolve_script_path, format_grpc_error
 
 router = APIRouter()
 
@@ -168,7 +168,7 @@ async def get_scripts(folderPath: str):
                 try:
                     metadata = get_script_metadata(script_files).get("metadata", {})
                 except grpc.RpcError as e:
-                    metadata = {"displayName": os.path.splitext(os.path.basename(resolved_file_path))[0], "description": f"Error: {e.details()}"}
+                    metadata = {"displayName": os.path.splitext(os.path.basename(resolved_file_path))[0], "description": format_grpc_error(e)}
 
                 file_stat = os.stat(resolved_file_path)
                 date_created = datetime.fromtimestamp(file_stat.st_ctime).isoformat()
@@ -218,7 +218,7 @@ async def get_scripts(folderPath: str):
                     try:
                         metadata = get_script_metadata(script_files).get("metadata", {})
                     except grpc.RpcError as e:
-                        metadata = {"displayName": os.path.basename(resolved_item_path), "description": f"Error: {e.details()}"}
+                        metadata = {"displayName": os.path.basename(resolved_item_path), "description": format_grpc_error(e)}
 
                     # Calculate robust date_modified for folders (latest mtime of any .cs file)
                     folder_stat = os.stat(resolved_item_path)
@@ -358,7 +358,7 @@ async def get_script_metadata_endpoint(request: Request):
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except grpc.RpcError as e:
-        raise HTTPException(status_code=500, detail=f"gRPC Error: {e.details()}")
+        raise HTTPException(status_code=500, detail=format_grpc_error(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -408,7 +408,7 @@ async def get_script_parameters_endpoint(request: Request):
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except grpc.RpcError as e:
-        raise HTTPException(status_code=500, detail=f"gRPC Error: {e.details()}")
+        raise HTTPException(status_code=500, detail=format_grpc_error(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -476,7 +476,7 @@ async def get_script_content(scriptPath: str, type: str):
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except grpc.RpcError as e:
-        raise HTTPException(status_code=500, detail=f"gRPC Error: {e.details()}")
+        raise HTTPException(status_code=500, detail=format_grpc_error(e))
     except HTTPException:
         raise
     except Exception as e:
@@ -693,7 +693,7 @@ async def process_script_content(request: ProcessContentRequest):
             metadata_response = get_script_metadata(script_files)
             metadata = metadata_response.get("metadata", {})
         except grpc.RpcError as e:
-            metadata = {"displayName": "Published Script", "description": f"Error parsing metadata: {e.details()}"}
+            metadata = {"displayName": "Published Script", "description": format_grpc_error(e)}
 
         # Get parameters
         try:
@@ -777,7 +777,7 @@ async def compute_parameter_options_endpoint(request: ComputeOptionsRequest):
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except grpc.RpcError as e:
-        raise HTTPException(status_code=500, detail=f"gRPC Error: {e.details()}")
+        raise HTTPException(status_code=500, detail=format_grpc_error(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 @router.post("/api/rename-script", tags=["Script Management"])
