@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using CoreScript.Engine.Models;
@@ -56,127 +57,62 @@ namespace CoreScript.Engine.Core
             if (scriptFiles is not { Count: > 0 })
                 throw new InvalidDataException("No valid script files to combine.");
 
-            var allUsingDirectives = new HashSet<string>();
-            
-            // Store content with source mapping: (Content, File, Line)
-            var otherUserDefinedTypes = new List<(string Content, string File, int Line)>();
-            (string Content, string File, int Line)? paramsClassData = null;
-            
-            string mainScriptBody = null;
-            int mainBodyStartLine = 1;
-            
             var topLevelScriptFile = IdentifyTopLevelScript(scriptFiles);
-            if(topLevelScriptFile == null)
-            {
-                // This can happen if a folder contains only class libraries and no executable code.
-                mainScriptBody = ""; 
-            }
+            var resultParts = new List<string>();
 
+            // 1. Move ALL usings to the very top with original file/line mapping
+            // This is required because Roslyn Scripting requires usings to be at the start of the submission.
             foreach (var file in scriptFiles)
             {
-                // Ensure parsing with path so Location works
                 var tree = CSharpSyntaxTree.ParseText(file.Content, path: file.FileName);
                 var root = tree.GetRoot();
+                var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>();
 
-                // Collect all using directives
-                var fileUsingDirectives = root.DescendantNodes().OfType<UsingDirectiveSyntax>().ToList();
-                foreach (var u in fileUsingDirectives)
-                    allUsingDirectives.Add(u.ToString());
-
-                // Collect all user-defined types
-                var fileTypeDecls = root.DescendantNodes().OfType<MemberDeclarationSyntax>()
-                    .Where(n => n is ClassDeclarationSyntax || n is StructDeclarationSyntax || n is EnumDeclarationSyntax || n is InterfaceDeclarationSyntax)
-                    .ToList();
-                
-                foreach (var decl in fileTypeDecls)
+                foreach (var u in usings)
                 {
-                    string content = decl.ToFullString().TrimEnd();
-                    // Use FullSpan to include leading trivia (comments) in line calculation
-                    var fullSpanLineSpan = root.SyntaxTree.GetLineSpan(decl.FullSpan);
-                    int line = fullSpanLineSpan.StartLinePosition.Line + 1;
-                    
-                    // Check if this is the Params class
-                    if (decl is ClassDeclarationSyntax classDecl && classDecl.Identifier.Text == "Params")
-                    {
-                        paramsClassData = (content, file.FileName, line);
-                    }
-                    else
-                    {
-                        // Avoid duplicates
-                        if (!otherUserDefinedTypes.Any(t => t.Content == content))
-                            otherUserDefinedTypes.Add((content, file.FileName, line));
-                    }
-                }
-
-                if (file.FileName == topLevelScriptFile?.FileName)
-                {
-                    // Calculate start line for the main body using FullSpan to include leading trivia (comments)
-                    var firstGlobal = root.DescendantNodes().OfType<GlobalStatementSyntax>().FirstOrDefault();
-                    if (firstGlobal != null)
-                    {
-                        var span = firstGlobal.FullSpan;
-                        var lineSpan = root.SyntaxTree.GetLineSpan(span);
-                        mainBodyStartLine = lineSpan.StartLinePosition.Line + 1;
-                    }
-
-                    // Extract stripped body (potential top-level statements)
-                    // Do NOT Trim(), preserve leading trivia (newlines/comments) to match the line calculation
-                    mainScriptBody = root.RemoveNodes(
-                        fileUsingDirectives.Cast<SyntaxNode>().Concat(fileTypeDecls.Cast<SyntaxNode>()),
-                        SyntaxRemoveOptions.KeepNoTrivia
-                    ).ToFullString();
+                    var lineSpan = root.SyntaxTree.GetLineSpan(u.FullSpan);
+                    int line = lineSpan.StartLinePosition.Line + 1;
+                    resultParts.Add($"#line {line} \"{file.FileName}\"");
+                    resultParts.Add(u.ToString());
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(mainScriptBody) && topLevelScriptFile != null)
+            // 2. Add each file as a contiguous block with #line 1 mapping
+            foreach (var file in scriptFiles)
             {
-                // It's possible the body is empty or just whitespace/comments. 
-                // If it's effectively empty but we have a file, that's fine, but check for logic.
-                // We'll proceed, as empty scripts are valid (do nothing).
-            }
+                var tree = CSharpSyntaxTree.ParseText(file.Content, path: file.FileName);
+                var root = tree.GetRoot();
+                var sourceText = root.SyntaxTree.GetText();
+                var editableText = sourceText.ToString();
 
-            var globalImportsList = allUsingDirectives.Where(u => u.Trim().StartsWith("global using")).ToList();
-            var normalImportsList = allUsingDirectives.Where(u => u.Trim().StartsWith("using") && !u.Trim().StartsWith("global using")).ToList();
+                // Determine nodes to "blank out" to avoid compiler conflicts while preserving line counts
+                var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>();
+                var globals = root.DescendantNodes().OfType<GlobalStatementSyntax>();
 
-            // Build a list of non-empty script parts to combine
-            var parts = new List<string>();
+                // We blank out ALL usings (because they were moved to the top)
+                var nodesToBlank = usings.Cast<SyntaxNode>().ToList();
 
-            if (globalImportsList.Any())
-            {
-                parts.Add(string.Join("\n", globalImportsList));
-            }
-
-            if (normalImportsList.Any())
-            {
-                parts.Add(string.Join("\n", normalImportsList));
-            }
-
-            if (!string.IsNullOrWhiteSpace(mainScriptBody))
-            {
-                // Inject line mapping for main body
-                if (topLevelScriptFile != null)
-                    parts.Add($"#line {mainBodyStartLine} \"{topLevelScriptFile.FileName}\"\n{mainScriptBody}");
-                else
-                    parts.Add(mainScriptBody);
-            }
-            
-            // Add Params class immediately after logic
-            if (paramsClassData.HasValue)
-            {
-                // Combine directive and content to avoid extra newlines from Join
-                parts.Add($"#line {paramsClassData.Value.Line} \"{paramsClassData.Value.File}\"\n{paramsClassData.Value.Content}");
-            }
-
-            if (otherUserDefinedTypes.Any())
-            {
-                foreach (var typeData in otherUserDefinedTypes)
+                // If this is NOT the top-level script, we also blank out top-level statements
+                if (file.FileName != topLevelScriptFile?.FileName)
                 {
-                    parts.Add($"#line {typeData.Line} \"{typeData.File}\"\n{typeData.Content}");
+                    nodesToBlank.AddRange(globals);
                 }
+
+                // Apply blanking in reverse order to keep offsets valid
+                foreach (var node in nodesToBlank.OrderByDescending(n => n.FullSpan.Start))
+                {
+                    var span = node.FullSpan;
+                    var nodeText = editableText.Substring(span.Start, span.Length);
+                    // Replace characters with spaces, preserving newlines
+                    var replacement = new string(nodeText.Select(c => c == '\n' || c == '\r' ? c : ' ').ToArray());
+                    editableText = editableText.Remove(span.Start, span.Length).Insert(span.Start, replacement);
+                }
+
+                resultParts.Add($"#line 1 \"{file.FileName}\"");
+                resultParts.Add(editableText);
             }
 
-            // Join all major parts with double newlines
-            return string.Join("\n\n", parts);
+            return string.Join(Environment.NewLine, resultParts);
         }
     }
 }

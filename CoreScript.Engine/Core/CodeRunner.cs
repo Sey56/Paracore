@@ -101,8 +101,13 @@ namespace CoreScript.Engine.Core
                 var executionGlobals = new ExecutionGlobals(context, parameters ?? new Dictionary<string, object>());
                 ExecutionGlobals.SetContext(executionGlobals);
 
-                string modifiedUserCode = _scriptRewriter.Rewrite(combinedScriptContent, parameters);
-                var finalScriptCode = "#line hidden\nusing static CoreScript.Engine.Globals.ScriptApi;\n#line default\n" + modifiedUserCode;
+                string combinedUserCode = _scriptCombiner.Combine(scriptFiles);
+                string modifiedUserCode = _scriptRewriter.Rewrite(combinedUserCode, parameters);
+                
+                // Inject our internal static using without shifting user line numbers
+                var finalScriptCode = "#line hidden" + Environment.NewLine + 
+                                      "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+                                      modifiedUserCode;
 
                 try
                 {
@@ -134,7 +139,48 @@ namespace CoreScript.Engine.Core
             catch (Exception ex)
             {
                 FileLogger.LogError("🛑 CodeRunner Exception: " + ex.ToString());
-                var failureResult = ExecutionResult.Failure($"❌ Error: {ex.Message}", context.PrintLog.ToArray());
+                
+                string errorMessage = ex.Message;
+                List<string> details = new List<string>();
+
+                if (ex is CompilationErrorException cex)
+                {
+                    // For compilation errors, we want each diagnostic on its own line
+                    var diagnostics = cex.Diagnostics
+                        .Where(d => d.Severity == DiagnosticSeverity.Error)
+                        .Select(d => d.ToString())
+                        .ToList();
+                    
+                    if (diagnostics.Any())
+                    {
+                        errorMessage = "Compilation Failed";
+                        details.AddRange(diagnostics);
+                    }
+                }
+                else if (ex is AggregateException aex)
+                {
+                    errorMessage = aex.InnerException?.Message ?? aex.Message;
+                    foreach(var inner in aex.InnerExceptions)
+                    {
+                        if (inner is CompilationErrorException ccex)
+                        {
+                            details.AddRange(ccex.Diagnostics.Select(d => d.ToString()));
+                        }
+                        else
+                        {
+                            details.Add(inner.Message);
+                        }
+                    }
+                }
+
+                var failureResult = ExecutionResult.Failure($"❌ {errorMessage}", context.PrintLog.ToArray());
+                if (details.Any())
+                {
+                    // Add details to both ErrorMessage (for summary) and ErrorDetails (for log)
+                    failureResult.ErrorMessage = $"❌ {errorMessage}:{Environment.NewLine}{string.Join(Environment.NewLine, details)}";
+                    failureResult.ErrorDetails = details.ToArray();
+                }
+                
                 failureResult.ScriptName = topLevelScriptName;
                 return failureResult;
             }
