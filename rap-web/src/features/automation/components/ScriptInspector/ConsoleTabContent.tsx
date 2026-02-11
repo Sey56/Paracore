@@ -301,7 +301,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     <div className="tab-content py-4 flex flex-col h-full relative overflow-hidden">
       <div className="flex-grow relative min-h-0 min-w-0">
         <div className="absolute inset-0 overflow-auto rounded bg-gray-50/50 dark:bg-gray-900/30 p-2">
-          <pre className="font-mono text-sm whitespace-pre text-left indent-0 text-gray-800 dark:text-gray-200">
+          <pre className="font-mono text-sm whitespace-pre-wrap text-left indent-0 text-gray-800 dark:text-gray-200">
             {isRunning && <code className="p-0 m-0">Executing script...</code>}
             {executionResult?.output ? (
               <code className={`${executionResult.isSuccess ? "" : "text-red-600 dark:text-red-400"} p-0 m-0`}>

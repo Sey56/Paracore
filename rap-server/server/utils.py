@@ -13,7 +13,7 @@ def format_grpc_error(e: grpc.RpcError) -> str:
     """
     details = e.details()
     if "failed to connect to all addresses" in details or "10061" in details:
-        return "Failed to connect to Paracore server. Please ensure Revit is open and the Paracore Add-in server is running, then refresh."
+        return "Failed to connect to Paracore server. Ensure Revit is open and the server is toggled ON. If connection persists after refreshing, try restarting the Paracore app."
     return f"Error: {details}"
 
 def redact_secrets(text: str) -> str:
