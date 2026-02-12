@@ -1,0 +1,257 @@
+syntax = "proto3";
+
+package CoreScript;
+
+service CoreScriptRunner {
+  rpc ExecuteScript (ExecuteScriptRequest) returns (ExecuteScriptResponse);
+  rpc GetStatus (GetStatusRequest) returns (GetStatusResponse);
+  rpc GetScriptMetadata (GetScriptMetadataRequest) returns (GetScriptMetadataResponse);
+  rpc GetScriptParameters (GetScriptParametersRequest) returns (GetScriptParametersResponse);
+  rpc GetCombinedScript (GetCombinedScriptRequest) returns (GetCombinedScriptResponse);
+  rpc GetContext (GetContextRequest) returns (GetContextResponse);
+  rpc CreateAndOpenWorkspace (CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  rpc GetScriptManifest (GetScriptManifestRequest) returns (GetScriptManifestResponse);
+  rpc ValidateWorkingSet (ValidateWorkingSetRequest) returns (ValidateWorkingSetResponse);
+  rpc ComputeParameterOptions (ComputeParameterOptionsRequest) returns (ComputeParameterOptionsResponse);
+  rpc SelectElements (SelectElementsRequest) returns (SelectElementsResponse);
+  rpc PickObject (PickObjectRequest) returns (PickObjectResponse);
+  rpc RenameScript (RenameScriptRequest) returns (RenameScriptResponse);
+  rpc BuildScript (BuildScriptRequest) returns (BuildScriptResponse);
+}
+
+message PickObjectRequest {
+  string selection_type = 1; // "Element", "Point", "Face", "Edge"
+  string category_filter = 2; // Optional: BuiltInCategory name or "Walls", "Doors", etc.
+}
+
+message PickObjectResponse {
+  string value = 1; // The ID or coordinates returned
+  bool is_success = 2;
+  bool cancelled = 3;
+  string error_message = 4;
+}
+
+message SelectElementsRequest {
+  repeated int64 element_ids = 1;
+}
+
+message SelectElementsResponse {
+  bool is_success = 1;
+  string error_message = 2;
+}
+
+message CreateWorkspaceRequest {
+  string script_path = 1;
+  string script_type = 2;
+}
+
+message CreateWorkspaceResponse {
+  string workspace_path = 1;
+  string error_message = 2;
+}
+
+message ScriptFile {
+  string file_name = 1;
+  string content = 2;
+}
+
+message ExecuteScriptRequest {
+  string script_content = 1;
+  bytes parameters_json = 2;
+  string source = 3;
+  bytes compiled_assembly = 4; // Binary C# assembly for proprietary tools
+}
+
+message StructuredOutputItem {
+  string type = 1;
+  string data = 2; 
+}
+
+message ExecuteScriptResponse {
+  bool is_success = 1;
+  string output = 2;
+  string error_message = 3;
+  repeated string error_details = 4;
+  repeated StructuredOutputItem structured_output = 5;
+  string internal_data = 6;
+  string agent_summary = 7;
+}
+
+message GetStatusRequest {
+}
+
+message GetStatusResponse {
+  bool paracore_connected = 1;
+  bool revit_open = 2;
+  string revit_version = 3;
+  bool document_open = 4;
+  string document_title = 5;
+  string document_type = 6;
+}
+
+message GetScriptMetadataRequest {
+  repeated ScriptFile script_files = 1;
+}
+
+message GetScriptMetadataResponse {
+  ScriptMetadata metadata = 1;
+  string error_message = 2;
+}
+
+message GetScriptParametersRequest {
+  repeated ScriptFile script_files = 1;
+}
+
+// Represents the metadata for a single script (single-file or multi-file).
+// This is the new, finalized format.
+message ScriptMetadata {
+  string name = 1;                  // Name of the script (filename or folder name)
+  string file_path = 2;             // Relative path from the agent workspace root
+  string script_type = 3;           // "single-file" or "multi-file"
+  string description = 4;
+  string author = 5;
+  repeated string categories = 6;
+  repeated string dependencies = 7;
+  string document_type = 8;
+  repeated string usage_examples = 9;        // New field for usage examples
+  string website = 10; 
+  string last_run = 11;
+  bool is_protected = 12;           // If true, UI hides Code and VS Code buttons
+  bool is_compiled = 13;            // If true, the tool is distributed as binary (.ptool)
+}
+
+
+message GetScriptParametersResponse {
+  repeated ScriptParameter parameters = 1;
+  string error_message = 2;
+}
+
+message ScriptParameter {
+  string name = 1;
+  string type = 2;
+  string default_value_json = 3;
+  string description = 4;
+  repeated string options = 5;
+  bool multi_select = 6;
+  string visible_when = 7;
+  
+  // Enhanced Numeric Types
+  string numeric_type = 8;  // "int" or "double"
+  optional double min = 9;
+  optional double max = 10;
+  optional double step = 11;
+  
+  // Revit Element Selection
+  bool is_revit_element = 12;
+  string revit_element_type = 13;
+  string revit_element_category = 14;
+  bool requires_compute = 15;
+  string group = 16;
+  string input_type = 17;
+  bool required = 18;
+  string suffix = 19;
+  string pattern = 20;
+  string enabled_when_param = 21;
+  string enabled_when_value = 22;
+  string unit = 23;
+  string selection_type = 24;
+}
+
+message GetCombinedScriptRequest {
+  repeated ScriptFile script_files = 1;
+  string script_path = 2; // Optional: Path to the script for context
+}
+
+message GetCombinedScriptResponse {
+  string combined_script = 1;
+  string error_message = 2;
+}
+
+message GetContextRequest {}
+
+message GetContextResponse {
+  string active_view_name = 1;
+  int32 selection_count = 2;
+  repeated int32 selected_element_ids = 3;
+  ProjectInfo project_info = 4;
+  string active_view_type = 5;
+  int32 active_view_scale = 6;
+  string active_view_detail_level = 7;
+  repeated ElementInfo selected_elements = 8;
+  repeated LevelInfo levels = 9;
+}
+
+message LevelInfo {
+  int32 id = 1;
+  string name = 2;
+  double elevation = 3;
+}
+
+message ElementInfo {
+  int32 id = 1;
+  string category = 2;
+}
+
+message ProjectInfo {
+  string name = 1;
+  string number = 2;
+  string title = 3;
+  string file_path = 4;
+  bool is_workshared = 5;
+  string username = 6;
+}
+
+message GetScriptManifestRequest {
+  string script_path = 1;
+}
+
+message GetScriptManifestResponse {
+  string manifest_json = 1;
+  string error_message = 2;
+}
+
+message ValidateWorkingSetRequest {
+  repeated int64 element_ids = 1;
+}
+
+message ValidateWorkingSetResponse {
+  repeated int64 valid_element_ids = 1;
+}
+
+message ComputeParameterOptionsRequest {
+  string script_content = 1;
+  string parameter_name = 2;
+  bytes parameters_json = 3;
+}
+
+message ComputeParameterOptionsResponse {
+  repeated string options = 1;
+  bool is_success = 2;
+  string error_message = 3;
+  
+  // Dynamic Range Execution
+  optional double min = 4;
+  optional double max = 5;
+  optional double step = 6;
+}
+
+message RenameScriptRequest {
+  string old_path = 1;       // Full path to the existing script file
+  string new_name = 2;       // New filename (without extension)
+}
+
+message RenameScriptResponse {
+  bool is_success = 1;
+  string new_path = 2;       // Full path to the renamed script file
+  string error_message = 3;
+}
+
+message BuildScriptRequest {
+  string script_content = 1;
+}
+
+message BuildScriptResponse {
+  bool is_success = 1;
+  bytes compiled_assembly = 2;
+  string error_message = 3;
+}

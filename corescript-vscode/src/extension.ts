@@ -169,9 +169,12 @@ global using Microsoft.CSharp;
 global using Autodesk.Revit.DB;
 global using Autodesk.Revit.DB.Architecture;
 global using Autodesk.Revit.DB.Structure;
+global using Autodesk.Revit.DB.Mechanical;
+global using Autodesk.Revit.DB.Plumbing;
+global using Autodesk.Revit.DB.Electrical;
 global using Autodesk.Revit.UI;
 global using CoreScript.Engine.Globals;
-global using static CoreScript.Engine.Globals.DesignTimeGlobals;
+global using static CoreScript.Engine.Globals.ScriptApi;
 global using SixLabors.ImageSharp;
 global using SixLabors.ImageSharp.Processing;
 global using SixLabors.ImageSharp.PixelFormats;
@@ -193,9 +196,6 @@ Description: Entry point for the CoreScript automation.
 Note: When running directly from VSCode, parameters in the Params class must have 
 default values, as they cannot be intercepted and changed via UI like in the Paracore application.
 */
-
-using Autodesk.Revit.DB;
-using System.Linq;
 
 // 1. Setup Parameters
 var p = new Params();
@@ -264,11 +264,6 @@ public class Params
 
         // 🧪 SpiralCreator.cs
         const spiralScript = `
-using Autodesk.Revit.DB;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 public class SpiralCreator
 {
     public void CreateSpiral(Document doc, Level level, double maxRadiusFeet, int numTurns, double angleResolutionDegrees)
