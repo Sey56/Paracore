@@ -484,12 +484,10 @@ namespace Paracore.Addin.Helpers
                 "global using Autodesk.Revit.DB;\n" +
                 "global using Autodesk.Revit.DB.Architecture;\n" +
                 "global using Autodesk.Revit.DB.Structure;\n" +
-                "global using Autodesk.Revit.DB.Mechanical;\n" +
-                "global using Autodesk.Revit.DB.Plumbing;\n" +
-                "global using Autodesk.Revit.DB.Electrical;\n" +
                 "global using Autodesk.Revit.UI;\n" +
                 "global using CoreScript.Engine.Globals;\n" +
                 "global using static CoreScript.Engine.Globals.DesignTimeGlobals;\n" +
+                "global using static CoreScript.Engine.Globals.ScriptApi;\n" +
                 "global using SixLabors.ImageSharp;\n" +
                 "global using SixLabors.ImageSharp.Processing;\n" +
                 "global using SixLabors.ImageSharp.PixelFormats;\n" +
