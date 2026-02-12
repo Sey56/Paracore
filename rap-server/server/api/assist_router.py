@@ -1,6 +1,7 @@
 import logging
 import re
 import os
+import glob
 from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -11,6 +12,7 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from auth import CurrentUser, get_current_user
+from workspace_manager import get_scripts_dir
 
 router = APIRouter(prefix="/generation", tags=["AI Assistance"])
 logger = logging.getLogger(__name__)
@@ -124,6 +126,48 @@ async def explain_error(request: ExplainErrorRequest, current_user: CurrentUser 
 
         context_str = "\n".join([f"{k}: {v}" for k, v in request.context.items()])
         
+        # Resolve the actual source code to send to AI
+        # For multi-file, we MUST send individual files to avoid the #line markers 
+        # that are present in the combinedScriptContent sent from frontend.
+        source_context = ""
+        if request.type == "multi-file":
+            try:
+                scripts_dir = get_scripts_dir(request.script_path, request.type)
+                
+                if os.path.isdir(scripts_dir):
+                    files_found = []
+                    for fpath in glob.glob(os.path.join(scripts_dir, "*.cs")):
+                        fname = os.path.basename(fpath)
+                        # Skip Globals.cs as it's just IntelliSense noise and contains no logic
+                        if fname.lower() == "globals.cs": continue
+                        
+                        content = ""
+                        try:
+                            # Try different encodings for Windows compatibility
+                            with open(fpath, 'r', encoding='utf-8-sig') as f:
+                                content = f.read()
+                        except:
+                            try:
+                                with open(fpath, 'r', encoding='utf-8') as f:
+                                    content = f.read()
+                            except:
+                                continue
+                        
+                        if content:
+                            files_found.append(f"### FILE: {fname}\n{content}")
+                    
+                    if files_found:
+                        source_context = "\n\n".join(files_found)
+                    else:
+                        source_context = request.script_code # Fallback to combined
+                else:
+                    source_context = request.script_code # Fallback
+            except Exception as e:
+                logger.error(f"Failed to load individual files for AI fix: {e}")
+                source_context = request.script_code
+        else:
+            source_context = request.script_code
+
         prompt = f"""[ERROR MESSAGE]
 {request.error_message}
 
@@ -135,7 +179,7 @@ Type: {request.type}
 {history_context}
 
 [CURRENT SCRIPT CODE]
-{request.script_code}
+{source_context}
 
 Please fix the error and provide the full code.
 """

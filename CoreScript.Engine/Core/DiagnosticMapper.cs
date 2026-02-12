@@ -52,123 +52,46 @@ namespace CoreScript.Engine.Core
         }
 
         /// <summary>
-        /// Extracts #line directive mappings from the combined script.
-        /// </summary>
-        private static List<LineMapping> ExtractLineMappings(string combinedCode)
-        {
-            var mappings = new List<LineMapping>();
-            var lines = combinedCode.Split('\n');
-            
-            string currentFile = null;
-            int currentSourceLine = 1;
-            
-            for (int i = 0; i < lines.Length; i++)
-            {
-                int combinedLineNumber = i + 1;
-                var line = lines[i].TrimEnd('\r');
-                
-                // Match #line directives: #line 1 "Params.cs"
-                var match = Regex.Match(line, @"^\s*#line\s+(\d+)\s+""([^""]+)""");
-                if (match.Success)
-                {
-                    currentSourceLine = int.Parse(match.Groups[1].Value);
-                    currentFile = match.Groups[2].Value;
-                    continue;
-                }
-                
-                // Match #line hidden
-                if (Regex.IsMatch(line, @"^\s*#line\s+hidden"))
-                {
-                    currentFile = null;
-                    continue;
-                }
-                
-                // If we have an active file mapping, record it
-                if (!string.IsNullOrEmpty(currentFile))
-                {
-                    mappings.Add(new LineMapping
-                    {
-                        CombinedLineNumber = combinedLineNumber,
-                        SourceFileName = currentFile,
-                        SourceLineNumber = currentSourceLine
-                    });
-                    currentSourceLine++;
-                }
-            }
-            
-            return mappings;
-        }
-
-        /// <summary>
-        /// Maps a diagnostic from the combined script to the original source file.
-        /// </summary>
-        private static MappedDiagnostic MapDiagnostic(Diagnostic diagnostic, List<LineMapping> mappings)
-        {
-            var lineSpan = diagnostic.Location.GetLineSpan();
-            int combinedLine = lineSpan.StartLinePosition.Line + 1;
-            int column = lineSpan.StartLinePosition.Character + 1;
-            
-            // Find the closest mapping for this line
-            var mapping = mappings
-                .Where(m => m.CombinedLineNumber <= combinedLine)
-                .OrderByDescending(m => m.CombinedLineNumber)
-                .FirstOrDefault();
-            
-            if (mapping != null)
-            {
-                // Calculate the offset from the mapping point
-                int offset = combinedLine - mapping.CombinedLineNumber;
-                int sourceLine = mapping.SourceLineNumber + offset;
-                
-                return new MappedDiagnostic
-                {
-                    FileName = mapping.SourceFileName,
-                    Line = sourceLine,
-                    Column = column,
-                    ErrorId = diagnostic.Id,
-                    Message = diagnostic.GetMessage(),
-                    Severity = diagnostic.Severity
-                };
-            }
-            
-            // Fallback: use the diagnostic's own file path if available
-            string fileName = lineSpan.Path ?? "Unknown";
-            return new MappedDiagnostic
-            {
-                FileName = fileName,
-                Line = combinedLine,
-                Column = column,
-                ErrorId = diagnostic.Id,
-                Message = diagnostic.GetMessage(),
-                Severity = diagnostic.Severity
-            };
-        }
-
-        /// <summary>
-        /// Maps diagnostics to source files and deduplicates them.
+        /// Maps diagnostics to source files using Roslyn's native mapping and deduplicates them.
         /// </summary>
         public static List<MappedDiagnostic> MapAndDeduplicate(
             IEnumerable<Diagnostic> diagnostics, 
             string combinedCode)
         {
-            var mappings = ExtractLineMappings(combinedCode);
-            
             var mapped = diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error || d.Severity == DiagnosticSeverity.Warning)
-                .Select(d => MapDiagnostic(d, mappings))
+                .Select(MapNative)
                 .ToList();
             
-            // Deduplicate based on (FileName, ErrorId, Message)
-            // This handles cases where the same error appears on consecutive lines
-            // (e.g., undefined type in both property declaration and initializer)
-            var deduplicated = mapped
-                .GroupBy(m => new { m.FileName, m.ErrorId, m.Message })
-                .Select(g => g.OrderBy(m => m.Line).First()) // Take the first occurrence
+            // Deduplicate based on (FileName, Line, ErrorId, Message)
+            return mapped
+                .GroupBy(m => new { m.FileName, m.Line, m.ErrorId, m.Message })
+                .Select(g => g.First())
                 .OrderBy(m => m.FileName)
                 .ThenBy(m => m.Line)
                 .ToList();
+        }
+
+        private static MappedDiagnostic MapNative(Diagnostic diagnostic)
+        {
+            var mappedSpan = diagnostic.Location.GetMappedLineSpan();
+            var lineSpan = diagnostic.Location.GetLineSpan();
             
-            return deduplicated;
+            // If Roslyn found a #line mapping, use it. Otherwise fall back to unmapped.
+            bool isMapped = mappedSpan.HasMappedPath;
+            var pos = isMapped ? mappedSpan.StartLinePosition : lineSpan.StartLinePosition;
+            string path = isMapped ? mappedSpan.Path : (lineSpan.Path ?? "Unknown");
+
+            // We use 1-indexed lines/columns for user display
+            return new MappedDiagnostic
+            {
+                FileName = System.IO.Path.GetFileName(path),
+                Line = pos.Line + 1,
+                Column = pos.Character + 1,
+                ErrorId = diagnostic.Id,
+                Message = diagnostic.GetMessage(),
+                Severity = diagnostic.Severity
+            };
         }
     }
 }
