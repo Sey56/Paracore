@@ -76,8 +76,6 @@ namespace CoreScript.Engine.Core
             string identifier = val.ToString();
             if (string.IsNullOrEmpty(identifier)) return null;
 
-            FileLogger.Log($"[RevitObjectResolver] Attempting to resolve '{identifier}' to {targetType.Name}");
-
             // 1. UniqueId
             try {
                 var el = _doc.GetElement(identifier);

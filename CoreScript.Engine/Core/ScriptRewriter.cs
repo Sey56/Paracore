@@ -14,8 +14,20 @@ namespace CoreScript.Engine.Core
             var root = tree.GetRoot();
 
             // 1. Parameter Rewriting
-            var parameterRewriter = new ParameterRewriter(parameters);
-            root = parameterRewriter.Visit(root);
+            if (parameters == null || parameters.Count == 0)
+            {
+                // This is likely build-time for a binary tool.
+                // Replace all Params properties with dynamic getter/setter lookups.
+                var pullingRewriter = new ParameterPullingRewriter();
+                root = pullingRewriter.Visit(root);
+            }
+            else
+            {
+                // This is likely runtime for a standard .cs script.
+                // Replace Params properties with initializers matching the current values.
+                var parameterRewriter = new ParameterRewriter(parameters);
+                root = parameterRewriter.Visit(root);
+            }
 
             // 2. Timeout Rewriting
             var timeoutRewriter = new TimeoutRewriter();

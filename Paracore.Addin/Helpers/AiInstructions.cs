@@ -3,124 +3,206 @@ namespace Paracore.Addin.Helpers
     public static class AiInstructions
     {
         public const string CopilotInstructions = 
-@"# Paracore AI Scripting Instructions
+@"# Paracore Scripting Reference
 
-Follow these instructions to generate high-quality, C#-based Revit automation scripts compatible with the Paracore Parameter Engine (V3).
+Generate C# Revit API scripts for the Paracore / CoreScript.Engine runtime.
 
-## Core Architecture
-- **Language**: C# Revit API (Targeting Revit 2025 and above).
-- **Structure**: Single-file `.cs` using **Top-Level Statements**.
-- **Important Order**:
-    1.  `using` statements (Minimal - System/Linq/Collections/Revit.DB/Revit.UI are implicit).
-    2.  **Logic & Preparation** (Read-only queries, calculations).
-    3.  **Execution** (Single transaction for modifications).
-    4.  **Class Definitions** (Attributes and Parameters MUST be at the very bottom).
+## Code Structure (STRICT ORDER)
 
-## Parameter Engine (V3 - Hydration)
-All script parameters must be defined inside a `public class Params` (bottom of file or in `Params.cs`).
+Scripts use **Top-Level Statements**. The order is mandatory:
 
-### 0. Instantiation (CRITICAL)
-- **REQUIRED**: You **MUST** manually instantiate the class at the start: `var p = new Params();`.
-- **ACCESS**: Access parameters ONLY via the instance (`p.Name`). **NEVER** use static access like `Params.Name`.
+```
+1. using statements
+2. Top-level logic (var p = new Params(); queries, Transact blocks, output)
+3. Top-level helper methods (if needed)
+4. Class definitions (Params class MUST be LAST)
+```
 
-### 1. Magic Hydration (The Paracore Way)
-- **Strong Typing**: Use actual Revit types (`Level`, `WallType`, `Material`, `View`) as property types.
-- **NO Strings**: Do NOT use `string` for element selection.
-- **Attributes**: 
-  - For **Types/Levels/Views**: No attribute needed.
-  - For **Categories** (Doors, Windows): Use `[RevitElements(Category=""..."")]` (NO TargetType).
-- **Lists**: `List<Level>`, `List<WallType>` create multi-select dropdowns instantly.
+## Available Globals
 
-### 2. Formatting & Documentation (STRICT)
-- **NAMING**: MUST use `PropName_Suffix` (e.g. `RoomName_Options`, `TileSpacing_Range`).
-- **SPACING**:
-  - Leave exactly ONE empty line space above both `#region` and `#endregion`.
-  - Every property must have ONE empty line space for visual distinction.
-- **DOCUMENTATION**:
-  - Use `/// Description` for short one-liners.
-  - Use `/// <summary> ... </summary>` ONLY for multi-line description.
-- **GROUPING**: Grouping similar parameters with `#region` is **REQUIRED**. Use `#region` strictly inside `Params`.
+| Global | Type | Purpose |
+|--------|------|---------|
+| `Doc` | Document | Active Revit document |
+| `UIDoc` | UIDocument | UI document for selections |
+| `UIApp` | UIApplication | Revit application |
+| `Println(msg)` | void | Print to Console tab |
+| `Print(msg)` | void | Print without newline |
+| `Transact(""Name"", () => { })` | void | Wrap modifications in a transaction |
+| `Table(data)` | void | Render data as a sortable table in the Table tab |
+| `BarChart(data)` | void | Render a bar chart in the Summary tab |
+| `PieChart(data)` | void | Render a pie chart in the Summary tab |
+| `LineChart(data)` | void | Render a line chart in the Summary tab |
+| `SetExecutionTimeout(seconds)` | void | Extend the default 10s timeout |
 
-### 3. Supported Attributes
-- `[Select]`, `[Range]`, `[Unit]`, `[Required]`, `[Pattern]`, `[EnabledWhen]`.
-- `[InputFile]`, `[FolderPath]`, `[OutputFile]`, `[Color]`, `[Stepper]`, `[Segmented]`.
+## Implicit Using Statements
 
-## Revit 2025+ API Rules (CRITICAL)
-1.  **ElementId**: **FORBIDDEN**: `ElementId.IntegerValue`. Use `ElementId.Value` (long).
-2.  **Geometry**: `Curve.GetBoundingBoxXYZ()` is **FORBIDDEN**. Use endpoints.
-3.  **Units**: Include `[Unit(""m"")]` for formatting. Script receives internal units (feet).
+These namespaces are available without explicit `using`:
+`System`, `System.Collections.Generic`, `System.Linq`, `System.Text.Json`,
+`Autodesk.Revit.DB`, `Autodesk.Revit.DB.Architecture`, `Autodesk.Revit.DB.Structure`, `Autodesk.Revit.UI`,
+`CoreScript.Engine.Globals`
 
-## Coding Standards
-1.  **Early Exits**: **CRITICAL**: Do NOT use `return` for early exits. `throw new Exception(""..."")`.
-2.  **Transactions**: One `Transact(""Name"", () => { ... })` block. No `Transact.Run`.
-3.  **Logging**: `Println($""Message {var}"")`.
-4.  **No Async**: **CRITICAL**: Do NOT use `await` or `async`.
-5.  **Safety Locks**: **CRITICAL**: For destructive operations, use `[Mandatory]` and `[Confirm(""DELETE"")]`.
-6.  **Globals**: Use only `Doc`, `Uidoc`, `App`, `Println()`.
+## Params Class
 
-## Example Structure
+All user-configurable values go in `public class Params` at the bottom of the file.
+Instantiate it at the top: `var p = new Params();`
+Access values via the instance: `p.MyLevel`, never `Params.MyLevel`.
+
+### Basic Property Types
+
+| C# Type | UI Control | Default Example |
+|---------|-----------|-----------------|
+| `string` | Text input | `= ""My Value""` |
+| `int` | Numeric field | `= 5` |
+| `double` | Numeric field | `= 3.2` |
+| `bool` | Toggle switch | `= true` |
+
+### Revit Element Types (Magic Hydration)
+
+Use Revit types directly — the engine auto-discovers all instances/types and populates a dropdown:
+
+| C# Type | What appears in UI |
+|---------|--------------------|
+| `Level` | Dropdown of all levels |
+| `WallType` | Dropdown of all wall types |
+| `Wall` | Dropdown of all wall instances |
+| `Material` | Dropdown of all materials |
+| `FamilySymbol` | Dropdown of all family types |
+| `FamilyInstance` | Dropdown of all family instances |
+| `ViewSheet` | Dropdown of all sheets |
+| `View` | Dropdown of all views |
+| Any `Element` subclass | Auto-discovered dropdown |
+| Any `ElementType` subclass | Auto-discovered dropdown |
+
+**Lists** create multi-select checkboxes: `List<Wall>`, `List<Level>`, etc.
+
+### Revit Enum Types
+
+Use Revit enums directly — all enum values are listed in a searchable dropdown:
+
 ```csharp
-// File: Main.cs
-using System;
-using System.Collections.Generic;
-using System.Linq;
+public BuiltInParameter TargetParam { get; set; }
+public BuiltInCategory TargetCategory { get; set; }
+```
+
+### Supported Attributes
+
+| Attribute | Purpose | Example |
+|-----------|---------|---------|
+| `[Unit(""m"")]` | Unit label + auto-conversion | `[Unit(""mm"")] public double Width { get; set; } = 250;` |
+| `[Range(min, max, step)]` | Slider with bounds | `[Range(0, 100, 5)] public int Count { get; set; } = 10;` |
+| `[Required]` | Mark as mandatory | `[Required] public Level BaseLevel { get; set; }` |
+| `[Confirm(""TEXT"")]` | Safety lock for destructive ops | `[Confirm(""DELETE"")] public string Confirm { get; set; }` |
+| `[Select(SelectionType.Element)]` | Pick from Revit viewport | `[Select(SelectionType.Element)] public Wall MyWall { get; set; }` |
+| `[Select(SelectionType.Point)]` | Pick a point in Revit | `[Select(SelectionType.Point)] public XYZ Origin { get; set; }` |
+| `[EnabledWhen(nameof(Prop), ""value"")]` | Conditional enable | `[EnabledWhen(nameof(ShowAdvanced), ""true"")]` |
+| `[RevitElements(Category = ""Doors"")]` | Filter by Revit category | On `FamilyInstance` or `List<FamilyInstance>` properties |
+| `[InputFile(""csv, xlsx"")]` | Open File dialog | `[InputFile(""csv"")] public string DataPath { get; set; }` |
+| `[OutputFile(""xlsx"")]` | Save File dialog | `[OutputFile(""xlsx"")] public string ExportPath { get; set; }` |
+| `[FolderPath]` | Folder Browser dialog | `[FolderPath] public string BackupFolder { get; set; }` |
+| `[Color]` | Color swatch picker | `[Color] public string HighlightColor { get; set; } = ""#3B82F6"";` |
+| `[Stepper]` | +/- buttons for integers | `[Stepper] public int Iterations { get; set; } = 10;` |
+| `[Segmented]` | Horizontal button group | `[Segmented] public string Mode { get; set; } = ""Preview"";` |
+
+### Data Providers (Suffix Conventions)
+
+Define a companion property or method with the `_Suffix` naming convention:
+
+| Suffix | Purpose | Example |
+|--------|---------|---------|
+| `_Options` | Custom dropdown items | See below |
+| `_Visible` | Conditional visibility | `public bool ShowAdvanced_Visible => IsActive;` |
+| `_Range` | Dynamic range values | `public (double, double, double) Count_Range => (1, 100, 1);` |
+
+#### _Options: Custom Data Provider (IMPORTANT)
+
+When the engine's auto-discovery is too broad, define custom filtered options:
+
+```csharp
+// The parameter — a dropdown of walls
+public Wall TargetWall { get; set; }
+
+// Custom filter — only show walls with ""Generic"" in the name
+public List<Wall> TargetWall_Options => new FilteredElementCollector(Doc)
+    .OfClass(typeof(Wall)).Cast<Wall>()
+    .Where(w => w.Name.Contains(""Generic"")).ToList();
+```
+
+For string dropdowns with `[Segmented]`:
+```csharp
+[Segmented]
+public string Mode { get; set; } = ""Preview"";
+public List<string> Mode_Options => [""Preview"", ""Commit"", ""Audit""];
+```
+
+### Formatting Rules
+
+- Group related parameters with `#region GroupName` / `#endregion`
+- One empty line above `#region` and `#endregion`
+- One empty line between each property for readability
+- Use `/// Short description` for one-liners
+- Use `/// <summary>Multi-line description</summary>` for longer docs
+
+## Coding Rules
+
+1. **Transactions**: One `Transact(""Name"", () => { ... })` block. All modifications inside.
+2. **No Async**: NEVER use `await` or `async`. Scripts run in a synchronous UI thread.
+3. **Early Exits**: Use `throw new Exception(""message"")` instead of top-level `return`.
+4. **ElementId**: `ElementId.IntegerValue` is FORBIDDEN in Revit 2025+. Use `ElementId.Value` (long).
+5. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use `[Confirm(""DELETE"")]`.
+6. **Unit suffix shorthand**: Name parameters with `_mm`, `_cm`, `_m`, `_ft`, `_in` for auto unit detection.
+
+## Complete Example
+
+```csharp
 using Autodesk.Revit.DB;
 
-// 1. Instantiate Params at the top
 var p = new Params();
 
-// 2. Logic & Preparation
-if (p.IsActive && p.TargetLevel != null)
-{
-    // Clean, direct access!
-    Println($""Operating on Level: {p.TargetLevel.Name}"");
+// 1. Query
+var walls = new FilteredElementCollector(Doc)
+    .OfClass(typeof(Wall)).Cast<Wall>()
+    .Where(w => w.LevelId == p.TargetLevel.Id).ToList();
 
-    // 3. Execution (Single Transaction)
-    Transact(""Update Elements"", () =>
+// 2. Visualize
+Table(walls.Select(w => new { Name = w.Name, Length = w.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH)?.AsDouble() }));
+Println($""Found {walls.Count} walls on {p.TargetLevel.Name}"");
+
+// 3. Modify (if needed)
+if (p.ApplyChanges)
+{
+    Transact(""Update Walls"", () =>
     {
-        // ... Modify using p.TargetLevel.Id ...
+        foreach (var wall in walls)
+        {
+            wall.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.Set(p.NewMark);
+        }
     });
+    Println($""Updated {walls.Count} wall marks to '{p.NewMark}'"");
 }
 
-// 4. Output
-Println($""✅ Done!"");
-
 // ---------------------------------------------------------
-// COMPREHENSIVE PARAMS REFERENCE (V3)
+// PARAMS (MUST BE LAST)
 // ---------------------------------------------------------
 public class Params
 {
-    #region 1. Basic Inputs
-    public string AppName { get; set; } = ""My Tool"";
-    public bool IsActive { get; set; } = true;
-    #endregion
+    #region Target
 
-    #region 2. Magic Hydration (Strongly Typed)
-    /// <summary>
-    /// Pick a level. The engine finds them automatically.
-    /// </summary>
+    /// Select the level to filter walls
     public Level TargetLevel { get; set; }
 
-    /// <summary>
-    /// Pick a Wall Type. Auto-populated dropdown.
-    /// </summary>
-    public WallType MyWallType { get; set; }
-
-    /// <summary>
-    /// Pick specific Doors. Filtered by Category only.
-    /// </summary>
-    [RevitElements(Category = ""Doors"")]
-    public List<FamilyInstance> TargetDoors { get; set; }
     #endregion
 
-    #region 3. Geometry & Units
-    [Select(SelectionType.Point)]
-    public XYZ Origin { get; set; }
-    
-    [Unit(""m"")]
-    public double Width { get; set; } = 5.0;
+    #region Action
+
+    /// Set a new mark value for all walls on the selected level
+    public string NewMark { get; set; } = ""UPDATED"";
+
+    /// Toggle to apply changes
+    public bool ApplyChanges { get; set; } = false;
+
     #endregion
 }
+```
 ";
     }
 }

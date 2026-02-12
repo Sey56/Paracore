@@ -11,6 +11,8 @@ using CoreScript.Engine.Models;
 using CoreScript.Engine.Logging;
 using System;
 using System.Globalization;
+using System.Runtime.Loader;
+using System.Reflection;
 
 namespace CoreScript.Engine.Globals
 {

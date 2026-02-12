@@ -21,6 +21,7 @@ namespace CoreScript.Engine.Core
         public T Hydrate<T>(string key, object val)
         {
             if (val == null) return default(T);
+
             if (val is T typedVal) return typedVal;
 
             var targetType = typeof(T);

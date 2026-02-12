@@ -9,13 +9,16 @@ namespace CoreScript.Engine.Core.Rewriters
     {
         public override SyntaxNode VisitPropertyDeclaration(PropertyDeclarationSyntax node)
         {
-            string name = node.Identifier.Text;
-            
-            // Skip non-public properties or static properties
-            if (!node.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)) || node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
+            var parent = node.Parent;
+            bool isInsideParams = false;
+            while (parent != null) { if (parent is ClassDeclarationSyntax c && c.Identifier.Text == "Params") { isInsideParams = true; break; } parent = parent.Parent; }
+
+            if (!isInsideParams || !node.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)) || node.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
             {
                 return base.VisitPropertyDeclaration(node);
             }
+
+            string name = node.Identifier.Text;
 
             // Skip providers and logic-based helpers to avoid circular logic
             if (name.EndsWith("_Options") || name.EndsWith("_Filter") || name.EndsWith("_Range") || 

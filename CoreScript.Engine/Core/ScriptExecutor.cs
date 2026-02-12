@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
+using CoreScript.Engine.Logging;
 
 namespace CoreScript.Engine.Core
 {
@@ -19,7 +20,7 @@ namespace CoreScript.Engine.Core
 
         public ExecutionResult ExecuteBinary(byte[] assemblyBytes, ICoreScriptContext context)
         {
-            var alc = new AssemblyLoadContext("RevitScriptBinary", isCollectible: true);
+            var alc = new SharedAssemblyLoadContext("RevitScriptBinary");
             try
             {
                 using (var ms = new MemoryStream(assemblyBytes))
@@ -48,6 +49,20 @@ namespace CoreScript.Engine.Core
             {
                 alc.Unload();
             }
+        }
+    }
+
+    internal class SharedAssemblyLoadContext : AssemblyLoadContext
+    {
+        public SharedAssemblyLoadContext(string name) : base(name, isCollectible: true) { }
+
+        protected override Assembly? Load(AssemblyName assemblyName)
+        {
+            var loadedAssembly = AssemblyLoadContext.Default.Assemblies
+                .FirstOrDefault(a => a.GetName().Name == assemblyName.Name);
+
+            if (loadedAssembly != null) return loadedAssembly;
+            return null;
         }
     }
 }

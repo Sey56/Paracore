@@ -21,8 +21,21 @@ namespace CoreScript.Engine.Core
 
         public byte[] CompileToBytes(string code)
         {
-            // Implementation for binary compilation if needed
-            return Array.Empty<byte>();
+            var script = CreateScript(code, "ScriptAssembly");
+            var compilation = script.GetCompilation();
+
+            using (var ms = new MemoryStream())
+            {
+                var result = compilation.Emit(ms);
+                if (!result.Success)
+                {
+                    var errors = string.Join(Environment.NewLine, result.Diagnostics
+                        .Where(d => d.Severity == DiagnosticSeverity.Error)
+                        .Select(d => d.ToString()));
+                    throw new Exception($"Compilation failed: {errors}");
+                }
+                return ms.ToArray();
+            }
         }
 
         private ScriptOptions GetScriptOptions(string scriptName)

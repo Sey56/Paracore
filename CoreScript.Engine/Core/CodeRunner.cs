@@ -191,25 +191,88 @@ namespace CoreScript.Engine.Core
 
         public ExecutionResult ExecuteBinary(byte[] assemblyBytes, string parametersJson, ICoreScriptContext context)
         {
+            string timestamp = DateTime.Now.ToString("dddd dd, MMMM yyyy | hh:mm:ss tt", CultureInfo.InvariantCulture);
+            string topLevelScriptName = "Protected Tool";
+
+            FileLogger.Log("=========================================================");
+            FileLogger.Log("🚀 [CodeRunner] EXECUTE BINARY TOOL (v3.1 STABLE)");
+            FileLogger.Log("=========================================================");
+
             try
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
+                
+                // DEBUG: Log all parameters
+                FileLogger.Log($"[CodeRunner] Final Parameters Dictionary Keys: {string.Join(", ", parameters.Keys)}");
+                foreach (var kvp in parameters)
+                {
+                    FileLogger.Log($"[CodeRunner] Param '{kvp.Key}' = {kvp.Value} (Type: {kvp.Value?.GetType().Name ?? "null"})");
+                }
+
+                if (parameters.ContainsKey("__script_name__"))
+                {
+                    var forcedName = parameters["__script_name__"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(forcedName)) topLevelScriptName = forcedName;
+                    parameters.Remove("__script_name__");
+                }
+
                 if (richParams.Count > 0) _parameterService.HardenParameters(parameters, richParams);
+                
                 ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters));
 
                 var result = _scriptExecutor.ExecuteBinary(assemblyBytes, context);
+                
+                // Enrich result
+                result.ScriptName = topLevelScriptName;
+                result.PrintLog = context.PrintLog.ToList();
+
+                var contextType = context.GetType();
+                var structuredOutputLogProperty = contextType.GetProperty("StructuredOutputLog") ?? contextType.GetProperty("ShowOutputLog");
+                if (structuredOutputLogProperty != null)
+                {
+                    var log = structuredOutputLogProperty.GetValue(context) as System.Collections.IEnumerable;
+                    if (log != null) foreach (var item in log) result.StructuredOutput.Add(item is string s ? s : JsonSerializer.Serialize(item));
+                }
+
                 return result;
             }
             catch (Exception ex)
             {
-                return ExecutionResult.Failure($"❌ Binary error: {ex.Message}", context.PrintLog.ToArray());
+                var failureResult = ExecutionResult.Failure($"❌ Binary error: {ex.Message}", context.PrintLog.ToArray());
+                failureResult.ScriptName = topLevelScriptName;
+                return failureResult;
             }
             finally { ExecutionGlobals.ClearContext(); }
         }
 
-        public byte[] CompileToBytes(string userCode)
+        public byte[] CompileToBytes(string scriptContent)
         {
-            return _scriptCompiler.CompileToBytes(userCode);
+            List<ScriptFile> scriptFiles = new List<ScriptFile>();
+            try
+            {
+                var scriptJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                scriptFiles = JsonSerializer.Deserialize<List<ScriptFile>>(scriptContent, scriptJsonOptions);
+            }
+            catch { /* Fallback to raw code if not JSON */ }
+
+            string combinedCode;
+            if (scriptFiles != null && scriptFiles.Any())
+            {
+                combinedCode = _scriptCombiner.Combine(scriptFiles);
+            }
+            else
+            {
+                combinedCode = scriptContent;
+            }
+
+            // Rewrite with empty parameters for build-time (parameters injected at runtime)
+            string modifiedUserCode = _scriptRewriter.Rewrite(combinedCode, new Dictionary<string, object>());
+            
+            string finalScriptCode = "#line hidden" + Environment.NewLine + 
+                                  "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+                                  modifiedUserCode;
+
+            return _scriptCompiler.CompileToBytes(finalScriptCode);
         }
     }
 

@@ -1,38 +1,84 @@
-using System.Collections.Generic; // Added for List<string>
+using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CoreScript.Engine.Models
 {
     public class ScriptParameter
     {
+        [JsonPropertyName("name")]
         public string Name { get; set; }
+
+        [JsonPropertyName("type")]
         public string Type { get; set; }
-        public string DefaultValueJson { get; set; } // Changed from JsonElement DefaultValue
-        public string Description { get; set; } // New property
-        public List<string> Options { get; set; } = new List<string>(); // New property, initialized
-        public bool MultiSelect { get; set; } = false; // New property for multi-select support
-        public string VisibleWhen { get; set; } // Condition for visibility
-        public JsonElement Value { get; set; } // Keep for internal use if needed, or remove if not
+
+        [JsonPropertyName("defaultValueJson")]
+        public string DefaultValueJson { get; set; }
+
+        [JsonPropertyName("description")]
+        public string Description { get; set; }
+
+        [JsonPropertyName("options")]
+        public List<string> Options { get; set; } = new List<string>();
+
+        [JsonPropertyName("multiSelect")]
+        public bool MultiSelect { get; set; } = false;
+
+        [JsonPropertyName("visibleWhen")]
+        public string VisibleWhen { get; set; }
+
+        [JsonPropertyName("value")]
+        public JsonElement Value { get; set; }
         
-        // Enhanced Numeric Types
-        public string NumericType { get; set; } // "int" or "double" - for proper UI rendering
-        public double? Min { get; set; } // Minimum value for numeric parameters
-        public double? Max { get; set; } // Maximum value for numeric parameters
-        public double? Step { get; set; } // Step increment for sliders/spinners
+        [JsonPropertyName("numericType")]
+        public string NumericType { get; set; }
+
+        [JsonPropertyName("min")]
+        public double? Min { get; set; }
+
+        [JsonPropertyName("max")]
+        public double? Max { get; set; }
+
+        [JsonPropertyName("step")]
+        public double? Step { get; set; }
         
-        // Revit Element Selection
-        public bool IsRevitElement { get; set; } = false; // True if this parameter represents a Revit element
-        public string RevitElementType { get; set; } // "WallType", "Level", "FamilySymbol", etc.
-        public string RevitElementCategory { get; set; } // Optional category filter (e.g., "Doors", "Windows")
-        public bool RequiresCompute { get; set; } = false; // True if options need to be computed from Revit document
+        [JsonPropertyName("isRevitElement")]
+        public bool IsRevitElement { get; set; } = false;
+
+        [JsonPropertyName("revitElementType")]
+        public string RevitElementType { get; set; }
+
+        [JsonPropertyName("revitElementCategory")]
+        public string RevitElementCategory { get; set; }
+
+        [JsonPropertyName("requiresCompute")]
+        public bool RequiresCompute { get; set; } = false;
+
+        [JsonPropertyName("group")]
         public string Group { get; set; }
-        public string InputType { get; set; } // "File", "Folder", "Date", etc.
-        public bool Required { get; set; } = false; // New: Validation
-        public string Suffix { get; set; } // New: UI Hint (e.g. "mm")
-        public string Pattern { get; set; } // New: Regex Validation
-        public string EnabledWhenParam { get; set; } // New: Conditional Logic
-        public string EnabledWhenValue { get; set; } // New: Conditional Logic (serialized value)
-        public string Unit { get; set; } // New: Unit conversion (e.g. "mm", "ft")
-        public string SelectionType { get; set; } // New: "Element", "Point", "Face", etc.
+
+        [JsonPropertyName("inputType")]
+        public string InputType { get; set; }
+
+        [JsonPropertyName("required")]
+        public bool Required { get; set; } = false;
+
+        [JsonPropertyName("suffix")]
+        public string Suffix { get; set; }
+
+        [JsonPropertyName("pattern")]
+        public string Pattern { get; set; }
+
+        [JsonPropertyName("enabledWhenParam")]
+        public string EnabledWhenParam { get; set; }
+
+        [JsonPropertyName("enabledWhenValue")]
+        public string EnabledWhenValue { get; set; }
+
+        [JsonPropertyName("unit")]
+        public string Unit { get; set; }
+
+        [JsonPropertyName("selectionType")]
+        public string SelectionType { get; set; }
     }
 }

@@ -70,10 +70,37 @@ async def run_script(
             with open(absolute_path, 'r', encoding='utf-8') as f:
                 package = json.load(f)
             
+            # Get script name from metadata if available for Dashboard/reporting
+            metadata = package.get("metadata", {})
+            script_name = metadata.get("name") or os.path.basename(path)
+
             # IMPORTANT: For .ptool, we preserve the full parameter list with metadata 
             # so the engine can perform unit conversions and hardening.
             # The frontend already sends the full list of ScriptParameter objects.
-            parameters_json = parameters if isinstance(parameters, str) else json.dumps(parameters)
+            
+            # Inject __script_name__ into the parameters list if it's a list
+            # or into the dict if it's a dict.
+            params_to_send = parameters
+            if isinstance(parameters, str):
+                try:
+                    params_to_send = json.loads(parameters)
+                except:
+                    params_to_send = parameters
+
+            if isinstance(params_to_send, list):
+                # Check if __script_name__ already exists, update or add
+                found = False
+                for p in params_to_send:
+                    if p.get("name") == "__script_name__":
+                        p["value"] = script_name
+                        found = True
+                        break
+                if not found:
+                    params_to_send.append({"name": "__script_name__", "value": script_name})
+            elif isinstance(params_to_send, dict):
+                params_to_send["__script_name__"] = script_name
+            
+            parameters_json = json.dumps(params_to_send)
             compiled_assembly = base64.b64decode(package.get("assembly", ""))
             
             # Execute binary tool

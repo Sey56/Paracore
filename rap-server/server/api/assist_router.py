@@ -48,6 +48,37 @@ EXPLAIN_SYSTEM_PROMPT = """You are the Paracore Surgical Debugger. Your ONLY mis
 4. **NO UNIT CONVERSIONS**: Do not add manual math factors (like 3.28084). The platform handles units via attributes.
 5. **FULL INTEGRITY**: Always return the ENTIRE file content.
 
+---
+
+# Paracore Scripting Reference (V3 Standard)
+
+## Code Structure (STRICT ORDER)
+1. using statements
+2. Top-level logic (var p = new Params(); queries, Transact, output)
+3. Top-level helpers
+4. Class definitions (Params class MUST be LAST)
+
+## Available Globals
+- `Doc`, `UIDoc`, `UIApp`: Standard Revit API entry points.
+- `Println(msg)`, `Print(msg)`: Console logging.
+- `Transact(name, action)`: Wrap modifications in a transaction.
+- `Table(data)`, `BarChart(data)`, `PieChart(data)`, `LineChart(data)`: Data visualization.
+- `SetExecutionTimeout(seconds)`: Extend 10s timeout.
+
+## Params Class & Magic Hydration
+All properties in `public class Params` are auto-hydrated. 
+- Use Revit types directly: `Level`, `WallType`, `Material`, `FamilyInstance`. 
+- Use Revit enums: `BuiltInParameter`, `BuiltInCategory`.
+- Use `List<T>` for multi-select.
+
+## Supported Attributes
+`[Unit("m")]`, `[Range(min, max, step)]`, `[Required]`, `[Confirm("TEXT")]`, `[Select(SelectionType.Element)]`, `[EnabledWhen(nameof(Prop), "value")]`, `[RevitElements(Category="...")]`, `[InputFile]`, `[FolderPath]`, `[Color]`, `[Stepper]`, `[Segmented]`.
+
+## Suffix Conventions (Data Providers)
+- `_Options`: Custom dropdown items (e.g. `public List<Wall> Target_Options => ...`).
+- `_Visible`, `_Enabled`: Conditional UI state.
+- `_Range`: Dynamic numeric bounds.
+
 **OUTPUT FORMAT**:
 - Multi-file: Populate the `files` dictionary with full code.
 - Single-file: Populate `fixed_code` and `filename`.
