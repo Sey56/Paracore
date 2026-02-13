@@ -183,6 +183,22 @@ def create_and_open_workspace(script_path, script_type):
         "error_message": response.error_message
     }
 
+def stop_sync_session(script_path: str):
+    """
+    Calls the gRPC service to stop file watchers for a given script.
+    """
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.StopSyncSessionRequest(script_path=script_path)
+            response = stub.StopSyncSession(request)
+            return {
+                "is_success": response.is_success,
+                "error_message": response.error_message
+            }
+    except Exception as e:
+        logging.error(f"Error calling StopSyncSession gRPC: {e}")
+        return {"is_success": False, "error_message": str(e)}
+
 def get_script_manifest(script_path: str) -> str:
     """
     Calls the gRPC service to get a JSON manifest of scripts from a given path.
@@ -403,4 +419,35 @@ def build_script(script_content):
         return {
             "is_success": False,
             "error_message": f"Unexpected error: {str(e)}"
+        }
+
+def get_category_parameters(category_name: str):
+    """
+    Calls the gRPC service to get parameter definitions for a category.
+    """
+    logging.info(f"Fetching parameters for category: {category_name}")
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.GetCategoryParametersRequest(category_name=category_name)
+            response = stub.GetCategoryParameters(request)
+            
+            params = []
+            for p in response.parameters:
+                params.append({
+                    "name": p.name,
+                    "storage_type": p.storage_type,
+                    "is_builtin": p.is_builtin,
+                    "builtin_id": p.builtin_id,
+                    "revit_element_type": p.revit_element_type
+                })
+            
+            return {
+                "parameters": params,
+                "error_message": response.error_message
+            }
+    except grpc.RpcError as e:
+        logging.error(format_grpc_error(e))
+        return {
+            "parameters": [],
+            "error_message": f"gRPC error: {e.details()}"
         }

@@ -5,7 +5,7 @@ import {
   useLayoutEffect
 } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faSync, faCompressAlt, faExpandAlt, faBullseye } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faSync, faCompressAlt, faExpandAlt, faBullseye, faGlobe } from '@fortawesome/free-solid-svg-icons';
 import { ScriptCard } from '../ScriptCard/ScriptCard';
 import { useScripts } from '../../hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
@@ -24,11 +24,11 @@ interface FocusOverlayProps {
   script: Script;
   sourceRect: DOMRect | null;
   onExit: () => void;
-  isFromActiveWorkspace: boolean;
+  isFromActiveSource: boolean;
   targetElement: HTMLElement | null;
 }
 
-const FocusOverlay: React.FC<FocusOverlayProps> = ({ script, sourceRect, onExit, isFromActiveWorkspace, targetElement }) => {
+const FocusOverlay: React.FC<FocusOverlayProps> = ({ script, sourceRect, onExit, isFromActiveSource, targetElement }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -132,7 +132,7 @@ const FocusOverlay: React.FC<FocusOverlayProps> = ({ script, sourceRect, onExit,
           <ScriptCard
             script={script}
             onSelect={() => { }}
-            isFromActiveWorkspace={isFromActiveWorkspace}
+            isFromActiveSource={isFromActiveSource}
             isCompact={false}
             showExitFocus={true}
             onExitFocus={onExit}
@@ -242,13 +242,21 @@ export const ScriptGallery: React.FC = () => {
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
   const [isCompactView, setIsCompactView] = useState(false);
   const [typeFilter, setTypeFilter] = useState<'all' | 'single-file' | 'multi-file' | 'tool'>('all');
+  const [scriptToReplace, setScriptToReplace] = useState<Script | null>(null);
 
   // Scroll Preservation Logic
   const galleryRef = useRef<HTMLDivElement>(null);
   const savedScrollTop = useRef(0);
 
-  // FLIP Animation: Store source card position
-  const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
+  const handleReplaceScript = (script: Script) => {
+    setScriptToReplace(script);
+    openNewScriptModal();
+  };
+
+  const handleCloseModal = () => {
+    setScriptToReplace(null);
+    closeNewScriptModal();
+  };
 
   const handleEnterFocusMode = (rect: DOMRect) => {
     if (galleryRef.current && galleryRef.current.parentElement) {
@@ -296,9 +304,9 @@ export const ScriptGallery: React.FC = () => {
     return "";
   };
 
-  const isFromActiveWorkspace = (script: Script) => {
+  const isFromActiveSource = (script: Script) => {
     if (!script || !script.absolutePath) return false;
-    if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
+    if (activeScriptSource?.type === 'team' && activeScriptSource.path) {
       return script.absolutePath.startsWith(activeScriptSource.path);
     }
     return false;
@@ -392,6 +400,9 @@ export const ScriptGallery: React.FC = () => {
     setSearchTerm(newSearchParts.join(' '));
   };
 
+  // FLIP Animation: Store source card position
+  const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
+
   return (
     <div ref={galleryRef} className={`relative min-h-full min-w-0 ${isFocusMode ? 'overflow-hidden' : ''}`}>
       {/* --- NORMAL VIEW CONTENT --- */}
@@ -401,7 +412,7 @@ export const ScriptGallery: React.FC = () => {
           <div className="flex justify-between items-center mb-4 transition-all">
             <div className="flex items-center space-x-3 shrink-0">
               <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
-                {activeScriptSource?.type === 'workspace' ? 'Workspace' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'Script Gallery')}
+                {activeScriptSource?.type === 'team' ? 'Team Scripts' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'Script Gallery')}
               </h1>
             </div>
             <div className={`flex-grow flex justify-center items-center space-x-4 px-2 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -480,9 +491,10 @@ export const ScriptGallery: React.FC = () => {
                       key={script.id}
                       script={script}
                       onSelect={() => handleScriptSelect(script)}
-                      isFromActiveWorkspace={isFromActiveWorkspace(script)}
+                      isFromActiveSource={isFromActiveSource(script)}
                       isCompact={true}
                       onFocus={handleEnterFocusMode}
+                      onReplace={handleReplaceScript}
                     />
                   ))}
                 </div>
@@ -546,9 +558,10 @@ export const ScriptGallery: React.FC = () => {
                       key={script.id}
                       script={script}
                       onSelect={() => handleScriptSelect(script)}
-                      isFromActiveWorkspace={isFromActiveWorkspace(script)}
+                      isFromActiveSource={isFromActiveSource(script)}
                       isCompact={isCompactView}
                       onFocus={handleEnterFocusMode}
+                      onReplace={handleReplaceScript}
                     />
                   ))}
                 </div>
@@ -571,13 +584,18 @@ export const ScriptGallery: React.FC = () => {
           script={selectedScript}
           sourceRect={sourceRect}
           onExit={handleExitFocusMode}
-          isFromActiveWorkspace={isFromActiveWorkspace(selectedScript)}
+          isFromActiveSource={isFromActiveSource(selectedScript)}
           targetElement={galleryRef.current?.parentElement || null}
         />
       )}
 
       {selectedFolder && (
-        <NewScriptModal isOpen={isNewScriptModalOpen} onClose={closeNewScriptModal} selectedFolder={selectedFolder as string} />
+        <NewScriptModal 
+          isOpen={isNewScriptModalOpen} 
+          onClose={handleCloseModal} 
+          selectedFolder={selectedFolder as string} 
+          scriptToReplace={scriptToReplace}
+        />
       )}
 
       {/* 5. Type Filter Bar */}

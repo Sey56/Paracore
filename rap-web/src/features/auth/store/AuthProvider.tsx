@@ -3,7 +3,7 @@ import axios from 'axios';
 import { User, TeamMembership, Role } from '../types/authTypes';
 import { AuthContext, AuthContextType } from './AuthContext';
 import { invoke } from '@tauri-apps/api';
-import { syncUserProfile, UserProfileSyncPayload } from '@/features/workspaces/services/workspaces';
+import { syncUserProfile, UserProfileSyncPayload } from '@/features/team-sources/services/teamSources';
 import { TeamSelectionModal } from '../components/TeamSelectionModal';
 
 // This interface now matches the full UserOut schema from rap-auth-server
@@ -18,6 +18,31 @@ interface CloudUserResponse {
 const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
+  
+  // --- EMERGENCY ERROR LOGGING ---
+  useEffect(() => {
+    const handleGlobalError = (msg: any, url: any, line: any, col: any, error: any) => {
+      const errInfo = { msg, url, line, col, error: error?.message, stack: error?.stack, time: new Date().toISOString() };
+      const logs = JSON.parse(localStorage.getItem('rap_emergency_logs') || '[]');
+      logs.push(errInfo);
+      localStorage.setItem('rap_emergency_logs', JSON.stringify(logs.slice(-10)));
+      return false;
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const errInfo = { reason: event.reason?.message || event.reason, stack: event.reason?.stack, isRejection: true, time: new Date().toISOString() };
+      const logs = JSON.parse(localStorage.getItem('rap_emergency_logs') || '[]');
+      logs.push(errInfo);
+      localStorage.setItem('rap_emergency_logs', JSON.stringify(logs.slice(-10)));
+    };
+    window.onerror = handleGlobalError;
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.onerror = null;
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+  // -------------------------------
+
   const [cloudToken, setCloudToken] = useState<string | null>(null);
   const [localToken, setLocalToken] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);

@@ -17,6 +17,34 @@ service CoreScriptRunner {
   rpc PickObject (PickObjectRequest) returns (PickObjectResponse);
   rpc RenameScript (RenameScriptRequest) returns (RenameScriptResponse);
   rpc BuildScript (BuildScriptRequest) returns (BuildScriptResponse);
+  rpc GetCategoryParameters (GetCategoryParametersRequest) returns (GetCategoryParametersResponse);
+  rpc StopSyncSession (StopSyncSessionRequest) returns (StopSyncSessionResponse);
+}
+
+message StopSyncSessionRequest {
+  string script_path = 1;
+}
+
+message StopSyncSessionResponse {
+  bool is_success = 1;
+  string error_message = 2;
+}
+
+message GetCategoryParametersRequest {
+  string category_name = 1; // e.g., "OST_Walls"
+}
+
+message ParameterDefinition {
+  string name = 1;
+  string storage_type = 2; // "String", "Double", "Integer", "ElementId"
+  bool is_builtin = 3;
+  int32 builtin_id = 4; // BuiltInParameter integer value
+  string revit_element_type = 5; // e.g., "Level", "Material"
+}
+
+message GetCategoryParametersResponse {
+  repeated ParameterDefinition parameters = 1;
+  string error_message = 2;
 }
 
 message PickObjectRequest {

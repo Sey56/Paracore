@@ -1,4 +1,5 @@
 import httpx
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,6 +61,16 @@ app.include_router(workspace_router)
 @app.get("/")
 def read_root():
     return {"status": "ok", "service": "rap-auth-server"}
+
+@app.get("/auth/public-key")
+def get_public_key():
+    try:
+        current_dir = os.path.dirname(__file__)
+        key_path = os.path.join(current_dir, "jwt_public.pem")
+        with open(key_path, 'r') as f:
+            return {"public_key": f.read()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not load public key: {e}")
 
 @app.post("/auth/verify-google-code", response_model=Token)
 async def verify_google_code(request: GoogleAuthCodeRequest, db: Session = Depends(get_db)):

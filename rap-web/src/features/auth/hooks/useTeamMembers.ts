@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { getTeamMembers, updateTeamMemberRole, inviteUserToTeam, removeTeamMember } from '@/features/workspaces/services/workspaceApiClient';
+import { getTeamMembers, updateTeamMemberRole, inviteUserToTeam, removeTeamMember } from '@/features/team-sources/services/teamSourceApiClient';
 import { Role, TeamMemberOut } from '../types/authTypes';
 
 export const useTeamMembers = () => {

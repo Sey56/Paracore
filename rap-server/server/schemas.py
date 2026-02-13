@@ -54,30 +54,30 @@ class ScriptResponse(ScriptBase):
     class Config:
         from_attributes = True
 
-# Workspace schemas (for locally cloned repos)
-class WorkspaceBase(BaseModel):
+# TeamSource schemas (for locally cloned repos)
+class TeamSourceBase(BaseModel):
     name: str
     path: str
 
-class WorkspaceCreate(WorkspaceBase):
+class TeamSourceCreate(TeamSourceBase):
     pass
 
-class WorkspaceResponse(WorkspaceBase):
+class TeamSourceResponse(TeamSourceBase):
     id: int
 
     class Config:
         from_attributes = True
 
-# Registered Workspace schemas
-class RegisteredWorkspaceBase(BaseModel):
+# Registered TeamSource schemas
+class RegisteredTeamSourceBase(BaseModel):
     team_id: int
     name: str
     repo_url: str
 
-class RegisteredWorkspaceCreate(RegisteredWorkspaceBase):
+class RegisteredTeamSourceCreate(RegisteredTeamSourceBase):
     pass
 
-class RegisteredWorkspaceResponse(RegisteredWorkspaceBase):
+class RegisteredTeamSourceResponse(RegisteredTeamSourceBase):
     id: int
 
     class Config:

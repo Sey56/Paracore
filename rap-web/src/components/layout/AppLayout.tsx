@@ -10,7 +10,7 @@ import { useScriptExecution } from "@/features/automation";
 import { useUI } from "@/hooks/useUI";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useScripts } from "@/features/automation";
-import { GitStatusPanel } from "@/features/workspaces/components/GitStatusPanel";
+import { GitStatusPanel } from "@/features/team-sources/components/GitStatusPanel";
 import React, { useState, useCallback } from 'react';
 import { useAuth } from "@/features/auth";
 import { Role } from '@/features/auth';
@@ -191,7 +191,7 @@ export const AppLayout: React.FC = () => {
               </>
             )}
           </div>
-          {activeScriptSource?.type === 'workspace' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}
+          {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}
         </div>
         {/* Mobile Inspector */}
         {isMobile && selectedScript && (

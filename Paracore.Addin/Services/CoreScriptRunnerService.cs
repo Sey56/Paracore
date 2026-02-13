@@ -94,5 +94,15 @@ namespace Paracore.Addin.Services
         {
             return Task.FromResult(_fileSystemHandler.CreateAndOpenWorkspace(request));
         }
+
+        public override Task<StopSyncSessionResponse> StopSyncSession(StopSyncSessionRequest request, ServerCallContext context)
+        {
+            return Task.FromResult(_fileSystemHandler.StopSyncSession(request));
+        }
+
+        public override Task<GetCategoryParametersResponse> GetCategoryParameters(GetCategoryParametersRequest request, ServerCallContext context)
+        {
+            return _contextHandler.GetCategoryParameters(request);
+        }
     }
 }

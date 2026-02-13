@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
 
-interface RegisterWorkspaceModalProps {
+interface RegisterSourceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (name: string, repoUrl: string) => Promise<void>;
@@ -13,7 +13,7 @@ interface RegisterWorkspaceModalProps {
   isEditMode?: boolean;
 }
 
-export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
+export const RegisterSourceModal: FC<RegisterSourceModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
@@ -23,7 +23,7 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
 }) => {
   const [name, setName] = useState(initialName || '');
   const [repoUrl, setRepoUrl] = useState(initialRepoUrl || '');
-  const [selectedPostfix, setSelectedPostfix] = useState<string>('-dev'); // New state for postfix
+  const [selectedPostfix, setSelectedPostfix] = useState<string>('-dev');
   const [isRegistering, setIsRegistering] = useState(false);
   const { showNotification } = useNotifications();
 
@@ -35,7 +35,7 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
       } else {
         setName('');
         setRepoUrl('');
-        setSelectedPostfix('-dev'); // Reset to default when opening for new registration
+        setSelectedPostfix('-dev');
       }
       setIsRegistering(false);
     }
@@ -43,15 +43,13 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
 
   const handleSubmit = async () => {
     if (!name || !repoUrl) {
-      showNotification("Workspace Name and Repository URL cannot be empty.", "error");
+      showNotification("Source Name and Repository URL cannot be empty.", "error");
       return;
     }
 
-    // Add URL validation
     try {
-      new URL(repoUrl); // Attempt to create a URL object
+      new URL(repoUrl);
     } catch (e) {
-      // If URL creation fails, it's an invalid URL
       showNotification("Repository URL is not a valid URL.", "error");
       return;
     }
@@ -72,8 +70,6 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-
-
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
@@ -90,7 +86,7 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
                   as="h3"
                   className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
                 >
-                  {isEditMode ? 'Edit Workspace' : 'Register New Workspace for Team'}
+                  {isEditMode ? 'Edit Script Source' : 'Register New Script Source for Team'}
                 </Dialog.Title>
                  <button
                     onClick={onClose}
@@ -100,10 +96,10 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
                 </button>
                 <div className="mt-4 space-y-4">
                     <div>
-                        <label htmlFor="workspaceName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Workspace Name</label>
+                        <label htmlFor="sourceName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Source Name</label>
                         <input
                             type="text"
-                            id="workspaceName"
+                            id="sourceName"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g., 'Project Revit Scripts'"
@@ -178,3 +174,4 @@ export const RegisterWorkspaceModal: FC<RegisterWorkspaceModalProps> = ({
     </Transition>
   );
 };
+

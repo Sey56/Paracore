@@ -21,7 +21,7 @@ export const PlaylistsTab: React.FC = () => {
     useEffect(() => {
         // Auto-load playlists when the source changes
         if (activeScriptSource) {
-            if (activeScriptSource.type === 'local' || activeScriptSource.type === 'workspace') {
+            if (activeScriptSource.type === 'local' || activeScriptSource.type === 'team') {
                 loadPlaylists(activeScriptSource.path);
             }
         }

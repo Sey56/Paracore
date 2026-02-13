@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faStar as fasStar, faChevronUp, faChevronDown, faTools } from '@fortawesome/free-solid-svg-icons';
 import { faStar as farStar } from '@fortawesome/free-regular-svg-icons';
 import { Script } from '@/types/scriptModel';
-import { getScriptLog } from '@/features/workspaces/services/workspaces';
+import { getScriptLog } from '@/features/team-sources/services/teamSources';
 import { useUI } from '@/hooks/useUI';
 
 interface ScriptHeaderProps {
@@ -21,7 +21,7 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
 
   useEffect(() => {
     const fetchGitLog = async () => {
-      if (script?.absolutePath && activeScriptSource?.type === 'workspace') {
+      if (script?.absolutePath && activeScriptSource?.type === 'team') {
         try {
           const response = await getScriptLog(script.absolutePath);
           setGitLog(response.log);

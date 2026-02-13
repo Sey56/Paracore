@@ -2,7 +2,7 @@ export * from './common';
 export * from './scriptModel';
 export * from './playlistModel';
 
-export interface Workspace {
+export interface TeamScriptSource {
   id: number;
   name: string;
   repo_url: string;

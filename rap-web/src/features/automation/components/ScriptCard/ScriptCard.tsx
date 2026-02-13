@@ -13,7 +13,9 @@ import {
   faCompressAlt,
   faLock,
   faTools,
-  faBullseye
+  faBullseye,
+  faTrash,
+  faSyncAlt
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import { useRevitStatus } from "@/hooks/useRevitStatus";
@@ -24,27 +26,30 @@ import { useUI } from "@/hooks/useUI";
 import { filterVisibleParameters, validateParameters } from '@/utils/parameterVisibility';
 import styles from './ScriptCard.module.css';
 import { useAuth } from '@/features/auth';
+import { Modal } from '@/components/common/Modal';
 
 export interface ScriptCardProps {
   script: Script;
   onSelect: () => void;
-  isFromActiveWorkspace: boolean;
+  isFromActiveSource: boolean;
   isCompact?: boolean;
   showExitFocus?: boolean;
   onExitFocus?: () => void;
   onFocus?: (rect: DOMRect) => void;
   isHidden?: boolean;
+  onReplace?: (script: Script) => void;
 }
 
 export const ScriptCard: React.FC<ScriptCardProps> = ({
   script,
   onSelect,
-  isFromActiveWorkspace,
+  isFromActiveSource,
   isCompact = false,
   showExitFocus = false,
   onExitFocus,
   onFocus,
-  isHidden = false
+  isHidden = false,
+  onReplace
 }) => {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const {
@@ -53,20 +58,25 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     runScript,
     setSelectedScript,
     editScript,
+    clearSyncSession,
     renameScript,
     userEditedScriptParameters
   } = useScriptExecution();
-  const { toggleFavoriteScript } = useScripts();
+  const { toggleFavoriteScript, deleteScript, isSyncActive: checkSyncActive } = useScripts();
   const { setActiveInspectorTab } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { isAuthenticated, activeRole, user } = useAuth();
   const [showMenu, setShowMenu] = React.useState(false);
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [renameValue, setRenameValue] = React.useState('');
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  
   const menuRef = React.useRef<HTMLDivElement>(null);
   const renameInputRef = React.useRef<HTMLInputElement>(null);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
+  const isSyncActive = checkSyncActive(script.absolutePath);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -178,6 +188,15 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    const success = await deleteScript(script);
+    setIsDeleting(false);
+    if (success) {
+      setShowDeleteModal(false);
+    }
+  };
+
   return (
     <div
       ref={cardRef}
@@ -185,6 +204,37 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
         } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isMultiFile ? styles.multiFile : ""} ${isTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
       onClick={handleSelect}
     >
+      {/* Delete Confirmation Modal */}
+      <Modal 
+        isOpen={showDeleteModal} 
+        onClose={() => !isDeleting && setShowDeleteModal(false)} 
+        title="Delete Script"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Are you sure you want to delete <span className="font-bold text-gray-900 dark:text-white">"{script.name}"</span>? 
+            This action cannot be undone.
+          </p>
+          <div className="flex justify-end space-x-3 pt-2">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              disabled={isDeleting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 flex items-center"
+            >
+              {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="mr-2" /> : <FontAwesomeIcon icon={faTrash} className="mr-2" />}
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <div className={`p-4 flex-grow flex flex-col ${isCompact ? "py-2" : ""}`}>
         <div className="flex justify-between items-start mb-2">
@@ -311,19 +361,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
           {showMenu && (
             <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect();
-                  setActiveInspectorTab('metadata');
-                  setSelectedScript(script);
-                  setShowMenu(false);
-                }}
-              >
-                <FontAwesomeIcon icon={faEllipsisH} className="mr-2 w-4" />
-                View Metadata
-              </button>
               {canCreateScripts && !script.metadata.isProtected && (
                 <>
                   <button
@@ -338,17 +375,76 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                     title={editTooltipMessage}
                   >
                     <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
-                    Edit Code
+                    Edit Script
                   </button>
+
+                  {isSyncActive && (
+                    <button
+                      className="w-full text-left px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center font-bold"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearSyncSession(script);
+                        setShowMenu(false);
+                      }}
+                      title="Release IDE synchronization lock if VSCode is closed."
+                    >
+                      <FontAwesomeIcon icon={faSyncAlt} className="mr-2 w-4 animate-pulse" />
+                      Stop Sync
+                    </button>
+                  )}
+
                   <button
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center ${isSyncActive 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                    disabled={isSyncActive}
                     onClick={(e) => {
+                      if (isSyncActive) return;
+                      e.stopPropagation();
                       onSelect();
                       handleStartRename(e);
                     }}
+                    title={isSyncActive ? "Cannot rename while sync is active" : "Rename Script"}
                   >
                     <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
                     Rename
+                  </button>
+                  {!isMultiFile && !script.metadata.isProtected && (
+                    <button
+                      className={`w-full text-left px-4 py-2 text-sm flex items-center ${isSyncActive 
+                        ? 'text-gray-400 cursor-not-allowed' 
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                      disabled={isSyncActive}
+                      onClick={(e) => {
+                        if (isSyncActive) return;
+                        e.stopPropagation();
+                        onSelect();
+                        if (onReplace) onReplace(script);
+                        setShowMenu(false);
+                      }}
+                      title={isSyncActive ? "Cannot replace while sync is active" : "Replace with Template/Query"}
+                    >
+                      <FontAwesomeIcon icon={faSyncAlt} className="mr-2 w-4" />
+                      Replace Code
+                    </button>
+                  )}
+                  <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                  <button
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center ${isSyncActive 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
+                    disabled={isSyncActive}
+                    onClick={(e) => {
+                      if (isSyncActive) return;
+                      e.stopPropagation();
+                      onSelect();
+                      setShowDeleteModal(true);
+                      setShowMenu(false);
+                    }}
+                    title={isSyncActive ? "Cannot delete while sync is active" : "Delete Script"}
+                  >
+                    <FontAwesomeIcon icon={faTrash} className="mr-2 w-4" />
+                    Delete Script
                   </button>
                 </>
               )}

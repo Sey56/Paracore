@@ -15,7 +15,7 @@ async def run_script_logic(
     parameters: Any,
     script_type: str,
     source_folder: Optional[str],
-    source_workspace: Optional[str],
+    source_team_source: Optional[str],
     thread_id: Optional[str],
     current_user_id: int,
     active_team: int,
@@ -110,7 +110,7 @@ async def run_script_logic(
             db.add(models.Run(
                 script_id=script.id, user_id=current_user_id, team_id=active_team,
                 role=active_role, status=run_status, output=run_output,
-                source_folder=source_folder, source_workspace=source_workspace
+                source_folder=source_folder, source_team_source=source_team_source
             ))
             db.commit()
 
@@ -121,7 +121,7 @@ async def run_script_logic(
             db.add(models.Run(
                 script_id=script.id, user_id=current_user_id, team_id=active_team,
                 role=active_role, status="failure", output=str(e),
-                source_folder=source_folder, source_workspace=source_workspace
+                source_folder=source_folder, source_team_source=source_team_source
             ))
             db.commit()
         if isinstance(e, FileNotFoundError): raise HTTPException(status_code=404, detail=f"Script not found: {path}")

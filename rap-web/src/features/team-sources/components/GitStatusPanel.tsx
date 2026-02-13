@@ -1,17 +1,17 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 
-import { getWorkspaceStatus, getWorkspaceBranches, checkoutBranch, createBranch, pullChanges, pushChanges } from '@/features/workspaces/services/workspaces';
+import { getSourceStatus, getSourceBranches, checkoutBranch, createBranch, pullChanges, pushChanges } from '../services/teamSources';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUpload, faDownload, faCodeBranch, faSyncAlt, faArrowDown, faRedo, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { faGitAlt } from '@fortawesome/free-brands-svg-icons';
-import { CommitModal } from '@/features/workspaces/components/CommitModal';
-import { CreateBranchModal } from '@/features/workspaces/components/CreateBranchModal';
-import { PushConfirmModal } from '@/features/workspaces/components/PushConfirmModal'; // Import PushConfirmModal
+import { CommitModal } from './CommitModal';
+import { CreateBranchModal } from './CreateBranchModal';
+import { PushConfirmModal } from './PushConfirmModal';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
-import { useScripts } from '@/features/automation'; // Import useScripts
-import { Role } from '@/features/auth'; // Import Role
+import { useScripts } from '@/features/automation';
+import { Role } from '@/features/auth';
 
 interface GitStatus {
   branch_info: {
@@ -34,49 +34,42 @@ interface ApiResponseError {
 export const GitStatusPanel: React.FC = () => {
   const { activeScriptSource } = useUI();
   const { showNotification } = useNotifications();
-  const { user, isAuthenticated, activeTeam, activeRole } = useAuth(); // Get activeTeam and activeRole
-  const { teamWorkspaces } = useScripts(); // Get teamWorkspaces
+  const { isAuthenticated, activeRole } = useAuth();
+  const { remoteScriptSources } = useScripts();
 
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
-  const [isPushConfirmModalOpen, setIsPushConfirmModalOpen] = useState(false); // State for PushConfirmModal
+  const [isPushConfirmModalOpen, setIsPushConfirmModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branches, setBranches] = useState<string[]>([]);
   const [currentSelectedBranch, setCurrentSelectedBranch] = useState<string | null>(null);
   const [isCreateBranchModalOpen, setIsCreateBranchModalOpen] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
-  const isFetching = useRef(false); // Added comment to force re-evaluation
+  const isFetching = useRef(false);
 
-  const currentWorkspace = useMemo(() => {
-    if (activeScriptSource?.type === 'workspace') {
-      // The activeScriptSource for a workspace now directly contains the correct path.
-      // The component primarily needs the path for API calls.
+  const currentSource = useMemo(() => {
+    if (activeScriptSource?.type === 'team') {
       return {
         id: activeScriptSource.id,
         path: activeScriptSource.path,
-        name: '', // name is not strictly needed by this component's logic
-        repoUrl: '' // repoUrl is not strictly needed by this component's logic
       };
     }
     return null;
   }, [activeScriptSource]);
 
-
-
   const fetchStatus = useCallback(async () => {
-    if (!currentWorkspace || !isAuthenticated || isFetching.current) {
+    if (!currentSource || !isAuthenticated || isFetching.current) {
       return;
     }
     isFetching.current = true;
     setLoading(true);
     setError(null);
     try {
-      const statusData = await getWorkspaceStatus(currentWorkspace.path, activeRole === Role.User); // Pass fetch=true for user role
+      const statusData = await getSourceStatus(currentSource.path, activeRole === Role.User);
       setStatus(statusData);
 
-      // Fetch branches
-      const branchData = await getWorkspaceBranches(currentWorkspace.path);
+      const branchData = await getSourceBranches(currentSource.path);
       setBranches(branchData.branches);
       setCurrentSelectedBranch(branchData.current_branch);
 
@@ -92,15 +85,15 @@ export const GitStatusPanel: React.FC = () => {
       setLoading(false);
       isFetching.current = false;
     }
-  }, [currentWorkspace, isAuthenticated, activeRole]);
+  }, [currentSource, isAuthenticated, activeRole]);
 
   const handlePull = async () => {
-    if (!currentWorkspace) return;
+    if (!currentSource) return;
     setLoading(true);
     setError(null);
     try {
       showNotification("Pulling changes...", "info");
-      await pullChanges({ path: currentWorkspace.path });
+      await pullChanges({ path: currentSource.path });
       showNotification("Pull successful!", "success");
       fetchStatus();
     } catch (err: unknown) {
@@ -121,15 +114,15 @@ export const GitStatusPanel: React.FC = () => {
   };
 
   const handleConfirmPush = async () => {
-    if (!currentWorkspace) return;
+    if (!currentSource) return;
     setLoading(true);
     setError(null);
     try {
       showNotification("Pushing changes...", "info");
-      await pushChanges({ path: currentWorkspace.path });
+      await pushChanges({ path: currentSource.path });
       showNotification("Push successful!", "success");
       fetchStatus();
-      setIsPushConfirmModalOpen(false); // Close modal on success
+      setIsPushConfirmModalOpen(false);
     } catch (err: unknown) {
       let errorMessage = "Failed to push changes.";
       const apiError = err as ApiResponseError;
@@ -146,14 +139,14 @@ export const GitStatusPanel: React.FC = () => {
 
   const handleBranchChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newBranch = e.target.value;
-    if (!currentWorkspace || !newBranch || newBranch === currentSelectedBranch) return;
+    if (!currentSource || !newBranch || newBranch === currentSelectedBranch) return;
 
     setLoading(true);
     setError(null);
     try {
-      await checkoutBranch({ workspace_path: currentWorkspace.path, branch_name: newBranch });
+      await checkoutBranch({ source_path: currentSource.path, branch_name: newBranch });
       showNotification(`Successfully checked out branch: ${newBranch}`, "success");
-      fetchStatus(); // Refresh status after checkout
+      fetchStatus();
     } catch (err: unknown) {
       let errorMessage = "Failed to checkout branch.";
       const apiError = err as ApiResponseError;
@@ -173,7 +166,7 @@ export const GitStatusPanel: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  if (activeRole === Role.User || activeScriptSource?.type !== 'workspace' || !currentWorkspace) {
+  if (activeRole === Role.User || activeScriptSource?.type !== 'team' || !currentSource) {
     return null;
   }
 
@@ -183,7 +176,7 @@ export const GitStatusPanel: React.FC = () => {
   const isUpToDate = !hasChangesToPull && !hasChangesToPush && !hasUncommittedChanges;
 
   const handleCreateBranch = async () => {
-    if (!currentWorkspace || !newBranchName) return;
+    if (!currentSource || !newBranchName) return;
 
     if (newBranchName === 'main') {
       showNotification("Cannot create a branch named 'main'. Please choose a different name.", "error");
@@ -193,11 +186,11 @@ export const GitStatusPanel: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await createBranch({ workspace_path: currentWorkspace.path, branch_name: newBranchName });
+      await createBranch({ source_path: currentSource.path, branch_name: newBranchName });
       showNotification(`Successfully created and checked out branch: ${newBranchName}`, "success");
       setIsCreateBranchModalOpen(false);
       setNewBranchName('');
-      fetchStatus(); // Refresh status after creating branch
+      fetchStatus();
     } catch (err: unknown) {
       let errorMessage = "Failed to create branch.";
       const apiError = err as ApiResponseError;
@@ -216,7 +209,7 @@ export const GitStatusPanel: React.FC = () => {
       <CommitModal
         isOpen={isCommitModalOpen}
         onClose={() => setIsCommitModalOpen(false)}
-        workspacePath={currentWorkspace.path}
+        sourcePath={currentSource.path}
         changedFiles={status?.changed_files || []}
         onCommitSuccess={fetchStatus}
       />

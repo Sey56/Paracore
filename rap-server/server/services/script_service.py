@@ -14,7 +14,7 @@ from grpc_client import (
     get_combined_script,
     create_and_open_workspace,
 )
-from workspace_manager import get_active_workspace, set_active_workspace
+from workspace_manager import get_active_sync_session, set_active_sync_session
 from utils import resolve_script_path, format_grpc_error
 from api.script_templates import ARCHETYPES, MULTI_FILE_MAIN_TEMPLATE
 
@@ -137,15 +137,60 @@ async def get_all_scripts(folder_path: str) -> List[Dict[str, Any]]:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to get scripts: {str(e)}")
 
-def create_new_script_logic(parent_folder: str, script_type: str, script_name: str, folder_name: Optional[str], template_id: str = "blank"):
+def create_new_script_logic(parent_folder: str, script_type: str, script_name: str, folder_name: Optional[str], template_id: str = "blank", generated_logic: Optional[str] = None, generated_params: Optional[str] = None, overwrite: bool = False):
     if script_type == 'single':
         s_name = script_name if script_name.endswith('.cs') else f"{script_name}.cs"
         new_path = os.path.join(parent_folder, s_name)
-        if os.path.exists(new_path):
+        
+        # 1. Auto-stop sync session if exists
+        from grpc_client import stop_sync_session
+        from workspace_manager import remove_active_sync_session
+        stop_sync_session(new_path)
+        remove_active_sync_session(new_path)
+
+        if os.path.exists(new_path) and not overwrite:
             raise HTTPException(status_code=409, detail=f"Script '{s_name}' already exists.")
 
         try:
             template_code = ARCHETYPES.get(template_id, ARCHETYPES["blank"])
+            
+            # --- SURGICAL INJECTION ---
+            if generated_logic:
+                # 1. Inject logic into the dedicated placeholder
+                if "// __INJECT_QUERY_BLOCK__" in template_code:
+                    # Replace the placeholder AND the following line (which is usually the default 'var elements = ...')
+                    lines = template_code.split("\n")
+                    new_lines = []
+                    skip_next = False
+                    for line in lines:
+                        if skip_next:
+                            skip_next = False; continue
+                        if "// __INJECT_QUERY_BLOCK__" in line:
+                            new_lines.append(generated_logic)
+                            skip_next = True # Skip the default var elements = ... line
+                        else:
+                            new_lines.append(line)
+                    template_code = "\n".join(new_lines)
+                else:
+                    # Fallback if placeholder is missing
+                    template_code = template_code.replace("// 2. Execution Logic", f"// 2. Execution Logic\n{generated_logic}")
+
+            else:
+                # Remove placeholder if no query generated
+                template_code = template_code.replace("// __INJECT_QUERY_BLOCK__\n", "")
+
+            if generated_params:
+                # 2. Inject params into the "#region Settings" or "#region Audit Configuration" section
+                params_marker = "#region Settings"
+                if params_marker not in template_code:
+                    params_marker = "#region Audit Configuration"
+                
+                if params_marker in template_code:
+                    template_code = template_code.replace(params_marker, f"{params_marker}\n    {generated_params}")
+                else:
+                    # Fallback: Inject at top of Params class
+                    template_code = template_code.replace("public class Params {", f"public class Params {{\n    {generated_params}")
+
             with open(new_path, 'w', encoding='utf-8') as f:
                 f.write(template_code)
             return {"message": f"Successfully created script: {s_name}", "script_path": new_path}
@@ -178,13 +223,13 @@ async def save_script_logic(script_path: str, script_type: str, content: Optiona
              raise HTTPException(status_code=403, detail="Protected Tool: Source code cannot be overwritten.")
 
         normalized_script_path = os.path.normpath(script_path).replace('\\', '/')
-        workspace_path = get_active_workspace(normalized_script_path)
-        is_workspace_save = False
+        temp_workspace_path = get_active_sync_session(normalized_script_path)
+        is_sync_save = False
         target_dir = ""
 
-        if workspace_path and os.path.isdir(workspace_path):
-            is_workspace_save = True
-            target_dir = os.path.join(workspace_path, "Scripts")
+        if temp_workspace_path and os.path.isdir(temp_workspace_path):
+            is_sync_save = True
+            target_dir = os.path.join(temp_workspace_path, "Scripts")
         else:
             if script_type == "multi-file":
                 target_dir = resolve_script_path(script_path)
@@ -210,7 +255,7 @@ async def save_script_logic(script_path: str, script_type: str, content: Optiona
             if filename:
                 target_file = os.path.join(target_dir, filename)
             else:
-                if is_workspace_save:
+                if is_sync_save:
                     if script_type == "multi-file":
                         target_file = os.path.join(target_dir, "Main.cs")
                     else:
@@ -230,7 +275,7 @@ async def save_script_logic(script_path: str, script_type: str, content: Optiona
         return {
             "success": True,
             "message": f"Saved {len(saved_paths)} file(s) successfully.",
-            "is_workspace_save": is_workspace_save,
+            "is_sync_save": is_sync_save,
             "paths": saved_paths
         }
     except Exception as e:
@@ -330,11 +375,11 @@ async def edit_script_logic(script_path: str, script_type: str):
         if response.get("error_message"):
             raise HTTPException(status_code=500, detail=response.get("error_message") )
 
-        workspace_path = response.get('workspace_path')
+        temp_workspace_path = response.get('workspace_path')
         await asyncio.sleep(0.5)
 
-        if workspace_path and os.path.isdir(workspace_path) and script_type == 'single-file':
-            dest_path = os.path.join(workspace_path, 'Scripts', os.path.basename(script_path))
+        if temp_workspace_path and os.path.isdir(temp_workspace_path) and script_type == 'single-file':
+            dest_path = os.path.join(temp_workspace_path, 'Scripts', os.path.basename(script_path))
             if os.path.exists(script_path):
                 os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                 with open(script_path, 'r', encoding='utf-8') as f:
@@ -349,8 +394,35 @@ async def edit_script_logic(script_path: str, script_type: str):
                             break
                         except: await asyncio.sleep(0.2)
 
-        set_active_workspace(script_path, workspace_path)
-        return {"message": f"Successfully created workspace.", "workspace_path": workspace_path}
+        set_active_sync_session(script_path, temp_workspace_path)
+        return {"message": f"Successfully created IDE workspace.", "workspace_path": temp_workspace_path}
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+def delete_script_logic(script_path: str, script_type: str):
+    """
+    Deletes a script file or folder. Automatically stops active sync sessions.
+    """
+    try:
+        absolute_path = resolve_script_path(script_path)
+        
+        # 1. Auto-stop sync session if exists
+        from grpc_client import stop_sync_session
+        from workspace_manager import remove_active_sync_session
+        stop_sync_session(script_path)
+        remove_active_sync_session(script_path)
+
+        if not os.path.exists(absolute_path):
+            raise HTTPException(status_code=404, detail="Script not found.")
+
+        if script_type == "multi-file" and os.path.isdir(absolute_path):
+            import shutil
+            shutil.rmtree(absolute_path)
+        else:
+            os.remove(absolute_path)
+
+        return {"success": True, "message": f"Successfully deleted {os.path.basename(script_path)}"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=f"Failed to delete script: {str(e)}")

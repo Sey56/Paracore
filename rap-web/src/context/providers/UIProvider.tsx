@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useUserWorkspaces } from "@/features/workspaces"; // Import useUserWorkspaces
-import { useAuth } from "@/features/auth"; // Import useAuth
+import { useUserTeamSources } from "@/features/team-sources"; 
+import { useAuth } from "@/features/auth";
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
@@ -11,8 +11,8 @@ const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
   const { showNotification } = useNotifications();
-  const { user } = useAuth(); // Get the current user
-  const { userWorkspacePaths, isLoaded: userWorkspacesLoaded } = useUserWorkspaces(); // Get user-specific workspace paths
+  const { user } = useAuth();
+  const { userSourcePaths, isLoaded: userSourcesLoaded } = useUserTeamSources();
 
   const [isSidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [isInspectorOpen, setInspectorOpen] = useState(false);

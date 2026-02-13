@@ -99,5 +99,23 @@ namespace Paracore.Addin.Handlers
             }
             return response;
         }
+
+        public StopSyncSessionResponse StopSyncSession(StopSyncSessionRequest request)
+        {
+            var response = new StopSyncSessionResponse();
+            try
+            {
+                bool success = EphemeralWorkspaceManager.StopSyncSession(request.ScriptPath);
+                response.IsSuccess = success;
+                if (!success) response.ErrorMessage = "No active sync session found for this script.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[FileSystemHandler] Error in StopSyncSession: {ex.Message}");
+                response.IsSuccess = false;
+                response.ErrorMessage = ex.Message;
+            }
+            return response;
+        }
     }
 }

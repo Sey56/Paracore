@@ -5,7 +5,7 @@ import { ScriptProvider } from '@/features/automation/store/ScriptProvider';
 import { ScriptExecutionProvider } from '@/features/automation/store/ScriptExecutionProvider';
 import { UIProvider } from './providers/UIProvider';
 import { AuthProvider } from '@/features/auth/store/AuthProvider';
-import { WorkspaceProvider } from '@/features/workspaces/store/WorkspaceProvider';
+import { TeamSourceProvider } from '@/features/team-sources/store/TeamSourceProvider';
 import { PlaylistProvider } from '@/features/automation/store/PlaylistProvider';
 
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
@@ -13,7 +13,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     <NotificationProvider>
       <AuthProvider>
         <UserProvider>
-          <WorkspaceProvider>
+          <TeamSourceProvider>
             <RevitProvider>
               <UIProvider>
                 <ScriptProvider>
@@ -25,7 +25,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
                 </ScriptProvider>
               </UIProvider>
             </RevitProvider>
-          </WorkspaceProvider>
+          </TeamSourceProvider>
         </UserProvider>
       </AuthProvider>
     </NotificationProvider>

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
-import { commitChanges } from '@/features/workspaces/services/workspaces';
+import { commitChanges } from '../services/teamSources';
 import { useNotifications } from '@/hooks/useNotifications';
 import { AxiosError } from 'axios';
 
 interface CommitModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workspacePath: string;
+  sourcePath: string;
   changedFiles: string[];
   onCommitSuccess: () => void;
 }
@@ -15,7 +15,7 @@ interface CommitModalProps {
 export const CommitModal: React.FC<CommitModalProps> = ({
   isOpen,
   onClose,
-  workspacePath,
+  sourcePath,
   changedFiles,
   onCommitSuccess,
 }) => {
@@ -31,7 +31,7 @@ export const CommitModal: React.FC<CommitModalProps> = ({
 
     setIsLoading(true);
     try {
-      await commitChanges({ workspace_path: workspacePath, message: commitMessage });
+      await commitChanges({ source_path: sourcePath, message: commitMessage });
       showNotification("Changes committed successfully!", "success");
       onCommitSuccess();
       onClose();

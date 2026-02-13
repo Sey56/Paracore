@@ -11,7 +11,7 @@ import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import api from '@/api/axios';
 import { getFolderNameFromPath } from '@/utils/pathHelpers';
-import { Workspace } from '@/types';
+import { TeamScriptSource } from '@/types';
 import useLocalStorage from '@/hooks/useLocalStorage';
 
 
@@ -91,7 +91,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const { showNotification } = useNotifications();
   const {
     scripts: allScriptsFromScriptProvider,
-    teamWorkspaces,
+    remoteScriptSources,
     selectedFolder,
     setScripts,
     addRecentScript,
@@ -104,7 +104,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const { isAuthenticated, activeTeam } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, messages, setActiveMainView, setActiveInspectorTab, threadId } = useUI();
 
-  const currentTeamWorkspaces = activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
+  const currentTeamSources = activeTeam ? (remoteScriptSources[activeTeam.team_id] || []) : [];
 
   const [selectedScript, setSelectedScriptState] = useState<Script | null>(null);
   const selectedScriptRef = useRef<Script | null>(null);
@@ -188,7 +188,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
   // --- Source Change Detection ---
 
-  // Effect to clear selected script when the script source (folder, workspace) changes.
+  // Effect to clear selected script when the script source (folder, team source) changes.
   // This ensures the inspector is cleared when the gallery content changes.
   const lastSourceRef = useRef<{ type?: string; id?: string; path?: string } | null>(null);
 
@@ -316,6 +316,25 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       showNotification("Failed to open script in VSCode.", "error");
     }
   }, [user, cloudToken, ParacoreConnected, showNotification]);
+
+  const clearSyncSession = useCallback(async (script: Script) => {
+    if (!script || !script.absolutePath) return;
+
+    try {
+      const response = await api.post("/api/sync/clear-session", {
+        path: script.absolutePath
+      });
+
+      if (response.data.success) {
+        showNotification("Sync session lock released.", "success");
+        // Force refresh of active sessions
+        await reloadScript(script, { silent: true });
+      }
+    } catch (error) {
+      console.error("Failed to clear sync session:", error);
+      showNotification("Failed to release sync lock.", "error");
+    }
+  }, [showNotification, reloadScript]);
 
   const setActivePreset = useCallback((scriptId: string, presetName: string) => {
     setActivePresets(prev => ({
@@ -896,16 +915,14 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     showNotification(`Running script: ${script.name}...`, "info");
 
     let sourceFolder: string | undefined;
-    let sourceWorkspace: string | undefined;
+    let sourceTeamSource: string | undefined;
 
     if (activeScriptSource?.type === 'local') {
       sourceFolder = getFolderNameFromPath(activeScriptSource.path);
-    } else if (activeScriptSource?.type === 'workspace') {
-      const workspace = currentTeamWorkspaces.find((ws: Workspace) => ws.id === Number(activeScriptSource.id));
-      if (workspace) {
-        sourceWorkspace = `${workspace.name}${workspace.isOrphaned ? ' (orphaned)' : ''}:${workspace.repo_url}`;
-        // If we are in a workspace, we might want to hint the backend about the root path
-        // but currently the backend resolves from the DB or file system.
+    } else if (activeScriptSource?.type === 'team') {
+      const source = currentTeamSources.find((ws: TeamScriptSource) => ws.id === Number(activeScriptSource.id));
+      if (source) {
+        sourceTeamSource = `${source.name}${source.isOrphaned ? ' (orphaned)' : ''}:${source.repo_url}`;
       }
     }
 
@@ -919,7 +936,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       type: script.type,
       parameters: finalParameters ? JSON.stringify(finalParameters) : undefined,
       source_folder: sourceFolder, // New field
-      source_workspace: sourceWorkspace, // New field
+      source_team_source: sourceTeamSource, // New field
       thread_id: threadId, // Add thread_id for working set injection
     };
 
@@ -1201,6 +1218,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     pickObject, // Add pickObject
     isComputingOptions,
     editScript,
+    clearSyncSession,
     renameScript,
     resetScriptParameters,
     buildTool,
@@ -1226,6 +1244,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     pickObject, // Add pickObject
     isComputingOptions,
     editScript,
+    clearSyncSession,
     renameScript,
     resetScriptParameters,
     buildTool,

@@ -104,6 +104,11 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.BuildScriptRequest.SerializeToString,
                 response_deserializer=corescript__pb2.BuildScriptResponse.FromString,
                 _registered_method=True)
+        self.GetCategoryParameters = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/GetCategoryParameters',
+                request_serializer=corescript__pb2.GetCategoryParametersRequest.SerializeToString,
+                response_deserializer=corescript__pb2.GetCategoryParametersResponse.FromString,
+                _registered_method=True)
 
 
 class CoreScriptRunnerServicer(object):
@@ -193,6 +198,12 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetCategoryParameters(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreScriptRunnerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -265,6 +276,11 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.BuildScript,
                     request_deserializer=corescript__pb2.BuildScriptRequest.FromString,
                     response_serializer=corescript__pb2.BuildScriptResponse.SerializeToString,
+            ),
+            'GetCategoryParameters': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetCategoryParameters,
+                    request_deserializer=corescript__pb2.GetCategoryParametersRequest.FromString,
+                    response_serializer=corescript__pb2.GetCategoryParametersResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -645,6 +661,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/BuildScript',
             corescript__pb2.BuildScriptRequest.SerializeToString,
             corescript__pb2.BuildScriptResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetCategoryParameters(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/GetCategoryParameters',
+            corescript__pb2.GetCategoryParametersRequest.SerializeToString,
+            corescript__pb2.GetCategoryParametersResponse.FromString,
             options,
             channel_credentials,
             insecure,

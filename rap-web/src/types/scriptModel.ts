@@ -134,5 +134,5 @@ export interface Script {
   metadata: ScriptMetadata;
   isFavorite?: boolean;
   metadataError?: boolean;
-  sourceType?: 'local' | 'workspace';
+  sourceType?: 'local' | 'team';
 }

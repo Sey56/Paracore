@@ -20,28 +20,28 @@ else:
 
 async def start_git_sync_loop():
     """
-    Background loop that periodically syncs all registered Git workspaces.
+    Background loop that periodically syncs all registered Git team sources.
     """
     logger.info("Starting Git Sync Background Service...")
     while True:
         try:
-            await sync_all_workspaces()
+            await sync_all_team_sources()
         except Exception as e:
             logger.error(f"Error in Git Sync loop: {e}")
 
         await asyncio.sleep(SYNC_INTERVAL_SECONDS)
 
-async def sync_all_workspaces():
+async def sync_all_team_sources():
     """
-    Iterates through all workspaces in the database and performs a Git pull/push.
+    Iterates through all team sources in the database and performs a Git pull/push.
     """
     db = SessionLocal()
     try:
         all_paths = set()
 
-        # 1. Local Workspaces (Cloned Repos)
-        local_workspaces = db.query(models.Workspace).all()
-        for w in local_workspaces:
+        # 1. Local Team Sources (Cloned Repos)
+        local_sources = db.query(models.TeamSource).all()
+        for w in local_sources:
             if os.path.isdir(w.path):
                 all_paths.add(w.path)
 

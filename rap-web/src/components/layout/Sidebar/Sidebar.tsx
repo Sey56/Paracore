@@ -27,18 +27,18 @@ import { useUI } from "@/hooks/useUI";
 import { useScripts } from "@/features/automation";
 import { useScriptExecution } from "@/features/automation";
 import { useState, useMemo } from 'react';
-import { RegisterWorkspaceModal } from '@/features/workspaces/components/RegisterWorkspaceModal';
-import { SetupWorkspaceModal } from '@/features/workspaces/components/SetupWorkspaceModal';
+import { RegisterSourceModal } from '@/features/team-sources/components/RegisterSourceModal';
+import { SetupSourceModal } from '@/features/team-sources/components/SetupSourceModal';
 import { AddCategoryModal } from '@/features/automation/components/AddCategoryModal';
 import { AddFolderModal } from '@/features/automation/components/AddFolderModal';
 import { ConfirmActionModal } from '@/features/automation/components/ScriptInspector/ConfirmActionModal';
 import { useNotifications } from '@/hooks/useNotifications';
-import { cloneWorkspace, deleteLocalWorkspace } from '@/features/workspaces/services/workspaces';
-import { useUserWorkspaces } from '@/features/workspaces';
+import { cloneSource, deleteLocalSource } from '@/features/team-sources/services/teamSources';
+import { useUserTeamSources } from '@/features/team-sources';
 
 import { useAuth } from '@/features/auth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
-import { Script, Workspace } from '@/types/index';
+import { Script, TeamScriptSource } from '@/types/index';
 import { Role } from '@/features/auth';
 
 import { defaultCategories } from '@/data/categories';
@@ -61,196 +61,175 @@ export const Sidebar = () => {
   const isDisabled = !user || !ParacoreConnected;
 
   const { selectedCategory, setSelectedCategory, customCategories, addCustomCategory, removeCustomCategory, activeScriptSource, setActiveScriptSource, setActiveInspectorTab } = useUI();
-  const { 
-    customScriptFolders, 
-    addCustomScriptFolder, 
-    addCustomScriptFolders, 
-    removeCustomScriptFolder, 
-    clearAllCustomScriptFolders, 
-    scripts, 
-    recentScripts, 
-    clearFavoriteScripts, 
-    clearRecentScripts, 
-    teamWorkspaces, 
-    addTeamWorkspace, 
-    pullAllTeamWorkspaces, 
-    clearScriptsForWorkspace, 
-    pullWorkspace, 
-    fetchTeamWorkspaces, 
-    loadScriptsForFolder 
+  const {
+    customScriptFolders,
+    addCustomScriptFolder,
+    addCustomScriptFolders,
+    removeCustomScriptFolder,
+    clearAllCustomScriptFolders,
+    scripts,
+    recentScripts,
+    clearFavoriteScripts,
+    clearRecentScripts,
+    remoteScriptSources,
+    addRemoteScriptSource,
+    pullAllTeamSources,
+    clearScriptsForSource,
+    pullTeamSource,
+    fetchRemoteScriptSources,
+    loadScriptsForFolder
   } = useScripts();
   const { setSelectedScript } = useScriptExecution();
 
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
-  const [workspaceToSetup, setWorkspaceToSetup] = useState<Workspace | null>(null);
+  const [sourceToSetup, setSourceToSetup] = useState<TeamScriptSource | null>(null);
   const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
-  const [workspaceToRemove, setWorkspaceToRemove] = useState<Workspace | null>(null);
-  const [selectedUnclonedWorkspaceId, setSelectedUnclonedWorkspaceId] = useState<number | null>(null); // Changed to number
+  const [sourceToRemove, setSourceToRemove] = useState<TeamScriptSource | null>(null);
+  const [selectedUnclonedSourceId, setSelectedUnclonedSourceId] = useState<number | null>(null);
   const [isClearConfirmModalOpen, setIsClearConfirmModalOpen] = useState(false);
   const [clearActionType, setClearActionType] = useState<'favorites' | 'recents' | 'local-folders' | null>(null);
 
-  const { userWorkspacePaths, setWorkspacePath, removeWorkspacePath } = useUserWorkspaces();
+  const { userSourcePaths, setSourcePath, removeSourcePath } = useUserTeamSources();
 
   const isPersonalTeamActive = useMemo(() => {
     return activeTeam && user && activeTeam.owner_id === Number(user.id);
   }, [activeTeam, user]);
 
-  const currentTeamWorkspaces = useMemo(() => {
+  const currentTeamSources = useMemo(() => {
     if (!activeTeam) return [];
 
-    const allWorkspaces = teamWorkspaces[activeTeam.team_id] || [];
+    const allSources = remoteScriptSources[activeTeam.team_id] || [];
 
-    return allWorkspaces.filter(workspace => {
-      const name = workspace.name.toLowerCase();
-      const isDevWorkspace = name.endsWith('-dev');
-      const isUserWorkspace = name.endsWith('-user');
+    return allSources.filter(source => {
+      const name = source.name.toLowerCase();
+      const isDevSource = name.endsWith('-dev');
+      const isUserSource = name.endsWith('-user');
 
-      if (isDevWorkspace) {
+      if (isDevSource) {
         return activeRole === Role.Admin || activeRole === Role.Developer;
-      } else if (isUserWorkspace) {
+      } else if (isUserSource) {
         return activeRole === Role.Admin || activeRole === Role.User;
       } else {
-        // Show to all if no specific postfix
         return true;
       }
     });
-  }, [activeTeam, teamWorkspaces, activeRole]);
+  }, [activeTeam, remoteScriptSources, activeRole]);
 
-  const { localWorkspaces, unclonedWorkspaces } = useMemo(() => {
-    const local: (Workspace & { isOrphaned?: boolean; path?: string })[] = []; // Added path to local Workspace type
-    const uncloned: Workspace[] = [];
-    const clonedIds = new Set(Object.keys(userWorkspacePaths).map(Number)); // Convert keys to numbers
+  const { teamScriptSources, unclonedSources } = useMemo(() => {
+    const teamSources: (TeamScriptSource & { isOrphaned?: boolean; path?: string })[] = [];
+    const uncloned: TeamScriptSource[] = [];
+    const clonedIds = new Set(Object.keys(userSourcePaths).map(Number));
 
-    // Get a set of all registered repo URLs for the active team
-    const registeredRepoUrls = new Set(currentTeamWorkspaces.map(ws => ws.repo_url.toLowerCase()));
+    const registeredRepoUrls = new Set(currentTeamSources.map(ws => ws.repo_url.toLowerCase()));
 
-    // Create the list of local workspaces from userWorkspacePaths
-    for (const idStr in userWorkspacePaths) {
-      const id = Number(idStr); // Convert id to number
-      const localPathInfo = userWorkspacePaths[idStr];
+    for (const idStr in userSourcePaths) {
+      const id = Number(idStr);
+      const localPathInfo = userSourcePaths[idStr];
       if (localPathInfo) {
         const repoName = getFolderNameFromPath(localPathInfo.path);
+        const isOrphaned = localPathInfo.repo_url ? !registeredRepoUrls.has(localPathInfo.repo_url.toLowerCase()) : true;
 
-        // Determine if the local workspace is orphaned
-        const isOrphaned = localPathInfo.repo_url ? !registeredRepoUrls.has(localPathInfo.repo_url.toLowerCase()) : true; // Assume orphaned if repo_url is missing
-
-        local.push({
+        teamSources.push({
           id: id,
           name: repoName,
           repo_url: localPathInfo.repo_url,
-          path: localPathInfo.path, // Add path here
-          // localId: localPathInfo.localId, // Commented out for now, will address in useUserWorkspaces.ts
-          isOrphaned: isOrphaned, // Add orphaned status
+          path: localPathInfo.path,
+          isOrphaned: isOrphaned,
         });
       }
     }
 
-    // Filter registered workspaces to find the ones that are not cloned
-    currentTeamWorkspaces.forEach(ws => {
+    currentTeamSources.forEach(ws => {
       if (!clonedIds.has(ws.id)) {
         uncloned.push(ws);
       }
     });
 
-    return { localWorkspaces: local, unclonedWorkspaces: uncloned };
-  }, [currentTeamWorkspaces, userWorkspacePaths]);
-
-  const canManageWorkspaces = activeRole === Role.Admin;
-
-
+    return { teamScriptSources: teamSources, unclonedSources: uncloned };
+  }, [currentTeamSources, userSourcePaths]);
 
   const handleCloneClick = () => {
-    const workspaceToClone = unclonedWorkspaces.find(ws => selectedUnclonedWorkspaceId !== null && ws.id === selectedUnclonedWorkspaceId);
-    if (!workspaceToClone) {
-      showNotification("Please select a workspace to clone.", "info");
+    const sourceToClone = unclonedSources.find(ws => selectedUnclonedSourceId !== null && ws.id === selectedUnclonedSourceId);
+    if (!sourceToClone) {
+      showNotification("Please select a source to initialize.", "info");
       return;
     }
-    setWorkspaceToSetup(workspaceToClone);
+    setSourceToSetup(sourceToClone);
     setIsSetupModalOpen(true);
   };
 
   const handleSetupSubmit = async (localPath: string) => {
-    if (!workspaceToSetup) return;
-    console.log("workspaceToSetup.repo_url before cloning:", workspaceToSetup.repo_url);
+    if (!sourceToSetup) return;
 
     try {
-      const newWorkspaceResponse = await cloneWorkspace({
-        repo_url: workspaceToSetup.repo_url.replace(/\/+$/, ''), // Remove trailing slashes
+      const response = await cloneSource({
+        repo_url: sourceToSetup.repo_url.replace(/\/+$/, ''),
         local_path: localPath
       });
 
-      setWorkspacePath(String(workspaceToSetup.id), newWorkspaceResponse.cloned_path, workspaceToSetup.repo_url); // Convert id to string
-      setActiveScriptSource({ type: 'workspace', id: String(workspaceToSetup.id), path: newWorkspaceResponse.cloned_path }); // Convert id to string
-      showNotification(`Workspace '${workspaceToSetup.name}' set up successfully!`, "success");
+      setSourcePath(String(sourceToSetup.id), response.cloned_path, sourceToSetup.repo_url);
+      setActiveScriptSource({ type: 'team', id: String(sourceToSetup.id), path: response.cloned_path });
+      showNotification(`Script source '${sourceToSetup.name}' set up successfully!`, "success");
 
-      // Explicitly load scripts for the newly cloned workspace
-      loadScriptsForFolder(newWorkspaceResponse.cloned_path);
+      loadScriptsForFolder(response.cloned_path);
 
-      // Check for a specific message from the backend that might indicate a non-critical success
-      if (newWorkspaceResponse.message && newWorkspaceResponse.message.includes("workspace exists in path")) {
-        showNotification(newWorkspaceResponse.message, "info");
+      if (response.message && response.message.includes("Source exists in path")) {
+        showNotification(response.message, "info");
       }
 
     } catch (err) {
       const apiError = err as ApiError;
-      const errorMessage = apiError.response?.data?.detail || "Failed to set up workspace.";
+      const errorMessage = apiError.response?.data?.detail || "Failed to set up script source.";
 
-      if (apiError.response && apiError.response.status === 409 && errorMessage.includes("workspace exists in path")) {
+      if (apiError.response && apiError.response.status === 409 && errorMessage.includes("Source exists in path")) {
         showNotification(errorMessage, "info");
       } else {
         showNotification(errorMessage, "error");
       }
       console.error(err);
-      // Removed: throw err; // No longer re-throw to keep modal open on error
     }
   };
 
   const handleRegisterSubmit = async (name: string, repoUrl: string) => {
     if (!activeTeam) return;
 
-    const newWorkspace = {
+    const newSource = {
       name,
       repo_url: repoUrl,
     };
 
-    await addTeamWorkspace(activeTeam.team_id, newWorkspace as Workspace);
+    await addRemoteScriptSource(activeTeam.team_id, newSource as TeamScriptSource);
   };
 
-  const handleOpenRemoveModal = (workspace: Workspace) => {
-    console.log("Step 2: handleOpenRemoveModal triggered for workspace:", workspace);
-    setWorkspaceToRemove(workspace);
+  const handleOpenRemoveModal = (source: TeamScriptSource) => {
+    setSourceToRemove(source);
     setIsRemoveModalOpen(true);
   };
 
   const handleRemoveLocalConfirm = async () => {
-    if (!workspaceToRemove) return;
-    console.log("Step 3: handleRemoveLocalConfirm triggered for:", workspaceToRemove);
+    if (!sourceToRemove) return;
 
     try {
-      console.log("Step 4: Calling removeWorkspacePath with ID:", workspaceToRemove.id);
-      await removeWorkspacePath(String(workspaceToRemove.id)); // Convert id to string
-      console.log("Step 4.5: removeWorkspacePath completed for ID:", workspaceToRemove.id);
+      await removeSourcePath(String(sourceToRemove.id));
 
-      if (activeScriptSource?.type === 'workspace' && Number(activeScriptSource.id) === workspaceToRemove.id) { // Convert activeScriptSource.id to number
+      if (activeScriptSource?.type === 'team' && Number(activeScriptSource.id) === sourceToRemove.id) {
         setActiveScriptSource(null);
-        setSelectedScript(null); // Clear the inspector
-        const localPath = userWorkspacePaths[workspaceToRemove.id]?.path; // Get path from userWorkspacePaths
+        setSelectedScript(null);
+        const localPath = userSourcePaths[sourceToRemove.id]?.path;
         if (localPath) {
-          clearScriptsForWorkspace(localPath);
+          clearScriptsForSource(localPath);
         }
       }
 
-      console.log("Step 5: Success! Showing notification.");
-      showNotification(`Successfully removed local workspace '${workspaceToRemove.name}'`, "success");
+      showNotification(`Successfully removed script source '${sourceToRemove.name}'`, "success");
       setIsRemoveModalOpen(false);
-      setWorkspaceToRemove(null);
+      setSourceToRemove(null);
     } catch (err) {
-      console.log("Step 5: Failure! Showing error notification.", err);
       const apiError = err as ApiError;
-      const errorMessage = apiError.response?.data?.detail || "Failed to remove local workspace.";
+      const errorMessage = apiError.response?.data?.detail || "Failed to remove script source.";
       showNotification(errorMessage, "error");
       console.error(err);
     }
@@ -262,12 +241,10 @@ export const Sidebar = () => {
       if (typeof selected === 'string') {
         try {
           showNotification("Scanning for script sources...", "info");
-          // Recursive discovery of script sources
           const discoveredSources: string[] = await invoke('discover_script_sources', { path: selected });
-          
+
           if (discoveredSources.length > 0) {
             await addCustomScriptFolders(discoveredSources);
-            // Set the first discovered source as active
             setActiveScriptSource({ type: 'local', path: discoveredSources[0] });
           } else {
             showNotification("No .paracore or .scriptsource markers found in the selected hierarchy.", "warning");
@@ -316,40 +293,33 @@ export const Sidebar = () => {
     setClearActionType(null);
   };
 
-
-
-
-
-
-
   return (
-    <div className={`bg-white dark:bg-gray-800 shadow-lg flex flex-col h-full ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      <div className="p-3 flex-1 overflow-y-auto custom-scrollbar">
+    <div className={`bg-white dark:bg-gray-800/20 backdrop-blur-3xl flex flex-col h-full border-r border-gray-100 dark:border-gray-800/50 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className="p-4 flex-1 overflow-y-auto custom-scrollbar space-y-2">
 
-        {/* ... (keep modals) ... */}
-        {workspaceToSetup && (
-          <SetupWorkspaceModal
+        {sourceToSetup && (
+          <SetupSourceModal
             isOpen={isSetupModalOpen}
             onClose={() => setIsSetupModalOpen(false)}
-            workspaceName={workspaceToSetup.name}
+            sourceName={sourceToSetup.name}
             onSetup={handleSetupSubmit}
           />
         )}
 
-        <RegisterWorkspaceModal
+        <RegisterSourceModal
           isOpen={isRegisterModalOpen}
           onClose={() => setIsRegisterModalOpen(false)}
-          onSubmit={handleRegisterSubmit} 
+          onSubmit={handleRegisterSubmit}
         />
 
-        {workspaceToRemove && (
+        {sourceToRemove && (
           <ConfirmActionModal
             isOpen={isRemoveModalOpen}
             onClose={() => setIsRemoveModalOpen(false)}
             onConfirm={handleRemoveLocalConfirm}
-            title={`Remove Local Workspace '${workspaceToRemove.name}'`}
-            message={`Are you sure you want to unload this workspace? This will remove it from the list, but it will not delete the folder from your computer.`}
-            confirmButtonText="Remove"
+            title={`Unload Script Source '${sourceToRemove.name}'`}
+            message={`Are you sure you want to unload this script source? This will remove it from the list, but it will not delete the folder from your computer.`}
+            confirmButtonText="Unload"
             confirmButtonColor="red"
           />
         )}
@@ -375,32 +345,39 @@ export const Sidebar = () => {
           confirmButtonColor="red"
         />
 
-        <div className="mb-6 px-2">
-          {activeTeam && activeTeam.team_id !== 0 && (
-            <div className="flex items-center justify-between group">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <div className="w-8 h-8 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                  <FontAwesomeIcon icon={faUsers} />
-                </div>
-                <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">
-                    {activeTeam.team_name}
-                  </span>
-                  {activeRole && (
-                    <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+        {/* Team Header */}
+        <div className="mb-4 mt-2 px-1">
+          {activeTeam && activeTeam.team_id !== 0 ? (
+            <div className="flex items-center gap-3 p-3 rounded-[1.25rem] bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0 transform group-hover:scale-105 transition-transform">
+                <FontAwesomeIcon icon={faUsers} className="text-sm" />
+              </div>
+              <div className="flex flex-col overflow-hidden">
+                <span className="text-[13px] font-black text-gray-800 dark:text-gray-100 truncate tracking-tight uppercase">
+                  {activeTeam.team_name}
+                </span>
+                {activeRole && (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                       {activeRole}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+              <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-white dark:from-gray-900 to-transparent pointer-events-none" />
+            </div>
+          ) : (
+            <div className="px-3 py-1">
+              <h1 className="text-[11px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em]">Environment</h1>
             </div>
           )}
         </div>
 
-        {/* Local Workspaces */}
+        {/* Team Script Sources */}
         {activeTeam && activeTeam.team_id !== 0 && (
           <SidebarSection
-            title="Local Workspaces"
+            title="Team Script Sources"
             icon={faCodeBranch}
             iconColor="text-green-500"
             defaultExpanded={true}
@@ -409,72 +386,74 @@ export const Sidebar = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (activeScriptSource?.type === 'workspace' && activeScriptSource.path) {
-                      pullWorkspace(activeScriptSource.path);
+                    if (activeScriptSource?.type === 'team' && activeScriptSource.path) {
+                      pullTeamSource(activeScriptSource.path);
                     }
                   }}
-                  disabled={activeScriptSource?.type !== 'workspace'}
-                  className="text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 p-1"
-                  title="Update Workspace"
+                  disabled={activeScriptSource?.type !== 'team'}
+                  className="text-gray-400 hover:text-blue-500 transition-colors p-1.5"
+                  title="Update Source"
                 >
                   <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
                 </button>
               )
             }
           >
-            <div className="flex items-center gap-2 pr-4 mb-2 group">
-              <div className="relative flex-1">
+            <div className="space-y-2 pr-2">
+              <div className="relative group">
                 <select
-                  value={activeScriptSource?.type === 'workspace' ? String(activeScriptSource.id) : ''}
+                  value={activeScriptSource?.type === 'team' ? String(activeScriptSource.id) : ''}
                   onChange={(e) => {
                     const selectedId = Number(e.target.value);
-                    const workspace = localWorkspaces.find(ws => ws.id === selectedId);
-                    const localPath = userWorkspacePaths[selectedId]?.path;
-                    if (workspace && localPath) {
-                      setActiveScriptSource({ type: 'workspace', id: String(selectedId), path: localPath, });
+                    const source = teamScriptSources.find(ws => ws.id === selectedId);
+                    const localPath = userSourcePaths[selectedId]?.path;
+                    if (source && localPath) {
+                      setActiveScriptSource({ type: 'team', id: String(selectedId), path: localPath });
                     }
                   }}
-                  className="w-full appearance-none bg-gray-50 dark:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 rounded-md pl-2 pr-6 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-700 dark:text-gray-200 transition-all"
+                  className="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700/50 rounded-xl pl-3 pr-8 py-2 text-[13px] font-black text-gray-700 dark:text-gray-200 focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all cursor-pointer group-hover:border-gray-200 dark:group-hover:border-gray-700 shadow-sm"
                 >
-                  <option value="" disabled className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Select workspace...</option>
-                  {localWorkspaces.map((workspace) => (
-                    <option key={workspace.id} value={workspace.id} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                      {workspace.name} {workspace.isOrphaned ? '(orphaned)' : ''}
+                  <option value="" disabled>Select source...</option>
+                  {teamScriptSources.map((source) => (
+                    <option key={source.id} value={source.id}>
+                      {source.name} {source.isOrphaned ? '⚠️' : ''}
                     </option>
                   ))}
                 </select>
-                <FontAwesomeIcon
-                  icon={faChevronDown}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none"
-                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500 border-l border-gray-100 dark:border-gray-800 pl-2">
+                  <FontAwesomeIcon icon={faChevronDown} className="text-[10px]" />
+                </div>
               </div>
-              
-              <div className="w-12 flex justify-end items-center shrink-0">
-                {activeScriptSource?.type === 'workspace' && (
+
+              {activeScriptSource?.type === 'team' && (
+                <div className="flex items-center justify-between px-1 animate-in fade-in duration-300">
+                  <span className="text-[11px] font-bold text-blue-500/70 uppercase tracking-tighter truncate max-w-[140px]">
+                    <FontAwesomeIcon icon={faGlobe} className="mr-1.5" />
+                    Active Source
+                  </span>
                   <button
-                    className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                    className="text-[11px] font-black text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-0.5 rounded-lg transition-all"
                     onClick={() => {
-                      if (activeScriptSource.id && userWorkspacePaths[Number(activeScriptSource.id)]?.path) {
-                        const wsToRemove = {
+                      if (activeScriptSource.id && userSourcePaths[Number(activeScriptSource.id)]?.path) {
+                        const sourceToRemove = {
                           id: Number(activeScriptSource.id),
-                          name: getFolderNameFromPath(userWorkspacePaths[Number(activeScriptSource.id)]!.path),
-                          repo_url: userWorkspacePaths[Number(activeScriptSource.id)]?.repo_url || '',
-                          path: userWorkspacePaths[Number(activeScriptSource.id)]!.path
+                          name: getFolderNameFromPath(userSourcePaths[Number(activeScriptSource.id)]!.path),
+                          repo_url: userSourcePaths[Number(activeScriptSource.id)]?.repo_url || '',
+                          path: userSourcePaths[Number(activeScriptSource.id)]!.path
                         };
-                        handleOpenRemoveModal(wsToRemove);
+                        handleOpenRemoveModal(sourceToRemove);
                       }
                     }}
-                    title="Unload Workspace"
                   >
-                    <FontAwesomeIcon icon={faTimes} className="w-3 h-3" />
+                    UNLOAD
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </SidebarSection>
         )}
 
-        {/* Script Sources */}
+        {/* Script Sources (Local Folders) */}
         {isPersonalTeamActive && (
           <SidebarSection
             title="Script Sources"
@@ -482,79 +461,80 @@ export const Sidebar = () => {
             iconColor="text-amber-500"
             defaultExpanded={true}
             actions={
-              <div className="flex-1 flex items-center relative h-full">
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+              <div className="flex items-center space-x-1">
+                <button
+                  className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddCustomFolder();
+                  }}
+                  title="Add Script Source">
+                  <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
+                </button>
+                {customScriptFolders.length > 0 && (
                   <button
-                    className="text-gray-400 hover:text-blue-500 p-1 transition-opacity"
+                    className="text-gray-400 hover:text-red-500 p-1.5 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleAddCustomFolder();
+                      handleOpenClearConfirmModal('local-folders');
                     }}
-                    title="Add Script Source">
-                    <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
+                    title="Clear All Script Sources"
+                  >
+                    <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
                   </button>
-                </div>
-                <div className="ml-auto flex items-center">
-                  {customScriptFolders.length > 0 && (
-                    <button
-                      className="text-gray-400 hover:text-red-500 p-1 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenClearConfirmModal('local-folders');
-                      }}
-                      title="Clear All Script Sources"
-                    >
-                      <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             }
           >
-            {customScriptFolders.length > 0 ? (
-              <div className="flex items-center gap-2 pr-4 mb-2 group">
-                <div className="relative flex-1">
+            <div className="space-y-1.5 pr-2">
+              {customScriptFolders.length > 0 ? (
+                <div className="relative group">
                   <select
                     value={activeScriptSource?.type === 'local' ? activeScriptSource.path : ''}
                     onChange={(e) => handleFolderClick(e.target.value)}
-                    className="w-full appearance-none bg-gray-50 dark:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 rounded-md pl-2 pr-6 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-700 dark:text-gray-200 transition-all"
+                    className="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700/50 rounded-xl pl-3 pr-8 py-2 text-[13px] font-black text-gray-700 dark:text-gray-200 focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all cursor-pointer group-hover:border-gray-200 dark:group-hover:border-gray-700 shadow-sm"
                   >
-                    <option value="" disabled className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Select folder...</option>
+                    <option value="" disabled>Select source...</option>
                     {customScriptFolders.map((folder) => (
-                      <option key={folder} value={folder} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                      <option key={folder} value={folder}>
                         {getFolderNameFromPath(folder)}
                       </option>
                     ))}
                   </select>
-                  <FontAwesomeIcon
-                    icon={faChevronDown}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none"
-                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500 border-l border-gray-100 dark:border-gray-800 pl-2">
+                    <FontAwesomeIcon icon={faChevronDown} className="text-[10px]" />
+                  </div>
                 </div>
-                <div className="w-12 flex justify-end items-center shrink-0">
-                  {activeScriptSource?.type === 'local' && (
-                    <button
-                      className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                      onClick={() => {
-                        if (activeScriptSource.path) {
-                          removeCustomScriptFolder(activeScriptSource.path);
-                          clearScriptsForWorkspace(activeScriptSource.path);
-                          setSelectedScript(null);
-                        }
-                      }}
-                      title="Unload Active Source"
-                    >
-                      <FontAwesomeIcon icon={faTimes} className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+              ) : (
+                <div className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No folders added</div>
+              )}
+
+              {activeScriptSource?.type === 'local' && (
+                <div className="flex items-center justify-between px-1 animate-in fade-in duration-300">
+                  <div className="flex items-center overflow-hidden">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-2 shrink-0" />
+                    <span className="text-[11px] font-bold text-amber-500/70 uppercase tracking-tighter truncate max-w-[120px]">
+                      {getFolderNameFromPath(activeScriptSource.path || '')}
+                    </span>
+                  </div>
+                  <button
+                    className="text-[11px] font-black text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-0.5 rounded-lg transition-all"
+                    onClick={() => {
+                      if (activeScriptSource.path) {
+                        removeCustomScriptFolder(activeScriptSource.path);
+                        clearScriptsForSource(activeScriptSource.path);
+                        setSelectedScript(null);
+                      }
+                    }}
+                  >
+                    UNLOAD
+                  </button>
                 </div>
-              </div>
-            ) : (
-               <div className="text-xs text-gray-400 italic px-2 py-1">No folders added</div>
-            )}
+              )}
+            </div>
           </SidebarSection>
         )}
-        
+
         {/* Favorites */}
         <SidebarSection
           title="Favorites"
@@ -563,18 +543,16 @@ export const Sidebar = () => {
           defaultExpanded={true}
           actions={
             scripts.some(s => s.isFavorite) && (
-              <div className="flex-1 flex justify-end">
-                <button
-                  className="text-gray-400 hover:text-red-500 p-1 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenClearConfirmModal('favorites');
-                  }}
-                  title="Clear Favorites"
-                >
-                  <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
-                </button>
-              </div>
+              <button
+                className="text-gray-400 hover:text-red-500 p-1.5 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenClearConfirmModal('favorites');
+                }}
+                title="Clear Favorites"
+              >
+                <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
+              </button>
             )
           }
         >
@@ -582,15 +560,15 @@ export const Sidebar = () => {
             {scripts.filter((s: Script) => s.isFavorite).map((script: Script) => (
               <li
                 key={script.id}
-                className="group flex items-center py-1.5 px-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 cursor-pointer text-gray-600 dark:text-gray-300 transition-colors"
+                className="group flex items-center py-1.5 px-3 rounded-xl hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-blue-100/50 dark:hover:border-blue-900/30 active:scale-[0.98]"
                 onClick={() => { setSelectedScript(script); setActiveInspectorTab('parameters'); }}
               >
-                <FontAwesomeIcon icon={faFileCode} className="text-gray-300 dark:text-gray-600 mr-2 text-[10px]" />
-                <span className="truncate text-xs font-medium">{script.metadata.displayName || script.name}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-3 shrink-0 group-hover:scale-125 transition-transform" />
+                <span className="truncate text-[13px] font-bold leading-none">{script.metadata.displayName || script.name}</span>
               </li>
             ))}
             {scripts.filter((s: Script) => s.isFavorite).length === 0 && (
-              <li className="text-xs text-gray-400 italic px-2 py-1">No favorites yet</li>
+              <li className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No favorites yet</li>
             )}
           </ul>
         </SidebarSection>
@@ -603,18 +581,16 @@ export const Sidebar = () => {
           defaultExpanded={false}
           actions={
             recentScripts.length > 0 && (
-              <div className="flex-1 flex justify-end">
-                <button
-                  className="text-gray-400 hover:text-red-500 p-1 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenClearConfirmModal('recents');
-                  }}
-                  title="Clear Recents"
-                >
-                  <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
-                </button>
-              </div>
+              <button
+                className="text-gray-400 hover:text-red-500 p-1.5 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenClearConfirmModal('recents');
+                }}
+                title="Clear Recents"
+              >
+                <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
+              </button>
             )
           }
         >
@@ -622,14 +598,15 @@ export const Sidebar = () => {
             {recentScripts.map((script: Script) => (
               <li
                 key={script.id}
-                className="group flex items-center py-1.5 px-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 cursor-pointer text-gray-600 dark:text-gray-300 transition-colors"
+                className="group flex items-center py-1.5 px-3 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 cursor-pointer text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-indigo-100/50 dark:hover:border-indigo-900/30 active:scale-[0.98]"
                 onClick={() => { setSelectedScript(script); setActiveInspectorTab('parameters'); }}
               >
-                <span className="truncate text-xs font-medium">{script.metadata.displayName || script.name}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 dark:bg-indigo-500 mr-3 shrink-0 group-hover:scale-125 transition-transform" />
+                <span className="truncate text-[13px] font-bold leading-none">{script.metadata.displayName || script.name}</span>
               </li>
             ))}
             {recentScripts.length === 0 && (
-               <li className="text-xs text-gray-400 italic px-2 py-1">No recent scripts</li>
+              <li className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No recent activity</li>
             )}
           </ul>
         </SidebarSection>
@@ -641,33 +618,31 @@ export const Sidebar = () => {
           iconColor="text-purple-400"
           defaultExpanded={false}
           actions={
-            <div className="flex-1 flex justify-end">
-              <button
-                className="text-gray-400 hover:text-blue-500 p-1 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsAddCategoryModalOpen(true);
-                }}
-                title="Add Category">
-                <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
-              </button>
-            </div>
+            <button
+              className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAddCategoryModalOpen(true);
+              }}
+              title="Add Category">
+              <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
+            </button>
           }
         >
-          <ul className="space-y-0.5 pr-2">
+          <ul className="grid grid-cols-1 gap-1 pr-2">
             {customCategories.map((category: string) => (
               <li
                 key={category}
-                className={`group flex items-center justify-between py-1.5 px-2 rounded-md cursor-pointer transition-colors
+                className={`group flex items-center justify-between py-1.5 px-3 rounded-xl cursor-pointer transition-all border
                   ${selectedCategory === category
-                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-600 dark:text-gray-300"}
+                    ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 border-purple-100 dark:border-purple-900/50 shadow-sm"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-800/40 text-gray-600 dark:text-gray-300 border-transparent active:scale-[0.98]"}
                 `}
                 onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
               >
-                <span className="text-xs font-medium truncate">{String(category)}</span>
+                <span className="text-[13px] font-bold truncate leading-none">{String(category)}</span>
                 <button
-                  className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                  className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                   onClick={(e) => {
                     e.stopPropagation();
                     removeCustomCategory(category);
@@ -678,61 +653,62 @@ export const Sidebar = () => {
                 </button>
               </li>
             ))}
-             {customCategories.length === 0 && (
-               <li className="text-xs text-gray-400 italic px-2 py-1">No custom categories</li>
+            {customCategories.length === 0 && (
+              <li className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">Environment default sets</li>
             )}
           </ul>
         </SidebarSection>
-        
-        {/* Registered Workspaces (Repo list) */}
+
+        {/* Remote Script Sources (Registry) */}
         {activeTeam && activeTeam.team_id !== 0 && (
           <SidebarSection
-            title="Registered Workspaces"
+            title="Team Registry"
             icon={faGlobe}
             iconColor="text-slate-400"
             defaultExpanded={false}
             actions={
-               <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    fetchTeamWorkspaces();
-                  }}
-                  className="text-gray-400 hover:text-blue-500 p-1"
-                  title="Refresh Registered Workspaces"
-                >
-                  <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
-                </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fetchRemoteScriptSources();
+                }}
+                className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+                title="Refresh Team Sources"
+              >
+                <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
+              </button>
             }
           >
-            <div className="flex items-center gap-2 pr-4 mb-2 group">
-               <div className="relative flex-1">
+            <div className="space-y-2 pr-2">
+              <div className="relative group">
                 <select
-                  value={selectedUnclonedWorkspaceId ?? ''}
-                  onChange={(e) => setSelectedUnclonedWorkspaceId(e.target.value === '' ? null : Number(e.target.value))}
-                  className="w-full appearance-none bg-gray-50 dark:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 rounded-md pl-2 pr-6 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-700 dark:text-gray-200 transition-all"
+                  value={selectedUnclonedSourceId ?? ''}
+                  onChange={(e) => setSelectedUnclonedSourceId(e.target.value === '' ? null : Number(e.target.value))}
+                  className="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700/50 rounded-xl pl-3 pr-8 py-2 text-[13px] font-black text-gray-700 dark:text-gray-200 focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all cursor-pointer group-hover:border-gray-200 dark:group-hover:border-gray-700 shadow-sm"
                 >
-                  <option value="" disabled className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">Select repo to clone...</option>
-                  {currentTeamWorkspaces.map((workspace) => (
-                    <option key={workspace.id} value={workspace.id} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                      {workspace.name}
+                  <option value="" disabled>Cloud availability...</option>
+                  {currentTeamSources.map((source) => (
+                    <option key={source.id} value={source.id}>
+                      {source.name}
                     </option>
                   ))}
                 </select>
-                <FontAwesomeIcon
-                  icon={faChevronDown}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 pointer-events-none"
-                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500 border-l border-gray-100 dark:border-gray-800 pl-2">
+                  <FontAwesomeIcon icon={faChevronDown} className="text-[10px]" />
+                </div>
               </div>
-              <div className="w-12 flex justify-end items-center shrink-0">
-                {selectedUnclonedWorkspaceId !== null && !userWorkspacePaths[selectedUnclonedWorkspaceId] && (
+
+              {selectedUnclonedSourceId !== null && !userSourcePaths[selectedUnclonedSourceId] && (
+                <div className="px-1 animate-in slide-in-from-top-1 duration-300">
                   <button
-                    className="bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest py-1.5 rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center justify-center gap-2"
                     onClick={handleCloneClick}
                   >
-                    Clone
+                    <FontAwesomeIcon icon={faSync} className="text-[10px]" />
+                    Initialize Local Sync
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </SidebarSection>
         )}

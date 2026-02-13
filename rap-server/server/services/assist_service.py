@@ -71,7 +71,7 @@ async def explain_error_logic(
 
         context_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
         
-        # Resolve source code context
+        # Resolve source code context from IDE workspace if active
         source_context = ""
         if script_type == "multi-file":
             try:

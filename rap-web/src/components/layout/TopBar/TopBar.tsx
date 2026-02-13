@@ -9,7 +9,6 @@ import { useAuth } from '@/features/auth';
 import { useScripts } from '@/features/automation';
 import React, { useState, useRef, useEffect } from 'react';
 import { UserMenu } from './UserMenu';
-import { Workspace } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { shell } from '@tauri-apps/api';
 

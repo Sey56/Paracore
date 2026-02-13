@@ -45,18 +45,16 @@ ARCHETYPES = {
     
     "selection-surgeon": """// 1. Setup & Validation
 var p = new Params();
-var selection = UIDoc.Selection.GetElementIds();
+// __INJECT_QUERY_BLOCK__
+var elements = UIDoc.Selection.GetElementIds().Select(id => Doc.GetElement(id)).Where(el => el != null).ToList();
 
-if (!selection.Any()) 
+if (!elements.Any()) 
     throw new Exception("Please select at least one element in Revit.");
 
 // 2. Execution Logic
 Transact("Selection Surgeon", () => {
     int count = 0;
-    foreach (var id in selection) {
-        var el = Doc.GetElement(id);
-        if (el == null) continue;
-        
+    foreach (var el in elements) {
         // TODO: Add your logic here (e.g., el.Name = p.NewName)
         count++;
     }
@@ -79,12 +77,8 @@ public class Params {
     "project-auditor": """// 1. Query & Setup
 var p = new Params();
 
-// Collect elements project-wide
-var collector = new FilteredElementCollector(Doc)
-    .WhereElementIsNotElementType();
-
-// Apply category filter if needed (e.g. BuiltInCategory.OST_Walls)
-var elements = collector.ToElements();
+// __INJECT_QUERY_BLOCK__
+var elements = new FilteredElementCollector(Doc).WhereElementIsNotElementType().ToElements();
 
 // 2. Audit Logic
 var issues = new List<object>();
@@ -111,7 +105,6 @@ if (issues.Any()) {
 // 4. Parameters (MUST BE LAST)
 public class Params {
     #region Audit Configuration
-    
     public bool IncludeLinks { get; set; } = false;
     
     #endregion
@@ -155,10 +148,8 @@ public class Params {
     "parameter-porter": """// 1. Setup
 var p = new Params();
 
-// Query target elements
-var elements = new FilteredElementCollector(Doc)
-    .WhereElementIsNotElementType()
-    .ToList();
+// __INJECT_QUERY_BLOCK__
+var elements = new FilteredElementCollector(Doc).WhereElementIsNotElementType().ToList();
 
 // 2. Data Transfer Logic
 Transact("Port Parameters", () => {
@@ -190,10 +181,8 @@ public class Params {
     "visualizer": """// 1. Setup
 var p = new Params();
 
-// 2. Data Analysis
-var elements = new FilteredElementCollector(Doc)
-    .WhereElementIsNotElementType()
-    .ToList();
+// __INJECT_QUERY_BLOCK__
+var elements = new FilteredElementCollector(Doc).WhereElementIsNotElementType().ToList();
 
 var stats = elements
     .GroupBy(e => e.Category?.Name ?? "Uncategorized")

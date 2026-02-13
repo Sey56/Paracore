@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
-import WorkspaceSettings from '@/features/workspaces/components/WorkspaceSettings';
+import TeamSourceSettings from '@/features/team-sources/components/TeamSourceSettings';
 import LLMSettings from './LLMSettings';
 import AgentSettings from './AgentSettings';
 import { Modal } from '@/components/common/Modal';
@@ -30,7 +30,7 @@ const SettingsModal: React.FC = () => {
 
     // All tabs are now visible, but restricted internally if offline
     if (activeRole !== Role.User) {
-      tabs.push({ name: 'Workspaces', component: WorkspaceSettings });
+      tabs.push({ name: 'Team Sources', component: TeamSourceSettings });
     }
 
     // Team Management tab

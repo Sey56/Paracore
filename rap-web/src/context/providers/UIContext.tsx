@@ -6,7 +6,7 @@ export type InspectorTab = "parameters" | "console" | "table" | "metadata";
 
 export type ActiveScriptSource =
   | { type: 'local'; path: string }
-  | { type: 'workspace'; id: string; path: string }
+  | { type: 'team'; id: string; path: string }
   | { type: 'published'; id: string }
   | null;
 
@@ -51,7 +51,7 @@ export interface UIContextProps {
   closeFloatingCodeViewer: () => void;
   toggleFloatingCodeViewer: () => void;
 
-  // Active Script Source (either a local folder or a workspace)
+  // Active Script Source (either a local folder or a team source)
   activeScriptSource: ActiveScriptSource;
   setActiveScriptSource: (source: ActiveScriptSource) => void;
 

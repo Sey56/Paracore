@@ -41,8 +41,9 @@ from api import (
     script_management_router,
     status_router,
     user_settings_router,
-    workspace_router,
+    team_source_router,
     tool_builder_router,
+    query_router,
 )
 
 
@@ -111,13 +112,14 @@ app.include_router(script_management_router.router)
 app.include_router(presets_router.router)
 app.include_router(runs_router.router)
 app.include_router(status_router.router)
-app.include_router(workspace_router.router)
+app.include_router(team_source_router.router)
 app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
 app.include_router(agent_router.router)
 app.include_router(manifest_router.router)
 app.include_router(assist_router.router)
 app.include_router(tool_builder_router.router)
+app.include_router(query_router.router)
 
 app.include_router(playlist_router.router, prefix="/playlists", tags=["Playlists"])
 

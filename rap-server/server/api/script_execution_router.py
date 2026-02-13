@@ -29,7 +29,7 @@ async def run_script(
         parameters=data.get("parameters"),
         script_type=data.get("type"),
         source_folder=data.get("source_folder"),
-        source_workspace=data.get("source_workspace"),
+        source_team_source=data.get("source_team_source"),
         thread_id=data.get("thread_id"),
         current_user_id=current_user.id,
         active_team=current_user.activeTeam,

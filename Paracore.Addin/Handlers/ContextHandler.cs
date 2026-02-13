@@ -522,5 +522,130 @@ namespace Paracore.Addin.Handlers
 
             return response;
         }
+
+        public async Task<GetCategoryParametersResponse> GetCategoryParameters(GetCategoryParametersRequest request)
+        {
+            _logger.Log($"[ContextHandler] Entering GetCategoryParameters for: {request.CategoryName}", LogLevel.Debug);
+            var response = new GetCategoryParametersResponse();
+
+            if (_uiApp == null || _uiApp.ActiveUIDocument == null)
+            {
+                response.ErrorMessage = "Revit is not available.";
+                return response;
+            }
+
+            try
+            {
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
+                {
+                    var doc = _uiApp.ActiveUIDocument.Document;
+                    
+                    // 1. Resolve BuiltInCategory
+                    if (!Enum.TryParse<BuiltInCategory>(request.CategoryName, out var bic))
+                    {
+                        // Try adding OST_ prefix if missing
+                        if (!request.CategoryName.StartsWith("OST_") && Enum.TryParse<BuiltInCategory>("OST_" + request.CategoryName, out bic))
+                        {
+                            // Found with prefix
+                        }
+                        else
+                        {
+                            response.ErrorMessage = $"Category '{request.CategoryName}' is not a valid BuiltInCategory.";
+                            return false;
+                        }
+                    }
+
+                    // 2. Find a sample element
+                    var sampleElement = new FilteredElementCollector(doc)
+                        .OfCategory(bic)
+                        .WhereElementIsNotElementType()
+                        .FirstOrDefault();
+
+                    var parameters = new List<Parameter>();
+                    if (sampleElement != null)
+                    {
+                        // Instance parameters
+                        foreach (Parameter p in sampleElement.Parameters)
+                        {
+                            parameters.Add(p);
+                        }
+
+                        // Type parameters
+                        var typeId = sampleElement.GetTypeId();
+                        if (typeId != ElementId.InvalidElementId)
+                        {
+                            var typeElement = doc.GetElement(typeId);
+                            if (typeElement != null)
+                            {
+                                foreach (Parameter p in typeElement.Parameters)
+                                {
+                                    parameters.Add(p);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: If no instance exists, try to find a type element
+                        var sampleType = new FilteredElementCollector(doc)
+                            .OfCategory(bic)
+                            .WhereElementIsElementType()
+                            .FirstOrDefault();
+                        
+                        if (sampleType != null)
+                        {
+                            foreach (Parameter p in sampleType.Parameters)
+                            {
+                                parameters.Add(p);
+                            }
+                        }
+                    }
+
+                    // 3. Extract definitions
+                    var uniqueParams = parameters
+                        .GroupBy(p => p.Definition.Name)
+                        .Select(g => g.First())
+                        .OrderBy(p => p.Definition.Name);
+
+                    foreach (var p in uniqueParams)
+                    {
+                        var def = new ParameterDefinition
+                        {
+                            Name = p.Definition.Name,
+                            StorageType = p.StorageType.ToString(),
+                            IsBuiltin = p.IsShared == false && p.Id.Value < 0,
+                            BuiltinId = (int)p.Id.Value
+                        };
+
+                        // Resolve Revit element type for ElementId parameters
+                        if (p.StorageType == StorageType.ElementId)
+                        {
+                            // Try to infer the type from the parameter name or category
+                            string typeName = "Element";
+                            string name = p.Definition.Name.ToLower();
+                            
+                            if (name.Contains("level") || name.Contains("constraint")) typeName = "Level";
+                            else if (name.Contains("material")) typeName = "Material";
+                            else if (name.Contains("type")) typeName = "ElementType";
+                            else if (name.Contains("phase")) typeName = "Phase";
+                            else if (name.Contains("view")) typeName = "View";
+                            
+                            def.RevitElementType = typeName;
+                        }
+
+                        response.Parameters.Add(def);
+                    }
+
+                    return true;
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[ContextHandler] GetCategoryParameters failed: {ex.Message}");
+                response.ErrorMessage = ex.Message;
+            }
+
+            return response;
+        }
     }
 }

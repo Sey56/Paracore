@@ -3,19 +3,29 @@ import { ScriptContext, ScriptContextProps } from './ScriptContext';
 export { ScriptContext };
 export type { ScriptContextProps };
 import type { Script, RawScriptFromApi, ScriptParameter, RawScriptParameterData } from '@/types/scriptModel';
-import { Workspace } from '@/types/index';
+import { TeamScriptSource } from '@/types/index';
 import { useNotifications } from '@/hooks/useNotifications';
 import api from '@/api/axios';
+import axios from 'axios';
+
+// Create a silent API instance for background polling that doesn't trigger global logouts on 401
+const silentApi = axios.create({ baseURL: 'http://localhost:8000' });
+silentApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('rap_cloud_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
 import { isAxiosErrorWithResponseData } from '@/utils/errorUtils';
-import { pullTeamWorkspaces as pullTeamWorkspacesApi } from '@/features/workspaces/services/workspaces';
+import { pullTeamSources as pullTeamSourcesApi } from '@/features/team-sources/services/teamSources';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useRapServerUrl } from '@/hooks/useRapServerUrl';
-import { useUserWorkspaces } from '@/features/workspaces';
+import { useUserTeamSources } from '@/features/team-sources';
 
-import { getTeamWorkspaces, registerWorkspace, deleteRegisteredWorkspace, updateRegisteredWorkspace } from '@/features/auth/services/rapAuthApiClient';
+import { getRemoteSources, registerRemoteSource, deleteRemoteSource, updateRemoteSource } from '@/features/auth/services/rapAuthApiClient';
 import { Role } from '@/features/auth';
 
 interface ApiError {
@@ -31,7 +41,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const { activeScriptSource, setActiveScriptSource } = useUI();
   const { user, isAuthenticated, activeTeam, activeRole, cloudToken } = useAuth();
   const rapServerUrl = useRapServerUrl();
-  const { userWorkspacePaths, isLoaded: userWorkspacesLoaded } = useUserWorkspaces();
+  const { userSourcePaths, isLoaded: userSourcesLoaded } = useUserTeamSources();
 
   const [scripts, setScripts] = useState<Script[]>([]);
   const scriptsRef = useRef<Script[]>([]);
@@ -93,36 +103,36 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [isAuthenticated, setCustomScriptFolders]);
 
-  const [teamWorkspaces, setTeamWorkspaces] = useState<Record<number, Workspace[]>>({});
+  const [remoteScriptSources, setRemoteScriptSources] = useState<Record<number, TeamScriptSource[]>>({});
 
-  const fetchTeamWorkspaces = useCallback(async () => {
+  const fetchRemoteScriptSources = useCallback(async () => {
     if (!activeTeam || !cloudToken) {
-      setTeamWorkspaces({});
+      setRemoteScriptSources({});
       return;
     }
     try {
-      let workspaces: Workspace[] = [];
-      // registered workspaces are only applicable for cloud teams
+      let sources: TeamScriptSource[] = [];
+      // registered sources are only applicable for cloud teams
       if (activeTeam.team_id !== 0) {
-        workspaces = await getTeamWorkspaces(activeTeam.team_id, cloudToken);
+        sources = await getRemoteSources(activeTeam.team_id, cloudToken);
       }
 
-      setTeamWorkspaces(prev => ({
+      setRemoteScriptSources(prev => ({
         ...prev,
-        [activeTeam.team_id]: workspaces
+        [activeTeam.team_id]: sources
       }));
     } catch (error) {
-      console.error(`Failed to fetch registered workspaces for team ${activeTeam.team_id}:`, error);
-      setTeamWorkspaces(prev => ({
+      console.error(`Failed to fetch registered script sources for team ${activeTeam.team_id}:`, error);
+      setRemoteScriptSources(prev => ({
         ...prev,
         [activeTeam.team_id]: []
       }));
     }
-  }, [activeTeam, cloudToken, setTeamWorkspaces]);
+  }, [activeTeam, cloudToken, setRemoteScriptSources]);
 
   useEffect(() => {
-    fetchTeamWorkspaces();
-  }, [fetchTeamWorkspaces, activeTeam]);
+    fetchRemoteScriptSources();
+  }, [fetchRemoteScriptSources, activeTeam]);
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [favoriteScripts, setFavoriteScripts] = useLocalStorage<string[]>('rap_favoriteScripts', []);
@@ -130,10 +140,37 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const [lastRunTimes, setLastRunTimes] = useLocalStorage<Record<string, string>>('rap_lastRunTimes', {});
   const [combinedScriptContent, setCombinedScriptContent] = useState<string | null>(null);
   const [currentDisplayPath, setCurrentDisplayPath] = useState<string | null>(null);
+  const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, string>>({});
 
-  const currentTeamWorkspaces = useMemo(() => {
-    return activeTeam ? (teamWorkspaces[activeTeam.team_id] || []) : [];
-  }, [activeTeam, teamWorkspaces]);
+  const fetchActiveSyncSessions = useCallback(async () => {
+    try {
+      const response = await silentApi.get('/api/sync/active-sessions');
+      if (response.data) {
+        setActiveSyncSessions(response.data);
+      }
+    } catch (err) {
+      // Silently fail background poll
+    }
+  }, []);
+
+  // Poll for active sync sessions every 5 seconds to keep UI in sync
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    fetchActiveSyncSessions();
+    const interval = setInterval(fetchActiveSyncSessions, 5000);
+    return () => clearInterval(interval);
+  }, [fetchActiveSyncSessions, isAuthenticated]);
+
+  const isSyncActive = useCallback((scriptPath: string) => {
+    const normalized = scriptPath.replace(/\\/g, '/').toLowerCase();
+    // Keys in activeSyncSessions might still be mixed case, so we check case-insensitively
+    return Object.keys(activeSyncSessions).some(key => key.toLowerCase() === normalized);
+  }, [activeSyncSessions]);
+
+  const currentTeamSources = useMemo(() => {
+    return activeTeam ? (remoteScriptSources[activeTeam.team_id] || []) : [];
+  }, [activeTeam, remoteScriptSources]);
 
   const canUseLocalFolders = useMemo(() => {
     if (!user || !activeTeam) return false;
@@ -178,19 +215,19 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Restore activeScriptSource when activeTeam changes (and no source is selected yet)
   useEffect(() => {
-    // We wait for activeTeam to be present and user workspaces to be loaded.
-    if (activeTeam && !activeScriptSource && userWorkspacesLoaded) {
+    // We wait for activeTeam to be present and user team sources to be loaded.
+    if (activeTeam && !activeScriptSource && userSourcesLoaded) {
       const key = `rap_lastActiveSource_${activeTeam.team_id}`;
       const saved = localStorage.getItem(key);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed.type === 'workspace') {
-            // Validate that the workspace still exists in our local paths
-            if (userWorkspacePaths[parsed.id]) {
+          if (parsed.type === 'team') {
+            // Validate that the source still exists in our local paths
+            if (userSourcePaths[parsed.id]) {
               setActiveScriptSource(parsed);
             } else {
-              console.log(`[ScriptProvider] Stored active workspace ${parsed.id} not found in user paths. Clearing.`);
+              console.log(`[ScriptProvider] Stored active source ${parsed.id} not found in user paths. Clearing.`);
               localStorage.removeItem(key);
             }
           } else {
@@ -211,7 +248,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     }
-  }, [activeTeam, userWorkspacesLoaded, userWorkspacePaths, activeScriptSource, setActiveScriptSource, setCustomScriptFolders]);
+  }, [activeTeam, userSourcesLoaded, userSourcePaths, activeScriptSource, setActiveScriptSource, setCustomScriptFolders]);
 
 
   const loadScriptsFromPath = useCallback(async (folderPath: string, suppressNotification: boolean = false): Promise<Script[] | undefined> => {
@@ -355,8 +392,8 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         path_to_load = activeScriptSource.path;
-      } else if (activeScriptSource.type === 'workspace') {
-        path_to_load = userWorkspacePaths[Number(activeScriptSource.id)]?.path;
+      } else if (activeScriptSource.type === 'team') {
+        path_to_load = userSourcePaths[Number(activeScriptSource.id)]?.path;
       }
     }
 
@@ -367,7 +404,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       setScripts([]);
       setSelectedFolder(null);
     }
-  }, [activeScriptSource, loadScriptsFromPath, setSelectedFolder, userWorkspacePaths, showNotification, canUseLocalFolders, setActiveScriptSource]);
+  }, [activeScriptSource, loadScriptsFromPath, setSelectedFolder, userSourcePaths, showNotification, canUseLocalFolders, setActiveScriptSource]);
 
   const { ParacoreConnected } = useRevitStatus();
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>('agentScriptsPath', null);
@@ -414,7 +451,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
     // First, check for duplicates using the current state.
     if (customScriptFolders.includes(folderPath)) {
-      showNotification(`Folder '${folderPath}' is already added.`, "warning");
+      showNotification(`Source '${folderPath}' is already added.`, "warning");
       return; // Exit early if it's a duplicate
     }
 
@@ -422,7 +459,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     const newState = [...customScriptFolders, folderPath];
     setCustomScriptFolders(newState);
     await saveCustomScriptFolders(newState);
-    showNotification(`Added custom script folder: ${folderPath}.`, "success");
+    showNotification(`Added custom script source: ${folderPath}.`, "success");
 
   }, [user, customScriptFolders, saveCustomScriptFolders, showNotification]);
 
@@ -434,7 +471,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     
     if (newFolders.length === 0) {
       if (folderPaths.length === 1) {
-        showNotification(`Folder is already added.`, "warning");
+        showNotification(`Source is already added.`, "warning");
       }
       return;
     }
@@ -452,7 +489,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     if (activeScriptSource?.type === 'local') {
       setActiveScriptSource(null);
     }
-    showNotification("All custom script folders cleared.", "info");
+    showNotification("All script sources cleared.", "info");
   }, [user, saveCustomScriptFolders, activeScriptSource, setActiveScriptSource, setCustomScriptFolders]);
 
   const removeCustomScriptFolder = useCallback((folderPath: string) => {
@@ -469,103 +506,97 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     if (activeScriptSource?.type === 'local' && activeScriptSource.path === folderPath) {
       setActiveScriptSource(null);
     }
-    showNotification(`Removed custom script folder: ${folderPath}.`, "info");
+    showNotification(`Removed custom script source: ${folderPath}.`, "info");
   }, [user, saveCustomScriptFolders, selectedFolder, showNotification, activeScriptSource, setActiveScriptSource]);
 
-  const addTeamWorkspace = useCallback(async (teamId: number, workspace: Workspace): Promise<void> => {
+  const addRemoteScriptSource = useCallback(async (teamId: number, source: TeamScriptSource): Promise<void> => {
     if (!cloudToken) {
       showNotification("Not authenticated.", "error");
       return;
     }
     try {
-      let registeredWorkspace;
+      let registeredSource;
       if (teamId === 0) {
         // Local Mode
-        const response = await api.post("/api/workspaces/register", {
+        const response = await api.post("/api/team-sources/register", {
           team_id: teamId,
-          name: workspace.name,
-          repo_url: workspace.repo_url
+          name: source.name,
+          repo_url: source.repo_url
         });
-        registeredWorkspace = response.data;
+        registeredSource = response.data;
       } else {
-        registeredWorkspace = await registerWorkspace(teamId, workspace.name, workspace.repo_url, cloudToken);
+        registeredSource = await registerRemoteSource(teamId, source.name, source.repo_url, cloudToken);
       }
 
-      setTeamWorkspaces(prev => ({
+      setRemoteScriptSources(prev => ({
         ...prev,
-        [teamId]: [...(prev[teamId] || []), registeredWorkspace]
+        [teamId]: [...(prev[teamId] || []), registeredSource]
       }));
-      showNotification(`Added workspace '${registeredWorkspace.name}' to team.`, "success");
+      showNotification(`Added script source '${registeredSource.name}' to team.`, "success");
     } catch (error) {
-      console.error("Failed to register workspace:", error);
+      console.error("Failed to register script source:", error);
       if (isAxiosErrorWithResponseData(error) && error.response.status === 409) {
         showNotification(error.response.data.detail, "warning");
       } else {
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
-        showNotification(`Failed to add workspace: ${message}`, "error");
+        showNotification(`Failed to add script source: ${message}`, "error");
       }
       throw error;
     }
-  }, [cloudToken, setTeamWorkspaces, showNotification]);
+  }, [cloudToken, setRemoteScriptSources, showNotification]);
 
-  const removeTeamWorkspace = useCallback(async (teamId: number, workspaceId: number): Promise<void> => {
+  const removeRemoteScriptSource = useCallback(async (teamId: number, sourceId: number): Promise<void> => {
     if (!cloudToken) {
       showNotification("Not authenticated.", "error");
       return;
     }
     try {
       if (teamId === 0) {
-        await api.delete(`/api/workspaces/registered/${workspaceId}`);
+        await api.delete(`/api/team-sources/registered/${sourceId}`);
       } else {
-        await deleteRegisteredWorkspace(workspaceId, cloudToken);
+        await deleteRemoteSource(sourceId, cloudToken);
       }
 
-      setTeamWorkspaces(prev => ({
+      setRemoteScriptSources(prev => ({
         ...prev,
-        [teamId]: (prev[teamId] || []).filter(w => w.id !== workspaceId)
+        [teamId]: (prev[teamId] || []).filter(w => w.id !== sourceId)
       }));
-      showNotification(`Removed workspace from team.`, "info");
+      showNotification(`Removed script source from team.`, "info");
     } catch (error) {
-      console.error("Failed to remove workspace:", error);
+      console.error("Failed to remove script source:", error);
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
-      showNotification(`Failed to remove workspace: ${message}`, "error");
+      showNotification(`Failed to remove script source: ${message}`, "error");
     }
-  }, [cloudToken, setTeamWorkspaces, showNotification]);
+  }, [cloudToken, setRemoteScriptSources, showNotification]);
 
-  const updateTeamWorkspace = useCallback(async (teamId: number, workspaceId: number, name: string | undefined, repoUrl: string | undefined): Promise<void> => {
+  const updateRemoteScriptSource = useCallback(async (teamId: number, sourceId: number, name: string | undefined, repoUrl: string | undefined): Promise<void> => {
     if (!cloudToken) {
       showNotification("Not authenticated.", "error");
       return;
     }
     try {
-      let updatedWorkspace;
+      let updatedSource;
       if (teamId === 0) {
-        // Local Mode - Update not implemented in router yet?
-        // I didn't see an update endpoint in workspace_router.py. 
-        // Let's assume it's NOT supported locally for now or fallback to error.
-        // Or just do nothing.
-        // Wait, user might validly try to rename. 
-        // Since I didn't see PUT in workspace_router.py, let's warn.
-        showNotification("Updating workspace details not supported in Local Mode yet.", "warning");
+        showNotification("Updating script source details not supported in Local Mode yet.", "warning");
         return;
       } else {
-        updatedWorkspace = await updateRegisteredWorkspace(workspaceId, name, repoUrl, cloudToken);
+        updatedSource = await updateRemoteSource(sourceId, name, repoUrl, cloudToken);
       }
 
-      setTeamWorkspaces(prev => ({
+      setRemoteScriptSources(prev => ({
         ...prev,
-        [teamId]: (prev[teamId] || []).map(w => w.id === updatedWorkspace.id ? updatedWorkspace : w)
+        [teamId]: (prev[teamId] || []).map(w => w.id === updatedSource.id ? updatedSource : w)
       }));
-      showNotification(`Updated workspace '${updatedWorkspace.name}'.`, "success");
+      showNotification(`Updated script source '${updatedSource.name}'.`, "success");
     } catch (error) {
-      console.error("Failed to update workspace:", error);
+      console.error("Failed to update script source:", error);
       const message = error instanceof Error ? error.message : "An unknown error occurred.";
-      showNotification(`Failed to update workspace: ${message}`, "error");
+      showNotification(`Failed to update script source: ${message}`, "error");
     }
-  }, [cloudToken, setTeamWorkspaces, showNotification]);
+  }, [cloudToken, setRemoteScriptSources, showNotification]);
 
-  const clearScriptsForWorkspace = useCallback((workspacePath: string) => {
-    if (currentDisplayPath === workspacePath) {
+  const clearScriptsForSource = useCallback((sourcePath: string) => {
+    if (currentDisplayPath === sourcePath) {
       setScripts([]);
       setCurrentDisplayPath(null);
     }
@@ -577,6 +608,9 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     script_name: string;
     folder_name?: string;
     template_id?: string;
+    generated_logic?: string;
+    generated_params?: string;
+    overwrite?: boolean;
   }): Promise<Script | undefined> => {
     try {
       const response = await api.post("/api/scripts/new", details);
@@ -584,7 +618,10 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
       const newScriptPath = response.data.script_path?.replace(/\\/g, '/'); // Normalize path
 
-      const loadedScripts = await loadScriptsFromPath(details.parent_folder);
+      const loadedScripts = await loadScriptsFromPath(details.parent_folder, true); // Silent reload
+
+      // Refresh sync state
+      fetchActiveSyncSessions();
 
       if (loadedScripts && newScriptPath) {
         const newScript = loadedScripts.find(s => s.absolutePath?.replace(/\\/g, '/') === newScriptPath);
@@ -596,7 +633,28 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
       showNotification(`Failed to create script: ${message}`, "error");
       throw new Error(message);
     }
-  }, [loadScriptsFromPath, showNotification]);
+  }, [loadScriptsFromPath, showNotification, fetchActiveSyncSessions]);
+
+  const deleteScript = useCallback(async (script: Script): Promise<boolean> => {
+    try {
+      const response = await api.post("/api/scripts/delete", {
+        script_path: script.absolutePath,
+        script_type: script.type
+      });
+      
+      if (response.data.success) {
+        showNotification(response.data.message, "success");
+        // Update local state immediately
+        setScripts(prev => prev.filter(s => s.id !== script.id));
+        return true;
+      }
+      return false;
+    } catch (error: unknown) {
+      const message = isAxiosErrorWithResponseData(error) ? error.response.data.detail : (error instanceof Error ? error.message : "An unknown error occurred.");
+      showNotification(`Failed to delete: ${message}`, "error");
+      return false;
+    }
+  }, [showNotification]);
 
   const toggleFavoriteScript = useCallback((scriptId: string) => {
     setFavoriteScripts(prev => prev.includes(scriptId) ? prev.filter(id => id !== scriptId) : [...prev, scriptId]);
@@ -615,79 +673,79 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearScripts = useCallback(() => setScripts([]), []);
 
-  const pullWorkspace = useCallback(async (workspacePath: string) => {
+  const pullTeamSource = useCallback(async (sourcePath: string) => {
     if (!activeTeam || !cloudToken) {
       showNotification("Not authenticated or no active team.", "error");
       return;
     }
 
-    if (!workspacePath) {
-      showNotification("No workspace path provided.", "error");
+    if (!sourcePath) {
+      showNotification("No source path provided.", "error");
       return;
     }
 
-    showNotification(`Updating workspace at ${workspacePath}...`, "info");
+    showNotification(`Updating script source at ${sourcePath}...`, "info");
     try {
       if (!rapServerUrl) {
         showNotification("RAP Server URL not available.", "error");
         return;
       }
-      const response = await pullTeamWorkspacesApi(rapServerUrl, [workspacePath], cloudToken, "main");
+      const response = await pullTeamSourcesApi(rapServerUrl, [sourcePath], cloudToken, "main");
       const result = response.results[0];
       if (result.status === "failed") {
-        showNotification(`Failed to update workspace: ${result.message}`, "error");
+        showNotification(`Failed to update script source: ${result.message}`, "error");
         console.error(`Pull failed for ${result.path}: ${result.message}`);
       } else {
-        showNotification("Workspace updated successfully!", "success");
+        showNotification("Script source updated successfully!", "success");
       }
-      if (activeScriptSource?.type === 'workspace' && currentDisplayPath) {
+      if (activeScriptSource?.type === 'team' && currentDisplayPath) {
         loadScriptsFromPath(currentDisplayPath, true);
       }
     } catch (err) {
       const apiError = err as ApiError;
-      showNotification(apiError.response?.data?.detail || "Failed to update workspace.", "error");
-      console.error("Pull workspace error:", err);
+      showNotification(apiError.response?.data?.detail || "Failed to update script source.", "error");
+      console.error("Pull source error:", err);
     }
   }, [activeTeam, cloudToken, showNotification, activeScriptSource, currentDisplayPath, loadScriptsFromPath, rapServerUrl]);
 
-  const pullAllTeamWorkspaces = useCallback(async () => {
+  const pullAllTeamSources = useCallback(async () => {
     if (!activeTeam || !cloudToken) {
       showNotification("Not authenticated or no active team.", "error");
       return;
     }
 
-    const workspacePaths = currentTeamWorkspaces
-      .map(ws => userWorkspacePaths[ws.id]?.path)
+    const sourcePaths = currentTeamSources
+      .map(ws => userSourcePaths[ws.id]?.path)
       .filter((path): path is string => !!path);
 
-    if (workspacePaths.length === 0) {
-      showNotification("No workspaces have been set up on this machine for this team.", "info");
+    if (sourcePaths.length === 0) {
+      showNotification("No team script sources have been set up on this machine for this team.", "info");
       return;
     }
 
-    showNotification("Updating team workspaces...!", "info");
+    showNotification("Updating team script sources...!", "info");
     try {
       if (!rapServerUrl) {
         showNotification("RAP Server URL not available.", "error");
         return;
       }
-      const response = await pullTeamWorkspacesApi(rapServerUrl, workspacePaths, cloudToken);
+      const response = await pullTeamSourcesApi(rapServerUrl, sourcePaths, cloudToken);
       const failedPulls = response.results.filter((r: { status: string; }) => r.status === "failed");
       if (failedPulls.length > 0) {
-        showNotification(`Failed to update ${failedPulls.length} workspaces.`, "error");
+        showNotification(`Failed to update ${failedPulls.length} script sources.`, "error");
         failedPulls.forEach((f: { path: string; message: string; }) => console.error(`Pull failed for ${f.path}: ${f.message}`));
       } else {
-        showNotification("All team workspaces updated successfully!", "success");
+        showNotification("All team script sources updated successfully!", "success");
       }
-      if (activeScriptSource?.type === 'workspace' && currentDisplayPath) {
+      if (activeScriptSource?.type === 'team' && currentDisplayPath) {
         loadScriptsFromPath(currentDisplayPath);
       }
     } catch (err) {
       const apiError = err as ApiError;
-      showNotification(apiError.response?.data?.detail || "Failed to update team workspaces.", "error");
-      console.error("Pull all team workspaces error:", err);
+      showNotification(apiError.response?.data?.detail || "Failed to update team script sources.", "error");
+      console.error("Pull all team sources error:", err);
     }
-  }, [activeTeam, cloudToken, currentTeamWorkspaces, userWorkspacePaths, showNotification, activeScriptSource, currentDisplayPath, loadScriptsFromPath, rapServerUrl]);
+  }, [activeTeam, cloudToken, currentTeamSources, userSourcePaths, showNotification, activeScriptSource, currentDisplayPath, loadScriptsFromPath, rapServerUrl]);
 
   const reloadScript = useCallback(async (script: Script, options?: { silent?: boolean }) => {
     const isSilent = options?.silent ?? false;
@@ -793,7 +851,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
   const contextValue: ScriptContextProps = useMemo(() => ({
     scripts: scriptsWithFavorites,
     customScriptFolders: customScriptFolders,
-    teamWorkspaces,
+    remoteScriptSources,
     selectedFolder,
     favoriteScripts,
     recentScripts: recentScriptsData,
@@ -805,28 +863,31 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     addCustomScriptFolders,
     removeCustomScriptFolder,
     clearAllCustomScriptFolders,
-    addTeamWorkspace,
-    removeTeamWorkspace,
-    updateTeamWorkspace,
+    addRemoteScriptSource,
+    removeRemoteScriptSource,
+    updateRemoteScriptSource,
     loadScriptsForFolder: loadScriptsFromPath,
     createNewScript,
+    deleteScript,
+    isSyncActive,
+    activeSyncSessions,
     clearFavoriteScripts,
     clearRecentScripts,
     fetchScriptMetadata,
     setScripts,
     setCombinedScriptContent,
-    clearScriptsForWorkspace,
+    clearScriptsForSource,
     clearScripts,
     reloadScript,
-    pullAllTeamWorkspaces,
-    pullWorkspace,
-    fetchTeamWorkspaces,
+    pullAllTeamSources,
+    pullTeamSource,
+    fetchRemoteScriptSources,
     toolLibraryPath: toolLibraryPath,
     setToolLibraryPath: setToolLibraryPath,
   }), [
     scriptsWithFavorites,
     customScriptFolders,
-    teamWorkspaces,
+    remoteScriptSources,
     selectedFolder,
     favoriteScripts,
     recentScriptsData,
@@ -838,22 +899,25 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     addCustomScriptFolders,
     removeCustomScriptFolder,
     clearAllCustomScriptFolders,
-    addTeamWorkspace,
-    removeTeamWorkspace,
-    updateTeamWorkspace,
+    addRemoteScriptSource,
+    removeRemoteScriptSource,
+    updateRemoteScriptSource,
     loadScriptsFromPath,
     createNewScript,
+    deleteScript,
+    isSyncActive,
+    activeSyncSessions,
     clearFavoriteScripts,
     clearRecentScripts,
     fetchScriptMetadata,
     setScripts,
     setCombinedScriptContent,
-    clearScriptsForWorkspace,
+    clearScriptsForSource,
     clearScripts,
     reloadScript,
-    pullAllTeamWorkspaces,
-    pullWorkspace,
-    fetchTeamWorkspaces,
+    pullAllTeamSources,
+    pullTeamSource,
+    fetchRemoteScriptSources,
     toolLibraryPath,
     setToolLibraryPath
   ]);

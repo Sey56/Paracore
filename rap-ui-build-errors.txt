@@ -1,0 +1,49 @@
+ seyou@SH  ~  Paracore  rap-web  main 
+❯ npm run build
+
+> rap@3.0.3 build
+> tsc -b && vite build
+
+src/components/layout/Sidebar/Sidebar.tsx:36:10 - error TS2305: Module '"@/features/workspaces/services/workspaces"' has no exported member 'cloneWorkspace'.
+
+36 import { cloneWorkspace, deleteLocalWorkspace } from '@/features/workspaces/services/workspaces';
+            ~~~~~~~~~~~~~~
+
+src/components/layout/Sidebar/Sidebar.tsx:36:26 - error TS2724: '"@/features/workspaces/services/workspaces"' has no exported member named 'deleteLocalWorkspace'. Did you mean 'deleteLocalSource'?
+
+36 import { cloneWorkspace, deleteLocalWorkspace } from '@/features/workspaces/services/workspaces';
+                            ~~~~~~~~~~~~~~~~~~~~
+
+  src/features/workspaces/services/workspaces.ts:210:14
+    210 export const deleteLocalSource = async (sourcePath: string): Promise<void> => {
+                     ~~~~~~~~~~~~~~~~~
+    'deleteLocalSource' is declared here.
+
+src/components/layout/Sidebar/Sidebar.tsx:37:10 - error TS2305: Module '"@/features/workspaces"' has no exported member 'useUserWorkspaces'.
+
+37 import { useUserWorkspaces } from '@/features/workspaces';
+            ~~~~~~~~~~~~~~~~~
+
+src/components/layout/Sidebar/Sidebar.tsx:304:13 - error TS2322: Type '{ isOpen: boolean; onClose: () => void; workspaceName: string; onSetup: (localPath: string) => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & SetupSourceModalProps'.
+  Property 'workspaceName' does not exist on type 'IntrinsicAttributes & SetupSourceModalProps'.
+
+304             workspaceName={sourceToSetup.name}
+                ~~~~~~~~~~~~~
+
+src/context/providers/UIProvider.tsx:5:10 - error TS2305: Module '"@/features/workspaces"' has no exported member 'useUserWorkspaces'.
+
+5 import { useUserWorkspaces } from "@/features/workspaces"; // Import useUserWorkspaces
+           ~~~~~~~~~~~~~~~~~
+
+src/features/automation/store/ScriptProvider.tsx:16:10 - error TS2305: Module '"@/features/workspaces"' has no exported member 'useUserWorkspaces'.
+
+16 import { useUserWorkspaces } from '@/features/workspaces';
+            ~~~~~~~~~~~~~~~~~
+
+src/features/automation/store/ScriptProvider.tsx:892:5 - error TS2304: Cannot find name 'loadScriptsForFolder'.
+
+892     loadScriptsForFolder,
+        ~~~~~~~~~~~~~~~~~~~~
+
+
+Found 7 errors.

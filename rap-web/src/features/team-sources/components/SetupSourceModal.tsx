@@ -4,23 +4,22 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolderOpen, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { open } from '@tauri-apps/api/dialog';
 
-interface SetupWorkspaceModalProps {
+interface SetupSourceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workspaceName: string;
+  sourceName: string;
   onSetup: (localPath: string) => Promise<void>;
 }
 
-export const SetupWorkspaceModal: FC<SetupWorkspaceModalProps> = ({
+export const SetupSourceModal: FC<SetupSourceModalProps> = ({
   isOpen,
   onClose,
-  workspaceName,
+  sourceName,
   onSetup,
 }) => {
   const [localPath, setLocalPath] = useState('');
   const [isCloning, setIsCloning] = useState(false);
 
-  // Reset state when modal opens or closes
   useEffect(() => {
     if (isOpen) {
       setLocalPath('');
@@ -31,15 +30,13 @@ export const SetupWorkspaceModal: FC<SetupWorkspaceModalProps> = ({
   const handleSelectFolder = async () => {
     let selectedPath: string | string[] | null = null;
     if (window.__TAURI__) {
-      // Native dialog for Tauri environment
       selectedPath = await open({
         directory: true,
         multiple: false,
-        title: 'Select a parent folder for the workspace',
+        title: 'Select a parent folder for the script source',
       });
     } else {
-      // Prompt for web environment
-      selectedPath = prompt('Please enter the absolute parent path where the workspace should be cloned:');
+      selectedPath = prompt('Please enter the absolute parent path where the script source should be cloned:');
     }
 
     if (typeof selectedPath === 'string' && selectedPath) {
@@ -52,9 +49,8 @@ export const SetupWorkspaceModal: FC<SetupWorkspaceModalProps> = ({
     setIsCloning(true);
     try {
       await onSetup(localPath);
-      onClose(); // Close on success
+      onClose();
     } catch (error) {
-      // Error is likely shown via notification from the parent component
       console.error("Setup failed:", error);
     } finally {
       setIsCloning(false);
@@ -64,8 +60,6 @@ export const SetupWorkspaceModal: FC<SetupWorkspaceModalProps> = ({
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-
-
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
@@ -82,7 +76,7 @@ export const SetupWorkspaceModal: FC<SetupWorkspaceModalProps> = ({
                   as="h3"
                   className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
                 >
-                  Setup Workspace: <span className="font-bold">{workspaceName}</span>
+                  Setup Script Source: <span className="font-bold">{sourceName}</span>
                 </Dialog.Title>
                 <button
                     onClick={onClose}
@@ -137,3 +131,4 @@ export const SetupWorkspaceModal: FC<SetupWorkspaceModalProps> = ({
     </Transition>
   );
 };
+

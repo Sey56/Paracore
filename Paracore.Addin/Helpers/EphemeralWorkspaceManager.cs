@@ -403,6 +403,45 @@ namespace Paracore.Addin.Helpers
             ActiveWatchers.Clear();
         }
 
+        public static bool StopSyncSession(string scriptPath)
+        {
+            try
+            {
+                FileLogger.Log($"StopSyncSession requested for: {scriptPath}");
+                
+                if (ParacoreApp.ActiveWorkspaces.TryGetValue(scriptPath, out string workspacePath))
+                {
+                    StopWatchersForWorkspace(workspacePath);
+                    ParacoreApp.ActiveWorkspaces.Remove(scriptPath);
+                    FileLogger.Log($"Sync session stopped and watchers disposed for: {scriptPath}");
+
+                    // PHYSICAL DELETION: Force the 'Kill Signal' to VSCode
+                    if (Directory.Exists(workspacePath))
+                    {
+                        try
+                        {
+                            Directory.Delete(workspacePath, true);
+                            FileLogger.Log($"Physically deleted temp workspace: {workspacePath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            FileLogger.LogError($"Physical deletion failed (likely file lock): {ex.Message}");
+                            // We don't throw here, as the watchers are already stopped
+                        }
+                    }
+                    return true;
+                }
+                
+                FileLogger.Log($"No active sync session found for: {scriptPath}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"StopSyncSession Error: {ex.Message}");
+                return false;
+            }
+        }
+
         private static void WriteCsproj(string folderPath, string projectName, List<string> scriptFileNames)
         {
             string revitPath = ParacoreApp.RevitInstallPath;

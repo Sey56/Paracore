@@ -33,15 +33,14 @@ class Script(Base):
     owner = relationship("User")
     presets = relationship("Preset", back_populates="script")
 
-class Workspace(Base):
-    __tablename__ = "workspaces"
+class TeamSource(Base):
+    __tablename__ = "team_sources"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     path = Column(String, unique=True, index=True)
-    # Add other fields like repo_url if needed for local workspaces
 
-class RegisteredWorkspace(Base):
-    __tablename__ = "registered_workspaces"
+class RegisteredTeamSource(Base):
+    __tablename__ = "registered_team_sources"
     id = Column(Integer, primary_key=True, index=True)
     team_id = Column(Integer, index=True)
     name = Column(String, index=True)
@@ -76,7 +75,7 @@ class Run(Base):
     status = Column(String)
     output = Column(Text, nullable=True)
     source_folder = Column(Text, nullable=True) # New column for local folder source
-    source_workspace = Column(Text, nullable=True) # New column for workspace source
+    source_team_source = Column(Text, nullable=True) # New column for team source info
 
     script = relationship("Script")
     user = relationship("User")

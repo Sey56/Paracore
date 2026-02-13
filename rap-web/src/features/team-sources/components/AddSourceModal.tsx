@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { open } from '@tauri-apps/api/dialog';
 
-interface AddWorkspaceModalProps {
+interface AddSourceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddWorkspace: (repoUrl: string, localPath: string, pat?: string) => void;
+  onAddSource: (repoUrl: string, localPath: string, pat?: string) => void;
 }
 
-export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({ isOpen, onClose, onAddWorkspace }) => {
+export const AddSourceModal: React.FC<AddSourceModalProps> = ({ isOpen, onClose, onAddSource }) => {
   const [repoUrl, setRepoUrl] = useState('');
   const [localPath, setLocalPath] = useState('');
   const [pat, setPat] = useState('');
@@ -16,7 +16,7 @@ export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({ isOpen, on
   const handleSubmit = () => {
     // Basic validation
     if (repoUrl && localPath) {
-      onAddWorkspace(repoUrl, localPath, pat);
+      onAddSource(repoUrl, localPath, pat);
       onClose(); // Close modal on successful submission
     }
   };
@@ -32,7 +32,7 @@ export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({ isOpen, on
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Workspace" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Team Source" size="lg">
       <div className="space-y-6 p-2">
         <div>
           <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -76,7 +76,7 @@ export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({ isOpen, on
               id="localPath"
               value={localPath}
               onChange={(e) => setLocalPath(e.target.value)}
-              placeholder="C:\Users\YourUser\Documents\RAP-Workspaces\my-scripts"
+              placeholder="C:\Path\To\Your\Script-Sources\my-repo"
               className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           )}
@@ -114,9 +114,10 @@ export const AddWorkspaceModal: React.FC<AddWorkspaceModalProps> = ({ isOpen, on
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
             disabled={!repoUrl || !localPath}
           >
-            Add Workspace
+            Add Team Source
           </button>
         </div>
     </Modal>
   );
 };
+

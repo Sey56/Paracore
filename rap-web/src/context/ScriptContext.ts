@@ -1,13 +1,11 @@
 import { createContext } from 'react';
 import type { Script } from '@/types/scriptModel';
-import { Workspace } from '@/types/index'; // Corrected import path
+import { TeamScriptSource } from '@/types/index';
 
 export interface ScriptContextProps {
   scripts: Script[];
-  customScriptFolders: string[]; // This is the current user's folders
-
-
-  teamWorkspaces: Record<number, Workspace[]>; // New: Workspaces keyed by team_id
+  customScriptFolders: string[];
+  remoteScriptSources: Record<number, TeamScriptSource[]>;
   selectedFolder: string | null;
   favoriteScripts: string[];
   recentScripts: Script[];
@@ -17,11 +15,11 @@ export interface ScriptContextProps {
   updateScriptLastRunTime: (scriptId: string) => void;
   addCustomScriptFolder: (folderPath: string) => Promise<void>;
   removeCustomScriptFolder: (folderPath: string) => void;
-  addTeamWorkspace: (teamId: number, workspace: Workspace) => void; // New
-  updateTeamWorkspace: (teamId: number, workspaceId: number, name: string | undefined, repoUrl: string | undefined) => void; // New
-  removeTeamWorkspace: (teamId: number, workspaceId: number) => void; // New
+  addRemoteScriptSource: (teamId: number, source: TeamScriptSource) => void;
+  updateRemoteScriptSource: (teamId: number, sourceId: number, name: string | undefined, repoUrl: string | undefined) => void;
+  removeRemoteScriptSource: (teamId: number, sourceId: number) => void;
   clearScripts: () => void;
-  clearScriptsForWorkspace: (workspacePath: string) => void;
+  clearScriptsForSource: (sourcePath: string) => void;
   loadScriptsForFolder: (folderPath: string) => Promise<void>;
   createNewScript: (details: {
     parent_folder: string;
@@ -32,11 +30,11 @@ export interface ScriptContextProps {
   clearFavoriteScripts: () => void;
   clearRecentScripts: () => void;
   fetchScriptMetadata: (scriptId: string) => Promise<void>;
-  setScripts: React.Dispatch<React.SetStateAction<Script[]>>; // Keep if still needed
-  setCombinedScriptContent: React.Dispatch<React.SetStateAction<string | null>>; // Keep if still needed
-  pullAllTeamWorkspaces: () => Promise<void>; // New: Function to pull all team workspaces
-  pullWorkspace: (workspacePath: string) => Promise<void>;
-  fetchTeamWorkspaces: () => Promise<void>; // New: Function to fetch team workspaces
+  setScripts: React.Dispatch<React.SetStateAction<Script[]>>;
+  setCombinedScriptContent: React.Dispatch<React.SetStateAction<string | null>>;
+  pullAllTeamSources: () => Promise<void>;
+  pullTeamSource: (sourcePath: string) => Promise<void>;
+  fetchRemoteScriptSources: () => Promise<void>;
   fetchScriptManifest: (force?: boolean) => Promise<void>;
 }
 

@@ -19,6 +19,13 @@ class NewScriptRequest(BaseModel):
     script_name: str = Field(..., description="The name of the .cs file to create.")
     folder_name: str | None = Field(None, description="The name of the folder for multi-script projects.")
     template_id: str = Field("blank", description="The ID of the industrial archetype to use.")
+    generated_logic: Optional[str] = None
+    generated_params: Optional[str] = None
+    overwrite: bool = False
+
+class DeleteScriptRequest(BaseModel):
+    script_path: str
+    script_type: str
 
 class ComputeOptionsRequest(BaseModel):
     scriptPath: str
@@ -44,8 +51,13 @@ async def create_new_script(request: NewScriptRequest, current_user: CurrentUser
     if not os.path.isabs(request.parent_folder) or not os.path.isdir(request.parent_folder):
         raise HTTPException(status_code=400, detail="Invalid parent folder path.")
     return script_service.create_new_script_logic(
-        request.parent_folder, request.script_type, request.script_name, request.folder_name, request.template_id
+        request.parent_folder, request.script_type, request.script_name, request.folder_name, request.template_id,
+        request.generated_logic, request.generated_params, request.overwrite
     )
+
+@router.post("/api/scripts/delete", tags=["Script Management"])
+async def delete_script(request: DeleteScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
+    return script_service.delete_script_logic(request.script_path, request.script_type)
 
 @router.get("/api/scripts", tags=["Script Management"])
 async def get_scripts(folderPath: str):
@@ -108,11 +120,15 @@ async def compute_parameter_options_endpoint(request: ComputeOptionsRequest):
         with open(absolute_path, 'r', encoding='utf-8-sig') as f:
             source_code = f.read()
     else:
-        # Multi-file combination logic (keep here for now as it's small)
+        import glob
+        # Multi-file combination logic
         files = []
         for fp in glob.glob(os.path.join(absolute_path, "*.cs")):
-            with open(fp, 'r', encoding='utf-8-sig') as f:
-                files.append({"file_name": os.path.basename(fp), "content": f.read()})
+            try:
+                with open(fp, 'r', encoding='utf-8-sig') as f:
+                    files.append({"file_name": os.path.basename(fp), "content": f.read()})
+            except:
+                continue
         from grpc_client import get_combined_script
         source_code = get_combined_script(files).get("combined_script", "")
 
@@ -126,6 +142,13 @@ async def compute_parameter_options_endpoint(request: ComputeOptionsRequest):
 async def rename_script_endpoint(request: RenameRequest, current_user: CurrentUser = Depends(get_current_user)):
     if not os.path.isabs(request.oldPath):
         raise HTTPException(status_code=400, detail="An absolute script path is required.")
+    
+    # 1. Auto-stop sync session if exists
+    from grpc_client import stop_sync_session
+    from workspace_manager import remove_active_sync_session
+    stop_sync_session(request.oldPath)
+    remove_active_sync_session(request.oldPath)
+
     response = rename_script(request.oldPath, request.newName)
     if not response.get("is_success"):
         raise HTTPException(status_code=400, detail=response.get("error_message"))

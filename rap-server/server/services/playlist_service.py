@@ -25,7 +25,7 @@ class PlaylistService:
 
     def scan_playlists(self, root_paths: List[str]) -> List[Playlist]:
         """
-        Scans the given root paths (workspaces/local folders) for .playlist.json files.
+        Scans the given root paths (team sources/local folders) for .playlist.json files.
         """
         playlists = []
         for root_path in root_paths:

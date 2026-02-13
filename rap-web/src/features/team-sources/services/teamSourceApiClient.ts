@@ -48,13 +48,16 @@ export const inviteUserToTeam = async (
   return response.data;
 };
 
-export const pullTeamWorkspaces = async (
-  workspacePaths: string[],
+/**
+ * Calls the cloud auth server to pull changes for multiple script sources.
+ */
+export const pullTeamSources = async (
+  sourcePaths: string[],
   token: string
 ): Promise<{ message: string; results: { path: string; status: string; message: string }[] }> => {
   const response = await axios.post(
-    `${AUTH_SERVER_URL}/api/workspaces/pull_team_workspaces`,
-    { workspace_paths: workspacePaths },
+    `${AUTH_SERVER_URL}/api/team-sources/pull-all`,
+    { source_paths: sourcePaths },
     {
       headers: {
         Authorization: `Bearer ${token}`,

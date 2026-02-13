@@ -1,42 +1,48 @@
 import os
-
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv() # Load environment variables from .env file
 
-# --- Function to read the public key from file ---
+# --- Function to read the public key ---
 def load_public_key():
+    # 1. Try Local File System First
     try:
-        # Try to get from env var first
         key_path = os.getenv("JWT_PUBLIC_KEY_PATH")
-
-        # If not set, look in the sibling directory (standard dev layout)
         if not key_path:
-             # Look for the key in multiple probable locations relative to this config file
-             # 1. "../../..." -> Standard Dev Layout (from rap-server/server -> Paracore root)
-             # 2. "../..."   -> Installed/Bundled Layout (from server-modules/server -> server-modules root)
              current_dir = os.path.dirname(__file__)
              candidate_bases = [
                  os.path.join(current_dir, "..", ".."), # Dev
                  os.path.join(current_dir, ".."),       # Installed
                  current_dir                            # Fallback
              ]
-
              for base in candidate_bases:
                  potential_path = os.path.join(os.path.abspath(base), "rap-auth-server", "server", "jwt_public.pem")
                  if os.path.exists(potential_path):
                      key_path = potential_path
                      break
 
-        if not key_path or not os.path.exists(key_path):
-            print(f"!!! WARNING: JWT Public Key not found. Checked relatives paths from {os.path.dirname(__file__)}")
-            return None
-
-        with open(key_path, 'r') as f:
-            return f.read()
+        if key_path and os.path.exists(key_path):
+            with open(key_path, 'r') as f:
+                return f.read()
     except Exception as e:
-        print(f"!!! CRITICAL: Could not load JWT public key from file: {e}")
-        return None
+        print(f"--- Local key load skipped/failed: {e}")
+
+    # 2. Try Remote Fetch from Auth Server
+    auth_url = os.getenv("AUTH_SERVER_URL", "http://localhost:8001")
+    try:
+        print(f"--- Attempting to fetch public key from {auth_url}/auth/public-key...")
+        # We use a synchronous fetch here because this is called during module init
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(f"{auth_url}/auth/public-key")
+            if response.status_code == 200:
+                print("--- Successfully fetched public key from remote auth server.")
+                return response.json().get("public_key")
+    except Exception as e:
+        print(f"!!! CRITICAL: Could not fetch public key from remote: {e}")
+
+    print("!!! WARNING: JWT Public Key NOT LOADED. Authentication will fail.")
+    return None
 
 from dotenv import load_dotenv
 
