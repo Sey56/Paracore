@@ -576,6 +576,7 @@ export const ScriptProvider = ({ children }: { children: React.ReactNode }) => {
     script_type: 'single' | 'multi';
     script_name: string;
     folder_name?: string;
+    template_id?: string;
   }): Promise<Script | undefined> => {
     try {
       const response = await api.post("/api/scripts/new", details);

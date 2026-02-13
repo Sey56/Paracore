@@ -1,4 +1,8 @@
-export const COPILOT_INSTRUCTIONS = `# Paracore Scripting Reference
+export const COPILOT_INSTRUCTIONS = `# Current Script Type: SINGLE-FILE
+# Keep ALL logic, helpers, and the Params class in THIS ONE .cs file.
+# PARAMETER GROUPING: use #region GroupName directives to organize parameters.
+
+# Paracore Scripting Reference
 
 Generate C# Revit API scripts for the Paracore / CoreScript.Engine runtime.
 
@@ -22,7 +26,7 @@ Scripts use **Top-Level Statements**. The order is mandatory:
 | \`UIApp\` | UIApplication | Revit application |
 | \`Println(msg)\` | void | Print to Console tab |
 | \`Print(msg)\` | void | Print without newline |
-| \`Transact(name, () => { })\` | void | Wrap modifications in a transaction |
+| \`Transact("Name", () => { })\` | void | Wrap modifications in a transaction |
 | \`Table(data)\` | void | Render data as a sortable table in the Table tab |
 | \`BarChart(data)\` | void | Render a bar chart in the Summary tab |
 | \`PieChart(data)\` | void | Render a pie chart in the Summary tab |
@@ -36,11 +40,16 @@ These namespaces are available without explicit \`using\`:
 \`Autodesk.Revit.DB\`, \`Autodesk.Revit.DB.Architecture\`, \`Autodesk.Revit.DB.Structure\`, \`Autodesk.Revit.UI\`,
 \`CoreScript.Engine.Globals\`
 
-## Params Class
+## Params Class (THE ONLY PARAMETER SOURCE)
 
-All user-configurable values go in \`public class Params\` at the bottom of the file.
-Instantiate it at the top: \`var p = new Params();\`
-Access values via the instance: \`p.MyLevel\`, never \`Params.MyLevel\`.
+All user-configurable values MUST go in \`public class Params\` at the bottom of the file. 
+
+**STRICT RULES FOR PARAMETERS:**
+1. **SINGLE SOURCE**: \`Params\` is the ONLY class the engine scans for UI parameters.
+2. **NO NESTING**: Properties in \`Params\` must be flat. Do NOT put other classes or objects inside \`Params\`.
+3. **ISOLATION**: Other user-defined classes (e.g., \`public class HelperData\`) MUST NOT contain properties with Paracore attributes (\`[Unit]\`, \`[Select]\`, etc.). They will be ignored and may cause errors.
+4. **INSTANTIATION**: Instantiate it at the top: \`var p = new Params();\`
+5. **ACCESS**: Access values via the instance: \`p.MyLevel\`, never \`Params.MyLevel\`.
 
 ### Basic Property Types
 
@@ -83,7 +92,7 @@ public BuiltInCategory TargetCategory { get; set; }
 
 | Attribute | Purpose | Example |
 |-----------|---------|---------|
-| \`[Unit("m")]\` | Unit label + auto-conversion | \`[Unit("mm")] public double Width { get; set; } = 250;\` |
+| \`[Unit("key")]\` | Metric-to-Feet conversion | \`[Unit("mm")] public double Width { get; set; } = 250;\` |
 | \`[Range(min, max, step)]\` | Slider with bounds | \`[Range(0, 100, 5)] public int Count { get; set; } = 10;\` |
 | \`[Required]\` | Mark as mandatory | \`[Required] public Level BaseLevel { get; set; }\` |
 | \`[Confirm("TEXT")]\` | Safety lock for destructive ops | \`[Confirm("DELETE")] public string Confirm { get; set; }\` |
@@ -97,6 +106,13 @@ public BuiltInCategory TargetCategory { get; set; }
 | \`[Color]\` | Color swatch picker | \`[Color] public string HighlightColor { get; set; } = "#3B82F6";\` |
 | \`[Stepper]\` | +/- buttons for integers | \`[Stepper] public int Iterations { get; set; } = 10;\` |
 | \`[Segmented]\` | Horizontal button group | \`[Segmented] public string Mode { get; set; } = "Preview";\` |
+
+**STRICT UNIT REALITY (IMPORTANT):**
+Revit's internal units are ALWAYS **Feet** (Decimal Feet, Square Feet, Cubic Feet).
+1. **NO [Unit] FOR IMPERIAL**: If the user wants Feet, Square Feet, or Cubic Feet, **DO NOT** use the \`[Unit]\` attribute. It is redundant and forbidden.
+2. **SUPPORTED KEYS ONLY**: The engine ONLY supports these Metric/Conversion keys: \`mm\`, \`cm\`, \`m\`, \`in\`, \`m2\` (or \`sqm\`), \`m3\` (or \`cum\`).
+3. **NO HALLUCINATIONS**: Never use \`sf\`, \`sq\`, \`ft\`, \`ft2\`, \`sqft\` or other custom keys. 
+4. **PURPOSE**: \`[Unit]\` is exclusively for Metric shielding.
 
 ### Data Providers (Suffix Conventions)
 
@@ -141,10 +157,11 @@ public List<string> Mode_Options => ["Preview", "Commit", "Audit"];
 
 1. **Transactions**: One \`Transact("Name", () => { ... })\` block. All modifications inside.
 2. **No Async**: NEVER use \`await\` or \`async\`. Scripts run in a synchronous UI thread.
-3. **Early Exits**: Use \`throw new Exception("message")\` instead of top-level \`return\`.
-4. **ElementId**: \`ElementId.IntegerValue\` is FORBIDDEN in Revit 2025+. Use \`ElementId.Value\` (long).
-5. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use \`[Confirm("DELETE")]\`.
-6. **Unit suffix shorthand**: Name parameters with \`_mm\`, \`_cm\`, \`_m\`, \`_ft\`, \`_in\` for auto unit detection.
+3. **Target Existing File**: Write ALL code in the existing .cs file provided in the context (e.g. \`MyScript.cs\`). NEVER create \`Script.cs\` or other new files.
+4. **Early Exits**: Use \`throw new Exception("message")\` instead of top-level \`return\`.
+5. **ElementId**: \`ElementId.IntegerValue\` is FORBIDDEN in Revit 2025+. Use \`ElementId.Value\` (long).
+6. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use \`[Confirm("DELETE")]\`.
+7. **Unit suffix shorthand**: Name parameters with \`_mm\`, \`_cm\`, \`_m\`, \`_ft\`, \`_in\` for auto unit detection.
 
 ## Complete Example
 
@@ -160,7 +177,7 @@ var walls = new FilteredElementCollector(Doc)
 
 // 2. Visualize
 Table(walls.Select(w => new { Name = w.Name, Length = w.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH)?.AsDouble() }));
-Println($"Found {walls.Count} walls on {p.TargetLevel.Name}");
+Println($\`Found {walls.Count} walls on {p.TargetLevel.Name}\`);
 
 // 3. Modify (if needed)
 if (p.ApplyChanges)
@@ -172,7 +189,7 @@ if (p.ApplyChanges)
             wall.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.Set(p.NewMark);
         }
     });
-    Println($"Updated {walls.Count} wall marks to '{p.NewMark}'");
+    Println($\`Updated {walls.Count} wall marks to '{p.NewMark}'\`);
 }
 
 // ---------------------------------------------------------
@@ -198,4 +215,4 @@ public class Params
     #endregion
 }
 \`\`\`
-`;
+\`;

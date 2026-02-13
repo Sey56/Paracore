@@ -1,9 +1,8 @@
-namespace Paracore.Addin.Helpers
-{
-    public static class AiInstructions
-    {
-        public const string CopilotInstructions = 
-@"# Paracore Scripting Reference
+# Current Script Type: SINGLE-FILE
+# Keep ALL logic, helpers, and the Params class in THIS ONE .cs file.
+# PARAMETER GROUPING: use #region GroupName directives to organize parameters.
+
+# Paracore Scripting Reference
 
 Generate C# Revit API scripts for the Paracore / CoreScript.Engine runtime.
 
@@ -27,7 +26,7 @@ Scripts use **Top-Level Statements**. The order is mandatory:
 | `UIApp` | UIApplication | Revit application |
 | `Println(msg)` | void | Print to Console tab |
 | `Print(msg)` | void | Print without newline |
-| `Transact(""Name"", () => { })` | void | Wrap modifications in a transaction |
+| `Transact("Name", () => { })` | void | Wrap modifications in a transaction |
 | `Table(data)` | void | Render data as a sortable table in the Table tab |
 | `BarChart(data)` | void | Render a bar chart in the Summary tab |
 | `PieChart(data)` | void | Render a pie chart in the Summary tab |
@@ -56,7 +55,7 @@ All user-configurable values MUST go in `public class Params` at the bottom of t
 
 | C# Type | UI Control | Default Example |
 |---------|-----------|-----------------|
-| `string` | Text input | `= ""My Value""` |
+| `string` | Text input | `= "My Value"` |
 | `int` | Numeric field | `= 5` |
 | `double` | Numeric field | `= 3.2` |
 | `bool` | Toggle switch | `= true` |
@@ -93,20 +92,20 @@ public BuiltInCategory TargetCategory { get; set; }
 
 | Attribute | Purpose | Example |
 |-----------|---------|---------|
-| `[Unit(""key"")]` | Metric-to-Feet conversion | `[Unit(""mm"")] public double Width { get; set; } = 250;` |
+| `[Unit("key")]` | Metric-to-Feet conversion | `[Unit("mm")] public double Width { get; set; } = 250;` |
 | `[Range(min, max, step)]` | Slider with bounds | `[Range(0, 100, 5)] public int Count { get; set; } = 10;` |
 | `[Required]` | Mark as mandatory | `[Required] public Level BaseLevel { get; set; }` |
-| `[Confirm(""TEXT"")]` | Safety lock for destructive ops | `[Confirm(""DELETE"")] public string Confirm { get; set; }` |
+| `[Confirm("TEXT")]` | Safety lock for destructive ops | `[Confirm("DELETE")] public string Confirm { get; set; }` |
 | `[Select(SelectionType.Element)]` | Pick from Revit viewport | `[Select(SelectionType.Element)] public Wall MyWall { get; set; }` |
 | `[Select(SelectionType.Point)]` | Pick a point in Revit | `[Select(SelectionType.Point)] public XYZ Origin { get; set; }` |
-| `[EnabledWhen(nameof(Prop), ""value"")]` | Conditional enable | `[EnabledWhen(nameof(ShowAdvanced), ""true"")]` |
-| `[RevitElements(Category = ""Doors"")]` | Filter by Revit category | On `FamilyInstance` or `List<FamilyInstance>` properties |
-| `[InputFile(""csv, xlsx"")]` | Open File dialog | `[InputFile(""csv"")] public string DataPath { get; set; }` |
-| `[OutputFile(""xlsx"")]` | Save File dialog | `[OutputFile(""xlsx"")] public string ExportPath { get; set; }` |
+| `[EnabledWhen(nameof(Prop), "value")]` | Conditional enable | `[EnabledWhen(nameof(ShowAdvanced), "true")]` |
+| `[RevitElements(Category = "Doors")]` | Filter by Revit category | On `FamilyInstance` or `List<FamilyInstance>` properties |
+| `[InputFile("csv, xlsx")]` | Open File dialog | `[InputFile("csv")] public string DataPath { get; set; }` |
+| `[OutputFile("xlsx")]` | Save File dialog | `[OutputFile("xlsx")] public string ExportPath { get; set; }` |
 | `[FolderPath]` | Folder Browser dialog | `[FolderPath] public string BackupFolder { get; set; }` |
-| `[Color]` | Color swatch picker | `[Color] public string HighlightColor { get; set; } = ""#3B82F6"";` |
+| `[Color]` | Color swatch picker | `[Color] public string HighlightColor { get; set; } = "#3B82F6";` |
 | `[Stepper]` | +/- buttons for integers | `[Stepper] public int Iterations { get; set; } = 10;` |
-| `[Segmented]` | Horizontal button group | `[Segmented] public string Mode { get; set; } = ""Preview"";` |
+| `[Segmented]` | Horizontal button group | `[Segmented] public string Mode { get; set; } = "Preview";` |
 
 **STRICT UNIT REALITY (IMPORTANT):**
 Revit's internal units are ALWAYS **Feet** (Decimal Feet, Square Feet, Cubic Feet).
@@ -133,17 +132,17 @@ When the engine's auto-discovery is too broad, define custom filtered options:
 // The parameter — a dropdown of walls
 public Wall TargetWall { get; set; }
 
-// Custom filter — only show walls with ""Generic"" in the name
+// Custom filter — only show walls with "Generic" in the name
 public List<Wall> TargetWall_Options => new FilteredElementCollector(Doc)
     .OfClass(typeof(Wall)).Cast<Wall>()
-    .Where(w => w.Name.Contains(""Generic"")).ToList();
+    .Where(w => w.Name.Contains("Generic")).ToList();
 ```
 
 For string dropdowns with `[Segmented]`:
 ```csharp
 [Segmented]
-public string Mode { get; set; } = ""Preview"";
-public List<string> Mode_Options => [""Preview"", ""Commit"", ""Audit""];
+public string Mode { get; set; } = "Preview";
+public List<string> Mode_Options => ["Preview", "Commit", "Audit"];
 ```
 
 ### Formatting Rules
@@ -156,13 +155,13 @@ public List<string> Mode_Options => [""Preview"", ""Commit"", ""Audit""];
 
 ## Coding Rules
 
-1. **Transactions**: One `Transact(""Name"", () => { ... })` block. All modifications inside.
+1. **Transactions**: One `Transact("Name", () => { ... })` block. All modifications inside.
 2. **No Async**: NEVER use `await` or `async`. Scripts run in a synchronous UI thread.
 3. **Target Existing File**: Write ALL code in the existing .cs file provided in the context (e.g. `MyScript.cs`). NEVER create `Script.cs` or other new files.
-4. **Early Exits**: Use `throw new Exception(""message"")` instead of top-level `return`.
-5. **ElementId**: `ElementId.IntegerValue` is FORBIDDEN in Revit 2025+. Use `ElementId.Value` (long).
-6. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use `[Confirm(""DELETE"")]`.
-7. **Unit suffix shorthand**: Name parameters with `_mm`, `_cm`, `_m`, `_ft`, `_in` for auto unit detection.
+4. **Early Exits**: Use `throw new Exception("message")` instead of top-level `return`.
+4. **ElementId**: `ElementId.IntegerValue` is FORBIDDEN in Revit 2025+. Use `ElementId.Value` (long).
+5. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use `[Confirm("DELETE")]`.
+6. **Unit suffix shorthand**: Name parameters with `_mm`, `_cm`, `_m`, `_ft`, `_in` for auto unit detection.
 
 ## Complete Example
 
@@ -178,19 +177,19 @@ var walls = new FilteredElementCollector(Doc)
 
 // 2. Visualize
 Table(walls.Select(w => new { Name = w.Name, Length = w.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH)?.AsDouble() }));
-Println($""Found {walls.Count} walls on {p.TargetLevel.Name}"");
+Println($"Found {walls.Count} walls on {p.TargetLevel.Name}");
 
 // 3. Modify (if needed)
 if (p.ApplyChanges)
 {
-    Transact(""Update Walls"", () =>
+    Transact("Update Walls", () =>
     {
         foreach (var wall in walls)
         {
             wall.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.Set(p.NewMark);
         }
     });
-    Println($""Updated {walls.Count} wall marks to '{p.NewMark}'"");
+    Println($"Updated {walls.Count} wall marks to '{p.NewMark}'");
 }
 
 // ---------------------------------------------------------
@@ -208,7 +207,7 @@ public class Params
     #region Action
 
     /// Set a new mark value for all walls on the selected level
-    public string NewMark { get; set; } = ""UPDATED"";
+    public string NewMark { get; set; } = "UPDATED";
 
     /// Toggle to apply changes
     public bool ApplyChanges { get; set; } = false;
@@ -216,6 +215,3 @@ public class Params
     #endregion
 }
 ```
-";
-    }
-}
