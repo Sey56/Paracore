@@ -8,6 +8,7 @@ service CoreScriptRunner {
   rpc GetScriptMetadata (GetScriptMetadataRequest) returns (GetScriptMetadataResponse);
   rpc GetScriptParameters (GetScriptParametersRequest) returns (GetScriptParametersResponse);
   rpc GetCombinedScript (GetCombinedScriptRequest) returns (GetCombinedScriptResponse);
+  rpc GetBulkMetadata (GetBulkMetadataRequest) returns (GetBulkMetadataResponse);
   rpc GetContext (GetContextRequest) returns (GetContextResponse);
   rpc CreateAndOpenWorkspace (CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
   rpc GetScriptManifest (GetScriptManifestRequest) returns (GetScriptManifestResponse);
@@ -183,6 +184,28 @@ message ScriptParameter {
   string enabled_when_value = 22;
   string unit = 23;
   string selection_type = 24;
+}
+
+message GetBulkMetadataRequest {
+  repeated ScriptProjectFiles projects = 1;
+}
+
+message ScriptProjectFiles {
+  string project_name = 1;
+  string absolute_path = 2;
+  repeated ScriptFile files = 3;
+}
+
+message GetBulkMetadataResponse {
+  repeated ScriptMetadataResponse project_metadata = 1;
+}
+
+message ScriptMetadataResponse {
+  string project_name = 1;
+  string absolute_path = 2;
+  ScriptMetadata metadata = 3;
+  repeated ScriptParameter parameters = 4;
+  string error_message = 5;
 }
 
 message GetCombinedScriptRequest {

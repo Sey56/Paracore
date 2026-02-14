@@ -8,11 +8,13 @@ from pydantic import BaseModel, Field
 
 from utils import resolve_script_path
 from grpc_client import compute_parameter_options, rename_script
-from services import script_service
+from services import script_service, migration_service
 
 router = APIRouter()
 
 # --- Pydantic Models ---
+class MigrateRequest(BaseModel):
+    folder_path: str
 class NewScriptRequest(BaseModel):
     parent_folder: str = Field(..., description="The absolute path of the folder where the script or folder will be created.")
     script_type: Literal['single', 'multi'] = Field(..., description="The type of script to create.")
@@ -45,6 +47,15 @@ class SaveScriptRequest(BaseModel):
     files: Optional[Dict[str, str]] = None
 
 # --- Endpoints ---
+
+@router.post("/api/admin/migrate-to-projects", tags=["Script Management"])
+async def migrate_to_projects(request: MigrateRequest, current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Developer-only endpoint to convert single-file scripts in a folder to project folders.
+    """
+    if current_user.activeRole != 'admin':
+        raise HTTPException(status_code=403, detail="Only admins can trigger migration.")
+    return migration_service.migrate_folder_to_projects(request.folder_path)
 
 @router.post("/api/scripts/new", tags=["Script Management"])
 async def create_new_script(request: NewScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
@@ -116,24 +127,30 @@ async def save_script(request: SaveScriptRequest, current_user: CurrentUser = De
 async def compute_parameter_options_endpoint(request: ComputeOptionsRequest):
     absolute_path = resolve_script_path(request.scriptPath)
     source_code = ""
-    if request.type == "single-file":
-        with open(absolute_path, 'r', encoding='utf-8-sig') as f:
-            source_code = f.read()
-    else:
+    
+    # Project-based logic: Always look in Scripts/ subfolder
+    scripts_dir = os.path.join(absolute_path, "Scripts")
+    if os.path.isdir(scripts_dir):
         import glob
-        # Multi-file combination logic
         files = []
-        for fp in glob.glob(os.path.join(absolute_path, "*.cs")):
+        for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
+            if os.path.basename(fp).lower() == "globals.cs": continue
             try:
                 with open(fp, 'r', encoding='utf-8-sig') as f:
                     files.append({"file_name": os.path.basename(fp), "content": f.read()})
-            except:
-                continue
-        from grpc_client import get_combined_script
-        source_code = get_combined_script(files).get("combined_script", "")
+            except: continue
+        
+        if files:
+            from grpc_client import get_combined_script
+            source_code = get_combined_script(files).get("combined_script", "")
+    
+    # Fallback for single files (legacy/.ptool)
+    if not source_code and os.path.isfile(absolute_path):
+        with open(absolute_path, 'r', encoding='utf-8-sig') as f:
+            source_code = f.read()
 
     if not source_code:
-        raise HTTPException(status_code=404, detail="Script content not found.")
+        raise HTTPException(status_code=404, detail="Script content not found for option computation.")
 
     response = compute_parameter_options(source_code, request.parameterName, request.parameters)
     return JSONResponse(content=response)
@@ -145,9 +162,9 @@ async def rename_script_endpoint(request: RenameRequest, current_user: CurrentUs
     
     # 1. Auto-stop sync session if exists
     from grpc_client import stop_sync_session
-    from workspace_manager import remove_active_sync_session
+    from ide_manager import remove_active_ide_session
     stop_sync_session(request.oldPath)
-    remove_active_sync_session(request.oldPath)
+    remove_active_ide_session(request.oldPath)
 
     response = rename_script(request.oldPath, request.newName)
     if not response.get("is_success"):

@@ -2,10 +2,11 @@ import logging
 import os
 import json
 import base64
-from fastapi import APIRouter, HTTPException, Body
+import glob
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
 import grpc_client
+from utils import resolve_script_path
 
 router = APIRouter(prefix="/api/scripts", tags=["scripts"])
 
@@ -15,33 +16,32 @@ class BuildToolRequest(BaseModel):
 @router.post("/build-tool")
 async def build_tool_endpoint(request: BuildToolRequest):
     """
-    Builds a protected .ptool from a source .cs script or folder.
+    V3 Build Tool: Combines code from Scripts/ folder and bakes it into a .ptool.
+    Saves the .ptool as a sibling to the project folder so it appears in the gallery.
     """
-    script_path = request.scriptPath
-    if not os.path.exists(script_path):
-        raise HTTPException(status_code=404, detail="Script path not found")
-
-    is_dir = os.path.isdir(script_path)
-    script_files = []
-
-    if is_dir:
-        # Multi-file script
-        for f in os.listdir(script_path):
-            if f.endswith(".cs"):
-                fpath = os.path.join(script_path, f)
-                with open(fpath, "r", encoding="utf-8") as file:
-                    script_files.append({"file_name": f, "content": file.read()})
-    else:
-        # Single-file script
-        if not script_path.endswith(".cs"):
-             raise HTTPException(status_code=400, detail="Only .cs files can be built into tools")
-        with open(script_path, "r", encoding="utf-8") as f:
-            script_files.append({"file_name": os.path.basename(script_path), "content": f.read()})
-
-    if not script_files:
-        raise HTTPException(status_code=400, detail="No source code found to build")
-
     try:
+        project_path = resolve_script_path(request.scriptPath)
+        is_dir = os.path.isdir(project_path)
+        
+        script_files = []
+        if is_dir:
+            # Look strictly in Scripts/
+            scripts_dir = os.path.join(project_path, "Scripts")
+            if not os.path.isdir(scripts_dir):
+                raise HTTPException(status_code=400, detail="Scripts folder missing in project")
+                
+            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
+                if os.path.basename(fp).lower() == "globals.cs": continue
+                with open(fp, "r", encoding="utf-8-sig") as file:
+                    script_files.append({"file_name": os.path.basename(fp), "content": file.read()})
+        else:
+            # Legacy/Single file support
+            with open(project_path, "r", encoding="utf-8-sig") as f:
+                script_files.append({"file_name": os.path.basename(project_path), "content": f.read()})
+
+        if not script_files:
+            raise HTTPException(status_code=400, detail="No source code found to build")
+
         # 1. Get Metadata and Parameters (to bake them in)
         metadata_res = grpc_client.get_script_metadata(script_files)
         params_res = grpc_client.get_script_parameters(script_files)
@@ -51,14 +51,17 @@ async def build_tool_endpoint(request: BuildToolRequest):
         parameters = params_res.get("parameters")
         combined_content = combined_res.get("combined_script")
 
+        print(f"DEBUG: BuildTool - Extracted {len(parameters) if parameters else 0} parameters")
+        if parameters:
+            print(f"DEBUG: First param: {parameters[0]['name']}")
+
         if not combined_content:
-             raise HTTPException(status_code=400, detail="Failed to combine script files")
+             raise HTTPException(status_code=400, detail="Failed to combine script files for build")
 
         # 2. Trigger Build
-        # We must pass the list of ScriptFile objects as JSON, not the combined content
-        # because the C# backend's BuildScript RPC expects the same JSON input as ExecuteScript
-        script_files_json = json.dumps(script_files)
-        build_res = grpc_client.build_script(script_files_json)
+        # Passing the COMBINED content so the rewriter and compiler work on the full context
+        build_res = grpc_client.build_script(combined_content)
+        
         if not build_res.get("is_success"):
              raise HTTPException(status_code=500, detail=f"Compilation failed: {build_res.get('error_message')}")
 
@@ -66,7 +69,6 @@ async def build_tool_endpoint(request: BuildToolRequest):
         assembly_base64 = base64.b64encode(assembly_bytes).decode('utf-8')
 
         # 3. Create .ptool package
-        # Force is_protected and is_compiled to True for the baked metadata
         metadata["is_protected"] = True
         metadata["is_compiled"] = True
 
@@ -76,11 +78,13 @@ async def build_tool_endpoint(request: BuildToolRequest):
             "assembly": assembly_base64
         }
 
-        # Save as .ptool in the same directory (or parent if it's a folder)
+        # 4. Save path logic: Sibling to the project folder
         if is_dir:
-            output_path = script_path.rstrip("/\\") + ".ptool"
+            # project_path = .../ScriptSource/TwistingTower
+            # output_path = .../ScriptSource/TwistingTower.ptool
+            output_path = project_path.rstrip("/\\") + ".ptool"
         else:
-            output_path = script_path.replace(".cs", ".ptool")
+            output_path = project_path.replace(".cs", ".ptool")
 
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(ptool_data, f, indent=2)
@@ -93,4 +97,5 @@ async def build_tool_endpoint(request: BuildToolRequest):
 
     except Exception as e:
         logging.error(f"Error building tool: {e}")
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))

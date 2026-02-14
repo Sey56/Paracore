@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from grpc_client import stop_sync_session
-from workspace_manager import ACTIVE_SYNC_SESSIONS, remove_active_sync_session
+from ide_manager import ACTIVE_IDE_SESSIONS, remove_active_ide_session
 
 logging.basicConfig(level=logging.INFO)
 
@@ -53,28 +53,27 @@ class RenameRequest(BaseModel):
     oldPath: str
     newName: str
 
-# --- VS CODE SYNC SESSIONS (IDE Workspaces) ---
+# --- VS CODE IDE SESSIONS ---
 
-@router.get("/api/sync/active-sessions", tags=["IDE Sync"])
-async def get_active_sync_sessions(current_user: CurrentUser = Depends(get_current_user)):
+@router.get("/api/sync/active-sessions", tags=["IDE Sessions"])
+async def get_active_ide_sessions(current_user: CurrentUser = Depends(get_current_user)):
     """
-    Returns a map of script_path -> temp_vscode_workspace_path for all active sync sessions.
+    Returns a map of which project folders are currently open in VS Code.
     """
-    return ACTIVE_SYNC_SESSIONS
+    return ACTIVE_IDE_SESSIONS
 
-@router.post("/api/sync/clear-session", tags=["IDE Sync"])
-async def clear_sync_session_endpoint(req: TeamSourcePath, current_user: CurrentUser = Depends(get_current_user)):
+@router.post("/api/sync/clear-session", tags=["IDE Sessions"])
+async def clear_ide_session_endpoint(req: TeamSourcePath, current_user: CurrentUser = Depends(get_current_user)):
     """
-    Manually removes an active VS Code sync session entry, releasing the UI lock.
-    Also tells the Revit Addin to stop watching the files.
+    Manually removes an active IDE session entry.
     """
-    # 1. Tell Addin to stop watchers
+    # 1. Tell Addin to stop watchers (if any)
     stop_sync_session(req.path)
     
-    # 2. Clear local lock
-    remove_active_sync_session(req.path)
+    # 2. Clear local session record
+    remove_active_ide_session(req.path)
     
-    return {"success": True, "message": "Sync session lock cleared and watchers stopped."}
+    return {"success": True, "message": "IDE session record cleared."}
 
 
 # --- TEAM SCRIPT SOURCES (The Git Repos) ---

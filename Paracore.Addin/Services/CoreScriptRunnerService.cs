@@ -55,6 +55,11 @@ namespace Paracore.Addin.Services
             return Task.FromResult(_metadataHandler.GetCombinedScript(request));
         }
 
+        public override Task<GetBulkMetadataResponse> GetBulkMetadata(GetBulkMetadataRequest request, ServerCallContext context)
+        {
+            return Task.FromResult(_metadataHandler.GetBulkMetadata(request));
+        }
+
         public override Task<GetContextResponse> GetContext(GetContextRequest request, ServerCallContext context)
         {
             return _contextHandler.GetContext();

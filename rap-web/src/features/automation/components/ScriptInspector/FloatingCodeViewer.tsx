@@ -90,7 +90,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
           title={getTitleMessage()}
         >
           <FontAwesomeIcon icon={faEdit} className="mr-2" />
-          Edit in VSCode
+          Edit Script
         </button>
         {!script.metadata.isProtected && (
           <button

@@ -13,6 +13,7 @@ using Paracore.Addin.Views;
 using System;
 using System.IO;
 using System.Windows.Media.Imaging;
+using System.Collections.Generic;
 
 namespace Paracore.Addin.App
 {
@@ -30,16 +31,14 @@ namespace Paracore.Addin.App
         private static ServerActionHandler? _serverActionHandler;
         private static ExternalEvent? _externalEvent;
         private static IServiceProvider? _serviceProvider;
-        public static Dictionary<string, string> ActiveWorkspaces = new();
 
-        public static bool TryGetWorkspace(string scriptPath, out string workspaceRoot) =>
-            ActiveWorkspaces.TryGetValue(scriptPath, out workspaceRoot);
+        public static Dictionary<string, string> ActiveWorkspaces = new(); // Kept for legacy compatibility if needed
 
         public static void RegisterWorkspace(string scriptPath, string workspacePath)
         {
-            ActiveWorkspaces[scriptPath] = workspacePath;
-            FileLogger.Log($"Registered workspace for: {scriptPath}");
+            // V3: No-op. We no longer manage sync states.
         }
+
         public Result OnStartup(UIControlledApplication application)
         {
             // Capture Revit version and install path
@@ -64,14 +63,8 @@ namespace Paracore.Addin.App
             {
                 application.CreateRibbonTab(tabName);
             }
-            catch (Autodesk.Revit.Exceptions.ArgumentException)
-            {
-                // Tab already exists - ignore
-            }
-            catch (Exception)
-            {
-                // Log unexpected errors
-            }
+            catch (Autodesk.Revit.Exceptions.ArgumentException) { }
+            catch (Exception) { }
 
             // Get existing panel or create new
             RibbonPanel panel = GetOrCreatePanel(application, tabName, panelName);
@@ -132,14 +125,11 @@ namespace Paracore.Addin.App
 
         private RibbonPanel GetOrCreatePanel(UIControlledApplication app, string tabName, string panelName)
         {
-            // First try getting existing panel in target tab
             foreach (RibbonPanel panel in app.GetRibbonPanels(tabName))
             {
                 if (panel.Name.Equals(panelName, StringComparison.Ordinal))
                     return panel;
             }
-
-            // Create new panel if not found
             return app.CreateRibbonPanel(tabName, panelName);
         }
 
@@ -150,31 +140,7 @@ namespace Paracore.Addin.App
             UpdateButtonState();
             EphemeralWorkspaceManager.Cleanup();
 
-            try
-            {
-                foreach (var workspacePath in ActiveWorkspaces.Values)
-                {
-                    try
-                    {
-                        if (Directory.Exists(workspacePath))
-                            Directory.Delete(workspacePath, true);
-                    }
-                    catch (Exception ex)
-                    {
-                        FileLogger.LogError($"DeleteWorkspace: {ex.Message}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                FileLogger.LogError($"ShutdownCleanup: {ex.Message}");
-            }
-            finally
-            {
-                ActiveWorkspaces.Clear();
-                FileLogger.Log("ActiveWorkspaces cleared");
-                FileLogger.Log("=== Paracore Shutdown Complete ===");
-            }
+            FileLogger.Log("=== Paracore Shutdown Complete ===");
             return Result.Succeeded;
         }
 

@@ -108,6 +108,7 @@ namespace CoreScript.Engine.Core
                 // Inject our internal static using WITHOUT shifting lines. #line hidden ensures it's not reported in errors.
                 finalScriptCode = "#line hidden" + Environment.NewLine + 
                                   "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+                                  "#line default" + Environment.NewLine +
                                   modifiedUserCode;
 
                 try
@@ -270,7 +271,16 @@ namespace CoreScript.Engine.Core
             
             string finalScriptCode = "#line hidden" + Environment.NewLine + 
                                   "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+                                  "#line default" + Environment.NewLine +
                                   modifiedUserCode;
+
+            try
+            {
+                var debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "CompiledScript.cs");
+                Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
+                File.WriteAllText(debugPath, finalScriptCode);
+            }
+            catch { }
 
             return _scriptCompiler.CompileToBytes(finalScriptCode);
         }

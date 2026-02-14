@@ -310,31 +310,12 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       }
 
       await response.json();
-      showNotification(`Opening ${script.name} in VSCode...`, "success");
+      showNotification(`Opening project in VS Code...`, "success");
     } catch (error) {
       console.error("Failed to open script for editing:", error);
       showNotification("Failed to open script in VSCode.", "error");
     }
   }, [user, cloudToken, ParacoreConnected, showNotification]);
-
-  const clearSyncSession = useCallback(async (script: Script) => {
-    if (!script || !script.absolutePath) return;
-
-    try {
-      const response = await api.post("/api/sync/clear-session", {
-        path: script.absolutePath
-      });
-
-      if (response.data.success) {
-        showNotification("Sync session lock released.", "success");
-        // Force refresh of active sessions
-        await reloadScript(script, { silent: true });
-      }
-    } catch (error) {
-      console.error("Failed to clear sync session:", error);
-      showNotification("Failed to release sync lock.", "error");
-    }
-  }, [showNotification, reloadScript]);
 
   const setActivePreset = useCallback((scriptId: string, presetName: string) => {
     setActivePresets(prev => ({
@@ -1218,7 +1199,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     pickObject, // Add pickObject
     isComputingOptions,
     editScript,
-    clearSyncSession,
     renameScript,
     resetScriptParameters,
     buildTool,
@@ -1244,7 +1224,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     pickObject, // Add pickObject
     isComputingOptions,
     editScript,
-    clearSyncSession,
     renameScript,
     resetScriptParameters,
     buildTool,

@@ -50,22 +50,19 @@ namespace Paracore.Addin.Handlers
                     return response;
                 }
 
-                string directory = Path.GetDirectoryName(oldPath) ?? "";
+                string parentDir = Path.GetDirectoryName(oldPath) ?? "";
+                string extension = Path.GetExtension(oldPath);
+                
+                // Construct new path preserving extension if it's a file
                 string newPath = isDirectory 
-                    ? Path.Combine(directory, newName) 
-                    : Path.Combine(directory, newName + ".cs");
+                    ? Path.Combine(parentDir, newName)
+                    : Path.Combine(parentDir, newName + extension);
 
                 if ((isDirectory && Directory.Exists(newPath)) || (isFile && File.Exists(newPath)))
                 {
                     response.IsSuccess = false;
-                    response.ErrorMessage = $"A {(isDirectory ? "folder" : "script")} with the name '{newName}' already exists.";
+                    response.ErrorMessage = $"A script with the name '{newName}' already exists.";
                     return response;
-                }
-
-                if (ParacoreApp.ActiveWorkspaces.TryGetValue(oldPath, out string? workspacePath))
-                {
-                    _logger.Log($"[RenameScript] Cleaning up workspace for old path: {oldPath}", LogLevel.Info);
-                    ParacoreApp.ActiveWorkspaces.Remove(oldPath);
                 }
 
                 if (isDirectory) Directory.Move(oldPath, newPath);
@@ -89,33 +86,23 @@ namespace Paracore.Addin.Handlers
             var response = new CreateWorkspaceResponse();
             try
             {
-                string workspacePath = EphemeralWorkspaceManager.CreateAndOpenWorkspace(request.ScriptPath, request.ScriptType);
-                response.WorkspacePath = workspacePath;
+                // V3 Architecture: Everything is an in-place Project Folder
+                string projectPath = EphemeralWorkspaceManager.ScaffoldAndOpenProject(request.ScriptPath);
+                response.WorkspacePath = projectPath;
             }
             catch (Exception ex)
             {
                 _logger.LogError($"[FileSystemHandler] Error in CreateAndOpenWorkspace: {ex.Message}");
-                response.ErrorMessage = $"Failed to create and open workspace: {ex.Message}";
+                response.ErrorMessage = $"Failed to open project in VSCode: {ex.Message}";
             }
             return response;
         }
 
         public StopSyncSessionResponse StopSyncSession(StopSyncSessionRequest request)
         {
-            var response = new StopSyncSessionResponse();
-            try
-            {
-                bool success = EphemeralWorkspaceManager.StopSyncSession(request.ScriptPath);
-                response.IsSuccess = success;
-                if (!success) response.ErrorMessage = "No active sync session found for this script.";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[FileSystemHandler] Error in StopSyncSession: {ex.Message}");
-                response.IsSuccess = false;
-                response.ErrorMessage = ex.Message;
-            }
-            return response;
+            // V3: Synchronization is no longer managed. 
+            // Return success immediately to satisfy the gRPC contract.
+            return new StopSyncSessionResponse { IsSuccess = true };
         }
     }
 }

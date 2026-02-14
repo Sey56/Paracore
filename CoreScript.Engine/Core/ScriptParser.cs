@@ -30,13 +30,13 @@ namespace CoreScript.Engine.Core
                 var tree = CSharpSyntaxTree.ParseText(file.Content);
                 var root = tree.GetRoot();
 
-                var fileUsingDirectives = root.DescendantNodes().OfType<UsingDirectiveSyntax>().ToList();
                 var fileTypeDecls = root.DescendantNodes().OfType<MemberDeclarationSyntax>()
                     .Where(n => n is ClassDeclarationSyntax || n is StructDeclarationSyntax || n is EnumDeclarationSyntax || n is InterfaceDeclarationSyntax)
                     .ToList();
 
                 var strippedBody = root.RemoveNodes(
-                    fileUsingDirectives.Cast<SyntaxNode>().Concat(fileTypeDecls.Cast<SyntaxNode>()),
+                    root.DescendantNodes().OfType<UsingDirectiveSyntax>().Cast<SyntaxNode>()
+                    .Concat(fileTypeDecls.Cast<SyntaxNode>()),
                     SyntaxRemoveOptions.KeepNoTrivia
                 ).ToFullString().Trim();
 
@@ -60,27 +60,31 @@ namespace CoreScript.Engine.Core
             var topLevelScriptFile = IdentifyTopLevelScript(scriptFiles);
             var resultParts = new List<string>();
 
-            // 1. Move ALL using directives to the top with exact file/line mapping.
-            // Roslyn Scripting requires usings to be at the very start of the submission.
+            // 1. Move ALL using directives to the top.
             foreach (var file in scriptFiles)
             {
                 var tree = CSharpSyntaxTree.ParseText(file.Content, path: file.FileName);
                 var root = tree.GetRoot();
-                var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>();
+                var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>().ToList();
 
-                foreach (var u in usings)
+                if (usings.Any())
                 {
-                    var lineSpan = root.SyntaxTree.GetLineSpan(u.FullSpan);
+                    var lineSpan = root.SyntaxTree.GetLineSpan(usings.First().FullSpan);
                     int line = lineSpan.StartLinePosition.Line + 1;
-                    // Prepend #line so the compiler knows exactly where this using came from
+                    
                     resultParts.Add($"#line {line} \"{file.FileName}\"");
-                    resultParts.Add(u.ToString());
+                    foreach (var u in usings)
+                    {
+                        resultParts.Add(u.ToString().Trim());
+                    }
                 }
             }
 
+            resultParts.Add(""); 
+            resultParts.Add("// --- Project Script Bodies ---");
+            resultParts.Add("");
+
             // 2. Add each file as a contiguous block. 
-            // We blank out (replace with spaces) usings and non-entry top-level statements
-            // to maintain exact character and line counts for the rest of the file.
             foreach (var file in scriptFiles)
             {
                 var tree = CSharpSyntaxTree.ParseText(file.Content, path: file.FileName);
@@ -91,29 +95,28 @@ namespace CoreScript.Engine.Core
                 var usings = root.DescendantNodes().OfType<UsingDirectiveSyntax>();
                 var nodesToBlank = usings.Cast<SyntaxNode>().ToList();
 
-                // If this is NOT the entry point script, blank out all top-level statements
                 if (file.FileName != topLevelScriptFile?.FileName)
                 {
                     var globals = root.DescendantNodes().OfType<GlobalStatementSyntax>();
                     nodesToBlank.AddRange(globals);
                 }
 
-                // Apply blanking in reverse order to preserve indices
                 foreach (var node in nodesToBlank.OrderByDescending(n => n.FullSpan.Start))
                 {
                     var span = node.FullSpan;
                     var nodeText = editableText.Substring(span.Start, span.Length);
-                    // Replace characters with spaces, PRESERVING existing newlines/carriage returns
                     var replacement = new string(nodeText.Select(c => c == '\n' || c == '\r' ? c : ' ').ToArray());
                     editableText = editableText.Remove(span.Start, span.Length).Insert(span.Start, replacement);
                 }
 
-                // Reset to line 1 for this file block
-                resultParts.Add($"#line 1 \"{file.FileName}\"\n{editableText}");
+                // V3 Guard: Ensure #line is absolutely on a fresh line
+                resultParts.Add($"#line 1 \"{file.FileName}\"");
+                resultParts.Add(editableText.TrimEnd());
+                resultParts.Add(""); 
             }
 
-            // Using \n for internal separation; the final string is returned to CodeRunner
-            return string.Join("\n", resultParts);
+            // Using explicit Environment.NewLine for the join
+            return string.Join(Environment.NewLine, resultParts);
         }
     }
 }

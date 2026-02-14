@@ -62,7 +62,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     renameScript,
     userEditedScriptParameters
   } = useScriptExecution();
-  const { toggleFavoriteScript, deleteScript, isSyncActive: checkSyncActive } = useScripts();
+  const { toggleFavoriteScript, deleteScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { isAuthenticated, activeRole, user } = useAuth();
@@ -76,7 +76,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   const renameInputRef = React.useRef<HTMLInputElement>(null);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
-  const isSyncActive = checkSyncActive(script.absolutePath);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -361,68 +360,46 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
           {showMenu && (
             <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
-              {canCreateScripts && !script.metadata.isProtected && (
+              {canCreateScripts && (
                 <>
+                  {!script.metadata.isProtected && (
+                    <button
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect();
+                        editScript(script);
+                        setShowMenu(false);
+                      }}
+                      title={editTooltipMessage}
+                    >
+                      <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
+                      Edit Script
+                    </button>
+                  )}
+
                   <button
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                     onClick={(e) => {
                       e.stopPropagation();
                       onSelect();
-                      // V2.5 FIX: Passing full object
-                      editScript(script);
-                      setShowMenu(false);
-                    }}
-                    title={editTooltipMessage}
-                  >
-                    <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
-                    Edit Script
-                  </button>
-
-                  {isSyncActive && (
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center font-bold"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearSyncSession(script);
-                        setShowMenu(false);
-                      }}
-                      title="Release IDE synchronization lock if VSCode is closed."
-                    >
-                      <FontAwesomeIcon icon={faSyncAlt} className="mr-2 w-4 animate-pulse" />
-                      Stop Sync
-                    </button>
-                  )}
-
-                  <button
-                    className={`w-full text-left px-4 py-2 text-sm flex items-center ${isSyncActive 
-                      ? 'text-gray-400 cursor-not-allowed' 
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                    disabled={isSyncActive}
-                    onClick={(e) => {
-                      if (isSyncActive) return;
-                      e.stopPropagation();
-                      onSelect();
                       handleStartRename(e);
                     }}
-                    title={isSyncActive ? "Cannot rename while sync is active" : "Rename Script"}
+                    title="Rename Script"
                   >
                     <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
                     Rename
                   </button>
                   {!isMultiFile && !script.metadata.isProtected && (
                     <button
-                      className={`w-full text-left px-4 py-2 text-sm flex items-center ${isSyncActive 
-                        ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                      disabled={isSyncActive}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                       onClick={(e) => {
-                        if (isSyncActive) return;
                         e.stopPropagation();
                         onSelect();
                         if (onReplace) onReplace(script);
                         setShowMenu(false);
                       }}
-                      title={isSyncActive ? "Cannot replace while sync is active" : "Replace with Template/Query"}
+                      title="Replace with Template/Query"
                     >
                       <FontAwesomeIcon icon={faSyncAlt} className="mr-2 w-4" />
                       Replace Code
@@ -430,18 +407,14 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                   )}
                   <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
                   <button
-                    className={`w-full text-left px-4 py-2 text-sm flex items-center ${isSyncActive 
-                      ? 'text-gray-400 cursor-not-allowed' 
-                      : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
-                    disabled={isSyncActive}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
                     onClick={(e) => {
-                      if (isSyncActive) return;
                       e.stopPropagation();
                       onSelect();
                       setShowDeleteModal(true);
                       setShowMenu(false);
                     }}
-                    title={isSyncActive ? "Cannot delete while sync is active" : "Delete Script"}
+                    title="Delete Script"
                   >
                     <FontAwesomeIcon icon={faTrash} className="mr-2 w-4" />
                     Delete Script

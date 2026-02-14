@@ -47,11 +47,24 @@ namespace CoreScript.Engine.Core.Rewriters
             var setter = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
                 .WithBody(SyntaxFactory.Block()); 
 
-            // 3. Construct the new property
-            return node
+            // 3. Construct the new property, PRESERVING existing trivia (like #endregion)
+            var newNode = node
                 .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { getter, setter })))
                 .WithInitializer(null) 
                 .WithSemicolonToken(default);
+
+            // CRITICAL: Preserve trailing trivia from the original node (semicolon or closing brace)
+            // This ensures #endregion stays on its own line if it was right after the property.
+            if (node.SemicolonToken.Kind() != SyntaxKind.None)
+            {
+                return newNode.WithTrailingTrivia(node.SemicolonToken.TrailingTrivia);
+            }
+            else if (node.AccessorList != null)
+            {
+                return newNode.WithTrailingTrivia(node.AccessorList.GetTrailingTrivia());
+            }
+
+            return newNode;
         }
     }
 }

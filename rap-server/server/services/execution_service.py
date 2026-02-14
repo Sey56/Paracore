@@ -63,10 +63,21 @@ async def run_script_logic(
             return response_data
 
         # Handle source scripts
-        if script_type == "single-file":
+        if script_type == "folder-project":
+            scripts_dir = os.path.join(resolved_path, "Scripts")
+            if not os.path.isdir(scripts_dir):
+                raise HTTPException(status_code=404, detail=f"Scripts folder missing in project: {resolved_path}")
+                
+            for fpath in glob.glob(os.path.join(scripts_dir, "*.cs")):
+                if os.path.basename(fpath).lower() == "globals.cs": continue
+                with open(fpath, 'r', encoding='utf-8-sig') as f:
+                    script_files_payload.append({"file_name": os.path.basename(fpath), "content": f.read()})
+        elif script_type == "single-file":
+            # Legacy/Migration support for single files if needed
             with open(resolved_path, 'r', encoding='utf-8-sig') as f:
                 script_files_payload.append({"file_name": os.path.basename(path), "content": f.read()})
         elif script_type == "multi-file":
+            # Legacy multi-file support (no Scripts/ folder)
             for fpath in glob.glob(os.path.join(resolved_path, "*.cs")):
                 with open(fpath, 'r', encoding='utf-8-sig') as f:
                     script_files_payload.append({"file_name": os.path.basename(fpath), "content": f.read()})

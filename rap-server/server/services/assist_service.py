@@ -10,10 +10,19 @@ from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from workspace_manager import get_scripts_dir
 from api.assist_prompts import EXPLAIN_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
+
+def get_scripts_dir(script_path: str) -> str:
+    """V3: Returns the Scripts subfolder of the project or the directory of a single file."""
+    if os.path.isdir(script_path):
+        scripts_dir = os.path.join(script_path, "Scripts")
+        if os.path.isdir(scripts_dir):
+            return scripts_dir
+    elif os.path.isfile(script_path):
+        return os.path.dirname(script_path)
+    return script_path
 
 class FixAttempt(BaseModel):
     script_code: str

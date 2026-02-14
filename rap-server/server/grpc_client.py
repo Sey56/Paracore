@@ -166,10 +166,77 @@ def get_combined_script(script_files):
         request = corescript_pb2.GetCombinedScriptRequest(script_files=grpc_script_files)
         response = stub.GetCombinedScript(request)
 
+    print(f"DEBUG: gRPC GetCombinedScript response length: {len(response.combined_script) if response.combined_script else 0}")
+    if response.error_message:
+        print(f"DEBUG: gRPC GetCombinedScript error: {response.error_message}")
+
     return {
         "combined_script": response.combined_script,
         "error_message": response.error_message
     }
+
+def get_bulk_metadata(projects_data: list):
+    """
+    Fetches metadata for multiple project folders in a single gRPC call.
+    projects_data: list of {'project_name': str, 'absolute_path': str, 'files': list of ScriptFiles}
+    """
+    with get_corescript_runner_stub() as stub:
+        grpc_projects = []
+        for p in projects_data:
+            grpc_files = [corescript_pb2.ScriptFile(file_name=f['file_name'], content=f['content']) for f in p['files']]
+            grpc_projects.append(corescript_pb2.ScriptProjectFiles(
+                project_name=p['project_name'],
+                absolute_path=p['absolute_path'],
+                files=grpc_files
+            ))
+        
+        request = corescript_pb2.GetBulkMetadataRequest(projects=grpc_projects)
+        response = stub.GetBulkMetadata(request)
+
+    results = []
+    for pm in response.project_metadata:
+        m = pm.metadata
+        metadata_dict = {
+            "displayName": m.name,
+            "description": m.description,
+            "author": m.author,
+            "categories": list(m.categories),
+            "dependencies": list(m.dependencies),
+            "document_type": m.document_type,
+            "usage_examples": list(m.usage_examples),
+            "website": m.website,
+            "lastRun": m.last_run
+        }
+        
+        params_list = []
+        for p in pm.parameters:
+            val = p.default_value_json
+            try:
+                real_val = json.loads(val)
+            except:
+                real_val = val
+
+            params_list.append({
+                "name": p.name,
+                "type": p.type,
+                "defaultValue": real_val,
+                "value": real_val,
+                "description": p.description,
+                "options": list(p.options),
+                "multiSelect": p.multi_select,
+                "inputType": p.input_type,
+                "group": p.group
+            })
+
+        results.append({
+            "project_name": pm.project_name,
+            "absolute_path": pm.absolute_path,
+            "metadata": metadata_dict,
+            "parameters": params_list,
+            "error_message": pm.error_message
+        })
+
+    return results
 
 def create_and_open_workspace(script_path, script_type):
     with get_corescript_runner_stub() as stub:

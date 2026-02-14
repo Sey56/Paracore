@@ -40,7 +40,6 @@ export interface ScriptExecutionContextProps {
   pickObject: (script: Script, paramName: string, selectionType: string, shouldUpdateGlobalState?: boolean) => Promise<PickObjectResult>;
   isComputingOptions: Record<string, boolean>;
   editScript: (script: Script) => Promise<void>;
-  clearSyncSession: (script: Script) => Promise<void>;
   renameScript: (script: Script, newName: string) => Promise<{ success: boolean; message: string }>;
   resetScriptParameters: (scriptId: string) => Promise<void>;
   buildTool: (script: Script) => Promise<{ success: boolean; message: string }>;

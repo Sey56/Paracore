@@ -59,6 +59,11 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.GetCombinedScriptRequest.SerializeToString,
                 response_deserializer=corescript__pb2.GetCombinedScriptResponse.FromString,
                 _registered_method=True)
+        self.GetBulkMetadata = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/GetBulkMetadata',
+                request_serializer=corescript__pb2.GetBulkMetadataRequest.SerializeToString,
+                response_deserializer=corescript__pb2.GetBulkMetadataResponse.FromString,
+                _registered_method=True)
         self.GetContext = channel.unary_unary(
                 '/CoreScript.CoreScriptRunner/GetContext',
                 request_serializer=corescript__pb2.GetContextRequest.SerializeToString,
@@ -109,6 +114,11 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.GetCategoryParametersRequest.SerializeToString,
                 response_deserializer=corescript__pb2.GetCategoryParametersResponse.FromString,
                 _registered_method=True)
+        self.StopSyncSession = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/StopSyncSession',
+                request_serializer=corescript__pb2.StopSyncSessionRequest.SerializeToString,
+                response_deserializer=corescript__pb2.StopSyncSessionResponse.FromString,
+                _registered_method=True)
 
 
 class CoreScriptRunnerServicer(object):
@@ -139,6 +149,12 @@ class CoreScriptRunnerServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetCombinedScript(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetBulkMetadata(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -204,6 +220,12 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def StopSyncSession(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreScriptRunnerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -231,6 +253,11 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.GetCombinedScript,
                     request_deserializer=corescript__pb2.GetCombinedScriptRequest.FromString,
                     response_serializer=corescript__pb2.GetCombinedScriptResponse.SerializeToString,
+            ),
+            'GetBulkMetadata': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetBulkMetadata,
+                    request_deserializer=corescript__pb2.GetBulkMetadataRequest.FromString,
+                    response_serializer=corescript__pb2.GetBulkMetadataResponse.SerializeToString,
             ),
             'GetContext': grpc.unary_unary_rpc_method_handler(
                     servicer.GetContext,
@@ -281,6 +308,11 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.GetCategoryParameters,
                     request_deserializer=corescript__pb2.GetCategoryParametersRequest.FromString,
                     response_serializer=corescript__pb2.GetCategoryParametersResponse.SerializeToString,
+            ),
+            'StopSyncSession': grpc.unary_unary_rpc_method_handler(
+                    servicer.StopSyncSession,
+                    request_deserializer=corescript__pb2.StopSyncSessionRequest.FromString,
+                    response_serializer=corescript__pb2.StopSyncSessionResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -418,6 +450,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/GetCombinedScript',
             corescript__pb2.GetCombinedScriptRequest.SerializeToString,
             corescript__pb2.GetCombinedScriptResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetBulkMetadata(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/GetBulkMetadata',
+            corescript__pb2.GetBulkMetadataRequest.SerializeToString,
+            corescript__pb2.GetBulkMetadataResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -688,6 +747,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/GetCategoryParameters',
             corescript__pb2.GetCategoryParametersRequest.SerializeToString,
             corescript__pb2.GetCategoryParametersResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def StopSyncSession(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/StopSyncSession',
+            corescript__pb2.StopSyncSessionRequest.SerializeToString,
+            corescript__pb2.StopSyncSessionResponse.FromString,
             options,
             channel_credentials,
             insecure,

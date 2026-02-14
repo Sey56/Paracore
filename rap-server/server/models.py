@@ -75,7 +75,7 @@ class Run(Base):
     status = Column(String)
     output = Column(Text, nullable=True)
     source_folder = Column(Text, nullable=True) # New column for local folder source
-    source_team_source = Column(Text, nullable=True) # New column for team source info
+    source_team_source = Column("source_workspace", Text, nullable=True) # Map to existing DB column (formerly workspaces)
 
     script = relationship("Script")
     user = relationship("User")
