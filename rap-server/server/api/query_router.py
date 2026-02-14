@@ -6,7 +6,10 @@ from services import query_service
 
 router = APIRouter(prefix="/api/query", tags=["Query Builder"])
 
+from typing import List, Dict, Any, Optional, Union, Literal
+
 class QueryRule(BaseModel):
+    type: Literal["rule"] = "rule"
     name: str
     storage_type: str
     operator: str
@@ -16,9 +19,16 @@ class QueryRule(BaseModel):
     builtin_id: Optional[int] = None
     revit_element_type: Optional[str] = None
 
+class QueryGroup(BaseModel):
+    type: Literal["group"] = "group"
+    combinator: Literal["AND", "OR"] = "AND"
+    children: List[Union["QueryRule", "QueryGroup"]]
+
 class GenerateQueryRequest(BaseModel):
     category_name: str
-    rules: List[QueryRule]
+    root_group: QueryGroup
+
+QueryGroup.model_rebuild()
 
 @router.get("/parameters/{category_name}")
 async def get_params(category_name: str):

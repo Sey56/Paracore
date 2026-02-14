@@ -12,6 +12,7 @@ interface ParameterDefinition {
 }
 
 interface QueryRule {
+  type: 'rule';
   name: string;
   storage_type: string;
   operator: string;
@@ -20,6 +21,12 @@ interface QueryRule {
   is_builtin: boolean;
   builtin_id: number;
   revit_element_type?: string;
+}
+
+interface QueryGroup {
+  type: 'group';
+  combinator: 'AND' | 'OR';
+  children: (QueryRule | QueryGroup)[];
 }
 
 interface VisualQueryBuilderProps {
@@ -36,7 +43,21 @@ const COMMON_CATEGORIES = [
   { id: 'OST_Views', label: 'Views' },
   { id: 'OST_Levels', label: 'Levels' },
   { id: 'OST_Floors', label: 'Floors' },
+  { id: 'OST_Columns', label: 'Columns' },
+  { id: 'OST_StructuralColumns', label: 'Structural Columns' },
+  { id: 'OST_StructuralFraming', label: 'Structural Framing (Beams)' },
+  { id: 'OST_StructuralFoundation', label: 'Foundations' },
+  { id: 'OST_Ceilings', label: 'Ceilings' },
+  { id: 'OST_Roofs', label: 'Roofs' },
   { id: 'OST_GenericModel', label: 'Generic Models' },
+  { id: 'OST_MechanicalEquipment', label: 'Mechanical Equipment' },
+  { id: 'OST_DuctCurves', label: 'Ducts' },
+  { id: 'OST_PipeCurves', label: 'Pipes' },
+  { id: 'OST_CableTray', label: 'Cable Trays' },
+  { id: 'OST_Conduit', label: 'Conduits' },
+  { id: 'OST_LightingFixtures', label: 'Lighting Fixtures' },
+  { id: 'OST_ElectricalEquipment', label: 'Electrical Equipment' },
+  { id: 'OST_PlumbingFixtures', label: 'Plumbing Fixtures' },
 ];
 
 const OPERATORS: Record<string, string[]> = {
@@ -51,7 +72,11 @@ const UNITS = ['mm', 'cm', 'm', 'in', 'm2', 'sqm', 'm3', 'cum'];
 export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps) => {
   const [category, setCategory] = useState('OST_Walls');
   const [availableParams, setAvailableParams] = useState<ParameterDefinition[]>([]);
-  const [rules, setRules] = useState<QueryRule[]>([]);
+  const [rootGroup, setRootGroup] = useState<QueryGroup>({
+    type: 'group',
+    combinator: 'AND',
+    children: []
+  });
   const [isLoadingParams, setIsLoadingParams] = useState(false);
 
   // Fetch parameters when category changes
@@ -62,7 +87,11 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
         const response = await api.get(`/api/query/parameters/${category}`);
         setAvailableParams(response.data.parameters || []);
         // Reset rules when category changes to avoid type mismatches
-        setRules([]);
+        setRootGroup({
+          type: 'group',
+          combinator: 'AND',
+          children: []
+        });
       } catch (err) {
         console.error("Failed to fetch category parameters:", err);
       } finally {
@@ -72,10 +101,11 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
     fetchParams();
   }, [category]);
 
-  const addRule = () => {
+  const addRule = (parentGroup: QueryGroup) => {
     if (availableParams.length === 0) return;
     const firstParam = availableParams[0];
     const newRule: QueryRule = {
+      type: 'rule',
       name: firstParam.name,
       storage_type: firstParam.storage_type,
       operator: OPERATORS[firstParam.storage_type][0],
@@ -84,18 +114,54 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
       builtin_id: firstParam.builtin_id,
       revit_element_type: firstParam.revit_element_type,
     };
-    setRules([...rules, newRule]);
+    
+    // We need to update the rootGroup state. Since it's nested, we'll use a deep clone and update.
+    const newRoot = JSON.parse(JSON.stringify(rootGroup));
+    
+    // Helper to find and update group
+    const findAndAdd = (group: QueryGroup) => {
+      if (group === parentGroup || (JSON.stringify(group) === JSON.stringify(parentGroup))) {
+         group.children.push(newRule);
+         return true;
+      }
+      for (const child of group.children) {
+        if (child.type === 'group' && findAndAdd(child)) return true;
+      }
+      return false;
+    };
+
+    // For now, let's keep it simple and always add to root if we don't have complex paths
+    // In a real nested UI, we'd pass a path [0, 1, 2]
+    newRoot.children.push(newRule);
+    setRootGroup(newRoot);
   };
 
-  const removeRule = (index: number) => {
-    setRules(rules.filter((_, i) => i !== index));
+  const addGroup = () => {
+    const newGroup: QueryGroup = {
+      type: 'group',
+      combinator: 'AND',
+      children: []
+    };
+    const newRoot = JSON.parse(JSON.stringify(rootGroup));
+    newRoot.children.push(newGroup);
+    setRootGroup(newRoot);
+  };
+
+  const removeNode = (parent: QueryGroup, index: number) => {
+     // Implementation depends on how we pass the parent
+     const newRoot = JSON.parse(JSON.stringify(rootGroup));
+     // For now, simplify to root-only removal for the first pass of the UI refactor
+     newRoot.children.splice(index, 1);
+     setRootGroup(newRoot);
   };
 
   const updateRule = (index: number, updates: Partial<QueryRule>) => {
-    const newRules = [...rules];
-    const updatedRule = { ...newRules[index], ...updates };
+    const newRoot = JSON.parse(JSON.stringify(rootGroup));
+    const rule = newRoot.children[index] as QueryRule;
+    if (!rule || rule.type !== 'rule') return;
 
-    // If changing parameter, reset operator and value type
+    const updatedRule = { ...rule, ...updates };
+
     if (updates.name) {
       const pDef = availableParams.find(p => p.name === updates.name);
       if (pDef) {
@@ -109,15 +175,77 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
       }
     }
 
-    newRules[index] = updatedRule;
-    setRules(newRules);
+    newRoot.children[index] = updatedRule;
+    setRootGroup(newRoot);
+  };
+
+  const [categorySearch, setCategorySearch] = useState('');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+
+  const filteredCategories = COMMON_CATEGORIES.filter(cat => 
+    cat.label.toLowerCase().includes(categorySearch.toLowerCase()) ||
+    cat.id.toLowerCase().includes(categorySearch.toLowerCase())
+  );
+
+  const updateRootGroupRecursive = (path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group') => {
+    const newRoot = JSON.parse(JSON.stringify(rootGroup));
+    
+    let current = newRoot;
+    for (let i = 0; i < path.length - (action === 'update' || action === 'remove' ? 1 : 0); i++) {
+      current = current.children[path[i]];
+    }
+
+    const index = path[path.length - 1];
+
+    if (action === 'update') {
+      current.children[index] = { ...current.children[index], ...updates };
+      
+      // Handle param change side effects
+      if (updates.name && current.children[index].type === 'rule') {
+        const pDef = availableParams.find(p => p.name === updates.name);
+        if (pDef) {
+          const rule = current.children[index];
+          rule.storage_type = pDef.storage_type;
+          rule.is_builtin = pDef.is_builtin;
+          rule.builtin_id = pDef.builtin_id;
+          rule.revit_element_type = pDef.revit_element_type;
+          rule.operator = OPERATORS[pDef.storage_type][0];
+          rule.value = pDef.storage_type === 'String' ? '' : 0;
+          rule.unit = undefined;
+        }
+      }
+    } else if (action === 'remove') {
+      current.children.splice(index, 1);
+    } else if (action === 'add_rule') {
+      const firstParam = availableParams[0];
+      const target = path.length === 0 ? newRoot : current;
+      target.children.push({
+        type: 'rule',
+        name: firstParam.name,
+        storage_type: firstParam.storage_type,
+        operator: OPERATORS[firstParam.storage_type][0],
+        value: firstParam.storage_type === 'String' ? '' : 0,
+        is_builtin: firstParam.is_builtin,
+        builtin_id: firstParam.builtin_id,
+        revit_element_type: firstParam.revit_element_type,
+      });
+    } else if (action === 'add_group') {
+      const target = path.length === 0 ? newRoot : current;
+      target.children.push({
+        type: 'group',
+        combinator: 'AND',
+        children: []
+      });
+    }
+
+    setRootGroup(newRoot);
   };
 
   const handleGenerate = async () => {
     try {
       const response = await api.post('/api/query/generate', {
         category_name: category,
-        rules: rules
+        root_group: rootGroup
       });
       onQueryGenerated(response.data.logic, response.data.params);
     } catch (err) {
@@ -125,57 +253,74 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
     }
   };
 
-  return (
-    <div className="border border-gray-100 dark:border-gray-800/50 rounded-3xl p-6 space-y-6 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
-        <div className="flex items-center">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mr-3">
-            <FontAwesomeIcon icon={faFilter} className="text-blue-500 text-xs" />
-          </div>
-          <div>
-            <div className="text-sm font-black text-gray-800 dark:text-gray-100 tracking-tight">Logic Query Engine</div>
-            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Visual LINQ Generator</div>
-          </div>
+  // RECURSIVE RENDERER
+  const renderGroup = (group: QueryGroup, path: number[] = []) => {
+    const isRoot = path.length === 0;
+    return (
+      <div className={`space-y-3 ${!isRoot ? 'pl-6 border-l-2 border-blue-500/20 ml-2 py-2' : ''}`}>
+        <div className="flex items-center justify-between mb-2">
+           <div className="flex items-center gap-2">
+              <select 
+                value={group.combinator}
+                onChange={(e) => {
+                  const newRoot = JSON.parse(JSON.stringify(rootGroup));
+                  let target = newRoot;
+                  for (const p of path) target = target.children[p];
+                  target.combinator = e.target.value;
+                  setRootGroup(newRoot);
+                }}
+                className={`text-[10px] font-black px-2 py-1 rounded-md outline-none cursor-pointer transition-colors ${
+                  group.combinator === 'AND' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
+                }`}
+              >
+                <option value="AND">AND</option>
+                <option value="OR">OR</option>
+              </select>
+              {isRoot && <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Logic Pipeline</label>}
+           </div>
+           
+           <div className="flex items-center gap-1">
+              <button 
+                onClick={() => updateRootGroupRecursive(path, {}, 'add_rule')}
+                className="text-[9px] font-black text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md transition-all flex items-center"
+              >
+                <FontAwesomeIcon icon={faPlus} className="mr-1.5" />
+                FILTER
+              </button>
+              <button 
+                onClick={() => updateRootGroupRecursive(path, {}, 'add_group')}
+                className="text-[9px] font-black text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 px-2 py-1 rounded-md transition-all flex items-center"
+              >
+                <FontAwesomeIcon icon={faPlus} className="mr-1.5" />
+                GROUP
+              </button>
+              {!isRoot && (
+                <button 
+                  onClick={() => {
+                    const parentPath = path.slice(0, -1);
+                    const index = path[path.length - 1];
+                    updateRootGroupRecursive(path, {}, 'remove');
+                  }}
+                  className="text-[9px] font-black text-red-400 hover:bg-red-50 px-2 py-1 rounded-md transition-all"
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                </button>
+              )}
+           </div>
         </div>
-        <div className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800">
-          <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-tighter">
-            Revit v{new Date().getFullYear()} Compliant
-          </span>
-        </div>
-      </div>
 
-      <div className="space-y-6">
-        {/* Category Selector */}
-        <div className="max-w-md">
-          <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">Target Category</label>
-          <div className="relative group">
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-transparent dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl px-4 py-3 text-sm font-bold focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all appearance-none cursor-pointer dark:text-white"
-            >
-              {COMMON_CATEGORIES.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.label}</option>
-              ))}
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-300">
-              <FontAwesomeIcon icon={faCogs} className="text-xs" />
-            </div>
-          </div>
-        </div>
-
-        {/* Rules List */}
-        <div className="space-y-3">
-          <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">Condition Pipeline (AND)</label>
-
-          <div className="space-y-2">
-            {rules.map((rule, idx) => (
-              <div key={idx} className="flex items-center gap-2 p-2 bg-transparent dark:bg-gray-900/80 rounded-2xl border border-gray-100 dark:border-gray-800 animate-in fade-in slide-in-from-left-4 duration-300">
+        <div className="space-y-2">
+          {group.children.map((child, idx) => {
+            const childPath = [...path, idx];
+            if (child.type === 'group') return <div key={idx}>{renderGroup(child, childPath)}</div>;
+            
+            return (
+              <div key={idx} className="flex items-center gap-2 p-2 bg-white/80 dark:bg-gray-900/80 rounded-2xl border border-gray-100 dark:border-gray-800 animate-in fade-in slide-in-from-left-4 duration-300 shadow-sm group">
                 {/* Parameter */}
                 <div className="flex-[2] min-w-[150px]">
                   <select
-                    value={rule.name}
-                    onChange={(e) => updateRule(idx, { name: e.target.value })}
+                    value={child.name}
+                    onChange={(e) => updateRootGroupRecursive(childPath, { name: e.target.value }, 'update')}
                     className="w-full bg-transparent dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer dark:text-white"
                   >
                     {availableParams.map(p => (
@@ -187,11 +332,11 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
                 {/* Operator */}
                 <div className="flex-1 min-w-[100px]">
                   <select
-                    value={rule.operator}
-                    onChange={(e) => updateRule(idx, { operator: e.target.value })}
+                    value={child.operator}
+                    onChange={(e) => updateRootGroupRecursive(childPath, { operator: e.target.value }, 'update')}
                     className="w-full bg-transparent dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-3 py-2 text-xs font-black text-blue-600 dark:text-blue-400 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer"
                   >
-                    {OPERATORS[rule.storage_type]?.map(op => (
+                    {OPERATORS[child.storage_type]?.map(op => (
                       <option key={op} value={op}>{op}</option>
                     ))}
                   </select>
@@ -199,15 +344,15 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
 
                 {/* Value Input */}
                 <div className="flex-[1.5] min-w-[120px]">
-                  {rule.storage_type === 'ElementId' && rule.revit_element_type && rule.revit_element_type !== 'Element' ? (
+                  {child.storage_type === 'ElementId' && child.revit_element_type && child.revit_element_type !== 'ElementId' ? (
                     <div className="px-3 py-2 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl text-[10px] font-bold text-blue-600 dark:text-blue-400 italic">
-                      Select {rule.revit_element_type} in Paracore UI after creation
+                      Select {child.revit_element_type}
                     </div>
                   ) : (
                     <input
-                      type={rule.storage_type === 'String' ? 'text' : 'number'}
-                      value={rule.value}
-                      onChange={(e) => updateRule(idx, { value: rule.storage_type === 'String' ? e.target.value : parseFloat(e.target.value) })}
+                      type={child.storage_type === 'String' ? 'text' : 'number'}
+                      value={child.value}
+                      onChange={(e) => updateRootGroupRecursive(childPath, { value: child.storage_type === 'String' ? e.target.value : parseFloat(e.target.value) }, 'update')}
                       placeholder="Value..."
                       className="w-full bg-transparent dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-4 focus:ring-blue-400/10 focus:border-blue-400 transition-all placeholder:text-gray-300 dark:text-white"
                     />
@@ -215,11 +360,11 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
                 </div>
 
                 {/* Optional Unit (only for numbers) */}
-                {(rule.storage_type === 'Double' || rule.storage_type === 'Integer') && (
+                {(child.storage_type === 'Double' || child.storage_type === 'Integer') && (
                   <div className="flex-[0.8] min-w-[80px]">
                     <select
-                      value={rule.unit || ''}
-                      onChange={(e) => updateRule(idx, { unit: e.target.value || undefined })}
+                      value={child.unit || ''}
+                      onChange={(e) => updateRootGroupRecursive(childPath, { unit: e.target.value || undefined }, 'update')}
                       className="w-full bg-transparent dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-2 py-2 text-[10px] font-bold outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer dark:text-white"
                     >
                       <option value="">UNIT</option>
@@ -230,26 +375,102 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
 
                 {/* Delete */}
                 <button
-                  onClick={() => removeRule(idx)}
-                  className="w-10 h-10 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all active:scale-95 shrink-0"
+                  onClick={() => updateRootGroupRecursive(childPath, {}, 'remove')}
+                  className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all active:scale-95 shrink-0 opacity-0 group-hover:opacity-100"
                 >
                   <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                 </button>
               </div>
-            ))}
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
-            {/* Add Rule Button */}
-            <button
-              onClick={addRule}
-              disabled={isLoadingParams || availableParams.length === 0}
-              className="w-full py-4 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl text-gray-400 hover:text-blue-500 hover:border-blue-200 dark:hover:border-blue-900/50 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all text-xs flex items-center justify-center font-black uppercase tracking-widest"
-            >
-              <FontAwesomeIcon icon={faPlus} className="mr-3 text-[10px]" />
-              Add Pipeline Filter
-            </button>
+  return (
+    <div className="border border-gray-100 dark:border-gray-800/50 rounded-3xl p-6 space-y-6 shadow-sm overflow-hidden bg-white/50 dark:bg-gray-900/10 backdrop-blur-md">
+      <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+        <div className="flex items-center">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center mr-3 shadow-lg shadow-blue-500/20">
+            <FontAwesomeIcon icon={faFilter} className="text-white text-sm" />
+          </div>
+          <div>
+            <div className="text-sm font-black text-gray-800 dark:text-gray-100 tracking-tight">Visual Query Engine</div>
+            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">High Performance Revit Filtering</div>
           </div>
         </div>
       </div>
+
+      <div className="space-y-6">
+        {/* Category Selector (Searchable) */}
+        <div className="max-w-md relative">
+          <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">Target Category</label>
+          
+          <div className="relative">
+            <input 
+              type="text"
+              placeholder="Search category (e.g. Walls, Pipes)..."
+              value={categorySearch}
+              onFocus={() => setIsCategoryDropdownOpen(true)}
+              onChange={(e) => setCategorySearch(e.target.value)}
+              className="w-full bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl px-4 py-3 text-sm font-bold focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all dark:text-white shadow-sm pr-10"
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+              <FontAwesomeIcon icon={isCategoryDropdownOpen ? faTrash : faCogs} className="text-xs cursor-pointer" onClick={() => { if(isCategoryDropdownOpen) setCategorySearch(''); setIsCategoryDropdownOpen(!isCategoryDropdownOpen); }} />
+            </div>
+
+            {isCategoryDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl z-[100] max-h-60 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500">
+                {filteredCategories.length > 0 ? filteredCategories.map(cat => (
+                  <div 
+                    key={cat.id}
+                    onClick={() => {
+                      setCategory(cat.id);
+                      setCategorySearch(cat.label);
+                      setIsCategoryDropdownOpen(false);
+                    }}
+                    className={`px-4 py-3 text-sm font-bold cursor-pointer transition-colors flex items-center justify-between group
+                      ${category === cat.id ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'}
+                    `}
+                  >
+                    <span>{cat.label}</span>
+                    <span className="text-[9px] font-black opacity-0 group-hover:opacity-100 text-gray-400 uppercase tracking-tighter">{cat.id}</span>
+                  </div>
+                )) : (
+                  <div className="px-4 py-8 text-center text-xs text-gray-400 italic font-bold">No categories match your search</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RECURSIVE RULES */}
+        <div className="min-h-[200px] bg-gray-50/50 dark:bg-gray-900/30 rounded-3xl p-4 border-2 border-dashed border-gray-100 dark:border-gray-800">
+          {renderGroup(rootGroup)}
+        </div>
+      </div>
+
+      {/* Action Footer */}
+      <div className="pt-4 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
+        <div className="flex items-center space-x-2">
+          <div className={`w-2 h-2 rounded-full ${isLoadingParams ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
+            {isLoadingParams ? 'Synchronizing Schema...' : `${availableParams.length} Parameters Synced`}
+          </div>
+        </div>
+        <button
+          onClick={handleGenerate}
+          disabled={rootGroup.children.length === 0}
+          className="group relative bg-blue-600 text-white px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center active:scale-95 disabled:opacity-30 border border-blue-500/20"
+        >
+          <FontAwesomeIcon icon={faCode} className="mr-3 text-white/80 group-hover:scale-110 transition-transform" />
+          Compile Logic
+        </button>
+      </div>
+    </div>
+  );
+};
 
       {/* Action Footer */}
       <div className="pt-4 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
