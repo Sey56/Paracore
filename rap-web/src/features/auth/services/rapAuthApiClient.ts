@@ -19,7 +19,7 @@ export const registerRemoteSource = async (
 ): Promise<TeamScriptSource> => {
   try {
     const response = await axios.post(
-      `${AUTH_SERVER_URL}/api/teams/${teamId}/team-sources`,
+      `${AUTH_SERVER_URL}/api/teams/${teamId}/workspaces`,
       { name, repo_url: repoUrl },
       {
         headers: { Authorization: `Bearer ${token}` },
@@ -44,7 +44,7 @@ export const getRemoteSources = async (
 ): Promise<TeamScriptSource[]> => {
   try {
     const response = await axios.get(
-      `${AUTH_SERVER_URL}/api/teams/${teamId}/team-sources`,
+      `${AUTH_SERVER_URL}/api/teams/${teamId}/workspaces`,
       {
         headers: { Authorization: `Bearer ${token}` },
       }
@@ -65,7 +65,7 @@ export const deleteRemoteSource = async (
   sourceId: number,
   token: string
 ): Promise<void> => {
-  await axios.delete(`${AUTH_SERVER_URL}/api/team-sources/${sourceId}`, {
+  await axios.delete(`${AUTH_SERVER_URL}/api/workspaces/${sourceId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
@@ -90,7 +90,7 @@ export const updateRemoteSource = async (
     if (repoUrl !== undefined) payload.repo_url = repoUrl;
 
     const response = await axios.put(
-      `${AUTH_SERVER_URL}/api/team-sources/${sourceId}`,
+      `${AUTH_SERVER_URL}/api/workspaces/${sourceId}`,
       payload,
       {
         headers: { Authorization: `Bearer ${token}` },

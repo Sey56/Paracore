@@ -1,89 +1,53 @@
 import os
 import shutil
+import glob
 import logging
-from typing import List, Dict, Any
+import json
 
-logger = logging.getLogger(__name__)
-
-def migrate_folder_to_projects(folder_path: str) -> Dict[str, Any]:
+def migrate_scripts_to_v3(script_source_path: str):
     """
-    V3 Architecture Refined:
-    1. Loose .cs files in root -> FolderWithSameName/Scripts/File.cs
-    2. Folders with .cs files in THEIR root -> Folder/Scripts/*.cs
+    Migrates scripts from V2 (flat folder) to V3 (Script Projects).
     """
-    if not os.path.isdir(folder_path):
-        return {"success": False, "message": f"Path is not a directory: {folder_path}"}
-
-    migrated_files = 0
-    updated_folders = 0
-    errors = []
-
     try:
-        items = os.listdir(folder_path)
-        
-        # --- 1. Handle loose .cs files at the root of the Script Source ---
-        cs_files = [f for f in items if f.endswith('.cs') and os.path.isfile(os.path.join(folder_path, f))]
-        for cs_file in cs_files:
-            project_name = os.path.splitext(cs_file)[0]
-            source_file_path = os.path.join(folder_path, cs_file)
-            project_dir = os.path.join(folder_path, project_name)
-            scripts_dir = os.path.join(project_dir, "Scripts")
+        if not os.path.exists(script_source_path):
+            return
 
-            try:
-                os.makedirs(scripts_dir, exist_ok=True)
-                # Move the loose file into its new Project/Scripts/ folder
-                dest_file_path = os.path.join(scripts_dir, cs_file)
-                shutil.move(source_file_path, dest_file_path)
-                
-                _write_project_gitignore(project_dir)
-                migrated_files += 1
-                logger.info(f"Migrated root file {cs_file} to project project.")
-            except Exception as e:
-                errors.append(f"Failed to migrate file {cs_file}: {str(e)}")
-
-        # --- 2. Handle sub-folders (These are our Projects) ---
-        # Refresh items after moves
-        items = os.listdir(folder_path)
-        for item in items:
-            project_dir = os.path.join(folder_path, item)
-            if not os.path.isdir(project_dir) or item.startswith('.') or item == "Scripts":
-                continue
+        # 1. Migrate single .cs files to Script Project folders
+        for cs_file in os.listdir(script_source_path):
+            if not cs_file.lower().endswith(".cs"): continue
+            if cs_file.lower() == "globals.cs": continue
             
-            # Check if this folder needs an internal 'Scripts' subfolder
+            cs_file_full = os.path.join(script_source_path, cs_file)
+            if not os.path.isfile(cs_file_full): continue
+
+            script_name = cs_file.replace(".cs", "")
+            project_dir = os.path.join(script_source_path, script_name)
             scripts_dir = os.path.join(project_dir, "Scripts")
             
-            # If 'Scripts' doesn't exist, see if there are .cs files at the folder's root
+            os.makedirs(scripts_dir, exist_ok=True)
+            shutil.move(cs_file_full, os.path.join(scripts_dir, cs_file))
+            logging.info(f"Migrated single script to project: {script_name}")
+
+        # 2. Migrate legacy multi-file folders to Script Project folders
+        for folder in os.listdir(script_source_path):
+            folder_path = os.path.join(script_source_path, folder)
+            if not os.path.isdir(folder_path): continue
+            if folder.startswith('.'): continue
+            
+            scripts_dir = os.path.join(folder_path, "Scripts")
             if not os.path.exists(scripts_dir):
-                cs_files_in_project = [f for f in os.listdir(project_dir) if f.endswith('.cs')]
-                if cs_files_in_project:
-                    try:
-                        os.makedirs(scripts_dir)
-                        for f in cs_files_in_project:
-                            shutil.move(os.path.join(project_dir, f), os.path.join(scripts_dir, f))
-                        
-                        _write_project_gitignore(project_dir)
-                        updated_folders += 1
-                        logger.info(f"Organized project folder {item} with internal Scripts subfolder.")
-                    except Exception as e:
-                        errors.append(f"Failed to update folder {item}: {str(e)}")
-            else:
-                # 'Scripts' already exists, just ensure .gitignore is present
-                _write_project_gitignore(project_dir)
+                os.makedirs(scripts_dir, exist_ok=True)
+                
+                for item in os.listdir(folder_path):
+                    item_path = os.path.join(folder_path, item)
+                    if os.path.isfile(item_path) and item.lower().endswith(".cs"):
+                        shutil.move(item_path, os.path.join(scripts_dir, item))
+                
+                logging.info(f"Migrated legacy multi-file folder to project: {folder}")
 
-        return {
-            "success": True,
-            "message": "Migration successful.",
-            "migrated_files": migrated_files,
-            "updated_folders": updated_folders,
-            "errors": errors
-        }
+        # 3. Centralize .gitignore at Pack root
+        from .script_service import _ensure_pack_gitignore
+        _ensure_pack_gitignore(script_source_path)
 
     except Exception as e:
-        logger.error(f"Migration crash: {e}")
-        return {"success": False, "message": str(e)}
-
-def _write_project_gitignore(project_dir: str):
-    try:
-        with open(os.path.join(project_dir, ".gitignore"), 'w') as f:
-            f.write("# Paracore IDE Scaffolding\nbin/\nobj/\n*.csproj\nglobal.json\nGlobals.cs\n.editorconfig\n.github/\n")
-    except: pass
+        logging.error(f"Migration error: {e}")

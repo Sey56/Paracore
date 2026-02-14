@@ -99,7 +99,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setCombinedScriptContent,
     updateScriptLastRunTime,
     reloadScript,
-    loadScriptsForFolder: loadScriptsFromPath
+    loadScriptsForFolder: loadScriptsFromPath,
+    activeSyncSessions // Destructure activeSyncSessions
   } = useScripts();
   const { isAuthenticated, activeTeam } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, messages, setActiveMainView, setActiveInspectorTab, threadId } = useUI();
@@ -109,11 +110,31 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const [selectedScript, setSelectedScriptState] = useState<Script | null>(null);
   const selectedScriptRef = useRef<Script | null>(null);
   const lastExplicitParameterFetchTimeRef = useRef<number>(0);
+  const lastKnownModifiedRef = useRef<Record<string, number>>({}); // New ref for tracking modifications
 
   // Keep ref in sync
   useEffect(() => {
     selectedScriptRef.current = selectedScript;
   }, [selectedScript]);
+
+  // INSTANT SYNC LOGIC: 
+  // Monitor activeSyncSessions for modification timestamp increases
+  useEffect(() => {
+    if (selectedScript) {
+      const normalizedPath = selectedScript.absolutePath.toLowerCase().replace(/\\/g, '/');
+      const sessionData = activeSyncSessions[normalizedPath];
+      
+      if (sessionData && sessionData.last_modified) {
+        const lastSeen = lastKnownModifiedRef.current[normalizedPath] || 0;
+        if (sessionData.last_modified > lastSeen) {
+          console.log("[ScriptExecutionProvider] Detected remote change. Triggering instant refresh...");
+          // We use refresh source to preserve existing user edits if they haven't touched the changed params
+          setSelectedScript(selectedScript, 'refresh');
+          lastKnownModifiedRef.current[normalizedPath] = sessionData.last_modified;
+        }
+      }
+    }
+  }, [activeSyncSessions, selectedScript]);
 
   // Persistence for user-edited parameters across sessions
   const [userEditedScriptParameters, setUserEditedScriptParameters] = useLocalStorage<Record<string, ScriptParameter[]>>('rap_userEditedScriptParameters', {});
@@ -524,8 +545,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       return; // Exit early, we are using the cached parameters
     }
 
-    // If no cached params, proceed with fetching (unless it's a refresh sync that already has params)
-    const canReusePassedParameters = source === 'refresh' && (script.parameters && script.parameters.length > 0);
+    // If no cached params, proceed with fetching. 
+    // V3 FIX: On 'refresh' (watcher detected change), we MUST fetch parameters again, 
+    // because the code on disk has changed and might have new parameters.
+    const canReusePassedParameters = false; 
 
     // FIX: Don't clear content/presets on refresh OR hard_reset to prevent data loss
     if (source !== 'refresh' && source !== 'hard_reset') {

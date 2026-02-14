@@ -221,7 +221,7 @@ const dateFilterHelper = (dateString: string | undefined, filterValue: string): 
 export const ScriptGallery: React.FC = () => {
   const { ParacoreConnected } = useRevitStatus();
   const isParacoreDisconnected = !ParacoreConnected;
-  const { scripts, selectedFolder, loadScriptsForFolder } = useScripts();
+  const { scripts, selectedFolder, loadScriptsForFolder, favoriteScripts: favoriteIds } = useScripts();
   const {
     openNewScriptModal,
     closeNewScriptModal,
@@ -306,8 +306,9 @@ export const ScriptGallery: React.FC = () => {
 
   const isFromActiveSource = (script: Script) => {
     if (!script || !script.absolutePath) return false;
-    if (activeScriptSource?.type === 'team' && activeScriptSource.path) {
-      return script.absolutePath.startsWith(activeScriptSource.path);
+    if (activeScriptSource?.path) {
+      // CASE INSENSITIVE check for Windows paths
+      return script.absolutePath.toLowerCase().startsWith(activeScriptSource.path.toLowerCase());
     }
     return false;
   };
@@ -315,7 +316,12 @@ export const ScriptGallery: React.FC = () => {
   const { filters, pillFilters } = useMemo(() => parseSearchTerm(searchTerm), [searchTerm]);
 
   const { favoriteScripts, otherScripts } = useMemo(() => {
-    const sourceScripts = scripts;
+    // HYDRATION: Mark scripts as favorite if their ID is in the favoriteIds list
+    const sourceScripts = scripts.map(s => ({
+      ...s,
+      isFavorite: favoriteIds.includes(s.id)
+    }));
+
     const filteredBySidebarCategory = selectedCategory
       ? sourceScripts.filter(script => (script.metadata?.categories || []).includes(selectedCategory))
       : sourceScripts;
@@ -327,7 +333,7 @@ export const ScriptGallery: React.FC = () => {
     const filteredByType = typeFilter === 'all'
       ? filteredByDefaultCategories
       : typeFilter === 'tool'
-        ? filteredByDefaultCategories.filter(script => script.metadata?.isProtected === true)
+        ? filteredByDefaultCategories.filter(script => script.metadata?.isProtected === true || script.type === 'folder-project')
         : filteredByDefaultCategories.filter(script => script.type === typeFilter && !script.metadata?.isProtected);
 
     let searchedScripts = filteredByType;

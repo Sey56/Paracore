@@ -25,6 +25,7 @@ namespace Paracore.Addin.Helpers
                     throw new DirectoryNotFoundException($"Project directory not found: {projectPath}");
                 }
 
+                // V3: projectPath IS the Tool folder. No need to create a subfolder.
                 string projectName = new DirectoryInfo(projectPath).Name;
                 string scriptsPath = Path.Combine(projectPath, "Scripts");
                 
@@ -41,7 +42,6 @@ namespace Paracore.Addin.Helpers
                 WriteGlobalsCs(projectPath);
                 WriteEditorConfig(projectPath);
                 WriteCopilotInstructions(projectPath);
-                WriteVsCodeSettings(projectPath);
 
                 // 3. Open in VS Code
                 LaunchVsCode(projectPath);
@@ -79,6 +79,12 @@ namespace Paracore.Addin.Helpers
         public static void Cleanup()
         {
             // V3: No-op. We no longer manage temporary watchers.
+        }
+
+        public static bool StopSyncSession(string scriptPath)
+        {
+            // V3: Sync is no longer managed.
+            return true;
         }
 
         // --- SCAFFOLDING WRITERS ---
@@ -181,39 +187,13 @@ namespace Paracore.Addin.Helpers
                 "dotnet_diagnostic.CS8019.severity = warning");
         }
 
-        private static void WriteVsCodeSettings(string folderPath)
-        {
-            try
-            {
-                string vscodeFolder = Path.Combine(folderPath, ".vscode");
-                Directory.CreateDirectory(vscodeFolder);
-
-                string settingsContent = 
-                    "{\n" +
-                    "    \"files.exclude\": {\n" +
-                    "        \"**/*.csproj\": true,\n" +
-                    "        \"**/bin\": true,\n" +
-                    "        \"**/obj\": true,\n" +
-                    "        \"**/global.json\": true,\n" +
-                    "        \"**/Globals.cs\": true,\n" +
-                    "        \"**/.editorconfig\": true,\n" +
-                    "        \"**/.gitignore\": true,\n" +
-                    "        \"**/.github\": true,\n" +
-                    "        \"**/.vscode\": true\n" +
-                    "    }\n" +
-                    "}";
-
-                File.WriteAllText(Path.Combine(vscodeFolder, "settings.json"), settingsContent);
-            }
-            catch { }
-        }
-
         private static void WriteCopilotInstructions(string folderPath)
         {
             try
             {
                 string githubFolder = Path.Combine(folderPath, ".github");
                 Directory.CreateDirectory(githubFolder);
+                
                 string contextHeader = "# Current Script Context: FOLDER PROJECT\n# All logic goes into the Scripts/ folder.\n# Use #region GroupName directives to organize parameters.\n\n";
                 File.WriteAllText(Path.Combine(githubFolder, "copilot-instructions.md"), contextHeader + AiInstructions.CopilotInstructions);
             }

@@ -29,7 +29,14 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     return localStorage.getItem('isLayoutSwapped') === 'true';
   });
 
-  const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(null);
+  const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(() => {
+    try {
+      const stored = localStorage.getItem('activeScriptSource');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
   const toggleLayoutSwap = useCallback(() => {
     setIsLayoutSwapped(prev => {

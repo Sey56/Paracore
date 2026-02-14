@@ -564,7 +564,7 @@ export const Sidebar = () => {
                 onClick={() => { setSelectedScript(script); setActiveInspectorTab('parameters'); }}
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-3 shrink-0 group-hover:scale-125 transition-transform" />
-                <span className="truncate text-[13px] font-bold leading-none">{script.metadata.displayName || script.name}</span>
+                <span className="truncate text-[13px] font-bold leading-none">{(script.metadata?.displayName || script.name).replace(/\.cs$/, "")}</span>
               </li>
             ))}
             {scripts.filter((s: Script) => s.isFavorite).length === 0 && (
@@ -595,16 +595,19 @@ export const Sidebar = () => {
           }
         >
           <ul className="space-y-0.5 pr-2">
-            {recentScripts.map((script: Script) => (
-              <li
-                key={script.id}
-                className="group flex items-center py-1.5 px-3 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 cursor-pointer text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-indigo-100/50 dark:hover:border-indigo-900/30 active:scale-[0.98]"
-                onClick={() => { setSelectedScript(script); setActiveInspectorTab('parameters'); }}
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 dark:bg-indigo-500 mr-3 shrink-0 group-hover:scale-125 transition-transform" />
-                <span className="truncate text-[13px] font-bold leading-none">{script.metadata.displayName || script.name}</span>
-              </li>
-            ))}
+            {recentScripts
+              .map(id => scripts.find(s => s.id === id))
+              .filter((s): s is Script => !!s)
+              .map((script: Script) => (
+                <li
+                  key={script.id}
+                  className="group flex items-center py-1.5 px-3 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 cursor-pointer text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-indigo-100/50 dark:hover:border-indigo-900/30 active:scale-[0.98]"
+                  onClick={() => { setSelectedScript(script); setActiveInspectorTab('parameters'); }}
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 dark:bg-indigo-500 mr-3 shrink-0 group-hover:scale-125 transition-transform" />
+                  <span className="truncate text-[13px] font-bold leading-none">{(script.metadata?.displayName || script.name).replace(/\.cs$/, "")}</span>
+                </li>
+              ))}
             {recentScripts.length === 0 && (
               <li className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No recent activity</li>
             )}

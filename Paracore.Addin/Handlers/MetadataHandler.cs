@@ -32,6 +32,16 @@ namespace Paracore.Addin.Handlers
             var response = new GetScriptMetadataResponse();
             try
             {
+                if (request.ScriptFiles == null || request.ScriptFiles.Count == 0)
+                {
+                    response.Metadata = new CoreScript.ScriptMetadata
+                    {
+                        Name = "Uninitialized Tool",
+                        Description = "No scripts found. Click Edit to scaffold."
+                    };
+                    return response;
+                }
+
                 var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.ScriptFile
                 {
                     FileName = f.FileName,
@@ -66,6 +76,11 @@ namespace Paracore.Addin.Handlers
             var response = new GetScriptParametersResponse();
             try
             {
+                if (request.ScriptFiles == null || request.ScriptFiles.Count == 0)
+                {
+                    return response; // Return empty parameters list
+                }
+
                 var scriptFiles = request.ScriptFiles.Select(f => new CoreScript.Engine.Models.ScriptFile
                 {
                     FileName = f.FileName,
@@ -153,43 +168,56 @@ namespace Paracore.Addin.Handlers
 
                     try
                     {
-                        var scriptFiles = project.Files.Select(f => new CoreScript.Engine.Models.ScriptFile
+                        if (project.Files == null || project.Files.Count == 0)
                         {
-                            FileName = f.FileName,
-                            Content = f.Content
-                        }).ToList();
-
-                        string combined = _scriptCombiner.Combine(scriptFiles);
-                        var metadata = _metadataExtractor.ExtractMetadata(combined);
-                        var parameters = _parameterExtractor.ExtractParameters(combined);
-
-                        projResponse.Metadata = new CoreScript.ScriptMetadata
-                        {
-                            Name = metadata.Name ?? project.ProjectName,
-                            Description = metadata.Description,
-                            Author = metadata.Author,
-                            Website = metadata.Website,
-                            Categories = { metadata.Categories },
-                            LastRun = metadata.LastRun,
-                            Dependencies = { metadata.Dependencies },
-                            DocumentType = metadata.DocumentType,
-                            UsageExamples = { metadata.UsageExamples }
-                        };
-
-                        foreach (var p in parameters)
-                        {
-                            projResponse.Parameters.Add(new CoreScript.ScriptParameter
+                            // V3 REFINED: Handle uninitialized Tool folders (no Scripts/ folder yet)
+                            projResponse.Metadata = new CoreScript.ScriptMetadata
                             {
-                                Name = p.Name,
-                                Type = p.Type,
-                                DefaultValueJson = p.DefaultValueJson,
-                                Description = p.Description,
-                                MultiSelect = p.MultiSelect,
-                                NumericType = p.NumericType ?? "",
-                                Unit = p.Unit ?? "",
-                                Group = p.Group ?? "",
-                                InputType = p.InputType ?? ""
-                            });
+                                Name = project.ProjectName,
+                                Description = "No scripts found. Click Edit to scaffold.",
+                                Categories = { "Uninitialized" }
+                            };
+                        }
+                        else
+                        {
+                            var scriptFiles = project.Files.Select(f => new CoreScript.Engine.Models.ScriptFile
+                            {
+                                FileName = f.FileName,
+                                Content = f.Content
+                            }).ToList();
+
+                            string combined = _scriptCombiner.Combine(scriptFiles);
+                            var metadata = _metadataExtractor.ExtractMetadata(combined);
+                            var parameters = _parameterExtractor.ExtractParameters(combined);
+
+                            projResponse.Metadata = new CoreScript.ScriptMetadata
+                            {
+                                Name = metadata.Name ?? project.ProjectName,
+                                Description = metadata.Description,
+                                Author = metadata.Author,
+                                Website = metadata.Website,
+                                Categories = { metadata.Categories },
+                                LastRun = metadata.LastRun,
+                                Dependencies = { metadata.Dependencies },
+                                DocumentType = metadata.DocumentType,
+                                UsageExamples = { metadata.UsageExamples }
+                            };
+
+                            foreach (var p in parameters)
+                            {
+                                projResponse.Parameters.Add(new CoreScript.ScriptParameter
+                                {
+                                    Name = p.Name,
+                                    Type = p.Type,
+                                    DefaultValueJson = p.DefaultValueJson,
+                                    Description = p.Description,
+                                    MultiSelect = p.MultiSelect,
+                                    NumericType = p.NumericType ?? "",
+                                    Unit = p.Unit ?? "",
+                                    Group = p.Group ?? "",
+                                    InputType = p.InputType ?? ""
+                                });
+                            }
                         }
                     }
                     catch (Exception ex)

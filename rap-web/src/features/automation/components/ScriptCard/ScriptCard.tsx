@@ -58,7 +58,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     runScript,
     setSelectedScript,
     editScript,
-    clearSyncSession,
     renameScript,
     userEditedScriptParameters
   } = useScriptExecution();

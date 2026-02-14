@@ -238,11 +238,14 @@ def get_bulk_metadata(projects_data: list):
 
     return results
 
-def create_and_open_workspace(script_path, script_type):
+def create_and_open_workspace(tool_path: str, tool_type: str):
+    """
+    Tells the Addin to scaffold the Tool folder and open it in VS Code.
+    """
     with get_corescript_runner_stub() as stub:
         request = corescript_pb2.CreateWorkspaceRequest(
-            script_path=script_path,
-            script_type=script_type
+            script_path=tool_path,
+            script_type=tool_type
         )
         response = stub.CreateAndOpenWorkspace(request)
     return {
