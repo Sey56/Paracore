@@ -193,6 +193,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   const isRunDisabled = !!runningScriptPath || !isActionable || !isParamsValid;
 
+  const isProtectedTool = script.metadata.isProtected || script.name.toLowerCase().endsWith('.ptool');
+
   const finalTooltipMessage = !isParamsValid
     ? `Issues: ${validationErrors.join(', ')}`
     : tooltipMessage;
@@ -333,7 +335,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 )}
               </div>
             </div>
-            {activeRole !== Role.User && !script.metadata.isProtected && (
+            {activeRole !== Role.User && !isProtectedTool && (
               <button
                 title="View Code in Floating Window"
                 className="p-1 px-2.5 text-gray-500 hover:text-blue-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 flex items-center justify-center shadow-sm hover:border-blue-400 group"

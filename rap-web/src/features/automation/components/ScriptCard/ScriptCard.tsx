@@ -10,6 +10,7 @@ import {
   faEdit,
   faICursor,
   faFolder,
+  faBroom,
   faCompressAlt,
   faLock,
   faTools,
@@ -91,7 +92,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   const isSelected = selectedScript?.id === script.id;
   const isRunning = runningScriptPath === script.id;
-  const isTool = script.metadata?.isProtected === true;
+  const isProtectedTool = script.metadata?.isProtected === true || script.metadata?.isCompiled === true || script.absolutePath.endsWith('.ptool');
 
   // Connectivity logic
   const isParacoreConnected = ParacoreConnected;
@@ -160,13 +161,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   const handleStartRename = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setRenameValue(script.metadata.displayName || script.name.replace(/\.cs$/, ""));
+    setRenameValue(getDisplayName());
     setIsRenaming(true);
     setShowMenu(false);
   };
 
   const handleRenameSubmit = async () => {
-    const currentName = script.metadata.displayName || script.name.replace(/\.cs$/, "");
+    const currentName = getDisplayName();
     if (!renameValue.trim() || renameValue === currentName) {
       setIsRenaming(false);
       return;
@@ -185,49 +186,93 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (scaffoldingOnly: boolean = false) => {
     setIsDeleting(true);
-    const success = await deleteScript(script);
+    const success = await deleteScript(script, scaffoldingOnly);
     setIsDeleting(false);
     if (success) {
       setShowDeleteModal(false);
     }
   };
 
+  const getDisplayName = () => {
+    return script.metadata.displayName || script.name.replace(/\.(cs|ptool)$/, "");
+  };
+
   return (
     <div
       ref={cardRef}
       className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
-        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
+        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
       onClick={handleSelect}
     >
       {/* Delete Confirmation Modal */}
       <Modal 
         isOpen={showDeleteModal} 
         onClose={() => !isDeleting && setShowDeleteModal(false)} 
-        title="Delete Script"
-        size="sm"
+        title={isProtectedTool ? "Delete Protected Tool" : "Manage Script Project"}
+        size="md"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Are you sure you want to delete <span className="font-bold text-gray-900 dark:text-white">"{script.name}"</span>? 
-            This action cannot be undone.
-          </p>
-          <div className="flex justify-end space-x-3 pt-2">
+        <div className="space-y-6">
+          {isProtectedTool ? (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Are you sure you want to permanently delete the protected tool <span className="font-bold text-gray-900 dark:text-white">"{getDisplayName()}"</span>?
+              </p>
+              <div 
+                className="p-4 rounded-xl border-2 border-red-50 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 hover:border-red-200 dark:hover:border-red-800 transition-all cursor-pointer group"
+                onClick={() => !isDeleting && handleDelete(false)}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <h4 className="font-bold text-red-700 dark:text-red-400">Delete Tool</h4>
+                  {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-red-500" /> : <FontAwesomeIcon icon={faTrash} className="text-red-400 group-hover:scale-110 transition-transform" />}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the .ptool file from the library. This action cannot be undone.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Choose how you want to manage <span className="font-bold text-gray-900 dark:text-white">"{getDisplayName()}"</span>:
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                {/* Option 1: Clean Scaffolding */}
+                <div 
+                  className="p-4 rounded-xl border-2 border-blue-50 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-900/10 hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer group"
+                  onClick={() => !isDeleting && handleDelete(true)}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <h4 className="font-bold text-blue-700 dark:text-blue-400">Clear IDE Scaffolding</h4>
+                    {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-blue-500" /> : <FontAwesomeIcon icon={faBroom} className="text-blue-400 group-hover:scale-110 transition-transform" />}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Removes .sln, .csproj and other IDE files. Your C# logic in <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">Scripts/</code> will be preserved.</p>
+                </div>
+
+                {/* Option 2: Full Delete */}
+                <div 
+                  className="p-4 rounded-xl border-2 border-red-50 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 hover:border-red-200 dark:hover:border-red-800 transition-all cursor-pointer group"
+                  onClick={() => !isDeleting && handleDelete(false)}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <h4 className="font-bold text-red-700 dark:text-red-400">Full Delete</h4>
+                    {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-red-500" /> : <FontAwesomeIcon icon={faTrash} className="text-red-400 group-hover:scale-110 transition-transform" />}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the entire project folder and all its contents. This cannot be undone.</p>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-2">
             <button
               onClick={() => setShowDeleteModal(false)}
               disabled={isDeleting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             >
               Cancel
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 flex items-center"
-            >
-              {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="mr-2" /> : <FontAwesomeIcon icon={faTrash} className="mr-2" />}
-              {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </div>
@@ -250,13 +295,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
           ) : (
             <h3
               className={`font-medium ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"} truncate w-full pr-6`}
-              title={script.metadata.displayName || script.name.replace(/\.cs$/, "")}
+              title={getDisplayName()}
             >
-              {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
-              {script.metadata.isProtected && (
+              {getDisplayName()}
+              {isProtectedTool && (
                 <span className={`${styles.multiFileBadge} !bg-amber-100 !text-amber-700 dark:!bg-amber-900/30 dark:!text-amber-400 border border-amber-200 dark:border-amber-800 ml-2`}>
                   <FontAwesomeIcon icon={faTools} className="mr-1" style={{ fontSize: '0.6rem' }} />
-                  Tool
+                  Protected
                 </span>
               )}
             </h3>
@@ -330,7 +375,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
               <FontAwesomeIcon icon={showExitFocus ? faCompressAlt : faBullseye} />
             </button>
           )}
-          {script.metadata.isProtected && (
+          {isProtectedTool && (
             <div className="mr-2 text-amber-500" title="This is a protected tool">
               <FontAwesomeIcon icon={faTools} />
             </div>
@@ -349,7 +394,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
             <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
               {canCreateScripts && (
                 <>
-                  {!script.metadata.isProtected && (
+                  {!isProtectedTool && (
                     <button
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                       onClick={(e) => {
@@ -377,7 +422,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                     <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
                     Rename
                   </button>
-                  {!script.metadata.isProtected && (
+                  {!isProtectedTool && (
                     <button
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                       onClick={(e) => {

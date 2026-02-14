@@ -4,6 +4,7 @@ export interface ExecutionResult {
   isSuccess: boolean;
   structuredOutput?: StructuredOutput[];
   internalData?: string;
+  timestamp?: number;
 }
 
 import { StructuredOutput, ScriptParameter } from './scriptModel';

@@ -346,6 +346,11 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, [setActivePresets]);
 
   const fetchScriptContent = useCallback(async (script: Script) => {
+    if (!script?.absolutePath) {
+      console.warn("[ScriptExecutionProvider] Attempted to fetch content for a script with no path:", script);
+      return null;
+    }
+
     // Robust Fetch with Retries
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -952,6 +957,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         error: !result.is_success ? (result.error_message || (result.error_details && result.error_details.join('\n')) || null) : null,
         structuredOutput: result.structured_output,
         internalData: result.internal_data, // Add the new internal data field
+        timestamp: Date.now()
       };
 
       if (shouldUpdateGlobalState) {

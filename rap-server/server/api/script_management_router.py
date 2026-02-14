@@ -26,6 +26,7 @@ class NewScriptRequest(BaseModel):
 
 class DeleteScriptRequest(BaseModel):
     script_path: str
+    delete_scaffolding_only: bool = False
 
 class ComputeOptionsRequest(BaseModel):
     scriptPath: str
@@ -57,14 +58,14 @@ async def migrate_to_projects(request: MigrateRequest, current_user: CurrentUser
 async def create_new_script(request: NewScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
     if not os.path.isabs(request.parent_folder) or not os.path.isdir(request.parent_folder):
         raise HTTPException(status_code=400, detail="Invalid parent folder path.")
-    return script_service.create_new_script_logic(
+    return await script_service.create_new_script_logic(
         request.parent_folder, request.script_name, request.folder_name, request.template_id,
         request.generated_logic, request.generated_params, request.overwrite
     )
 
 @router.post("/api/scripts/delete", tags=["Script Management"])
 async def delete_script(request: DeleteScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
-    return script_service.delete_script_logic(request.script_path)
+    return script_service.delete_script_logic(request.script_path, request.delete_scaffolding_only)
 
 @router.get("/api/scripts", tags=["Script Management"])
 async def get_scripts(folderPath: str):

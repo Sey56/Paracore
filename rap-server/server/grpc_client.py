@@ -204,7 +204,9 @@ def get_bulk_metadata(projects_data: list):
             "document_type": m.document_type,
             "usage_examples": list(m.usage_examples),
             "website": m.website,
-            "lastRun": m.last_run
+            "lastRun": m.last_run,
+            "is_protected": m.is_protected,
+            "is_compiled": m.is_compiled
         }
         
         params_list = []

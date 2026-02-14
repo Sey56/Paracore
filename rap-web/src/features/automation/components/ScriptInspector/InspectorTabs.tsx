@@ -123,23 +123,31 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
 
       {/* Tab Content Area */}
       <div className="mt-4 flex-grow min-h-0 min-w-0 w-full overflow-hidden relative">
-        <div className={activeInspectorTab === 'parameters' ? 'h-full overflow-y-auto custom-scrollbar' : 'hidden'}>
-          <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
-        </div>
-        <div className={activeInspectorTab === 'console' ? 'h-full w-full min-w-0' : 'hidden'}>
-          <ConsoleTabContent
-            isRunning={isRunning}
-            executionResult={executionResult}
-            scriptName={script.name}
-            clearExecutionResult={clearExecutionResult}
-          />
-        </div>
-        <div className={activeInspectorTab === 'table' ? 'h-full' : 'hidden'}>
-          <TableTabContent executionResult={executionResult} />
-        </div>
-        <div className={activeInspectorTab === 'metadata' ? 'h-full' : 'hidden'}>
-          <MetadataTabContent metadata={script.metadata} />
-        </div>
+        {activeInspectorTab === 'parameters' && (
+          <div className="h-full overflow-y-auto custom-scrollbar">
+            <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
+          </div>
+        )}
+        {activeInspectorTab === 'console' && (
+          <div className="h-full w-full min-w-0">
+            <ConsoleTabContent
+              isRunning={isRunning}
+              executionResult={executionResult}
+              scriptName={script.name}
+              clearExecutionResult={clearExecutionResult}
+            />
+          </div>
+        )}
+        {activeInspectorTab === 'table' && (
+          <div className="h-full">
+            <TableTabContent executionResult={executionResult} />
+          </div>
+        )}
+        {activeInspectorTab === 'metadata' && (
+          <div className="h-full">
+            <MetadataTabContent metadata={script.metadata} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -48,7 +48,8 @@ namespace Paracore.Addin.Handlers
                     Content = f.Content
                 }).ToList();
                 string combinedScript = _scriptCombiner.Combine(scriptFiles);
-                var extractedMetadata = _metadataExtractor.ExtractMetadata(combinedScript);
+                var topLevelFile = _scriptParser.IdentifyTopLevelScript(scriptFiles);
+                var extractedMetadata = _metadataExtractor.ExtractMetadata(topLevelFile?.Content ?? combinedScript);
 
                 response.Metadata = new CoreScript.ScriptMetadata
                 {
@@ -187,7 +188,8 @@ namespace Paracore.Addin.Handlers
                             }).ToList();
 
                             string combined = _scriptCombiner.Combine(scriptFiles);
-                            var metadata = _metadataExtractor.ExtractMetadata(combined);
+                            var topLevelFile = _scriptParser.IdentifyTopLevelScript(scriptFiles);
+                            var metadata = _metadataExtractor.ExtractMetadata(topLevelFile?.Content ?? combined);
                             var parameters = _parameterExtractor.ExtractParameters(combined);
 
                             projResponse.Metadata = new CoreScript.ScriptMetadata
@@ -274,7 +276,10 @@ namespace Paracore.Addin.Handlers
                         }).ToList();
 
                         string combined = _scriptCombiner.Combine(scriptFiles);
-                        var metadata = _metadataExtractor.ExtractMetadata(combined);
+                        
+                        // V3.1 optimization: Extract metadata from the entry file specifically
+                        var topLevelFile = _scriptParser.IdentifyTopLevelScript(scriptFiles);
+                        var metadata = _metadataExtractor.ExtractMetadata(topLevelFile?.Content ?? combined);
                         var parameters = _parameterExtractor.ExtractParameters(combined);
 
                         var projectInfo = new

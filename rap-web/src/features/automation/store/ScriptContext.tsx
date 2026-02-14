@@ -16,7 +16,7 @@ export interface ScriptContextProps {
   combinedScriptContent: string | null;
   setCombinedScriptContent: (content: string | null) => void;
   createNewScript: (details: any) => Promise<Script | undefined>;
-  deleteScript: (script: Script) => Promise<boolean>;
+  deleteScript: (script: Script, scaffoldingOnly?: boolean) => Promise<boolean>;
 
   // Favorites & Recents
   favoriteScripts: string[];

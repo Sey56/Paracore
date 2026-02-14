@@ -240,6 +240,7 @@ export const ScriptGallery: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'projects' | 'protected'>('all');
   const [isCompactView, setIsCompactView] = useState(false);
   const [scriptToReplace, setScriptToReplace] = useState<Script | null>(null);
 
@@ -332,10 +333,16 @@ export const ScriptGallery: React.FC = () => {
       )
       : filteredBySidebarCategory;
 
-    let searchedScripts = filteredByDefaultCategories;
+    const filteredByType = typeFilter === 'all'
+      ? filteredByDefaultCategories
+      : typeFilter === 'protected'
+        ? filteredByDefaultCategories.filter(script => script.metadata?.isProtected === true || script.metadata?.isCompiled === true || script.absolutePath.endsWith('.ptool'))
+        : filteredByDefaultCategories.filter(script => !(script.metadata?.isProtected === true || script.metadata?.isCompiled === true || script.absolutePath.endsWith('.ptool')));
+
+    let searchedScripts = filteredByType;
     if (searchTerm) {
       const { author, param, desc, doctype, created, modified, general, categories } = filters;
-      searchedScripts = filteredByDefaultCategories.filter((script: Script) => {
+      searchedScripts = filteredByType.filter((script: Script) => {
         const lowercasedName = script.name.toLowerCase();
         const lowercasedDisplayName = (script.metadata?.displayName || '').toLowerCase();
         const lowercasedDescription = (script.metadata?.description || '').toLowerCase();
@@ -380,7 +387,7 @@ export const ScriptGallery: React.FC = () => {
     const favoriteScripts = sortedScripts.filter(script => script.isFavorite);
     const otherScripts = sortedScripts.filter(script => !script.isFavorite);
     return { favoriteScripts, otherScripts };
-  }, [scripts, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories]);
+  }, [scripts, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories, typeFilter]);
 
   const handleScriptSelect = (script: Script) => {
     setSelectedScript(script);
@@ -482,10 +489,53 @@ export const ScriptGallery: React.FC = () => {
             </div>
           </div>
 
+          {/* 3. Folder Actions Toolbar (Fixed Position) */}
+          {selectedFolder && (
+            <div className="flex items-end justify-between transition-all mb-6 w-full overflow-hidden">
+              <h2 className="text-sm text-gray-400 dark:text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis mr-4 pb-1">
+                {selectedFolder}
+              </h2>
+              {canCreateScripts && (
+                <div className="flex items-center space-x-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
+                      if (path) loadScriptsForFolder(path);
+                    }}
+                    className="p-1 px-2 text-gray-400 hover:text-blue-500 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 w-8 flex items-center justify-center"
+                    title="Rescan folder for new/deleted scripts"
+                    disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
+                  >
+                    <FontAwesomeIcon icon={faSync} />
+                  </button>
+
+                  <button
+                    onClick={() => setIsCompactView(!isCompactView)}
+                    className="p-1 px-2 text-gray-400 hover:text-blue-500 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 w-8 flex items-center justify-center"
+                    title={isCompactView ? "Expand Non-Favorites" : "Collapse Non-Favorites"}
+                    disabled={!isAuthenticated}
+                  >
+                    <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} />
+                  </button>
+
+                  <div className="relative" title={getNewScriptButtonTooltip()}>
+                    <button
+                      onClick={openNewScriptModal}
+                      className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-1 px-3 rounded-md font-bold border border-blue-200 dark:border-blue-800 transition-all text-sm h-8 flex items-center disabled:opacity-50 min-w-fit"
+                      disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
+                    >
+                      <span className="truncate">New Script</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="relative flex flex-col">
             {/* Favorites Section */}
             {favoriteScripts.length > 0 && (
-              <div className="mb-8 w-full order-1">
+              <div className="mb-2 w-full order-1">
                 <h2 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Favorites</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {favoriteScripts.map((script) => (
@@ -503,57 +553,14 @@ export const ScriptGallery: React.FC = () => {
               </div>
             )}
 
-            {/* Folder Actions Toolbar */}
-            {selectedFolder && (
-              <div className="flex items-center justify-between transition-all mb-4 mt-2 order-2 w-full overflow-hidden">
-                <h2 className="text-sm text-gray-400 dark:text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis mr-4">
-                  {selectedFolder}
-                </h2>
-                {canCreateScripts && (
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <button
-                      onClick={() => {
-                        const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
-                        if (path) loadScriptsForFolder(path);
-                      }}
-                      className="p-1 px-2 text-gray-400 hover:text-blue-500 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 w-8 flex items-center justify-center"
-                      title="Rescan folder for new/deleted scripts"
-                      disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
-                    >
-                      <FontAwesomeIcon icon={faSync} />
-                    </button>
-
-                    <button
-                      onClick={() => setIsCompactView(!isCompactView)}
-                      className="p-1 px-2 text-gray-400 hover:text-blue-500 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 w-8 flex items-center justify-center"
-                      title={isCompactView ? "Expand Non-Favorites" : "Collapse Non-Favorites"}
-                      disabled={!isAuthenticated}
-                    >
-                      <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} />
-                    </button>
-
-                    <div className="relative" title={getNewScriptButtonTooltip()}>
-                      <button
-                        onClick={openNewScriptModal}
-                        className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-1 px-3 rounded-md font-bold border border-blue-200 dark:border-blue-800 transition-all text-sm h-8 flex items-center disabled:opacity-50 min-w-fit"
-                        disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
-                      >
-                        <span className="truncate">New Script</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Divider */}
             {favoriteScripts.length > 0 && otherScripts.length > 0 && (
-              <div className="border-t border-gray-200 dark:border-gray-700 my-8 order-3 w-full"></div>
+              <div className="border-t border-gray-200 dark:border-gray-700 mt-2 mb-4 order-2 w-full"></div>
             )}
 
             {/* Other Scripts Section */}
             {otherScripts.length > 0 && (
-              <div className="w-full order-4">
+              <div className="w-full order-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {otherScripts.map((script) => (
                     <ScriptCard
@@ -572,7 +579,7 @@ export const ScriptGallery: React.FC = () => {
 
             {/* Empty States */}
             {favoriteScripts.length === 0 && otherScripts.length === 0 && (
-              <div className="text-gray-500 dark:text-gray-400 text-sm italic py-20 text-center order-5 w-full">
+              <div className="text-gray-500 dark:text-gray-400 text-sm italic py-20 text-center order-4 w-full">
                 {isAuthenticated ? (searchTerm ? 'No matches.' : 'No scripts found.') : 'Sign in to load scripts.'}
               </div>
             )}
@@ -599,6 +606,22 @@ export const ScriptGallery: React.FC = () => {
           scriptToReplace={scriptToReplace}
         />
       )}
+
+      {/* 5. Type Filter Bar */}
+      <div className={`p-4 transition-opacity duration-300 ${isFocusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div className={styles.filterBar}>
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'projects', label: 'Projects' },
+            { id: 'protected', label: 'Protected' }
+          ].map(t => (
+            <div key={t.id} className={`${styles.filterItem} ${typeFilter === t.id ? styles.activeFilter : ''}`} onClick={() => setTypeFilter(t.id as 'all' | 'projects' | 'protected')}>
+              <input type="radio" checked={typeFilter === t.id} readOnly />
+              <label className="capitalize cursor-pointer">{t.label}</label>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

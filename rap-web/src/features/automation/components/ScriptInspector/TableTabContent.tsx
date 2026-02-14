@@ -103,7 +103,10 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
         {hasOutput && executionResult?.structuredOutput ? (
           <div className="space-y-4">
             {executionResult.structuredOutput.map((item, index) => (
-              <StructuredOutputViewer key={index} item={item} />
+              <StructuredOutputViewer 
+                key={`${executionResult.timestamp ?? 'last'}-${index}`} 
+                item={item} 
+              />
             ))}
           </div>
         ) : (

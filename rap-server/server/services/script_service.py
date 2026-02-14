@@ -83,10 +83,14 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                     "absolutePath": project_path,
                     "sourcePath": project_path,
                     "metadata": {
-                        "displayName": get_val(meta_obj, "name") or project_name,
+                        "displayName": get_val(meta_obj, "displayName") or get_val(meta_obj, "name") or project_name,
                         "description": get_val(meta_obj, "description") or "Click Edit to scaffold.",
                         "author": get_val(meta_obj, "author") or "",
                         "categories": list(get_val(meta_obj, "categories", [])) or ["Uninitialized"],
+                        "documentType": get_val(meta_obj, "document_type") or "Any",
+                        "usage_examples": list(get_val(meta_obj, "usage_examples", [])),
+                        "isProtected": get_val(meta_obj, "is_protected", False),
+                        "isCompiled": get_val(meta_obj, "is_compiled", False),
                         "dateCreated": datetime.fromtimestamp(folder_stat.st_ctime).isoformat(),
                         "dateModified": datetime.fromtimestamp(folder_stat.st_mtime).isoformat()
                     },
@@ -246,7 +250,25 @@ async def get_script_metadata_logic(script_path: str):
                     script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
 
         if not script_files: return {"metadata": {"displayName": os.path.basename(absolute_path)}}
-        return grpc_client.get_script_metadata(script_files)
+        res = grpc_client.get_script_metadata(script_files)
+        
+        # Normalize to camelCase for frontend
+        if res and "metadata" in res:
+            m = res["metadata"]
+            res["metadata"] = {
+                "displayName": m.get("name") or os.path.basename(absolute_path),
+                "description": m.get("description"),
+                "author": m.get("author"),
+                "website": m.get("website"),
+                "categories": m.get("categories"),
+                "lastRun": m.get("last_run"),
+                "dependencies": m.get("dependencies"),
+                "documentType": m.get("document_type") or "Any",
+                "usage_examples": m.get("usage_examples"),
+                "isProtected": m.get("is_protected"),
+                "isCompiled": m.get("is_compiled")
+            }
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -270,7 +292,7 @@ async def get_script_content_logic(script_path: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def create_new_script_logic(parent_folder: str, script_name: str, folder_name: Optional[str] = None, template_id: str = "blank", generated_logic: Optional[str] = None, generated_params: Optional[str] = None, overwrite: bool = False):
+async def create_new_script_logic(parent_folder: str, script_name: str, folder_name: Optional[str] = None, template_id: str = "blank", generated_logic: Optional[str] = None, generated_params: Optional[str] = None, overwrite: bool = False):
     clean_name = script_name.replace('.cs', '')
     project_dir = os.path.join(parent_folder, clean_name)
     scripts_dir = os.path.join(project_dir, "Scripts")
@@ -289,7 +311,12 @@ def create_new_script_logic(parent_folder: str, script_name: str, folder_name: O
             f.write(template_code)
             
         _ensure_pack_gitignore(parent_folder)
-        return {"message": f"Successfully created tool: {clean_name}", "script_path": project_dir}
+        
+        # V3.1: Return the full hydrated script object so the UI can immediately select it
+        all_scripts = await get_all_scripts(parent_folder)
+        new_script = next((s for s in all_scripts if s["absolutePath"].replace('\\', '/') == project_dir.replace('\\', '/')), None)
+        
+        return new_script or {"message": f"Successfully created tool: {clean_name}", "script_path": project_dir}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}")
 
@@ -316,13 +343,39 @@ async def save_script_logic(script_path: str, content: Optional[str], filename: 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save: {str(e)}")
 
-def delete_script_logic(script_path: str):
+def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False):
     try:
         path = resolve_script_path(script_path)
-        if os.path.isdir(path):
-            import shutil
-            shutil.rmtree(path)
-        else: os.remove(path)
-        return {"success": True, "message": f"Deleted {os.path.basename(script_path)}"}
+        if not os.path.exists(path):
+            raise HTTPException(status_code=404, detail="Path not found.")
+
+        if delete_scaffolding_only:
+            if not os.path.isdir(path):
+                raise HTTPException(status_code=400, detail="Scaffolding can only be cleared from project folders.")
+            
+            # Delete everything EXCEPT the Scripts subfolder
+            deleted_count = 0
+            for item in os.listdir(path):
+                if item == "Scripts": continue
+                item_path = os.path.join(path, item)
+                try:
+                    if os.path.isdir(item_path):
+                        import shutil
+                        shutil.rmtree(item_path)
+                    else:
+                        os.remove(item_path)
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"[ScriptService] Failed to delete {item}: {e}")
+            
+            return {"success": True, "message": f"Cleaned {deleted_count} IDE files. Logic preserved."}
+        else:
+            # Full Delete
+            if os.path.isdir(path):
+                import shutil
+                shutil.rmtree(path)
+            else: 
+                os.remove(path)
+            return {"success": True, "message": f"Deleted {os.path.basename(script_path)}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

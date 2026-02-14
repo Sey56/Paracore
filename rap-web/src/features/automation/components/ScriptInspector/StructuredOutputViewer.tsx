@@ -358,27 +358,27 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
     if (item.type === 'chart-bar') {
       return (
-        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={commonChartProps}>
+        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ ...commonChartProps, minWidth: 0 }}>
           <Toolbar />
-          <ResponsiveContainer width="100%" height="100%"><BarChart data={parsedData}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }} itemStyle={{ color: '#60a5fa' }} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}><BarChart data={parsedData}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }} itemStyle={{ color: '#60a5fa' }} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
         </div>
       );
     }
 
     if (item.type === 'chart-pie') {
       return (
-        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={commonChartProps}>
+        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ ...commonChartProps, minWidth: 0 }}>
           <Toolbar />
-          <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={parsedData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" label={{ fontSize: 10 }} isAnimationActive={true}>{(parsedData as { value: number }[]).map((_, i: number) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip content={<CustomPieTooltip />} /><Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}><PieChart><Pie data={parsedData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" label={{ fontSize: 10 }} isAnimationActive={true}>{(parsedData as { value: number }[]).map((_, i: number) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip content={<CustomPieTooltip />} /><Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer>
         </div>
       );
     }
 
     if (item.type === 'chart-line') {
       return (
-        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={commonChartProps}>
+        <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ ...commonChartProps, minWidth: 0 }}>
           <Toolbar />
-          <ResponsiveContainer width="100%" height="100%"><LineChart data={parsedData} margin={{ right: 30 }}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} /></LineChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}><LineChart data={parsedData} margin={{ right: 30 }}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} /></LineChart></ResponsiveContainer>
         </div>
       );
     }

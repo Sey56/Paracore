@@ -35,7 +35,7 @@ export const ScriptInspector: React.FC = () => {
       return false;
     }
 
-    const scriptDocType = script.metadata.documentType?.trim().toLowerCase();
+    const scriptDocType = script.metadata?.documentType?.trim().toLowerCase();
     const revitDocType = revitStatus.documentType?.trim().toLowerCase();
 
     // If script's documentType is not specified or is "Any", it's compatible with any open document.
@@ -67,7 +67,7 @@ export const ScriptInspector: React.FC = () => {
       }
 
       if (scriptDocType && scriptDocType !== 'any') {
-        return `This script requires '${script.metadata.documentType}' document type, but the current is '${revitStatus.documentType || "None"}'`;
+        return `This script requires '${script.metadata?.documentType || "specified"}' document type, but the current is '${revitStatus.documentType || "None"}'`;
       }
     }
     return "";
@@ -77,11 +77,6 @@ export const ScriptInspector: React.FC = () => {
 
   const handleToggleFavorite = (scriptId: string) => {
     toggleFavoriteScript(scriptId);
-    // Find the updated script from the scripts array and set it as selected
-    const updatedScript = scripts.find(s => s.id === scriptId);
-    if (updatedScript) {
-      setSelectedScript(updatedScript);
-    }
   };
 
   return (

@@ -80,8 +80,18 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [lastRunTimes, setLastRunTimes] = useLocalStorage<Record<string, string>>('rap_lastRunTimes', {});
 
   const toggleFavoriteScript = useCallback((scriptId: string) => {
-    setFavoriteScripts(prev => prev.includes(scriptId) ? prev.filter(id => id !== scriptId) : [...prev, scriptId]);
-  }, [setFavoriteScripts]);
+    setFavoriteScripts(prev => {
+      const isFavorite = prev.includes(scriptId);
+      const next = isFavorite ? prev.filter(id => id !== scriptId) : [...prev, scriptId];
+      
+      // Update local scripts state immediately for instant feedback
+      setScripts(currentScripts => currentScripts.map(s => 
+        s.id === scriptId ? { ...s, isFavorite: !isFavorite } : s
+      ));
+      
+      return next;
+    });
+  }, [setFavoriteScripts, setScripts]);
 
   const clearFavoriteScripts = useCallback(() => setFavoriteScripts([]), [setFavoriteScripts]);
 
@@ -154,14 +164,17 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [selectedFolder, loadScriptsFromPath, showNotification]);
 
-  const deleteScript = useCallback(async (script: Script) => {
+  const deleteScript = useCallback(async (script: Script, scaffoldingOnly: boolean = false) => {
     try {
-      await api.post("/api/scripts/delete", { script_path: script.absolutePath });
+      await api.post("/api/scripts/delete", { 
+        script_path: script.absolutePath,
+        delete_scaffolding_only: scaffoldingOnly 
+      });
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
-      showNotification("Script deleted", "success");
+      showNotification(scaffoldingOnly ? "Scaffolding cleared" : "Script deleted", "success");
       return true;
     } catch (error: any) {
-      showNotification("Failed to delete script", "error");
+      showNotification(scaffoldingOnly ? "Failed to clear scaffolding" : "Failed to delete script", "error");
       return false;
     }
   }, [selectedFolder, loadScriptsFromPath, showNotification]);

@@ -59,10 +59,13 @@ namespace CoreScript.Engine.Core
             SyntaxTree tree = CSharpSyntaxTree.ParseText(scriptContent);
             var root = tree.GetRoot();
 
-            var multilineComments = root.DescendantTrivia()
+            // V3.1: Also check leading trivia of the root itself, in case comment is at the very top
+            var multilineComments = root.GetLeadingTrivia()
+                .Concat(root.DescendantTrivia())
                 .Where(trivia => trivia.Kind() == SyntaxKind.MultiLineCommentTrivia ||
                                  trivia.Kind() == SyntaxKind.MultiLineDocumentationCommentTrivia)
                 .Select(trivia => trivia.ToString())
+                .Distinct()
                 .ToList();
 
             foreach (var commentText in multilineComments)
@@ -104,13 +107,17 @@ namespace CoreScript.Engine.Core
             var lines = cleanComment.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             string? currentKey = null;
             var currentValue = new List<string>();
-            var keyRegex = new Regex(@"^([a-zA-Z_]+):\s*(.*)");
+            
+            // V3.1: More permissive key regex (allows spaces like 'Usage Examples')
+            var keyRegex = new Regex(@"^([a-zA-Z_\s]+):\s*(.*)");
 
             Action processPreviousKey = () =>
             {
                 if (currentKey != null && currentValue.Count > 0)
                 {
-                    ProcessMetadataValue(metadata, currentKey, string.Join("\n", currentValue).Trim());
+                    // Clean key by removing spaces for the switch statement
+                    string cleanKey = currentKey.Replace(" ", "").ToLower();
+                    ProcessMetadataValue(metadata, cleanKey, string.Join("\n", currentValue).Trim());
                 }
                 currentValue.Clear();
             };
@@ -140,7 +147,7 @@ namespace CoreScript.Engine.Core
         {
             if (string.IsNullOrEmpty(value)) return;
 
-            switch (key.ToLower())
+            switch (key)
             {
                 case "author":
                     metadata.Author = value;
@@ -152,11 +159,22 @@ namespace CoreScript.Engine.Core
                     metadata.LastRun = value;
                     break;
                 case "documenttype":
-                    if (value.Equals("ConceptualMass", StringComparison.OrdinalIgnoreCase) ||
-                        value.Equals("Project", StringComparison.OrdinalIgnoreCase) ||
-                        value.Equals("Family", StringComparison.OrdinalIgnoreCase))
+                case "document_type":
+                    if (value.Equals("ConceptualMass", StringComparison.OrdinalIgnoreCase))
                     {
-                        metadata.DocumentType = value;
+                        metadata.DocumentType = "ConceptualMass";
+                    }
+                    else if (value.Equals("Project", StringComparison.OrdinalIgnoreCase))
+                    {
+                        metadata.DocumentType = "Project";
+                    }
+                    else if (value.Equals("Family", StringComparison.OrdinalIgnoreCase))
+                    {
+                        metadata.DocumentType = "Family";
+                    }
+                    else
+                    {
+                        metadata.DocumentType = "Any";
                     }
                     break;
                 case "categories":
@@ -169,15 +187,18 @@ namespace CoreScript.Engine.Core
                     metadata.Description = value;
                     break;
                 case "usageexamples":
-                    _logger.Log($"[MetadataExtractor] Raw UsageExamples value: '{value}'", LogLevel.Debug);
+                case "usage_examples":
                     var exampleLines = value.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                     foreach (var exampleLine in exampleLines)
                     {
                         var trimmedLine = exampleLine.Trim();
-                        _logger.Log($"[MetadataExtractor] Processed UsageExample line: '{trimmedLine}'", LogLevel.Debug);
                         if (trimmedLine.StartsWith("-"))
                         {
                             metadata.UsageExamples.Add(trimmedLine.Substring(1).Trim());
+                        }
+                        else if (!string.IsNullOrWhiteSpace(trimmedLine))
+                        {
+                            metadata.UsageExamples.Add(trimmedLine);
                         }
                     }
                     break;
