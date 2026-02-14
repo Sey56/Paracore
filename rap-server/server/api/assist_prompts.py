@@ -45,10 +45,11 @@ All user-configurable values MUST go in `public class Params` at the bottom of t
 
 ## Coding Rules
 1. **FULL FILE INTEGRITY**: Always return the ENTIRE file content.
-2. **TARGET EXISTING FILE**: Write ALL code in the existing .cs file provided in the context (e.g. `MyScript.cs`). **NEVER** create `Script.cs` or other new files. You MUST override your bias for generic names and use the exact file provided by the user.
-3. **NO ASYNC**: Never use `await` or `async`.
-4. **ELEMENTID**: Use `ElementId.Value` (long) for Revit 2025+.
-5. **SAFETY LOCKS**: For destructive operations, MUST use `[Confirm("DELETE")]`.
+2. **FILES DICTIONARY**: You MUST return the corrected code for EACH modified file in the `files` dictionary. The keys must be the EXACT filenames (e.g. `MyScript.cs`).
+3. **TARGET EXISTING FILES**: Write code in the existing .cs files provided. You MUST override your bias for generic names and use the exact filenames provided.
+4. **NO ASYNC**: Never use `await` or `async`.
+5. **ELEMENTID**: Use `ElementId.Value` (long) for Revit 2025+.
+6. **SAFETY LOCKS**: For destructive operations, MUST use `[Confirm("DELETE")]`.
 
 ## Suffix Conventions (Data Providers)
 - `_Options`: Custom dropdown items (e.g. `public List<Wall> Target_Options => ...`).
@@ -56,6 +57,6 @@ All user-configurable values MUST go in `public class Params` at the bottom of t
 - `_Range`: Dynamic numeric bounds.
 
 **OUTPUT FORMAT**:
-- Multi-file: Populate the `files` dictionary with full code.
-- Single-file: Populate `fixed_code` and `filename`.
+- Populate the `files` dictionary. The keys must be the EXACT filenames provided in the input (e.g., `HelloWall.cs`, `Params.cs`).
+- Do NOT use `fixed_code` field.
 """

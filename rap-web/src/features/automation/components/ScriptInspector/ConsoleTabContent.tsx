@@ -104,13 +104,10 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
         return;
       }
 
-      // For single file, we might have content loaded in combinedScriptContent, 
-      // but for multi-file we prefer backend loading via path.
-      // We send both path/type AND script_code (as fallback/context)
+      // We send both path AND script_code (as fallback/context)
       const response = await api.post("/generation/explain_error", {
         script_code: combinedScriptContent || "",
         script_path: selectedScript.absolutePath,
-        type: selectedScript.type,
         error_message: executionResult.error,
         context: {
           document: revitStatus.document || "Unknown",
@@ -141,10 +138,9 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
 
     setIsApplyingFix(true);
     try {
-      // Determine payload based on single vs multi-file result
-      const payload: { script_path: string; type: string; files?: Record<string, string>; content?: string; filename?: string } = {
+      // Determine payload for saving
+      const payload: { script_path: string; files?: Record<string, string>; content?: string; filename?: string } = {
         script_path: selectedScript.absolutePath,
-        type: selectedScript.type,
       };
 
       if (aiResult.files) {
@@ -235,7 +231,6 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
                 </div>
 
                 {aiResult.files ? (
-                  // Multi-file Display
                   Object.entries(aiResult.files).map(([fname, fcode]) => (
                     <div key={fname} className="space-y-2">
                       <div className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border-l-4 border-blue-500 text-xs font-bold text-gray-700 dark:text-gray-200 rounded-r shadow-sm flex justify-between items-center">
@@ -255,7 +250,6 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
                     </div>
                   ))
                 ) : (
-                  // Single-file Fallback
                   <div className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs w-full overflow-hidden">
                     <SyntaxHighlighter
                       language="csharp"

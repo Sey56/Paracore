@@ -4,7 +4,6 @@ export const mockScripts: Script[] = [
   {
     id: 'wall-schedule',
     name: 'Wall Schedule Generator', // Mapped from title
-    type: "single-file", // Assuming single-file for mocks
     sourcePath: "mock/wall-schedule.cs", // Placeholder
     absolutePath: "/mock/wall-schedule.cs", // Placeholder
     isFavorite: false,
@@ -40,7 +39,6 @@ export const mockScripts: Script[] = [
   {
     id: 'room-tag',
     name: 'Room Tag Updater', // Mapped from title
-    type: "single-file", // Assuming single-file for mocks
     sourcePath: "mock/room-tag.cs", // Placeholder
     absolutePath: "/mock/room-tag.cs", // Placeholder
     isFavorite: true,

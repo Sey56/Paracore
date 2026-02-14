@@ -80,10 +80,6 @@ namespace CoreScript.Engine.Core
                 }
             }
 
-            resultParts.Add(""); 
-            resultParts.Add("// --- Project Script Bodies ---");
-            resultParts.Add("");
-
             // 2. Add each file as a contiguous block. 
             foreach (var file in scriptFiles)
             {

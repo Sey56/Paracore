@@ -22,19 +22,23 @@ namespace CoreScript.Engine.Core.Rewriters
             var paramName = node.Identifier.Text;
             if (_parameters.TryGetValue(paramName, out _))
             {
-                var pullExpression = SyntaxFactory.ParseExpression("CoreScript.Engine.Globals.ExecutionGlobals.Get<" + node.Type.ToString() + ">(\"" + paramName + "\")");
+                // V3.1 FIX: Ensure the AccessorList (the { get; set; } part) does NOT carry a newline into the initializer.
+                // We clear the trailing trivia from the AccessorList and move it to the SemicolonToken at the end of the line.
+                var cleanAccessorList = node.AccessorList?.WithTrailingTrivia(SyntaxFactory.Space);
+
+                var pullExpression = SyntaxFactory.ParseExpression($"CoreScript.Engine.Globals.ExecutionGlobals.Get<{node.Type}>(\"{paramName}\")");
                 
-                // Create the initializer with a space before the equals sign
                 var initializer = SyntaxFactory.EqualsValueClause(pullExpression)
-                    .WithLeadingTrivia(SyntaxFactory.Space)
-                    .WithTrailingTrivia(SyntaxFactory.Space);
+                    .WithLeadingTrivia(SyntaxFactory.Space);
                 
-                // Remove any existing initializer and add the new one
-                // Keep everything on the same line by preserving only the trailing trivia from the original node
+                // Get the original trailing trivia (which usually contains the newline)
+                var originalTrailingTrivia = node.GetTrailingTrivia();
+
                 var updatedNode = node
+                    .WithAccessorList(cleanAccessorList)
                     .WithInitializer(initializer)
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)
-                        .WithTrailingTrivia(node.GetTrailingTrivia()));
+                        .WithTrailingTrivia(originalTrailingTrivia));
                 
                 return updatedNode;
             }

@@ -323,7 +323,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           "Content-Type": "application/json",
           "Authorization": `Bearer ${cloudToken}`
         },
-        body: JSON.stringify({ scriptPath: script.absolutePath, type: script.type }),
+        body: JSON.stringify({ scriptPath: script.absolutePath }),
       });
 
       if (!response.ok) {
@@ -346,15 +346,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, [setActivePresets]);
 
   const fetchScriptContent = useCallback(async (script: Script) => {
-    if (!script.sourcePath) {
-      setCombinedScriptContent('// No source path available for this script type.');
-      return null;
-    }
-
     // Robust Fetch with Retries
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(script.sourcePath)}&type=${script.type}`);
+        const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(script.absolutePath)}`);
         return response.data.sourceCode;
       } catch (error) {
         if (attempt < 2) {
@@ -469,7 +464,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setExecutionResult(null);
 
       try {
-        const paramsResult = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
+        const paramsResult = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath })
           .then(response => response.data)
           .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }));
 
@@ -562,7 +557,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       // --- Parameters Promise (only runs if not cached AND not reusable) ---
       if (!canReusePassedParameters) {
         promises.push(
-          api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type })
+          api.post("/api/get-script-parameters", { scriptPath: script.absolutePath })
             .then(response => response.data)
             .catch(err => ({ error: `Failed to fetch parameters: ${err.message}` }))
         );
@@ -937,7 +932,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     const body = {
       path: script.absolutePath || "",
-      type: script.type,
       parameters: finalParameters ? JSON.stringify(finalParameters) : undefined,
       source_folder: sourceFolder, // New field
       source_team_source: sourceTeamSource, // New field
@@ -1006,7 +1000,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
       const response = await api.post("/api/compute-parameter-options", {
         scriptPath: script.absolutePath,
-        type: script.type,
         parameterName: parameterName,
         parameters: flatParams
       });

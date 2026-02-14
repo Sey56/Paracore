@@ -13,7 +13,6 @@ from utils import get_or_create_script, resolve_script_path
 async def run_script_logic(
     path: str,
     parameters: Any,
-    script_type: str,
     source_folder: Optional[str],
     source_team_source: Optional[str],
     thread_id: Optional[str],
@@ -32,7 +31,7 @@ async def run_script_logic(
 
         script_files_payload = []
         
-        # Handle .ptool (Binary tools)
+        # 1. Handle .ptool (Binary tools)
         if path.endswith('.ptool'):
             import base64
             with open(resolved_path, 'r', encoding='utf-8') as f:
@@ -62,28 +61,21 @@ async def run_script_logic(
             response_data = execute_script(None, parameters_json, compiled_assembly)
             return response_data
 
-        # Handle source scripts
-        if script_type == "folder-project":
-            scripts_dir = os.path.join(resolved_path, "Scripts")
-            if not os.path.isdir(scripts_dir):
-                raise HTTPException(status_code=404, detail=f"Scripts folder missing in project: {resolved_path}")
-                
+        # 2. Unified Tool Loading: Always look in Scripts/ subfolder
+        scripts_dir = os.path.join(resolved_path, "Scripts")
+        if os.path.isdir(scripts_dir):
             for fpath in glob.glob(os.path.join(scripts_dir, "*.cs")):
                 if os.path.basename(fpath).lower() == "globals.cs": continue
                 with open(fpath, 'r', encoding='utf-8-sig') as f:
                     script_files_payload.append({"file_name": os.path.basename(fpath), "content": f.read()})
-        elif script_type == "single-file":
-            # Legacy/Migration support for single files if needed
-            with open(resolved_path, 'r', encoding='utf-8-sig') as f:
-                script_files_payload.append({"file_name": os.path.basename(path), "content": f.read()})
-        elif script_type == "multi-file":
-            # Legacy multi-file support (no Scripts/ folder)
-            for fpath in glob.glob(os.path.join(resolved_path, "*.cs")):
-                with open(fpath, 'r', encoding='utf-8-sig') as f:
-                    script_files_payload.append({"file_name": os.path.basename(fpath), "content": f.read()})
+        else:
+            # Fallback for non-folder scripts (Legacy/Migration)
+            if os.path.isfile(resolved_path):
+                with open(resolved_path, 'r', encoding='utf-8-sig') as f:
+                    script_files_payload.append({"file_name": os.path.basename(path), "content": f.read()})
 
         if not script_files_payload:
-            raise HTTPException(status_code=404, detail="No script files found.")
+            raise HTTPException(status_code=404, detail="No script files found in this project.")
 
         # Parameter Processing
         def parse_value(val):

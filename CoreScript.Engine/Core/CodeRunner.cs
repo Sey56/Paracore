@@ -105,10 +105,9 @@ namespace CoreScript.Engine.Core
                 string combinedUserCode = _scriptCombiner.Combine(scriptFiles);
                 string modifiedUserCode = _scriptRewriter.Rewrite(combinedUserCode, parameters);
                 
-                // Inject our internal static using WITHOUT shifting lines. #line hidden ensures it's not reported in errors.
+                // V3.1: Start with #line hidden to ensure internal using doesn't count toward line numbers
                 finalScriptCode = "#line hidden" + Environment.NewLine + 
                                   "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
-                                  "#line default" + Environment.NewLine +
                                   modifiedUserCode;
 
                 try
@@ -271,7 +270,6 @@ namespace CoreScript.Engine.Core
             
             string finalScriptCode = "#line hidden" + Environment.NewLine + 
                                   "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
-                                  "#line default" + Environment.NewLine +
                                   modifiedUserCode;
 
             try

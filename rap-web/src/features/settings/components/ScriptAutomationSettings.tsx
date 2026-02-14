@@ -26,7 +26,7 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
       
       <div className="space-y-4 mb-8">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Add folders to scan for C# scripts. The application will find all `.cs` files in the root of the folder and treat subdirectories as multi-script execution units.
+          Add folders to scan for C# automation tools. The application will find all subfolders containing a <code>Scripts/</code> directory and treat them as unified project tools.
         </p>
         
         <div className="flex items-center space-x-2">

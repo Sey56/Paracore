@@ -32,9 +32,9 @@ class FixAttempt(BaseModel):
 class ExplainErrorResponse(BaseModel):
     is_success: bool = Field(description="True if the AI successfully provided a fix.", default=False)
     explanation: str = Field(description="Clear explanation of the error and the fix.", default="")
-    fixed_code: Optional[str] = Field(description="The complete fixed C# code (Mandatory for single-file scripts).", default=None)
+    fixed_code: Optional[str] = Field(description="Legacy field for fixed code.", default=None)
     filename: Optional[str] = Field(description="The relative filename being fixed (e.g. 'Main.cs').", default=None)
-    files: Optional[Dict[str, str]] = Field(description="A dictionary of filenames to their FULL fixed code contents (Mandatory for multi-file scripts). Use relative paths as keys.", default=None)
+    files: Optional[Dict[str, str]] = Field(description="A dictionary of filenames to their FULL fixed code contents. Use relative paths as keys.", default=None)
     error_message: Optional[str] = Field(description="Internal error message if the AI processing failed.", default=None)
 
 # Define the Pydantic-ai Agent
@@ -47,7 +47,6 @@ error_fix_agent = Agent(
 async def explain_error_logic(
     script_code: str,
     script_path: str,
-    script_type: str,
     error_message: str,
     context: Dict[str, str],
     llm_provider: str,
@@ -80,36 +79,38 @@ async def explain_error_logic(
 
         context_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
         
-        # Resolve source code context from IDE workspace if active
+        # Resolve source code context from IDE workspace
         source_context = ""
-        if script_type == "multi-file":
-            try:
-                scripts_dir = get_scripts_dir(script_path, script_type)
-                if os.path.isdir(scripts_dir):
-                    files_found = []
-                    for fpath in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                        fname = os.path.basename(fpath)
-                        if fname.lower() == "globals.cs": continue
+        try:
+            scripts_dir = get_scripts_dir(script_path)
+            if os.path.isdir(scripts_dir):
+                files_found = []
+                for fpath in glob.glob(os.path.join(scripts_dir, "*.cs")):
+                    fname = os.path.basename(fpath)
+                    if fname.lower() == "globals.cs": continue
+                    try:
+                        with open(fpath, 'r', encoding='utf-8-sig') as f: content = f.read()
+                    except:
                         try:
-                            with open(fpath, 'r', encoding='utf-8-sig') as f: content = f.read()
-                        except:
-                            try:
-                                with open(fpath, 'r', encoding='utf-8') as f: content = f.read()
-                            except: continue
-                        if content: files_found.append(f"### FILE: {fname}\n{content}")
-                    source_context = "\n\n".join(files_found) if files_found else script_code
-                else: source_context = script_code
-            except Exception as e:
-                logger.error(f"Failed to load files for AI fix: {e}")
-                source_context = script_code
-        else: source_context = script_code
+                            with open(fpath, 'r', encoding='utf-8') as f: content = f.read()
+                        except: continue
+                    if content: files_found.append(f"### FILE: {fname}\n{content}")
+                source_context = "\n\n".join(files_found) if files_found else script_code
+            else: 
+                # Fallback to single file read if scripts dir logic fails but path is a file
+                if os.path.isfile(script_path):
+                    with open(script_path, 'r', encoding='utf-8-sig') as f: source_context = f"### FILE: {os.path.basename(script_path)}\n{f.read()}"
+                else:
+                    source_context = script_code
+        except Exception as e:
+            logger.error(f"Failed to load files for AI fix: {e}")
+            source_context = script_code
 
         prompt = f"""[ERROR MESSAGE]
 {error_message}
 
 [SCRIPT CONTEXT]
 Path: {script_path}
-Type: {script_type}
 {context_str}
 
 {history_context}

@@ -115,7 +115,6 @@ export interface RawScriptMetadataFromApi {
 export interface RawScriptFromApi {
   id: string;
   name: string;
-  type: "single-file" | "multi-file";
   sourcePath: string;
   absolutePath: string;
   parameters: ScriptParameter[];
@@ -127,7 +126,6 @@ export interface RawScriptFromApi {
 export interface Script {
   id: string;
   name: string;
-  type: "single-file" | "multi-file";
   sourcePath: string;
   absolutePath: string;
   parameters: ScriptParameter[];

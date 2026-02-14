@@ -14,8 +14,6 @@ interface NewScriptModalProps {
   scriptToReplace?: Script | null;
 }
 
-type ScriptType = 'single' | 'multi';
-
 const ARCHETYPES = [
   { id: 'blank', label: 'Blank Canvas', icon: faCode, description: 'Standard Hello World template.' },
   { id: 'selection-surgeon', label: 'Selection Surgeon', icon: faStethoscope, description: 'Modify currently selected elements.' },
@@ -28,10 +26,8 @@ const ARCHETYPES = [
 export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplace }: NewScriptModalProps) => {
   const { createNewScript } = useScripts();
   const { setSelectedScript } = useScriptExecution();
-  const [scriptType, setScriptType] = useState<ScriptType>('single');
   const [templateId, setTemplateId] = useState('blank');
   const [scriptName, setScriptName] = useState('');
-  const [folderName, setFolderName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,14 +42,10 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
   useEffect(() => {
     if (isOpen) {
       if (scriptToReplace) {
-        setScriptType(scriptToReplace.type === 'single-file' ? 'single' : 'multi');
         const nameWithoutExt = scriptToReplace.name.replace(/\.cs$/, "");
-        if (scriptToReplace.type === 'single-file') setScriptName(nameWithoutExt);
-        else setFolderName(nameWithoutExt);
+        setScriptName(nameWithoutExt);
       } else {
-        setScriptType('single');
         setScriptName('');
-        setFolderName('');
       }
       setTemplateId('blank');
       setSearchTerm('');
@@ -71,12 +63,8 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
   );
 
   const handleCreate = async (forceOverwrite: boolean = false) => {
-    if (scriptType === 'single' && !scriptName.trim()) {
+    if (!scriptName.trim()) {
       setError('Script name cannot be empty.');
-      return;
-    }
-    if (scriptType === 'multi' && !folderName.trim()) {
-      setError('Folder name cannot be empty for a multi-script project.');
       return;
     }
 
@@ -91,10 +79,8 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
     try {
       const createdScript = await createNewScript({
         parent_folder: selectedFolder,
-        script_type: scriptType,
-        script_name: scriptType === 'multi' ? 'Main' : scriptName,
-        folder_name: scriptType === 'multi' ? folderName : undefined,
-        template_id: scriptType === 'single' ? templateId : undefined,
+        script_name: scriptName,
+        template_id: templateId,
         generated_logic: generatedLogic || undefined,
         generated_params: generatedParams || undefined,
         overwrite: isReplacing || forceOverwrite
@@ -119,7 +105,7 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
     }
   };
 
-  const showQueryBuilder = scriptType === 'single' && (templateId === 'selection-surgeon' || templateId === 'project-auditor');
+  const showQueryBuilder = templateId === 'selection-surgeon' || templateId === 'project-auditor';
 
   if (showConfirmReplace) {
     return (
@@ -130,7 +116,7 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
             <h3 className="font-bold">Overwrite Existing Script?</h3>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-300">
-            The script <span className="font-bold text-gray-900 dark:text-white">"{scriptType === 'multi' ? folderName : scriptName}"</span> already exists. 
+            The script <span className="font-bold text-gray-900 dark:text-white">"{scriptName}"</span> already exists. 
             Replacing it will overwrite all current code with the new archetype/logic.
           </p>
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-800">
@@ -174,49 +160,18 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
                 </div>
               )}
 
-              {/* Script Type Selection */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Script Type</label>
-                <div className={`grid grid-cols-2 gap-3 ${isReplacing ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <button
-                    type="button"
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 ${scriptType === 'single'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
-                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700'
-                      }`}
-                    onClick={() => setScriptType('single')}
-                  >
-                    <FontAwesomeIcon icon={faFileCode} className={`text-xl mb-1 ${scriptType === 'single' ? 'text-blue-500' : 'text-gray-400'}`} />
-                    <span className="font-bold text-xs">Single-File</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 ${scriptType === 'multi'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
-                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700'
-                      }`}
-                    onClick={() => setScriptType('multi')}
-                  >
-                    <div className="relative">
-                      <FontAwesomeIcon icon={faFolderOpen} className={`text-xl mb-1 ${scriptType === 'multi' ? 'text-blue-500' : 'text-gray-400'}`} />
-                    </div>
-                    <span className="font-bold text-xs">Multi-File</span>
-                  </button>
-                </div>
-              </div>
-
               {/* Name Input */}
               <div className="p-1">
                 <label htmlFor="scriptName" className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                  {scriptType === 'multi' ? 'Folder Name' : 'Script Name (.cs)'}
+                  Script Name
                 </label>
                 <input
                   type="text"
                   id="scriptName"
-                  value={scriptType === 'multi' ? folderName : scriptName}
-                  onChange={(e) => scriptType === 'multi' ? setFolderName(e.target.value) : setScriptName(e.target.value)}
+                  value={scriptName}
+                  onChange={(e) => setScriptName(e.target.value)}
                   className={`block w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dark:text-white text-sm ${isReplacing ? 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed text-gray-500' : ''}`}
-                  placeholder={scriptType === 'multi' ? "e.g., MyProject" : "e.g., HelloWorld"}
+                  placeholder="e.g., HelloWorld"
                   autoFocus={!isReplacing}
                   readOnly={isReplacing}
                 />
@@ -226,55 +181,47 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
 
             {/* Right Column: Patterns & Builder */}
             <div className="space-y-6">
-              {scriptType === 'single' ? (
-                <>
-                  {/* Archetype Picker */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pattern Archetype</label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          placeholder="Filter..."
-                          className="text-[10px] px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-1 focus:ring-blue-500 outline-none w-28"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2 p-1">
-                      {filteredArchetypes.map((arch) => (
-                        <button
-                          key={arch.id}
-                          type="button"
-                          onClick={() => setTemplateId(arch.id)}
-                          className={`flex items-center p-2 rounded-lg border text-left transition-all duration-200 ${templateId === arch.id
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500'
-                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-200'
-                            }`}
-                        >
-                          <div className={`mr-3 shrink-0 ${templateId === arch.id ? 'text-blue-500' : 'text-gray-400'}`}>
-                            <FontAwesomeIcon icon={arch.icon} className="text-sm" />
-                          </div>
-                          <div>
-                            <div className={`text-xs font-bold ${templateId === arch.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>
-                              {arch.label}
-                            </div>
-                            <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
-                              {arch.description}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+              {/* Archetype Picker */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pattern Archetype</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Filter..."
+                      className="text-[10px] px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md focus:ring-1 focus:ring-blue-500 outline-none w-28"
+                    />
                   </div>
-                </>
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-400 text-xs italic bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center">
-                  Multi-file scripts use the standard template with modular organization support.
                 </div>
-              )}
+
+                <div className="grid grid-cols-1 gap-2 p-1">
+                  {filteredArchetypes.map((arch) => (
+                    <button
+                      key={arch.id}
+                      type="button"
+                      onClick={() => setTemplateId(arch.id)}
+                      className={`flex items-center p-2 rounded-lg border text-left transition-all duration-200 ${templateId === arch.id
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500'
+                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-200'
+                        }`}
+                    >
+                      <div className={`mr-3 shrink-0 ${templateId === arch.id ? 'text-blue-500' : 'text-gray-400'}`}>
+                        <FontAwesomeIcon icon={arch.icon} className="text-sm" />
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold ${templateId === arch.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                          {arch.label}
+                        </div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                          {arch.description}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 

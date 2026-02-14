@@ -1,5 +1,7 @@
-# Current Script Type: SINGLE-FILE
-# Keep ALL logic, helpers, and the Params class in THIS ONE .cs file.
+# Script Context: Paracore Tool Project
+# All logic goes into the Scripts/ folder.
+# Modularization is optional. If simple, keep everything in the entry file. 
+# If complex, create helper files like Utils.cs, Params.cs, etc.
 # PARAMETER GROUPING: use #region GroupName directives to organize parameters.
 
 # Paracore Scripting Reference

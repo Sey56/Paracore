@@ -1,12 +1,13 @@
 import { createContext } from 'react';
 import { Script } from '@/types/scriptModel';
 import { TeamScriptSource } from '@/types';
+import { ActiveScriptSource } from '@/context/providers/UIContext';
 
 export interface ScriptContextProps {
   scripts: Script[];
   setScripts: React.Dispatch<React.SetStateAction<Script[]>>;
-  activeScriptSource: { type: 'local' | 'team'; id?: string; path: string; name: string } | null;
-  setActiveScriptSource: (source: { type: 'local' | 'team'; id?: string; path: string; name: string } | null) => void;
+  activeScriptSource: ActiveScriptSource;
+  setActiveScriptSource: (source: ActiveScriptSource) => void;
   loadScriptsForFolder: (path: string, silent?: boolean) => Promise<Script[] | undefined>;
   fetchScriptMetadata: (scriptId: string) => Promise<void>;
   reloadScript: (script: Script, options?: { silent?: boolean }) => Promise<void>;

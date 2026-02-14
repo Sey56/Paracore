@@ -91,7 +91,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   const isSelected = selectedScript?.id === script.id;
   const isRunning = runningScriptPath === script.id;
-  const isMultiFile = script.type === 'multi-file';
   const isTool = script.metadata?.isProtected === true;
 
   // Connectivity logic
@@ -199,7 +198,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     <div
       ref={cardRef}
       className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
-        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isMultiFile ? styles.multiFile : ""} ${isTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
+        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
       onClick={handleSelect}
     >
       {/* Delete Confirmation Modal */}
@@ -254,12 +253,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
               title={script.metadata.displayName || script.name.replace(/\.cs$/, "")}
             >
               {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
-              {isMultiFile && (
-                <span className={styles.multiFileBadge}>
-                  <FontAwesomeIcon icon={faFolder} className="mr-1" style={{ fontSize: '0.6rem' }} />
-                  Multi
-                </span>
-              )}
               {script.metadata.isProtected && (
                 <span className={`${styles.multiFileBadge} !bg-amber-100 !text-amber-700 dark:!bg-amber-900/30 dark:!text-amber-400 border border-amber-200 dark:border-amber-800 ml-2`}>
                   <FontAwesomeIcon icon={faTools} className="mr-1" style={{ fontSize: '0.6rem' }} />
@@ -337,11 +330,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
               <FontAwesomeIcon icon={showExitFocus ? faCompressAlt : faBullseye} />
             </button>
           )}
-          {isMultiFile && (
-            <div className="mr-2 text-blue-500" title="This is a multi-file script">
-              <FontAwesomeIcon icon={faFolder} />
-            </div>
-          )}
           {script.metadata.isProtected && (
             <div className="mr-2 text-amber-500" title="This is a protected tool">
               <FontAwesomeIcon icon={faTools} />
@@ -389,7 +377,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                     <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
                     Rename
                   </button>
-                  {!isMultiFile && !script.metadata.isProtected && (
+                  {!script.metadata.isProtected && (
                     <button
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                       onClick={(e) => {

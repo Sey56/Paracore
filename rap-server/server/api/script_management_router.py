@@ -17,7 +17,6 @@ class MigrateRequest(BaseModel):
     folder_path: str
 class NewScriptRequest(BaseModel):
     parent_folder: str = Field(..., description="The absolute path of the folder where the script or folder will be created.")
-    script_type: Literal['single', 'multi'] = Field(..., description="The type of script to create.")
     script_name: str = Field(..., description="The name of the .cs file to create.")
     folder_name: str | None = Field(None, description="The name of the folder for multi-script projects.")
     template_id: str = Field("blank", description="The ID of the industrial archetype to use.")
@@ -27,11 +26,9 @@ class NewScriptRequest(BaseModel):
 
 class DeleteScriptRequest(BaseModel):
     script_path: str
-    script_type: str
 
 class ComputeOptionsRequest(BaseModel):
     scriptPath: str
-    type: str
     parameterName: str
     parameters: Optional[Dict] = None
 
@@ -41,7 +38,6 @@ class RenameRequest(BaseModel):
 
 class SaveScriptRequest(BaseModel):
     script_path: str
-    type: str
     content: Optional[str] = None
     filename: Optional[str] = None
     files: Optional[Dict[str, str]] = None
@@ -51,7 +47,7 @@ class SaveScriptRequest(BaseModel):
 @router.post("/api/admin/migrate-to-projects", tags=["Script Management"])
 async def migrate_to_projects(request: MigrateRequest, current_user: CurrentUser = Depends(get_current_user)):
     """
-    Developer-only endpoint to convert single-file scripts in a folder to project folders.
+    Developer-only endpoint to convert legacy scripts in a folder to unified project folders.
     """
     if current_user.activeRole != 'admin':
         raise HTTPException(status_code=403, detail="Only admins can trigger migration.")
@@ -62,13 +58,13 @@ async def create_new_script(request: NewScriptRequest, current_user: CurrentUser
     if not os.path.isabs(request.parent_folder) or not os.path.isdir(request.parent_folder):
         raise HTTPException(status_code=400, detail="Invalid parent folder path.")
     return script_service.create_new_script_logic(
-        request.parent_folder, request.script_type, request.script_name, request.folder_name, request.template_id,
+        request.parent_folder, request.script_name, request.folder_name, request.template_id,
         request.generated_logic, request.generated_params, request.overwrite
     )
 
 @router.post("/api/scripts/delete", tags=["Script Management"])
 async def delete_script(request: DeleteScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
-    return script_service.delete_script_logic(request.script_path, request.script_type)
+    return script_service.delete_script_logic(request.script_path)
 
 @router.get("/api/scripts", tags=["Script Management"])
 async def get_scripts(folderPath: str):
@@ -80,35 +76,35 @@ async def get_scripts(folderPath: str):
 @router.post("/api/script-metadata", tags=["Script Management"])
 async def get_script_metadata_endpoint(request: Request):
     data = await request.json()
-    script_path, script_type = data.get("scriptPath"), data.get("type")
-    if not script_path or not script_type:
-        raise HTTPException(status_code=400, detail="scriptPath and type are required.")
-    response = await script_service.get_script_metadata_logic(script_path, script_type)
+    script_path = data.get("scriptPath")
+    if not script_path:
+        raise HTTPException(status_code=400, detail="scriptPath is required.")
+    response = await script_service.get_script_metadata_logic(script_path)
     return JSONResponse(content=response)
 
 @router.post("/api/get-script-parameters", tags=["Script Management"])
 async def get_script_parameters_endpoint(request: Request):
     data = await request.json()
-    script_path, script_type = data.get("scriptPath"), data.get("type")
-    if not script_path or not script_type:
-        raise HTTPException(status_code=400, detail="scriptPath and type are required.")
-    response = await script_service.get_script_parameters_logic(script_path, script_type)
+    script_path = data.get("scriptPath")
+    if not script_path:
+        raise HTTPException(status_code=400, detail="scriptPath is required.")
+    response = await script_service.get_script_parameters_logic(script_path)
     return JSONResponse(content=response)
 
 @router.get("/api/script-content", tags=["Script Management"])
-async def get_script_content(scriptPath: str, type: str):
-    if not scriptPath or not type:
-        raise HTTPException(status_code=400, detail="scriptPath and type are required")
-    response = await script_service.get_script_content_logic(scriptPath, type)
+async def get_script_content(scriptPath: str):
+    if not scriptPath:
+        raise HTTPException(status_code=400, detail="scriptPath is required")
+    response = await script_service.get_script_content_logic(scriptPath)
     return JSONResponse(content=response)
 
 @router.post("/api/edit-script", tags=["Script Management"])
 async def edit_script(request: Request, current_user: CurrentUser = Depends(get_current_user)):
     data = await request.json()
-    script_path, script_type = data.get("scriptPath"), data.get("type")
-    if not script_path or not script_type:
-        raise HTTPException(status_code=400, detail="scriptPath and type are required.")
-    response = await script_service.edit_script_logic(script_path, script_type)
+    script_path = data.get("scriptPath")
+    if not script_path:
+        raise HTTPException(status_code=400, detail="scriptPath is required.")
+    response = await script_service.edit_script_logic(script_path)
     return JSONResponse(content=response)
 
 @router.post("/api/save-script", tags=["Script Management"])
@@ -119,7 +115,7 @@ async def save_script(request: SaveScriptRequest, current_user: CurrentUser = De
         raise HTTPException(status_code=400, detail="Either 'content' or 'files' must be provided.")
     
     response = await script_service.save_script_logic(
-        request.script_path, request.type, request.content, request.filename, request.files
+        request.script_path, request.content, request.filename, request.files
     )
     return response
 

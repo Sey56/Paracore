@@ -52,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (!fs.existsSync(githubFolder)) {
           fs.mkdirSync(githubFolder);
         }
-        const contextHeader = "# Current Script Type: MULTI-FILE FOLDER\n# Modularization is OPTIONAL. Entry point is auto-detected by Roslyn.\n# If simple, keep everything in the entry file. If complex, create Utils.cs, Params.cs, etc.\n# PARAMETER GROUPING: use #region GroupName directives to organize parameters.\n\n";
+        const contextHeader = "# Script Context: Paracore Tool Project\n# All logic goes into the Scripts/ folder.\n# Modularization is optional. If simple, keep everything in the entry file.\n# If complex, create helper files like Utils.cs, Params.cs, etc.\n# PARAMETER GROUPING: use #region GroupName directives to organize parameters.\n\n";
         fs.writeFileSync(path.join(githubFolder, "copilot-instructions.md"), contextHeader + COPILOT_INSTRUCTIONS);
 
         // 📦 Create workspaceName.csproj

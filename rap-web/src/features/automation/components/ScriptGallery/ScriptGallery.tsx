@@ -241,7 +241,6 @@ export const ScriptGallery: React.FC = () => {
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
   const [isCompactView, setIsCompactView] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<'all' | 'single-file' | 'multi-file' | 'tool'>('all');
   const [scriptToReplace, setScriptToReplace] = useState<Script | null>(null);
 
   // Scroll Preservation Logic
@@ -306,9 +305,11 @@ export const ScriptGallery: React.FC = () => {
 
   const isFromActiveSource = (script: Script) => {
     if (!script || !script.absolutePath) return false;
-    if (activeScriptSource?.path) {
+    // Safely check if path exists on the active source
+    const sourcePath = (activeScriptSource && 'path' in activeScriptSource) ? activeScriptSource.path : null;
+    if (sourcePath) {
       // CASE INSENSITIVE check for Windows paths
-      return script.absolutePath.toLowerCase().startsWith(activeScriptSource.path.toLowerCase());
+      return script.absolutePath.toLowerCase().startsWith(sourcePath.toLowerCase());
     }
     return false;
   };
@@ -330,16 +331,11 @@ export const ScriptGallery: React.FC = () => {
         selectedDefaultCategories.every(cat => (script.metadata?.categories || []).includes(cat))
       )
       : filteredBySidebarCategory;
-    const filteredByType = typeFilter === 'all'
-      ? filteredByDefaultCategories
-      : typeFilter === 'tool'
-        ? filteredByDefaultCategories.filter(script => script.metadata?.isProtected === true || script.type === 'folder-project')
-        : filteredByDefaultCategories.filter(script => script.type === typeFilter && !script.metadata?.isProtected);
 
-    let searchedScripts = filteredByType;
+    let searchedScripts = filteredByDefaultCategories;
     if (searchTerm) {
       const { author, param, desc, doctype, created, modified, general, categories } = filters;
-      searchedScripts = filteredByType.filter((script: Script) => {
+      searchedScripts = filteredByDefaultCategories.filter((script: Script) => {
         const lowercasedName = script.name.toLowerCase();
         const lowercasedDisplayName = (script.metadata?.displayName || '').toLowerCase();
         const lowercasedDescription = (script.metadata?.description || '').toLowerCase();
@@ -384,7 +380,7 @@ export const ScriptGallery: React.FC = () => {
     const favoriteScripts = sortedScripts.filter(script => script.isFavorite);
     const otherScripts = sortedScripts.filter(script => !script.isFavorite);
     return { favoriteScripts, otherScripts };
-  }, [scripts, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories, typeFilter]);
+  }, [scripts, searchTerm, sortOrder, selectedCategory, filters, selectedDefaultCategories]);
 
   const handleScriptSelect = (script: Script) => {
     setSelectedScript(script);
@@ -603,18 +599,6 @@ export const ScriptGallery: React.FC = () => {
           scriptToReplace={scriptToReplace}
         />
       )}
-
-      {/* 5. Type Filter Bar */}
-      <div className={`p-4 transition-opacity duration-300 ${isFocusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-        <div className={styles.filterBar}>
-          {['all', 'single-file', 'multi-file', 'tool'].map(t => (
-            <div key={t} className={`${styles.filterItem} ${typeFilter === t ? styles.activeFilter : ''}`} onClick={() => setTypeFilter(t as 'all' | 'single-file' | 'multi-file' | 'tool')}>
-              <input type="radio" checked={typeFilter === t} readOnly />
-              <label className="capitalize cursor-pointer">{t === 'single-file' ? 'Single' : t === 'multi-file' ? 'Multi' : t === 'tool' ? 'Tool' : 'All'}</label>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

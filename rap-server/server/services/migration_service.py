@@ -12,7 +12,7 @@ def migrate_scripts_to_v3(script_source_path: str):
         if not os.path.exists(script_source_path):
             return
 
-        # 1. Migrate single .cs files to Script Project folders
+        # 1. Migrate standalone .cs files to Script Project folders
         for cs_file in os.listdir(script_source_path):
             if not cs_file.lower().endswith(".cs"): continue
             if cs_file.lower() == "globals.cs": continue
@@ -26,9 +26,9 @@ def migrate_scripts_to_v3(script_source_path: str):
             
             os.makedirs(scripts_dir, exist_ok=True)
             shutil.move(cs_file_full, os.path.join(scripts_dir, cs_file))
-            logging.info(f"Migrated single script to project: {script_name}")
+            logging.info(f"Migrated standalone script to project: {script_name}")
 
-        # 2. Migrate legacy multi-file folders to Script Project folders
+        # 2. Migrate legacy folders to unified Script Project folders
         for folder in os.listdir(script_source_path):
             folder_path = os.path.join(script_source_path, folder)
             if not os.path.isdir(folder_path): continue
@@ -43,7 +43,7 @@ def migrate_scripts_to_v3(script_source_path: str):
                     if os.path.isfile(item_path) and item.lower().endswith(".cs"):
                         shutil.move(item_path, os.path.join(scripts_dir, item))
                 
-                logging.info(f"Migrated legacy multi-file folder to project: {folder}")
+                logging.info(f"Migrated legacy folder to project: {folder}")
 
         # 3. Centralize .gitignore at Pack root
         from .script_service import _ensure_pack_gitignore

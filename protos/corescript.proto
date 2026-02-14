@@ -32,15 +32,15 @@ message StopSyncSessionResponse {
 }
 
 message GetCategoryParametersRequest {
-  string category_name = 1; // e.g., "OST_Walls"
+  string category_name = 1; 
 }
 
 message ParameterDefinition {
   string name = 1;
-  string storage_type = 2; // "String", "Double", "Integer", "ElementId"
+  string storage_type = 2; 
   bool is_builtin = 3;
-  int32 builtin_id = 4; // BuiltInParameter integer value
-  string revit_element_type = 5; // e.g., "Level", "Material"
+  int32 builtin_id = 4; 
+  string revit_element_type = 5; 
 }
 
 message GetCategoryParametersResponse {
@@ -49,12 +49,12 @@ message GetCategoryParametersResponse {
 }
 
 message PickObjectRequest {
-  string selection_type = 1; // "Element", "Point", "Face", "Edge"
-  string category_filter = 2; // Optional: BuiltInCategory name or "Walls", "Doors", etc.
+  string selection_type = 1; 
+  string category_filter = 2; 
 }
 
 message PickObjectResponse {
-  string value = 1; // The ID or coordinates returned
+  string value = 1; 
   bool is_success = 2;
   bool cancelled = 3;
   string error_message = 4;
@@ -71,7 +71,6 @@ message SelectElementsResponse {
 
 message CreateWorkspaceRequest {
   string script_path = 1;
-  string script_type = 2;
 }
 
 message CreateWorkspaceResponse {
@@ -88,7 +87,7 @@ message ExecuteScriptRequest {
   string script_content = 1;
   bytes parameters_json = 2;
   string source = 3;
-  bytes compiled_assembly = 4; // Binary C# assembly for proprietary tools
+  bytes compiled_assembly = 4; 
 }
 
 message StructuredOutputItem {
@@ -131,22 +130,19 @@ message GetScriptParametersRequest {
   repeated ScriptFile script_files = 1;
 }
 
-// Represents the metadata for a single script (single-file or multi-file).
-// This is the new, finalized format.
 message ScriptMetadata {
-  string name = 1;                  // Name of the script (filename or folder name)
-  string file_path = 2;             // Relative path from the agent workspace root
-  string script_type = 3;           // "single-file" or "multi-file"
+  string name = 1;                  
+  string file_path = 2;             
   string description = 4;
   string author = 5;
   repeated string categories = 6;
   repeated string dependencies = 7;
   string document_type = 8;
-  repeated string usage_examples = 9;        // New field for usage examples
+  repeated string usage_examples = 9;        
   string website = 10; 
   string last_run = 11;
-  bool is_protected = 12;           // If true, UI hides Code and VS Code buttons
-  bool is_compiled = 13;            // If true, the tool is distributed as binary (.ptool)
+  bool is_protected = 12;           
+  bool is_compiled = 13;            
 }
 
 
@@ -164,13 +160,11 @@ message ScriptParameter {
   bool multi_select = 6;
   string visible_when = 7;
   
-  // Enhanced Numeric Types
-  string numeric_type = 8;  // "int" or "double"
+  string numeric_type = 8;  
   optional double min = 9;
   optional double max = 10;
   optional double step = 11;
   
-  // Revit Element Selection
   bool is_revit_element = 12;
   string revit_element_type = 13;
   string revit_element_category = 14;
@@ -210,7 +204,7 @@ message ScriptMetadataResponse {
 
 message GetCombinedScriptRequest {
   repeated ScriptFile script_files = 1;
-  string script_path = 2; // Optional: Path to the script for context
+  string script_path = 2; 
 }
 
 message GetCombinedScriptResponse {
@@ -280,20 +274,19 @@ message ComputeParameterOptionsResponse {
   bool is_success = 2;
   string error_message = 3;
   
-  // Dynamic Range Execution
   optional double min = 4;
   optional double max = 5;
   optional double step = 6;
 }
 
 message RenameScriptRequest {
-  string old_path = 1;       // Full path to the existing script file
-  string new_name = 2;       // New filename (without extension)
+  string old_path = 1;       
+  string new_name = 2;       
 }
 
 message RenameScriptResponse {
   bool is_success = 1;
-  string new_path = 2;       // Full path to the renamed script file
+  string new_path = 2;       
   string error_message = 3;
 }
 

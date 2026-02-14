@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 class ExplainErrorRequest(BaseModel):
     script_code: str
     script_path: str
-    type: str  # single-file or multi-file
     error_message: str
     context: Dict[str, str]
     llm_provider: str
@@ -26,7 +25,6 @@ async def explain_error(request: ExplainErrorRequest, current_user: CurrentUser 
     return await assist_service.explain_error_logic(
         script_code=request.script_code,
         script_path=request.script_path,
-        script_type=request.type,
         error_message=request.error_message,
         context=request.context,
         llm_provider=request.llm_provider,

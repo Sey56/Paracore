@@ -27,7 +27,6 @@ async def run_script(
     response_data = await execution_service.run_script_logic(
         path=data.get("path"),
         parameters=data.get("parameters"),
-        script_type=data.get("type"),
         source_folder=data.get("source_folder"),
         source_team_source=data.get("source_team_source"),
         thread_id=data.get("thread_id"),

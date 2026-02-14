@@ -156,7 +156,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deleteScript = useCallback(async (script: Script) => {
     try {
-      await api.post("/api/scripts/delete", { script_path: script.absolutePath, script_type: script.type });
+      await api.post("/api/scripts/delete", { script_path: script.absolutePath });
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
       showNotification("Script deleted", "success");
       return true;
@@ -208,15 +208,15 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const script = scriptsRef.current.find(s => s.id === scriptId);
     if (!script) return;
     try {
-      const response = await api.post("/api/script-metadata", { scriptPath: script.absolutePath, type: script.type });
+      const response = await api.post("/api/script-metadata", { scriptPath: script.absolutePath });
       setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: { ...s.metadata, ...response.data.metadata } } : s));
     } catch (err) { }
   }, []);
 
   const reloadScript = useCallback(async (script: Script, options: { silent?: boolean } = {}) => {
     try {
-      const paramsRes = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath, type: script.type });
-      const metadataRes = await api.post("/api/script-metadata", { scriptPath: script.absolutePath, type: script.type });
+      const paramsRes = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath });
+      const metadataRes = await api.post("/api/script-metadata", { scriptPath: script.absolutePath });
       setScripts(prev => prev.map(s => s.id === script.id ? { ...s, parameters: paramsRes.data.parameters, metadata: { ...s.metadata, ...metadataRes.data.metadata } } : s));
     } catch (err) { }
   }, []);

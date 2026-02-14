@@ -1,4 +1,4 @@
-# --- Template for new single-file scripts ---
+# --- Standard Tool Template ---
 CSHARP_TEMPLATE = """// 1. Setup
 var p = new Params();
 
@@ -20,7 +20,7 @@ public class Params {
 }
 """
 
-# --- Template for Main.cs in multi-file scripts ---
+# --- Project Entry Point (Main.cs) Template ---
 MULTI_FILE_MAIN_TEMPLATE = """// 1. Setup
 var p = new Params();
 
@@ -39,7 +39,7 @@ public class Params {
 }
 """
 
-# --- Industrial Archetypes for Single-File Scripts ---
+# --- Industrial Archetypes for Tools ---
 ARCHETYPES = {
     "blank": CSHARP_TEMPLATE,
     

@@ -80,7 +80,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                 tools.append({
                     "id": project_path,
                     "name": project_name,
-                    "type": "folder-project", 
                     "absolutePath": project_path,
                     "sourcePath": project_path,
                     "metadata": {
@@ -99,7 +98,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                 tools.append({
                     "id": project_path,
                     "name": project_name,
-                    "type": "folder-project",
                     "absolutePath": project_path,
                     "metadata": {"displayName": project_name, "description": "Error loading folder info."},
                     "parameters": []
@@ -132,7 +130,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                 tools.append({
                     "id": resolved_ptool_path.replace('\\', '/'),
                     "name": os.path.basename(resolved_ptool_path),
-                    "type": "single-file",
                     "absolutePath": resolved_ptool_path.replace('\\', '/'),
                     "parameters": hydrated_params,
                     "metadata": {
@@ -148,7 +145,7 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-async def edit_script_logic(tool_path: str, script_type: str):
+async def edit_script_logic(tool_path: str):
     try:
         project_root = resolve_script_path(tool_path)
         project_name = os.path.basename(project_root)
@@ -165,7 +162,7 @@ async def edit_script_logic(tool_path: str, script_type: str):
 
         _scaffold_project_inplace(project_root, project_name)
         set_active_ide_session(project_root)
-        grpc_client.create_and_open_workspace(project_root, "folder-project")
+        grpc_client.create_and_open_workspace(project_root)
         
         return {"message": f"Opening tool: {project_name}"}
     except Exception as e:
@@ -199,7 +196,7 @@ def _ensure_pack_gitignore(pack_dir: str):
                 f.write(content)
     except: pass
 
-async def get_script_parameters_logic(script_path: str, script_type: str):
+async def get_script_parameters_logic(script_path: str):
     try:
         absolute_path = resolve_script_path(script_path)
         if absolute_path.endswith('.ptool'):
@@ -229,7 +226,7 @@ async def get_script_parameters_logic(script_path: str, script_type: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def get_script_metadata_logic(script_path: str, script_type: str):
+async def get_script_metadata_logic(script_path: str):
     try:
         absolute_path = resolve_script_path(script_path)
         if absolute_path.endswith('.ptool'):
@@ -253,7 +250,7 @@ async def get_script_metadata_logic(script_path: str, script_type: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def get_script_content_logic(script_path: str, script_type: str):
+async def get_script_content_logic(script_path: str):
     try:
         absolute_path = resolve_script_path(script_path)
         scripts_dir = os.path.join(absolute_path, "Scripts")
@@ -273,7 +270,7 @@ async def get_script_content_logic(script_path: str, script_type: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def create_new_script_logic(parent_folder: str, script_type: str, script_name: str, folder_name: Optional[str] = None, template_id: str = "blank", generated_logic: Optional[str] = None, generated_params: Optional[str] = None, overwrite: bool = False):
+def create_new_script_logic(parent_folder: str, script_name: str, folder_name: Optional[str] = None, template_id: str = "blank", generated_logic: Optional[str] = None, generated_params: Optional[str] = None, overwrite: bool = False):
     clean_name = script_name.replace('.cs', '')
     project_dir = os.path.join(parent_folder, clean_name)
     scripts_dir = os.path.join(project_dir, "Scripts")
@@ -296,7 +293,7 @@ def create_new_script_logic(parent_folder: str, script_type: str, script_name: s
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}")
 
-async def save_script_logic(script_path: str, script_type: str, content: Optional[str], filename: Optional[str], files: Optional[Dict[str, str]]):
+async def save_script_logic(script_path: str, content: Optional[str], filename: Optional[str], files: Optional[Dict[str, str]]):
     try:
         project_root = resolve_script_path(script_path)
         scripts_dir = os.path.join(project_root, "Scripts")
@@ -319,7 +316,7 @@ async def save_script_logic(script_path: str, script_type: str, content: Optiona
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save: {str(e)}")
 
-def delete_script_logic(script_path: str, script_type: str):
+def delete_script_logic(script_path: str):
     try:
         path = resolve_script_path(script_path)
         if os.path.isdir(path):

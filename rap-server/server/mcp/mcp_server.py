@@ -131,7 +131,6 @@ async def handle_call_tool(
             return [types.TextContent(type="text", text=f"Error: Script '{tool_id}' not found.")]
 
         script_path = target_script.get("absolutePath") or target_script.get("path")
-        script_type = target_script.get("type", "single-file")
 
         try:
             import glob
@@ -141,15 +140,13 @@ async def handle_call_tool(
 
             # For options computation, we need the main script content
             source_code = ""
-            if script_type == "single-file":
-                with open(absolute_path, 'r', encoding='utf-8-sig') as f:
-                    source_code = f.read()
-            elif script_type == "multi-file":
-                # Find the top-level script (usually the one with 'public class Params' or just use first .cs)
-                cs_files = glob.glob(os.path.join(absolute_path, "*.cs"))
-                if not cs_files: return [types.TextContent(type="text", text="Error: No files found in multi-file script.")]
+            scripts_dir = os.path.join(absolute_path, "Scripts")
+            
+            if os.path.isdir(scripts_dir):
+                cs_files = glob.glob(os.path.join(scripts_dir, "*.cs"))
+                if not cs_files: return [types.TextContent(type="text", text="Error: No files found in script project.")]
 
-                # Simple check: try to find the one with 'Params'
+                # Find the one with 'Params'
                 found_main = False
                 for f_path in cs_files:
                     with open(f_path, 'r', encoding='utf-8-sig') as f:
@@ -161,6 +158,9 @@ async def handle_call_tool(
                 if not found_main:
                     with open(cs_files[0], 'r', encoding='utf-8-sig') as f:
                         source_code = f.read()
+            elif os.path.isfile(absolute_path):
+                with open(absolute_path, 'r', encoding='utf-8-sig') as f:
+                    source_code = f.read()
 
             from grpc_client import compute_parameter_options
             resp = compute_parameter_options(source_code, param_name)
@@ -178,7 +178,6 @@ async def handle_call_tool(
 
         script_name = target_script.get("name", "unnamed_script")
         script_path = target_script.get("absolutePath") or target_script.get("path")
-        script_type = target_script.get("type", "single-file")
 
         logger.info(f"Executing {script_name} via MCP")
 
@@ -190,15 +189,14 @@ async def handle_call_tool(
             absolute_path = resolve_script_path(script_path)
             script_files_payload = []
 
-            if script_type == "single-file":
-                with open(absolute_path, 'r', encoding='utf-8-sig') as f:
-                    source_code = f.read()
-                script_files_payload.append({"FileName": os.path.basename(script_path), "Content": source_code})
-            elif script_type == "multi-file":
-                for file_path in glob.glob(os.path.join(absolute_path, "*.cs")):
+            scripts_dir = os.path.join(absolute_path, "Scripts")
+            if os.path.isdir(scripts_dir):
+                for file_path in glob.glob(os.path.join(scripts_dir, "*.cs")):
                     with open(file_path, 'r', encoding='utf-8-sig') as f:
-                        source_code = f.read()
-                    script_files_payload.append({"FileName": os.path.basename(file_path), "Content": source_code})
+                        script_files_payload.append({"FileName": os.path.basename(file_path), "Content": f.read()})
+            elif os.path.isfile(absolute_path):
+                with open(absolute_path, 'r', encoding='utf-8-sig') as f:
+                    script_files_payload.append({"FileName": os.path.basename(absolute_path), "Content": f.read()})
 
             if not script_files_payload:
                 return [types.TextContent(type="text", text="Error: No script files found.")]
