@@ -114,10 +114,20 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.GetCategoryParametersRequest.SerializeToString,
                 response_deserializer=corescript__pb2.GetCategoryParametersResponse.FromString,
                 _registered_method=True)
+        self.GetModelCategories = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/GetModelCategories',
+                request_serializer=corescript__pb2.GetModelCategoriesRequest.SerializeToString,
+                response_deserializer=corescript__pb2.GetModelCategoriesResponse.FromString,
+                _registered_method=True)
         self.StopSyncSession = channel.unary_unary(
                 '/CoreScript.CoreScriptRunner/StopSyncSession',
                 request_serializer=corescript__pb2.StopSyncSessionRequest.SerializeToString,
                 response_deserializer=corescript__pb2.StopSyncSessionResponse.FromString,
+                _registered_method=True)
+        self.GetWatchdogStatus = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/GetWatchdogStatus',
+                request_serializer=corescript__pb2.GetWatchdogStatusRequest.SerializeToString,
+                response_deserializer=corescript__pb2.GetWatchdogStatusResponse.FromString,
                 _registered_method=True)
 
 
@@ -220,7 +230,19 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetModelCategories(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def StopSyncSession(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetWatchdogStatus(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -309,10 +331,20 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     request_deserializer=corescript__pb2.GetCategoryParametersRequest.FromString,
                     response_serializer=corescript__pb2.GetCategoryParametersResponse.SerializeToString,
             ),
+            'GetModelCategories': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetModelCategories,
+                    request_deserializer=corescript__pb2.GetModelCategoriesRequest.FromString,
+                    response_serializer=corescript__pb2.GetModelCategoriesResponse.SerializeToString,
+            ),
             'StopSyncSession': grpc.unary_unary_rpc_method_handler(
                     servicer.StopSyncSession,
                     request_deserializer=corescript__pb2.StopSyncSessionRequest.FromString,
                     response_serializer=corescript__pb2.StopSyncSessionResponse.SerializeToString,
+            ),
+            'GetWatchdogStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetWatchdogStatus,
+                    request_deserializer=corescript__pb2.GetWatchdogStatusRequest.FromString,
+                    response_serializer=corescript__pb2.GetWatchdogStatusResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -758,6 +790,33 @@ class CoreScriptRunner(object):
             _registered_method=True)
 
     @staticmethod
+    def GetModelCategories(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/GetModelCategories',
+            corescript__pb2.GetModelCategoriesRequest.SerializeToString,
+            corescript__pb2.GetModelCategoriesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def StopSyncSession(request,
             target,
             options=(),
@@ -774,6 +833,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/StopSyncSession',
             corescript__pb2.StopSyncSessionRequest.SerializeToString,
             corescript__pb2.StopSyncSessionResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetWatchdogStatus(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/GetWatchdogStatus',
+            corescript__pb2.GetWatchdogStatusRequest.SerializeToString,
+            corescript__pb2.GetWatchdogStatusResponse.FromString,
             options,
             channel_credentials,
             insecure,

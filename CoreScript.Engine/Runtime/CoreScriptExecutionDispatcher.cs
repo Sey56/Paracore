@@ -5,16 +5,24 @@ using CoreScript.Engine.Logging;
 
 namespace CoreScript.Engine.Runtime
 {
+    public class ExecutionRequest
+    {
+        public string ScriptContent { get; set; } = string.Empty;
+        public string ParametersJson { get; set; } = string.Empty;
+        public byte[]? CompiledAssembly { get; set; }
+        public ICoreScriptContext? Context { get; set; }
+        public bool IsSilent { get; set; }
+    }
+
     public class CoreScriptExecutionDispatcher
     {
         private readonly ICodeRunner _runner;
         private ExternalEvent _codeExecutionEvent;
-        private string _pendingScriptContent = string.Empty;
-        private string _pendingParametersJson = string.Empty; 
-        private byte[]? _pendingCompiledAssembly; // New field for proprietary tools
-        private ICoreScriptContext? _pendingContext;
-        private Func<object> _pendingUIFunc;
-        private TaskCompletionSource<object> _uiTaskCompletionSource;
+        private readonly Queue<ExecutionRequest> _executionQueue = new Queue<ExecutionRequest>();
+        private readonly object _queueLock = new object();
+
+        private Func<object>? _pendingUIFunc;
+        private TaskCompletionSource<object>? _uiTaskCompletionSource;
 
         public static CoreScriptExecutionDispatcher Instance => _instance ??= new CoreScriptExecutionDispatcher(new CodeRunner());
         private static CoreScriptExecutionDispatcher _instance;
@@ -39,7 +47,7 @@ namespace CoreScript.Engine.Runtime
                 throw new InvalidOperationException("CoreScriptExecutionDispatcher is not initialized.");
             }
 
-            _pendingUIFunc = () => func();
+            _pendingUIFunc = () => func()!;
             _uiTaskCompletionSource = new TaskCompletionSource<object>();
 
             _codeExecutionEvent.Raise();
@@ -52,13 +60,20 @@ namespace CoreScript.Engine.Runtime
             return _runner.Execute(scriptText, "", context);
         }
 
-        public ExecutionResult QueueScriptFromServer(string scriptContent, string parametersJson, ICoreScriptContext context)
+        public ExecutionResult QueueScriptFromServer(string scriptContent, string parametersJson, ICoreScriptContext context, bool isSilent = false)
         {
-            FileLogger.Log("[CoreScriptExecutionDispatcher] Entering QueueScriptFromServer.");
-            _pendingScriptContent = scriptContent;
-            _pendingParametersJson = parametersJson;
-            _pendingCompiledAssembly = null; 
-            _pendingContext = context;
+            FileLogger.Log($"[CoreScriptExecutionDispatcher] Queueing script (Silent: {isSilent}).");
+            
+            lock (_queueLock)
+            {
+                _executionQueue.Enqueue(new ExecutionRequest
+                {
+                    ScriptContent = scriptContent,
+                    ParametersJson = parametersJson,
+                    Context = context,
+                    IsSilent = isSilent
+                });
+            }
 
             if (_codeExecutionEvent == null) return ExecutionResult.Failure("External event is not initialized.");
 
@@ -66,13 +81,20 @@ namespace CoreScript.Engine.Runtime
             return ExecutionResult.Success("Script queued for execution.");
         }
 
-        public ExecutionResult QueueBinaryScriptFromServer(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context)
+        public ExecutionResult QueueBinaryScriptFromServer(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context, bool isSilent = false)
         {
-            FileLogger.Log("[CoreScriptExecutionDispatcher] Entering QueueBinaryScriptFromServer.");
-            _pendingScriptContent = string.Empty;
-            _pendingParametersJson = parametersJson;
-            _pendingCompiledAssembly = compiledAssembly;
-            _pendingContext = context;
+            FileLogger.Log($"[CoreScriptExecutionDispatcher] Queueing BINARY tool (Silent: {isSilent}).");
+            
+            lock (_queueLock)
+            {
+                _executionQueue.Enqueue(new ExecutionRequest
+                {
+                    CompiledAssembly = compiledAssembly,
+                    ParametersJson = parametersJson,
+                    Context = context,
+                    IsSilent = isSilent
+                });
+            }
 
             if (_codeExecutionEvent == null) return ExecutionResult.Failure("External event is not initialized.");
 
@@ -82,16 +104,16 @@ namespace CoreScript.Engine.Runtime
 
         public ExecutionResult ExecuteCodeInRevit(ICoreScriptContext context)
         {
-             if (_pendingUIFunc != null)
+            if (_pendingUIFunc != null)
             {
                 try
                 {
                     var result = _pendingUIFunc();
-                    _uiTaskCompletionSource.SetResult(result);
+                    _uiTaskCompletionSource?.SetResult(result);
                 }
                 catch (Exception ex)
                 {
-                    _uiTaskCompletionSource.SetException(ex);
+                    _uiTaskCompletionSource?.SetException(ex);
                 }
                 finally
                 {
@@ -100,26 +122,40 @@ namespace CoreScript.Engine.Runtime
                 return ExecutionResult.Success("UI function executed.");
             }
 
-            FileLogger.Log("[CoreScriptExecutionDispatcher] Entering ExecuteCodeInRevit for script.");
+            ExecutionRequest? request = null;
+            lock (_queueLock)
+            {
+                if (_executionQueue.Count > 0)
+                {
+                    request = _executionQueue.Dequeue();
+                }
+            }
+
+            if (request == null)
+            {
+                return ExecutionResult.Success("No pending scripts in queue.");
+            }
+
+            FileLogger.Log($"[CoreScriptExecutionDispatcher] Processing request from queue (Silent: {request.IsSilent}).");
             ExecutionResult scriptResult = ExecutionResult.Failure("Unknown error.");
 
             try
             {
-                if (_pendingContext == null)
+                if (request.Context == null)
                 {
                     var errorMessage = "No context available to execute.";
                     LogErrorToFile(errorMessage);
                     scriptResult = ExecutionResult.Failure(errorMessage);
                 }
-                else if (_pendingCompiledAssembly != null)
+                else if (request.CompiledAssembly != null)
                 {
                     FileLogger.Log("[CoreScriptExecutionDispatcher] Executing BINARY tool via CodeRunner.");
-                    scriptResult = _runner.ExecuteBinary(_pendingCompiledAssembly, _pendingParametersJson, _pendingContext);
+                    scriptResult = _runner.ExecuteBinary(request.CompiledAssembly, request.ParametersJson, request.Context);
                 }
-                else if (!string.IsNullOrEmpty(_pendingScriptContent))
+                else if (!string.IsNullOrEmpty(request.ScriptContent))
                 {
                     FileLogger.Log("[CoreScriptExecutionDispatcher] Executing SOURCE script via CodeRunner.");
-                    scriptResult = _runner.Execute(_pendingScriptContent, _pendingParametersJson, _pendingContext);
+                    scriptResult = _runner.Execute(request.ScriptContent, request.ParametersJson, request.Context);
                 }
                 else
                 {
@@ -141,28 +177,34 @@ namespace CoreScript.Engine.Runtime
                 LogErrorToFile($"{error} | Details: {ex.Message}");
                 FileLogger.LogError($"[CoreScriptExecutionDispatcher] Exception: {ex.Message}");
                 
-                if (_pendingContext != null)
+                if (request.Context != null)
                 {
                     if (isConflict)
                     {
-                        _pendingContext.Println("💡 Tip: This usually happens when pyRevit is installed. We are working on a fix, but for now, you can check 'CoreScriptError.txt' or 'CodeRunnerDebug.txt' in %AppData%\\Roaming\\paracore-data\\logs for details.");
+                        request.Context.Println("💡 Tip: This usually happens when pyRevit is installed. We are working on a fix, but for now, you can check 'CoreScriptError.txt' or 'CodeRunnerDebug.txt' in %AppData%\\Roaming\\paracore-data\\logs for details.");
                     }
                     else
                     {
-                        _pendingContext.Println($"[STACK TRACE]\n{ex}");
+                        request.Context.Println($"[STACK TRACE]\n{ex}");
                     }
                 }
                 scriptResult = ExecutionResult.Failure(error, ex.StackTrace);
             }
             finally
             {
-                _pendingScriptContent = string.Empty;
-                _pendingParametersJson = string.Empty;
-                _pendingCompiledAssembly = null;
-                _pendingContext = null;
+                // Attach the silent flag to the result so the UI knows whether to record it
+                scriptResult.IsSilent = request.IsSilent;
 
                 OnExecutionComplete?.Invoke(scriptResult);
-                FileLogger.Log("[CoreScriptExecutionDispatcher] Exiting ExecuteCodeInRevit for script.");
+                
+                // If there are more items in the queue, raise the event again
+                lock (_queueLock)
+                {
+                    if (_executionQueue.Count > 0 && _codeExecutionEvent != null)
+                    {
+                        _codeExecutionEvent.Raise();
+                    }
+                }
             }
 
             return scriptResult;

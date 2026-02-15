@@ -48,6 +48,7 @@ namespace CoreScript.Engine.Core
 
             string topLevelScriptName = "Unknown Script";
             string finalScriptCode = string.Empty; // Store for error mapping
+            string scriptPath = string.Empty;
 
             try
             {
@@ -67,40 +68,23 @@ namespace CoreScript.Engine.Core
                     parameters.Remove("__script_name__"); 
                 }
 
+                if (parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj != null)
+                {
+                    scriptPath = pathObj.ToString() ?? string.Empty;
+                }
+
                 List<ScriptFile> scriptFiles = new List<ScriptFile>();
                 try
                 {
                     var scriptJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    scriptFiles = JsonSerializer.Deserialize<List<ScriptFile>>(scriptContent, scriptJsonOptions);
-                    if (scriptFiles == null || !scriptFiles.Any())
-                        return ExecutionResult.Failure("No script files found in the incoming JSON.");
+                    scriptFiles = JsonSerializer.Deserialize<List<ScriptFile>>(scriptContent, scriptJsonOptions) ?? new List<ScriptFile>();
                 }
-                catch (JsonException ex)
-                {
-                    return ExecutionResult.Failure($"Error deserializing script content: {ex.Message}");
+                catch 
+                { 
+                    // Fallback: If not JSON, it's a single script. 
+                    // We wrap it in a ScriptFile so the Combiner/Rewriter workflow remains unified.
+                    scriptFiles.Add(new ScriptFile { FileName = topLevelScriptName + ".cs", Content = scriptContent });
                 }
-
-                var topLevelScriptFile = _scriptParser.IdentifyTopLevelScript(scriptFiles);
-                if (topLevelScriptName == "Unknown Script") topLevelScriptName = topLevelScriptFile?.FileName ?? "Unknown Script";
-
-                var combinedScriptContent = _scriptCombiner.Combine(scriptFiles);
-                
-                List<ScriptParameter> extractedParams = new List<ScriptParameter>();
-                try 
-                {
-                    var extractor = new ParameterExtractor(new RunnerLogger());
-                    extractedParams = extractor.ExtractParameters(combinedScriptContent);
-                    var finalScriptParams = richParams.Count > 0 ? richParams : extractedParams;
-                    _parameterService.HardenParameters(parameters, finalScriptParams);
-                }
-                catch (Exception ex)
-                {
-                    FileLogger.LogError($"[CodeRunner] Failed to harden parameters: {ex.Message}");
-                }
-
-                // Set Globals Context EARLY
-                var executionGlobals = new ExecutionGlobals(context, parameters ?? new Dictionary<string, object>());
-                ExecutionGlobals.SetContext(executionGlobals);
 
                 string combinedUserCode = _scriptCombiner.Combine(scriptFiles);
                 string modifiedUserCode = _scriptRewriter.Rewrite(combinedUserCode, parameters);
@@ -117,6 +101,10 @@ namespace CoreScript.Engine.Core
                     File.WriteAllText(debugPath, finalScriptCode);
                 }
                 catch { }
+
+                if (richParams.Count > 0) _parameterService.HardenParameters(parameters, richParams);
+                
+                ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters));
 
                 var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
                 var state = _scriptExecutor.ExecuteAsync(script).Result;
@@ -185,7 +173,16 @@ namespace CoreScript.Engine.Core
             finally
             {
                 ExecutionGlobals.ClearContext();
-                alc.Unload();
+                
+                // V3.1 ELITE: Only unload if NO watchdog is registered for this path
+                if (!string.IsNullOrEmpty(scriptPath) && WatchdogRegistry.GetActiveWatchdogs().Any(w => w.ScriptPath == scriptPath))
+                {
+                    FileLogger.Log($"[CodeRunner] Preserving ALC for background watcher: {topLevelScriptName}");
+                }
+                else
+                {
+                    alc.Unload();
+                }
             }
         }
 

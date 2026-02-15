@@ -1,7 +1,22 @@
-// 1. Query & Setup
-Params p = new();
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Autodesk.Revit.DB;
+using CoreScript.Engine.Attributes;
 
-// __PARACORE_QUERY_DATA__{"category": "OST_Walls", "rootGroup": {"type": "group", "combinator": "AND", "children": [{"type": "rule", "name": "Base Constraint", "storage_type": "ElementId", "operator": "==", "value": "0", "unit": null, "is_builtin": true, "builtin_id": -1001107, "builtin_name": "WALL_BASE_CONSTRAINT", "revit_element_type": "Level", "spec_type_id": ""}, {"type": "rule", "name": "Length", "storage_type": "Double", "operator": "<", "value": "20000", "unit": "mm", "is_builtin": true, "builtin_id": -1004005, "builtin_name": "CURVE_ELEM_LENGTH", "revit_element_type": "", "spec_type_id": "autodesk.spec.aec:length-2.0.1"}]}, "selectedColumns": [{"type": "rule", "name": "Area", "storage_type": "Double", "operator": "==", "value": "", "unit": "m2", "is_builtin": true, "builtin_id": -1012805, "builtin_name": "HOST_AREA_COMPUTED", "revit_element_type": "", "spec_type_id": "autodesk.spec.aec:area-2.0.0"}], "scope": "project"}
+/// <summary>
+/// DisplayName: TestScript
+/// Description: Custom C# automation script.
+/// </summary>
+public class Script : ICoreScript
+{
+    public Document Doc { get; set; }
+    public UIDocument Uidoc { get; set; }
+
+    public void Run(Params p)
+    {
+        // Visual Query Injection
+// __PARACORE_QUERY_DATA__{"category": "OST_Walls", "rootGroup": {"type": "group", "combinator": "AND", "children": [{"type": "rule", "name": "Base Constraint", "storage_type": "ElementId", "operator": "==", "value": "0", "unit": null, "is_builtin": true, "builtin_id": -1001107, "builtin_name": "WALL_BASE_CONSTRAINT", "revit_element_type": "Level"}, {"type": "rule", "name": "Length", "storage_type": "Double", "operator": "<", "value": "2000", "unit": "mm", "is_builtin": true, "builtin_id": -1004005, "builtin_name": "CURVE_ELEM_LENGTH", "revit_element_type": ""}]}, "selectedColumns": [{"type": "rule", "name": "Area", "storage_type": "Double", "operator": "==", "value": "", "unit": "m2", "is_builtin": true, "builtin_id": -1012805, "builtin_name": "HOST_AREA_COMPUTED", "revit_element_type": ""}], "scope": "project"}
 
 // 1. Filtering Logic (High-Performance Native Filter)
 FilteredElementCollector collector = new(Doc);
@@ -30,16 +45,15 @@ if (elements.Count > 0)
     }).ToList();
     Table(results);
 }
-Println("Hello from Paracore!");
 
 public class Params
 
 {
     #region Generated Parameters
-    /// Filter value for Base Constraint
+    /// <summary>Filter value for Base Constraint</summary>
     public Level? BaseConstraint { get; set; }
-    /// Filter value for Length
+    /// <summary>Filter value for Length</summary>
     [Unit("mm")]
-    public double Length { get; set; } = 20000;
+    public double Length { get; set; } = 2000;
     #endregion
 }

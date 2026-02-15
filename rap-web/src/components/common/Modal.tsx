@@ -7,7 +7,7 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   title: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | 'full';
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md' }) => {
@@ -36,6 +36,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
     '3xl': 'max-w-screen-xl',
     '4xl': 'max-w-4xl',
     '5xl': 'max-w-5xl',
+    'full': 'max-w-[95vw]',
   }[size];
 
   return (
@@ -47,13 +48,14 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
         onClick={onClose}
       >
         <div 
-          className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-gray-100 dark:border-gray-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-gray-100 dark:border-gray-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden max-h-[90vh] ${
             show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
           }`}
+          style={size === 'full' ? { height: '90vh' } : {}}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{title}</h2>
             <button 
               onClick={onClose}
@@ -67,7 +69,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
           </div>
           
           {/* Content */}
-          <div className="p-6">
+          <div className="p-6 flex-1 min-h-0 flex flex-col overflow-hidden">
             {children}
           </div>
         </div>

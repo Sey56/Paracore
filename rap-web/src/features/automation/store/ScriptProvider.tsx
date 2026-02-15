@@ -43,6 +43,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setUserSourcePaths]);
 
   const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>('rap_customScriptFolders', []);
+  const [watchdogSources, setWatchdogSources] = useLocalStorage<string[]>('rap_watchdogSources', []);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('rap_cloud_token');
@@ -156,8 +157,17 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const createNewScript = useCallback(async (details: any) => {
     try {
       const response = await api.post("/api/scripts/new", details);
-      if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
-      return response.data;
+      // After creation, reload the list
+      let newScriptObj = null;
+      if (selectedFolder) {
+          const freshScripts = await loadScriptsFromPath(selectedFolder, true);
+          // Find the actual script object in the newly loaded list
+          if (freshScripts) {
+              const targetPath = response.data.absolutePath || response.data.script_path;
+              newScriptObj = freshScripts.find(s => s.absolutePath === targetPath);
+          }
+      }
+      return newScriptObj || response.data;
     } catch (error: any) {
       showNotification(error.response?.data?.detail || "Failed to create script", "error");
       return undefined;
@@ -265,6 +275,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     lastRunTimes, updateScriptLastRunTime,
     isSyncActive, activeSyncSessions,
     customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
+    watchdogSources, setWatchdogSources,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
     pullAllTeamSources, pullTeamSource, clearScriptsForSource,
     toolLibraryPath, setToolLibraryPath,
@@ -274,6 +285,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     combinedScriptContent, createNewScript, deleteScript, favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
     recentScripts, addRecentScript, clearRecentScripts, lastRunTimes, updateScriptLastRunTime,
     isSyncActive, activeSyncSessions, customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
+    watchdogSources, setWatchdogSources,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
     pullAllTeamSources, pullTeamSource, clearScriptsForSource, toolLibraryPath, setToolLibraryPath,
     userSourcePaths, setUserSourcePath, canUseLocalFolders, selectedFolder

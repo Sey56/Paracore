@@ -25,7 +25,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
     projects_to_fetch = []
 
     try:
-        # 1. Discover all Tool folders
         for item in os.listdir(pack_path):
             item_path = os.path.join(pack_path, item)
             if not os.path.isdir(item_path) or item.startswith('.'):
@@ -47,7 +46,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                 "files": script_files
             })
 
-        # 2. Fetch Bulk Metadata (Safe gRPC call)
         bulk_results_map = {}
         if projects_to_fetch:
             try:
@@ -59,7 +57,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             except Exception as e:
                 print(f"[ScriptService] Bulk metadata fetch failed: {e}")
 
-        # 3. Transform into UI Tool Objects
         for project in projects_to_fetch:
             project_path = project["absolute_path"]
             project_name = project["project_name"]
@@ -105,7 +102,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                     "parameters": []
                 })
 
-        # 4. Add .ptool files
         for ptool_path in glob.glob(os.path.join(pack_path, "*.ptool")):
             try:
                 resolved_ptool_path = resolve_script_path(ptool_path)
@@ -208,7 +204,6 @@ async def get_script_parameters_logic(script_path: str):
             for p in params:
                 val_json = p.get("defaultValueJson", "null")
                 try:
-                    # Hydrate for UI
                     p["defaultValue"] = json.loads(val_json)
                     p["value"] = p["defaultValue"]
                 except:
@@ -227,14 +222,10 @@ async def get_script_parameters_logic(script_path: str):
         if not script_files: return {"parameters": []}
         res = grpc_client.get_script_parameters(script_files)
         
-        # V3.1 FIX: Ensure the results from gRPC are correctly hydrated
         if res and "parameters" in res:
             for p in res["parameters"]:
                 val_json = p.get("default_value_json", "null")
                 try:
-                    # If it's a quoted string like "\"6.00\"", json.loads makes it "6.00"
-                    # If it was a raw number like 6.0, json.loads makes it 6
-                    # Our engine fix ensures it's now often "\"6.00\""
                     parsed = json.loads(val_json)
                     p["defaultValue"] = parsed
                     p["value"] = parsed
@@ -268,7 +259,6 @@ async def get_script_metadata_logic(script_path: str):
         if not script_files: return {"metadata": {"displayName": os.path.basename(absolute_path)}}
         res = grpc_client.get_script_metadata(script_files)
         
-        # Normalize to camelCase for frontend
         if res and "metadata" in res:
             m = res["metadata"]
             res["metadata"] = {
@@ -316,7 +306,6 @@ async def create_new_script_logic(parent_folder: str, script_name: str, folder_n
         raise HTTPException(status_code=409, detail=f"Tool folder '{clean_name}' already exists.")
 
     try:
-        # V3.1 Replace Logic: If overwriting, clear the Scripts folder but keep the project root (IDE files)
         if overwrite and os.path.isdir(scripts_dir):
             import shutil
             for item in os.listdir(scripts_dir):
@@ -325,41 +314,22 @@ async def create_new_script_logic(parent_folder: str, script_name: str, folder_n
                 elif os.path.isdir(item_path): shutil.rmtree(item_path)
         
         os.makedirs(scripts_dir, exist_ok=True)
-        
         template_code = ARCHETYPES.get(template_id, ARCHETYPES["blank"])
         
-        import re
-        
-        # 1. Inject Logic into the placeholder
         if generated_logic:
-            # Replace from marker until the next major section (usually Execution Logic or Params)
-            pattern = r"// __INJECT_QUERY_BLOCK__.*?(?=(?:// 2\. Execution Logic|public\s+class\s+Params))"
-            if re.search(pattern, template_code, re.DOTALL | re.IGNORECASE):
-                template_code = re.sub(pattern, f"// Visual Query Injection\n{generated_logic}\n\n", template_code, flags=re.DOTALL | re.IGNORECASE)
-            else:
-                template_code = template_code.replace("// __INJECT_QUERY_BLOCK__", generated_logic)
+            pattern = r"// __INJECT_QUERY_BLOCK__"
+            template_code = re.sub(pattern, generated_logic, template_code, flags=re.DOTALL | re.IGNORECASE)
 
-        # 2. Handle Generated Parameters (Unified Single File)
         if generated_params:
-            # Fixed: Properly indent all lines of generated params to 4 spaces
             indented_params = "\n".join([f"    {line}" if line.strip() else "" for line in generated_params.split("\n")])
-            
-            # Find the Params class and replace EVERYTHING inside its braces
-            # Updated p_pattern to handle both styles and force the desired one
             p_pattern = r'(public\s+class\s+Params\s*)\{.*?(\}\s*$)'
             replacement = f"\\1\n{{\n    #region Generated Parameters\n{indented_params}\n    #endregion\n\\2"
             
-            if re.search(p_pattern, template_code, re.DOTALL | re.IGNORECASE):
-                template_code = re.sub(p_pattern, replacement, template_code, flags=re.DOTALL | re.IGNORECASE)
+            if re.search(p_pattern, template_code, re.DOTALL | re.MULTILINE):
+                template_code = re.sub(p_pattern, replacement, template_code, flags=re.DOTALL | re.MULTILINE)
             else:
-                # If the regex fails, we append it at the end as a fallback
-                template_code += f"\npublic class Params\n{{\n    #region Generated Parameters\n{indented_params}\n    #endregion\n}}"
+                template_code += f"\n\npublic class Params\n{{\n    #region Generated Parameters\n{indented_params}\n    #endregion\n}}"
 
-        # Cleanup: Ensure no separate Params.cs exists for this tool
-        old_params_file = os.path.join(scripts_dir, "Params.cs")
-        if os.path.exists(old_params_file): os.remove(old_params_file)
-
-        # Update DisplayName in metadata using robust Regex
         template_code = re.sub(r'DisplayName\s*:\s*.*', f'DisplayName: {clean_name}', template_code)
         
         entry_file_path = os.path.join(scripts_dir, f"{clean_name}.cs")
@@ -367,8 +337,6 @@ async def create_new_script_logic(parent_folder: str, script_name: str, folder_n
             f.write(template_code)
             
         _ensure_pack_gitignore(parent_folder)
-        
-        # Return the full hydrated script object
         all_scripts = await get_all_scripts(parent_folder)
         new_script = next((s for s in all_scripts if s["absolutePath"].replace('\\', '/') == project_dir.replace('\\', '/')), None)
         
@@ -410,7 +378,6 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
             if not os.path.isdir(path):
                 raise HTTPException(status_code=400, detail="Scaffolding can only be cleared from project folders.")
             
-            # Delete everything EXCEPT the Scripts subfolder
             deleted_count = 0
             for item in os.listdir(path):
                 if item == "Scripts": continue
@@ -426,11 +393,58 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
             
             return {"success": True, "message": f"Cleaned {deleted_count} IDE files. Logic preserved."}
         else:
-            # Full Delete
             if os.path.isdir(path):
                 shutil.rmtree(path)
             else: 
                 os.remove(path)
             return {"success": True, "message": f"Deleted {os.path.basename(script_path)}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def compute_parameter_options_logic(script_path: str, parameter_name: str, parameters: Optional[Dict] = None):
+    try:
+        absolute_path = resolve_script_path(script_path)
+        scripts_dir = os.path.join(absolute_path, "Scripts")
+        script_files = []
+        if os.path.isdir(scripts_dir):
+            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
+                if os.path.basename(fp).lower() == "globals.cs": continue
+                with open(fp, 'r', encoding='utf-8-sig') as f:
+                    script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
+        
+        if not script_files: return {"options": []}
+        combined_result = grpc_client.get_combined_script(script_files)
+        script_content = combined_result.get("combined_script", "")
+        
+        return grpc_client.compute_parameter_options(script_content, parameter_name, parameters)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_script_manifest_logic(path: str):
+    try:
+        return grpc_client.get_script_manifest(path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def rename_script_logic(old_path: str, new_name: str):
+    try:
+        return grpc_client.rename_script(old_path, new_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def register_watchdog_source_logic(path: str):
+    try:
+        return grpc_client.register_watchdog_source(path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_category_parameters_logic(category_name: str):
+    try:
+        res = grpc_client.get_category_parameters(category_name)
+        if res and "parameters" in res:
+            # Map snake_case from gRPC to camelCase for frontend
+            for p in res["parameters"]:
+                p["spec_type_id"] = p.get("spec_type_id", "")
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

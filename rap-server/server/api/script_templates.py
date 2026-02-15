@@ -1,247 +1,83 @@
-# --- Standard Tool Template ---
-CSHARP_TEMPLATE = """// 1. Setup
-Params p = new();
+# Minimalist templates for Pure Paracore Top-Level Scripting
+# Usings are handled by GlobalUsings in the workspace.
 
-// __INJECT_QUERY_BLOCK__
-// 2. Execution logic
-Transact("Hello World", () =>
-{
-    Println($"Hello {p.TargetName} from {Doc.Title}!");
-});
-
-// 3. Parameters (MUST BE LAST)
-public class Params
-
-{
-    #region Settings
-    
-    /// The name to greet.
-    public string TargetName { get; set; } = "Paracore User";
-    
-    #endregion
-}
-"""
-
-# --- Project Entry Point (Main.cs) Template ---
-MULTI_FILE_MAIN_TEMPLATE = """// 1. Setup
-Params p = new();
-
-// __INJECT_QUERY_BLOCK__
-// 2. Execution
-Transact("Modular Loop", () =>
-{
-    Println($"Hello modular world from {Doc.Title}!");
-});
-
-// 3. Parameters (In Main.cs or Params.cs)
-public class Params
-
-{
-    #region Configuration
-    
-    public string ExampleInput { get; set; } = "Value";
-    
-    #endregion
-}
-"""
-
-# --- Industrial Archetypes for Tools ---
 ARCHETYPES = {
-    "blank": CSHARP_TEMPLATE,
-    
-    "selection-surgeon": """// 1. Setup & Validation
+    "ProjectAuditor": """// 1. Query & Setup
 Params p = new();
 
+// Visual Query Injection
 // __INJECT_QUERY_BLOCK__
-List<Element> elements = [.. UIDoc.Selection.GetElementIds().Select(Doc.GetElement).Where(el => el != null)];
 
-if (elements.Count == 0) 
-    throw new Exception("Please select at least one element in Revit.");
-
-// 2. Execution Logic
-Transact("Selection Surgeon", () =>
-{
-    int count = 0;
-    foreach (Element el in elements)
-    {
-        // TODO: Add your logic here (e.g., el.Name = p.NewName)
-        count++;
-    }
-    Println($"Successfully processed {count} selected elements.");
-});
-
-// 3. Parameters (MUST BE LAST)
 public class Params
-
 {
-    #region Settings
-    
-    /// Example parameter for the selection logic.
-    public string NewName { get; set; } = "Modified Element";
-    
+    #region Generated Parameters
     #endregion
 }
 """,
 
-    "project-auditor": """// 1. Query & Setup
+    "SelectionSurgeon": """// 1. Query & Setup
 Params p = new();
 
+// Visual Query Injection
 // __INJECT_QUERY_BLOCK__
-List<Element> elements = [.. new FilteredElementCollector(Doc).WhereElementIsNotElementType()];
 
-// 2. Audit Logic
-List<object> issues = new();
-
-foreach (Element el in elements)
-{
-    bool hasIssue = false;
-    // TODO: Define your audit rule (e.g., if (el.Name == "") hasIssue = true;)
-    
-    if (hasIssue)
-    {
-        issues.Add(new
-        { 
-            Id = el.Id.Value, 
-            el.Name, 
-            Reason = "Rule Violation" 
-        });
-    }
-}
-
-// 3. Output
-Println($"Audit complete. Found {issues.Count} issues.");
-if (issues.Count > 0)
-{
-    Table(issues);
-}
-
-// 4. Parameters (MUST BE LAST)
 public class Params
-
 {
-    #region Audit Configuration
-    
-    /// Include linked elements in audit
-    public bool IncludeLinks { get; set; } = false;
-    
+    #region Generated Parameters
     #endregion
 }
 """,
 
-    "batch-creator": """// 1. Setup
+    "blank": """// 1. Query & Setup
 Params p = new();
 
-if (p.TargetLevel == null) 
-    throw new Exception("Target Level is required.");
-
 // __INJECT_QUERY_BLOCK__
-// 2. Iterative Creation Logic
-Transact("Batch Create Elements", () =>
-{
-    for (int i = 0; i < p.Count; i++)
-    {
-        // Calculate position or configuration
-        XYZ point = new(i * p.Spacing, 0, 0);
-        
-        // TODO: Create your element (e.g. Doc.Create.NewFamilyInstance(point, ...))
-    }
-    Println($"Successfully created {p.Count} elements.");
-});
+Println("Hello from Paracore!");
 
-// 3. Parameters (MUST BE LAST)
 public class Params
-
 {
-    #region Geometry
-    
-    /// Target level for element creation
-    [Required]
-    public Level? TargetLevel { get; set; }
-
-    /// Distance between elements
-    [Unit("mm")]
-    public double Spacing { get; set; } = 1000.0;
-
-    /// Number of elements to create
-    [Stepper]
-    public int Count { get; set; } = 5;
-    
+    #region Generated Parameters
     #endregion
 }
 """,
 
-    "parameter-porter": """// 1. Setup
+    "BIMWatchdog": """// 1. Query & Setup
 Params p = new();
 
-// __INJECT_QUERY_BLOCK__
-List<Element> elements = [.. new FilteredElementCollector(Doc).WhereElementIsNotElementType()];
-
-// 2. Data Transfer Logic
-Transact("Port Parameters", () =>
-{
-    int count = 0;
-    foreach (Element el in elements)
+// BIM Watchdog: Runs in the background every 10 seconds
+Watchdog((doc) => {
+    var walls = new FilteredElementCollector(doc)
+        .OfCategory(BuiltInCategory.OST_Walls)
+        .WhereElementIsNotElementType()
+        .ToElements();
+    
+    var invalidWalls = walls.Where(w => string.IsNullOrEmpty(w.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString())).ToList();
+    
+    if (invalidWalls.Count > 0)
     {
-        Parameter? sourceParam = el.LookupParameter(p.SourceParam);
-        Parameter? targetParam = el.LookupParameter(p.TargetParam);
-        
-        if (sourceParam != null && targetParam != null && sourceParam.HasValue)
-        {
-            string val = sourceParam.AsString() ?? sourceParam.AsValueString();
-            targetParam.Set(val);
-            count++;
-        }
+        // Visual Reporting: This powers the pulsing badge in the TopBar
+        WatchdogReport($"Found {invalidWalls.Count} walls missing Mark values", "warning", invalidWalls.Select(w => w.Id).ToList());
     }
-    Println($"Ported data for {count} elements.");
-});
+    else
+    {
+        WatchdogReport("All walls have valid Mark values", "success");
+    }
+}, 10);
 
-// 3. Parameters (MUST BE LAST)
+Println("BIM Watchdog active. Guardian badge enabled in TopBar.");
+
 public class Params
-
 {
-    #region Mapping
-    
-    /// Name of the source parameter
-    public string SourceParam { get; set; } = "Comments";
-
-    /// Name of the target parameter
-    public string TargetParam { get; set; } = "Mark";
-    
-    #endregion
 }
 """,
 
-    "visualizer": """// 1. Setup
+    "ExcelLink": """// 1. Query & Setup
 Params p = new();
 
-// __INJECT_QUERY_BLOCK__
-List<Element> elements = [.. new FilteredElementCollector(Doc).WhereElementIsNotElementType()];
+// Excel sync logic here
 
-var stats = elements
-    .GroupBy(e => e.Category?.Name ?? "Uncategorized")
-    .Select(g => new
-    { 
-        Category = g.Key, 
-        Count = g.Count() 
-    })
-    .OrderByDescending(x => x.Count)
-    .ToList();
-
-// 3. Render Visualization
-Println("Model composition analysis complete.");
-PieChart(stats);
-Table(stats);
-
-// 4. Parameters (MUST BE LAST)
 public class Params
-
 {
-    #region View Options
-    
-    /// Include uncategorized elements in charts
-    public bool ShowUncategorized { get; set; } = true;
-    
-    #endregion
 }
 """
 }

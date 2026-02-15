@@ -83,7 +83,41 @@ namespace Paracore.Addin.App
             _externalEvent = ExternalEvent.Create(_serverActionHandler);
             ServerViewModel.Instance.Initialize(_externalEvent);
 
+            // Subscribe to Idling for BIM Watchdog
+            application.Idling += OnIdling;
+
             return Result.Succeeded;
+        }
+
+        private void OnIdling(object sender, Autodesk.Revit.UI.Events.IdlingEventArgs e)
+        {
+            // V3.1: Watchdogs run even if server is toggled off in ribbon
+            UIApplication uiApp = sender is UIApplication app ? app : new UIApplication(sender as Autodesk.Revit.ApplicationServices.Application);
+            if (uiApp == null) return;
+            
+            var doc = uiApp.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            var pendingWatchdogs = WatchdogRegistry.GetPendingCallbacks();
+            if (pendingWatchdogs.Count == 0) return;
+
+            foreach (var watchdog in pendingWatchdogs)
+            {
+                try
+                {
+                    WatchdogRegistry.CurrentWatchdogPath = watchdog.ScriptPath;
+                    watchdog.LastRun = DateTime.Now;
+                    watchdog.Action(doc);
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.LogError($"[Watchdog] Error executing background task for {watchdog.ScriptPath}: {ex.Message}");
+                }
+                finally
+                {
+                    WatchdogRegistry.CurrentWatchdogPath = null;
+                }
+            }
         }
 
         private void CreateRibbonButtons(RibbonPanel panel)

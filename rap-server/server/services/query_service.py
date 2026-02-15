@@ -1,51 +1,29 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import re
+import json
 
-def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[str, Any]:
+def generate_query_code(category_name: str, root_group: Dict[str, Any], selected_columns: Optional[List[Dict[str, Any]]] = None, scope: str = "project") -> Dict[str, Any]:
     """
-    Generates high-performance C# code for a FilteredElementCollector using ElementParameterFilters.
-    Leverages Paracore's "Hydration-First" engine for rich UI.
-    Matches strict professional formatting and modern C# constructs.
+    Generates high-performance C# code for a FilteredElementCollector.
+    Pure Top-Level Scripting Format.
     """
     
-    # 1. Class Mapping
     CLASS_MAP = {
-        "OST_Walls": "Wall",
-        "OST_Doors": "FamilyInstance",
-        "OST_Windows": "FamilyInstance",
-        "OST_Rooms": "Room",
-        "OST_Furniture": "FamilyInstance",
-        "OST_Sheets": "ViewSheet",
-        "OST_Views": "View",
-        "OST_Levels": "Level",
-        "OST_Floors": "Floor",
-        "OST_Columns": "FamilyInstance",
-        "OST_StructuralColumns": "FamilyInstance",
-        "OST_StructuralFraming": "FamilyInstance",
-        "OST_StructuralFoundation": "Element",
-        "OST_Ceilings": "Ceiling",
-        "OST_Roofs": "FootPrintRoof",
-        "OST_GenericModel": "GenericModels",
-        "OST_MechanicalEquipment": "FamilyInstance",
-        "OST_DuctCurves": "Duct",
-        "OST_PipeCurves": "Pipe",
-        "OST_CableTray": "CableTray",
-        "OST_Conduit": "Conduit",
-        "OST_LightingFixtures": "FamilyInstance",
-        "OST_ElectricalEquipment": "FamilyInstance",
-        "OST_PlumbingFixtures": "FamilyInstance",
+        "OST_Walls": "Wall", "OST_Doors": "FamilyInstance", "OST_Windows": "FamilyInstance",
+        "OST_Rooms": "Room", "OST_Furniture": "FamilyInstance", "OST_Sheets": "ViewSheet",
+        "OST_Views": "View", "OST_Levels": "Level", "OST_Floors": "Floor",
+        "OST_Columns": "FamilyInstance", "OST_StructuralColumns": "FamilyInstance",
+        "OST_StructuralFraming": "FamilyInstance", "OST_StructuralFoundation": "Element",
+        "OST_Ceilings": "Ceiling", "OST_Roofs": "FootPrintRoof", "OST_GenericModel": "GenericModels",
+        "OST_MechanicalEquipment": "FamilyInstance", "OST_DuctCurves": "Duct", "OST_PipeCurves": "Pipe",
+        "OST_CableTray": "CableTray", "OST_Conduit": "Conduit", "OST_LightingFixtures": "FamilyInstance",
+        "OST_ElectricalEquipment": "FamilyInstance", "OST_PlumbingFixtures": "FamilyInstance",
     }
     
-    # Forge Unit Mapping for Revit 2025+
     UNIT_MAP = {
-        "mm": "UnitTypeId.Millimeters",
-        "cm": "UnitTypeId.Centimeters",
-        "m": "UnitTypeId.Meters",
-        "in": "UnitTypeId.Inches",
-        "m2": "UnitTypeId.SquareMeters",
-        "sqm": "UnitTypeId.SquareMeters",
-        "m3": "UnitTypeId.CubicMeters",
-        "cum": "UnitTypeId.CubicMeters"
+        "mm": "UnitTypeId.Millimeters", "cm": "UnitTypeId.Centimeters", "m": "UnitTypeId.Meters",
+        "in": "UnitTypeId.Inches", "m2": "UnitTypeId.SquareMeters", "sqm": "UnitTypeId.SquareMeters",
+        "m3": "UnitTypeId.CubicMeters", "cum": "UnitTypeId.CubicMeters"
     }
     
     cast_type = CLASS_MAP.get(category_name, "Element")
@@ -57,19 +35,16 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[
         "Phase", "DesignOption", "Material"
     }
 
-    all_rules = []
+    all_filter_rules = []
     def collect_rules(group):
         for child in group["children"]:
-            if child["type"] == "rule":
-                all_rules.append(child)
-            else:
-                collect_rules(child)
+            if child["type"] == "rule": all_filter_rules.append(child)
+            else: collect_rules(child)
     collect_rules(root_group)
 
-    # --- Param Fields Generation ---
     param_fields = []
     seen_props = set()
-    for rule in all_rules:
+    for rule in all_filter_rules:
         prop_name = rule["name"]
         prop_id = prop_name.replace(" ", "")
         if prop_id in seen_props: continue
@@ -78,7 +53,6 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[
         storage = rule["storage_type"]
         val = rule["value"]
         unit = rule.get("unit")
-        is_builtin = rule.get("is_builtin", False)
         
         attrs = []
         if unit: attrs.append(f'Unit("{unit}")')
@@ -99,8 +73,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[
                     attrs.append(f'RevitElements(Category = "{clean_cat}")')
         
         attr_prefix = f"[{', '.join(attrs)}]\n" if attrs else ""
-        
-        # USE SIMPLE ONE-LINER COMMENT
+        # USE SIMPLE ONE-LINER
         param_fields.append(f"/// Filter value for {prop_name}")
         
         if is_revit_type:
@@ -111,10 +84,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[
             else:
                 default_val = f'"{val}"' if isinstance(val, str) else str(val)
                 if isinstance(val, bool): default_val = str(val).lower()
-            
             param_fields.append(f"{attr_prefix}public {csharp_type} {prop_id} {{ get; set; }} = {default_val};")
 
-    # --- ElementParameterFilter Recursive Generation ---
     def build_filter_logic(group):
         child_filters = []
         for child in group["children"]:
@@ -168,9 +139,24 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[
 
     revit_filter = build_filter_logic(root_group)
 
+    query_metadata = {
+        "category": category_name, "rootGroup": root_group,
+        "selectedColumns": selected_columns or [], "scope": scope
+    }
+    metadata_json = json.dumps(query_metadata)
+    
     logic_parts = []
+    logic_parts.append(f"// __PARACORE_QUERY_DATA__{metadata_json}")
+    logic_parts.append("")
     logic_parts.append("// 1. Filtering Logic (High-Performance Native Filter)")
-    logic_parts.append(f"FilteredElementCollector collector = new(Doc);")
+    
+    if scope == "selection":
+        logic_parts.append("var selection = Uidoc.Selection.GetElementIds();")
+        logic_parts.append("if (selection.Count == 0) { Println(\"Nothing selected. Please select elements in Revit.\"); return; }")
+        logic_parts.append(f"FilteredElementCollector collector = new FilteredElementCollector(Doc, selection);")
+    else:
+        logic_parts.append(f"FilteredElementCollector collector = new(Doc);")
+        
     logic_parts.append(f"collector.OfCategory(BuiltInCategory.{category_name}).WhereElementIsNotElementType();")
     if revit_filter != "null":
         logic_parts.append(f"collector.WherePasses({revit_filter});")
@@ -183,40 +169,42 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[
     logic_parts.append("    var results = elements.Select(el =>")
     logic_parts.append("    {")
     
-    for rule in all_rules:
-        p_name = rule["name"]
-        p_id = p_name.replace(" ", "")
-        storage = rule["storage_type"]
-        unit = rule.get("unit")
-        
-        if rule.get("is_builtin") and rule.get("builtin_id"):
-            b_name = rule.get('builtin_name')
-            getter = f"el.get_Parameter(BuiltInParameter.{b_name})" if b_name and not b_name.isdigit() else f"el.get_Parameter((BuiltInParameter)({rule['builtin_id']}))"
+    reporting_columns = []
+    seen_col_ids = set()
+    for rule in all_filter_rules:
+        if rule["name"] in seen_col_ids: continue
+        seen_col_ids.add(rule["name"])
+        reporting_columns.append(rule)
+    if selected_columns:
+        for col in selected_columns:
+            if col["name"] in seen_col_ids: continue
+            seen_col_ids.add(col["name"])
+            reporting_columns.append(col)
+
+    for col in reporting_columns:
+        p_name = col["name"]; p_id = p_name.replace(" ", ""); storage = col["storage_type"]; unit = col.get("unit")
+        if p_name == "Family Name": val_expr = "el.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM)?.AsValueString() ?? el.Name"
+        elif p_name == "Type Name": val_expr = "el.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)?.AsValueString() ?? el.Name"
+        elif col.get("is_builtin") and col.get("builtin_id"):
+            b_name = col.get('builtin_name')
+            getter = f"el.get_Parameter(BuiltInParameter.{b_name})" if b_name and not b_name.isdigit() else f"el.get_Parameter((BuiltInParameter)({col['builtin_id']}))"
+            if storage == "Double":
+                if unit and unit in UNIT_MAP: val_expr = f"Math.Round(UnitUtils.ConvertFromInternalUnits({getter}?.AsDouble() ?? 0, {UNIT_MAP[unit]}), 4)"
+                else: val_expr = f"Math.Round({getter}?.AsDouble() ?? 0, 4)"
+            elif storage == "Integer": val_expr = f"{getter}?.AsInteger() ?? 0"
+            elif storage == "String": val_expr = f"{getter}?.AsString() ?? \"-\""
+            else: val_expr = f"{getter}?.AsValueString() ?? \"-\""
         else:
             getter = f"el.LookupParameter(\"{p_name}\")"
-
-        if storage == "Double":
-            if unit and unit in UNIT_MAP:
-                type_id = UNIT_MAP[unit]
-                # Round to 4 decimal places
-                val_expr = f"Math.Round(UnitUtils.ConvertFromInternalUnits({getter}?.AsDouble() ?? 0, {type_id}), 4)"
-            else:
-                val_expr = f"Math.Round({getter}?.AsDouble() ?? 0, 4)"
-        elif storage == "Integer":
-            val_expr = f"{getter}?.AsInteger() ?? 0"
-        elif storage == "String":
-            val_expr = f"{getter}?.AsString() ?? \"-\""
-        else:
             val_expr = f"{getter}?.AsValueString() ?? \"-\""
-
         logic_parts.append(f"        object {p_id}Value = {val_expr};")
 
     logic_parts.append("\n        return new")
     logic_parts.append("        {")
     logic_parts.append("            Id = el.Id.Value,")
     logic_parts.append("            el.Name,")
-    for rule in all_rules:
-        p_id = rule["name"].replace(" ", "")
+    for col in reporting_columns:
+        p_id = col["name"].replace(" ", "")
         logic_parts.append(f"            {p_id} = {p_id}Value,")
     logic_parts.append("        };")
     logic_parts.append("    }).ToList();")
@@ -231,8 +219,4 @@ ElementId GetParamId(Document doc, string name)
     return first?.LookupParameter(name)?.Id ?? ElementId.InvalidElementId;
 }}
 """
-    return {
-        "logic": "\n".join(logic_parts),
-        "helpers": helper,
-        "params": "\n".join(param_fields)
-    }
+    return {"logic": "\n".join(logic_parts), "helpers": helper, "params": "\n".join(param_fields)}

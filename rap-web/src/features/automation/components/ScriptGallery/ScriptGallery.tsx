@@ -253,9 +253,22 @@ export const ScriptGallery: React.FC = () => {
     openNewScriptModal();
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = (resultScript?: Script) => {
     setScriptToReplace(null);
     closeNewScriptModal();
+    
+    if (resultScript) {
+        setSelectedScript(resultScript);
+        setActiveInspectorTab('parameters');
+        
+        // Use requestAnimationFrame to wait for the gallery to re-render with the new script
+        requestAnimationFrame(() => {
+            const cardElement = document.getElementById(`script-card-${resultScript.id}`);
+            if (cardElement && galleryRef.current?.parentElement) {
+                cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    }
   };
 
   const handleEnterFocusMode = (rect: DOMRect) => {

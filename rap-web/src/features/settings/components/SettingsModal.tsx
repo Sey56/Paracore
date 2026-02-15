@@ -4,6 +4,7 @@ import { useAuth } from '@/features/auth';
 import TeamSourceSettings from '@/features/team-sources/components/TeamSourceSettings';
 import LLMSettings from './LLMSettings';
 import AgentSettings from './AgentSettings';
+import ScriptAutomationSettings from './ScriptAutomationSettings';
 import { Modal } from '@/components/common/Modal';
 import { Role } from '@/features/auth';
 
@@ -27,6 +28,11 @@ const SettingsModal: React.FC = () => {
 
   const coreFeaturesTabs = useMemo(() => {
     const tabs: TabItem[] = [];
+
+    tabs.push({
+      name: 'BIM Watchdogs',
+      component: ScriptAutomationSettings,
+    });
 
     // All tabs are now visible, but restricted internally if offline
     if (activeRole !== Role.User) {
@@ -52,18 +58,23 @@ const SettingsModal: React.FC = () => {
     });
 
     return tabs;
-  }, [activeRole, openTeamManagementModal]);
+  }, [activeRole, openTeamManagementModal, activeTeam]);
 
-  const [activeTab, setActiveTab] = useState<string | null>(
-    coreFeaturesTabs.length > 0 ? coreFeaturesTabs[0].name : null
-  );
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+
+  // Set default tab on mount or when tabs change
+  useEffect(() => {
+    if (!activeTab && coreFeaturesTabs.length > 0) {
+      setActiveTab(coreFeaturesTabs[0].name);
+    }
+  }, [coreFeaturesTabs, activeTab]);
 
   const ActiveComponent = coreFeaturesTabs.find(tab => tab.name === activeTab)?.component;
   const isOffline = activeTeam?.team_id === 0;
 
   return (
     <Modal isOpen={isSettingsModalOpen} onClose={closeSettingsModal} title="Settings" size="2xl">
-      <div className="flex flex-1 overflow-hidden" style={{ height: '80vh' }}>
+      <div className="flex overflow-hidden max-h-[65vh]">
         <div className="w-1/4 border-r border-gray-200 dark:border-gray-700 p-6 flex-shrink-0 overflow-y-auto">
           <nav className="flex flex-col space-y-2">
             {/* Core Features Grouping */}
@@ -92,7 +103,7 @@ const SettingsModal: React.FC = () => {
         <div className="flex-1 p-8 overflow-y-auto">
           {ActiveComponent && (
             <>
-              {isOffline && activeTab !== 'LLM Settings' ? (
+              {isOffline && activeTab !== 'LLM Settings' && activeTab !== 'BIM Watchdogs' ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-full">
                     <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,8 +119,8 @@ const SettingsModal: React.FC = () => {
                 </div>
               ) : (
                 <ActiveComponent 
-                  isAuthenticated={isAuthenticated} 
-                  isReadOnly={activeTab === 'LLM Settings' ? false : isOffline} 
+                  isAuthenticated={isAuthenticated || isOffline} 
+                  isReadOnly={activeTab === 'LLM Settings' || activeTab === 'BIM Watchdogs' ? false : isOffline} 
                 />
               )}
             </>

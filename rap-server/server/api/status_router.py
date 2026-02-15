@@ -15,9 +15,8 @@ async def get_status_endpoint():
     """
     try:
         response = get_status()
-        # print(f"[DEBUG] Raw GetStatusResponse from RServer.Addin: {response}") # DEBUG LOG
         return JSONResponse(content=json.loads(json_format.MessageToJson(response)))
-    except grpc.RpcError:
+    except Exception:
         return JSONResponse(content={
             "paracoreConnected": False,
             "revitOpen": False,
@@ -26,5 +25,11 @@ async def get_status_endpoint():
             "documentTitle": None,
             "documentType": "None"
         })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/watchdogs", tags=["status"])
+async def get_watchdogs_endpoint():
+    """
+    Returns active background watchdogs and their latest health reports.
+    """
+    from grpc_client import get_watchdog_statuses
+    return get_watchdog_statuses()

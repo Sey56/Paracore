@@ -97,6 +97,7 @@ async def run_script_logic(
 
         if isinstance(parameters, dict):
             parameters["__script_name__"] = script_name_for_dashboard
+            parameters["__absolute_path__"] = resolved_path
 
         # Execute
         response_data = execute_script(json.dumps(script_files_payload), json.dumps(parameters))

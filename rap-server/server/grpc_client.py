@@ -48,6 +48,19 @@ def get_corescript_runner_stub():
         if local_channel:
             local_channel.close()
 
+def register_watchdog_source(path: str):
+    """
+    Calls the gRPC service to scan a folder and arm all watchdogs found.
+    """
+    with get_corescript_runner_stub() as stub:
+        request = corescript_pb2.RegisterWatchdogSourceRequest(path=path)
+        response = stub.RegisterWatchdogSource(request)
+        return {
+            "is_success": response.is_success,
+            "error_message": response.error_message,
+            "watchdogs_registered": response.watchdogs_registered
+        }
+
 def get_status():
     # logging.info("Attempting to get gRPC server status.")
     try:
@@ -60,6 +73,50 @@ def get_status():
     except Exception as e:
         logging.error(f"An unexpected error occurred during gRPC GetStatus call: {e}")
         raise # Re-raise the unexpected error
+
+def get_model_categories():
+    """
+    Calls the gRPC service to fetch all model categories on demand.
+    """
+    try:
+        with get_corescript_runner_stub() as stub:
+            response = stub.GetModelCategories(corescript_pb2.GetModelCategoriesRequest())
+            
+            all_cats = []
+            for cat in response.categories:
+                all_cats.append({"id": cat.id, "label": cat.label})
+            
+            return {
+                "categories": all_cats,
+                "error_message": response.error_message
+            }
+    except Exception as e:
+        logging.error(f"Error calling GetModelCategories gRPC: {e}")
+        return {"categories": [], "error_message": str(e)}
+
+def get_watchdog_statuses():
+    """
+    Calls the gRPC service to fetch all active background watcher statuses.
+    """
+    try:
+        with get_corescript_runner_stub() as stub:
+            response = stub.GetWatchdogStatus(corescript_pb2.GetWatchdogStatusRequest())
+            
+            watchdogs = []
+            for w in response.watchdogs:
+                watchdogs.append({
+                    "script_path": w.script_path,
+                    "script_name": w.script_name,
+                    "summary": w.summary,
+                    "status": w.status,
+                    "details_json": w.details_json,
+                    "timestamp": w.timestamp
+                })
+            
+            return {"watchdogs": watchdogs}
+    except Exception as e:
+        logging.error(f"Error calling GetWatchdogStatus gRPC: {e}")
+        return {"watchdogs": [], "error_message": str(e)}
 
 def execute_script(script_content, parameters_json, compiled_assembly=None):
     # logging.info("Attempting to execute script via gRPC.")
@@ -509,7 +566,8 @@ def get_category_parameters(category_name: str):
                     "is_builtin": p.is_builtin,
                     "builtin_id": p.builtin_id,
                     "builtin_name": p.builtin_name,
-                    "revit_element_type": p.revit_element_type
+                    "revit_element_type": p.revit_element_type,
+                    "spec_type_id": p.spec_type_id
                 })
             
             return {

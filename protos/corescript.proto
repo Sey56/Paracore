@@ -19,7 +19,35 @@ service CoreScriptRunner {
   rpc RenameScript (RenameScriptRequest) returns (RenameScriptResponse);
   rpc BuildScript (BuildScriptRequest) returns (BuildScriptResponse);
   rpc GetCategoryParameters (GetCategoryParametersRequest) returns (GetCategoryParametersResponse);
+  rpc GetModelCategories (GetModelCategoriesRequest) returns (GetModelCategoriesResponse);
   rpc StopSyncSession (StopSyncSessionRequest) returns (StopSyncSessionResponse);
+  rpc GetWatchdogStatus (GetWatchdogStatusRequest) returns (GetWatchdogStatusResponse);
+  rpc RegisterWatchdogSource (RegisterWatchdogSourceRequest) returns (RegisterWatchdogSourceResponse);
+}
+
+message RegisterWatchdogSourceRequest {
+  string path = 1;
+}
+
+message RegisterWatchdogSourceResponse {
+  bool is_success = 1;
+  string error_message = 2;
+  int32 watchdogs_registered = 3;
+}
+
+message GetWatchdogStatusRequest {}
+
+message WatchdogStatus {
+  string script_path = 1;
+  string script_name = 2;
+  string summary = 3;
+  string status = 4;
+  string details_json = 5;
+  string timestamp = 6;
+}
+
+message GetWatchdogStatusResponse {
+  repeated WatchdogStatus watchdogs = 1;
 }
 
 message StopSyncSessionRequest {
@@ -42,11 +70,24 @@ message ParameterDefinition {
   int32 builtin_id = 4; 
   string revit_element_type = 5; 
   string builtin_name = 6;
+  string spec_type_id = 7;
 }
 
 message GetCategoryParametersResponse {
   repeated ParameterDefinition parameters = 1;
   string error_message = 2;
+}
+
+message GetModelCategoriesRequest {}
+
+message GetModelCategoriesResponse {
+  repeated CategoryInfo categories = 1;
+  string error_message = 2;
+}
+
+message CategoryInfo {
+  string id = 1;
+  string label = 2;
 }
 
 message PickObjectRequest {

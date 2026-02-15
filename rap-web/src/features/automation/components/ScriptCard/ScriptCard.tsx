@@ -201,6 +201,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   return (
     <div
+      id={`script-card-${script.id}`}
       ref={cardRef}
       className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
         } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}

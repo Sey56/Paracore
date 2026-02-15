@@ -107,19 +107,25 @@ namespace Paracore.Addin.ViewModels
                 // Ensure ObservableCollection modification happens on the WPF UI thread
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    ExecutionHistory.Insert(0, new ExecutionRecord
+                    if (!result.IsSilent)
                     {
-                        ScriptName = LastExecutedScriptName, // Use the extracted script name from service
-                        Status = result.IsSuccess ? "Success" : "Error",
-                        Duration = durationString,
-                        Timestamp = result.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
-                        Source = MapSourceForDisplay(LastClientSource) // Map the source for display
-                    });
-                    FileLogger.Log($"[ServerViewModel] Added record to ExecutionHistory. Current count: {ExecutionHistory.Count}");
+                        ExecutionHistory.Insert(0, new ExecutionRecord
+                        {
+                            ScriptName = LastExecutedScriptName, // Use the extracted script name from service
+                            Status = result.IsSuccess ? "Success" : "Error",
+                            Duration = durationString,
+                            Timestamp = result.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
+                            Source = MapSourceForDisplay(LastClientSource) // Map the source for display
+                        });
+                    }
+                    FileLogger.Log($"[ServerViewModel] Handled execution result (Silent: {result.IsSilent}). Current count: {ExecutionHistory.Count}");
                 });
 
-                TotalExecutions++;
-                LastExecutionStatus = result.IsSuccess ? "Success" : "Error";
+                if (!result.IsSilent)
+                {
+                    TotalExecutions++;
+                    LastExecutionStatus = result.IsSuccess ? "Success" : "Error";
+                }
                 FileLogger.Log($"[ServerViewModel] TotalExecutions: {TotalExecutions}, LastExecutionStatus: {LastExecutionStatus}");
 
                 

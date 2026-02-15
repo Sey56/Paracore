@@ -442,6 +442,8 @@ export const Sidebar = () => {
                           path: userSourcePaths[Number(activeScriptSource.id)]!.path
                         };
                         handleOpenRemoveModal(sourceToRemove);
+                        setActiveScriptSource(null);
+                        setSelectedScript(null);
                       }
                     }}
                   >
@@ -523,6 +525,7 @@ export const Sidebar = () => {
                       if (activeScriptSource.path) {
                         removeCustomScriptFolder(activeScriptSource.path);
                         clearScriptsForSource(activeScriptSource.path);
+                        setActiveScriptSource(null);
                         setSelectedScript(null);
                       }
                     }}

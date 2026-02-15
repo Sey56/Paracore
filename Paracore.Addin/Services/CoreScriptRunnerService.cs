@@ -109,5 +109,36 @@ namespace Paracore.Addin.Services
         {
             return _contextHandler.GetCategoryParameters(request);
         }
+
+        public override Task<GetModelCategoriesResponse> GetModelCategories(GetModelCategoriesRequest request, ServerCallContext context)
+        {
+            return _contextHandler.GetModelCategories(request);
+        }
+
+        public override Task<GetWatchdogStatusResponse> GetWatchdogStatus(GetWatchdogStatusRequest request, ServerCallContext context)
+        {
+            var active = CoreScript.Engine.Globals.WatchdogRegistry.GetActiveWatchdogs();
+            var response = new GetWatchdogStatusResponse();
+
+            foreach (var w in active)
+            {
+                response.Watchdogs.Add(new WatchdogStatus
+                {
+                    ScriptPath = w.ScriptPath,
+                    ScriptName = w.ScriptName,
+                    Summary = w.LatestReport.Summary,
+                    Status = w.LatestReport.Status,
+                    DetailsJson = w.LatestReport.DetailsJson,
+                    Timestamp = w.LatestReport.Timestamp.ToString("o")
+                });
+            }
+
+            return Task.FromResult(response);
+        }
+
+        public override Task<RegisterWatchdogSourceResponse> RegisterWatchdogSource(RegisterWatchdogSourceRequest request, ServerCallContext context)
+        {
+            return _executionHandler.RegisterWatchdogSource(request);
+        }
     }
 }

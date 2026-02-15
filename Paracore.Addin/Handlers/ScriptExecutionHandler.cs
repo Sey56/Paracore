@@ -2,6 +2,7 @@ using CoreScript;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Logging;
 using CoreScript.Engine.Models;
+using CoreScript.Engine.Runtime;
 using Grpc.Core;
 using Paracore.Addin.Context;
 using Paracore.Addin.ViewModels;
@@ -19,12 +20,82 @@ namespace Paracore.Addin.Handlers
     {
         private readonly UIApplication? _uiApp;
         private readonly ILogger _logger;
+        private readonly IScriptCombiner _scriptCombiner;
+        private readonly IScriptParser _scriptParser;
         private static readonly SemaphoreSlim ExecutionLock = new(1);
 
-        public ScriptExecutionHandler(UIApplication? uiApp, ILogger logger)
+        public ScriptExecutionHandler(UIApplication? uiApp, ILogger logger, IScriptCombiner scriptCombiner, IScriptParser scriptParser)
         {
             _uiApp = uiApp;
             _logger = logger;
+            _scriptCombiner = scriptCombiner;
+            _scriptParser = scriptParser;
+        }
+
+        public async Task<RegisterWatchdogSourceResponse> RegisterWatchdogSource(RegisterWatchdogSourceRequest request)
+        {
+            _logger.Log($"[ScriptExecutionHandler] Scanning for watchdogs in: {request.Path}", LogLevel.Info);
+            var response = new RegisterWatchdogSourceResponse { IsSuccess = true };
+
+            try
+            {
+                if (!System.IO.Directory.Exists(request.Path))
+                {
+                    return new RegisterWatchdogSourceResponse { IsSuccess = false, ErrorMessage = "Source path does not exist." };
+                }
+
+                int count = 0;
+                var projects = System.IO.Directory.GetDirectories(request.Path);
+                foreach (var projectPath in projects)
+                {
+                    string scriptsPath = System.IO.Path.Combine(projectPath, "Scripts");
+                    if (!System.IO.Directory.Exists(scriptsPath)) continue;
+
+                    var csFiles = System.IO.Directory.GetFiles(scriptsPath, "*.cs");
+                    if (csFiles.Length == 0) continue;
+
+                    try
+                    {
+                        var scriptFiles = csFiles.Select(f => new CoreScript.Engine.Models.ScriptFile
+                        {
+                            FileName = System.IO.Path.GetFileName(f),
+                            Content = System.IO.File.ReadAllText(f)
+                        }).ToList();
+
+                        string combined = _scriptCombiner.Combine(scriptFiles);
+                        
+                        // Queue silently
+                        if (_uiApp != null)
+                        {
+                            var serverContext = new ServerContext(_uiApp);
+                            // We must include the absolute path in parameters so ScriptApi.Watchdog() works
+                            var parameters = new Dictionary<string, object>
+                            {
+                                { "__absolute_path__", projectPath.Replace('\\', '/') },
+                                { "__script_name__", System.IO.Path.GetFileName(projectPath) }
+                            };
+                            string paramsJson = JsonSerializer.Serialize(parameters);
+
+                            CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(combined, paramsJson, serverContext, isSilent: true);
+                            count++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Log($"[ScriptExecutionHandler] Failed to queue watchdog in {projectPath}: {ex.Message}", LogLevel.Warning);
+                    }
+                }
+
+                response.WatchdogsRegistered = count;
+                _logger.Log($"[ScriptExecutionHandler] Queued {count} watchdogs for silent registration.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.ErrorMessage = ex.Message;
+            }
+
+            return response;
         }
 
         public async Task<BuildScriptResponse> BuildScript(BuildScriptRequest request)

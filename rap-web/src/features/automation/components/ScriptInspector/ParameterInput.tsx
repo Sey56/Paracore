@@ -204,7 +204,8 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
   const { revitStatus } = useRevitStatus();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const isContextMismatch = param.computedInDocument && revitStatus.document && param.computedInDocument !== revitStatus.document;
+  const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() : null;
+  const isContextMismatch = param.computedInDocument && currentDocTitle && param.computedInDocument !== currentDocTitle;
 
   const getMultiSelectValues = (): string[] => {
     try {
@@ -335,7 +336,8 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
     }
   }, [param.value]);
 
-  const isContextMismatch = param.computedInDocument && revitStatus.document && param.computedInDocument !== revitStatus.document;
+  const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() : null;
+  const isContextMismatch = param.computedInDocument && currentDocTitle && param.computedInDocument !== currentDocTitle;
 
   const handleFileBrowse = async () => {
     try {

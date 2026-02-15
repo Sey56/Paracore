@@ -134,6 +134,53 @@ namespace CoreScript.Engine.Globals
         public static void LineGraph(object data) => Globals.Output.ChartLine(data);
 
         /// <summary>
+        /// Registers a background watchdog that runs when Revit is idle.
+        /// Useful for continuous model validation or background tasks.
+        /// </summary>
+        /// <param name="callback">The logic to run during Revit idle time.</param>
+        /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
+        public static void Watchdog(Action<Document> callback, int intervalSeconds = 5)
+        {
+            if (Parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj is string path)
+            {
+                string scriptName = Parameters.TryGetValue("__script_name__", out var nameObj) ? nameObj.ToString()! : "Watcher";
+                WatchdogRegistry.Register(path, scriptName, callback, intervalSeconds);
+            }
+            else
+            {
+                Println("⚠️ Watchdog registration failed: Script path not found in context.");
+            }
+        }
+
+        /// <summary>
+        /// Sends a status report for the current background watchdog.
+        /// </summary>
+        /// <param name="summary">Short text description (e.g. 'Found 5 errors')</param>
+        /// <param name="status">'success', 'warning', or 'error'</param>
+        /// <param name="data">Optional list of elements or objects for details</param>
+        public static void WatchdogReport(string summary, string status = "success", object? data = null)
+        {
+            string? path = null;
+
+            // Priority 1: Current execution context (when running via UI)
+            if (ExecutionGlobals.Current.Value != null && Parameters.TryGetValue("__absolute_path__", out var pathObj))
+            {
+                path = pathObj as string;
+            }
+            // Priority 2: Background loop context
+            else
+            {
+                path = WatchdogRegistry.CurrentWatchdogPath;
+            }
+
+            if (!string.IsNullOrEmpty(path))
+            {
+                string json = data != null ? System.Text.Json.JsonSerializer.Serialize(data) : "[]";
+                WatchdogRegistry.SetReport(path!, summary, status, json);
+            }
+        }
+
+        /// <summary>
         /// Sets the execution timeout for the current script. Default is 10 seconds.
         /// Call this at the start of your script if you need more time for long-running operations.
         /// </summary>

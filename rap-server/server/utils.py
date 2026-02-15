@@ -37,20 +37,31 @@ def resolve_script_path(relative_or_absolute_path: str) -> str:
     Resolves a script path to a consistent, absolute, and normalized form.
     Handles both absolute and relative paths.
     """
-    if os.path.isabs(relative_or_absolute_path):
-        # For absolute paths, just normalize and ensure consistent slashes
-        safe_path = os.path.normpath(relative_or_absolute_path)
+    # 1. Normalize slashes first
+    path_to_resolve = relative_or_absolute_path.replace('\\', '/')
+
+    if os.path.isabs(path_to_resolve):
+        # For absolute paths, just normalize
+        safe_path = os.path.normpath(path_to_resolve)
     else:
         # For relative paths, resolve against a known base directory
-        # Assuming scripts are typically in a 'src/data' like structure relative to the server
         script_root_for_defaults = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/data'))
-        safe_path = os.path.abspath(os.path.join(script_root_for_defaults, relative_or_absolute_path))
+        safe_path = os.path.abspath(os.path.join(script_root_for_defaults, path_to_resolve))
 
-    # Ensure consistent forward slashes for storage/comparison
+    # 2. Convert to absolute path to handle any '..' or '.' components
+    safe_path = os.path.abspath(safe_path)
+
+    # 3. Ensure consistent forward slashes for storage/comparison
     safe_path = safe_path.replace('\\', '/')
 
-    if not os.path.exists(safe_path):
-        raise FileNotFoundError(f"Script not found at the resolved path: {safe_path}")
+    # 4. CRITICAL: On Windows, normalize the drive letter to uppercase for consistency
+    if len(safe_path) > 1 and safe_path[1] == ':':
+        safe_path = safe_path[0].upper() + safe_path[1:]
+
+    # We do NOT use os.path.exists() here because in some containerized or 
+    # remote-mount scenarios, the server might be looking up a path that 
+    # doesn't exist on its local FS but is a valid logical path in the DB.
+    # The caller should handle missing files if they need to read them.
     return safe_path
 
 def get_or_create_script(db: Session, script_path: str, owner_id: int) -> models.Script:

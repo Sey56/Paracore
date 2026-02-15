@@ -100,19 +100,6 @@ def save_presets(
     resolved_script_path = resolve_script_path(request_data.scriptPath)
     script = get_or_create_script(db, resolved_script_path, current_user.id)
 
-    # Perform uniqueness check based on parameter values within the incoming request_data.presets
-    # This ensures that the set of presets being saved does not contain duplicates by value.
-    for i, preset_a in enumerate(request_data.presets):
-        for j, preset_b in enumerate(request_data.presets):
-            if i == j:  # Don't compare a preset with itself
-                continue
-
-            if are_parameters_equal_python(preset_a.parameters, preset_b.parameters):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Two presets in the request have identical parameter values: '{preset_a.name}' and '{preset_b.name}'"
-                )
-
     # If all checks pass, delete existing and save new presets
     db.query(models.Preset).filter(models.Preset.script_id == script.id).delete()
     for preset_data in request_data.presets:

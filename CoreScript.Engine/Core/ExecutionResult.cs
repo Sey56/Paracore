@@ -13,6 +13,7 @@ namespace CoreScript.Engine.Core
         public object? ReturnValue { get; set; }
         public string ScriptName { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; } = DateTime.Now;
+        public bool IsSilent { get; set; }
         public List<string> StructuredOutput { get; set; } = new();
 
         // ✅ Added: log buffer for Print(...) output

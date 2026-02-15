@@ -64,8 +64,58 @@ namespace Paracore.Addin.Handlers
                 DocumentType = documentType
             };
 
-            _logger.Log($"[ContextHandler] Revit Status: Open={{revitOpen}}, Version={{revitVersion}}, DocOpen={{documentOpen}}, DocTitle='{{documentTitle}}', DocType={{documentType}}.", LogLevel.Debug);
+            _logger.Log($"[ContextHandler] Revit Status: Open={revitOpen}, Version={revitVersion}, DocOpen={documentOpen}, DocTitle='{documentTitle}', DocType={documentType}.", LogLevel.Debug);
             return status;
+        }
+
+        public async Task<GetModelCategoriesResponse> GetModelCategories(GetModelCategoriesRequest request)
+        {
+            _logger.Log("[ContextHandler] Fetching all model categories on demand.", LogLevel.Info);
+            var response = new GetModelCategoriesResponse();
+
+            if (_uiApp?.ActiveUIDocument == null)
+            {
+                response.ErrorMessage = "Revit document is not active.";
+                return response;
+            }
+
+            try
+            {
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
+                {
+                    var doc = _uiApp.ActiveUIDocument.Document;
+                    var bics = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>();
+                    
+                    // Filter and map to a clean list
+                    var categories = bics
+                        .Where(bic => bic.ToString().StartsWith("OST_")) // Standard categories only
+                        .Select(bic => {
+                            try {
+                                var cat = doc.Settings.Categories.get_Item(bic);
+                                if (cat == null || string.IsNullOrEmpty(cat.Name)) return null;
+                                return new { Id = bic.ToString(), Label = cat.Name };
+                            } catch { return null; }
+                        })
+                        .Where(x => x != null)
+                        // Group by label to avoid duplicates like "Hidden Lines" appearing multiple times
+                        .GroupBy(x => x!.Label)
+                        .Select(g => g.First())
+                        .OrderBy(x => x!.Label)
+                        .ToList();
+
+                    foreach (var c in categories)
+                    {
+                        response.Categories.Add(new CoreScript.CategoryInfo { Id = c!.Id, Label = c!.Label });
+                    }
+                    return true;
+                });
+            }
+            catch (Exception ex)
+            {
+                response.ErrorMessage = ex.Message;
+            }
+
+            return response;
         }
 
         public async Task<GetContextResponse> GetContext()
@@ -609,12 +659,18 @@ namespace Paracore.Addin.Handlers
 
                     foreach (var p in uniqueParams)
                     {
+                        string specId = "";
+                        try {
+                            specId = p.Definition.GetDataType().TypeId;
+                        } catch { }
+
                         var def = new ParameterDefinition
                         {
                             Name = p.Definition.Name,
                             StorageType = p.StorageType.ToString(),
                             IsBuiltin = p.IsShared == false && p.Id.Value < 0,
-                            BuiltinId = (int)p.Id.Value
+                            BuiltinId = (int)p.Id.Value,
+                            SpecTypeId = specId
                         };
 
                         if (def.IsBuiltin)
