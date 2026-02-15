@@ -256,18 +256,18 @@ export const ScriptGallery: React.FC = () => {
   const handleCloseModal = (resultScript?: Script) => {
     setScriptToReplace(null);
     closeNewScriptModal();
-    
-    if (resultScript) {
-        setSelectedScript(resultScript);
-        setActiveInspectorTab('parameters');
-        
-        // Use requestAnimationFrame to wait for the gallery to re-render with the new script
-        requestAnimationFrame(() => {
-            const cardElement = document.getElementById(`script-card-${resultScript.id}`);
-            if (cardElement && galleryRef.current?.parentElement) {
-                cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        });
+
+    if (resultScript && resultScript.id) {
+      setSelectedScript(resultScript);
+      setActiveInspectorTab('parameters');
+
+      // Use requestAnimationFrame to wait for the gallery to re-render with the new script
+      requestAnimationFrame(() => {
+        const cardElement = document.getElementById(`script-card-${resultScript.id}`);
+        if (cardElement && galleryRef.current?.parentElement) {
+          cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
     }
   };
 
@@ -612,10 +612,10 @@ export const ScriptGallery: React.FC = () => {
       )}
 
       {selectedFolder && (
-        <NewScriptModal 
-          isOpen={isNewScriptModalOpen} 
-          onClose={handleCloseModal} 
-          selectedFolder={selectedFolder as string} 
+        <NewScriptModal
+          isOpen={isNewScriptModalOpen}
+          onClose={handleCloseModal}
+          selectedFolder={selectedFolder as string}
           scriptToReplace={scriptToReplace}
         />
       )}

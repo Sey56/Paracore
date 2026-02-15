@@ -71,7 +71,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   const [renameValue, setRenameValue] = React.useState('');
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  
+
   const menuRef = React.useRef<HTMLDivElement>(null);
   const renameInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -103,9 +103,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   const isCompatibleWithDocument = React.useMemo(() => {
     if (!isParacoreConnected) return true; // Let connection check handle state
+
+    // If connected but no document is open, nothing is compatible
+    if (revitStatus?.document === null) return false;
+
     if (requiredDocType === 'Any' || currentDocType === 'Any') return true;
     return requiredDocType.toLowerCase() === currentDocType.toLowerCase();
-  }, [isParacoreConnected, requiredDocType, currentDocType]);
+  }, [isParacoreConnected, requiredDocType, currentDocType, revitStatus?.document]);
 
   // Validation - use cached parameters if available
   const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
@@ -129,11 +133,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     ? "Please sign in to run scripts"
     : !isParacoreConnected
       ? "Paracore is disconnected"
-      : !isCompatibleWithDocument
-        ? `Script requires '${requiredDocType}' but current is '${currentDocType}'`
-        : validationErrors.length > 0
-          ? `Issues: ${validationErrors.join(', ')}`
-          : "Run this script";
+      : revitStatus?.document === null
+        ? "No document opened in Revit"
+        : !isCompatibleWithDocument
+          ? `Script requires '${requiredDocType}' but current is '${currentDocType}'`
+          : validationErrors.length > 0
+            ? `Issues: ${validationErrors.join(', ')}`
+            : "Run this script";
 
   const editTooltipMessage = getEditTitleMessage();
 
@@ -208,9 +214,9 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
       onClick={handleSelect}
     >
       {/* Delete Confirmation Modal */}
-      <Modal 
-        isOpen={showDeleteModal} 
-        onClose={() => !isDeleting && setShowDeleteModal(false)} 
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => !isDeleting && setShowDeleteModal(false)}
         title={isProtectedTool ? "Delete Protected Tool" : "Manage Script Project"}
         size="md"
       >
@@ -220,7 +226,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Are you sure you want to permanently delete the protected tool <span className="font-bold text-gray-900 dark:text-white">"{getDisplayName()}"</span>?
               </p>
-              <div 
+              <div
                 className="p-4 rounded-xl border-2 border-red-50 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 hover:border-red-200 dark:hover:border-red-800 transition-all cursor-pointer group"
                 onClick={() => !isDeleting && handleDelete(false)}
               >
@@ -241,7 +247,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
               <div className="grid grid-cols-1 gap-4">
                 {/* Option 1: Clean Scaffolding */}
-                <div 
+                <div
                   className="p-4 rounded-xl border-2 border-blue-50 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-900/10 hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer group"
                   onClick={() => !isDeleting && handleDelete(true)}
                 >
@@ -253,7 +259,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                 </div>
 
                 {/* Option 2: Full Delete */}
-                <div 
+                <div
                   className="p-4 rounded-xl border-2 border-red-50 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 hover:border-red-200 dark:hover:border-red-800 transition-all cursor-pointer group"
                   onClick={() => !isDeleting && handleDelete(false)}
                 >

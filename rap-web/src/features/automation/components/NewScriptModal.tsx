@@ -81,7 +81,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                     await resetScriptParameters(scriptToReplace.id);
                 }
                 setShowConfirmReplace(false);
-                onClose(scriptToReplace as Script);
+                // Return the fresh script object from the response
+                onClose(response.data as Script);
             }
         } catch (err) {
             console.error("Failed to replace script code:", err);

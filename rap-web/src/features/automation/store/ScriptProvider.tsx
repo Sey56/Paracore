@@ -26,7 +26,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [scripts, setScripts] = useState<Script[]>([]);
   const [combinedScriptContent, setCombinedScriptContent] = useState<string | null>(null);
   const scriptsRef = useRef<Script[]>([]);
-  
+
   useEffect(() => {
     scriptsRef.current = scripts;
   }, [scripts]);
@@ -84,12 +84,12 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setFavoriteScripts(prev => {
       const isFavorite = prev.includes(scriptId);
       const next = isFavorite ? prev.filter(id => id !== scriptId) : [...prev, scriptId];
-      
+
       // Update local scripts state immediately for instant feedback
-      setScripts(currentScripts => currentScripts.map(s => 
+      setScripts(currentScripts => currentScripts.map(s =>
         s.id === scriptId ? { ...s, isFavorite: !isFavorite } : s
       ));
-      
+
       return next;
     });
   }, [setFavoriteScripts, setScripts]);
@@ -160,14 +160,37 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // After creation, reload the list
       let newScriptObj = null;
       if (selectedFolder) {
-          const freshScripts = await loadScriptsFromPath(selectedFolder, true);
-          // Find the actual script object in the newly loaded list
-          if (freshScripts) {
-              const targetPath = response.data.absolutePath || response.data.script_path;
-              newScriptObj = freshScripts.find(s => s.absolutePath === targetPath);
-          }
+        const freshScripts = await loadScriptsFromPath(selectedFolder, true);
+        // Find the actual script object in the newly loaded list
+        if (freshScripts) {
+          const targetPath = response.data.absolutePath || response.data.script_path;
+          newScriptObj = freshScripts.find(s => s.absolutePath === targetPath);
+        }
       }
-      return newScriptObj || response.data;
+      if (newScriptObj) return newScriptObj;
+
+      // Fallback: Construct a temporary Script object from response to prevent UI crashes
+      // This happens if the file system hasn't updated yet when we try to reload
+      const fallbackScript: Script = {
+        id: response.data.id || response.data.script_id || `temp-${Date.now()}`,
+        name: details.script_name || 'New Script',
+        sourcePath: response.data.absolutePath || response.data.script_path || '',
+        absolutePath: response.data.absolutePath || response.data.script_path || '',
+        parameters: [],
+        metadata: {
+          displayName: details.script_name || 'New Script',
+          lastRun: null,
+          dependencies: [],
+          description: '',
+          categories: [],
+          usage_examples: [],
+          isProtected: false,
+          isCompiled: false
+        },
+        isFavorite: false
+      };
+
+      return fallbackScript;
     } catch (error: any) {
       showNotification(error.response?.data?.detail || "Failed to create script", "error");
       return undefined;
@@ -176,9 +199,9 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deleteScript = useCallback(async (script: Script, scaffoldingOnly: boolean = false) => {
     try {
-      await api.post("/api/scripts/delete", { 
+      await api.post("/api/scripts/delete", {
         script_path: script.absolutePath,
-        delete_scaffolding_only: scaffoldingOnly 
+        delete_scaffolding_only: scaffoldingOnly
       });
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
       showNotification(scaffoldingOnly ? "Scaffolding cleared" : "Script deleted", "success");

@@ -59,8 +59,8 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
           >
             <FontAwesomeIcon icon={isCollapsed ? faChevronDown : faChevronUp} />
           </button>
-          {script.metadata.displayName || script.name.replace(/\.cs$/, "")}
-          {script.metadata.isProtected && (
+          {(script.metadata?.displayName || script.name || "").replace(/\.cs$/, "")}
+          {script.metadata?.isProtected && (
             <span className="ml-2 px-1.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded border border-amber-200 dark:border-amber-800 flex items-center inline-flex">
               <FontAwesomeIcon icon={faTools} className="mr-1" style={{ fontSize: '0.6rem' }} />
               Tool
@@ -84,20 +84,20 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
       {!isCollapsed && (
         <div className="animate-in fade-in slide-in-from-top-1 duration-200">
           {/* Categories */}
-          {script.metadata.categories && script.metadata.categories.length > 0 && (
+          {script.metadata?.categories && script.metadata.categories.length > 0 && (
             <div className="text-sm text-gray-500 dark:text-gray-400 mb-2 pl-6">
               {script.metadata.categories.join(', ')}
             </div>
           )}
 
           {/* Description */}
-          {script.metadata.description && (
+          {script.metadata?.description && (
             <p className="text-gray-600 dark:text-gray-300 mb-4 pl-6 text-sm leading-relaxed">{script.metadata.description}</p>
           )}
 
           {/* Author */}
           <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 pl-6">
-            <span>{script.metadata.author || 'Unknown Author'}</span>
+            <span>{script.metadata?.author || 'Unknown Author'}</span>
           </div>
 
           {/* Git Last Commit Info */}

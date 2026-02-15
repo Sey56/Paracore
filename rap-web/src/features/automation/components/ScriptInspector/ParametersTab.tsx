@@ -193,7 +193,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   const isRunDisabled = !!runningScriptPath || !isActionable || !isParamsValid;
 
-  const isProtectedTool = script.metadata.isProtected || script.name.toLowerCase().endsWith('.ptool');
+  const isProtectedTool = !!(script.metadata && script.metadata.isProtected) || (script.name && script.name.toLowerCase().endsWith('.ptool'));
 
   const finalTooltipMessage = !isParamsValid
     ? `Issues: ${validationErrors.join(', ')}`

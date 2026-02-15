@@ -63,7 +63,7 @@ const areValuesEqual = (val1: unknown, val2: unknown, type?: string): boolean =>
 
 // Helper function for deep comparison of parameters
 const areParametersEqual = (params1: ScriptParameter[], params2: ScriptParameter[]): boolean => {
-  if (params1 === params2) return true; 
+  if (params1 === params2) return true;
   if (params1.length !== params2.length) return false;
 
   const sortedParams1 = [...params1].sort((a, b) => a.name.localeCompare(b.name));
@@ -98,7 +98,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     updateScriptLastRunTime,
     reloadScript,
     loadScriptsForFolder: loadScriptsFromPath,
-    activeSyncSessions 
+    activeSyncSessions
   } = useScripts();
   const { isAuthenticated, activeTeam, user, cloudToken } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, messages, setActiveMainView, setActiveInspectorTab, threadId } = useUI();
@@ -110,32 +110,27 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const [persistedScriptId, setPersistedScriptId] = useLocalStorage<string | null>('rap_activeSelectedScriptId', null);
   const selectedScriptRef = useRef<Script | null>(null);
   const lastExplicitParameterFetchTimeRef = useRef<number>(0);
-  const lastKnownModifiedRef = useRef<Record<string, number>>({}); 
+  const lastKnownModifiedRef = useRef<Record<string, number>>({});
 
-  // Auto-Recovery Effect: Restore selection after refresh
-  useEffect(() => {
-    if (!selectedScript && persistedScriptId && allScriptsFromScriptProvider.length > 0) {
-        const scriptToRestore = allScriptsFromScriptProvider.find(s => s.id === persistedScriptId);
-        if (scriptToRestore) {
-            console.log("[ScriptExecutionProvider] Restoring persisted selection:", scriptToRestore.name);
-            setSelectedScript(scriptToRestore, 'user');
-        }
-    }
-  }, [allScriptsFromScriptProvider, persistedScriptId]);
+
+  // Auto-Recovery Effect REMOVED per user request
+  // We no longer restore selection after refresh to prevent confusion across sources.
 
   // Keep ref in sync and update persistence
   useEffect(() => {
     selectedScriptRef.current = selectedScript;
+    // We still save it to local storage just in case we need it for something else, 
+    // or if we decide to re-enable recovery later, but for now it won't be used to auto-select.
     if (selectedScript) {
-        setPersistedScriptId(selectedScript.id);
+      setPersistedScriptId(selectedScript.id);
     }
   }, [selectedScript, setPersistedScriptId]);
 
   useEffect(() => {
-    if (selectedScript) {
+    if (selectedScript && selectedScript.absolutePath) {
       const normalizedPath = selectedScript.absolutePath.toLowerCase().replace(/\\/g, '/');
       const sessionData = activeSyncSessions[normalizedPath];
-      
+
       if (sessionData && sessionData.last_modified) {
         const lastSeen = lastKnownModifiedRef.current[normalizedPath] || 0;
         if (sessionData.last_modified > lastSeen) {
@@ -167,6 +162,18 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [presets, setPresets] = useState<ParameterPreset[]>([]);
   const [isComputingOptions, setIsComputingOptions] = useState<Record<string, boolean>>({});
+
+  // Clear selection when the active script source changes
+  // Moved here to be after state declarations
+  useEffect(() => {
+    // We check if the source actually changed identity/path
+    // This ensures that when the user clicks a different folder/team in sidebar, we reset.
+    console.log("[ScriptExecutionProvider] Source changed. Resetting selection.");
+    setSelectedScriptState(null);
+    setPersistedScriptId(null);
+    setCombinedScriptContent(null);
+    setExecutionResult(null);
+  }, [activeScriptSource, setPersistedScriptId, setCombinedScriptContent, setExecutionResult]);
 
   const clearExecutionResult = useCallback(() => {
     setExecutionResult(null);
@@ -212,12 +219,12 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   useEffect(() => {
     const currentTeamId = activeTeam?.team_id || null;
     if (lastTeamIdRef.current !== null && lastTeamIdRef.current !== currentTeamId) {
-        console.log("[ScriptExecutionProvider] Team changed. Resetting inspector.");
-        setSelectedScriptState(null);
-        setPersistedScriptId(null);
-        setCombinedScriptContent(null);
-        setExecutionResult(null);
-        setAgentSelectedScriptPath(null);
+      console.log("[ScriptExecutionProvider] Team changed. Resetting inspector.");
+      setSelectedScriptState(null);
+      setPersistedScriptId(null);
+      setCombinedScriptContent(null);
+      setExecutionResult(null);
+      setAgentSelectedScriptPath(null);
     }
     lastTeamIdRef.current = currentTeamId;
   }, [activeTeam?.team_id, setCombinedScriptContent, setAgentSelectedScriptPath, setPersistedScriptId]);
@@ -314,7 +321,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
       // Guard: Only fetch if we haven't notified for THIS specific script selection yet
       if (notifiedPresetsScriptIdRef.current === selectedScript.id) {
-          return;
+        return;
       }
 
       const normalizedPath = selectedScript.absolutePath.replace(/\\/g, '/');
@@ -344,7 +351,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         notifiedPresetsScriptIdRef.current = selectedScript.id;
 
         if (initializedPresets.length > 0) {
-            showNotification(`Loaded ${initializedPresets.length} presets for ${selectedScript.name}.`, "success");
+          showNotification(`Loaded ${initializedPresets.length} presets for ${selectedScript.name}.`, "success");
         }
       } catch (_) {
         console.error("[Presets] Failed to fetch:", _);
@@ -365,8 +372,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     const existingWithSameValues = presets.find((p) => areParametersEqual(p.parameters, preset.parameters));
     if (existingWithSameValues) {
-        showNotification(`A preset with identical values already exists: ${existingWithSameValues.name}`, "warning");
-        return { success: false, message: `Identical values already exist in preset: ${existingWithSameValues.name}` };
+      showNotification(`A preset with identical values already exists: ${existingWithSameValues.name}`, "warning");
+      return { success: false, message: `Identical values already exist in preset: ${existingWithSameValues.name}` };
     }
 
     const newPresets = [...presets, preset];
@@ -378,8 +385,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const updatePreset = useCallback((name: string, preset: ParameterPreset) => {
     const existingWithSameValues = presets.find((p) => p.name !== name && areParametersEqual(p.parameters, preset.parameters));
     if (existingWithSameValues) {
-        showNotification(`Another preset with identical values already exists: ${existingWithSameValues.name}`, "warning");
-        return { success: false, message: `Identical values already exist in preset: ${existingWithSameValues.name}` };
+      showNotification(`Another preset with identical values already exists: ${existingWithSameValues.name}`, "warning");
+      return { success: false, message: `Identical values already exist in preset: ${existingWithSameValues.name}` };
     }
 
     const newPresets = presets.map((p) => (p.name === name ? preset : p));
@@ -426,7 +433,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     // On user selection, check if we already have it in state/ref to avoid flicker
     if (source === 'user' && selectedScriptRef.current?.id === script.id && selectedScriptRef.current.parameters?.length > 0) {
-        return;
+      return;
     }
 
     if (source !== 'refresh' && source !== 'hard_reset') {
@@ -435,18 +442,22 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
 
     try {
-      const paramsResult = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath }).then(r => r.data).catch(e => ({ error: e.message }));
+      let paramsResult: any = { parameters: [] };
+      if (script.absolutePath) {
+        paramsResult = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath }).then(r => r.data).catch(e => ({ error: e.message }));
+      }
+
       const contentResult = await fetchScriptContent(script);
       fetchScriptMetadata(script.id);
 
       let freshParameters: ScriptParameter[] = [];
       if (paramsResult.parameters) {
-          freshParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
-            let value: any = p.defaultValueJson;
-            try { value = JSON.parse(p.defaultValueJson); } catch { }
-            if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
-            return { ...p, type: p.type as ScriptParameter['type'], value, defaultValue: value };
-          });
+        freshParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
+          let value: any = p.defaultValueJson;
+          try { value = JSON.parse(p.defaultValueJson); } catch { }
+          if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
+          return { ...p, type: p.type as ScriptParameter['type'], value, defaultValue: value };
+        });
       }
 
       // --- ELITE SMART MERGE LOGIC ---
@@ -457,20 +468,20 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (cachedParams.length > 0 && source !== 'hard_reset') {
         console.log(`[ScriptExecutionProvider] Merging fresh metadata with cached values for ${script.name}`);
         finalParameters = freshParameters.map(fresh => {
-            const cached = cachedParams.find(c => c.name === fresh.name);
-            if (cached) {
-                // Determine if we should keep the cached value
-                // If it's a computed param, we MUST keep options and the current value
-                const resolvedOptions = (fresh.options && fresh.options.length > 0) ? fresh.options : (cached.options || []);
-                
-                return {
-                    ...fresh,
-                    value: cached.value, // Keep user entered value
-                    options: resolvedOptions, // Keep computed options
-                    computedInDocument: cached.computedInDocument // Keep document info
-                };
-            }
-            return fresh;
+          const cached = cachedParams.find(c => c.name === fresh.name);
+          if (cached) {
+            // Determine if we should keep the cached value
+            // If it's a computed param, we MUST keep options and the current value
+            const resolvedOptions = (fresh.options && fresh.options.length > 0) ? fresh.options : (cached.options || []);
+
+            return {
+              ...fresh,
+              value: cached.value, // Keep user entered value
+              options: resolvedOptions, // Keep computed options
+              computedInDocument: cached.computedInDocument // Keep document info
+            };
+          }
+          return fresh;
         });
       }
 
@@ -519,7 +530,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             return { ...prev, [script.id]: updatedParams };
           });
         }
-        
+
         if (selectedScript?.id === script.id) {
           setSelectedScriptState(prev => {
             if (!prev) return null;

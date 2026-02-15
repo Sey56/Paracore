@@ -96,11 +96,10 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             <>
               <button
                 onClick={toggleAllGroups}
-                className={`p-1.5 rounded transition-all duration-300 flex items-center justify-center ${
-                  areGroupsExpanded 
-                  ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50" 
-                  : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
+                className={`p-1.5 rounded transition-all duration-300 flex items-center justify-center ${areGroupsExpanded
+                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                    : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
                 title={areGroupsExpanded ? "Collapse All Groups" : "Expand All Groups"}
               >
                 <div className="relative">
@@ -143,7 +142,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             <TableTabContent executionResult={executionResult} />
           </div>
         )}
-        {activeInspectorTab === 'metadata' && (
+        {activeInspectorTab === 'metadata' && script.metadata && (
           <div className="h-full">
             <MetadataTabContent metadata={script.metadata} />
           </div>
