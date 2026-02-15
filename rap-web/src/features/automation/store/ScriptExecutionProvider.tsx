@@ -443,7 +443,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     return { success: true, message: "Preset renamed." };
   };
 
-  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' | 'hard_reset' = 'user') => {
+  const setSelectedScript = useCallback(async (script: Script | null, source: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' | 'hard_reset' | 'replace' = 'user') => {
     if (!script) {
       setSelectedScriptState(null);
       setCombinedScriptContent(null);
@@ -453,11 +453,27 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
 
     const currentSelected = selectedScriptRef.current;
-    if (source !== 'refresh' && source !== 'hard_reset' && script.id === currentSelected?.id) {
+    if (source !== 'refresh' && source !== 'hard_reset' && source !== 'replace' && script.id === currentSelected?.id) {
       if (source === 'agent') {
         setAgentSelectedScriptPath(script.absolutePath);
       }
       return;
+    }
+
+    if (source === 'replace') {
+      // Clear cache for this script so we get fresh parameters
+      delete userEditedParametersRef.current[script.id];
+      delete defaultDraftParametersRef.current[script.id];
+      setUserEditedScriptParameters(prev => {
+        const next = { ...prev };
+        delete next[script.id];
+        return next;
+      });
+      setDefaultDraftParameters(prev => {
+        const next = { ...prev };
+        delete next[script.id];
+        return next;
+      });
     }
 
     if (source === 'agent') {
@@ -479,8 +495,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           mergedParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
             let val: string | number | boolean = p.defaultValueJson;
             try { val = JSON.parse(p.defaultValueJson); } catch (e) { console.error("JSON parse error:", e); }
-            if (p.type === 'number' && typeof val === 'string') val = parseFloat(val) || 0;
-            else if (p.type === 'boolean' && typeof val === 'string') val = val.toLowerCase() === 'true';
+            
+            // V3.1: REMOVED parseFloat here to preserve formatting (e.g. "6.00")
+            if (p.type === 'boolean' && typeof val === 'string') val = val.toLowerCase() === 'true';
 
             const richParam: ScriptParameter = {
               ...p,
@@ -648,8 +665,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             try {
               value = JSON.parse(p.defaultValueJson);
             } catch { /* Ignore if not JSON */ }
-            if (p.type === 'number' && typeof value === 'string') value = parseFloat(value) || 0;
-            else if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
+            
+            // V3.1: REMOVED parseFloat here to preserve formatting (e.g. "6.00")
+            if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
 
             const newParamObject: ScriptParameter = {
               ...p,

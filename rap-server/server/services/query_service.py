@@ -1,17 +1,61 @@
 from typing import List, Dict, Any
 import re
 
-def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[str, str]:
+def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generates high-performance C# code for a FilteredElementCollector using ElementParameterFilters.
+    Leverages Paracore's "Hydration-First" engine for rich UI.
+    Matches strict professional formatting and modern C# constructs.
     """
     
-    # 1. Clean up category name for casting
+    # 1. Class Mapping
+    CLASS_MAP = {
+        "OST_Walls": "Wall",
+        "OST_Doors": "FamilyInstance",
+        "OST_Windows": "FamilyInstance",
+        "OST_Rooms": "Room",
+        "OST_Furniture": "FamilyInstance",
+        "OST_Sheets": "ViewSheet",
+        "OST_Views": "View",
+        "OST_Levels": "Level",
+        "OST_Floors": "Floor",
+        "OST_Columns": "FamilyInstance",
+        "OST_StructuralColumns": "FamilyInstance",
+        "OST_StructuralFraming": "FamilyInstance",
+        "OST_StructuralFoundation": "Element",
+        "OST_Ceilings": "Ceiling",
+        "OST_Roofs": "FootPrintRoof",
+        "OST_GenericModel": "GenericModels",
+        "OST_MechanicalEquipment": "FamilyInstance",
+        "OST_DuctCurves": "Duct",
+        "OST_PipeCurves": "Pipe",
+        "OST_CableTray": "CableTray",
+        "OST_Conduit": "Conduit",
+        "OST_LightingFixtures": "FamilyInstance",
+        "OST_ElectricalEquipment": "FamilyInstance",
+        "OST_PlumbingFixtures": "FamilyInstance",
+    }
+    
+    # Forge Unit Mapping for Revit 2025+
+    UNIT_MAP = {
+        "mm": "UnitTypeId.Millimeters",
+        "cm": "UnitTypeId.Centimeters",
+        "m": "UnitTypeId.Meters",
+        "in": "UnitTypeId.Inches",
+        "m2": "UnitTypeId.SquareMeters",
+        "sqm": "UnitTypeId.SquareMeters",
+        "m3": "UnitTypeId.CubicMeters",
+        "cum": "UnitTypeId.CubicMeters"
+    }
+    
+    cast_type = CLASS_MAP.get(category_name, "Element")
     clean_cat = category_name.replace("OST_", "")
-    if clean_cat.endswith("s") and not clean_cat.endswith("ss"):
-        cast_type = clean_cat[:-1]
-    else:
-        cast_type = "Element"
+    
+    SYSTEM_TYPES = {
+        "Level", "Wall", "Floor", "Ceiling", "Roof", "FootPrintRoof", 
+        "Room", "View", "ViewSheet", "Duct", "Pipe", "CableTray", "Conduit",
+        "Phase", "DesignOption", "Material"
+    }
 
     all_rules = []
     def collect_rules(group):
@@ -22,26 +66,53 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[
                 collect_rules(child)
     collect_rules(root_group)
 
-    # --- Params Generation ---
-    params_lines = []
+    # --- Param Fields Generation ---
+    param_fields = []
     seen_props = set()
     for rule in all_rules:
-        prop_id = rule["name"].replace(" ", "")
+        prop_name = rule["name"]
+        prop_id = prop_name.replace(" ", "")
         if prop_id in seen_props: continue
         seen_props.add(prop_id)
+        
         storage = rule["storage_type"]
         val = rule["value"]
         unit = rule.get("unit")
-        attr = f'[Unit("{unit}")]\\n    ' if unit else ""
-        csharp_type = "string"
-        if storage == "Double": csharp_type = "double"
-        elif storage == "Integer": csharp_type = "int"
-        elif storage == "ElementId": csharp_type = rule.get("revit_element_type") or "ElementId"
+        is_builtin = rule.get("is_builtin", False)
         
-        default_val = f'"{val}"' if isinstance(val, str) else str(val)
-        if isinstance(val, bool): default_val = str(val).lower()
-        if storage == "ElementId" and csharp_type != "ElementId": default_val = "null"
-        params_lines.append(f"{attr}public {csharp_type} {prop_id} {{ get; set; }} = {default_val};")
+        attrs = []
+        if unit: attrs.append(f'Unit("{unit}")')
+        
+        csharp_type = "string"
+        is_revit_type = False
+        
+        if storage == "Double": csharp_type = "double"
+        elif storage == "Integer": 
+            csharp_type = "int"
+            if "Parameter" in prop_name: csharp_type = "BuiltInParameter"
+            elif "Category" in prop_name: csharp_type = "BuiltInCategory"
+        elif storage == "ElementId": 
+            csharp_type = rule.get("revit_element_type") or "ElementId"
+            if csharp_type != "ElementId":
+                is_revit_type = True
+                if csharp_type not in SYSTEM_TYPES:
+                    attrs.append(f'RevitElements(Category = "{clean_cat}")')
+        
+        attr_prefix = f"[{', '.join(attrs)}]\n" if attrs else ""
+        
+        # USE SIMPLE ONE-LINER COMMENT
+        param_fields.append(f"/// Filter value for {prop_name}")
+        
+        if is_revit_type:
+            param_fields.append(f"{attr_prefix}public {csharp_type}? {prop_id} {{ get; set; }}")
+        else:
+            if storage in ["Double", "Integer"]:
+                default_val = str(val)
+            else:
+                default_val = f'"{val}"' if isinstance(val, str) else str(val)
+                if isinstance(val, bool): default_val = str(val).lower()
+            
+            param_fields.append(f"{attr_prefix}public {csharp_type} {prop_id} {{ get; set; }} = {default_val};")
 
     # --- ElementParameterFilter Recursive Generation ---
     def build_filter_logic(group):
@@ -51,88 +122,117 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any]) -> Dict[
                 inner = build_filter_logic(child)
                 if inner: child_filters.append(inner)
             else:
-                # Generate a FilterRule
                 storage = child["storage_type"]
                 op = child["operator"]
                 prop_id = child["name"].replace(" ", "")
                 
-                # Identify Parameter Identifier
                 if child.get("is_builtin") and child.get("builtin_id"):
-                    param_id = f"new ElementId(BuiltInParameter.{re.sub(r'^BuiltInParameter\.', '', str(child.get('builtin_id'))) if not str(child.get('builtin_id')).isdigit() else '(BuiltInParameter)' + str(child.get('builtin_id'))})"
-                    # Fallback for raw IDs
-                    if "(BuiltInParameter)" in param_id:
-                         param_id = f"new ElementId({child['builtin_id']})"
+                    b_name = child.get('builtin_name')
+                    if b_name and not b_name.isdigit() and "-" not in b_name:
+                        param_id = f"new ElementId(BuiltInParameter.{b_name})"
+                    else:
+                        param_id = f"new ElementId((BuiltInParameter)({child['builtin_id']}))"
                 else:
-                    # For shared/project params, we need to find the ID at runtime or use a slow rule.
-                    # We'll use a helper to find it.
                     param_id = f"GetParamId(Doc, \"{child['name']}\")"
 
-                # Map Operators to Revit FilterNumericRuleEvaluators
-                evaluator = "FilterNumericEquals()"
-                if op == "!=": evaluator = "FilterNumericGreater()" # Not directly supported, usually needs inversion
-                elif op == ">": evaluator = "FilterNumericGreater()"
-                elif op == "<": evaluator = "FilterNumericLess()"
-                elif op == ">=": evaluator = "FilterNumericGreaterGreaterEqual()"
-                elif op == "<=": evaluator = "FilterNumericLessLessEqual()"
+                evaluator = "new FilterNumericEquals()"
+                if op == "!=": evaluator = "new FilterNumericGreater()" 
+                elif op == ">": evaluator = "new FilterNumericGreater()"
+                elif op == "<": evaluator = "new FilterNumericLess()"
+                elif op == ">=": evaluator = "new FilterNumericGreaterGreaterEqual()"
+                elif op == "<=": evaluator = "new FilterNumericLessLessEqual()"
 
                 rule_obj = "null"
                 if storage == "Double":
-                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), new {evaluator}, p.{prop_id}, 1e-6)"
+                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, (double)p.{prop_id}, 1e-6)"
                 elif storage == "Integer":
-                    rule_obj = f"new FilterIntegerRule(new ParameterValueProvider({param_id}), new {evaluator}, p.{prop_id})"
+                    rule_obj = f"new FilterIntegerRule(new ParameterValueProvider({param_id}), {evaluator}, (int)p.{prop_id})"
                 elif storage == "ElementId":
-                    val_expr = f"p.{prop_id}" if child.get("revit_element_type") == "ElementId" else f"p.{prop_id}?.Id ?? ElementId.InvalidElementId"
-                    rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), new {evaluator}, {val_expr})"
+                    is_hydrated = (child.get("revit_element_type") or "ElementId") != "ElementId"
+                    val_expr = f"p.{prop_id}?.Id ?? ElementId.InvalidElementId" if is_hydrated else f"p.{prop_id}"
+                    rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr})"
                 elif storage == "String":
-                    str_eval = "FilterStringEquals()"
-                    if op == "Contains": str_eval = "FilterStringContains()"
-                    elif op == "Starts With": str_eval = "FilterStringBeginsWith()"
-                    elif op == "Ends With": str_eval = "FilterStringEndsWith()"
-                    rule_obj = f"new FilterStringRule(new ParameterValueProvider({param_id}), new {str_eval}, p.{prop_id})"
+                    str_eval = "new FilterStringEquals()"
+                    if op == "Contains": str_eval = "new FilterStringContains()"
+                    elif op == "Starts With": str_eval = "new FilterStringBeginsWith()"
+                    elif op == "Ends With": str_eval = "new FilterStringEndsWith()"
+                    rule_obj = f"new FilterStringRule(new ParameterValueProvider({param_id}), {str_eval}, p.{prop_id})"
 
                 if rule_obj != "null":
                     child_filters.append(f"new ElementParameterFilter({rule_obj})")
 
         if not child_filters: return "null"
         if len(child_filters) == 1: return child_filters[0]
-        
-        # Combine filters
         logical_type = "LogicalAndFilter" if group["combinator"] == "AND" else "LogicalOrFilter"
-        return f"new {logical_type}(new List<ElementFilter> {{ {', '.join(child_filters)} }})"
+        return f"new {logical_type}([{', '.join(child_filters)}])"
 
     revit_filter = build_filter_logic(root_group)
 
     logic_parts = []
-    logic_parts.append("// High-Performance Revit Native Filter")
-    logic_parts.append(f"var collector = new FilteredElementCollector(Doc)")
-    logic_parts.append(f"    .OfCategory(BuiltInCategory.{category_name})")
-    logic_parts.append(f"    .WhereElementIsNotElementType();")
-    
+    logic_parts.append("// 1. Filtering Logic (High-Performance Native Filter)")
+    logic_parts.append(f"FilteredElementCollector collector = new(Doc);")
+    logic_parts.append(f"collector.OfCategory(BuiltInCategory.{category_name}).WhereElementIsNotElementType();")
     if revit_filter != "null":
-        logic_parts.append(f"var filter = {revit_filter};")
-        logic_parts.append(f"collector.WherePasses(filter);")
+        logic_parts.append(f"collector.WherePasses({revit_filter});")
+    logic_parts.append(f"List<{cast_type}> elements = [.. collector.Cast<{cast_type}>()];")
     
-    logic_parts.append(f"var elements = collector.Cast<{cast_type}>().ToList();")
-
-    # --- Helper Method (Internal to the script logic scope) ---
-    helper = """
-    // Helper to find Parameter ID at runtime
-    ElementId GetParamId(Document doc, string name) {
-        var first = new FilteredElementCollector(doc)
-            .OfCategory(BuiltInCategory.""" + category_name + """)
-            .WhereElementIsNotElementType()
-            .FirstElement();
+    logic_parts.append(f"\n// 2. Output Results")
+    logic_parts.append(f"Println($\"Query complete. Found {{elements.Count}} elements in category '{clean_cat}'.\");")
+    logic_parts.append("if (elements.Count > 0)")
+    logic_parts.append("{")
+    logic_parts.append("    var results = elements.Select(el =>")
+    logic_parts.append("    {")
+    
+    for rule in all_rules:
+        p_name = rule["name"]
+        p_id = p_name.replace(" ", "")
+        storage = rule["storage_type"]
+        unit = rule.get("unit")
         
-        if (first != null) {
-            var p = first.LookupParameter(name);
-            if (p != null) return p.Id;
-        }
-        return ElementId.InvalidElementId;
-    }
-    """
-    logic_parts.append(helper)
+        if rule.get("is_builtin") and rule.get("builtin_id"):
+            b_name = rule.get('builtin_name')
+            getter = f"el.get_Parameter(BuiltInParameter.{b_name})" if b_name and not b_name.isdigit() else f"el.get_Parameter((BuiltInParameter)({rule['builtin_id']}))"
+        else:
+            getter = f"el.LookupParameter(\"{p_name}\")"
 
+        if storage == "Double":
+            if unit and unit in UNIT_MAP:
+                type_id = UNIT_MAP[unit]
+                # Round to 4 decimal places
+                val_expr = f"Math.Round(UnitUtils.ConvertFromInternalUnits({getter}?.AsDouble() ?? 0, {type_id}), 4)"
+            else:
+                val_expr = f"Math.Round({getter}?.AsDouble() ?? 0, 4)"
+        elif storage == "Integer":
+            val_expr = f"{getter}?.AsInteger() ?? 0"
+        elif storage == "String":
+            val_expr = f"{getter}?.AsString() ?? \"-\""
+        else:
+            val_expr = f"{getter}?.AsValueString() ?? \"-\""
+
+        logic_parts.append(f"        object {p_id}Value = {val_expr};")
+
+    logic_parts.append("\n        return new")
+    logic_parts.append("        {")
+    logic_parts.append("            Id = el.Id.Value,")
+    logic_parts.append("            el.Name,")
+    for rule in all_rules:
+        p_id = rule["name"].replace(" ", "")
+        logic_parts.append(f"            {p_id} = {p_id}Value,")
+    logic_parts.append("        };")
+    logic_parts.append("    }).ToList();")
+    logic_parts.append("    Table(results);")
+    logic_parts.append("}")
+
+    helper = f"""
+// Helper to resolve parameter ID for shared/project params
+ElementId GetParamId(Document doc, string name)
+{{
+    Element? first = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.{category_name}).WhereElementIsNotElementType().FirstElement();
+    return first?.LookupParameter(name)?.Id ?? ElementId.InvalidElementId;
+}}
+"""
     return {
         "logic": "\n".join(logic_parts),
-        "params": "\n    ".join(params_lines)
+        "helpers": helper,
+        "params": "\n".join(param_fields)
     }

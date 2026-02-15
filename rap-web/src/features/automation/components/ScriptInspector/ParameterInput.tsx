@@ -321,7 +321,19 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
 
 export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, onPickObject, isComputing, disabled }) => {
   const { revitStatus } = useRevitStatus();
-  const [showTooltip, setShowTooltip] = useState(false);
+  
+  // V3.1: Local string state to preserve decimal typing (e.g. "6.")
+  const [localValue, setLocalValue] = useState<string>(
+    param.value !== null && param.value !== undefined ? String(param.value) : ""
+  );
+
+  // Sync local value only when external value changes significantly (not while typing)
+  React.useEffect(() => {
+    const incomingValue = param.value !== null && param.value !== undefined ? String(param.value) : "";
+    if (parseFloat(incomingValue) !== parseFloat(localValue)) {
+      setLocalValue(incomingValue);
+    }
+  }, [param.value]);
 
   const isContextMismatch = param.computedInDocument && revitStatus.document && param.computedInDocument !== revitStatus.document;
 
@@ -472,17 +484,27 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       return (
         <div className="flex gap-2 w-full items-center">
           <input
-            type="number"
-            value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
-            min={min}
-            max={max}
-            step={step}
+            type="text"
+            value={localValue}
             onChange={(e) => {
-              const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
-              onChange(index, val);
+              const val = e.target.value;
+              // Allow only numbers, decimal point, and minus sign
+              if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
+                setLocalValue(val);
+                
+                if (val !== "" && !val.endsWith(".")) {
+                  const parsed = parseFloat(val);
+                  if (!isNaN(parsed)) {
+                    onChange(index, parsed);
+                  }
+                } else if (val === "") {
+                  onChange(index, 0);
+                }
+              }
             }}
             className="flex-grow h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm"
             disabled={disabled}
+            inputMode="decimal"
           />
           {param.selectionType && param.selectionType !== "None" && onPickObject && (
             <button

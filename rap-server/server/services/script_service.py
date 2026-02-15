@@ -1,8 +1,10 @@
 import asyncio
 import glob
 import os
+import shutil
 import json
 import traceback
+import re
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
@@ -49,10 +51,8 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
         bulk_results_map = {}
         if projects_to_fetch:
             try:
-                # Wrap in timeout or just catch all to prevent 500
                 bulk_results = grpc_client.get_bulk_metadata(projects_to_fetch)
                 for res in bulk_results:
-                    # Protobuf objects or dicts - be careful with access
                     path = res.get("absolute_path") if isinstance(res, dict) else getattr(res, "absolute_path", None)
                     if path:
                         bulk_results_map[path] = res
@@ -68,7 +68,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                 folder_stat = os.stat(project_path)
                 res = bulk_results_map.get(project_path)
                 
-                # SAFE ACCESS: Handle both dict and object types from gRPC client
                 def get_val(obj, key, default=None):
                     if obj is None: return default
                     if isinstance(obj, dict): return obj.get(key, default)
@@ -98,7 +97,6 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                 })
             except Exception as e:
                 print(f"[ScriptService] Error processing folder {project_name}: {e}")
-                # Fallback tool entry so the card still appears even if stat or logic fails
                 tools.append({
                     "id": project_path,
                     "name": project_name,
@@ -208,13 +206,14 @@ async def get_script_parameters_logic(script_path: str):
                 package = json.load(f)
             params = package.get("parameters", [])
             for p in params:
-                val = p.get("defaultValueJson", "null")
+                val_json = p.get("defaultValueJson", "null")
                 try:
-                    p["defaultValue"] = json.loads(val)
+                    # Hydrate for UI
+                    p["defaultValue"] = json.loads(val_json)
                     p["value"] = p["defaultValue"]
                 except:
-                    p["defaultValue"] = val
-                    p["value"] = val
+                    p["defaultValue"] = val_json
+                    p["value"] = val_json
             return {"parameters": params}
 
         scripts_dir = os.path.join(absolute_path, "Scripts")
@@ -226,7 +225,24 @@ async def get_script_parameters_logic(script_path: str):
                     script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
 
         if not script_files: return {"parameters": []}
-        return grpc_client.get_script_parameters(script_files)
+        res = grpc_client.get_script_parameters(script_files)
+        
+        # V3.1 FIX: Ensure the results from gRPC are correctly hydrated
+        if res and "parameters" in res:
+            for p in res["parameters"]:
+                val_json = p.get("default_value_json", "null")
+                try:
+                    # If it's a quoted string like "\"6.00\"", json.loads makes it "6.00"
+                    # If it was a raw number like 6.0, json.loads makes it 6
+                    # Our engine fix ensures it's now often "\"6.00\""
+                    parsed = json.loads(val_json)
+                    p["defaultValue"] = parsed
+                    p["value"] = parsed
+                except:
+                    p["defaultValue"] = val_json
+                    p["value"] = val_json
+        
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -286,7 +302,6 @@ async def get_script_content_logic(script_path: str):
         if not script_files: return {"sourceCode": "// No scripts found."}
         result = grpc_client.get_combined_script(script_files)
         
-        import re
         clean_code = re.sub(r'^#line\s+\d+.*(?:\r?\n|$)', '', result.get("combined_script", ""), flags=re.MULTILINE).strip()
         return {"sourceCode": clean_code}
     except Exception as e:
@@ -301,10 +316,51 @@ async def create_new_script_logic(parent_folder: str, script_name: str, folder_n
         raise HTTPException(status_code=409, detail=f"Tool folder '{clean_name}' already exists.")
 
     try:
+        # V3.1 Replace Logic: If overwriting, clear the Scripts folder but keep the project root (IDE files)
+        if overwrite and os.path.isdir(scripts_dir):
+            import shutil
+            for item in os.listdir(scripts_dir):
+                item_path = os.path.join(scripts_dir, item)
+                if os.path.isfile(item_path): os.remove(item_path)
+                elif os.path.isdir(item_path): shutil.rmtree(item_path)
+        
         os.makedirs(scripts_dir, exist_ok=True)
+        
         template_code = ARCHETYPES.get(template_id, ARCHETYPES["blank"])
+        
+        import re
+        
+        # 1. Inject Logic into the placeholder
         if generated_logic:
-            template_code = template_code.replace("// 2. Execution Logic", f"// 2. Execution Logic\n{generated_logic}")
+            # Replace from marker until the next major section (usually Execution Logic or Params)
+            pattern = r"// __INJECT_QUERY_BLOCK__.*?(?=(?:// 2\. Execution Logic|public\s+class\s+Params))"
+            if re.search(pattern, template_code, re.DOTALL | re.IGNORECASE):
+                template_code = re.sub(pattern, f"// Visual Query Injection\n{generated_logic}\n\n", template_code, flags=re.DOTALL | re.IGNORECASE)
+            else:
+                template_code = template_code.replace("// __INJECT_QUERY_BLOCK__", generated_logic)
+
+        # 2. Handle Generated Parameters (Unified Single File)
+        if generated_params:
+            # Fixed: Properly indent all lines of generated params to 4 spaces
+            indented_params = "\n".join([f"    {line}" if line.strip() else "" for line in generated_params.split("\n")])
+            
+            # Find the Params class and replace EVERYTHING inside its braces
+            # Updated p_pattern to handle both styles and force the desired one
+            p_pattern = r'(public\s+class\s+Params\s*)\{.*?(\}\s*$)'
+            replacement = f"\\1\n{{\n    #region Generated Parameters\n{indented_params}\n    #endregion\n\\2"
+            
+            if re.search(p_pattern, template_code, re.DOTALL | re.IGNORECASE):
+                template_code = re.sub(p_pattern, replacement, template_code, flags=re.DOTALL | re.IGNORECASE)
+            else:
+                # If the regex fails, we append it at the end as a fallback
+                template_code += f"\npublic class Params\n{{\n    #region Generated Parameters\n{indented_params}\n    #endregion\n}}"
+
+        # Cleanup: Ensure no separate Params.cs exists for this tool
+        old_params_file = os.path.join(scripts_dir, "Params.cs")
+        if os.path.exists(old_params_file): os.remove(old_params_file)
+
+        # Update DisplayName in metadata using robust Regex
+        template_code = re.sub(r'DisplayName\s*:\s*.*', f'DisplayName: {clean_name}', template_code)
         
         entry_file_path = os.path.join(scripts_dir, f"{clean_name}.cs")
         with open(entry_file_path, 'w', encoding='utf-8') as f:
@@ -312,12 +368,13 @@ async def create_new_script_logic(parent_folder: str, script_name: str, folder_n
             
         _ensure_pack_gitignore(parent_folder)
         
-        # V3.1: Return the full hydrated script object so the UI can immediately select it
+        # Return the full hydrated script object
         all_scripts = await get_all_scripts(parent_folder)
         new_script = next((s for s in all_scripts if s["absolutePath"].replace('\\', '/') == project_dir.replace('\\', '/')), None)
         
         return new_script or {"message": f"Successfully created tool: {clean_name}", "script_path": project_dir}
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}")
 
 async def save_script_logic(script_path: str, content: Optional[str], filename: Optional[str], files: Optional[Dict[str, str]]):
@@ -360,7 +417,6 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
                 item_path = os.path.join(path, item)
                 try:
                     if os.path.isdir(item_path):
-                        import shutil
                         shutil.rmtree(item_path)
                     else:
                         os.remove(item_path)
@@ -372,7 +428,6 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
         else:
             # Full Delete
             if os.path.isdir(path):
-                import shutil
                 shutil.rmtree(path)
             else: 
                 os.remove(path)

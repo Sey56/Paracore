@@ -1,19 +1,21 @@
 # --- Standard Tool Template ---
 CSHARP_TEMPLATE = """// 1. Setup
-var p = new Params();
+Params p = new();
 
+// __INJECT_QUERY_BLOCK__
 // 2. Execution logic
-Transact("Hello World", () => {
+Transact("Hello World", () =>
+{
     Println($"Hello {p.TargetName} from {Doc.Title}!");
 });
 
 // 3. Parameters (MUST BE LAST)
-public class Params {
+public class Params
+
+{
     #region Settings
     
-    /// <summary>
     /// The name to greet.
-    /// </summary>
     public string TargetName { get; set; } = "Paracore User";
     
     #endregion
@@ -22,15 +24,19 @@ public class Params {
 
 # --- Project Entry Point (Main.cs) Template ---
 MULTI_FILE_MAIN_TEMPLATE = """// 1. Setup
-var p = new Params();
+Params p = new();
 
+// __INJECT_QUERY_BLOCK__
 // 2. Execution
-Transact("Modular Loop", () => {
+Transact("Modular Loop", () =>
+{
     Println($"Hello modular world from {Doc.Title}!");
 });
 
 // 3. Parameters (In Main.cs or Params.cs)
-public class Params {
+public class Params
+
+{
     #region Configuration
     
     public string ExampleInput { get; set; } = "Value";
@@ -44,17 +50,20 @@ ARCHETYPES = {
     "blank": CSHARP_TEMPLATE,
     
     "selection-surgeon": """// 1. Setup & Validation
-var p = new Params();
-// __INJECT_QUERY_BLOCK__
-var elements = UIDoc.Selection.GetElementIds().Select(id => Doc.GetElement(id)).Where(el => el != null).ToList();
+Params p = new();
 
-if (!elements.Any()) 
+// __INJECT_QUERY_BLOCK__
+List<Element> elements = [.. UIDoc.Selection.GetElementIds().Select(Doc.GetElement).Where(el => el != null)];
+
+if (elements.Count == 0) 
     throw new Exception("Please select at least one element in Revit.");
 
 // 2. Execution Logic
-Transact("Selection Surgeon", () => {
+Transact("Selection Surgeon", () =>
+{
     int count = 0;
-    foreach (var el in elements) {
+    foreach (Element el in elements)
+    {
         // TODO: Add your logic here (e.g., el.Name = p.NewName)
         count++;
     }
@@ -62,12 +71,12 @@ Transact("Selection Surgeon", () => {
 });
 
 // 3. Parameters (MUST BE LAST)
-public class Params {
+public class Params
+
+{
     #region Settings
     
-    /// <summary>
     /// Example parameter for the selection logic.
-    /// </summary>
     public string NewName { get; set; } = "Modified Element";
     
     #endregion
@@ -75,22 +84,25 @@ public class Params {
 """,
 
     "project-auditor": """// 1. Query & Setup
-var p = new Params();
+Params p = new();
 
 // __INJECT_QUERY_BLOCK__
-var elements = new FilteredElementCollector(Doc).WhereElementIsNotElementType().ToElements();
+List<Element> elements = [.. new FilteredElementCollector(Doc).WhereElementIsNotElementType()];
 
 // 2. Audit Logic
-var issues = new List<object>();
+List<object> issues = new();
 
-foreach (var el in elements) {
+foreach (Element el in elements)
+{
     bool hasIssue = false;
     // TODO: Define your audit rule (e.g., if (el.Name == "") hasIssue = true;)
     
-    if (hasIssue) {
-        issues.Add(new { 
+    if (hasIssue)
+    {
+        issues.Add(new
+        { 
             Id = el.Id.Value, 
-            Name = el.Name, 
+            el.Name, 
             Reason = "Rule Violation" 
         });
     }
@@ -98,13 +110,18 @@ foreach (var el in elements) {
 
 // 3. Output
 Println($"Audit complete. Found {issues.Count} issues.");
-if (issues.Any()) {
+if (issues.Count > 0)
+{
     Table(issues);
 }
 
 // 4. Parameters (MUST BE LAST)
-public class Params {
+public class Params
+
+{
     #region Audit Configuration
+    
+    /// Include linked elements in audit
     public bool IncludeLinks { get; set; } = false;
     
     #endregion
@@ -112,16 +129,19 @@ public class Params {
 """,
 
     "batch-creator": """// 1. Setup
-var p = new Params();
+Params p = new();
 
 if (p.TargetLevel == null) 
     throw new Exception("Target Level is required.");
 
+// __INJECT_QUERY_BLOCK__
 // 2. Iterative Creation Logic
-Transact("Batch Create Elements", () => {
-    for (int i = 0; i < p.Count; i++) {
+Transact("Batch Create Elements", () =>
+{
+    for (int i = 0; i < p.Count; i++)
+    {
         // Calculate position or configuration
-        XYZ point = new XYZ(i * p.Spacing, 0, 0);
+        XYZ point = new(i * p.Spacing, 0, 0);
         
         // TODO: Create your element (e.g. Doc.Create.NewFamilyInstance(point, ...))
     }
@@ -129,15 +149,20 @@ Transact("Batch Create Elements", () => {
 });
 
 // 3. Parameters (MUST BE LAST)
-public class Params {
+public class Params
+
+{
     #region Geometry
     
+    /// Target level for element creation
     [Required]
-    public Level TargetLevel { get; set; }
+    public Level? TargetLevel { get; set; }
 
+    /// Distance between elements
     [Unit("mm")]
     public double Spacing { get; set; } = 1000.0;
 
+    /// Number of elements to create
     [Stepper]
     public int Count { get; set; } = 5;
     
@@ -146,19 +171,22 @@ public class Params {
 """,
 
     "parameter-porter": """// 1. Setup
-var p = new Params();
+Params p = new();
 
 // __INJECT_QUERY_BLOCK__
-var elements = new FilteredElementCollector(Doc).WhereElementIsNotElementType().ToList();
+List<Element> elements = [.. new FilteredElementCollector(Doc).WhereElementIsNotElementType()];
 
 // 2. Data Transfer Logic
-Transact("Port Parameters", () => {
+Transact("Port Parameters", () =>
+{
     int count = 0;
-    foreach (var el in elements) {
-        var sourceParam = el.LookupParameter(p.SourceParam);
-        var targetParam = el.LookupParameter(p.TargetParam);
+    foreach (Element el in elements)
+    {
+        Parameter? sourceParam = el.LookupParameter(p.SourceParam);
+        Parameter? targetParam = el.LookupParameter(p.TargetParam);
         
-        if (sourceParam != null && targetParam != null && sourceParam.HasValue) {
+        if (sourceParam != null && targetParam != null && sourceParam.HasValue)
+        {
             string val = sourceParam.AsString() ?? sourceParam.AsValueString();
             targetParam.Set(val);
             count++;
@@ -168,10 +196,15 @@ Transact("Port Parameters", () => {
 });
 
 // 3. Parameters (MUST BE LAST)
-public class Params {
+public class Params
+
+{
     #region Mapping
     
+    /// Name of the source parameter
     public string SourceParam { get; set; } = "Comments";
+
+    /// Name of the target parameter
     public string TargetParam { get; set; } = "Mark";
     
     #endregion
@@ -179,14 +212,15 @@ public class Params {
 """,
 
     "visualizer": """// 1. Setup
-var p = new Params();
+Params p = new();
 
 // __INJECT_QUERY_BLOCK__
-var elements = new FilteredElementCollector(Doc).WhereElementIsNotElementType().ToList();
+List<Element> elements = [.. new FilteredElementCollector(Doc).WhereElementIsNotElementType()];
 
 var stats = elements
     .GroupBy(e => e.Category?.Name ?? "Uncategorized")
-    .Select(g => new { 
+    .Select(g => new
+    { 
         Category = g.Key, 
         Count = g.Count() 
     })
@@ -199,9 +233,12 @@ PieChart(stats);
 Table(stats);
 
 // 4. Parameters (MUST BE LAST)
-public class Params {
+public class Params
+
+{
     #region View Options
     
+    /// Include uncategorized elements in charts
     public bool ShowUncategorized { get; set; } = true;
     
     #endregion

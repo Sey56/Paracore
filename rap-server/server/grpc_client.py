@@ -508,6 +508,7 @@ def get_category_parameters(category_name: str):
                     "storage_type": p.storage_type,
                     "is_builtin": p.is_builtin,
                     "builtin_id": p.builtin_id,
+                    "builtin_name": p.builtin_name,
                     "revit_element_type": p.revit_element_type
                 })
             

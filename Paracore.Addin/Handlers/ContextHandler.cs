@@ -617,6 +617,11 @@ namespace Paracore.Addin.Handlers
                             BuiltinId = (int)p.Id.Value
                         };
 
+                        if (def.IsBuiltin)
+                        {
+                            def.BuiltinName = ((BuiltInParameter)def.BuiltinId).ToString();
+                        }
+
                         // Resolve Revit element type for ElementId parameters
                         if (p.StorageType == StorageType.ElementId)
                         {

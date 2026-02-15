@@ -17,6 +17,7 @@ class QueryRule(BaseModel):
     unit: Optional[str] = None
     is_builtin: bool = False
     builtin_id: Optional[int] = None
+    builtin_name: Optional[str] = None
     revit_element_type: Optional[str] = None
 
 class QueryGroup(BaseModel):
@@ -46,7 +47,7 @@ async def generate_code(request: GenerateQueryRequest):
     Converts visual rules into Paracore-compliant C# code.
     """
     try:
-        rules_dict = [r.dict() for r in request.rules]
-        return query_service.generate_query_code(request.category_name, rules_dict)
+        root_dict = request.root_group.dict()
+        return query_service.generate_query_code(request.category_name, root_dict)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

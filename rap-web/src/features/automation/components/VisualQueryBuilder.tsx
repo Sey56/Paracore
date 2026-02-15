@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faTrash, faCode, faCogs, faFilter } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faTrash, faCode, faCogs, faFilter, faCheck, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import api from '@/api/axios';
 
 interface ParameterDefinition {
@@ -8,6 +8,7 @@ interface ParameterDefinition {
   storage_type: string;
   is_builtin: boolean;
   builtin_id: number;
+  builtin_name?: string;
   revit_element_type?: string;
 }
 
@@ -20,6 +21,7 @@ interface QueryRule {
   unit?: string;
   is_builtin: boolean;
   builtin_id: number;
+  builtin_name?: string;
   revit_element_type?: string;
 }
 
@@ -30,7 +32,7 @@ interface QueryGroup {
 }
 
 interface VisualQueryBuilderProps {
-  onQueryGenerated: (logic: string, params: string) => void;
+  onQueryGenerated: (logic: string, params: string, isCompiled: boolean) => void;
 }
 
 const COMMON_CATEGORIES = [
@@ -71,6 +73,8 @@ const UNITS = ['mm', 'cm', 'm', 'in', 'm2', 'sqm', 'm3', 'cum'];
 
 export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps) => {
   const [category, setCategory] = useState('OST_Walls');
+  const [categorySearch, setCategorySearch] = useState('');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [availableParams, setAvailableParams] = useState<ParameterDefinition[]>([]);
   const [rootGroup, setRootGroup] = useState<QueryGroup>({
     type: 'group',
@@ -78,6 +82,15 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
     children: []
   });
   const [isLoadingParams, setIsLoadingParams] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [lastGeneratedTimestamp, setLastGeneratedTimestamp] = useState<number | null>(null);
+
+  const filteredCategories = COMMON_CATEGORIES.filter(cat => 
+    cat.label.toLowerCase().includes(categorySearch.toLowerCase()) ||
+    cat.id.toLowerCase().includes(categorySearch.toLowerCase())
+  );
+
+  const currentCategoryLabel = COMMON_CATEGORIES.find(c => c.id === category)?.label || category;
 
   // Fetch parameters when category changes
   useEffect(() => {
@@ -92,6 +105,8 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
           combinator: 'AND',
           children: []
         });
+        setLastGeneratedTimestamp(null);
+        onQueryGenerated('', '', false);
       } catch (err) {
         console.error("Failed to fetch category parameters:", err);
       } finally {
@@ -101,93 +116,9 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
     fetchParams();
   }, [category]);
 
-  const addRule = (parentGroup: QueryGroup) => {
-    if (availableParams.length === 0) return;
-    const firstParam = availableParams[0];
-    const newRule: QueryRule = {
-      type: 'rule',
-      name: firstParam.name,
-      storage_type: firstParam.storage_type,
-      operator: OPERATORS[firstParam.storage_type][0],
-      value: firstParam.storage_type === 'String' ? '' : 0,
-      is_builtin: firstParam.is_builtin,
-      builtin_id: firstParam.builtin_id,
-      revit_element_type: firstParam.revit_element_type,
-    };
-    
-    // We need to update the rootGroup state. Since it's nested, we'll use a deep clone and update.
-    const newRoot = JSON.parse(JSON.stringify(rootGroup));
-    
-    // Helper to find and update group
-    const findAndAdd = (group: QueryGroup) => {
-      if (group === parentGroup || (JSON.stringify(group) === JSON.stringify(parentGroup))) {
-         group.children.push(newRule);
-         return true;
-      }
-      for (const child of group.children) {
-        if (child.type === 'group' && findAndAdd(child)) return true;
-      }
-      return false;
-    };
-
-    // For now, let's keep it simple and always add to root if we don't have complex paths
-    // In a real nested UI, we'd pass a path [0, 1, 2]
-    newRoot.children.push(newRule);
-    setRootGroup(newRoot);
-  };
-
-  const addGroup = () => {
-    const newGroup: QueryGroup = {
-      type: 'group',
-      combinator: 'AND',
-      children: []
-    };
-    const newRoot = JSON.parse(JSON.stringify(rootGroup));
-    newRoot.children.push(newGroup);
-    setRootGroup(newRoot);
-  };
-
-  const removeNode = (parent: QueryGroup, index: number) => {
-     // Implementation depends on how we pass the parent
-     const newRoot = JSON.parse(JSON.stringify(rootGroup));
-     // For now, simplify to root-only removal for the first pass of the UI refactor
-     newRoot.children.splice(index, 1);
-     setRootGroup(newRoot);
-  };
-
-  const updateRule = (index: number, updates: Partial<QueryRule>) => {
-    const newRoot = JSON.parse(JSON.stringify(rootGroup));
-    const rule = newRoot.children[index] as QueryRule;
-    if (!rule || rule.type !== 'rule') return;
-
-    const updatedRule = { ...rule, ...updates };
-
-    if (updates.name) {
-      const pDef = availableParams.find(p => p.name === updates.name);
-      if (pDef) {
-        updatedRule.storage_type = pDef.storage_type;
-        updatedRule.is_builtin = pDef.is_builtin;
-        updatedRule.builtin_id = pDef.builtin_id;
-        updatedRule.revit_element_type = pDef.revit_element_type;
-        updatedRule.operator = OPERATORS[pDef.storage_type][0];
-        updatedRule.value = pDef.storage_type === 'String' ? '' : 0;
-        updatedRule.unit = undefined;
-      }
-    }
-
-    newRoot.children[index] = updatedRule;
-    setRootGroup(newRoot);
-  };
-
-  const [categorySearch, setCategorySearch] = useState('');
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-
-  const filteredCategories = COMMON_CATEGORIES.filter(cat => 
-    cat.label.toLowerCase().includes(categorySearch.toLowerCase()) ||
-    cat.id.toLowerCase().includes(categorySearch.toLowerCase())
-  );
-
   const updateRootGroupRecursive = (path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group') => {
+    setLastGeneratedTimestamp(null); // Reset on any change
+    onQueryGenerated('', '', false);
     const newRoot = JSON.parse(JSON.stringify(rootGroup));
     
     let current = newRoot;
@@ -208,9 +139,10 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
           rule.storage_type = pDef.storage_type;
           rule.is_builtin = pDef.is_builtin;
           rule.builtin_id = pDef.builtin_id;
+          rule.builtin_name = pDef.builtin_name;
           rule.revit_element_type = pDef.revit_element_type;
           rule.operator = OPERATORS[pDef.storage_type][0];
-          rule.value = pDef.storage_type === 'String' ? '' : 0;
+          rule.value = pDef.storage_type === 'String' ? '' : '0';
           rule.unit = undefined;
         }
       }
@@ -224,9 +156,10 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
         name: firstParam.name,
         storage_type: firstParam.storage_type,
         operator: OPERATORS[firstParam.storage_type][0],
-        value: firstParam.storage_type === 'String' ? '' : 0,
+        value: firstParam.storage_type === 'String' ? '' : '0',
         is_builtin: firstParam.is_builtin,
         builtin_id: firstParam.builtin_id,
+        builtin_name: firstParam.builtin_name,
         revit_element_type: firstParam.revit_element_type,
       });
     } else if (action === 'add_group') {
@@ -242,14 +175,18 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
   };
 
   const handleGenerate = async () => {
+    setIsGenerating(true);
     try {
       const response = await api.post('/api/query/generate', {
         category_name: category,
         root_group: rootGroup
       });
-      onQueryGenerated(response.data.logic, response.data.params);
+      onQueryGenerated(response.data.logic, response.data.params, true);
+      setLastGeneratedTimestamp(Date.now());
     } catch (err) {
       console.error("Failed to generate query code:", err);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -263,6 +200,8 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
               <select 
                 value={group.combinator}
                 onChange={(e) => {
+                  setLastGeneratedTimestamp(null);
+                  onQueryGenerated('', '', false);
                   const newRoot = JSON.parse(JSON.stringify(rootGroup));
                   let target = newRoot;
                   for (const p of path) target = target.children[p];
@@ -297,8 +236,6 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
               {!isRoot && (
                 <button 
                   onClick={() => {
-                    const parentPath = path.slice(0, -1);
-                    const index = path[path.length - 1];
                     updateRootGroupRecursive(path, {}, 'remove');
                   }}
                   className="text-[9px] font-black text-red-400 hover:bg-red-50 px-2 py-1 rounded-md transition-all"
@@ -350,11 +287,17 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
                     </div>
                   ) : (
                     <input
-                      type={child.storage_type === 'String' ? 'text' : 'number'}
+                      type="text"
                       value={child.value}
-                      onChange={(e) => updateRootGroupRecursive(childPath, { value: child.storage_type === 'String' ? e.target.value : parseFloat(e.target.value) }, 'update')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (child.storage_type === 'String' || val === "" || /^-?\d*\.?\d*$/.test(val)) {
+                          updateRootGroupRecursive(childPath, { value: val }, 'update');
+                        }
+                      }}
                       placeholder="Value..."
                       className="w-full bg-transparent dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-4 focus:ring-blue-400/10 focus:border-blue-400 transition-all placeholder:text-gray-300 dark:text-white"
+                      inputMode={child.storage_type === 'String' ? 'text' : 'decimal'}
                     />
                   )}
                 </div>
@@ -410,9 +353,9 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
           <div className="relative">
             <input 
               type="text"
-              placeholder="Search category (e.g. Walls, Pipes)..."
+              placeholder={currentCategoryLabel}
               value={categorySearch}
-              onFocus={() => setIsCategoryDropdownOpen(true)}
+              onFocus={() => { setIsCategoryDropdownOpen(true); setCategorySearch(''); }}
               onChange={(e) => setCategorySearch(e.target.value)}
               className="w-full bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl px-4 py-3 text-sm font-bold focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all dark:text-white shadow-sm pr-10"
             />
@@ -427,7 +370,7 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
                     key={cat.id}
                     onClick={() => {
                       setCategory(cat.id);
-                      setCategorySearch(cat.label);
+                      setCategorySearch('');
                       setIsCategoryDropdownOpen(false);
                     }}
                     className={`px-4 py-3 text-sm font-bold cursor-pointer transition-colors flex items-center justify-between group
@@ -459,36 +402,23 @@ export const VisualQueryBuilder = ({ onQueryGenerated }: VisualQueryBuilderProps
             {isLoadingParams ? 'Synchronizing Schema...' : `${availableParams.length} Parameters Synced`}
           </div>
         </div>
-        <button
-          onClick={handleGenerate}
-          disabled={rootGroup.children.length === 0}
-          className="group relative bg-blue-600 text-white px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center active:scale-95 disabled:opacity-30 border border-blue-500/20"
-        >
-          <FontAwesomeIcon icon={faCode} className="mr-3 text-white/80 group-hover:scale-110 transition-transform" />
-          Compile Logic
-        </button>
-      </div>
-    </div>
-  );
-};
-
-      {/* Action Footer */}
-      <div className="pt-4 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
-        <div className="flex items-center space-x-2">
-          <div className={`w-2 h-2 rounded-full ${isLoadingParams ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
-          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
-            {isLoadingParams ? 'Synchronizing Schema...' : `${availableParams.length} Parameters Synced`}
-          </div>
+        
+        <div className="flex items-center gap-4">
+          {lastGeneratedTimestamp && (
+            <div className="animate-in slide-in-from-right-4 fade-in duration-300 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 text-green-600 dark:text-green-400">
+              <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
+              <span className="text-[10px] font-black uppercase tracking-tighter">Logic Ready</span>
+            </div>
+          )}
+          <button
+            onClick={handleGenerate}
+            disabled={rootGroup.children.length === 0 || isGenerating}
+            className="group relative bg-blue-600 text-white px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center active:scale-95 disabled:opacity-30 border border-blue-500/20"
+          >
+            {isGenerating ? <FontAwesomeIcon icon={faSpinner} spin className="mr-3 text-white/80" /> : <FontAwesomeIcon icon={faCode} className="mr-3 text-white/80 group-hover:scale-110 transition-transform" />}
+            {isGenerating ? 'Compiling Logic...' : 'Compile Logic'}
+          </button>
         </div>
-        <button
-          onClick={handleGenerate}
-          disabled={rules.length === 0}
-          className="group relative bg-gray-900 dark:bg-gray-800 text-white px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:shadow-blue-500/20 hover:bg-blue-600 transition-all flex items-center active:scale-95 disabled:opacity-30 border border-transparent dark:border-gray-700"
-        >
-          <FontAwesomeIcon icon={faCode} className="mr-3 text-blue-400 group-hover:text-white transition-colors" />
-          Compile Logic
-          <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-10 transition-opacity rounded-xl" />
-        </button>
       </div>
     </div>
   );

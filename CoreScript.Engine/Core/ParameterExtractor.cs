@@ -201,7 +201,18 @@ namespace CoreScript.Engine.Core
 
             if (initializer != null)
             {
-                if (initializer is LiteralExpressionSyntax lit) p.DefaultValueJson = JsonSerializer.Serialize(lit.Token.Value);
+                if (initializer is LiteralExpressionSyntax lit)
+                {
+                    // V3.1 FIX: Use raw text for numbers to preserve decimal formatting (e.g. 6.00)
+                    if (lit.Kind() == SyntaxKind.NumericLiteralExpression)
+                    {
+                        p.DefaultValueJson = JsonSerializer.Serialize(lit.Token.Text);
+                    }
+                    else
+                    {
+                        p.DefaultValueJson = JsonSerializer.Serialize(lit.Token.Value);
+                    }
+                }
                 else if (IsSimpleStatic(initializer)) p.DefaultValueJson = JsonSerializer.Serialize(ExtractStringsFromInitializer(initializer));
             }
 
@@ -223,9 +234,18 @@ namespace CoreScript.Engine.Core
         }
 
         private string ExtractXmlDescription(SyntaxTriviaList trivia) {
-            var lines = trivia.Select(t => t.ToFullString().Trim()).Where(s => s.StartsWith("///"));
-            var match = Regex.Match(string.Join("\n", lines), @"<summary>(.*?)</summary>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-            return match.Success ? match.Groups[1].Value.Trim('/', ' ', '\n', '\r') : "";
+            var lines = trivia.Select(t => t.ToFullString().Trim()).Where(s => s.StartsWith("///")).ToList();
+            if (!lines.Any()) return "";
+
+            string combined = string.Join("\n", lines);
+            
+            // 1. Try XML Match
+            var xmlMatch = Regex.Match(combined, @"<summary>(.*?)</summary>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            if (xmlMatch.Success) return xmlMatch.Groups[1].Value.Trim('/', ' ', '\n', '\r');
+
+            // 2. Fallback: Clean one-liners (Remove /// and whitespace)
+            var cleanLines = lines.Select(l => l.TrimStart('/').Trim());
+            return string.Join(" ", cleanLines).Trim();
         }
 
         private string GetMemberName(MemberDeclarationSyntax m) => m is PropertyDeclarationSyntax p ? p.Identifier.Text : (m is MethodDeclarationSyntax met ? met.Identifier.Text : "");

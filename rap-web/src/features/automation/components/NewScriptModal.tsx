@@ -36,6 +36,7 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
   // Visual Query state
   const [generatedLogic, setGeneratedLogic] = useState<string | null>(null);
   const [generatedParams, setGeneratedParams] = useState<string | null>(null);
+  const [isQueryCompiled, setIsQueryCompiled] = useState(false);
 
   const isReplacing = !!scriptToReplace;
 
@@ -51,6 +52,7 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
       setSearchTerm('');
       setGeneratedLogic(null);
       setGeneratedParams(null);
+      setIsQueryCompiled(false);
       setError(null);
       setIsLoading(false);
       setShowConfirmReplace(false);
@@ -65,6 +67,12 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
   const handleCreate = async (forceOverwrite: boolean = false) => {
     if (!scriptName.trim()) {
       setError('Script name cannot be empty.');
+      return;
+    }
+
+    const showQueryBuilder = templateId === 'selection-surgeon' || templateId === 'project-auditor';
+    if (showQueryBuilder && !isQueryCompiled) {
+      setError('Please compile your query logic first.');
       return;
     }
 
@@ -87,7 +95,7 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
       });
 
       if (createdScript) {
-        setSelectedScript(createdScript);
+        setSelectedScript(createdScript, 'replace');
       }
 
       onClose();
@@ -229,12 +237,13 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
           {showQueryBuilder && (
             <div className="animate-in slide-in-from-top-4 duration-300 border-t border-gray-100 dark:border-gray-800 pt-6">
               <VisualQueryBuilder
-                onQueryGenerated={(logic, params) => {
+                onQueryGenerated={(logic, params, isCompiled) => {
                   setGeneratedLogic(logic);
                   setGeneratedParams(params);
+                  setIsQueryCompiled(isCompiled);
                 }}
               />
-              {generatedLogic && (
+              {isQueryCompiled && (
                 <div className="mt-2 flex items-center justify-center text-[10px] text-green-600 dark:text-green-400 font-bold bg-green-50 dark:bg-green-900/20 py-1 rounded-md border border-green-100 dark:border-green-900/30">
                   <FontAwesomeIcon icon={faSync} className="mr-2 animate-spin-slow" />
                   Logic generated! It will be injected into your script.
@@ -255,7 +264,7 @@ export const NewScriptModal = ({ isOpen, onClose, selectedFolder, scriptToReplac
           </button>
           <button
             onClick={() => handleCreate()}
-            disabled={isLoading}
+            disabled={isLoading || (showQueryBuilder && !isQueryCompiled)}
             className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-900 shadow-md hover:shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
           >
             {isLoading && <FontAwesomeIcon icon={faSync} className="animate-spin mr-2" />}

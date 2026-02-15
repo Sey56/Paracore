@@ -20,7 +20,7 @@ export interface PickObjectResult {
 
 export interface ScriptExecutionContextProps {
   selectedScript: Script | null;
-  setSelectedScript: (script: Script | null, source?: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' | 'hard_reset') => Promise<void>;
+  setSelectedScript: (script: Script | null, source?: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' | 'hard_reset' | 'replace') => Promise<void>;
   runningScriptPath: string | null;
   executionResult: ExecutionResult | null;
   setExecutionResult: (result: ExecutionResult | null) => void;

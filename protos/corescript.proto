@@ -41,6 +41,7 @@ message ParameterDefinition {
   bool is_builtin = 3;
   int32 builtin_id = 4; 
   string revit_element_type = 5; 
+  string builtin_name = 6;
 }
 
 message GetCategoryParametersResponse {
