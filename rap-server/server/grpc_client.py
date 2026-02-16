@@ -130,8 +130,20 @@ def get_watchdog_statuses():
                     "details_json": w.details_json,
                     "timestamp": w.timestamp
                 })
+
+            failed_watchdogs = []
+            for f in response.failed_watchdogs:
+                failed_watchdogs.append({
+                    "script_path": f.script_path,
+                    "script_name": f.script_name,
+                    "error_message": f.error_message,
+                    "timestamp": f.timestamp
+                })
             
-            return {"watchdogs": watchdogs}
+            return {
+                "watchdogs": watchdogs,
+                "failed_watchdogs": failed_watchdogs
+            }
     except Exception as e:
         logging.error(f"Error calling GetWatchdogStatus gRPC: {e}")
         return {"watchdogs": [], "error_message": str(e)}

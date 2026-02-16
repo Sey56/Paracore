@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faTrash, faCode, faCogs, faFilter, faCheck, faSpinner, faTable, faTimes, faChevronDown, faGlobe, faSync, faArrowUp, faArrowDown, faMousePointer, faSearch, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faTrash, faCode, faCogs, faFilter, faCheck, faSpinner, faTable, faTimes, faChevronDown, faGlobe, faSync, faArrowUp, faArrowDown, faMousePointer, faSearch, faInfoCircle, faShieldHeart } from '@fortawesome/free-solid-svg-icons';
 import api from '@/api/axios';
 
 interface ParameterDefinition {
@@ -41,6 +41,7 @@ interface VisualQueryBuilderProps {
     selectedColumns: QueryRule[];
     scope?: 'project' | 'selection';
   };
+  onConfigChange?: (config: { category: string, rootGroup: QueryGroup, scope: string }) => void;
 }
 
 const COMMON_CATEGORIES = [
@@ -78,29 +79,29 @@ const OPERATORS: Record<string, string[]> = {
 };
 
 const UNIT_GROUPS: Record<string, string[]> = {
-    length: ['mm', 'cm', 'm', 'in', 'ft'],
-    area: ['m2', 'sqm', 'ft2'],
-    volume: ['m3', 'cum', 'ft3'],
+  length: ['mm', 'cm', 'm', 'in', 'ft'],
+  area: ['m2', 'sqm', 'ft2'],
+  volume: ['m3', 'cum', 'ft3'],
 };
 
 const getAvailableUnits = (specId?: string) => {
-    if (!specId) return [];
-    const sid = specId.toLowerCase();
-    if (sid.includes('length') || sid.includes('distance')) return UNIT_GROUPS.length;
-    if (sid.includes('area')) return UNIT_GROUPS.area;
-    if (sid.includes('volume')) return UNIT_GROUPS.volume;
-    return [];
+  if (!specId) return [];
+  const sid = specId.toLowerCase();
+  if (sid.includes('length') || sid.includes('distance')) return UNIT_GROUPS.length;
+  if (sid.includes('area')) return UNIT_GROUPS.area;
+  if (sid.includes('volume')) return UNIT_GROUPS.volume;
+  return [];
 };
 
-export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQueryBuilderProps) => {
+export const VisualQueryBuilder = ({ onQueryGenerated, initialState, onConfigChange }: VisualQueryBuilderProps) => {
   const [scope, setScope] = useState<'project' | 'selection'>(initialState?.scope || 'project');
   const [category, setCategory] = useState(initialState?.category || 'OST_Walls');
   const [categorySearch, setCategorySearch] = useState('');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
-  const [allCategoriesList, setAllCategoriesList] = useState<{id: string, label: string}[]>([]);
+  const [allCategoriesList, setAllCategoriesList] = useState<{ id: string, label: string }[]>([]);
   const [isFetchingCategories, setIsFetchingCategories] = useState(false);
-  
+
   const [columnSearch, setColumnSearch] = useState('');
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<QueryRule[]>(initialState?.selectedColumns || []);
@@ -113,14 +114,22 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
   });
   const [isLoadingParams, setIsLoadingParams] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+
   const [lastGeneratedTimestamp, setLastGeneratedTimestamp] = useState<number | null>(null);
 
   useEffect(() => {
+    if (onConfigChange) {
+      onConfigChange({ category, rootGroup, scope });
+    }
+  }, [category, rootGroup, scope, onConfigChange]);
+
+  useEffect(() => {
+    console.log("[VisualQueryBuilder] Mounted");
     if (initialState) {
-        setScope(initialState.scope || 'project');
-        setCategory(initialState.category);
-        setRootGroup(initialState.rootGroup);
-        setSelectedColumns(initialState.selectedColumns || []);
+      setScope(initialState.scope || 'project');
+      setCategory(initialState.category);
+      setRootGroup(initialState.rootGroup);
+      setSelectedColumns(initialState.selectedColumns || []);
     }
   }, [initialState]);
 
@@ -142,13 +151,13 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
     return allCategoriesList.length > 0 ? allCategoriesList : COMMON_CATEGORIES;
   }, [showAllCategories, allCategoriesList]);
 
-  const filteredCategories = categoryList.filter(cat => 
+  const filteredCategories = categoryList.filter(cat =>
     cat.label.toLowerCase().includes(categorySearch.toLowerCase()) ||
     cat.id.toLowerCase().includes(categorySearch.toLowerCase())
   );
 
-  const filteredColumns = availableParams.filter(p => 
-    p.name.toLowerCase().includes(columnSearch.toLowerCase()) && 
+  const filteredColumns = availableParams.filter(p =>
+    p.name.toLowerCase().includes(columnSearch.toLowerCase()) &&
     !selectedColumns.some(sc => sc.name === p.name)
   );
 
@@ -173,7 +182,7 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
   }, [category]);
 
   const updateRootGroupRecursive = (path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => {
-    setLastGeneratedTimestamp(null); 
+    setLastGeneratedTimestamp(null);
     onQueryGenerated('', '', false);
     const newRoot = JSON.parse(JSON.stringify(rootGroup));
     let current = newRoot;
@@ -248,10 +257,10 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
         selected_columns: mappedColumns,
         scope: scope
       });
-      
+
       if (response.data.logic && response.data.params) {
-          onQueryGenerated(response.data.logic, response.data.params, true);
-          setLastGeneratedTimestamp(Date.now());
+        onQueryGenerated(response.data.logic, response.data.params, true);
+        setLastGeneratedTimestamp(Date.now());
       }
     } catch (err) {
       console.error("Failed to generate query code:", err);
@@ -264,26 +273,26 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
     return (
       <div className={`space-y-4 ${!isRoot ? 'pl-6 border-l-2 border-gray-100 dark:border-gray-800 ml-2 py-2' : ''}`}>
         <div className="flex items-center justify-between mb-2">
-           <div className="flex items-center gap-3">
-              <select value={group.combinator} onChange={(e) => {
-                  setLastGeneratedTimestamp(null);
-                  onQueryGenerated('', '', false);
-                  const newRoot = JSON.parse(JSON.stringify(rootGroup));
-                  let target = newRoot;
-                  for (const p of path) target = target.children[p];
-                  target.combinator = e.target.value as 'AND' | 'OR';
-                  setRootGroup(newRoot);
-                }} className={`text-[10px] font-black px-3 py-1 rounded-full outline-none cursor-pointer transition-colors ${group.combinator === 'AND' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'}`}>
-                <option value="AND">AND</option>
-                <option value="OR">OR</option>
-              </select>
-              {isRoot && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Logic Workspace</span>}
-           </div>
-           <div className="flex items-center gap-2">
-              <button onClick={() => updateRootGroupRecursive(path, {}, 'add_rule')} className="text-[9px] font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all flex items-center gap-1.5"><FontAwesomeIcon icon={faPlus} /> FILTER</button>
-              <button onClick={() => updateRootGroupRecursive(path, {}, 'add_group')} className="text-[9px] font-black text-gray-600 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all flex items-center gap-1.5"><FontAwesomeIcon icon={faPlus} /> GROUP</button>
-              {!isRoot && <button onClick={() => updateRootGroupRecursive(path, {}, 'remove')} className="w-7 h-7 flex items-center justify-center text-[10px] text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"><FontAwesomeIcon icon={faTrash} /></button>}
-           </div>
+          <div className="flex items-center gap-3">
+            <select value={group.combinator} onChange={(e) => {
+              setLastGeneratedTimestamp(null);
+              onQueryGenerated('', '', false);
+              const newRoot = JSON.parse(JSON.stringify(rootGroup));
+              let target = newRoot;
+              for (const p of path) target = target.children[p];
+              target.combinator = e.target.value as 'AND' | 'OR';
+              setRootGroup(newRoot);
+            }} className={`text-[10px] font-black px-3 py-1 rounded-full outline-none cursor-pointer transition-colors ${group.combinator === 'AND' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'}`}>
+              <option value="AND">AND</option>
+              <option value="OR">OR</option>
+            </select>
+            {isRoot && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Logic Workspace</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => updateRootGroupRecursive(path, {}, 'add_rule')} className="text-[9px] font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all flex items-center gap-1.5"><FontAwesomeIcon icon={faPlus} /> FILTER</button>
+            <button onClick={() => updateRootGroupRecursive(path, {}, 'add_group')} className="text-[9px] font-black text-gray-600 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-all flex items-center gap-1.5"><FontAwesomeIcon icon={faPlus} /> GROUP</button>
+            {!isRoot && <button onClick={() => updateRootGroupRecursive(path, {}, 'remove')} className="w-7 h-7 flex items-center justify-center text-[10px] text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"><FontAwesomeIcon icon={faTrash} /></button>}
+          </div>
         </div>
         <div className="space-y-2">
           {group.children.map((child, idx) => {
@@ -307,9 +316,9 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
                     <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-[10px] font-bold text-blue-600 dark:text-blue-400 italic text-center">Select {child.revit_element_type}</div>
                   ) : (
                     <input type="text" value={child.value} onChange={(e) => {
-                        const val = e.target.value;
-                        if (child.storage_type === 'String' || val === "" || /^-?\d*\.?\d*$/.test(val)) updateRootGroupRecursive(childPath, { value: val }, 'update');
-                      }} placeholder="Value..." className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500/10 dark:text-white transition-all" inputMode={child.storage_type === 'String' ? 'text' : 'decimal'} />
+                      const val = e.target.value;
+                      if (child.storage_type === 'String' || val === "" || /^-?\d*\.?\d*$/.test(val)) updateRootGroupRecursive(childPath, { value: val }, 'update');
+                    }} placeholder="Value..." className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500/10 dark:text-white transition-all" inputMode={child.storage_type === 'String' ? 'text' : 'decimal'} />
                   )}
                 </div>
                 {relevantUnits.length > 0 && (
@@ -346,11 +355,11 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
             {isCategoryDropdownOpen && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500">
                 <div className="p-2 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
-                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">{showAllCategories ? 'All Categories' : 'Common Categories'}</span>
-                   <button onClick={(e) => { e.stopPropagation(); const nextState = !showAllCategories; setShowAllCategories(nextState); if (nextState) fetchAllCategories(); }} className={`text-[9px] font-black px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${showAllCategories ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
-                     <FontAwesomeIcon icon={isFetchingCategories ? faSync : faGlobe} className={isFetchingCategories ? 'animate-spin' : ''} />
-                     {isFetchingCategories ? 'SYNCING...' : (showAllCategories ? 'MODE: ALL' : 'MODE: COMMON')}
-                   </button>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">{showAllCategories ? 'All Categories' : 'Common Categories'}</span>
+                  <button onClick={(e) => { e.stopPropagation(); const nextState = !showAllCategories; setShowAllCategories(nextState); if (nextState) fetchAllCategories(); }} className={`text-[9px] font-black px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${showAllCategories ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
+                    <FontAwesomeIcon icon={isFetchingCategories ? faSync : faGlobe} className={isFetchingCategories ? 'animate-spin' : ''} />
+                    {isFetchingCategories ? 'SYNCING...' : (showAllCategories ? 'MODE: ALL' : 'MODE: COMMON')}
+                  </button>
                 </div>
                 {filteredCategories.map(cat => (
                   <div key={cat.id} onClick={() => { setCategory(cat.id); setCategorySearch(''); setIsCategoryDropdownOpen(false); }} className={`px-4 py-3 text-sm font-bold cursor-pointer transition-colors flex items-center justify-between group ${category === cat.id ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
@@ -363,24 +372,24 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
           </div>
         </div>
         <div className="flex bg-gray-50 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-inner">
-            <button onClick={() => { setScope('project'); setLastGeneratedTimestamp(null); onQueryGenerated('', '', false); }} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-2 ${scope === 'project' ? 'bg-white dark:bg-gray-900 text-blue-600 shadow-sm border border-gray-100 dark:border-gray-700' : 'text-gray-400 hover:text-gray-600'}`}>
-                <FontAwesomeIcon icon={faSearch} className="text-[9px]" /> Project Scope
-            </button>
-            <button onClick={() => { setScope('selection'); setLastGeneratedTimestamp(null); onQueryGenerated('', '', false); }} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-2 ${scope === 'selection' ? 'bg-white dark:bg-gray-900 text-purple-600 shadow-sm border border-gray-100 dark:border-gray-700' : 'text-gray-400 hover:text-gray-600'}`}>
-                <FontAwesomeIcon icon={faMousePointer} className="text-[9px]" /> Active Selection
-            </button>
+          <button onClick={() => { setScope('project'); setLastGeneratedTimestamp(null); onQueryGenerated('', '', false); }} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-2 ${scope === 'project' ? 'bg-white dark:bg-gray-900 text-blue-600 shadow-sm border border-gray-100 dark:border-gray-700' : 'text-gray-400 hover:text-gray-600'}`}>
+            <FontAwesomeIcon icon={faSearch} className="text-[9px]" /> Project Scope
+          </button>
+          <button onClick={() => { setScope('selection'); setLastGeneratedTimestamp(null); onQueryGenerated('', '', false); }} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-2 ${scope === 'selection' ? 'bg-white dark:bg-gray-900 text-purple-600 shadow-sm border border-gray-100 dark:border-gray-700' : 'text-gray-400 hover:text-gray-600'}`}>
+            <FontAwesomeIcon icon={faMousePointer} className="text-[9px]" /> Active Selection
+          </button>
         </div>
       </div>
 
       <div className="bg-white dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 min-h-[300px]">
         {renderGroup(rootGroup)}
         {rootGroup.children.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-300 mb-3">
-                    <FontAwesomeIcon icon={faFilter} />
-                </div>
-                <div className="text-xs font-bold text-gray-400">No logic defined. Click 'FILTER' to begin.</div>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-300 mb-3">
+              <FontAwesomeIcon icon={faFilter} />
             </div>
+            <div className="text-xs font-bold text-gray-400">No logic defined. Click 'FILTER' to begin.</div>
+          </div>
         )}
       </div>
 
@@ -439,10 +448,10 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
           <div className="flex items-center gap-3">
             <div className={`w-2 h-2 rounded-full ${isLoadingParams || isGenerating ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
             <div className="flex flex-col">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isLoadingParams ? 'Syncing Parameters...' : (isGenerating ? 'Compiling Logic...' : 'System Ready')}</span>
-                {lastGeneratedTimestamp && !isGenerating && (
-                    <span className="text-[9px] font-bold text-green-600 dark:text-green-400 animate-in fade-in duration-500"><FontAwesomeIcon icon={faCheck} className="mr-1" /> Logic Synchronized</span>
-                )}
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isLoadingParams ? 'Syncing Parameters...' : (isGenerating ? 'Compiling Logic...' : 'System Ready')}</span>
+              {lastGeneratedTimestamp && !isGenerating && (
+                <span className="text-[9px] font-bold text-green-600 dark:text-green-400 animate-in fade-in duration-500"><FontAwesomeIcon icon={faCheck} className="mr-1" /> Logic Synchronized</span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -452,16 +461,17 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState }: VisualQue
             </button>
           </div>
         </div>
+
         {lastGeneratedTimestamp && !isGenerating && (
-            <div className="px-6 py-4 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/50 animate-in slide-in-from-top-2 duration-300">
-                <div className="flex items-start gap-3">
-                    <FontAwesomeIcon icon={faInfoCircle} className="text-blue-500 mt-0.5" />
-                    <div>
-                        <div className="text-[11px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-tight">C# Logic Compiled Successfully</div>
-                        <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold mt-0.5 leading-relaxed">The visual rules have been converted to high-performance Revit API code. Click <strong>{initialState ? 'Confirm Changes' : 'Create Tool'}</strong> below to finalize the injection.</p>
-                    </div>
-                </div>
+          <div className="px-6 py-4 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/50 animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-start gap-3">
+              <FontAwesomeIcon icon={faInfoCircle} className="text-blue-500 mt-0.5" />
+              <div>
+                <div className="text-[11px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-tight">C# Logic Compiled Successfully</div>
+                <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold mt-0.5 leading-relaxed">The visual rules have been converted to high-performance Revit API code. Click <strong>{initialState ? 'Confirm Changes' : 'Create Tool'}</strong> below to finalize the injection.</p>
+              </div>
             </div>
+          </div>
         )}
       </div>
     </div>

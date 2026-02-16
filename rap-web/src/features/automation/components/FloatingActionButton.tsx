@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldAlt, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faShieldAlt, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { useUI } from '@/hooks/useUI';
+import { useScripts } from '../hooks/useScripts'; // Import useScripts to get isArmingWatchdogs
 
 interface FloatingActionButtonProps {
   disabled?: boolean;
 }
 
 export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disabled }) => {
-  const { watchdogs, hasIssues } = useWatchdog();
+  const { watchdogs, hasIssues, isWatchdogInitialized } = useWatchdog(); // Get isWatchdogInitialized
+  const { isArmingWatchdogs } = useScripts(); // Get isArmingWatchdogs from useScripts
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLDivElement>(null);
@@ -34,7 +36,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (disabled) return;
+    if (disabled || isArmingWatchdogs || !isWatchdogInitialized) return; // Disable dragging during arming/initialization
 
     setIsDragging(true);
     hasMoved.current = false;
@@ -43,7 +45,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
 
     // Prevent text selection
     e.preventDefault();
-  }, [disabled, position]);
+  }, [disabled, position, isArmingWatchdogs, isWatchdogInitialized]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging) return;
@@ -79,16 +81,14 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  const handleFabClick = (e: React.MouseEvent) => {
-    if (hasMoved.current) {
+  const handleFabClick = useCallback((e: React.MouseEvent) => {
+    if (hasMoved.current || isArmingWatchdogs || !isWatchdogInitialized) { // Disable clicking during arming/initialization
       e.preventDefault();
       e.stopPropagation();
       return;
     }
-    setIsOpen(!isOpen);
-  };
-
-  // if (watchdogs.length === 0) return null; // Removed to always show FAB
+    setIsOpen(prev => !prev);
+  }, [isArmingWatchdogs, isWatchdogInitialized]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -111,6 +111,28 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
     }
   };
 
+  const fabColorClass = isArmingWatchdogs
+    ? 'bg-amber-500 hover:bg-amber-600 animate-pulse' // Amber pulsating during active arming (High Priority)
+    : !isWatchdogInitialized
+      ? 'bg-gray-500 hover:bg-gray-600' // Neutral gray during initial loading
+      : hasIssuesInternal
+        ? 'bg-amber-500 hover:bg-amber-600 animate-pulse' // Amber for warnings/errors
+        : 'bg-green-500 hover:bg-green-600'; // Green for healthy
+
+  const fabText = !isWatchdogInitialized
+    ? "Loading..."
+    : isArmingWatchdogs
+      ? "Initializing..."
+      : isHealthy
+        ? "System Healthy"
+        : `${watchdogs.length} Active`;
+
+  const fabIcon = !isWatchdogInitialized || isArmingWatchdogs
+    ? faSpinner // Spinner during loading or arming
+    : isHealthy
+      ? faCheckCircle
+      : faShieldAlt;
+
   return (
     <div
       ref={fabRef}
@@ -120,8 +142,8 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
     >
       <div className="relative" ref={dropdownRef}>
         {/* Dropdown Menu (Pop-upwards) */}
-        {isOpen && (
-          <div className="absolute top-full left-0 mt-4 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-left cursor-default"
+        {isOpen && !isArmingWatchdogs && isWatchdogInitialized && ( // Only show dropdown if not arming and initialized
+          <div className="absolute bottom-full left-0 mb-4 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom-left cursor-default"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
@@ -132,7 +154,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
               {watchdogs.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
                   <FontAwesomeIcon icon={faCheckCircle} className="text-4xl text-green-500 mb-2 opacity-50" />
-                  <span className="text-xs font-medium">All systems healthy</span>
+                  <span className="text-xs font-medium">No watchdogs configured or running.</span>
                 </div>
               ) : (
                 watchdogs.map((w, idx) => (
@@ -163,17 +185,15 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
         {/* FAB Button */}
         <button
           id="fab"
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-lg transition-all duration-300 ${hasIssuesInternal
-            ? 'bg-amber-500 hover:bg-amber-600 animate-pulse text-white'
-            : 'bg-green-500 hover:bg-green-600 text-white'
-            } ${disabled ? 'bg-gray-400 cursor-not-allowed' : ''}`}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-lg transition-all duration-300 
+            ${fabColorClass} ${disabled ? 'bg-gray-400 cursor-not-allowed' : ''}`}
           onClick={handleFabClick}
-          disabled={disabled}
-          title="BIM Watchdog Status (Drag to move)"
+          disabled={disabled || isArmingWatchdogs || !isWatchdogInitialized}
+          title={isArmingWatchdogs || !isWatchdogInitialized ? "Watchdogs Initializing..." : "BIM Watchdog Status (Drag to move)"}
         >
-          <FontAwesomeIcon icon={isHealthy ? faCheckCircle : faShieldAlt} className="text-base text-white" />
+          <FontAwesomeIcon icon={fabIcon} className={`text-base text-white ${isArmingWatchdogs || !isWatchdogInitialized ? 'animate-spin' : ''}`} />
           <span className="text-[10px] font-black uppercase tracking-tight text-white">
-            {isHealthy ? "System Healthy" : `${watchdogs.length} Active`}
+            {fabText}
           </span>
         </button>
       </div>

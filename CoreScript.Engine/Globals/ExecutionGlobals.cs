@@ -34,15 +34,101 @@ namespace CoreScript.Engine.Globals
         }
     }
 
+    /// <summary>
+    /// Prevents "The current document is not workset-enabled" and circular reference errors
+    /// by only serializing essential Element properties. Handles all subclasses (Wall, Floor, etc.)
+    /// </summary>
+    public class RevitElementConverterFactory : JsonConverterFactory
+    {
+        public override bool CanConvert(Type typeToConvert) => typeof(Element).IsAssignableFrom(typeToConvert);
+
+        public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
+        {
+            return new ElementConverter();
+        }
+
+        private class ElementConverter : JsonConverter<Element>
+        {
+            public override Element Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+
+            public override void Write(Utf8JsonWriter writer, Element value, JsonSerializerOptions options)
+            {
+                if (value == null) { writer.WriteNullValue(); return; }
+                writer.WriteStartObject();
+                writer.WriteNumber("Id", value.Id.Value);
+                writer.WriteString("Name", value.Name);
+
+                try
+                {
+                    if (value.Category != null)
+                    {
+                        writer.WriteString("Category", value.Category.Name);
+                    }
+                }
+                catch { }
+
+                // Explicitly NOT serializing Document or WorksetId to avoid "workset-enabled" errors
+                
+                writer.WriteEndObject();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Safely serializes Document references.
+    /// </summary>
+    public class DocumentConverter : JsonConverter<Document>
+    {
+        public override Document Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+
+        public override void Write(Utf8JsonWriter writer, Document value, JsonSerializerOptions options)
+        {
+            if (value == null) { writer.WriteNullValue(); return; }
+            writer.WriteStartObject();
+            writer.WriteString("Title", value.Title);
+            writer.WriteString("Path", value.PathName);
+            writer.WriteEndObject();
+        }
+    }
+
+    /// <summary>
+    /// Ensures XYZ objects are serialized as simple coordinate objects.
+    /// </summary>
+    public class XYZConverter : JsonConverter<XYZ>
+    {
+        public override XYZ Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+
+        public override void Write(Utf8JsonWriter writer, XYZ value, JsonSerializerOptions options)
+        {
+            if (value == null) { writer.WriteNullValue(); return; }
+            writer.WriteStartObject();
+            writer.WriteNumber("X", Math.Round(value.X, 6));
+            writer.WriteNumber("Y", Math.Round(value.Y, 6));
+            writer.WriteNumber("Z", Math.Round(value.Z, 6));
+            writer.WriteEndObject();
+        }
+    }
+
+    /// <summary>
+    /// Safely serializes Revit Parameters avoiding circular references to Elements.
+    /// </summary>
+    public class ParameterConverter : JsonConverter<Parameter>
+    {
+        public override Parameter Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+
+        public override void Write(Utf8JsonWriter writer, Parameter value, JsonSerializerOptions options)
+        {
+            if (value == null) { writer.WriteNullValue(); return; }
+            writer.WriteStartObject();
+            writer.WriteString("Name", value.Definition.Name);
+            writer.WriteString("Value", value.AsValueString() ?? "-");
+            writer.WriteEndObject();
+        }
+    }
+
     public class Output
     {
         private readonly ICoreScriptContext _context;
-        private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions 
-        { 
-            WriteIndented = true,
-            ReferenceHandler = ReferenceHandler.IgnoreCycles,
-            Converters = { new ElementIdConverter() } // Apply the fix here
-        };
 
         public Output(ICoreScriptContext context)
         {
@@ -51,7 +137,7 @@ namespace CoreScript.Engine.Globals
 
         public void Show(string type, object data)
         {
-            var json = JsonSerializer.Serialize(data, _jsonOptions);
+            var json = JsonSerializer.Serialize(data, ExecutionGlobals.SerializerOptions);
             _context.AddStructuredOutput(type, json);
         }
 
@@ -64,6 +150,19 @@ namespace CoreScript.Engine.Globals
     public class ExecutionGlobals
     {
         public static readonly AsyncLocal<ExecutionGlobals> Current = new AsyncLocal<ExecutionGlobals>();
+
+        public static readonly JsonSerializerOptions SerializerOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            ReferenceHandler = ReferenceHandler.IgnoreCycles,
+            Converters = { 
+                new ElementIdConverter(), 
+                new RevitElementConverterFactory(),
+                new DocumentConverter(),
+                new XYZConverter(), 
+                new ParameterConverter() 
+            }
+        };
 
         // Timeout mechanism
         private static DateTime _executionDeadline;

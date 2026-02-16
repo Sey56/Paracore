@@ -120,7 +120,13 @@ namespace CoreScript.Engine.Core
                 if (structuredOutputLogProperty != null)
                 {
                     var log = structuredOutputLogProperty.GetValue(context) as System.Collections.IEnumerable;
-                    if (log != null) foreach (var item in log) result.StructuredOutput.Add(item is string s ? s : JsonSerializer.Serialize(item));
+                    if (log != null)
+                    {
+                        foreach (var item in log)
+                        {
+                            result.StructuredOutput.Add(item is string s ? s : JsonSerializer.Serialize(item, ExecutionGlobals.SerializerOptions));
+                        }
+                    }
                 }
 
                 return result;
@@ -132,7 +138,10 @@ namespace CoreScript.Engine.Core
                 string summaryMessage;
                 List<string> details = new List<string>();
 
-                if (ex is CompilationErrorException cex)
+                // Unwrap AggregateException for better reporting
+                var actualEx = (ex is AggregateException aex && aex.InnerException != null) ? aex.InnerException : ex;
+
+                if (actualEx is CompilationErrorException cex)
                 {
                     summaryMessage = "Compilation Failed";
                     
@@ -143,20 +152,9 @@ namespace CoreScript.Engine.Core
                     
                     details = mappedErrors.Select(e => e.ToString()).ToList();
                 }
-                else if (ex is AggregateException aex && aex.InnerException is CompilationErrorException ccex)
-                {
-                    summaryMessage = "Compilation Failed";
-                    
-                    // Use DiagnosticMapper to get correct file/line mappings
-                    var mappedErrors = DiagnosticMapper.MapAndDeduplicate(
-                        ccex.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
-                        finalScriptCode);
-                    
-                    details = mappedErrors.Select(e => e.ToString()).ToList();
-                }
                 else
                 {
-                    summaryMessage = ex.Message;
+                    summaryMessage = actualEx.Message;
                 }
 
                 var failureResult = ExecutionResult.Failure($"❌ {summaryMessage}", context.PrintLog.ToArray());
@@ -228,7 +226,7 @@ namespace CoreScript.Engine.Core
                 if (structuredOutputLogProperty != null)
                 {
                     var log = structuredOutputLogProperty.GetValue(context) as System.Collections.IEnumerable;
-                    if (log != null) foreach (var item in log) result.StructuredOutput.Add(item is string s ? s : JsonSerializer.Serialize(item));
+                    if (log != null) foreach (var item in log) result.StructuredOutput.Add(item is string s ? s : JsonSerializer.Serialize(item, ExecutionGlobals.SerializerOptions));
                 }
 
                 return result;

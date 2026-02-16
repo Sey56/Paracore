@@ -6,6 +6,7 @@ namespace CoreScript.Engine.Core
     /// </summary>
     public class ExecutionResult
     {
+        public Guid ExecutionId { get; set; } = Guid.Empty;
         public bool IsSuccess { get; set; }
         public string ResultMessage { get; set; } = string.Empty;
         public string ErrorMessage { get; set; } = string.Empty;

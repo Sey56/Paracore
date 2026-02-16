@@ -96,11 +96,20 @@ namespace Paracore.Addin.Handlers
                                 var parameters = new Dictionary<string, object>
                                 {
                                     { "__absolute_path__", projectPath.Replace('\\', '/') },
-                                    { "__script_name__", System.IO.Path.GetFileName(projectPath) }
+                                    { "__script_name__", System.IO.Path.GetFileName(projectPath) },
+                                    { "__is_watchdog_registration__", true }
                                 };
                                 string paramsJson = JsonSerializer.Serialize(parameters);
 
-                                CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(combined, paramsJson, serverContext, isSilent: true);
+                                // V4: NON-BLOCKING Registration with Normal Priority
+                                // PriorityQueue in Dispatcher ensures manual scripts (High) jump to the front.
+                                CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(
+                                    combined, 
+                                    paramsJson, 
+                                    serverContext, 
+                                    isSilent: true, 
+                                    priority: ExecutionPriority.Normal);
+                                
                                 count++;
                                 details.Add($"Loaded: '{folderName}'");
                             }
@@ -108,6 +117,8 @@ namespace Paracore.Addin.Handlers
                         else
                         {
                              details.Add($"Skipped: '{folderName}' (No Watchdog() or WatchdogReport found)");
+                             // Also register as failure so user knows WHY it's not active
+                             CoreScript.Engine.Globals.WatchdogRegistry.RegisterFailure(projectPath, folderName, "No Watchdog() or WatchdogReport found in code.");
                         }
                     }
                     catch (Exception ex)
@@ -115,6 +126,7 @@ namespace Paracore.Addin.Handlers
                         // In single-project mode, we should probably fail harder, but logging is consistent
                         _logger.Log($"[ScriptExecutionHandler] Failed to queue watchdog in {projectPath}: {ex.Message}", LogLevel.Warning);
                         details.Add($"Error: '{folderName}' ({ex.Message})");
+                        CoreScript.Engine.Globals.WatchdogRegistry.RegisterFailure(projectPath, folderName, ex.Message);
                     }
                 }
 
@@ -204,19 +216,28 @@ namespace Paracore.Addin.Handlers
                 try
                 {
                     var completionSource = new TaskCompletionSource<ExecutionResult>();
-                    handler = result => completionSource.TrySetResult(result);
+                    Guid targetExecutionId = Guid.Empty;
+
+                    handler = result =>
+                    {
+                        if (result.ExecutionId == targetExecutionId && targetExecutionId != Guid.Empty)
+                        {
+                            completionSource.TrySetResult(result);
+                        }
+                    };
+
                     ServerViewModel.Instance.OnExecutionComplete += handler;
                     ServerViewModel.Instance.LastClientSource = request.Source;
                     
                     if (hasCompiledAssembly)
                     {
-                        ServerViewModel.Instance.DispatchBinaryScript(compiledAssembly, parametersJsonStr, serverContext);
-                        _logger.Log("[ScriptExecutionHandler] DispatchBinaryScript called. Waiting for completion.", LogLevel.Debug);
+                        targetExecutionId = ServerViewModel.Instance.DispatchBinaryScript(compiledAssembly, parametersJsonStr, serverContext);
+                        _logger.Log($"[ScriptExecutionHandler] DispatchBinaryScript called (ID: {targetExecutionId}). Waiting for completion.", LogLevel.Debug);
                     }
                     else
                     {
-                        ServerViewModel.Instance.DispatchScript(scriptContentStr, parametersJsonStr, serverContext);
-                        _logger.Log("[ScriptExecutionHandler] DispatchScript called. Waiting for completion.", LogLevel.Debug);
+                        targetExecutionId = ServerViewModel.Instance.DispatchScript(scriptContentStr, parametersJsonStr, serverContext);
+                        _logger.Log($"[ScriptExecutionHandler] DispatchScript called (ID: {targetExecutionId}). Waiting for completion.", LogLevel.Debug);
                     }
                     var timeoutTask = Task.Delay(TimeSpan.FromSeconds(45), context.CancellationToken);
                     var finishedTask = await Task.WhenAny(completionSource.Task, timeoutTask);

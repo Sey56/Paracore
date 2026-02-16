@@ -133,6 +133,18 @@ namespace Paracore.Addin.Services
                 });
             }
 
+            var failed = CoreScript.Engine.Globals.WatchdogRegistry.GetFailedWatchdogs();
+            foreach (var f in failed)
+            {
+                response.FailedWatchdogs.Add(new FailedWatchdog
+                {
+                    ScriptPath = f.ScriptPath,
+                    ScriptName = f.ScriptName,
+                    ErrorMessage = f.ErrorMessage,
+                    Timestamp = f.Timestamp.ToString("o")
+                });
+            }
+
             return Task.FromResult(response);
         }
 

@@ -132,13 +132,13 @@ namespace Paracore.Addin.ViewModels
             };
         }
 
-        public ExecutionResult DispatchScript(string scriptContent, string parametersJson, ICoreScriptContext context)
+        public Guid DispatchScript(string scriptContent, string parametersJson, ICoreScriptContext context)
         {
             _stopwatch.Restart();
             return CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(scriptContent, parametersJson, context);
         }
 
-        public ExecutionResult DispatchBinaryScript(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context)
+        public Guid DispatchBinaryScript(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context)
         {
             _stopwatch.Restart();
             return CoreScriptExecutionDispatcher.Instance.QueueBinaryScriptFromServer(compiledAssembly, parametersJson, context);

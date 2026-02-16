@@ -46,6 +46,7 @@ export interface ScriptContextProps {
   configuredWatchdogRoots: string[];
   addConfiguredWatchdogRoot: (path: string) => void;
   removeConfiguredWatchdogRoot: (path: string) => void;
+  isArmingWatchdogs: boolean;
 
   // Team & Remote
   remoteScriptSources: Record<number, TeamScriptSource[]>;

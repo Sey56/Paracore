@@ -190,7 +190,7 @@ namespace Paracore.Addin.Handlers
             try
             {
                 // V3 Architecture: Everything is an in-place Project Folder
-                string projectPath = EphemeralWorkspaceManager.ScaffoldAndOpenProject(request.ScriptPath);
+                string projectPath = WorkspaceManager.ScaffoldAndOpenProject(request.ScriptPath);
                 response.WorkspacePath = projectPath;
             }
             catch (Exception ex)

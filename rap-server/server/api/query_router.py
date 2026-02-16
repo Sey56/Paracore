@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from grpc_client import get_model_categories
 from services import query_service, script_service
+from services.query_to_watchdog import generate_watchdog_script
 
 router = APIRouter(prefix="/api/query", tags=["Query Builder"])
 
@@ -30,6 +31,14 @@ class GenerateQueryRequest(BaseModel):
     category_name: str
     root_group: QueryGroup
     selected_columns: Optional[List[QueryRule]] = None
+    scope: str = "project"
+
+class SaveAsWatchdogRequest(BaseModel):
+    name: str
+    description: str
+    target_folder: str
+    category_name: str
+    root_group: QueryGroup
     scope: str = "project"
 
 QueryGroup.model_rebuild()
@@ -60,5 +69,23 @@ async def generate_code(request: GenerateQueryRequest):
         root_dict = request.root_group.dict()
         cols_dict = [c.dict() for c in request.selected_columns] if request.selected_columns else None
         return query_service.generate_query_code(request.category_name, root_dict, cols_dict, request.scope)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/save-as-watchdog")
+async def save_as_watchdog(request: SaveAsWatchdogRequest):
+    """
+    Generates and saves a Watchdog script from visual rules.
+    """
+    try:
+        root_dict = request.root_group.dict()
+        return generate_watchdog_script(
+            request.name,
+            request.description,
+            request.target_folder,
+            request.category_name,
+            root_dict,
+            request.scope
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

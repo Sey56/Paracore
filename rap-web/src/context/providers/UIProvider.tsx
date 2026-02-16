@@ -14,7 +14,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const { userSourcePaths, isLoaded: userSourcesLoaded } = useUserTeamSources();
 
-  const [isSidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isInspectorOpen, setInspectorOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [isNewScriptModalOpen, setIsNewScriptModalOpen] = useState(false);

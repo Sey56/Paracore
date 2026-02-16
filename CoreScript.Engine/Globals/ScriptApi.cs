@@ -141,14 +141,25 @@ namespace CoreScript.Engine.Globals
         /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
         public static void Watchdog(Action<Document> callback, int intervalSeconds = 5)
         {
-            if (Parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj is string path)
+            bool isRegistration = Parameters.TryGetValue("__is_watchdog_registration__", out var isReg) && isReg is bool b && b;
+
+            if (isRegistration)
             {
-                string scriptName = Parameters.TryGetValue("__script_name__", out var nameObj) ? nameObj.ToString()! : "Watcher";
-                WatchdogRegistry.Register(path, scriptName, callback, intervalSeconds);
+                if (Parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj is string path)
+                {
+                    string scriptName = Parameters.TryGetValue("__script_name__", out var nameObj) ? nameObj.ToString()! : "Watcher";
+                    WatchdogRegistry.Register(path, scriptName, callback, intervalSeconds);
+                }
+                else
+                {
+                    Println("âš ï¸ Watchdog registration failed: Script path not found in context.");
+                }
             }
             else
             {
-                Println("⚠️ Watchdog registration failed: Script path not found in context.");
+                // MANUAL TEST MODE: Just run the logic once so the user sees results in the Console/Table
+                Println("â„¹ï¸ Running Watchdog logic in Manual Test mode (no background registration).");
+                callback(Doc);
             }
         }
 
@@ -160,15 +171,25 @@ namespace CoreScript.Engine.Globals
         /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
         public static void Watchdog(Action callback, int intervalSeconds = 5)
         {
-            if (Parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj is string path)
+            bool isRegistration = Parameters.TryGetValue("__is_watchdog_registration__", out var isReg) && isReg is bool b && b;
+
+            if (isRegistration)
             {
-                string scriptName = Parameters.TryGetValue("__script_name__", out var nameObj) ? nameObj.ToString()! : "Watcher";
-                // Delegate to the main registry, wrapping the callback to ignore the Doc argument since it's global
-                WatchdogRegistry.Register(path, scriptName, (doc) => callback(), intervalSeconds);
+                if (Parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj is string path)
+                {
+                    string scriptName = Parameters.TryGetValue("__script_name__", out var nameObj) ? nameObj.ToString()! : "Watcher";
+                    WatchdogRegistry.Register(path, scriptName, (doc) => callback(), intervalSeconds);
+                }
+                else
+                {
+                    Println("âš ï¸ Watchdog registration failed: Script path not found in context.");
+                }
             }
             else
             {
-                Println("⚠️ Watchdog registration failed: Script path not found in context.");
+                // MANUAL TEST MODE: Just run the logic once
+                Println("â„¹ï¸ Running Watchdog logic in Manual Test mode (no background registration).");
+                callback();
             }
         }
 

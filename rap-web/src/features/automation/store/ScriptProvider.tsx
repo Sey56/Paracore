@@ -45,51 +45,103 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>('rap_customScriptFolders', []);
   const [watchdogSources, setWatchdogSources] = useLocalStorage<string[]>('rap_watchdogSources', []);
 
+  // Watchdog Roots (Display list)
+  const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>('rap_configuredWatchdogRoots', []);
+  
+  // Initialize to true if there are any configured watchdog roots or sources, otherwise false.
+  // This ensures the overlay is shown from the very first render if needed.
+  const [isArmingWatchdogs, setIsArmingWatchdogs] = useState(() => {
+    // Access localStorage directly during initialization for immediate state.
+    // This is safe as useLocalStorage also does this for initialValue.
+    try {
+      const storedRoots = localStorage.getItem('rap_configuredWatchdogRoots');
+      const storedSources = localStorage.getItem('rap_watchdogSources');
+      const hasStoredRoots = storedRoots ? JSON.parse(storedRoots).length > 0 : false;
+      const hasStoredSources = storedSources ? JSON.parse(storedSources).length > 0 : false;
+      return hasStoredRoots || hasStoredSources;
+    } catch {
+      return false;
+    }
+  });
+
   // Re-register watchdogs on mount to ensure backend is in sync
   // AND cleanup orphans (sources in watchdogSources but NOT in configuredWatchdogRoots)
+  // Granular Watchdog Migration & Re-arming
   useEffect(() => {
     const rearmAndCleanup = async () => {
-      // 1. Identify orphans
-      const orphans = watchdogSources.filter(src => !configuredWatchdogRoots.includes(src));
+      const normalize = (p: string) => p.replace(/\\/g, '/').toLowerCase();
 
-      if (orphans.length > 0) {
-        console.warn(`[ScriptProvider] Found ${orphans.length} orphaned watchdog sources. Cleaning up...`, orphans);
+      // Read current state from refs or fresh from storage to avoid dependency loops
+      const currentRoots = JSON.parse(localStorage.getItem('rap_configuredWatchdogRoots') || '[]');
+      const currentSources = JSON.parse(localStorage.getItem('rap_watchdogSources') || '[]');
 
-        // Remove from state immediately to prevent re-arming
-        setWatchdogSources(prev => prev.filter(p => !orphans.includes(p)));
-
-        // Unregister from backend
-        for (const orphan of orphans) {
-          try {
-            await api.post("/api/watchdogs/unregister-source", { path: orphan });
-            console.log(`[ScriptProvider] Unregistered orphan: ${orphan}`);
-          } catch (e) {
-            console.error(`[ScriptProvider] Failed to unregister orphan: ${orphan}`, e);
-          }
-        }
+      const hasWatchdogConfig = currentRoots.length > 0 || currentSources.length > 0;
+      if (!hasWatchdogConfig) {
+        setIsArmingWatchdogs(false);
+        return;
       }
+      
+      setIsArmingWatchdogs(true); 
 
-      // 2. Re-arm valid sources
-      const validSources = watchdogSources.filter(src => configuredWatchdogRoots.includes(src));
-      if (validSources.length > 0) {
-        for (const path of validSources) {
-          try {
-            await api.post("/api/watchdogs/register-source", { path });
-            console.log(`[ScriptProvider] Re-armed watchdog source: ${path}`);
-          } catch (e) {
-            console.error(`[ScriptProvider] Failed to re-arm watchdog source: ${path}`, e);
+      try {
+        // 1. Identify true orphans
+        const orphans = currentSources.filter((src: string) => {
+          const normSrc = normalize(src);
+          return !currentRoots.some((root: string) => normSrc.startsWith(normalize(root)));
+        });
+
+        if (orphans.length > 0) {
+          setWatchdogSources(prev => prev.filter(p => !orphans.includes(p)));
+          for (const orphan of orphans) {
+            try { await api.post("/api/watchdogs/unregister-source", { path: orphan }); } catch (e) { }
           }
         }
+
+        // 2. Migration Logic
+        const newSources = new Set<string>();
+        const validSources = currentSources.filter((src: string) => !orphans.includes(src));
+
+        for (const src of validSources) {
+          const isRootMismatch = currentRoots.some((root: string) => normalize(root) === normalize(src));
+          if (isRootMismatch) {
+            try {
+              const res = await api.get(`/api/scripts?folderPath=${encodeURIComponent(src)}`);
+              const scripts: Script[] = res.data;
+              if (scripts.length > 0) {
+                scripts.forEach(s => newSources.add(s.absolutePath));
+                await api.post("/api/watchdogs/unregister-source", { path: src });
+              }
+            } catch (e) { newSources.add(src); }
+          } else { newSources.add(src); }
+        }
+
+        const finalSources = Array.from(newSources);
+        if (finalSources.length !== validSources.length) {
+          setWatchdogSources(finalSources);
+        }
+
+        // 3. Re-register (The Gate)
+        if (finalSources.length > 0) {
+          console.log(`[ScriptProvider] Dynamically arming ${finalSources.length} watchdogs...`);
+          await Promise.all(finalSources.map(async (path) => {
+            try {
+              await api.post("/api/watchdogs/register-source", { path });
+            } catch (e) {
+              console.error(`[ScriptProvider] Failed to re-arm: ${path}`, e);
+            }
+          }));
+        }
+      } finally {
+        // Release the gate with a tiny safety buffer to ensure Revit queue is truly settled
+        setTimeout(() => setIsArmingWatchdogs(false), 500);
       }
     };
 
-    // Small delay to ensure auth/storage is ready
-    const t = setTimeout(rearmAndCleanup, 1000);
-    return () => clearTimeout(t);
-  }, []); // Run once on mount (dependency array empty relies on initial values of refs/state which is tricky with empty deps, but standard for mount effects)
+    rearmAndCleanup();
+  }, []); // Run strictly ONCE on mount
 
   // Watchdog Roots (Display list)
-  const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>('rap_configuredWatchdogRoots', []);
+  // const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>('rap_configuredWatchdogRoots', []); // Moved above
 
   const addConfiguredWatchdogRoot = useCallback((path: string) => {
     setConfiguredWatchdogRoots(prev => [...new Set([...prev, path])]);
@@ -356,6 +408,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
     watchdogSources, setWatchdogSources,
     configuredWatchdogRoots, addConfiguredWatchdogRoot, removeConfiguredWatchdogRoot,
+    isArmingWatchdogs,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
     pullAllTeamSources, pullTeamSource, clearScriptsForSource,
     toolLibraryPath, setToolLibraryPath,

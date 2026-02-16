@@ -13,6 +13,14 @@ namespace CoreScript.Engine.Globals
         public DateTime Timestamp { get; set; }
     }
 
+    public class FailedWatchdogInfo
+    {
+        public string ScriptPath { get; set; } = string.Empty;
+        public string ScriptName { get; set; } = string.Empty;
+        public string ErrorMessage { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+    }
+
     public class WatchdogCallback
     {
         public string ScriptPath { get; set; } = string.Empty;
@@ -26,6 +34,7 @@ namespace CoreScript.Engine.Globals
     public static class WatchdogRegistry
     {
         private static readonly Dictionary<string, WatchdogCallback> _callbacks = new Dictionary<string, WatchdogCallback>();
+        private static readonly Dictionary<string, FailedWatchdogInfo> _failedRegistrations = new Dictionary<string, FailedWatchdogInfo>();
         private static readonly object _lock = new object();
 
         [ThreadStatic]
@@ -35,6 +44,11 @@ namespace CoreScript.Engine.Globals
         {
             lock (_lock)
             {
+                if (_failedRegistrations.ContainsKey(scriptPath))
+                {
+                    _failedRegistrations.Remove(scriptPath);
+                }
+
                 _callbacks[scriptPath] = new WatchdogCallback
                 {
                     ScriptPath = scriptPath,
@@ -44,6 +58,26 @@ namespace CoreScript.Engine.Globals
                     LastRun = DateTime.MinValue
                 };
                 FileLogger.Log($"[WatchdogRegistry] Registered: {scriptName} ({intervalSeconds}s)");
+            }
+        }
+
+        public static void RegisterFailure(string scriptPath, string scriptName, string errorMessage)
+        {
+            lock (_lock)
+            {
+                if (_callbacks.ContainsKey(scriptPath))
+                {
+                    _callbacks.Remove(scriptPath);
+                }
+
+                _failedRegistrations[scriptPath] = new FailedWatchdogInfo
+                {
+                    ScriptPath = scriptPath,
+                    ScriptName = scriptName,
+                    ErrorMessage = errorMessage,
+                    Timestamp = DateTime.Now
+                };
+                FileLogger.Log($"[WatchdogRegistry] Registered Failure: {scriptName} - {errorMessage}");
             }
         }
 
@@ -69,6 +103,10 @@ namespace CoreScript.Engine.Globals
             lock (_lock)
             {
                 _callbacks.Remove(scriptPath);
+                if (_failedRegistrations.ContainsKey(scriptPath))
+                {
+                    _failedRegistrations.Remove(scriptPath);
+                }
             }
         }
 
@@ -90,7 +128,23 @@ namespace CoreScript.Engine.Globals
                 foreach (var key in keysToRemove)
                 {
                     _callbacks.Remove(key);
+                    if (_failedRegistrations.ContainsKey(key)) _failedRegistrations.Remove(key);
                     count++;
+                }
+                
+                // Also remove failed keys directly if they weren't in callbacks but match prefix
+                var failedKeysToRemove = new List<string>();
+                foreach (var key in _failedRegistrations.Keys)
+                {
+                    if (key.StartsWith(pathPrefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        failedKeysToRemove.Add(key);
+                    }
+                }
+                foreach(var key in failedKeysToRemove)
+                {
+                     if (!_callbacks.ContainsKey(key)) count++; // Count unique removals
+                     _failedRegistrations.Remove(key);
                 }
             }
             if (count > 0)
@@ -105,6 +159,14 @@ namespace CoreScript.Engine.Globals
             lock (_lock)
             {
                 return new List<WatchdogCallback>(_callbacks.Values);
+            }
+        }
+
+        public static List<FailedWatchdogInfo> GetFailedWatchdogs()
+        {
+            lock (_lock)
+            {
+                return new List<FailedWatchdogInfo>(_failedRegistrations.Values);
             }
         }
 

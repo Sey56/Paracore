@@ -2,23 +2,37 @@ using Autodesk.Revit.UI;
 using CoreScript.Engine.Context;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CoreScript.Engine.Runtime
 {
+    public enum ExecutionPriority
+    {
+        High = 0,    // Manual User Scripts (Highest)
+        Normal = 1,  // Startup Registrations
+        Low = 2      // Periodic Watchdog Runs
+    }
+
     public class ExecutionRequest
     {
+        public Guid ExecutionId { get; set; } = Guid.NewGuid();
         public string ScriptContent { get; set; } = string.Empty;
         public string ParametersJson { get; set; } = string.Empty;
         public byte[]? CompiledAssembly { get; set; }
         public ICoreScriptContext? Context { get; set; }
         public bool IsSilent { get; set; }
+        public ExecutionPriority Priority { get; set; } = ExecutionPriority.Normal;
     }
 
     public class CoreScriptExecutionDispatcher
     {
         private readonly ICodeRunner _runner;
         private ExternalEvent _codeExecutionEvent;
-        private readonly Queue<ExecutionRequest> _executionQueue = new Queue<ExecutionRequest>();
+        private readonly PriorityQueue<ExecutionRequest, int> _executionQueue = new();
         private readonly object _queueLock = new object();
 
         private Func<object>? _pendingUIFunc;
@@ -60,46 +74,48 @@ namespace CoreScript.Engine.Runtime
             return _runner.Execute(scriptText, "", context);
         }
 
-        public ExecutionResult QueueScriptFromServer(string scriptContent, string parametersJson, ICoreScriptContext context, bool isSilent = false)
+        public Guid QueueScriptFromServer(string scriptContent, string parametersJson, ICoreScriptContext context, bool isSilent = false, ExecutionPriority priority = ExecutionPriority.High)
         {
-            FileLogger.Log($"[CoreScriptExecutionDispatcher] Queueing script (Silent: {isSilent}).");
+            FileLogger.Log($"[CoreScriptExecutionDispatcher] Queueing script (Priority: {priority}, Silent: {isSilent}).");
             
+            var request = new ExecutionRequest
+            {
+                ScriptContent = scriptContent,
+                ParametersJson = parametersJson,
+                Context = context,
+                IsSilent = isSilent,
+                Priority = priority
+            };
+
             lock (_queueLock)
             {
-                _executionQueue.Enqueue(new ExecutionRequest
-                {
-                    ScriptContent = scriptContent,
-                    ParametersJson = parametersJson,
-                    Context = context,
-                    IsSilent = isSilent
-                });
+                _executionQueue.Enqueue(request, (int)request.Priority);
             }
 
-            if (_codeExecutionEvent == null) return ExecutionResult.Failure("External event is not initialized.");
-
-            _codeExecutionEvent.Raise();
-            return ExecutionResult.Success("Script queued for execution.");
+            if (_codeExecutionEvent != null) _codeExecutionEvent.Raise();
+            return request.ExecutionId;
         }
 
-        public ExecutionResult QueueBinaryScriptFromServer(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context, bool isSilent = false)
+        public Guid QueueBinaryScriptFromServer(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context, bool isSilent = false, ExecutionPriority priority = ExecutionPriority.High)
         {
-            FileLogger.Log($"[CoreScriptExecutionDispatcher] Queueing BINARY tool (Silent: {isSilent}).");
+            FileLogger.Log($"[CoreScriptExecutionDispatcher] Queueing BINARY tool (Priority: {priority}, Silent: {isSilent}).");
             
+            var request = new ExecutionRequest
+            {
+                CompiledAssembly = compiledAssembly,
+                ParametersJson = parametersJson,
+                Context = context,
+                IsSilent = isSilent,
+                Priority = priority
+            };
+
             lock (_queueLock)
             {
-                _executionQueue.Enqueue(new ExecutionRequest
-                {
-                    CompiledAssembly = compiledAssembly,
-                    ParametersJson = parametersJson,
-                    Context = context,
-                    IsSilent = isSilent
-                });
+                _executionQueue.Enqueue(request, (int)request.Priority);
             }
 
-            if (_codeExecutionEvent == null) return ExecutionResult.Failure("External event is not initialized.");
-
-            _codeExecutionEvent.Raise();
-            return ExecutionResult.Success("Binary tool queued for execution.");
+            if (_codeExecutionEvent != null) _codeExecutionEvent.Raise();
+            return request.ExecutionId;
         }
 
         public ExecutionResult ExecuteCodeInRevit(ICoreScriptContext context)
@@ -136,7 +152,7 @@ namespace CoreScript.Engine.Runtime
                 return ExecutionResult.Success("No pending scripts in queue.");
             }
 
-            FileLogger.Log($"[CoreScriptExecutionDispatcher] Processing request from queue (Silent: {request.IsSilent}).");
+            FileLogger.Log($"[CoreScriptExecutionDispatcher] Processing request (Priority: {request.Priority}, Silent: {request.IsSilent}).");
             ExecutionResult scriptResult = ExecutionResult.Failure("Unknown error.");
 
             try
@@ -164,6 +180,8 @@ namespace CoreScript.Engine.Runtime
 
                 if (!scriptResult.IsSuccess)
                     LogErrorToFile(scriptResult.ErrorMessage ?? "Unknown error.");
+                
+                scriptResult.ExecutionId = request.ExecutionId;
             }
             catch (Exception ex)
             {
@@ -189,11 +207,12 @@ namespace CoreScript.Engine.Runtime
                     }
                 }
                 scriptResult = ExecutionResult.Failure(error, ex.StackTrace);
+                scriptResult.ExecutionId = request?.ExecutionId ?? Guid.Empty;
             }
             finally
             {
                 // Attach the silent flag to the result so the UI knows whether to record it
-                scriptResult.IsSilent = request.IsSilent;
+                if (request != null) scriptResult.IsSilent = request.IsSilent;
 
                 OnExecutionComplete?.Invoke(scriptResult);
                 

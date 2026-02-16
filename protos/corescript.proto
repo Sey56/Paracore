@@ -58,8 +58,16 @@ message WatchdogStatus {
   string timestamp = 6;
 }
 
+message FailedWatchdog {
+  string script_path = 1;
+  string script_name = 2;
+  string error_message = 3;
+  string timestamp = 4;
+}
+
 message GetWatchdogStatusResponse {
   repeated WatchdogStatus watchdogs = 1;
+  repeated FailedWatchdog failed_watchdogs = 2;
 }
 
 message StopSyncSessionRequest {

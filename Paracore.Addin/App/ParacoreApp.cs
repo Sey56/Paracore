@@ -114,6 +114,7 @@ namespace Paracore.Addin.App
                     var execContext = new ExecutionGlobals(ctx, new Dictionary<string, object>());
                     ExecutionGlobals.SetContext(execContext);
 
+                    // Use Low priority for background loops
                     watchdog.LastRun = DateTime.Now;
                     watchdog.Action(doc);
                 }
@@ -181,7 +182,7 @@ namespace Paracore.Addin.App
             _server?.Stop();
             _serverRunning = false;
             UpdateButtonState();
-            EphemeralWorkspaceManager.Cleanup();
+            WorkspaceManager.Cleanup();
 
             FileLogger.Log("=== Paracore Shutdown Complete ===");
             return Result.Succeeded;
