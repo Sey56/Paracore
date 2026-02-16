@@ -9,7 +9,6 @@ import { useAuth } from '@/features/auth';
 import { useScripts } from '@/features/automation';
 import React, { useState, useRef, useEffect } from 'react';
 import { UserMenu } from './UserMenu';
-import { WatchdogIndicator } from './WatchdogIndicator';
 import { Modal } from '@/components/common/Modal';
 import { shell } from '@tauri-apps/api';
 
@@ -118,10 +117,9 @@ export const TopBar: React.FC = () => {
       {/* Connection Status - Hidden on mobile, shown on larger screens */}
       <div className="flex items-center gap-4">
         <div className={`hidden md:flex items-center text-sm px-3 py-1.5 rounded-full ${!ParacoreConnected ? "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" : "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"}`}>
-            <span className={`w-2.5 h-2.5 rounded-full ${getConnectionStatusColorClass()} mr-2`}></span>
-            <span className="font-medium">{getConnectionStatusText()}</span>
+          <span className={`w-2.5 h-2.5 rounded-full ${getConnectionStatusColorClass()} mr-2`}></span>
+          <span className="font-medium">{getConnectionStatusText()}</span>
         </div>
-        <WatchdogIndicator />
       </div>
 
       <div className="flex items-center space-x-2">

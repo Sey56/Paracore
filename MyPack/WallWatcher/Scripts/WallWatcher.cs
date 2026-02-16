@@ -2,14 +2,15 @@
 Params p = new();
 
 // BIM Watchdog: Runs in the background every 10 seconds
-Watchdog((doc) => {
-    var walls = new FilteredElementCollector(doc)
+Watchdog(() =>
+{
+    IList<Element> walls = new FilteredElementCollector(Doc)
         .OfCategory(BuiltInCategory.OST_Walls)
         .WhereElementIsNotElementType()
         .ToElements();
-    
-    var invalidWalls = walls.Where(w => string.IsNullOrEmpty(w.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString())).ToList();
-    
+
+    List<Element> invalidWalls = [.. walls.Where(w => string.IsNullOrEmpty(w.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString()))];
+
     if (invalidWalls.Count > 0)
     {
         // Visual Reporting: This powers the pulsing badge in the TopBar

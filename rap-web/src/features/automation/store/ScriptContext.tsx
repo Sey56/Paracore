@@ -11,7 +11,7 @@ export interface ScriptContextProps {
   loadScriptsForFolder: (path: string, silent?: boolean) => Promise<Script[] | undefined>;
   fetchScriptMetadata: (scriptId: string) => Promise<void>;
   reloadScript: (script: Script, options?: { silent?: boolean }) => Promise<void>;
-  
+
   // Scaffolding & Content
   combinedScriptContent: string | null;
   setCombinedScriptContent: (content: string | null) => void;
@@ -31,7 +31,7 @@ export interface ScriptContextProps {
   // Sync & Active State
   isSyncActive: (scriptPath: string) => boolean;
   activeSyncSessions: Record<string, any>;
-  
+
   // Custom Folders
   customScriptFolders: string[];
   setCustomScriptFolders: (folders: string[]) => void;
@@ -43,6 +43,9 @@ export interface ScriptContextProps {
   // BIM Watchdogs
   watchdogSources: string[];
   setWatchdogSources: (sources: string[] | ((prev: string[]) => string[])) => void;
+  configuredWatchdogRoots: string[];
+  addConfiguredWatchdogRoot: (path: string) => void;
+  removeConfiguredWatchdogRoot: (path: string) => void;
 
   // Team & Remote
   remoteScriptSources: Record<number, TeamScriptSource[]>;
@@ -57,7 +60,7 @@ export interface ScriptContextProps {
   // Agent / Library
   toolLibraryPath: string | null;
   setToolLibraryPath: (path: string | null) => void;
-  
+
   // User paths mapping
   userSourcePaths: Record<number, { path: string; name: string }>;
   setUserSourcePath: (sourceId: number, path: string, name: string) => void;

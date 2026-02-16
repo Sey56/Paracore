@@ -10,7 +10,13 @@ interface ScriptAutomationSettingsProps {
 }
 
 const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isAuthenticated }) => {
-  const { customScriptFolders, addCustomScriptFolder, removeCustomScriptFolder, watchdogSources, setWatchdogSources } = useScripts();
+  const {
+    configuredWatchdogRoots,
+    addConfiguredWatchdogRoot,
+    removeConfiguredWatchdogRoot,
+    watchdogSources,
+    setWatchdogSources
+  } = useScripts();
   const { showNotification } = useNotifications();
 
   const handleAddFolder = async () => {
@@ -18,14 +24,19 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
       directory: true,
       multiple: false,
     });
+
     if (typeof selected === 'string') {
-      addCustomScriptFolder(selected);
+      addConfiguredWatchdogRoot(selected);
+      // Auto-arm
+      if (!watchdogSources.includes(selected)) {
+        await toggleWatchdog(selected);
+      }
     }
   };
 
   const toggleWatchdog = async (path: string) => {
     const isCurrentlyArmed = watchdogSources.includes(path);
-    
+
     if (isCurrentlyArmed) {
       setWatchdogSources(prev => prev.filter(p => p !== path));
       showNotification("Source disarmed for background monitoring.", "info");
@@ -46,13 +57,13 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
 
   return (
     <fieldset disabled={!isAuthenticated} className="disabled:opacity-50">
-      <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">BIM Watchdog Management</h3>
-      
+      <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Watchdog Settings</h3>
+
       <div className="space-y-4 mb-8 text-sm">
         <p className="text-gray-600 dark:text-gray-400">
           Designate <strong>Watchdog Sources</strong> to enable autonomous background monitoring. Any script projects found in these folders that utilize the Watchdog API will be armed automatically.
         </p>
-        
+
         <div className="flex items-center space-x-2">
           <button
             onClick={handleAddFolder}
@@ -66,8 +77,8 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
       <div>
         <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">Active Watchdog Sources</h4>
         <ul className="space-y-3">
-          {customScriptFolders.length > 0 ? (
-            customScriptFolders.map((folder: string, index: number) => {
+          {configuredWatchdogRoots && configuredWatchdogRoots.length > 0 ? (
+            configuredWatchdogRoots.map((folder: string, index: number) => {
               const isArmed = watchdogSources.includes(folder);
               return (
                 <li key={index} className="flex items-center justify-between bg-white dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50 shadow-sm group">
@@ -75,23 +86,22 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
                     <FontAwesomeIcon icon={faFolder} className="h-5 w-5 text-amber-500 mr-3 shrink-0" />
                     <span className="text-[13px] font-mono text-gray-700 dark:text-gray-300 truncate">{folder}</span>
                   </div>
-                  
+
                   <div className="flex items-center space-x-1">
                     <button
                       onClick={() => toggleWatchdog(folder)}
                       title={isArmed ? "Armed Watchdog Source" : "Arm as Watchdog Source"}
-                      className={`p-2 rounded-lg transition-all flex items-center space-x-2 ${
-                        isArmed 
-                          ? "text-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-200 dark:ring-orange-800" 
+                      className={`p-2 rounded-lg transition-all flex items-center space-x-2 ${isArmed
+                          ? "text-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-200 dark:ring-orange-800"
                           : "text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
+                        }`}
                     >
                       <FontAwesomeIcon icon={faShieldHeart} className={isArmed ? "animate-pulse" : ""} />
                       {isArmed && <span className="text-[10px] font-bold uppercase tracking-widest">Armed</span>}
                     </button>
 
                     <button
-                      onClick={() => removeCustomScriptFolder(folder)}
+                      onClick={() => removeConfiguredWatchdogRoot(folder)}
                       className="p-2 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
                       title="Unload Source"
                     >

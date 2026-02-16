@@ -488,6 +488,12 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       updateUserEditedParameters(script.id, finalParameters);
       if (contentResult) setCombinedScriptContent(contentResult);
       setSelectedScriptState({ ...script, parameters: finalParameters });
+
+      if (finalParameters.length > 0) {
+        showNotification(`Loaded ${finalParameters.length} parameters.`, "success");
+      } else {
+        showNotification("Script loaded (no parameters).", "info");
+      }
     } catch (err) {
       showNotification("Error loading script.", "error");
     }

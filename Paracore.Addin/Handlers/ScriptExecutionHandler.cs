@@ -45,8 +45,13 @@ namespace Paracore.Addin.Handlers
                 }
 
                 int count = 0;
-                var projects = System.IO.Directory.GetDirectories(request.Path);
-                foreach (var projectPath in projects)
+                
+                // CHECK: Is the request.Path itself a Project? (Has a 'Scripts' folder directly inside)
+                bool isSingleProject = System.IO.Directory.Exists(System.IO.Path.Combine(request.Path, "Scripts"));
+                
+                var projectsPtr = isSingleProject ? new[] { request.Path } : System.IO.Directory.GetDirectories(request.Path);
+
+                foreach (var projectPath in projectsPtr)
                 {
                     string scriptsPath = System.IO.Path.Combine(projectPath, "Scripts");
                     if (!System.IO.Directory.Exists(scriptsPath)) continue;
@@ -82,6 +87,7 @@ namespace Paracore.Addin.Handlers
                     }
                     catch (Exception ex)
                     {
+                        // In single-project mode, we should probably fail harder, but logging is consistent
                         _logger.Log($"[ScriptExecutionHandler] Failed to queue watchdog in {projectPath}: {ex.Message}", LogLevel.Warning);
                     }
                 }

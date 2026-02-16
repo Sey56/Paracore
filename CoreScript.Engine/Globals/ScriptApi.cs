@@ -153,6 +153,26 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// Registers a background watchdog that runs when Revit is idle.
+        /// Simplified overload that uses the global Doc context.
+        /// </summary>
+        /// <param name="callback">The logic to run during Revit idle time.</param>
+        /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
+        public static void Watchdog(Action callback, int intervalSeconds = 5)
+        {
+            if (Parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj is string path)
+            {
+                string scriptName = Parameters.TryGetValue("__script_name__", out var nameObj) ? nameObj.ToString()! : "Watcher";
+                // Delegate to the main registry, wrapping the callback to ignore the Doc argument since it's global
+                WatchdogRegistry.Register(path, scriptName, (doc) => callback(), intervalSeconds);
+            }
+            else
+            {
+                Println("⚠️ Watchdog registration failed: Script path not found in context.");
+            }
+        }
+
+        /// <summary>
         /// Sends a status report for the current background watchdog.
         /// </summary>
         /// <param name="summary">Short text description (e.g. 'Found 5 errors')</param>

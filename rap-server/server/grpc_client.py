@@ -52,13 +52,28 @@ def register_watchdog_source(path: str):
     """
     Calls the gRPC service to scan a folder and arm all watchdogs found.
     """
-    with get_corescript_runner_stub() as stub:
-        request = corescript_pb2.RegisterWatchdogSourceRequest(path=path)
-        response = stub.RegisterWatchdogSource(request)
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.RegisterWatchdogSourceRequest(path=path)
+            response = stub.RegisterWatchdogSource(request)
+            return {
+                "is_success": response.is_success,
+                "error_message": response.error_message,
+                "watchdogs_registered": response.watchdogs_registered
+            }
+    except grpc.RpcError as e:
+        logging.error(format_grpc_error(e))
         return {
-            "is_success": response.is_success,
-            "error_message": response.error_message,
-            "watchdogs_registered": response.watchdogs_registered
+            "is_success": False,
+            "error_message": f"gRPC Error: {e.details()}",
+            "watchdogs_registered": 0
+        }
+    except Exception as e:
+        logging.error(f"Error calling RegisterWatchdogSource: {e}")
+        return {
+            "is_success": False,
+            "error_message": str(e),
+            "watchdogs_registered": 0
         }
 
 def get_status():

@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar/Sidebar";
 import { ScriptGallery } from "@/features/automation/components/ScriptGallery/ScriptGallery";
 import { ScriptInspector } from "@/features/automation/components/ScriptInspector/ScriptInspector";
 import { FloatingCodeViewer } from "@/features/automation/components/ScriptInspector/FloatingCodeViewer";
+import { FloatingActionButton } from "@/features/automation/components/FloatingActionButton";
 import { InfoModal } from "@/features/automation/components/ScriptInspector/InfoModal";
 import { useScriptExecution } from "@/features/automation";
 import { useUI } from "@/hooks/useUI";
@@ -112,6 +113,7 @@ export const AppLayout: React.FC = () => {
       <NewScriptModal isOpen={isNewScriptModalOpen} onClose={closeNewScriptModal} selectedFolder="" /> {/* Render NewScriptModal */}
       <TeamManagementModal />
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
+      <FloatingActionButton />
 
       {selectedScript && (
         <FloatingCodeViewer

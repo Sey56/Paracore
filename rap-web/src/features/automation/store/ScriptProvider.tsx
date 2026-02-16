@@ -45,6 +45,40 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>('rap_customScriptFolders', []);
   const [watchdogSources, setWatchdogSources] = useLocalStorage<string[]>('rap_watchdogSources', []);
 
+  // Re-register watchdogs on mount to ensure backend is in sync
+  useEffect(() => {
+    const rearmWatchdogs = async () => {
+      if (watchdogSources.length > 0) {
+        // We iterate sequentially to avoid flooding the server on startup
+        for (const path of watchdogSources) {
+          try {
+            await api.post("/api/watchdogs/register-source", { path });
+            console.log(`[ScriptProvider] Re-armed watchdog source: ${path}`);
+          } catch (e) {
+            console.error(`[ScriptProvider] Failed to re-arm watchdog source: ${path}`, e);
+          }
+        }
+      }
+    };
+
+    // Small delay to ensure auth headers are ready if needed
+    const t = setTimeout(rearmWatchdogs, 1000);
+    return () => clearTimeout(t);
+  }, []); // Run once on mount
+
+  // Watchdog Roots (Display list)
+  const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>('rap_configuredWatchdogRoots', []);
+
+  const addConfiguredWatchdogRoot = useCallback((path: string) => {
+    setConfiguredWatchdogRoots(prev => [...new Set([...prev, path])]);
+  }, [setConfiguredWatchdogRoots]);
+
+  const removeConfiguredWatchdogRoot = useCallback((path: string) => {
+    setConfiguredWatchdogRoots(prev => prev.filter(p => p !== path));
+    // Also disarm if removed
+    setWatchdogSources(prev => prev.filter(p => p !== path));
+  }, [setConfiguredWatchdogRoots, setWatchdogSources]);
+
   useEffect(() => {
     const storedToken = localStorage.getItem('rap_cloud_token');
     if (!isAuthenticated && !storedToken) {
@@ -299,6 +333,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isSyncActive, activeSyncSessions,
     customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
     watchdogSources, setWatchdogSources,
+    configuredWatchdogRoots, addConfiguredWatchdogRoot, removeConfiguredWatchdogRoot,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
     pullAllTeamSources, pullTeamSource, clearScriptsForSource,
     toolLibraryPath, setToolLibraryPath,
@@ -308,7 +343,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     combinedScriptContent, createNewScript, deleteScript, favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
     recentScripts, addRecentScript, clearRecentScripts, lastRunTimes, updateScriptLastRunTime,
     isSyncActive, activeSyncSessions, customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
-    watchdogSources, setWatchdogSources,
+    watchdogSources, setWatchdogSources, configuredWatchdogRoots, addConfiguredWatchdogRoot, removeConfiguredWatchdogRoot,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
     pullAllTeamSources, pullTeamSource, clearScriptsForSource, toolLibraryPath, setToolLibraryPath,
     userSourcePaths, setUserSourcePath, canUseLocalFolders, selectedFolder
