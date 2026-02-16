@@ -46,11 +46,33 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [watchdogSources, setWatchdogSources] = useLocalStorage<string[]>('rap_watchdogSources', []);
 
   // Re-register watchdogs on mount to ensure backend is in sync
+  // AND cleanup orphans (sources in watchdogSources but NOT in configuredWatchdogRoots)
   useEffect(() => {
-    const rearmWatchdogs = async () => {
-      if (watchdogSources.length > 0) {
-        // We iterate sequentially to avoid flooding the server on startup
-        for (const path of watchdogSources) {
+    const rearmAndCleanup = async () => {
+      // 1. Identify orphans
+      const orphans = watchdogSources.filter(src => !configuredWatchdogRoots.includes(src));
+
+      if (orphans.length > 0) {
+        console.warn(`[ScriptProvider] Found ${orphans.length} orphaned watchdog sources. Cleaning up...`, orphans);
+
+        // Remove from state immediately to prevent re-arming
+        setWatchdogSources(prev => prev.filter(p => !orphans.includes(p)));
+
+        // Unregister from backend
+        for (const orphan of orphans) {
+          try {
+            await api.post("/api/watchdogs/unregister-source", { path: orphan });
+            console.log(`[ScriptProvider] Unregistered orphan: ${orphan}`);
+          } catch (e) {
+            console.error(`[ScriptProvider] Failed to unregister orphan: ${orphan}`, e);
+          }
+        }
+      }
+
+      // 2. Re-arm valid sources
+      const validSources = watchdogSources.filter(src => configuredWatchdogRoots.includes(src));
+      if (validSources.length > 0) {
+        for (const path of validSources) {
           try {
             await api.post("/api/watchdogs/register-source", { path });
             console.log(`[ScriptProvider] Re-armed watchdog source: ${path}`);
@@ -61,10 +83,10 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
 
-    // Small delay to ensure auth headers are ready if needed
-    const t = setTimeout(rearmWatchdogs, 1000);
+    // Small delay to ensure auth/storage is ready
+    const t = setTimeout(rearmAndCleanup, 1000);
     return () => clearTimeout(t);
-  }, []); // Run once on mount
+  }, []); // Run once on mount (dependency array empty relies on initial values of refs/state which is tricky with empty deps, but standard for mount effects)
 
   // Watchdog Roots (Display list)
   const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>('rap_configuredWatchdogRoots', []);

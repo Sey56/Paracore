@@ -59,21 +59,24 @@ def register_watchdog_source(path: str):
             return {
                 "is_success": response.is_success,
                 "error_message": response.error_message,
-                "watchdogs_registered": response.watchdogs_registered
+                "watchdogs_registered": response.watchdogs_registered,
+                "load_details": list(response.load_details)
             }
     except grpc.RpcError as e:
         logging.error(format_grpc_error(e))
         return {
             "is_success": False,
             "error_message": f"gRPC Error: {e.details()}",
-            "watchdogs_registered": 0
+            "watchdogs_registered": 0,
+            "load_details": []
         }
     except Exception as e:
         logging.error(f"Error calling RegisterWatchdogSource: {e}")
         return {
             "is_success": False,
             "error_message": str(e),
-            "watchdogs_registered": 0
+            "watchdogs_registered": 0,
+            "load_details": []
         }
 
 def get_status():
@@ -594,4 +597,31 @@ def get_category_parameters(category_name: str):
         return {
             "parameters": [],
             "error_message": f"gRPC error: {e.details()}"
+        }
+def unregister_watchdog_source(path: str):
+    """
+    Calls the gRPC service to stop all watchdogs from a specific source folder.
+    """
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.UnregisterWatchdogSourceRequest(path=path)
+            response = stub.UnregisterWatchdogSource(request)
+            return {
+                "is_success": response.is_success,
+                "error_message": response.error_message,
+                "watchdogs_removed": response.watchdogs_removed
+            }
+    except grpc.RpcError as e:
+        logging.error(format_grpc_error(e))
+        return {
+            "is_success": False,
+            "error_message": f"gRPC Error: {e.details()}",
+            "watchdogs_removed": 0
+        }
+    except Exception as e:
+        logging.error(f"Error calling UnregisterWatchdogSource: {e}")
+        return {
+            "is_success": False,
+            "error_message": str(e),
+            "watchdogs_removed": 0
         }

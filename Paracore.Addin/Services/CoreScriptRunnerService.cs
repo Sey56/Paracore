@@ -140,5 +140,10 @@ namespace Paracore.Addin.Services
         {
             return _executionHandler.RegisterWatchdogSource(request);
         }
+
+        public override Task<UnregisterWatchdogSourceResponse> UnregisterWatchdogSource(UnregisterWatchdogSourceRequest request, ServerCallContext context)
+        {
+            return _executionHandler.UnregisterWatchdogSource(request);
+        }
     }
 }

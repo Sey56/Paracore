@@ -64,6 +64,18 @@ async def register_watchdog_source(request: RegisterWatchdogSourceRequest, curre
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/api/watchdogs/unregister-source", tags=["Script Management"])
+async def unregister_watchdog_source(request: RegisterWatchdogSourceRequest, current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Tells the Addin to stop all watchdogs from a specific source folder.
+    Uses the same Request model as Register (just a path).
+    """
+    try:
+        result = script_service.unregister_watchdog_source_logic(request.path)
+        return JSONResponse(content=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/api/admin/migrate-to-projects", tags=["Script Management"])
 async def migrate_to_projects(request: MigrateRequest, current_user: CurrentUser = Depends(get_current_user)):
     """

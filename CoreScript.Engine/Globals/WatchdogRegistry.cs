@@ -72,6 +72,34 @@ namespace CoreScript.Engine.Globals
             }
         }
 
+        public static int UnregisterAllFromPath(string pathPrefix)
+        {
+            int count = 0;
+            lock (_lock)
+            {
+                var keysToRemove = new List<string>();
+                foreach (var key in _callbacks.Keys)
+                {
+                    // Case-insensitive check for path prefix
+                    if (key.StartsWith(pathPrefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        keysToRemove.Add(key);
+                    }
+                }
+
+                foreach (var key in keysToRemove)
+                {
+                    _callbacks.Remove(key);
+                    count++;
+                }
+            }
+            if (count > 0)
+            {
+                FileLogger.Log($"[WatchdogRegistry] Unregistered {count} watchdogs from source: {pathPrefix}");
+            }
+            return count;
+        }
+
         public static List<WatchdogCallback> GetActiveWatchdogs()
         {
             lock (_lock)

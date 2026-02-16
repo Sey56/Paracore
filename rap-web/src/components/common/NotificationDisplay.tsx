@@ -21,7 +21,7 @@ const NotificationDisplay: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[1000] w-full max-w-sm space-y-3 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-[99999] w-full max-w-sm space-y-3 pointer-events-none">
       {notifications.map((notification) => {
         const classes = getNotificationClasses(notification.type);
         return (
@@ -29,7 +29,7 @@ const NotificationDisplay: React.FC = () => {
             key={notification.id}
             className={`relative p-4 rounded-lg shadow-2xl flex items-center justify-between transform transition-all duration-300 ease-out pointer-events-auto ${classes.bg} ${classes.text}`}
           >
-            <p className="text-sm font-medium flex-grow pr-4">{String(notification.message)}</p>
+            <p className="text-sm font-medium flex-grow pr-4 whitespace-pre-line">{String(notification.message)}</p>
             <button
               onClick={() => clearNotification(notification.id)}
               className={`ml-4 flex-shrink-0 rounded-md p-1 inline-flex focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 ${classes.button}`}

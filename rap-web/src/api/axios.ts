@@ -8,7 +8,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Use the cloud token which is set upon login
-    const token = localStorage.getItem('rap_cloud_token'); 
+    const token = localStorage.getItem('rap_cloud_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -27,12 +27,12 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       console.error("Unauthorized or session expired. Logging out.");
-      
+
       // Clear all auth-related tokens and user info
       localStorage.removeItem('rap_cloud_token');
       localStorage.removeItem('rap_local_token');
       localStorage.removeItem('rap_user');
-      
+
       // Reload the page. The AuthProvider will detect the missing token
       // and reset the application state, redirecting to login.
       window.location.reload();

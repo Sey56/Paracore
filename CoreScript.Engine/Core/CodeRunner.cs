@@ -65,7 +65,7 @@ namespace CoreScript.Engine.Core
                 {
                     var forcedName = parameters["__script_name__"]?.ToString();
                     if (!string.IsNullOrWhiteSpace(forcedName)) topLevelScriptName = forcedName;
-                    parameters.Remove("__script_name__"); 
+                    // Do NOT remove — ScriptApi.Watchdog() needs it at runtime
                 }
 
                 if (parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj != null)
@@ -210,7 +210,7 @@ namespace CoreScript.Engine.Core
                 {
                     var forcedName = parameters["__script_name__"]?.ToString();
                     if (!string.IsNullOrWhiteSpace(forcedName)) topLevelScriptName = forcedName;
-                    parameters.Remove("__script_name__");
+                    // Do NOT remove — ScriptApi.Watchdog() needs it at runtime
                 }
 
                 if (richParams.Count > 0) _parameterService.HardenParameters(parameters, richParams);

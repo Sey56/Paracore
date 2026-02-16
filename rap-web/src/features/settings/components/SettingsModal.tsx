@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
 import TeamSourceSettings from '@/features/team-sources/components/TeamSourceSettings';
 import LLMSettings from './LLMSettings';
+import { WatchdogSettings } from './WatchdogSettings';
 import AgentSettings from './AgentSettings';
-import ScriptAutomationSettings from './ScriptAutomationSettings';
 import { Modal } from '@/components/common/Modal';
 import { Role } from '@/features/auth';
 
@@ -31,7 +32,7 @@ const SettingsModal: React.FC = () => {
 
     tabs.push({
       name: 'BIM Watchdogs',
-      component: ScriptAutomationSettings,
+      component: WatchdogSettings,
     });
 
     // All tabs are now visible, but restricted internally if offline
@@ -42,7 +43,7 @@ const SettingsModal: React.FC = () => {
     // Team Management tab
     tabs.push({
       name: 'Team Management',
-      component: NoopComponent, 
+      component: NoopComponent,
       disabled: activeTeam?.team_id !== 0 && activeRole !== Role.Admin, // Only disable for non-admins when ONLINE
       onClick: activeTeam?.team_id !== 0 ? () => { openTeamManagementModal(); } : undefined // If offline, default behavior (switch tab)
     });
@@ -87,11 +88,11 @@ const SettingsModal: React.FC = () => {
                   key={tab.name}
                   onClick={tab.onClick || (() => setActiveTab(tab.name))}
                   disabled={tab.disabled}
-                  className={`px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-colors ${activeTab === tab.name && !tab.onClick
+                  className={`px - 4 py - 2.5 text - sm font - medium text - left rounded - lg transition - colors ${activeTab === tab.name && !tab.onClick
                     ? 'bg-blue-500 text-white'
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     } ${tab.disabled ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    } `}
                 >
                   {tab.name}
                 </button>
@@ -118,9 +119,9 @@ const SettingsModal: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <ActiveComponent 
-                  isAuthenticated={isAuthenticated || isOffline} 
-                  isReadOnly={activeTab === 'LLM Settings' || activeTab === 'BIM Watchdogs' ? false : isOffline} 
+                <ActiveComponent
+                  isAuthenticated={isAuthenticated || isOffline}
+                  isReadOnly={activeTab === 'LLM Settings' || activeTab === 'BIM Watchdogs' ? false : isOffline}
                 />
               )}
             </>

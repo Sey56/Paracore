@@ -5,11 +5,11 @@ import { faFolder, faTrash, faShieldHeart } from '@fortawesome/free-solid-svg-ic
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 
-interface ScriptAutomationSettingsProps {
+interface WatchdogSettingsProps {
   isAuthenticated: boolean;
 }
 
-const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isAuthenticated }) => {
+export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthenticated }) => {
   const {
     configuredWatchdogRoots,
     addConfiguredWatchdogRoot,
@@ -39,13 +39,31 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
 
     if (isCurrentlyArmed) {
       setWatchdogSources(prev => prev.filter(p => p !== path));
-      showNotification("Source disarmed for background monitoring.", "info");
+      try {
+        await api.post("/api/watchdogs/unregister-source", { path });
+        showNotification("Source disarmed. Background tasks stopped.", "info");
+      } catch (err) {
+        console.error(err);
+        showNotification("Failed to stop background tasks.", "error");
+      }
     } else {
       setWatchdogSources(prev => [...prev, path]);
       try {
         const response = await api.post("/api/watchdogs/register-source", { path });
         if (response.data.is_success) {
-          showNotification(`Armed ${response.data.watchdogs_registered} watchdogs in this source.`, "success");
+          const details: string[] = response.data.load_details || [];
+          const loaded = details.filter((d: string) => d.startsWith("Loaded:"));
+          const skipped = details.filter((d: string) => d.startsWith("Skipped:") || d.startsWith("Error:"));
+
+          if (skipped.length > 0) {
+            const detailLines = details.map((d: string) => `• ${d}`).join('\n');
+            showNotification(
+              `Armed ${response.data.watchdogs_registered} watchdog(s). ${skipped.length} skipped/failed:\n${detailLines}`,
+              "warning"
+            );
+          } else {
+            showNotification(`Armed ${response.data.watchdogs_registered} watchdog(s) successfully.`, "success");
+          }
         } else {
           showNotification(`Failed to arm source: ${response.data.error_message}`, "error");
         }
@@ -53,6 +71,24 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
         showNotification("Failed to contact server to arm source.", "error");
       }
     }
+  };
+
+  const handleRemoveSource = async (path: string) => {
+    // 1. Unregister from backend (stop background tasks)
+    try {
+      await api.post("/api/watchdogs/unregister-source", { path });
+    } catch (e) {
+      console.error("Failed to unregister during removal", e);
+    }
+
+    // 2. Remove from "Armed" list if present
+    if (watchdogSources.includes(path)) {
+      setWatchdogSources(prev => prev.filter(p => p !== path));
+    }
+
+    // 3. Remove from "Configured" list (State/Persistence)
+    removeConfiguredWatchdogRoot(path);
+    showNotification("Source removed and unassigned.", "info");
   };
 
   return (
@@ -92,8 +128,8 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
                       onClick={() => toggleWatchdog(folder)}
                       title={isArmed ? "Armed Watchdog Source" : "Arm as Watchdog Source"}
                       className={`p-2 rounded-lg transition-all flex items-center space-x-2 ${isArmed
-                          ? "text-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-200 dark:ring-orange-800"
-                          : "text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        ? "text-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-200 dark:ring-orange-800"
+                        : "text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                     >
                       <FontAwesomeIcon icon={faShieldHeart} className={isArmed ? "animate-pulse" : ""} />
@@ -101,7 +137,7 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
                     </button>
 
                     <button
-                      onClick={() => removeConfiguredWatchdogRoot(folder)}
+                      onClick={() => handleRemoveSource(folder)}
                       className="p-2 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
                       title="Unload Source"
                     >
@@ -121,5 +157,3 @@ const ScriptAutomationSettings: React.FC<ScriptAutomationSettingsProps> = ({ isA
     </fieldset>
   );
 };
-
-export default ScriptAutomationSettings;

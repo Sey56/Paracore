@@ -23,6 +23,17 @@ service CoreScriptRunner {
   rpc StopSyncSession (StopSyncSessionRequest) returns (StopSyncSessionResponse);
   rpc GetWatchdogStatus (GetWatchdogStatusRequest) returns (GetWatchdogStatusResponse);
   rpc RegisterWatchdogSource (RegisterWatchdogSourceRequest) returns (RegisterWatchdogSourceResponse);
+  rpc UnregisterWatchdogSource(UnregisterWatchdogSourceRequest) returns (UnregisterWatchdogSourceResponse);
+}
+
+message UnregisterWatchdogSourceRequest {
+  string path = 1;
+}
+
+message UnregisterWatchdogSourceResponse {
+  bool is_success = 1;
+  string error_message = 2;
+  int32 watchdogs_removed = 3;
 }
 
 message RegisterWatchdogSourceRequest {
@@ -33,6 +44,7 @@ message RegisterWatchdogSourceResponse {
   bool is_success = 1;
   string error_message = 2;
   int32 watchdogs_registered = 3;
+  repeated string load_details = 4;
 }
 
 message GetWatchdogStatusRequest {}

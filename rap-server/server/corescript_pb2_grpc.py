@@ -134,6 +134,11 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.RegisterWatchdogSourceRequest.SerializeToString,
                 response_deserializer=corescript__pb2.RegisterWatchdogSourceResponse.FromString,
                 _registered_method=True)
+        self.UnregisterWatchdogSource = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/UnregisterWatchdogSource',
+                request_serializer=corescript__pb2.UnregisterWatchdogSourceRequest.SerializeToString,
+                response_deserializer=corescript__pb2.UnregisterWatchdogSourceResponse.FromString,
+                _registered_method=True)
 
 
 class CoreScriptRunnerServicer(object):
@@ -259,6 +264,12 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UnregisterWatchdogSource(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreScriptRunnerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -361,6 +372,11 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.RegisterWatchdogSource,
                     request_deserializer=corescript__pb2.RegisterWatchdogSourceRequest.FromString,
                     response_serializer=corescript__pb2.RegisterWatchdogSourceResponse.SerializeToString,
+            ),
+            'UnregisterWatchdogSource': grpc.unary_unary_rpc_method_handler(
+                    servicer.UnregisterWatchdogSource,
+                    request_deserializer=corescript__pb2.UnregisterWatchdogSourceRequest.FromString,
+                    response_serializer=corescript__pb2.UnregisterWatchdogSourceResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -903,6 +919,33 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/RegisterWatchdogSource',
             corescript__pb2.RegisterWatchdogSourceRequest.SerializeToString,
             corescript__pb2.RegisterWatchdogSourceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UnregisterWatchdogSource(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/UnregisterWatchdogSource',
+            corescript__pb2.UnregisterWatchdogSourceRequest.SerializeToString,
+            corescript__pb2.UnregisterWatchdogSourceResponse.FromString,
             options,
             channel_credentials,
             insecure,

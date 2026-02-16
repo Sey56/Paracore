@@ -438,6 +438,12 @@ def register_watchdog_source_logic(path: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def unregister_watchdog_source_logic(path: str):
+    try:
+        return grpc_client.unregister_watchdog_source(path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 def get_category_parameters_logic(category_name: str):
     try:
         res = grpc_client.get_category_parameters(category_name)

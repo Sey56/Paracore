@@ -35,29 +35,44 @@ namespace Paracore.Addin.Handlers
         public async Task<RegisterWatchdogSourceResponse> RegisterWatchdogSource(RegisterWatchdogSourceRequest request)
         {
             _logger.Log($"[ScriptExecutionHandler] Scanning for watchdogs in: {request.Path}", LogLevel.Info);
-            var response = new RegisterWatchdogSourceResponse { IsSuccess = true };
-
+            RegisterWatchdogSourceResponse response = new RegisterWatchdogSourceResponse { IsSuccess = true };
             try
             {
                 if (!System.IO.Directory.Exists(request.Path))
                 {
-                    return new RegisterWatchdogSourceResponse { IsSuccess = false, ErrorMessage = "Source path does not exist." };
+                    return new RegisterWatchdogSourceResponse
+                    {
+                        IsSuccess = false,
+                        ErrorMessage = "Path does not exist.",
+                        WatchdogsRegistered = 0
+                    };
                 }
 
                 int count = 0;
-                
+                var details = new List<string>();
+
                 // CHECK: Is the request.Path itself a Project? (Has a 'Scripts' folder directly inside)
                 bool isSingleProject = System.IO.Directory.Exists(System.IO.Path.Combine(request.Path, "Scripts"));
-                
+
                 var projectsPtr = isSingleProject ? new[] { request.Path } : System.IO.Directory.GetDirectories(request.Path);
 
                 foreach (var projectPath in projectsPtr)
                 {
+                    string folderName = System.IO.Path.GetFileName(projectPath);
                     string scriptsPath = System.IO.Path.Combine(projectPath, "Scripts");
-                    if (!System.IO.Directory.Exists(scriptsPath)) continue;
+                    
+                    if (!System.IO.Directory.Exists(scriptsPath))
+                    {
+                         details.Add($"Skipped: '{folderName}' (No 'Scripts' folder found)");
+                         continue;
+                    }
 
                     var csFiles = System.IO.Directory.GetFiles(scriptsPath, "*.cs");
-                    if (csFiles.Length == 0) continue;
+                    if (csFiles.Length == 0)
+                    {
+                        details.Add($"Skipped: '{folderName}' (No .cs files found in Scripts)");
+                        continue;
+                    }
 
                     try
                     {
@@ -69,31 +84,42 @@ namespace Paracore.Addin.Handlers
 
                         string combined = _scriptCombiner.Combine(scriptFiles);
                         
-                        // Queue silently
-                        if (_uiApp != null)
+                        // Queue silently if it has Watchdog
+                        // Relaxed verification to support both direct Registry calls and ScriptApi helper 'Watchdog()'
+                        if ((combined.Contains("WatchdogRegistry.Register") || combined.Contains("Watchdog(")) 
+                            && combined.Contains("WatchdogReport"))
                         {
-                            var serverContext = new ServerContext(_uiApp);
-                            // We must include the absolute path in parameters so ScriptApi.Watchdog() works
-                            var parameters = new Dictionary<string, object>
+                            if (_uiApp != null)
                             {
-                                { "__absolute_path__", projectPath.Replace('\\', '/') },
-                                { "__script_name__", System.IO.Path.GetFileName(projectPath) }
-                            };
-                            string paramsJson = JsonSerializer.Serialize(parameters);
+                                var serverContext = new ServerContext(_uiApp);
+                                // We must include the absolute path in parameters so ScriptApi.Watchdog() works
+                                var parameters = new Dictionary<string, object>
+                                {
+                                    { "__absolute_path__", projectPath.Replace('\\', '/') },
+                                    { "__script_name__", System.IO.Path.GetFileName(projectPath) }
+                                };
+                                string paramsJson = JsonSerializer.Serialize(parameters);
 
-                            CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(combined, paramsJson, serverContext, isSilent: true);
-                            count++;
+                                CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(combined, paramsJson, serverContext, isSilent: true);
+                                count++;
+                                details.Add($"Loaded: '{folderName}'");
+                            }
+                        }
+                        else
+                        {
+                             details.Add($"Skipped: '{folderName}' (No Watchdog() or WatchdogReport found)");
                         }
                     }
                     catch (Exception ex)
                     {
                         // In single-project mode, we should probably fail harder, but logging is consistent
                         _logger.Log($"[ScriptExecutionHandler] Failed to queue watchdog in {projectPath}: {ex.Message}", LogLevel.Warning);
+                        details.Add($"Error: '{folderName}' ({ex.Message})");
                     }
                 }
 
                 response.WatchdogsRegistered = count;
-                _logger.Log($"[ScriptExecutionHandler] Queued {count} watchdogs for silent registration.", LogLevel.Info);
+                response.LoadDetails.AddRange(details);
             }
             catch (Exception ex)
             {
@@ -102,6 +128,24 @@ namespace Paracore.Addin.Handlers
             }
 
             return response;
+        }
+
+        public async Task<UnregisterWatchdogSourceResponse> UnregisterWatchdogSource(UnregisterWatchdogSourceRequest request)
+        {
+            try
+            {
+                int removed = CoreScript.Engine.Globals.WatchdogRegistry.UnregisterAllFromPath(request.Path);
+                return await Task.FromResult(new UnregisterWatchdogSourceResponse
+                {
+                    IsSuccess = true,
+                    ErrorMessage = "",
+                    WatchdogsRemoved = removed
+                });
+            }
+            catch (Exception ex)
+            {
+                return await Task.FromResult(new UnregisterWatchdogSourceResponse { IsSuccess = false, ErrorMessage = ex.Message });
+            }
         }
 
         public async Task<BuildScriptResponse> BuildScript(BuildScriptRequest request)
