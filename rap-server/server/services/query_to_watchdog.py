@@ -17,23 +17,16 @@ def generate_watchdog_script(
     """
     
     # 1. Generate the standard query code
-    # We pass empty selected_columns because Watchdogs don't need to report data tables
+    # We pass empty selected_columns because we'll add our own Watchdog reporting
     query_code = query_service.generate_query_code(category_name, root_group, selected_columns=[], scope=scope)
     
     raw_logic = query_code["logic"]
     helpers = query_code["helpers"]
+    params_class_content = query_code["params"]
     
-    # 2. Extract only the filtering logic (remove Table setup)
-    # The standard generator separates filtering and output with "// 2. Output Results"
-    if "// 2. Output Results" in raw_logic:
-        filtering_logic = raw_logic.split("// 2. Output Results")[0].strip()
-    else:
-        # Fallback if the marker is missing (unlikely given current implementation)
-        filtering_logic = raw_logic
-        
     # 3. Construct the Watchdog script
-    # We use ToElementIds() for performance instead of casting to full Elements
-    
+    # We include the FULL raw_logic (Filtering + Table Output) so the user can test manually.
+    # Then we append the WatchdogReport part.
     script_content = f"""using Autodesk.Revit.DB;
 using System.Linq;
 using System.Collections.Generic;
@@ -42,14 +35,15 @@ using System.Collections.Generic;
 // Generated from Visual Query Builder
 Watchdog(() => 
 {{
-    {filtering_logic}
+    Params p = new();
     
-    // Optimized: Get IDs only for reporting
-    var elementIds = collector.ToElementIds();
-
-    if (elementIds.Count > 0)
+    {raw_logic}
+    
+    // --- Background Watchdog Reporting ---
+    // (This part handles the persistent dashboard reporting)
+    if (elements.Count > 0)
     {{
-        WatchdogReport($"Found {{elementIds.Count}} elements matching '{name}'", "warning", elementIds.ToList());
+        WatchdogReport($"Found {{elements.Count}} elements matching '{name}'", "warning", elements.Select(el => el.Id).ToList());
     }}
     else
     {{
@@ -58,6 +52,11 @@ Watchdog(() =>
 }});
 
 {helpers}
+
+public class Params
+{{
+{params_class_content}
+}}
 """
 
     # 4. Save the script

@@ -77,7 +77,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         param_fields.append(f"/// Filter value for {prop_name}")
         
         if is_revit_type:
-            param_fields.append(f"{attr_prefix}public {csharp_type}? {prop_id} {{ get; set; }}")
+            param_fields.append(f"{attr_prefix}public {csharp_type}? {prop_id} {{ get; set; }} = null;")
         else:
             if storage in ["Double", "Integer"]:
                 default_val = str(val)
@@ -115,7 +115,10 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
 
                 rule_obj = "null"
                 if storage == "Double":
-                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, (double)p.{prop_id}, 1e-6)"
+                    val_expr = f"p.{prop_id}"
+                    if child.get("unit") and child.get("unit") in UNIT_MAP:
+                        val_expr = f"UnitUtils.ConvertToInternalUnits((double)p.{prop_id}, {UNIT_MAP[child['unit']]})"
+                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr}, 1e-6)"
                 elif storage == "Integer":
                     rule_obj = f"new FilterIntegerRule(new ParameterValueProvider({param_id}), {evaluator}, (int)p.{prop_id})"
                 elif storage == "ElementId":

@@ -38,6 +38,16 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     const [isWatchdogModalOpen, setIsWatchdogModalOpen] = useState(false);
     const [watchdogConfig, setWatchdogConfig] = useState<any>(null);
 
+    const handleConfigChange = React.useCallback((config: any) => {
+        setWatchdogConfig(config);
+    }, []);
+
+    const handleQueryGenerated = React.useCallback((logic: string, params: string, compiled: boolean) => {
+        setGeneratedLogic(logic);
+        setGeneratedParams(params);
+        setIsCompiled(compiled);
+    }, []);
+
     // Persistence Logic: Load existing query if replacing
     useEffect(() => {
         if (isOpen && targetPath) {
@@ -183,12 +193,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                 <VisualQueryBuilder
                                     key={initialQueryState ? 'persistent' : 'new'}
                                     initialState={initialQueryState}
-                                    onConfigChange={(config) => setWatchdogConfig(config)}
-                                    onQueryGenerated={(logic, params, compiled) => {
-                                        setGeneratedLogic(logic);
-                                        setGeneratedParams(params);
-                                        setIsCompiled(compiled);
-                                    }}
+                                    onConfigChange={handleConfigChange}
+                                    onQueryGenerated={handleQueryGenerated}
                                 />
                             )}
 

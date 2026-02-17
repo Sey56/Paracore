@@ -163,6 +163,7 @@ namespace Paracore.Addin.Helpers
                 "global using Autodesk.Revit.UI;\n" +
                 "global using CoreScript.Engine.Globals;\n" +
                 "global using static CoreScript.Engine.Globals.ScriptApi;\n" +
+                "global using static CoreScript.Engine.Globals.WatchdogRegistry;\n" +
                 "global using SixLabors.ImageSharp;\n" +
                 "global using SixLabors.ImageSharp.Processing;\n" +
                 "global using SixLabors.ImageSharp.PixelFormats;\n" +
