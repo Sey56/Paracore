@@ -374,6 +374,10 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
         if not os.path.exists(path):
             raise HTTPException(status_code=404, detail="Path not found.")
 
+        # V4: Explicitly remove from IDE sessions if it exists
+        from ide_manager import remove_active_ide_session
+        remove_active_ide_session(path)
+
         if delete_scaffolding_only:
             if not os.path.isdir(path):
                 raise HTTPException(status_code=400, detail="Scaffolding can only be cleared from project folders.")
