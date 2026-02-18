@@ -41,6 +41,13 @@ namespace CoreScript.Engine.Core
                         {
                             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                             metadata = JsonSerializer.Deserialize<ScriptMetadata>(metaElem.GetRawText(), options) ?? metadata;
+                            
+                            // V4: Ensure IsWatchdog is preserved/assigned from JSON
+                            if (metaElem.TryGetProperty("is_watchdog", out var isW) || metaElem.TryGetProperty("isWatchdog", out isW))
+                            {
+                                metadata.IsWatchdog = isW.GetBoolean();
+                            }
+
                             metadata.IsCompiled = true;
                             metadata.IsProtected = true;
                             return metadata;

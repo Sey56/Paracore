@@ -51,6 +51,11 @@ async def build_tool_endpoint(request: BuildToolRequest):
         parameters = params_res.get("parameters")
         combined_content = combined_res.get("combined_script")
 
+        # V4 Safety Fallback: If gRPC metadata missed the watchdog flag, check combined content directly
+        is_watchdog_content = combined_content and ("Watchdog(" in combined_content or "Watchdog (" in combined_content)
+        if is_watchdog_content and metadata:
+            metadata["is_watchdog"] = True
+
         print(f"DEBUG: BuildTool - Extracted {len(parameters) if parameters else 0} parameters")
         if parameters:
             print(f"DEBUG: First param: {parameters[0]['name']}")

@@ -39,34 +39,50 @@
   border-color: rgba(59, 130, 246, 0.4);
 }
 
-/* Automation Tool (.ptool) Branding - Muted Steel */
+/* Automation Tool (.ptool) Branding - Subtle hint if needed, but keeping it clean */
 .toolFile {
-  border-left: 2px solid #94a3b8 !important; /* Calm Muted Slate Accent */
+  /* Removed border-left for simplicity */
 }
 
-.toolFile:hover:not(.focusHero) {
-  border-color: rgba(148, 163, 184, 0.4) !important;
-  box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.08), 0 0 15px rgba(148, 163, 184, 0.05) !important;
-}
-
-:global(.dark) .toolFile:hover:not(.focusHero) {
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2), 0 0 15px rgba(148, 163, 184, 0.1) !important;
-}
-
-/* Sentinel Guard Styling - Identifiable & Premium */
+/* Sentinel Guard Styling - Clean and light */
 .guardCard {
-  border-left: 3px solid #10b981 !important; /* Emerald-Cyan Sharp Edge */
-  background: #f8faff !important; /* Soft Cobalt Surface */
+  /* Removed border-left and background for simplicity */
 }
 
-:global(.dark) .guardCard {
-  background: #1e293b !important; /* Deep Navy Surface */
-  border-left-color: #34d399 !important;
+/* Base card state */
+.scriptCard {
+  position: relative;
+  transition: all 0.2s ease-in-out;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e5e7eb; /* Standard Gray-200 */
 }
 
-.guardCard:hover:not(.focusHero) {
-  border-color: #f59e0b !important; /* Harmonized with Red-Gold Shield */
-  box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.1), 0 0 15px rgba(245, 158, 11, 0.1) !important;
+:global(.dark) .scriptCard {
+  border-color: #374151; /* Standard Gray-700 */
+}
+
+/* Selected State - Enhanced prominence */
+.selectedCard {
+  border-color: #3b82f6 !important;
+  border-width: 2px !important;
+  background-color: #eff6ff !important; /* Very light blue tint */
+}
+
+:global(.dark) .selectedCard {
+  background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* Hover State */
+.scriptCard:hover:not(.focusHero):not(.selectedCard) {
+  transform: translateY(-2px);
+  border-color: #d1d5db;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+:global(.dark) .scriptCard:hover:not(.focusHero):not(.selectedCard) {
+  border-color: #4b5563;
 }
 
 @keyframes sentinelStrongPulse {
@@ -98,7 +114,6 @@
   background-color: rgba(59, 130, 246, 0.15);
   color: #3b82f6;
   border-radius: 4px;
-  margin-left: 8px;
 }
 
 :global(.dark) .multiFileBadge {

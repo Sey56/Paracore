@@ -240,7 +240,7 @@ export const ScriptGallery: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
-  const [typeFilter, setTypeFilter] = useState<'all' | 'scripts' | 'tools' | 'guards' | 'active'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'scripts' | 'guards'>('all');
   const [isCompactView, setIsCompactView] = useState(false);
   const [scriptToReplace, setScriptToReplace] = useState<Script | null>(null);
 
@@ -346,21 +346,17 @@ export const ScriptGallery: React.FC = () => {
       )
       : filteredBySidebarCategory;
 
-    const filteredByType = (() => {
-      if (typeFilter === 'all') return filteredByDefaultCategories;
-      
-      const checkPath = (s: Script) => (s.absolutePath || s.id || "").toLowerCase();
-      const isProtected = (s: Script) => s.metadata?.isProtected === true || s.metadata?.isCompiled === true || checkPath(s).endsWith('.ptool') || checkPath(s).endsWith('.wtool');
-      const isGuard = (s: Script) => s.metadata?.isWatchdog === true || s.metadata?.is_watchdog === true || checkPath(s).endsWith('.wtool') || checkPath(s).includes('.wtool');
-
-      if (typeFilter === 'tools') return filteredByDefaultCategories.filter(s => isProtected(s) && !isGuard(s));
-      if (typeFilter === 'scripts') return filteredByDefaultCategories.filter(s => !isProtected(s) && !isGuard(s));
-      if (typeFilter === 'guards') return filteredByDefaultCategories.filter(isGuard);
-      if (typeFilter === 'active') return filteredByDefaultCategories.filter(isGuard); 
-      
-      return filteredByDefaultCategories;
-    })();
-
+        const filteredByType = (() => {
+          if (typeFilter === 'all') return filteredByDefaultCategories;
+          
+          const checkPath = (s: Script) => (s.absolutePath || s.id || "").toLowerCase();
+          const isGuard = (s: Script) => s.metadata?.isWatchdog === true || s.metadata?.is_watchdog === true || checkPath(s).endsWith('.wtool') || checkPath(s).includes('.wtool');
+    
+          if (typeFilter === 'scripts') return filteredByDefaultCategories.filter(s => !isGuard(s));
+          if (typeFilter === 'guards') return filteredByDefaultCategories.filter(isGuard);
+          
+          return filteredByDefaultCategories;
+        })();
     let searchedScripts = filteredByType;
     if (searchTerm) {
       const { author, param, desc, doctype, created, modified, general, categories } = filters;
@@ -661,11 +657,9 @@ export const ScriptGallery: React.FC = () => {
           {[
             { id: 'all', label: 'All' },
             { id: 'scripts', label: 'Scripts' },
-            { id: 'tools', label: 'Tools' },
-            { id: 'guards', label: 'Sentinels' },
-            { id: 'active', label: 'Active' }
+            { id: 'guards', label: 'Sentinels' }
           ].map(t => (
-            <div key={t.id} className={`${styles.filterItem} ${typeFilter === t.id ? styles.activeFilter : ''}`} onClick={() => setTypeFilter(t.id as 'all' | 'scripts' | 'tools' | 'guards' | 'active')}>
+            <div key={t.id} className={`${styles.filterItem} ${typeFilter === t.id ? styles.activeFilter : ''}`} onClick={() => setTypeFilter(t.id as 'all' | 'scripts' | 'guards')}>
               <input type="radio" checked={typeFilter === t.id} readOnly />
               <label className="capitalize cursor-pointer">{t.label}</label>
             </div>

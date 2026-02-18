@@ -61,7 +61,8 @@ namespace Paracore.Addin.Handlers
                     LastRun = extractedMetadata.LastRun,
                     Dependencies = { extractedMetadata.Dependencies },
                     DocumentType = extractedMetadata.DocumentType,
-                    UsageExamples = { extractedMetadata.UsageExamples }
+                    UsageExamples = { extractedMetadata.UsageExamples },
+                    IsWatchdog = extractedMetadata.IsWatchdog
                 };
             }
             catch (Exception ex)

@@ -99,14 +99,15 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   
   // Robust Type Identification
   const path = (script.absolutePath || script.id || script.name || "").toLowerCase().replace(/\\/g, '/');
-  const isWTool = path.endsWith('.wtool') || path.split('/').pop()?.includes('.wtool');
-  const isPTool = path.endsWith('.ptool') || path.split('/').pop()?.includes('.ptool');
+  const isWTool = path.endsWith('.wtool') || path.includes('.wtool/'); // Handle folder cases if any
+  const isPTool = path.endsWith('.ptool') || path.includes('.ptool/');
   
   // V4: Extra-aggressive Sentinel detection
   const isGuard = script.metadata?.isWatchdog === true || 
                   script.metadata?.is_watchdog === true || 
                   (script.metadata as any)?.IsWatchdog === true ||
-                  isWTool === true;
+                  path.endsWith('.wtool') || 
+                  path.includes('.wtool');
 
   const isProtectedTool = script.metadata?.isProtected === true || script.metadata?.isCompiled === true || isPTool || isWTool;
 
@@ -236,7 +237,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     <div
       id={`script-card-${script.id}`}
       ref={cardRef}
-      className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-xl shadow-md transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500/50" : ""
+      className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-xl shadow-sm transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? styles.selectedCard : ""
         } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${isGuard ? styles.guardCard : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
       onClick={handleSelect}
     >
@@ -352,33 +353,40 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
             />
           ) : (
             <div className="flex items-center gap-2 overflow-hidden w-full">
-              {isGuard && (
+              {/* Family Icons */}
+              {isGuard ? (
                 <FontAwesomeIcon 
                   icon={faShieldHeart} 
                   className={`shrink-0 ${isArmed ? styles.sentinelPulse : styles.guardIcon}`} 
                   style={{ fontSize: '0.9rem' }}
                 />
+              ) : (
+                /* Only show wrench for Automation TOOLS, not scripts */
+                isProtectedTool && (
+                  <FontAwesomeIcon 
+                    icon={faTools} 
+                    className="shrink-0 text-slate-400 dark:text-slate-500" 
+                    style={{ fontSize: '0.9rem' }}
+                  />
+                )
               )}
-              {/* If it is a PTool (Protected but NOT a guard), show the Tool icon */}
-              {(isProtectedTool && !isGuard) && (
-                <FontAwesomeIcon 
-                  icon={faTools} 
-                  className="shrink-0 text-slate-400 dark:text-slate-500" 
-                  style={{ fontSize: '0.9rem' }}
-                />
-              )}
-              <h3
-                className={`font-medium flex-1 truncate ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"}`}
-                title={getDisplayName()}
-              >
-                {getDisplayName()}
+              
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <h3
+                  className={`font-medium truncate ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"}`}
+                  title={getDisplayName()}
+                >
+                  {getDisplayName()}
+                </h3>
+                
+                {/* Binary Indicator Badge - OUTSIDE truncate */}
                 {isProtectedTool && (
-                  <span className={`${styles.multiFileBadge} !bg-slate-100 !text-slate-600 dark:!bg-slate-900/40 dark:!text-slate-400 border border-slate-200 dark:border-slate-800 ml-2 whitespace-nowrap`}>
+                  <span className={`${styles.multiFileBadge} !bg-slate-100 !text-slate-600 dark:!bg-slate-900/40 dark:!text-slate-400 border border-slate-200 dark:border-slate-800 whitespace-nowrap shrink-0`}>
                     <FontAwesomeIcon icon={faLock} className="mr-1" style={{ fontSize: '0.6rem' }} />
                     Sealed
                   </span>
                 )}
-              </h3>
+              </div>
             </div>
           )}
           <button
