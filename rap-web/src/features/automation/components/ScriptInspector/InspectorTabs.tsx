@@ -83,7 +83,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
 
   return (
     <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
-      <div className="flex border-b border-gray-200 dark:border-gray-700 items-center px-4 bg-gray-50/30 dark:bg-slate-900/30">
+      <div className="flex border-b border-slate-200/60 dark:border-slate-700/40 items-center px-4 bg-slate-50/50 dark:bg-slate-900/40">
         <div className="flex">
           {allTabs.map((tab) => (
             <button
@@ -91,7 +91,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
               className={`tab-button px-4 py-3 flex items-center gap-2 transition-all duration-300 relative border-b-2
                 ${activeInspectorTab === tab.id
                   ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white/50 dark:bg-slate-800/50"
-                  : "text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-300"
+                  : "text-slate-400/80 dark:text-slate-500/80 border-transparent hover:text-slate-600 dark:hover:text-slate-200"
                 }`}
               onClick={() => setActiveInspectorTab(tab.id as InspectorTab)}
             >
@@ -99,7 +99,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
               <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
                 {tab.label}
               </span>
-              
+
               {tab.id === 'table' && hasUnviewedTableData && (
                 <span className="absolute top-2 right-2 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
@@ -115,22 +115,22 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
               <button
                 onClick={toggleAllGroups}
                 className={`p-1.5 rounded transition-all duration-300 flex items-center justify-center ${areGroupsExpanded
-                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                    : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                  : "text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700/60"
                   }`}
                 title={areGroupsExpanded ? "Collapse All Groups" : "Expand All Groups"}
               >
                 <div className="relative">
                   <FontAwesomeIcon icon={faLayerGroup} className="w-3.5 h-3.5" />
-                  <div className={`absolute -right-1 -bottom-1 w-2 h-2 rounded-full border-2 border-white dark:border-gray-800 transition-colors ${areGroupsExpanded ? "bg-blue-500" : "bg-gray-400"}`}></div>
+                  <div className={`absolute -right-1 -bottom-1 w-2 h-2 rounded-full border-2 border-white dark:border-slate-900 transition-colors ${areGroupsExpanded ? "bg-blue-500" : "bg-slate-400"}`}></div>
                 </div>
               </button>
-              <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+              <div className="w-[1px] h-4 bg-slate-200/60 dark:bg-slate-700/50 mx-1"></div>
             </>
           )}
           <button
             onClick={onToggleExpand}
-            className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 rounded hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
             title={isExpanded ? "Collapse View" : "Expand View"}
           >
             <FontAwesomeIcon icon={isExpanded ? faCompress : faExpand} />
