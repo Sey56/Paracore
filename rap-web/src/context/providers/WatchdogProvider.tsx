@@ -76,8 +76,11 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // PHASE 1: Linear Arming Sequence (Memory -> Backend)
     useEffect(() => {
         if (!isAuthenticated) {
-            setIsArmingWatchdogs(false);
-            return;
+            // Don't kill the gate here — auth may still be loading.
+            // The gate will close naturally once auth resolves and the arming path runs.
+            // Safety: if auth never resolves, close the gate after 4s.
+            const safetyTimer = setTimeout(() => setIsArmingWatchdogs(false), 4000);
+            return () => clearTimeout(safetyTimer);
         }
 
         const sessionId = `${stableUserId}_${gateStartTimeRef.current}`;
@@ -101,9 +104,9 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 await new Promise(r => setTimeout(r, 200));
             }
 
-            // Ensure gate stays for at least 1.5s total
+            // Ensure gate stays for at least 2.5s total (entrance effect)
             const elapsed = Date.now() - gateStartTimeRef.current;
-            const remaining = Math.max(0, 1500 - elapsed);
+            const remaining = Math.max(0, 2500 - elapsed);
             setTimeout(() => setIsArmingWatchdogs(false), remaining);
         };
 

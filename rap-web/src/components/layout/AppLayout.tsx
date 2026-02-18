@@ -12,7 +12,7 @@ import { useUI } from "@/hooks/useUI";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useScripts } from "@/features/automation";
 import { GitStatusPanel } from "@/features/team-sources/components/GitStatusPanel";
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from "@/features/auth";
 import { Role } from '@/features/auth';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
@@ -27,8 +27,29 @@ import { PlaylistsTab } from "@/features/automation/components/Playlists/Playlis
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
   const { selectedScript } = useScriptExecution();
-  const { isArmingWatchdogs } = useWatchdog(); 
-  const { addCustomScriptFolder } = useScripts(); 
+  const { isArmingWatchdogs } = useWatchdog();
+  // Startup gate — branded entrance on every app launch.
+  // Always shows for 2.5s, re-triggers on sign-in transitions too.
+  const [gateVisible, setGateVisible] = useState(true);
+
+  // Detect sign-in transition (false → true)
+  const prevAuthRef = useRef(isAuthenticated);
+  useEffect(() => {
+    if (!prevAuthRef.current && isAuthenticated) {
+      setGateVisible(true);
+    }
+    prevAuthRef.current = isAuthenticated;
+  }, [isAuthenticated]);
+
+  // Hold gate visible for exactly 2.5s whenever it activates
+  useEffect(() => {
+    if (!gateVisible) return;
+    const timer = setTimeout(() => setGateVisible(false), 2500);
+    return () => clearTimeout(timer);
+  }, [gateVisible]);
+
+  const showGate = gateVisible;
+  const { addCustomScriptFolder } = useScripts();
   const {
     isSidebarOpen,
     toggleSidebar,
@@ -112,7 +133,7 @@ export const AppLayout: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 font-sans overflow-hidden">
       {/* --- ARMING OVERLAY (Startup Gate) --- */}
-      {isArmingWatchdogs && (
+      {showGate && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-[100px] transition-all duration-700">
           <div className="flex flex-col items-center space-y-8 p-12 rounded-[3rem] bg-white/20 dark:bg-gray-800/20 shadow-2xl max-w-sm text-center backdrop-blur-2xl">
             <div className="relative">
@@ -121,7 +142,7 @@ export const AppLayout: React.FC = () => {
                 <FontAwesomeIcon icon={faShieldHeart} className="text-white text-3xl animate-pulse" />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Arming Sentinels</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
@@ -150,8 +171,8 @@ export const AppLayout: React.FC = () => {
           onClose={closeFloatingCodeViewer}
         />
       )}
-      
-      <div className={`flex flex-col h-full transition-opacity duration-700 ${isArmingWatchdogs ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+
+      <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <TopBar />
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
