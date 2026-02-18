@@ -213,10 +213,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         {/* 1. Configuration Presets */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="flex flex-col space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-4 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-              <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Parameter Presets</h3>
-            </div>
 
             <div className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
               <div className="relative flex-1 group">

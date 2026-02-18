@@ -7,7 +7,6 @@ import { useScriptExecution } from "@/features/automation";
 import { ParametersTab } from './ParametersTab';
 import { ConsoleTabContent } from './ConsoleTabContent';
 import { TableTabContent } from './TableTabContent';
-import { MetadataTabContent } from './MetadataTabContent';
 
 import {
   faCompress,
@@ -17,8 +16,7 @@ import {
   faLayerGroup,
   faSlidersH,
   faTerminal,
-  faChartLine,
-  faInfoCircle
+  faChartLine
 } from "@fortawesome/free-solid-svg-icons";
 
 interface InspectorTabsProps {
@@ -48,7 +46,6 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
     { id: "parameters", label: "Parameters", icon: faSlidersH },
     { id: "console", label: "Console", icon: faTerminal },
     { id: "table", label: "Analytics", icon: faChartLine },
-    { id: "metadata", label: "Metadata", icon: faInfoCircle }
   ] as const;
 
   // Detect new execution with table data
@@ -78,20 +75,20 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
 
   return (
     <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
-      <div className="flex border-b border-slate-200/60 dark:border-slate-700/40 items-center px-4 bg-slate-50/50 dark:bg-slate-900/40">
-        <div className="flex">
+      <div className="flex border-b border-slate-200/60 dark:border-slate-700/40 items-center px-5 bg-slate-50/50 dark:bg-slate-900/40">
+        <div className="flex gap-1">
           {allTabs.map((tab) => (
             <button
               key={tab.id}
-              className={`tab-button px-4 py-3 flex items-center gap-2 transition-all duration-300 relative border-b-2
+              className={`tab-button px-5 py-3.5 flex items-center gap-2.5 transition-all duration-300 relative border-b-2 rounded-t-lg
                 ${activeInspectorTab === tab.id
                   ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white/50 dark:bg-slate-800/50"
                   : "text-slate-400/80 dark:text-slate-500/80 border-transparent hover:text-slate-600 dark:hover:text-slate-200"
                 }`}
               onClick={() => setActiveInspectorTab(tab.id as InspectorTab)}
             >
-              <FontAwesomeIcon icon={tab.icon} className={`text-[10px] ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-50'}`} />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+              <FontAwesomeIcon icon={tab.icon} className={`text-xs ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-50'}`} />
+              <span className="text-[11px] font-black uppercase tracking-[0.15em] whitespace-nowrap">
                 {tab.label}
               </span>
 
@@ -138,11 +135,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             <TableTabContent executionResult={executionResult} />
           </div>
         )}
-        {activeInspectorTab === 'metadata' && script.metadata && (
-          <div className="h-full">
-            <MetadataTabContent metadata={script.metadata} />
-          </div>
-        )}
+
       </div>
     </div>
   );
