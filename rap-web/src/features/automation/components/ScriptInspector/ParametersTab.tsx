@@ -12,6 +12,7 @@ import {
   faTrash,
   faExternalLinkAlt,
   faUndo,
+  faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
@@ -78,6 +79,13 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [infoModalMessage, setInfoModalMessage] = useState('');
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [areGroupsExpanded, setAreGroupsExpanded] = useState(false);
+
+  const toggleAllGroups = () => {
+    const newState = !areGroupsExpanded;
+    setAreGroupsExpanded(newState);
+    window.dispatchEvent(new CustomEvent(newState ? 'expand-all-groups' : 'collapse-all-groups'));
+  };
 
 
   const isRunning = runningScriptPath === script.id;
@@ -259,6 +267,22 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               </div>
 
               <div className="flex items-center gap-1.5 pr-1">
+                <button
+                  onClick={toggleAllGroups}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${areGroupsExpanded
+                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 shadow-sm"
+                    : "text-slate-400 hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-900/20"
+                    }`}
+                  title={areGroupsExpanded ? "Collapse All Groups" : "Expand All Groups"}
+                >
+                  <div className="relative">
+                    <FontAwesomeIcon icon={faLayerGroup} className="text-xs" />
+                    <div className={`absolute -right-1 -bottom-1 w-2 h-2 rounded-full border-2 border-slate-100 dark:border-slate-800 transition-colors ${areGroupsExpanded ? "bg-blue-500" : "bg-slate-400"}`}></div>
+                  </div>
+                </button>
+
+                <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
+
                 {isDefaultPreset ? (
                   <button
                     className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-300"

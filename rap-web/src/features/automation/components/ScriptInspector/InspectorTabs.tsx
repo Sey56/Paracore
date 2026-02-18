@@ -33,7 +33,6 @@ interface InspectorTabsProps {
 
 export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning, onViewCodeClick, isActionable, tooltipMessage, isExpanded, onToggleExpand }) => {
   const { activeInspectorTab, setActiveInspectorTab } = useUI();
-  const [areGroupsExpanded, setAreGroupsExpanded] = useState(false);
   const {
     executionResult,
     clearExecutionResult,
@@ -43,11 +42,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   const lastExecutionCountRef = useRef<number>(0);
   const currentExecutionCountRef = useRef<number>(0);
 
-  const toggleAllGroups = () => {
-    const newState = !areGroupsExpanded;
-    setAreGroupsExpanded(newState);
-    window.dispatchEvent(new CustomEvent(newState ? 'expand-all-groups' : 'collapse-all-groups'));
-  };
+
 
   const allTabs = [
     { id: "parameters", label: "Parameters", icon: faSlidersH },
@@ -110,24 +105,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
           ))}
         </div>
         <div className="ml-auto px-2 flex items-center gap-1">
-          {activeInspectorTab === 'parameters' && (
-            <>
-              <button
-                onClick={toggleAllGroups}
-                className={`p-1.5 rounded transition-all duration-300 flex items-center justify-center ${areGroupsExpanded
-                  ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                  : "text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700/60"
-                  }`}
-                title={areGroupsExpanded ? "Collapse All Groups" : "Expand All Groups"}
-              >
-                <div className="relative">
-                  <FontAwesomeIcon icon={faLayerGroup} className="w-3.5 h-3.5" />
-                  <div className={`absolute -right-1 -bottom-1 w-2 h-2 rounded-full border-2 border-white dark:border-slate-900 transition-colors ${areGroupsExpanded ? "bg-blue-500" : "bg-slate-400"}`}></div>
-                </div>
-              </button>
-              <div className="w-[1px] h-4 bg-slate-200/60 dark:bg-slate-700/50 mx-1"></div>
-            </>
-          )}
+
           <button
             onClick={onToggleExpand}
             className="p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 rounded hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
