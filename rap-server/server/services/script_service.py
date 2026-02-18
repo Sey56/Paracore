@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Any
 
 from fastapi import HTTPException
 import grpc_client
-from ide_manager import set_active_ide_session
+from ide_manager import set_active_ide_session, remove_active_ide_session
 from utils import resolve_script_path
 from api.script_templates import ARCHETYPES
 
@@ -87,6 +87,7 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                         "usage_examples": list(get_val(meta_obj, "usage_examples", [])),
                         "isProtected": get_val(meta_obj, "is_protected", False),
                         "isCompiled": get_val(meta_obj, "is_compiled", False),
+                        "isWatchdog": get_val(meta_obj, "isWatchdog", False) or get_val(meta_obj, "is_watchdog", False),
                         "dateCreated": datetime.fromtimestamp(folder_stat.st_ctime).isoformat(),
                         "dateModified": datetime.fromtimestamp(folder_stat.st_mtime).isoformat()
                     },
@@ -102,29 +103,33 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                     "parameters": []
                 })
 
-        for ptool_path in glob.glob(os.path.join(pack_path, "*.ptool")):
+        for ptool_path in glob.glob(os.path.join(pack_path, "*.ptool")) + glob.glob(os.path.join(pack_path, "*.wtool")):
             try:
                 resolved_ptool_path = resolve_script_path(ptool_path)
+                is_wtool = resolved_ptool_path.lower().endswith('.wtool')
+                ptool_stat = os.stat(resolved_ptool_path)
+                
                 with open(resolved_ptool_path, 'r', encoding='utf-8') as f:
                     package = json.load(f)
                 
                 metadata = package.get("metadata", {})
-                metadata["is_protected"] = True
-                metadata["is_compiled"] = True
-                ptool_stat = os.stat(resolved_ptool_path)
-                
                 params = package.get("parameters", [])
+                
+                # Hydrate parameters (snake_case to camelCase and JSON parsing)
                 hydrated_params = []
                 for p in params:
-                    val = p.get("defaultValueJson", "null")
+                    val_json = p.get("defaultValueJson") or p.get("default_value_json") or "null"
                     try:
-                        p["defaultValue"] = json.loads(val)
+                        p["defaultValue"] = json.loads(val_json)
                         p["value"] = p["defaultValue"]
                     except:
-                        p["defaultValue"] = val
-                        p["value"] = val
+                        p["defaultValue"] = val_json
+                        p["value"] = val_json
                     hydrated_params.append(p)
-
+                
+                # V4: Hard-coded type safety for binary units
+                is_watchdog = is_wtool or metadata.get("is_watchdog", False)
+                
                 tools.append({
                     "id": resolved_ptool_path.replace('\\', '/'),
                     "name": os.path.basename(resolved_ptool_path),
@@ -132,11 +137,16 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                     "parameters": hydrated_params,
                     "metadata": {
                         **metadata,
+                        "isProtected": True,
+                        "isCompiled": True,
+                        "isWatchdog": is_watchdog,
                         "dateCreated": datetime.fromtimestamp(ptool_stat.st_ctime).isoformat(),
                         "dateModified": datetime.fromtimestamp(ptool_stat.st_mtime).isoformat()
                     }
                 })
-            except Exception: continue
+            except Exception as e:
+                print(f"[ScriptService] Error processing package {ptool_path}: {e}")
+                continue
 
         return tools
     except Exception as e:
@@ -197,7 +207,7 @@ def _ensure_pack_gitignore(pack_dir: str):
 async def get_script_parameters_logic(script_path: str):
     try:
         absolute_path = resolve_script_path(script_path)
-        if absolute_path.endswith('.ptool'):
+        if absolute_path.lower().endswith('.ptool') or absolute_path.lower().endswith('.wtool'):
             with open(absolute_path, 'r', encoding='utf-8') as f:
                 package = json.load(f)
             params = package.get("parameters", [])
@@ -240,12 +250,15 @@ async def get_script_parameters_logic(script_path: str):
 async def get_script_metadata_logic(script_path: str):
     try:
         absolute_path = resolve_script_path(script_path)
-        if absolute_path.endswith('.ptool'):
+        if absolute_path.lower().endswith('.ptool') or absolute_path.lower().endswith('.wtool'):
+            is_wtool = absolute_path.lower().endswith('.wtool')
             with open(absolute_path, 'r', encoding='utf-8') as f:
                 package = json.load(f)
             metadata = package.get("metadata", {})
             metadata["is_protected"] = True
             metadata["is_compiled"] = True
+            if is_wtool:
+                metadata["is_watchdog"] = True
             return {"metadata": metadata}
 
         scripts_dir = os.path.join(absolute_path, "Scripts")
@@ -272,7 +285,8 @@ async def get_script_metadata_logic(script_path: str):
                 "documentType": m.get("document_type") or "Any",
                 "usage_examples": m.get("usage_examples"),
                 "isProtected": m.get("is_protected"),
-                "isCompiled": m.get("is_compiled")
+                "isCompiled": m.get("is_compiled"),
+                "isWatchdog": m.get("is_watchdog")
             }
         return res
     except Exception as e:
@@ -372,11 +386,12 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
     try:
         path = resolve_script_path(script_path)
         if not os.path.exists(path):
-            raise HTTPException(status_code=404, detail="Path not found.")
+            return {"success": True, "message": "Path already gone."}
 
-        # V4: Explicitly remove from IDE sessions if it exists
-        from ide_manager import remove_active_ide_session
-        remove_active_ide_session(path)
+        # Explicitly remove from IDE sessions if it exists
+        try:
+            remove_active_ide_session(path)
+        except: pass
 
         if delete_scaffolding_only:
             if not os.path.isdir(path):
@@ -392,10 +407,9 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
                     else:
                         os.remove(item_path)
                     deleted_count += 1
-                except Exception as e:
-                    print(f"[ScriptService] Failed to delete {item}: {e}")
+                except: pass
             
-            return {"success": True, "message": f"Cleaned {deleted_count} IDE files. Logic preserved."}
+            return {"success": True, "message": f"Cleaned {deleted_count} IDE files."}
         else:
             if os.path.isdir(path):
                 shutil.rmtree(path)
@@ -433,6 +447,28 @@ def get_script_manifest_logic(path: str):
 def rename_script_logic(old_path: str, new_name: str):
     try:
         return grpc_client.rename_script(old_path, new_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def initialize_source_logic(path: str):
+    try:
+        if not os.path.exists(path):
+            os.makedirs(path, exist_ok=True)
+        
+        marker_path = os.path.join(path, ".paracore")
+        if os.path.exists(marker_path):
+            return {"success": True, "message": "Source already initialized."}
+            
+        metadata = {
+            "name": os.path.basename(path),
+            "created": datetime.now().isoformat(),
+            "type": "automation-pack"
+        }
+        
+        with open(marker_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=4)
+            
+        return {"success": True, "message": f"Initialized '{os.path.basename(path)}' as a Script Source."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -26,7 +26,7 @@ import { invoke } from '@tauri-apps/api';
 import { useUI } from "@/hooks/useUI";
 import { useScripts } from "@/features/automation";
 import { useScriptExecution } from "@/features/automation";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { RegisterSourceModal } from '@/features/team-sources/components/RegisterSourceModal';
 import { SetupSourceModal } from '@/features/team-sources/components/SetupSourceModal';
 import { AddCategoryModal } from '@/features/automation/components/AddCategoryModal';
@@ -43,6 +43,7 @@ import { Role } from '@/features/auth';
 
 import { defaultCategories } from '@/data/categories';
 import { getFolderNameFromPath } from '@/utils/pathHelpers';
+import api from '@/api/axios';
 
 interface ApiError {
   response?: {
@@ -92,11 +93,25 @@ export const Sidebar = () => {
   const [isClearConfirmModalOpen, setIsClearConfirmModalOpen] = useState(false);
   const [clearActionType, setClearActionType] = useState<'favorites' | 'recents' | 'local-folders' | null>(null);
 
+  const [localDropdownOpen, setLocalDropdownOpen] = useState(false);
+  const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+
   const { userSourcePaths, setSourcePath, removeSourcePath } = useUserTeamSources();
 
   const isPersonalTeamActive = useMemo(() => {
     return activeTeam && user && activeTeam.owner_id === Number(user.id);
   }, [activeTeam, user]);
+
+  useEffect(() => {
+    const closeDropdowns = () => {
+      setLocalDropdownOpen(false);
+      setTeamDropdownOpen(false);
+    };
+    if (localDropdownOpen || teamDropdownOpen) {
+      window.addEventListener('click', closeDropdowns);
+    }
+    return () => window.removeEventListener('click', closeDropdowns);
+  }, [localDropdownOpen, teamDropdownOpen]);
 
   const currentTeamSources = useMemo(() => {
     if (!activeTeam) return [];
@@ -235,6 +250,9 @@ export const Sidebar = () => {
     }
   };
 
+  const [isInitModalOpen, setIsInitModalOpen] = useState(false);
+  const [folderToInit, setFolderToInit] = useState<string | null>(null);
+
   const handleAddCustomFolder = async () => {
     if (window.__TAURI__) {
       const selected = await open({ directory: true, multiple: false });
@@ -247,7 +265,9 @@ export const Sidebar = () => {
             await addCustomScriptFolders(discoveredSources);
             setActiveScriptSource({ type: 'local', path: discoveredSources[0] });
           } else {
-            showNotification("No .paracore or .scriptsource markers found in the selected hierarchy.", "warning");
+            // V4 Flow: Offer to initialize if nothing found
+            setFolderToInit(selected);
+            setIsInitModalOpen(true);
           }
         } catch (err) {
           console.error("Discovery failed:", err);
@@ -256,6 +276,26 @@ export const Sidebar = () => {
       }
     } else {
       setIsAddFolderModalOpen(true);
+    }
+  };
+
+  const handleInitializeSource = async () => {
+    if (!folderToInit) return;
+    try {
+      showNotification("Initializing source...", "info");
+      const res = await api.post("/api/scripts/initialize-source", { path: folderToInit });
+      if (res.data.success) {
+        await addCustomScriptFolder(folderToInit);
+        setActiveScriptSource({ type: 'local', path: folderToInit });
+        showNotification(res.data.message, "success");
+      }
+    } catch (err: any) {
+      console.error("[Sidebar] Failed to initialize source:", err);
+      const msg = err.response?.data?.detail || "Failed to initialize folder.";
+      showNotification(msg, "error");
+    } finally {
+      setIsInitModalOpen(false);
+      setFolderToInit(null);
     }
   };
 
@@ -288,6 +328,11 @@ export const Sidebar = () => {
       showNotification("Recents cleared.", "success");
     } else if (clearActionType === 'local-folders') {
       clearAllCustomScriptFolders();
+      showNotification("Local folders cleared.", "success");
+    } else if (clearActionType === 'team-sources') {
+      // Clear all team sources locally
+      Object.keys(userSourcePaths).forEach(id => removeSourcePath(id));
+      showNotification("Team sources cleared.", "success");
     }
     setIsClearConfirmModalOpen(false);
     setClearActionType(null);
@@ -336,6 +381,16 @@ export const Sidebar = () => {
         />
 
         <ConfirmActionModal
+          isOpen={isInitModalOpen}
+          onClose={() => setIsInitModalOpen(false)}
+          onConfirm={handleInitializeSource}
+          title="Initialize Script Source"
+          message={`The selected folder is not a Paracore Script Source yet. Would you like to initialize it? This will allow you to create and manage automation scripts inside it.`}
+          confirmButtonText="Initialize"
+          confirmButtonColor="blue"
+        />
+
+        <ConfirmActionModal
           isOpen={isClearConfirmModalOpen}
           onClose={() => setIsClearConfirmModalOpen(false)}
           onConfirm={handleClearConfirm}
@@ -353,7 +408,7 @@ export const Sidebar = () => {
                 <FontAwesomeIcon icon={faUsers} className="text-sm" />
               </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-[13px] font-black text-gray-800 dark:text-gray-100 truncate tracking-tight uppercase">
+                <span className="text-sm font-black text-gray-800 dark:text-gray-100 truncate tracking-tight uppercase">
                   {activeTeam.team_name}
                 </span>
                 {activeRole && (
@@ -369,7 +424,7 @@ export const Sidebar = () => {
             </div>
           ) : (
             <div className="px-3 py-1">
-              <h1 className="text-[11px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em]">Environment</h1>
+              <h1 className="text-xs font-black text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em]">Automation Foundry</h1>
             </div>
           )}
         </div>
@@ -391,7 +446,7 @@ export const Sidebar = () => {
                     }
                   }}
                   disabled={activeScriptSource?.type !== 'team'}
-                  className="text-gray-400 hover:text-blue-500 transition-colors p-1.5"
+                  className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
                   title="Update Source"
                 >
                   <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
@@ -400,57 +455,69 @@ export const Sidebar = () => {
             }
           >
             <div className="space-y-2 pr-2">
-              <div className="relative group">
-                <select
-                  value={activeScriptSource?.type === 'team' ? String(activeScriptSource.id) : ''}
-                  onChange={(e) => {
-                    const selectedId = Number(e.target.value);
-                    const source = teamScriptSources.find(ws => ws.id === selectedId);
-                    const localPath = userSourcePaths[selectedId]?.path;
-                    if (source && localPath) {
-                      setActiveScriptSource({ type: 'team', id: String(selectedId), path: localPath });
-                    }
-                  }}
-                  className="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700/50 rounded-xl pl-3 pr-8 py-2 text-[13px] font-black text-gray-700 dark:text-gray-200 focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all cursor-pointer group-hover:border-gray-200 dark:group-hover:border-gray-700 shadow-sm"
-                >
-                  <option value="" disabled>Select source...</option>
-                  {teamScriptSources.map((source) => (
-                    <option key={source.id} value={source.id}>
-                      {source.name} {source.isOrphaned ? '⚠️' : ''}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500 border-l border-gray-100 dark:border-gray-800 pl-2">
-                  <FontAwesomeIcon icon={faChevronDown} className="text-[10px]" />
+              <div className="flex items-center gap-3 group/team-source">
+                <div className="relative flex-1">
+                  <div
+                    onClick={(e) => { e.stopPropagation(); setTeamDropdownOpen(!teamDropdownOpen); setLocalDropdownOpen(false); }}
+                    className="w-full bg-gray-100 dark:bg-gray-900 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-800 rounded-xl pl-3 pr-3 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 cursor-pointer transition-all flex items-center justify-between"
+                  >
+                    <span className="truncate">
+                      {activeScriptSource?.type === 'team' 
+                        ? (teamScriptSources.find(s => String(s.id) === activeScriptSource.id)?.name || 'Select source...')
+                        : 'Select source...'}
+                    </span>
+                    <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] transition-transform duration-300 ${teamDropdownOpen ? 'rotate-180' : ''}`} />
+                  </div>
+
+                  {teamDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white dark:bg-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="max-h-60 overflow-y-auto py-1.5">
+                        {teamScriptSources.map((source) => (
+                          <div
+                            key={source.id}
+                            onClick={() => {
+                              const localPath = userSourcePaths[source.id]?.path;
+                              if (localPath) setActiveScriptSource({ type: 'team', id: String(source.id), path: localPath });
+                              setTeamDropdownOpen(false);
+                            }}
+                            className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-600 dark:hover:text-blue-300 cursor-pointer transition-colors flex items-center justify-between"
+                          >
+                            <span>{source.name}</span>
+                            {source.isOrphaned && <span className="text-[10px]">⚠️</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-[34px] flex items-center justify-center shrink-0">
+                  {activeScriptSource?.type === 'team' && (
+                    <div className="opacity-0 group-hover/team-source:opacity-100 transition-all duration-300 translate-x-2 group-hover/team-source:translate-x-0" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-lg p-0.5 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (activeScriptSource.id && userSourcePaths[Number(activeScriptSource.id)]?.path) {
+                              const sourceToRemove = {
+                                id: Number(activeScriptSource.id),
+                                name: getFolderNameFromPath(userSourcePaths[Number(activeScriptSource.id)]!.path),
+                                repo_url: userSourcePaths[Number(activeScriptSource.id)]?.repo_url || '',
+                                path: userSourcePaths[Number(activeScriptSource.id)]!.path
+                              };
+                              handleOpenRemoveModal(sourceToRemove);
+                            }
+                          }}
+                          className="text-gray-400 hover:text-red-500 transition-colors p-1.5"
+                          title="Unload Source"
+                        >
+                          <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {activeScriptSource?.type === 'team' && (
-                <div className="flex items-center justify-between px-1 animate-in fade-in duration-300">
-                  <span className="text-[11px] font-bold text-blue-500/70 uppercase tracking-tighter truncate max-w-[140px]">
-                    <FontAwesomeIcon icon={faGlobe} className="mr-1.5" />
-                    Active Source
-                  </span>
-                  <button
-                    className="text-[11px] font-black text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-0.5 rounded-lg transition-all"
-                    onClick={() => {
-                      if (activeScriptSource.id && userSourcePaths[Number(activeScriptSource.id)]?.path) {
-                        const sourceToRemove = {
-                          id: Number(activeScriptSource.id),
-                          name: getFolderNameFromPath(userSourcePaths[Number(activeScriptSource.id)]!.path),
-                          repo_url: userSourcePaths[Number(activeScriptSource.id)]?.repo_url || '',
-                          path: userSourcePaths[Number(activeScriptSource.id)]!.path
-                        };
-                        handleOpenRemoveModal(sourceToRemove);
-                        setActiveScriptSource(null);
-                        setSelectedScript(null);
-                      }
-                    }}
-                  >
-                    UNLOAD
-                  </button>
-                </div>
-              )}
             </div>
           </SidebarSection>
         )}
@@ -470,7 +537,22 @@ export const Sidebar = () => {
                     e.stopPropagation();
                     handleAddCustomFolder();
                   }}
-                  title="Add Script Source">
+                  title="Load Existing Source">
+                  <FontAwesomeIcon icon={faFolder} className="w-3 h-3" />
+                </button>
+                <button
+                  className="text-gray-400 hover:text-emerald-500 p-1.5 transition-colors"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (window.__TAURI__) {
+                      const selected = await open({ directory: true, multiple: false });
+                      if (typeof selected === 'string') {
+                        setFolderToInit(selected);
+                        setIsInitModalOpen(true);
+                      }
+                    }
+                  }}
+                  title="Initialize New Source">
                   <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
                 </button>
                 {customScriptFolders.length > 0 && (
@@ -490,49 +572,66 @@ export const Sidebar = () => {
           >
             <div className="space-y-1.5 pr-2">
               {customScriptFolders.length > 0 ? (
-                <div className="relative group">
-                  <select
-                    value={activeScriptSource?.type === 'local' ? activeScriptSource.path : ''}
-                    onChange={(e) => handleFolderClick(e.target.value)}
-                    className="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700/50 rounded-xl pl-3 pr-8 py-2 text-[13px] font-black text-gray-700 dark:text-gray-200 focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all cursor-pointer group-hover:border-gray-200 dark:group-hover:border-gray-700 shadow-sm"
-                  >
-                    <option value="" disabled>Select source...</option>
-                    {customScriptFolders.map((folder) => (
-                      <option key={folder} value={folder}>
-                        {getFolderNameFromPath(folder)}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-500 border-l border-gray-100 dark:border-gray-800 pl-2">
-                    <FontAwesomeIcon icon={faChevronDown} className="text-[10px]" />
+                <div className="flex items-center gap-3 group/source">
+                  <div className="relative flex-1">
+                    <div
+                      onClick={(e) => { e.stopPropagation(); setLocalDropdownOpen(!localDropdownOpen); setTeamDropdownOpen(false); }}
+                      className="w-full bg-gray-100 dark:bg-gray-900 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-800 rounded-xl pl-3 pr-3 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 cursor-pointer transition-all flex items-center justify-between"
+                    >
+                      <span className="truncate">
+                        {activeScriptSource?.type === 'local' 
+                          ? getFolderNameFromPath(activeScriptSource.path || '')
+                          : 'Select source...'}
+                      </span>
+                      <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] transition-transform duration-300 ${localDropdownOpen ? 'rotate-180' : ''}`} />
+                    </div>
+
+                    {localDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white dark:bg-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="max-h-60 overflow-y-auto py-1.5">
+                          {customScriptFolders.map((folder) => (
+                            <div
+                              key={folder}
+                              onClick={() => {
+                                handleFolderClick(folder);
+                                setLocalDropdownOpen(false);
+                              }}
+                              className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-600 dark:hover:text-blue-300 cursor-pointer transition-colors"
+                            >
+                              {getFolderNameFromPath(folder)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="w-[34px] flex items-center justify-center shrink-0">
+                    {activeScriptSource?.type === 'local' && (
+                      <div className="opacity-0 group-hover/source:opacity-100 transition-all duration-300 translate-x-2 group-hover/source:translate-x-0" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-lg p-0.5 shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (activeScriptSource.path) {
+                                removeCustomScriptFolder(activeScriptSource.path);
+                                clearScriptsForSource(activeScriptSource.path);
+                                setActiveScriptSource(null);
+                                setSelectedScript(null);
+                              }
+                            }}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1.5"
+                            title="Unload Source"
+                          >
+                            <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
-                <div className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No folders added</div>
-              )}
-
-              {activeScriptSource?.type === 'local' && (
-                <div className="flex items-center justify-between px-1 animate-in fade-in duration-300">
-                  <div className="flex items-center overflow-hidden">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-2 shrink-0" />
-                    <span className="text-[11px] font-bold text-amber-500/70 uppercase tracking-tighter truncate max-w-[120px]">
-                      {getFolderNameFromPath(activeScriptSource.path || '')}
-                    </span>
-                  </div>
-                  <button
-                    className="text-[11px] font-black text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-0.5 rounded-lg transition-all"
-                    onClick={() => {
-                      if (activeScriptSource.path) {
-                        removeCustomScriptFolder(activeScriptSource.path);
-                        clearScriptsForSource(activeScriptSource.path);
-                        setActiveScriptSource(null);
-                        setSelectedScript(null);
-                      }
-                    }}
-                  >
-                    UNLOAD
-                  </button>
-                </div>
+                <div className="text-sm text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No folders added</div>
               )}
             </div>
           </SidebarSection>
@@ -567,11 +666,11 @@ export const Sidebar = () => {
                 onClick={() => { setSelectedScript(script); setActiveInspectorTab('parameters'); }}
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-3 shrink-0 group-hover:scale-125 transition-transform" />
-                <span className="truncate text-[13px] font-bold leading-none">{(script.metadata?.displayName || script.name).replace(/\.cs$/, "")}</span>
+                <span className="truncate text-sm font-bold leading-none">{(script.metadata?.displayName || script.name).replace(/\.cs$/, "")}</span>
               </li>
             ))}
             {scripts.filter((s: Script) => s.isFavorite).length === 0 && (
-              <li className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No favorites yet</li>
+              <li className="text-sm text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No favorites yet</li>
             )}
           </ul>
         </SidebarSection>
@@ -608,11 +707,11 @@ export const Sidebar = () => {
                   onClick={() => { setSelectedScript(script); setActiveInspectorTab('parameters'); }}
                 >
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 dark:bg-indigo-500 mr-3 shrink-0 group-hover:scale-125 transition-transform" />
-                  <span className="truncate text-[13px] font-bold leading-none">{(script.metadata?.displayName || script.name).replace(/\.cs$/, "")}</span>
+                  <span className="truncate text-sm font-bold leading-none">{(script.metadata?.displayName || script.name).replace(/\.cs$/, "")}</span>
                 </li>
               ))}
             {recentScripts.length === 0 && (
-              <li className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No recent activity</li>
+              <li className="text-sm text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No recent activity</li>
             )}
           </ul>
         </SidebarSection>
@@ -646,7 +745,7 @@ export const Sidebar = () => {
                 `}
                 onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
               >
-                <span className="text-[13px] font-bold truncate leading-none">{String(category)}</span>
+                <span className="text-sm font-bold truncate leading-none">{String(category)}</span>
                 <button
                   className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                   onClick={(e) => {
@@ -660,7 +759,7 @@ export const Sidebar = () => {
               </li>
             ))}
             {customCategories.length === 0 && (
-              <li className="text-[11px] text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">Environment default sets</li>
+              <li className="text-sm text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">Environment default sets</li>
             )}
           </ul>
         </SidebarSection>
@@ -690,11 +789,11 @@ export const Sidebar = () => {
                 <select
                   value={selectedUnclonedSourceId ?? ''}
                   onChange={(e) => setSelectedUnclonedSourceId(e.target.value === '' ? null : Number(e.target.value))}
-                  className="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700/50 rounded-xl pl-3 pr-8 py-2 text-[13px] font-black text-gray-700 dark:text-gray-200 focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all cursor-pointer group-hover:border-gray-200 dark:group-hover:border-gray-700 shadow-sm"
+                  className="w-full appearance-none bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700/50 rounded-xl pl-3 pr-8 py-2 text-sm font-black text-gray-700 dark:text-gray-200 focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all cursor-pointer group-hover:border-gray-200 dark:group-hover:border-gray-700 shadow-sm"
                 >
-                  <option value="" disabled>Cloud availability...</option>
+                  <option value="" disabled className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">Cloud availability...</option>
                   {currentTeamSources.map((source) => (
-                    <option key={source.id} value={source.id}>
+                    <option key={source.id} value={source.id} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
                       {source.name}
                     </option>
                   ))}
@@ -719,6 +818,16 @@ export const Sidebar = () => {
           </SidebarSection>
         )}
 
+      </div>
+
+      {/* Foundry Footer */}
+      <div className="p-6 border-t border-gray-50 dark:border-gray-800/50 bg-gray-50/20 dark:bg-gray-900/10">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 italic leading-tight">
+            Here begins the forging of your BIM reality...
+          </p>
+          <div className="w-8 h-0.5 bg-blue-500/30 rounded-full" />
+        </div>
       </div>
     </div>
   );

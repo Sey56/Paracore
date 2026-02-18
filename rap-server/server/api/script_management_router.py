@@ -51,7 +51,40 @@ class SaveScriptRequest(BaseModel):
 class RegisterWatchdogSourceRequest(BaseModel):
     path: str
 
+class InitializeSourceRequest(BaseModel):
+    path: str
+
 # --- Endpoints ---
+
+@router.post("/api/scripts/initialize-source", tags=["Script Management"])
+async def initialize_source(request: InitializeSourceRequest):
+    """
+    Initializes a folder as a Paracore Script Source by creating the .paracore marker file.
+    """
+    try:
+        result = script_service.initialize_source_logic(request.path)
+        return JSONResponse(content=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/scripts/check-lock", tags=["Script Management"])
+async def check_script_lock(request: Dict[str, str]):
+    """
+    Proactively checks if a script folder is locked by an IDE or the OS.
+    """
+    path = request.get("scriptPath")
+    if not path:
+        raise HTTPException(status_code=400, detail="scriptPath is required")
+    
+    from ide_manager import is_folder_locked, normalize_ide_path, ACTIVE_IDE_SESSIONS
+    norm_path = normalize_ide_path(path)
+    locked = is_folder_locked(norm_path)
+    
+    return {
+        "locked": locked,
+        "path": norm_path,
+        "is_tracked": norm_path in ACTIVE_IDE_SESSIONS
+    }
 
 @router.post("/api/watchdogs/register-source", tags=["Script Management"])
 async def register_watchdog_source(request: RegisterWatchdogSourceRequest, current_user: CurrentUser = Depends(get_current_user)):

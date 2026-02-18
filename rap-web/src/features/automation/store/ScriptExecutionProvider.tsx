@@ -251,7 +251,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const buildTool = useCallback(async (script: Script) => {
     if (!script || !script.absolutePath) return { success: false, message: "Invalid path." };
     try {
-      showNotification(`Building protected tool...`, "info");
+      showNotification(`Forging automation unit...`, "info");
       const response = await api.post("/api/scripts/build-tool", { scriptPath: script.absolutePath });
       if (response.data.is_success) {
         showNotification(response.data.message, "success");
@@ -259,7 +259,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         return { success: true, message: response.data.message };
       } else throw new Error(response.data.detail);
     } catch (error: any) {
-      showNotification(error.message || "Failed to build tool.", "error");
+      showNotification(error.message || "Failed to forge unit.", "error");
       return { success: false, message: error.message };
     }
   }, [showNotification, selectedFolder, loadScriptsFromPath]);
@@ -275,6 +275,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       showNotification(`Opening project in VS Code...`, "success");
     } catch (error) {
+      console.error("[EditScript] Error:", error);
       showNotification("Failed to open script in VSCode.", "error");
     }
   }, [user, cloudToken, showNotification]);
@@ -489,13 +490,18 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (contentResult) setCombinedScriptContent(contentResult);
       setSelectedScriptState({ ...script, parameters: finalParameters });
 
-      if (finalParameters.length > 0) {
-        showNotification(`Loaded ${finalParameters.length} parameters.`, "success");
-      } else {
-        showNotification("Script loaded (no parameters).", "info");
+      // V4: Only show notification for explicit user/agent actions, not silent refreshes
+      if (source !== 'refresh') {
+        if (finalParameters.length > 0) {
+          showNotification(`Loaded ${finalParameters.length} parameters.`, "success");
+        } else {
+          showNotification("Script loaded (no parameters).", "info");
+        }
       }
     } catch (err) {
-      showNotification("Error loading script.", "error");
+      if (source !== 'refresh') {
+        showNotification("Error loading script.", "error");
+      }
     }
   }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setScripts, showNotification, setAgentSelectedScriptPath, updateUserEditedParameters, setUserEditedScriptParameters, setDefaultDraftParameters]);
 
@@ -524,8 +530,20 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
         const updateParamValueAndReset = (p: ScriptParameter) => {
           if (p.name !== parameterName || isRangeUpdate) return p;
+          
           let defVal = p.defaultValue !== undefined ? p.defaultValue : "";
-          if (options && options.length > 0 && !options.includes(defVal)) defVal = options[0];
+          
+          // V4: Enhanced hydration for Multi-Select (Lists)
+          if (Array.isArray(defVal)) {
+            // Keep only default items that still exist in the new options
+            const validDefaults = defVal.filter(item => options?.includes(String(item)));
+            return { ...p, value: validDefaults };
+          }
+
+          // Standard single-value logic
+          if (options && options.length > 0 && !options.includes(String(defVal))) {
+            defVal = options[0];
+          }
           return { ...p, value: defVal };
         };
 

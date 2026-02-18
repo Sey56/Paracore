@@ -202,7 +202,8 @@ namespace Paracore.Addin.Handlers
                                 LastRun = metadata.LastRun,
                                 Dependencies = { metadata.Dependencies },
                                 DocumentType = metadata.DocumentType,
-                                UsageExamples = { metadata.UsageExamples }
+                                UsageExamples = { metadata.UsageExamples },
+                                IsWatchdog = metadata.IsWatchdog
                             };
 
                             foreach (var p in parameters)
@@ -298,6 +299,7 @@ namespace Paracore.Addin.Handlers
                                 dependencies = metadata.Dependencies,
                                 document_type = metadata.DocumentType,
                                 usage_examples = metadata.UsageExamples,
+                                isWatchdog = metadata.IsWatchdog,
                                 dateCreated = DateTime.FromFileTime(new DirectoryInfo(projectDir).CreationTime.ToFileTime()).ToString("o"),
                                 dateModified = DateTime.FromFileTime(new DirectoryInfo(projectDir).LastWriteTime.ToFileTime()).ToString("o")
                             },

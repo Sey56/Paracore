@@ -88,6 +88,7 @@ export interface ScriptMetadata {
   usage_examples?: string[];
   isProtected?: boolean;
   isCompiled?: boolean;
+  isWatchdog?: boolean;
 }
 
 export interface RawGitInfoFromApi {
@@ -111,6 +112,7 @@ export interface RawScriptMetadataFromApi {
   dateModified?: string;
   is_protected?: boolean;
   is_compiled?: boolean;
+  is_watchdog?: boolean;
 }
 
 export interface RawScriptFromApi {

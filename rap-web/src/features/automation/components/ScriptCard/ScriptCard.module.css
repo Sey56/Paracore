@@ -16,19 +16,77 @@
 /* Script type visual differentiation */
 .scriptCard {
   position: relative;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.multiFile {
-  border-left: 3px solid var(--accent-color, #3b82f6);
+:global(.dark) .scriptCard {
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
+/* Hover Lift & Glow - Standardized */
+.scriptCard:hover:not(.focusHero) {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+:global(.dark) .scriptCard:hover:not(.focusHero) {
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* Automation Tool (.ptool) Branding - Muted Steel */
 .toolFile {
-  border-right: 3px solid #f59e0b;
-  /* Amber */
+  border-left: 2px solid #94a3b8 !important; /* Calm Muted Slate Accent */
+}
+
+.toolFile:hover:not(.focusHero) {
+  border-color: rgba(148, 163, 184, 0.4) !important;
+  box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.08), 0 0 15px rgba(148, 163, 184, 0.05) !important;
+}
+
+:global(.dark) .toolFile:hover:not(.focusHero) {
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2), 0 0 15px rgba(148, 163, 184, 0.1) !important;
+}
+
+/* Sentinel Guard Styling - Identifiable & Premium */
+.guardCard {
+  border-left: 3px solid #10b981 !important; /* Emerald-Cyan Sharp Edge */
+  background: #f8faff !important; /* Soft Cobalt Surface */
+}
+
+:global(.dark) .guardCard {
+  background: #1e293b !important; /* Deep Navy Surface */
+  border-left-color: #34d399 !important;
+}
+
+.guardCard:hover:not(.focusHero) {
+  border-color: #f59e0b !important; /* Harmonized with Red-Gold Shield */
+  box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.1), 0 0 15px rgba(245, 158, 11, 0.1) !important;
+}
+
+@keyframes sentinelStrongPulse {
+  0% { transform: scale(1); filter: drop-shadow(0 0 0px #f59e0b); opacity: 1; }
+  50% { transform: scale(1.3); filter: drop-shadow(0 0 10px #ef4444); opacity: 0.8; }
+  100% { transform: scale(1); filter: drop-shadow(0 0 0px #f59e0b); opacity: 1; }
+}
+
+.sentinelPulse {
+  animation: sentinelStrongPulse 3s infinite ease-in-out;
+  display: inline-block;
+  color: #f59e0b !important; /* Royal Gold */
+}
+
+/* Specific icon glow */
+.guardIcon {
+  filter: drop-shadow(0 0 2px rgba(180, 83, 9, 0.2));
+  color: #b45309 !important; /* Muted Bronze/Gold for Inactive state */
+  opacity: 0.8;
+  transition: all 0.3s ease;
 }
 
 .multiFileBadge {

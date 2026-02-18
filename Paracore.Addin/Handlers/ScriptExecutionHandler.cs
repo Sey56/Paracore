@@ -56,6 +56,60 @@ namespace Paracore.Addin.Handlers
 
                 var projectsPtr = isSingleProject ? new[] { request.Path } : System.IO.Directory.GetDirectories(request.Path);
 
+                // V4: Also scan for .wtool (Binary Sentinels) in the root path
+                var wtoolFiles = System.IO.Directory.GetFiles(request.Path, "*.wtool");
+                foreach (var wtoolPath in wtoolFiles)
+                {
+                    try
+                    {
+                        string json = System.IO.File.ReadAllText(wtoolPath);
+                        using (JsonDocument doc = JsonDocument.Parse(json))
+                        {
+                            var root = doc.RootElement;
+                            if (root.TryGetProperty("assembly", out var assemblyElem) && 
+                                root.TryGetProperty("parameters", out var paramsElem))
+                            {
+                                byte[] assemblyBytes = Convert.FromBase64String(assemblyElem.GetString());
+                                
+                                // Map parameters to a flat dictionary for the registry
+                                var parameters = new Dictionary<string, object>();
+                                foreach (var p in paramsElem.EnumerateArray())
+                                {
+                                    string name = p.GetProperty("name").GetString();
+                                    string valJson = p.TryGetProperty("defaultValueJson", out var dj) ? dj.GetString() : "null";
+                                    try { parameters[name] = JsonSerializer.Deserialize<object>(valJson); } catch { }
+                                }
+
+                                // System metadata
+                                parameters["__absolute_path__"] = wtoolPath.Replace('\\', '/');
+                                parameters["__script_name__"] = System.IO.Path.GetFileName(wtoolPath);
+                                parameters["__is_watchdog_registration__"] = true;
+
+                                string paramsJson = JsonSerializer.Serialize(parameters);
+
+                                if (_uiApp != null)
+                                {
+                                    var serverContext = new ServerContext(_uiApp);
+                                    CoreScriptExecutionDispatcher.Instance.QueueBinaryScriptFromServer(
+                                        assemblyBytes,
+                                        paramsJson,
+                                        serverContext,
+                                        isSilent: true,
+                                        priority: ExecutionPriority.Normal);
+
+                                    count++;
+                                    details.Add($"Loaded Binary Sentinel: '{System.IO.Path.GetFileName(wtoolPath)}'");
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"[ScriptExecutionHandler] Failed to load binary sentinel {wtoolPath}: {ex.Message}");
+                        details.Add($"Error (Binary): '{System.IO.Path.GetFileName(wtoolPath)}' ({ex.Message})");
+                    }
+                }
+
                 foreach (var projectPath in projectsPtr)
                 {
                     string folderName = System.IO.Path.GetFileName(projectPath);

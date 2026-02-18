@@ -196,7 +196,8 @@ def get_script_metadata(script_files):
         "website": m.website,
         "last_run": m.last_run,
         "is_protected": m.is_protected,
-        "is_compiled": m.is_compiled
+        "is_compiled": m.is_compiled,
+        "is_watchdog": m.is_watchdog
     }
 
     return {
@@ -292,8 +293,9 @@ def get_bulk_metadata(projects_data: list):
             "usage_examples": list(m.usage_examples),
             "website": m.website,
             "lastRun": m.last_run,
-            "is_protected": m.is_protected,
-            "is_compiled": m.is_compiled
+            "isProtected": m.is_protected,
+            "isCompiled": m.is_compiled,
+            "isWatchdog": m.is_watchdog
         }
         
         params_list = []

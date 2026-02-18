@@ -29,14 +29,19 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     return localStorage.getItem('isLayoutSwapped') === 'true';
   });
 
-  const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource>(() => {
-    try {
-      const stored = localStorage.getItem('activeScriptSource');
-      return stored ? JSON.parse(stored) : null;
-    } catch (e) {
-      return null;
+  const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource | null>(null);
+
+  // Load activeScriptSource with user-aware key
+  useEffect(() => {
+    const userId = user?.id || 'anon';
+    const key = `activeScriptSource_${userId}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try { setActiveScriptSource(JSON.parse(stored)); } catch { setActiveScriptSource(null); }
+    } else {
+      setActiveScriptSource(null);
     }
-  });
+  }, [user?.id]);
 
   const toggleLayoutSwap = useCallback(() => {
     setIsLayoutSwapped(prev => {
@@ -178,12 +183,14 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Effect to save activeScriptSource to localStorage whenever it changes
   useEffect(() => {
+    const userId = user?.id || 'anon';
+    const key = `activeScriptSource_${userId}`;
     if (activeScriptSource) {
-      localStorage.setItem("activeScriptSource", JSON.stringify(activeScriptSource));
+      localStorage.setItem(key, JSON.stringify(activeScriptSource));
     } else {
-      localStorage.removeItem("activeScriptSource");
+      localStorage.removeItem(key);
     }
-  }, [activeScriptSource]);
+  }, [activeScriptSource, user?.id]);
 
   const contextValue = useMemo(() => ({
     isSidebarOpen,

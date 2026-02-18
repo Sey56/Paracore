@@ -19,5 +19,6 @@ namespace CoreScript.Engine.Models
         public List<string> UsageExamples { get; set; } = new List<string>();
         public bool IsProtected { get; set; } = false;
         public bool IsCompiled { get; set; } = false;
+        public bool IsWatchdog { get; set; } = false;
     }
 }

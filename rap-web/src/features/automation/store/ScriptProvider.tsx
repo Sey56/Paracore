@@ -35,27 +35,45 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { showNotification } = useNotifications();
   const { activeScriptSource, setActiveScriptSource } = useUI();
 
-  const [userSourcePaths, setUserSourcePaths] = useLocalStorage<Record<number, { path: string; name: string }>>('rap_userSourcePaths', {});
-  const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>('agentScriptsPath', null);
+  const [userSourcePaths, setUserSourcePaths] = useLocalStorage<Record<number, { path: string; name: string }>>(`rap_userSourcePaths_${user?.id || 'anon'}`, {});
+  const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>(`agentScriptsPath_${user?.id || 'anon'}`, null);
 
   const setUserSourcePath = useCallback((sourceId: number, path: string, name: string) => {
     setUserSourcePaths(prev => ({ ...prev, [sourceId]: { path, name } }));
   }, [setUserSourcePaths]);
 
-  const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>('rap_customScriptFolders', []);
-  const [watchdogSources, setWatchdogSources] = useLocalStorage<string[]>('rap_watchdogSources', []);
+  const [customScriptFolders, setCustomScriptFolders] = useState<string[]>([]);
+  
+  // Load/Save customScriptFolders with user-aware key
+  useEffect(() => {
+    const userId = user?.id || 'anon';
+    const key = `rap_customScriptFolders_${userId}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try { setCustomScriptFolders(JSON.parse(stored)); } catch { setCustomScriptFolders([]); }
+    } else {
+      setCustomScriptFolders([]);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    const userId = user?.id || 'anon';
+    const key = `rap_customScriptFolders_${userId}`;
+    localStorage.setItem(key, JSON.stringify(customScriptFolders));
+  }, [customScriptFolders, user?.id]);
+
+  const [watchdogSources, setWatchdogSources] = useLocalStorage<string[]>(`rap_watchdogSources_${user?.id || 'anon'}`, []);
 
   // Watchdog Roots (Display list)
-  const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>('rap_configuredWatchdogRoots', []);
+  const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>(`rap_configuredWatchdogRoots_${user?.id || 'anon'}`, []);
   
   // Initialize to true if there are any configured watchdog roots or sources, otherwise false.
   // This ensures the overlay is shown from the very first render if needed.
   const [isArmingWatchdogs, setIsArmingWatchdogs] = useState(() => {
-    // Access localStorage directly during initialization for immediate state.
-    // This is safe as useLocalStorage also does this for initialValue.
+    const userId = user?.id || 'anon'; // Note: In initial useState, 'user' might not be ready yet
     try {
-      const storedRoots = localStorage.getItem('rap_configuredWatchdogRoots');
-      const storedSources = localStorage.getItem('rap_watchdogSources');
+      const storedRoots = localStorage.getItem(`rap_configuredWatchdogRoots_${userId}`);
+      const storedSources = localStorage.getItem(`rap_watchdogSources_${userId}`);
       const hasStoredRoots = storedRoots ? JSON.parse(storedRoots).length > 0 : false;
       const hasStoredSources = storedSources ? JSON.parse(storedSources).length > 0 : false;
       return hasStoredRoots || hasStoredSources;
@@ -70,10 +88,11 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     const rearmAndCleanup = async () => {
       const normalize = (p: string) => p.replace(/\\/g, '/').toLowerCase();
+      const userId = user?.id || 'anon';
 
       // Read current state from refs or fresh from storage to avoid dependency loops
-      const currentRoots = JSON.parse(localStorage.getItem('rap_configuredWatchdogRoots') || '[]');
-      const currentSources = JSON.parse(localStorage.getItem('rap_watchdogSources') || '[]');
+      const currentRoots = JSON.parse(localStorage.getItem(`rap_configuredWatchdogRoots_${userId}`) || '[]');
+      const currentSources = JSON.parse(localStorage.getItem(`rap_watchdogSources_${userId}`) || '[]');
 
       const hasWatchdogConfig = currentRoots.length > 0 || currentSources.length > 0;
       if (!hasWatchdogConfig) {
@@ -153,13 +172,6 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWatchdogSources(prev => prev.filter(p => p !== path));
   }, [setConfiguredWatchdogRoots, setWatchdogSources]);
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('rap_cloud_token');
-    if (!isAuthenticated && !storedToken) {
-      setCustomScriptFolders([]);
-    }
-  }, [isAuthenticated, setCustomScriptFolders]);
-
   const [remoteScriptSources, setRemoteScriptSources] = useState<Record<number, TeamScriptSource[]>>({});
 
   const fetchRemoteScriptSources = useCallback(async () => {
@@ -184,9 +196,9 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [fetchRemoteScriptSources, activeTeam]);
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [favoriteScripts, setFavoriteScripts] = useLocalStorage<string[]>('rap_favoriteScripts', []);
-  const [recentScripts, setRecentScripts] = useLocalStorage<string[]>('rap_recentScripts', []);
-  const [lastRunTimes, setLastRunTimes] = useLocalStorage<Record<string, string>>('rap_lastRunTimes', {});
+  const [favoriteScripts, setFavoriteScripts] = useLocalStorage<string[]>(`rap_favoriteScripts_${user?.id || 'anon'}`, []);
+  const [recentScripts, setRecentScripts] = useLocalStorage<string[]>(`rap_recentScripts_${user?.id || 'anon'}`, []);
+  const [lastRunTimes, setLastRunTimes] = useLocalStorage<Record<string, string>>(`rap_lastRunTimes_${user?.id || 'anon'}`, {});
 
   const toggleFavoriteScript = useCallback((scriptId: string) => {
     setFavoriteScripts(prev => {
@@ -313,10 +325,11 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
       showNotification(scaffoldingOnly ? "Scaffolding cleared" : "Script deleted", "success");
-      return true;
+      return { success: true };
     } catch (error: any) {
-      showNotification(scaffoldingOnly ? "Failed to clear scaffolding" : "Failed to delete script", "error");
-      return false;
+      const msg = error.response?.data?.detail || (scaffoldingOnly ? "Failed to clear scaffolding" : "Failed to delete script");
+      showNotification(msg, "error");
+      return { success: false, message: msg };
     }
   }, [selectedFolder, loadScriptsFromPath, showNotification]);
 
@@ -333,6 +346,16 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setCustomScriptFolders]);
 
   const clearAllCustomScriptFolders = useCallback(async () => setCustomScriptFolders([]), [setCustomScriptFolders]);
+
+  // V4 HEALING: Ensure active local source is in customScriptFolders
+  useEffect(() => {
+    if (activeScriptSource?.type === 'local' && activeScriptSource.path) {
+      if (!customScriptFolders.includes(activeScriptSource.path)) {
+        console.log("[ScriptProvider] Healing: Restoring active source to folder list", activeScriptSource.path);
+        setCustomScriptFolders(prev => [...new Set([...prev, activeScriptSource.path])]);
+      }
+    }
+  }, [activeScriptSource, customScriptFolders, setCustomScriptFolders]);
 
   const addRemoteScriptSource = useCallback(async (teamId: number, source: TeamScriptSource) => {
     await fetchRemoteScriptSources();
@@ -363,7 +386,15 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!script) return;
     try {
       const response = await api.post("/api/script-metadata", { scriptPath: script.absolutePath });
-      setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: { ...s.metadata, ...response.data.metadata } } : s));
+      setScripts(prev => prev.map(s => s.id === scriptId ? { 
+        ...s, 
+        metadata: { 
+          ...s.metadata, 
+          ...response.data.metadata,
+          // V4: CRITICAL PRESERVATION
+          isWatchdog: s.metadata.isWatchdog || response.data.metadata.isWatchdog 
+        } 
+      } : s));
     } catch (err) { }
   }, []);
 
@@ -371,14 +402,22 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const paramsRes = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath });
       const metadataRes = await api.post("/api/script-metadata", { scriptPath: script.absolutePath });
-      setScripts(prev => prev.map(s => s.id === script.id ? { ...s, parameters: paramsRes.data.parameters, metadata: { ...s.metadata, ...metadataRes.data.metadata } } : s));
+      setScripts(prev => prev.map(s => s.id === script.id ? { 
+        ...s, 
+        parameters: paramsRes.data.parameters, 
+        metadata: { 
+          ...s.metadata, 
+          ...metadataRes.data.metadata,
+          // V4: CRITICAL PRESERVATION
+          isWatchdog: s.metadata.isWatchdog || metadataRes.data.metadata.isWatchdog
+        } 
+      } : s));
     } catch (err) { }
   }, []);
 
   const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, any>>({});
 
   const fetchActiveSyncSessions = useCallback(async () => {
-    if (!localStorage.getItem('rap_cloud_token')) return;
     try {
       const response = await silentApi.get('/api/sync/active-sessions');
       if (response.data) setActiveSyncSessions(response.data);
@@ -386,15 +425,17 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
     fetchActiveSyncSessions();
     const interval = setInterval(fetchActiveSyncSessions, 2000);
     return () => clearInterval(interval);
-  }, [fetchActiveSyncSessions, isAuthenticated]);
+  }, [fetchActiveSyncSessions]);
 
   const isSyncActive = useCallback((scriptPath: string) => {
+    if (!scriptPath || !activeSyncSessions) return false;
     const normalized = scriptPath.replace(/\\/g, '/').toLowerCase();
-    return Object.keys(activeSyncSessions).some(key => key.toLowerCase() === normalized);
+    return Object.keys(activeSyncSessions).some(key => 
+      key.replace(/\\/g, '/').toLowerCase() === normalized
+    );
   }, [activeSyncSessions]);
 
   const contextValue = useMemo(() => ({

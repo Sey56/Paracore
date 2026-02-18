@@ -55,6 +55,7 @@ namespace CoreScript.Engine.Core
             // ---------------------
             
             metadata.DocumentType = "Any"; // Default value
+            metadata.IsWatchdog = Regex.IsMatch(scriptContent, @"Watchdog\s*\(");
 
             SyntaxTree tree = CSharpSyntaxTree.ParseText(scriptContent);
             var root = tree.GetRoot();

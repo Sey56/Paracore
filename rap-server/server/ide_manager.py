@@ -37,36 +37,15 @@ def load_ide_sessions():
         try:
             with open(SESSIONS_FILE, "r") as f:
                 data = json.load(f)
-                
-                # V4: Multi-stage Pruning
-                # 1. Path must exist
-                # 2. Must have been touched in the last 24 hours (86400 seconds)
-                now = time.time()
-                pruned_data = {}
-                for path, session_info in data.items():
-                    # Ensure session_info is a dict
-                    info = session_info if isinstance(session_info, dict) else {"last_modified": now}
-                    last_mod = info.get("last_modified", 0)
-                    
-                    if os.path.isdir(path):
-                        if (now - last_mod) < 86400: # 24 hour window
-                            pruned_data[path] = info
-                        else:
-                            logger.info(f"Pruning stale IDE session (inactive > 24h): {path}")
-                    else:
-                        logger.info(f"Pruning non-existent IDE session: {path}")
-                
-                ACTIVE_IDE_SESSIONS = pruned_data
-                
-                # Restart watchers for valid active sessions
+                # Ensure all entries are dictionaries
+                ACTIVE_IDE_SESSIONS = {
+                    k: (v if isinstance(v, dict) else {"last_modified": time.time()})
+                    for k, v in data.items()
+                }
+                # Restart watchers for existing sessions
                 for path in ACTIVE_IDE_SESSIONS.keys():
                     _start_watcher(path)
-                    
-                # Save the pruned list back to file
-                if len(ACTIVE_IDE_SESSIONS) != len(data):
-                    save_ide_sessions()
-        except Exception as e:
-            logger.error(f"Failed to load IDE sessions: {e}")
+        except:
             ACTIVE_IDE_SESSIONS = {}
 
 def save_ide_sessions():
@@ -111,8 +90,10 @@ def remove_active_ide_session(script_path: str):
         del ACTIVE_IDE_SESSIONS[normalized_path]
         # Stop watcher
         if normalized_path in _watchers:
-            _observer.unschedule(_watchers[normalized_path])
-            del _watchers[normalized_path]
+            try:
+                _observer.unschedule(_watchers[normalized_path])
+                del _watchers[normalized_path]
+            except: pass
         save_ide_sessions()
 
 def is_ide_session_active(script_path: str) -> bool:

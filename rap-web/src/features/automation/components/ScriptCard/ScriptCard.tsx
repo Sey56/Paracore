@@ -16,11 +16,12 @@ import {
   faTools,
   faBullseye,
   faTrash,
-  faSyncAlt
+  faSyncAlt,
+  faShieldHeart
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import { useRevitStatus } from "@/hooks/useRevitStatus";
-import { Script } from "@/types/scriptModel";
+import { Script, ScriptParameter } from "@/types/scriptModel";
 import { useScriptExecution } from "@/features/automation";
 import { useScripts } from "@/features/automation";
 import { useUI } from "@/hooks/useUI";
@@ -28,6 +29,7 @@ import { filterVisibleParameters, validateParameters } from '@/utils/parameterVi
 import styles from './ScriptCard.module.css';
 import { useAuth } from '@/features/auth';
 import { Modal } from '@/components/common/Modal';
+import { useWatchdog } from "@/context/providers/WatchdogProvider";
 
 export interface ScriptCardProps {
   script: Script;
@@ -62,15 +64,17 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     renameScript,
     userEditedScriptParameters
   } = useScriptExecution();
-  const { toggleFavoriteScript, deleteScript } = useScripts();
+  const { toggleFavoriteScript, deleteScript, isSyncActive } = useScripts();
   const { setActiveInspectorTab } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
-  const { isAuthenticated, activeRole, user } = useAuth();
+  const { isAuthenticated, activeRole, user, cloudToken } = useAuth();
+  const { watchdogs } = useWatchdog();
   const [showMenu, setShowMenu] = React.useState(false);
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [renameValue, setRenameValue] = React.useState('');
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
   const menuRef = React.useRef<HTMLDivElement>(null);
   const renameInputRef = React.useRef<HTMLInputElement>(null);
@@ -92,7 +96,28 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   const isSelected = selectedScript?.id === script.id;
   const isRunning = runningScriptPath === script.id;
-  const isProtectedTool = script.metadata?.isProtected === true || script.metadata?.isCompiled === true || script.absolutePath.endsWith('.ptool');
+  
+  // Robust Type Identification
+  const path = (script.absolutePath || script.id || script.name || "").toLowerCase().replace(/\\/g, '/');
+  const isWTool = path.endsWith('.wtool') || path.split('/').pop()?.includes('.wtool');
+  const isPTool = path.endsWith('.ptool') || path.split('/').pop()?.includes('.ptool');
+  
+  // V4: Extra-aggressive Sentinel detection
+  const isGuard = script.metadata?.isWatchdog === true || 
+                  script.metadata?.is_watchdog === true || 
+                  (script.metadata as any)?.IsWatchdog === true ||
+                  isWTool === true;
+
+  const isProtectedTool = script.metadata?.isProtected === true || script.metadata?.isCompiled === true || isPTool || isWTool;
+
+  // Real-time armed status for pulse animation
+  const isArmed = React.useMemo(() => {
+    if (!isGuard) return false;
+    const normalizedCardPath = path.replace(/\\/g, '/');
+    return watchdogs.some(w => w.script_path.toLowerCase().replace(/\\/g, '/') === normalizedCardPath);
+  }, [isGuard, path, watchdogs]);
+
+  const isActiveInIDE = isSyncActive(script.absolutePath);
 
   // Connectivity logic
   const isParacoreConnected = ParacoreConnected;
@@ -115,12 +140,10 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
   const visibleParameters = filterVisibleParameters(currentParams);
   const validationErrors = validateParameters(visibleParameters);
-  const isParamsValid = validationErrors.length === 0;
 
   // V2.5: Permissive UI treatment - only grayscale the RUN button if disconnected
   // File operations (Edit, Rename) should always be available if authenticated
   const isRunButtonDisabled = !isParacoreConnected || !isCompatibleWithDocument || isRunning || validationErrors.length > 0 || !isAuthenticated;
-  const canEdit = !!user && ParacoreConnected && !script.metadata.isProtected;
 
   const getEditTitleMessage = () => {
     if (!user) return "You must be signed in to edit scripts";
@@ -194,47 +217,75 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
 
   const handleDelete = async (scaffoldingOnly: boolean = false) => {
     setIsDeleting(true);
-    const success = await deleteScript(script, scaffoldingOnly);
+    setDeleteError(null);
+    const result = await deleteScript(script, scaffoldingOnly);
     setIsDeleting(false);
-    if (success) {
+    
+    if (result.success) {
       setShowDeleteModal(false);
+    } else {
+      setDeleteError(result.message || "An unexpected error occurred.");
     }
   };
 
   const getDisplayName = () => {
-    return script.metadata.displayName || script.name.replace(/\.(cs|ptool)$/, "");
+    return script.metadata.displayName || script.name.replace(/\.(cs|ptool|wtool)$/i, "");
   };
 
   return (
     <div
       id={`script-card-${script.id}`}
       ref={cardRef}
-      className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500" : ""
-        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
+      className={`${styles.scriptCard} script-card group bg-white dark:bg-gray-800 rounded-xl shadow-md transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? "ring-2 ring-blue-500/50" : ""
+        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${isGuard ? styles.guardCard : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
       onClick={handleSelect}
     >
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={showDeleteModal}
         onClose={() => !isDeleting && setShowDeleteModal(false)}
-        title={isProtectedTool ? "Delete Protected Tool" : "Manage Script Project"}
+        title={isProtectedTool ? "Delete Sealed Automation Tool" : "Manage Automation Script"}
         size="md"
       >
         <div className="space-y-6">
+          {deleteError && (
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3 animate-in shake duration-300">
+              <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-red-800 dark:text-red-200">Deletion Failed</h4>
+                <p className="text-xs text-red-700/70 dark:text-red-400/70 leading-relaxed font-medium">{deleteError}</p>
+              </div>
+            </div>
+          )}
+
+          {isActiveInIDE && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-3">
+              <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-500 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-amber-800 dark:text-amber-200">
+                  Active IDE Session Detected
+                </h4>
+                <p className="text-xs text-amber-700/70 dark:text-amber-400/70 leading-relaxed font-medium">
+                  This automation script is currently open in VS Code. To prevent data corruption and Windows file lock errors, please close the script environment in VS Code before deleting.
+                </p>
+              </div>
+            </div>
+          )}
+
           {isProtectedTool ? (
             <div className="space-y-4">
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Are you sure you want to permanently delete the protected tool <span className="font-bold text-gray-900 dark:text-white">"{getDisplayName()}"</span>?
+                Are you sure you want to permanently delete the sealed tool <span className="font-bold text-gray-900 dark:text-white">"{getDisplayName()}"</span>?
               </p>
               <div
                 className="p-4 rounded-xl border-2 border-red-50 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 hover:border-red-200 dark:hover:border-red-800 transition-all cursor-pointer group"
                 onClick={() => !isDeleting && handleDelete(false)}
               >
                 <div className="flex justify-between items-center mb-1">
-                  <h4 className="font-bold text-red-700 dark:text-red-400">Delete Tool</h4>
+                  <h4 className="font-bold text-red-700 dark:text-red-400">Delete Sealed Tool</h4>
                   {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-red-500" /> : <FontAwesomeIcon icon={faTrash} className="text-red-400 group-hover:scale-110 transition-transform" />}
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the .ptool file from the library. This action cannot be undone.</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the .ptool or .wtool file from the library. This action cannot be undone.</p>
               </div>
             </div>
           ) : (
@@ -246,13 +297,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {/* Option 1: Clean Scaffolding */}
+                {/* Option 1: Clean Construction */}
                 <div
-                  className="p-4 rounded-xl border-2 border-blue-50 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-900/10 hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer group"
+                  className="p-4 rounded-xl border-2 border-blue-50 dark:border-blue-900/30 bg-blue-50/30 dark:bg-red-900/10 hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer group"
                   onClick={() => !isDeleting && handleDelete(true)}
                 >
                   <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-blue-700 dark:text-blue-400">Clear IDE Scaffolding</h4>
+                    <h4 className="font-bold text-blue-700 dark:text-blue-400">Clear Construction Files</h4>
                     {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-blue-500" /> : <FontAwesomeIcon icon={faBroom} className="text-blue-400 group-hover:scale-110 transition-transform" />}
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Removes .sln, .csproj and other IDE files. Your C# logic in <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">Scripts/</code> will be preserved.</p>
@@ -267,7 +318,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                     <h4 className="font-bold text-red-700 dark:text-red-400">Full Delete</h4>
                     {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-red-500" /> : <FontAwesomeIcon icon={faTrash} className="text-red-400 group-hover:scale-110 transition-transform" />}
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the entire project folder and all its contents. This cannot be undone.</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the entire automation folder and all its contents. This cannot be undone.</p>
                 </div>
               </div>
             </>
@@ -300,24 +351,41 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
               autoFocus
             />
           ) : (
-            <h3
-              className={`font-medium ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"} truncate w-full pr-6`}
-              title={getDisplayName()}
-            >
-              {getDisplayName()}
-              {isProtectedTool && (
-                <span className={`${styles.multiFileBadge} !bg-amber-100 !text-amber-700 dark:!bg-amber-900/30 dark:!text-amber-400 border border-amber-200 dark:border-amber-800 ml-2`}>
-                  <FontAwesomeIcon icon={faTools} className="mr-1" style={{ fontSize: '0.6rem' }} />
-                  Protected
-                </span>
+            <div className="flex items-center gap-2 overflow-hidden w-full">
+              {isGuard && (
+                <FontAwesomeIcon 
+                  icon={faShieldHeart} 
+                  className={`shrink-0 ${isArmed ? styles.sentinelPulse : styles.guardIcon}`} 
+                  style={{ fontSize: '0.9rem' }}
+                />
               )}
-            </h3>
+              {/* If it is a PTool (Protected but NOT a guard), show the Tool icon */}
+              {(isProtectedTool && !isGuard) && (
+                <FontAwesomeIcon 
+                  icon={faTools} 
+                  className="shrink-0 text-slate-400 dark:text-slate-500" 
+                  style={{ fontSize: '0.9rem' }}
+                />
+              )}
+              <h3
+                className={`font-medium flex-1 truncate ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"}`}
+                title={getDisplayName()}
+              >
+                {getDisplayName()}
+                {isProtectedTool && (
+                  <span className={`${styles.multiFileBadge} !bg-slate-100 !text-slate-600 dark:!bg-slate-900/40 dark:!text-slate-400 border border-slate-200 dark:border-slate-800 ml-2 whitespace-nowrap`}>
+                    <FontAwesomeIcon icon={faLock} className="mr-1" style={{ fontSize: '0.6rem' }} />
+                    Sealed
+                  </span>
+                )}
+              </h3>
+            </div>
           )}
           <button
             onClick={handleFavoriteClick}
             className={`${script.isFavorite
-              ? "text-yellow-400 hover:text-yellow-500"
-              : "text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300"
+              ? "text-yellow-400 hover:text-yellow-500 ml-2"
+              : "text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300 ml-2"
               }`}
           >
             {script.isFavorite ? <FontAwesomeIcon icon={fasStar} /> : <FontAwesomeIcon icon={farStar} />}
@@ -383,8 +451,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
             </button>
           )}
           {isProtectedTool && (
-            <div className="mr-2 text-amber-500" title="This is a protected tool">
-              <FontAwesomeIcon icon={faTools} />
+            <div className="mr-2 text-slate-400 dark:text-slate-500" title="This is a sealed binary tool">
+              <FontAwesomeIcon icon={isGuard ? faShieldHeart : faTools} />
             </div>
           )}
           <button
@@ -450,6 +518,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       onSelect();
+                      setDeleteError(null);
                       setShowDeleteModal(true);
                       setShowMenu(false);
                     }}

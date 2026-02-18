@@ -271,7 +271,7 @@ async def get_source_status(source_path: str, fetch: bool = False, current_user:
         raise HTTPException(status_code=500, detail=f"Failed to get git status: {e.stderr}")
 
 @router.post("/api/team-sources/commit", tags=["Team Sources"])
-async def commit_source_changes(req: CommitRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def commit_source_changes(req: Annotated[CommitRequest, Body()], current_user: CurrentUser = Depends(get_current_user)):
     if not os.path.isdir(req.source_path):
         raise HTTPException(status_code=404, detail="Source path not found.")
     try:
@@ -297,7 +297,6 @@ async def rename_script_endpoint(req: RenameRequest, current_user: CurrentUser =
     """
     # 1. Auto-stop sync session if exists
     stop_sync_session(req.oldPath)
-    remove_active_sync_session(req.oldPath)
     
     # 2. Perform rename via gRPC
     from grpc_client import rename_script as grpc_rename_script

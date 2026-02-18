@@ -68,9 +68,12 @@ async def build_tool_endpoint(request: BuildToolRequest):
         assembly_bytes = build_res.get("compiled_assembly")
         assembly_base64 = base64.b64encode(assembly_bytes).decode('utf-8')
 
-        # 3. Create .ptool package
+        # 3. Create package
         metadata["is_protected"] = True
         metadata["is_compiled"] = True
+        
+        is_watchdog = metadata.get("is_watchdog", False)
+        ext = ".wtool" if is_watchdog else ".ptool"
 
         ptool_data = {
             "metadata": metadata,
@@ -80,11 +83,9 @@ async def build_tool_endpoint(request: BuildToolRequest):
 
         # 4. Save path logic: Sibling to the project folder
         if is_dir:
-            # project_path = .../ScriptSource/TwistingTower
-            # output_path = .../ScriptSource/TwistingTower.ptool
-            output_path = project_path.rstrip("/\\") + ".ptool"
+            output_path = project_path.rstrip("/\\") + ext
         else:
-            output_path = project_path.replace(".cs", ".ptool")
+            output_path = project_path.replace(".cs", ext)
 
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(ptool_data, f, indent=2)
@@ -92,7 +93,7 @@ async def build_tool_endpoint(request: BuildToolRequest):
         return {
             "is_success": True,
             "output_path": output_path,
-            "message": f"Successfully built protected tool: {os.path.basename(output_path)}"
+            "message": f"Successfully built {'guard' if is_watchdog else 'protected tool'}: {os.path.basename(output_path)}"
         }
 
     except Exception as e:
