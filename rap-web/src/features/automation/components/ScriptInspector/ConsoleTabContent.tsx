@@ -77,7 +77,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     }
 
     if (!contentToCopy && !isRunning && !executionResult) {
-      contentToCopy = `Ready to execute script: ${scriptName}`;
+      contentToCopy = `Standing by`;
     }
 
     if (contentToCopy) {
@@ -303,7 +303,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
               </code>
             ) : !isRunning ? (
               <code className="p-0 m-0">
-                Ready to execute script: {scriptName}
+                Standing by
               </code>
             ) : null}
             {executionResult?.error && (
