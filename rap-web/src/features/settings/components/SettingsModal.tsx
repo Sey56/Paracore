@@ -102,7 +102,21 @@ const SettingsModal: React.FC = () => {
         </div>
 
         <div className="flex-1 p-8 overflow-y-auto">
-          {ActiveComponent && (
+          {!isAuthenticated ? (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-full">
+                <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Sign In Required</h3>
+                <p className="text-gray-600 dark:text-gray-400 max-w-xs mx-auto">
+                  Please sign in with Google or continue offline to access settings.
+                </p>
+              </div>
+            </div>
+          ) : ActiveComponent && (
             <>
               {isOffline && activeTab !== 'LLM Settings' && activeTab !== 'Sentinels' ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
