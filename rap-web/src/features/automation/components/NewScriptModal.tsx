@@ -213,7 +213,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         {activeTab === 'query' && (
                             <button
                                 onClick={() => setIsWatchdogModalOpen(true)}
-                                className="mr-auto px-4 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors flex items-center gap-2"
+                                disabled={!watchdogConfig || !watchdogConfig.rootGroup || watchdogConfig.rootGroup.children.length === 0}
+                                className="mr-auto px-4 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                                 <FontAwesomeIcon icon={faShieldHeart} className="text-amber-500" />
                                 Save as Watchdog
