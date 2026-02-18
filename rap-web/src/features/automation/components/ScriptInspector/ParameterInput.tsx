@@ -175,7 +175,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
                   selectedValues={value ? [value] : []}
                   onChange={(opt) => handleSelect(opt)}
                   rowHeight={32}
-                  height={Math.min(filteredOptions.length * 32, 300)} 
+                  height={Math.min(filteredOptions.length * 32, 300)}
                   type="single"
                 />
               ) : (
@@ -267,7 +267,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             selectedValues={selectedValues}
             onChange={handleItemChange}
             rowHeight={32}
-            height={224} 
+            height={224}
             disabled={disabled}
           />
         ) : (
@@ -309,7 +309,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       let selection: string | string[] | null = null;
       if (param.inputType === 'SaveFile') {
         selection = await save({
-          title: param.description || "Forge Output Destination",
+          title: param.description || "Output File Path",
           defaultPath: param.value as string || undefined,
           filters: [{ name: 'CSV', extensions: ['csv'] }, { name: 'All Files', extensions: ['*'] }]
         });

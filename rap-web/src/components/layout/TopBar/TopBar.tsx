@@ -100,13 +100,13 @@ export const TopBar: React.FC = () => {
     <div className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 z-40 relative">
       {/* 1. Logo & Sidebar Toggle Cluster */}
       <div className="flex items-center gap-4">
-        <button 
-          onClick={toggleSidebar} 
+        <button
+          onClick={toggleSidebar}
           className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300 active:scale-95"
         >
           <FontAwesomeIcon icon={faBars} className="text-lg" />
         </button>
-        
+
         <div className="flex items-center gap-2 pr-4 border-r border-slate-100 dark:border-slate-800">
           <img src="/RAP.png" alt="Paracore Logo" className="h-7 w-auto drop-shadow-sm" />
           <h1 className="font-black text-sm text-slate-800 dark:text-white tracking-[0.15em] uppercase">
@@ -127,13 +127,13 @@ export const TopBar: React.FC = () => {
       {/* 2. Central Navigation Center (Segmented Switcher) */}
       <div className="hidden lg:flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
         {[
-          { id: 'scripts', label: 'Foundry', icon: faRectangleList },
-          { id: 'agent', label: 'Command', icon: faRobot, needsCloud: true },
+          { id: 'scripts', label: 'Automations', icon: faRectangleList },
+          { id: 'agent', label: 'Agent', icon: faRobot, needsCloud: true },
           { id: 'playlists', label: 'Playlists', icon: faListUl, needsCloud: true }
         ].map(nav => {
           const isLocked = nav.needsCloud && (!activeTeam || activeTeam.team_id === 0);
           const isActive = activeMainView === nav.id;
-          
+
           return (
             <button
               key={nav.id}
@@ -145,10 +145,10 @@ export const TopBar: React.FC = () => {
               }}
               disabled={isLocked}
               className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300
-                ${isActive 
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]' 
-                  : isLocked 
-                    ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-40' 
+                ${isActive
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]'
+                  : isLocked
+                    ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-40'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               title={isLocked ? `${nav.label} (Team/Cloud Required)` : `${nav.label} Mode`}
@@ -164,8 +164,8 @@ export const TopBar: React.FC = () => {
       <div className="flex items-center gap-3">
         {/* Connection Status Badge (Live Feed Style) */}
         <div className={`hidden xl:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-500 shadow-sm
-          ${!ParacoreConnected 
-            ? "bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-800/50 text-rose-600 dark:text-rose-400" 
+          ${!ParacoreConnected
+            ? "bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-800/50 text-rose-600 dark:text-rose-400"
             : "bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400"
           }`}>
           <div className="relative flex h-2 w-2">
@@ -173,7 +173,7 @@ export const TopBar: React.FC = () => {
             <span className={`relative inline-flex rounded-full h-2 w-2 ${!ParacoreConnected ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter">
-            {ParacoreConnected ? 'Forge Online' : 'Forge Offline'}
+            {ParacoreConnected ? 'Connected' : 'Disconnected'}
           </span>
           {ParacoreConnected && revitStatus.document && (
             <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-1 pl-2">
@@ -206,10 +206,10 @@ export const TopBar: React.FC = () => {
             {isHelpDropdownOpen && (
               <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-2 animate-in slide-in-from-top-2 duration-200">
                 <button onClick={handleHelpClick} className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 w-full text-left transition-colors">
-                  Online Codex
+                  Online Help
                 </button>
                 <button onClick={handleAboutClick} className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 w-full text-left transition-colors">
-                  About Foundry
+                  About Paracore
                 </button>
               </div>
             )}
@@ -226,7 +226,7 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* About Modal */}
-      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="Foundry Registry" size="sm">
+      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="About Paracore" size="sm">
         <div className="p-8 space-y-6 text-center">
           <div className="flex justify-center">
             <div className="w-20 h-20 rounded-[2.5rem] bg-blue-600 dark:bg-blue-500 flex items-center justify-center shadow-2xl shadow-blue-500/30">
@@ -235,11 +235,11 @@ export const TopBar: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">Paracore</h2>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Foundry Core v4.0.0</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Paracore v4.0.0</p>
           </div>
           <div className="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
             <div className="flex justify-between items-center text-[10px] font-bold">
-              <span className="text-slate-400 uppercase">Artisan</span>
+              <span className="text-slate-400 uppercase">Developer</span>
               <span className="text-slate-700 dark:text-slate-200">Paras Codarch</span>
             </div>
             <div className="flex justify-between items-center text-[10px] font-bold">
@@ -247,11 +247,11 @@ export const TopBar: React.FC = () => {
               <span className="text-slate-700 dark:text-slate-200">Ethiopia</span>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => shell.open('https://sey56.github.io/paracore-help')}
             className="w-full py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
           >
-            Access Codex
+            Documentation
           </button>
         </div>
       </Modal>

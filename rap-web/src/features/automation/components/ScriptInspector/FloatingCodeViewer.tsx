@@ -98,12 +98,12 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
             disabled={!ParacoreConnected}
             className={`ml-3 bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold flex items-center ${!ParacoreConnected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'
               }`}
-            title={ParacoreConnected 
-              ? `Compile this script into a sealed ${script.metadata.isWatchdog ? '.wtool Sentinel' : '.ptool Tool'} package` 
-              : "Paracore is disconnected. Please connect to Revit to forge units."}
+            title={ParacoreConnected
+              ? `Compile this script into a sealed ${script.metadata.isWatchdog ? '.wtool Sentinel' : '.ptool Tool'} package`
+              : "Paracore is disconnected. Please connect to Revit to compile scripts."}
           >
             <FontAwesomeIcon icon={faShieldAlt} className="mr-2" />
-            {script.metadata.isWatchdog ? "Forge Sentinel" : "Forge Tool"}
+            {script.metadata.isWatchdog ? "Compile Sentinel" : "Compile Tool"}
           </button>
         )}
       </div>

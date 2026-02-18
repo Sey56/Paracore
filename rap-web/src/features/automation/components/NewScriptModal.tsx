@@ -130,7 +130,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
         }
     };
 
-    const modalTitle = isReplacing ? `Refine Automation` : 'New Automation';
+    const modalTitle = isReplacing ? `Edit Script` : 'New Script';
 
     return (
         <>
@@ -217,7 +217,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                 className="mr-auto px-4 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                                 <FontAwesomeIcon icon={faShieldHeart} className="text-amber-500" />
-                                Save as Watchdog
+                                Save as Sentinel
                             </button>
                         )}
                         <button onClick={() => onClose()} className="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Cancel</button>
@@ -226,7 +226,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                             disabled={(!scriptName && !isReplacing) || (activeTab === 'query' && !isCompiled)}
                             className="px-8 py-2.5 rounded-lg text-sm font-bold bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50 active:scale-95"
                         >
-                            {isReplacing ? 'Confirm Changes' : 'Create Tool'}
+                            {isReplacing ? 'Confirm Changes' : 'Create Script'}
                         </button>
                     </div>
                 </div>

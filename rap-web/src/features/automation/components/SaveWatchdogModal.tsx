@@ -61,14 +61,14 @@ export const SaveWatchdogModal: React.FC<SaveWatchdogModalProps> = ({ isOpen, on
             const response = await api.post('/api/query/save-as-watchdog', payload);
 
             if (response.data.success) {
-                showNotification(`Watchdog "${name}" created successfully!`, 'success');
+                showNotification(`Sentinel "${name}" created successfully!`, 'success');
                 onClose();
             } else {
-                showNotification('Failed to create watchdog script.', 'error');
+                showNotification('Failed to create sentinel script.', 'error');
             }
         } catch (error: any) {
             console.error('Failed to save watchdog:', error);
-            showNotification(error.response?.data?.detail || 'Failed to save watchdog script.', 'error');
+            showNotification(error.response?.data?.detail || 'Failed to save sentinel script.', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -108,7 +108,7 @@ export const SaveWatchdogModal: React.FC<SaveWatchdogModalProps> = ({ isOpen, on
                                         </div>
                                         <div>
                                             <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-gray-900 dark:text-gray-100">
-                                                Save as Watchdog
+                                                Save as Sentinel
                                             </Dialog.Title>
                                             <p className="text-xs text-gray-500 mt-1">Convert this query into a background monitor.</p>
                                         </div>
@@ -120,7 +120,7 @@ export const SaveWatchdogModal: React.FC<SaveWatchdogModalProps> = ({ isOpen, on
 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Watchdog Name</label>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Sentinel Name</label>
                                         <input
                                             type="text"
                                             value={name}
@@ -159,7 +159,7 @@ export const SaveWatchdogModal: React.FC<SaveWatchdogModalProps> = ({ isOpen, on
                                             </div>
                                         ) : (
                                             <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-lg text-xs text-amber-600 dark:text-amber-400 font-medium">
-                                                No Watchdog Sources configured. Please go to Settings &gt; Watchdog Settings to add a source folder first.
+                                                No Sentinel folders configured. Please go to Settings &gt; Sentinel Settings to add a source folder first.
                                             </div>
                                         )}
                                     </div>
@@ -180,7 +180,7 @@ export const SaveWatchdogModal: React.FC<SaveWatchdogModalProps> = ({ isOpen, on
                                         onClick={handleSave}
                                     >
                                         {isSaving ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faSave} />}
-                                        {isSaving ? 'Creating...' : 'Create Watchdog'}
+                                        {isSaving ? 'Creating...' : 'Create Sentinel'}
                                     </button>
                                 </div>
                             </Dialog.Panel>

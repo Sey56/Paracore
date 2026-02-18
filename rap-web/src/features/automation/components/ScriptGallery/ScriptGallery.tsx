@@ -223,7 +223,7 @@ export const ScriptGallery: React.FC = () => {
   const { ParacoreConnected } = useRevitStatus();
   const isParacoreDisconnected = !ParacoreConnected;
   const { scripts, selectedFolder, loadScriptsForFolder, favoriteScripts: favoriteIds } = useScripts();
-  const { isArmingWatchdogs } = useWatchdog(); 
+  const { isArmingWatchdogs } = useWatchdog();
   const {
     openNewScriptModal,
     closeNewScriptModal,
@@ -348,17 +348,17 @@ export const ScriptGallery: React.FC = () => {
       )
       : filteredBySidebarCategory;
 
-        const filteredByType = (() => {
-          if (typeFilter === 'all') return filteredByDefaultCategories;
-          
-          const checkPath = (s: Script) => (s.absolutePath || s.id || "").toLowerCase();
-          const isGuard = (s: Script) => s.metadata?.isWatchdog === true || s.metadata?.is_watchdog === true || checkPath(s).endsWith('.wtool') || checkPath(s).includes('.wtool');
-    
-          if (typeFilter === 'scripts') return filteredByDefaultCategories.filter(s => !isGuard(s));
-          if (typeFilter === 'guards') return filteredByDefaultCategories.filter(isGuard);
-          
-          return filteredByDefaultCategories;
-        })();
+    const filteredByType = (() => {
+      if (typeFilter === 'all') return filteredByDefaultCategories;
+
+      const checkPath = (s: Script) => (s.absolutePath || s.id || "").toLowerCase();
+      const isGuard = (s: Script) => s.metadata?.isWatchdog === true || s.metadata?.is_watchdog === true || checkPath(s).endsWith('.wtool') || checkPath(s).includes('.wtool');
+
+      if (typeFilter === 'scripts') return filteredByDefaultCategories.filter(s => !isGuard(s));
+      if (typeFilter === 'guards') return filteredByDefaultCategories.filter(isGuard);
+
+      return filteredByDefaultCategories;
+    })();
     let searchedScripts = filteredByType;
     if (searchTerm) {
       const { author, param, desc, doctype, created, modified, general, categories } = filters;
@@ -448,8 +448,8 @@ export const ScriptGallery: React.FC = () => {
                     key={category.name}
                     onClick={() => handleDefaultCategoryChange(category.name)}
                     className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all duration-200 border uppercase tracking-wider
-                      ${isActive 
-                        ? 'bg-blue-600 border-blue-500 text-white shadow-md' 
+                      ${isActive
+                        ? 'bg-blue-600 border-blue-500 text-white shadow-md'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-blue-400'
                       }`}
                   >
@@ -465,7 +465,7 @@ export const ScriptGallery: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <div className="w-1 h-4 bg-blue-600 dark:bg-blue-500 rounded-full" />
                   <h1 className="text-sm font-black text-slate-700 dark:text-slate-200 tracking-tight uppercase">
-                    {activeScriptSource?.type === 'team' ? 'Team Forge' : (activeScriptSource?.type === 'local' ? 'Local Foundry' : 'Automation Registry')}
+                    {activeScriptSource?.type === 'team' ? 'Team Scripts' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'All Scripts')}
                   </h1>
                 </div>
                 {/* Long Path as a subtle Station Location */}
@@ -483,7 +483,7 @@ export const ScriptGallery: React.FC = () => {
                   {favoriteScripts.length + otherScripts.length} UNITS STATIONED
                 </span>
                 <div className="flex items-center gap-2">
-                   <button
+                  <button
                     onClick={() => {
                       const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
                       if (path) loadScriptsForFolder(path);
@@ -498,7 +498,7 @@ export const ScriptGallery: React.FC = () => {
                       onClick={openNewScriptModal}
                       className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline"
                     >
-                      + Forge New
+                      + New Script
                     </button>
                   )}
                 </div>
@@ -526,7 +526,7 @@ export const ScriptGallery: React.FC = () => {
                 disabled={!isAuthenticated}
               />
             </div>
-            
+
             <div className="flex flex-wrap items-center gap-2">
               {/* Family Segmented Control */}
               <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700/50">
@@ -539,8 +539,8 @@ export const ScriptGallery: React.FC = () => {
                     key={t.id}
                     onClick={() => setTypeFilter(t.id as any)}
                     className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all
-                      ${typeFilter === t.id 
-                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                      ${typeFilter === t.id
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
                         : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                       }`}
                   >
@@ -575,8 +575,8 @@ export const ScriptGallery: React.FC = () => {
               <button
                 onClick={() => setIsCompactView(!isCompactView)}
                 className={`p-2 px-3 rounded-xl border transition-all flex items-center gap-2
-                  ${isCompactView 
-                    ? 'bg-blue-50 border-blue-200 text-blue-600' 
+                  ${isCompactView
+                    ? 'bg-blue-50 border-blue-200 text-blue-600'
                     : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400'
                   }`}
                 title={isCompactView ? "Expand List" : "Compact View"}

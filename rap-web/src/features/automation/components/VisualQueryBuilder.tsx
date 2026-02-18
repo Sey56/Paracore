@@ -457,7 +457,7 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState, onConfigCha
           <div className="flex items-center gap-4">
             <button onClick={handleGenerate} disabled={(rootGroup.children.length === 0 && selectedColumns.length === 0) || isGenerating} className="group px-8 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all disabled:opacity-30 flex items-center gap-3 active:scale-95">
               {isGenerating ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faCode} className="group-hover:rotate-12 transition-transform" />}
-              {isGenerating ? 'Generating...' : 'Forge Logic'}
+              {isGenerating ? 'Generating...' : 'Generate Code'}
             </button>
           </div>
         </div>
@@ -467,8 +467,8 @@ export const VisualQueryBuilder = ({ onQueryGenerated, initialState, onConfigCha
             <div className="flex items-start gap-3">
               <FontAwesomeIcon icon={faInfoCircle} className="text-blue-500 mt-0.5" />
               <div>
-                <div className="text-[11px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-tight">Logic Forged Successfully</div>
-                <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold mt-0.5 leading-relaxed">The visual rules have been converted to high-performance Revit API code. Click <strong>{initialState ? 'Confirm Changes' : 'Create Tool'}</strong> below to finalize the injection.</p>
+                <div className="text-[11px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-tight">Code Generated Successfully</div>
+                <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold mt-0.5 leading-relaxed">The visual rules have been converted to high-performance Revit API code. Click <strong>{initialState ? 'Confirm Changes' : 'Create Script'}</strong> below to save.</p>
               </div>
             </div>
           </div>

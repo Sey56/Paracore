@@ -210,12 +210,12 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   return (
     <div className={`tab-content p-6 overflow-y-auto h-full custom-scrollbar pb-60 bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm`}>
       <div className="space-y-8">
-        {/* 1. Refinery Header & Preset Matrix */}
+        {/* 1. Configuration Presets */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="flex flex-col space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-1 h-4 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-              <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Unit Configuration Presets</h3>
+              <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Parameter Presets</h3>
             </div>
 
             <div className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
@@ -258,7 +258,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     }
                   }}
                 >
-                  <option value="<Default Parameters>">Registry Defaults</option>
+                  <option value="<Default Parameters>">Parameter Defaults</option>
                   {presets.map((preset, i) => (
                     <option key={i} value={preset.name}>{preset.name}</option>
                   ))}
@@ -288,7 +288,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-300"
                     onClick={() => setIsResetModalOpen(true)}
                     disabled={!isActionable || isRunning}
-                    title="Purge Local Cache"
+                    title="Reset to Defaults"
                   >
                     <FontAwesomeIcon icon={faUndo} className="text-xs" />
                   </button>
@@ -307,7 +307,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 )}
                 <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
                 <button
-                  title="Forge New Configuration"
+                  title="Save New Preset"
                   className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-90"
                   onClick={handleNewPreset}
                 >
@@ -318,7 +318,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
           </div>
         )}
 
-        {/* 2. Control Matrix (The Form) */}
+        {/* 2. Parameter Form */}
         <div className="relative">
           <ScriptParametersForm
             script={script}
@@ -331,7 +331,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
           />
         </div>
 
-        {/* 3. Terminal Activation Area */}
+        {/* 3. Execution Controls */}
         {activeMainView === 'scripts' && (
           <div className="pt-8 mt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col space-y-6">
             <div className="flex items-center justify-between">
@@ -347,7 +347,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     disabled={isRunDisabled}
                   >
                     <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={isRunning ? "animate-spin" : "group-hover:translate-x-0.5 transition-transform"} />
-                    {isRunning ? "Initializing..." : "Activate Unit"}
+                    {isRunning ? "Running..." : "Run"}
                   </button>
 
                   {showStatusIcon && (
@@ -365,7 +365,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
               {activeRole !== Role.User && !isProtectedTool && (
                 <button
-                  title="Inspect Core Logic"
+                  title="View Source Code"
                   className="w-12 h-12 rounded-2xl text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center shadow-sm group"
                   onClick={onViewCodeClick}
                 >
