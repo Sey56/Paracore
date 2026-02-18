@@ -200,7 +200,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     : tooltipMessage;
 
   return (
-    <div className={`tab-content p-6 overflow-y-auto h-full custom-scrollbar pb-60 bg-white/50 dark:bg-slate-800/40 backdrop-blur-sm`}>
+    <div className={`tab-content p-6 overflow-y-auto h-full custom-scrollbar pb-60 bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm`}>
       <div className="space-y-8">
         {/* 1. Refinery Header & Preset Matrix */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
@@ -282,9 +282,9 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                   </>
                 )}
                 <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
-                <button 
-                  title="Forge New Configuration" 
-                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-90" 
+                <button
+                  title="Forge New Configuration"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-90"
                   onClick={handleNewPreset}
                 >
                   <FontAwesomeIcon icon={faPlus} className="text-xs" />
@@ -315,8 +315,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 <div className="relative group" title={finalTooltipMessage}>
                   <button
                     className={`flex items-center gap-3 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-2xl active:scale-95
-                      ${isRunDisabled 
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50' 
+                      ${isRunDisabled
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
                         : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30 hover:shadow-blue-500/40 ring-4 ring-blue-500/5'
                       }`}
                     onClick={handleRunScript}
@@ -325,7 +325,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={isRunning ? "animate-spin" : "group-hover:translate-x-0.5 transition-transform"} />
                     {isRunning ? "Initializing..." : "Activate Unit"}
                   </button>
-                  
+
                   {showStatusIcon && (
                     <button
                       className={`absolute -right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all animate-in zoom-in duration-300 shadow-lg
