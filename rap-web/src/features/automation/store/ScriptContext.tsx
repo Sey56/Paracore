@@ -40,14 +40,6 @@ export interface ScriptContextProps {
   removeCustomScriptFolder: (folderPath: string) => void;
   clearAllCustomScriptFolders: () => Promise<void>;
 
-  // BIM Watchdogs
-  watchdogSources: string[];
-  setWatchdogSources: (sources: string[] | ((prev: string[]) => string[])) => void;
-  configuredWatchdogRoots: string[];
-  addConfiguredWatchdogRoot: (path: string) => void;
-  removeConfiguredWatchdogRoot: (path: string) => void;
-  isArmingWatchdogs: boolean;
-
   // Team & Remote
   remoteScriptSources: Record<number, TeamScriptSource[]>;
   fetchRemoteScriptSources: () => Promise<void>;

@@ -15,6 +15,7 @@ import { GitStatusPanel } from "@/features/team-sources/components/GitStatusPane
 import React, { useState, useCallback } from 'react';
 import { useAuth } from "@/features/auth";
 import { Role } from '@/features/auth';
+import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import SettingsModal from '@/features/settings/components/SettingsModal';
 import TeamManagementModal from '@/features/settings/components/TeamManagementModal';
 import { NewScriptModal } from '@/features/automation/components/NewScriptModal';
@@ -26,7 +27,8 @@ import { PlaylistsTab } from "@/features/automation/components/Playlists/Playlis
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
   const { selectedScript } = useScriptExecution();
-  const { addCustomScriptFolder, isArmingWatchdogs } = useScripts(); // Access isArmingWatchdogs
+  const { isArmingWatchdogs } = useWatchdog(); 
+  const { addCustomScriptFolder } = useScripts(); 
   const {
     isSidebarOpen,
     toggleSidebar,

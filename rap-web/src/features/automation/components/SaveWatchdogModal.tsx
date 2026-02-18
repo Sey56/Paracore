@@ -6,6 +6,7 @@ import { faShieldHeart, faFolder, faTimes, faSave, faSpinner, faCheck } from '@f
 import { useScripts } from '../hooks/useScripts';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useWatchdog } from '@/context/providers/WatchdogProvider';
 
 interface SaveWatchdogModalProps {
     isOpen: boolean;
@@ -18,7 +19,7 @@ interface SaveWatchdogModalProps {
 }
 
 export const SaveWatchdogModal: React.FC<SaveWatchdogModalProps> = ({ isOpen, onClose, queryConfig }) => {
-    const { configuredWatchdogRoots } = useScripts();
+    const { configuredWatchdogRoots } = useWatchdog();
     const { showNotification } = useNotifications();
 
     const [name, setName] = useState('');

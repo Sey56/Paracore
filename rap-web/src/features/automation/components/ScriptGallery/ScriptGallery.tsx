@@ -19,6 +19,7 @@ import styles from './ScriptGallery.module.css';
 
 import { useAuth } from '@/features/auth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
+import { useWatchdog } from '@/context/providers/WatchdogProvider';
 
 interface FocusOverlayProps {
   script: Script;
@@ -221,7 +222,8 @@ const dateFilterHelper = (dateString: string | undefined, filterValue: string): 
 export const ScriptGallery: React.FC = () => {
   const { ParacoreConnected } = useRevitStatus();
   const isParacoreDisconnected = !ParacoreConnected;
-  const { scripts, selectedFolder, loadScriptsForFolder, favoriteScripts: favoriteIds, isArmingWatchdogs } = useScripts();
+  const { scripts, selectedFolder, loadScriptsForFolder, favoriteScripts: favoriteIds } = useScripts();
+  const { isArmingWatchdogs } = useWatchdog(); 
   const {
     openNewScriptModal,
     closeNewScriptModal,

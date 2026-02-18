@@ -16,17 +16,17 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         <UserProvider>
           <TeamSourceProvider>
             <RevitProvider>
-              <UIProvider>
-                <ScriptProvider>
-                  <ScriptExecutionProvider>
-                    <PlaylistProvider>
-                      <WatchdogProvider>
+              <WatchdogProvider>
+                <UIProvider>
+                  <ScriptProvider>
+                    <ScriptExecutionProvider>
+                      <PlaylistProvider>
                         {children}
-                      </WatchdogProvider>
-                    </PlaylistProvider>
-                  </ScriptExecutionProvider>
-                </ScriptProvider>
-              </UIProvider>
+                      </PlaylistProvider>
+                    </ScriptExecutionProvider>
+                  </ScriptProvider>
+                </UIProvider>
+              </WatchdogProvider>
             </RevitProvider>
           </TeamSourceProvider>
         </UserProvider>

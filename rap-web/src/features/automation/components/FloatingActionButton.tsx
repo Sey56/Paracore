@@ -3,15 +3,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { useUI } from '@/hooks/useUI';
-import { useScripts } from '../hooks/useScripts'; // Import useScripts to get isArmingWatchdogs
 
 interface FloatingActionButtonProps {
   disabled?: boolean;
 }
 
 export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disabled }) => {
-  const { watchdogs, hasIssues, isWatchdogInitialized } = useWatchdog(); // Get isWatchdogInitialized
-  const { isArmingWatchdogs } = useScripts(); // Get isArmingWatchdogs from useScripts
+  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs } = useWatchdog(); 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLDivElement>(null);
