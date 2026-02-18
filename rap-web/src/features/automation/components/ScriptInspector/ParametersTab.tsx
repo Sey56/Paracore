@@ -200,7 +200,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     : tooltipMessage;
 
   return (
-    <div className={`tab-content p-6 overflow-y-auto h-full custom-scrollbar pb-60 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm`}>
+    <div className={`tab-content p-6 overflow-y-auto h-full custom-scrollbar pb-60 bg-white/50 dark:bg-slate-800/40 backdrop-blur-sm`}>
       <div className="space-y-8">
         {/* 1. Refinery Header & Preset Matrix */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
