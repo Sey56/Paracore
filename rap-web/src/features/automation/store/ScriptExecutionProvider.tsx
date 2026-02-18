@@ -528,25 +528,24 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
           return { ...p, options: options, computedInDocument: docType };
         };
 
-        const updateParamValueAndReset = (p: ScriptParameter) => {
-          if (p.name !== parameterName || isRangeUpdate) return p;
-          
-          let defVal = p.defaultValue !== undefined ? p.defaultValue : "";
-          
-          // V4: Enhanced hydration for Multi-Select (Lists)
-          if (Array.isArray(defVal)) {
-            // Keep only default items that still exist in the new options
-            const validDefaults = defVal.filter(item => options?.includes(String(item)));
-            return { ...p, value: validDefaults };
-          }
-
-          // Standard single-value logic
-          if (options && options.length > 0 && !options.includes(String(defVal))) {
-            defVal = options[0];
-          }
-          return { ...p, value: defVal };
-        };
-
+                const updateParamValueAndReset = (p: ScriptParameter): ScriptParameter => {
+                  if (p.name !== parameterName || isRangeUpdate) return p;
+        
+                  let defVal = p.defaultValue !== undefined ? p.defaultValue : "";
+        
+                  // V4: Enhanced hydration for Multi-Select (Lists)
+                  if (Array.isArray(defVal)) {
+                    // Keep only default items that still exist in the new options
+                    const validDefaults = defVal.filter(item => options?.includes(String(item)));
+                    return { ...p, value: validDefaults as any }; // Explicit cast to bypass mixed-array inference
+                  }
+        
+                  // Standard single-value logic
+                  if (options && options.length > 0 && !options.includes(String(defVal))) {
+                    defVal = options[0];
+                  }
+                  return { ...p, value: defVal };
+                };
         if (shouldUpdateGlobalState) {
           setUserEditedScriptParameters(prev => {
             const params = prev[script.id] || script.parameters || [];

@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faShieldHeart, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { TopBar } from "@/components/layout/TopBar/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar/Sidebar";
 import { ScriptGallery } from "@/features/automation/components/ScriptGallery/ScriptGallery";
@@ -26,7 +26,7 @@ import { PlaylistsTab } from "@/features/automation/components/Playlists/Playlis
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
   const { selectedScript } = useScriptExecution();
-  const { addCustomScriptFolder } = useScripts(); // Access addCustomScriptFolder
+  const { addCustomScriptFolder, isArmingWatchdogs } = useScripts(); // Access isArmingWatchdogs
   const {
     isSidebarOpen,
     toggleSidebar,
@@ -109,6 +109,32 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 font-sans overflow-hidden">
+      {/* --- ARMING OVERLAY (Startup Gate) --- */}
+      {isArmingWatchdogs && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-[100px] transition-all duration-700">
+          <div className="flex flex-col items-center space-y-8 p-12 rounded-[3rem] bg-white/20 dark:bg-gray-800/20 shadow-2xl max-w-sm text-center backdrop-blur-2xl">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-[2rem] bg-blue-500/20 animate-ping"></div>
+              <div className="relative bg-blue-500 rounded-[2rem] p-5 shadow-lg shadow-blue-500/30">
+                <FontAwesomeIcon icon={faShieldHeart} className="text-white text-3xl animate-pulse" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Arming Sentinels</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                Initializing background monitoring systems. Manual script execution will be available in a few seconds.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2 text-blue-500 font-medium text-sm justify-center">
+              <FontAwesomeIcon icon={faSpinner} spin />
+              <span>Scanning sources...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <SettingsModal />
       <NewScriptModal isOpen={isNewScriptModalOpen} onClose={closeNewScriptModal} selectedFolder="" /> {/* Render NewScriptModal */}
       <TeamManagementModal />

@@ -219,13 +219,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
   const handleDelete = async (scaffoldingOnly: boolean = false) => {
     setIsDeleting(true);
     setDeleteError(null);
-    const result = await deleteScript(script, scaffoldingOnly);
+    const success = await deleteScript(script, scaffoldingOnly);
     setIsDeleting(false);
     
-    if (result.success) {
+    if (success) {
       setShowDeleteModal(false);
     } else {
-      setDeleteError(result.message || "An unexpected error occurred.");
+      setDeleteError("An unexpected error occurred during deletion.");
     }
   };
 

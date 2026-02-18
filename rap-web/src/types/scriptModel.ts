@@ -89,6 +89,7 @@ export interface ScriptMetadata {
   isProtected?: boolean;
   isCompiled?: boolean;
   isWatchdog?: boolean;
+  is_watchdog?: boolean;
 }
 
 export interface RawGitInfoFromApi {

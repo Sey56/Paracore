@@ -432,32 +432,6 @@ export const ScriptGallery: React.FC = () => {
 
   return (
     <div ref={galleryRef} className={`relative min-h-full min-w-0 ${isFocusMode || isArmingWatchdogs ? 'overflow-hidden' : ''}`}>
-      {/* --- ARMING OVERLAY --- */}
-      {isArmingWatchdogs && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-md transition-all duration-500 animate-in fade-in">
-          <div className="flex flex-col items-center space-y-6 p-10 rounded-2xl bg-white dark:bg-gray-800 shadow-2xl border border-gray-100 dark:border-gray-700 max-w-sm text-center">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"></div>
-              <div className="relative bg-blue-500 rounded-full p-5 shadow-lg shadow-blue-500/30">
-                <FontAwesomeIcon icon={faShieldHeart} className="text-white text-3xl animate-pulse" />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Arming Watchdogs</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                Initializing background monitoring systems. Manual script execution will be available in a few seconds.
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-2 text-blue-500 font-medium text-sm">
-              <FontAwesomeIcon icon={faSpinner} spin />
-              <span>Scanning sources...</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* --- NORMAL VIEW CONTENT --- */}
       <div className={`p-4 transition-opacity duration-300 ${(isFocusMode || isArmingWatchdogs) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <>

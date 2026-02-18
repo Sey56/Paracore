@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldAlt, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { useUI } from '@/hooks/useUI';
 import { useScripts } from '../hooks/useScripts'; // Import useScripts to get isArmingWatchdogs
@@ -107,7 +107,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
       case 'success': return faCheckCircle;
       case 'warning': return faExclamationCircle;
       case 'error': return faTimesCircle;
-      default: return faShieldAlt;
+      default: return faShieldHeart;
     }
   };
 
@@ -131,7 +131,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
     ? faSpinner // Spinner during loading or arming
     : isHealthy
       ? faCheckCircle
-      : faShieldAlt;
+      : faShieldHeart;
 
   return (
     <div
@@ -141,39 +141,61 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
       onMouseDown={handleMouseDown}
     >
       <div className="relative" ref={dropdownRef}>
-        {/* Dropdown Menu (Pop-upwards) */}
+        {/* Dropdown Menu (Pop-upwards and to the Left) */}
         {isOpen && !isArmingWatchdogs && isWatchdogInitialized && ( // Only show dropdown if not arming and initialized
-          <div className="absolute bottom-full left-0 mb-4 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom-left cursor-default"
+          <div className="absolute bottom-full right-0 mb-4 w-80 bg-slate-900/98 dark:bg-white/95 rounded-[2rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] border border-white/10 dark:border-slate-200/60 z-[100] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 origin-bottom-right cursor-default backdrop-blur-3xl"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-gray-50 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
-              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Model Health Monitor</h3>
+            {/* Watchtower Header with subtle "living" glow */}
+            <div className="p-6 pb-4 border-b border-white/5 dark:border-slate-100 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent opacity-50" />
+              <h3 className="relative text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
+                Sentinel Watchtower
+              </h3>
             </div>
 
-            <div className="max-h-96 overflow-y-auto custom-scrollbar">
+            <div className="max-h-[32rem] overflow-y-auto custom-scrollbar p-4 space-y-3">
               {watchdogs.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
-                  <FontAwesomeIcon icon={faCheckCircle} className="text-4xl text-green-500 mb-2 opacity-50" />
-                  <span className="text-xs font-medium">No watchdogs configured or running.</span>
+                <div className="py-16 px-6 text-center">
+                  <div className="w-16 h-16 rounded-[2rem] bg-white/5 dark:bg-slate-100 flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <FontAwesomeIcon icon={faShieldHeart} className="text-2xl text-slate-500 dark:text-slate-300" />
+                  </div>
+                  <span className="block text-sm font-bold tracking-wide text-slate-300 dark:text-slate-400">The Watchtower is Empty</span>
+                  <span className="block text-[11px] text-slate-500 dark:text-slate-500 mt-2 uppercase tracking-widest">No Sentinels Stationed</span>
                 </div>
               ) : (
                 watchdogs.map((w, idx) => (
-                  <div key={idx} className="p-4 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <FontAwesomeIcon icon={getStatusIcon(w.status)} className={`${getStatusColor(w.status)} mt-0.5 text-base`} />
-                        <div>
-                          <div className="text-xs font-bold text-gray-900 dark:text-gray-100">{w.script_name}</div>
-                          <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 font-medium leading-relaxed">{w.summary}</div>
+                  <div key={idx} className="p-5 rounded-[1.75rem] bg-white/5 dark:bg-slate-50/50 hover:bg-white/10 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent hover:border-white/10 dark:hover:border-slate-200 hover:shadow-xl">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${
+                        w.status === 'success' ? 'bg-emerald-500/20' : 
+                        w.status === 'warning' ? 'bg-amber-500/20' : 'bg-rose-500/20'
+                      }`}>
+                        <FontAwesomeIcon icon={getStatusIcon(w.status)} className={`${getStatusColor(w.status)} text-lg`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-bold text-slate-100 dark:text-slate-800 leading-tight tracking-wide mb-1 uppercase">
+                          {w.script_name.replace('.wtool', '').replace('.ptool', '')}
+                        </div>
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed line-clamp-3">
+                          {w.summary}
                         </div>
                       </div>
-                      <button className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-500 transition-all">
-                        <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
-                      </button>
                     </div>
-                    <div className="mt-2 flex items-center justify-between text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
-                      <span>Last Run: {new Date(w.timestamp).toLocaleTimeString()}</span>
-                      {w.status !== 'success' && <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">Action Required</span>}
+                    
+                    <div className="mt-5 pt-4 border-t border-white/5 dark:border-slate-200/60 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-slate-500" />
+                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
+                          {new Date(w.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {w.status !== 'success' && (
+                        <div className="px-3 py-1 rounded-full bg-rose-500/10 dark:bg-rose-500/5 text-rose-400 dark:text-rose-600 text-[9px] font-black uppercase tracking-widest border border-rose-500/20">
+                          Breach Detected
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
@@ -185,14 +207,19 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
         {/* FAB Button */}
         <button
           id="fab"
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-lg transition-all duration-300 
+          className={`flex items-center gap-2.5 pl-4 pr-5 py-2.5 rounded-full shadow-xl transition-all duration-300 hover:scale-105 active:scale-95
             ${fabColorClass} ${disabled ? 'bg-gray-400 cursor-not-allowed' : ''}`}
           onClick={handleFabClick}
           disabled={disabled || isArmingWatchdogs || !isWatchdogInitialized}
-          title={isArmingWatchdogs || !isWatchdogInitialized ? "Watchdogs Initializing..." : "BIM Watchdog Status (Drag to move)"}
+          title={isArmingWatchdogs || !isWatchdogInitialized ? "Sentinels Initializing..." : "Sentinel System Status (Drag to move)"}
         >
-          <FontAwesomeIcon icon={fabIcon} className={`text-base text-white ${isArmingWatchdogs || !isWatchdogInitialized ? 'animate-spin' : ''}`} />
-          <span className="text-[10px] font-black uppercase tracking-tight text-white">
+          <div className="relative">
+            <FontAwesomeIcon icon={fabIcon} className={`text-base text-white ${isArmingWatchdogs || !isWatchdogInitialized ? 'animate-spin' : ''}`} />
+            {!isHealthy && !isArmingWatchdogs && (
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-amber-500 animate-ping" />
+            )}
+          </div>
+          <span className="text-[11px] font-bold tracking-normal text-white">
             {fabText}
           </span>
         </button>

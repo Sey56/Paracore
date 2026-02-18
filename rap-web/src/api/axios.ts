@@ -32,10 +32,10 @@ api.interceptors.response.use(
       localStorage.removeItem('rap_cloud_token');
       localStorage.removeItem('rap_local_token');
       localStorage.removeItem('rap_user');
+      localStorage.removeItem('rap_active_team');
 
-      // Reload the page. The AuthProvider will detect the missing token
-      // and reset the application state, redirecting to login.
-      window.location.reload();
+      // We do NOT reload here anymore, as it causes infinite loops during startup transitions.
+      // The app state will eventually react to the cleared localStorage or return to login on next action.
     }
     return Promise.reject(error);
   }

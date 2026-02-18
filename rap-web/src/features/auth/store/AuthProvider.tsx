@@ -77,6 +77,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     if (storedCloudToken && storedUser) {
       try {
         const parsedUser: User = JSON.parse(storedUser);
+        console.log("[AuthProvider] Found existing user in storage:", parsedUser.email);
         setCloudToken(storedCloudToken);
         setUser(parsedUser);
         setIsAuthenticated(true);
@@ -92,16 +93,19 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         }
 
         if (teamToActivate) {
+          console.log("[AuthProvider] Restoring session for team:", teamToActivate.team_id);
           setActiveTeamState(teamToActivate);
           setActiveRole(teamToActivate.role);
         } else if (parsedUser.memberships.length > 0) {
           // If no valid stored team, and user has memberships, prompt for selection or default
           if (parsedUser.memberships.length > 1) {
+            console.log("[AuthProvider] Multiple teams found, showing selection modal.");
             setPendingUser(parsedUser);
             setShowTeamSelectionModal(true);
           } else {
             // Only one team, set it automatically
             const initialTeam = parsedUser.memberships[0];
+            console.log("[AuthProvider] Auto-selecting only available team:", initialTeam.team_id);
             localStorage.setItem('rap_active_team', JSON.stringify(initialTeam));
             setActiveTeamState(initialTeam);
             setActiveRole(initialTeam.role);

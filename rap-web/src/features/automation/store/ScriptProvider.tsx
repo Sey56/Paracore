@@ -43,59 +43,116 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setUserSourcePaths]);
 
   const [customScriptFolders, setCustomScriptFolders] = useState<string[]>([]);
+  const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useState<string[]>([]);
+  const [watchdogSources, setWatchdogSources] = useState<string[]>([]);
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
   
-  // Load/Save customScriptFolders with user-aware key
+  // Load ALL config with user-aware key & Migration
   useEffect(() => {
     const userId = user?.id || 'anon';
-    const key = `rap_customScriptFolders_${userId}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try { setCustomScriptFolders(JSON.parse(stored)); } catch { setCustomScriptFolders([]); }
-    } else {
-      setCustomScriptFolders([]);
+    setIsConfigLoaded(false);
+    
+    const loadWithMigration = (baseKey: string) => {
+      const userKey = `${baseKey}_${userId}`;
+      const userStored = localStorage.getItem(userKey);
+      if (userStored) return JSON.parse(userStored);
+      const oldStored = localStorage.getItem(baseKey);
+      if (oldStored) {
+        localStorage.setItem(userKey, oldStored);
+        return JSON.parse(oldStored);
+      }
+      return [];
+    };
+
+    try {
+      setCustomScriptFolders(loadWithMigration('rap_customScriptFolders'));
+      setConfiguredWatchdogRoots(loadWithMigration('rap_configuredWatchdogRoots'));
+      setWatchdogSources(loadWithMigration('rap_watchdogSources'));
+    } catch (e) {
+      console.error("[ScriptProvider] Failed to load config", e);
+    } finally {
+      setIsConfigLoaded(true);
     }
   }, [user?.id]);
 
   useEffect(() => {
+    if (!isConfigLoaded) return;
     const userId = user?.id || 'anon';
-    const key = `rap_customScriptFolders_${userId}`;
-    localStorage.setItem(key, JSON.stringify(customScriptFolders));
-  }, [customScriptFolders, user?.id]);
+    localStorage.setItem(`rap_customScriptFolders_${userId}`, JSON.stringify(customScriptFolders));
+  }, [customScriptFolders, user?.id, isConfigLoaded]);
 
-  const [watchdogSources, setWatchdogSources] = useLocalStorage<string[]>(`rap_watchdogSources_${user?.id || 'anon'}`, []);
+  useEffect(() => {
+    if (!isConfigLoaded) return;
+    const userId = user?.id || 'anon';
+    localStorage.setItem(`rap_configuredWatchdogRoots_${userId}`, JSON.stringify(configuredWatchdogRoots));
+  }, [configuredWatchdogRoots, user?.id, isConfigLoaded]);
 
-  // Watchdog Roots (Display list)
-  const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>(`rap_configuredWatchdogRoots_${user?.id || 'anon'}`, []);
-  
+  useEffect(() => {
+    if (!isConfigLoaded) return;
+    const userId = user?.id || 'anon';
+    localStorage.setItem(`rap_watchdogSources_${userId}`, JSON.stringify(watchdogSources));
+  }, [watchdogSources, user?.id, isConfigLoaded]);
+
   // Initialize to true if there are any configured watchdog roots or sources, otherwise false.
-  // This ensures the overlay is shown from the very first render if needed.
   const [isArmingWatchdogs, setIsArmingWatchdogs] = useState(() => {
-    const userId = user?.id || 'anon'; // Note: In initial useState, 'user' might not be ready yet
     try {
-      const storedRoots = localStorage.getItem(`rap_configuredWatchdogRoots_${userId}`);
-      const storedSources = localStorage.getItem(`rap_watchdogSources_${userId}`);
-      const hasStoredRoots = storedRoots ? JSON.parse(storedRoots).length > 0 : false;
-      const hasStoredSources = storedSources ? JSON.parse(storedSources).length > 0 : false;
-      return hasStoredRoots || hasStoredSources;
+      const hasToken = !!localStorage.getItem('rap_cloud_token');
+      if (!hasToken) return false;
+
+      const storedUser = localStorage.getItem('rap_user');
+      const userId = storedUser ? JSON.parse(storedUser).id : null;
+      const userRoots = userId ? localStorage.getItem(`rap_configuredWatchdogRoots_${userId}`) : null;
+      const legacyRoots = localStorage.getItem('rap_configuredWatchdogRoots');
+      const hasRoots = !!((userRoots && JSON.parse(userRoots).length > 0) || (legacyRoots && JSON.parse(legacyRoots).length > 0));
+      return hasRoots;
     } catch {
       return false;
     }
   });
 
+  const gateStartTimeRef = useRef<number>(Date.now());
+  const armingSessionStartedRef = useRef<string | null>(null);
+
   // Re-register watchdogs on mount to ensure backend is in sync
-  // AND cleanup orphans (sources in watchdogSources but NOT in configuredWatchdogRoots)
-  // Granular Watchdog Migration & Re-arming
   useEffect(() => {
+    const hasToken = !!localStorage.getItem('rap_cloud_token');
+    
+    // If not authenticated and no token, we are logged out. Close the gate.
+    if (!hasToken && !isAuthenticated) {
+      setIsArmingWatchdogs(false);
+      armingSessionStartedRef.current = null;
+      return;
+    }
+
+    if (hasToken && !user) return; 
+
+    const userId = user?.id || 'anon';
+    if (armingSessionStartedRef.current === userId) return;
+    armingSessionStartedRef.current = userId;
+
     const rearmAndCleanup = async () => {
-      const normalize = (p: string) => p.replace(/\\/g, '/').toLowerCase();
-      const userId = user?.id || 'anon';
+      // Stabilization delay: wait a bit for token interceptors to align
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (!isAuthenticated) {
+        setIsArmingWatchdogs(false); // Close gate if we can't authenticate yet
+        armingSessionStartedRef.current = null; // Allow retry
+        return;
+      }
 
-      // Read current state from refs or fresh from storage to avoid dependency loops
-      const currentRoots = JSON.parse(localStorage.getItem(`rap_configuredWatchdogRoots_${userId}`) || '[]');
-      const currentSources = JSON.parse(localStorage.getItem(`rap_watchdogSources_${userId}`) || '[]');
+      const userRootsJson = localStorage.getItem(`rap_configuredWatchdogRoots_${userId}`);
+      const legacyRootsJson = localStorage.getItem('rap_configuredWatchdogRoots');
+      
+      let currentRoots: string[] = [];
+      try {
+        const userRoots = userRootsJson ? JSON.parse(userRootsJson) : [];
+        const legacyRoots = legacyRootsJson ? JSON.parse(legacyRootsJson) : [];
+        currentRoots = userRoots.length > 0 ? userRoots : legacyRoots;
+      } catch {
+        currentRoots = [];
+      }
 
-      const hasWatchdogConfig = currentRoots.length > 0 || currentSources.length > 0;
-      if (!hasWatchdogConfig) {
+      if (currentRoots.length === 0) {
         setIsArmingWatchdogs(false);
         return;
       }
@@ -103,6 +160,16 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsArmingWatchdogs(true); 
 
       try {
+        const normalize = (p: string) => p.replace(/\\/g, '/').toLowerCase();
+        const userSourcesJson = localStorage.getItem(`rap_watchdogSources_${userId}`);
+        const legacySourcesJson = localStorage.getItem('rap_watchdogSources');
+        let currentSources: string[] = [];
+        try {
+          const userSources = userSourcesJson ? JSON.parse(userSourcesJson) : [];
+          const legacySources = legacySourcesJson ? JSON.parse(legacySourcesJson) : [];
+          currentSources = userSources.length > 0 ? userSources : legacySources;
+        } catch { currentSources = []; }
+
         // 1. Identify true orphans
         const orphans = currentSources.filter((src: string) => {
           const normSrc = normalize(src);
@@ -112,7 +179,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (orphans.length > 0) {
           setWatchdogSources(prev => prev.filter(p => !orphans.includes(p)));
           for (const orphan of orphans) {
-            try { await api.post("/api/watchdogs/unregister-source", { path: orphan }); } catch (e) { }
+            try { if (isAuthenticated) await api.post("/api/watchdogs/unregister-source", { path: orphan }); } catch (e) { }
           }
         }
 
@@ -124,11 +191,13 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const isRootMismatch = currentRoots.some((root: string) => normalize(root) === normalize(src));
           if (isRootMismatch) {
             try {
-              const res = await api.get(`/api/scripts?folderPath=${encodeURIComponent(src)}`);
-              const scripts: Script[] = res.data;
-              if (scripts.length > 0) {
-                scripts.forEach(s => newSources.add(s.absolutePath));
-                await api.post("/api/watchdogs/unregister-source", { path: src });
+              if (isAuthenticated) {
+                const res = await api.get(`/api/scripts?folderPath=${encodeURIComponent(src)}`);
+                const scripts: Script[] = res.data;
+                if (scripts.length > 0) {
+                  scripts.forEach(s => newSources.add(s.absolutePath));
+                  await api.post("/api/watchdogs/unregister-source", { path: src });
+                }
               }
             } catch (e) { newSources.add(src); }
           } else { newSources.add(src); }
@@ -141,23 +210,21 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         // 3. Re-register (The Gate)
         if (finalSources.length > 0) {
-          console.log(`[ScriptProvider] Dynamically arming ${finalSources.length} watchdogs...`);
           await Promise.all(finalSources.map(async (path) => {
-            try {
-              await api.post("/api/watchdogs/register-source", { path });
-            } catch (e) {
-              console.error(`[ScriptProvider] Failed to re-arm: ${path}`, e);
-            }
+            try { if (isAuthenticated) await api.post("/api/watchdogs/register-source", { path }); } catch (e) { }
           }));
         }
       } finally {
-        // Release the gate with a tiny safety buffer to ensure Revit queue is truly settled
-        setTimeout(() => setIsArmingWatchdogs(false), 500);
+        const elapsed = Date.now() - gateStartTimeRef.current;
+        const remaining = Math.max(0, 1500 - elapsed);
+        setTimeout(() => {
+          setIsArmingWatchdogs(false);
+        }, remaining);
       }
     };
 
     rearmAndCleanup();
-  }, []); // Run strictly ONCE on mount
+  }, [user?.id, isAuthenticated]);
 
   // Watchdog Roots (Display list)
   // const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>('rap_configuredWatchdogRoots', []); // Moved above
@@ -317,7 +384,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [selectedFolder, loadScriptsFromPath, showNotification]);
 
-  const deleteScript = useCallback(async (script: Script, scaffoldingOnly: boolean = false) => {
+  const deleteScript = useCallback(async (script: Script, scaffoldingOnly: boolean = false): Promise<boolean> => {
     try {
       await api.post("/api/scripts/delete", {
         script_path: script.absolutePath,
@@ -325,11 +392,11 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
       showNotification(scaffoldingOnly ? "Scaffolding cleared" : "Script deleted", "success");
-      return { success: true };
+      return true;
     } catch (error: any) {
       const msg = error.response?.data?.detail || (scaffoldingOnly ? "Failed to clear scaffolding" : "Failed to delete script");
       showNotification(msg, "error");
-      return { success: false, message: msg };
+      return false;
     }
   }, [selectedFolder, loadScriptsFromPath, showNotification]);
 
@@ -349,13 +416,14 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // V4 HEALING: Ensure active local source is in customScriptFolders
   useEffect(() => {
+    if (!isConfigLoaded) return; // Wait for load
     if (activeScriptSource?.type === 'local' && activeScriptSource.path) {
       if (!customScriptFolders.includes(activeScriptSource.path)) {
         console.log("[ScriptProvider] Healing: Restoring active source to folder list", activeScriptSource.path);
         setCustomScriptFolders(prev => [...new Set([...prev, activeScriptSource.path])]);
       }
     }
-  }, [activeScriptSource, customScriptFolders, setCustomScriptFolders]);
+  }, [activeScriptSource, customScriptFolders, setCustomScriptFolders, isConfigLoaded]);
 
   const addRemoteScriptSource = useCallback(async (teamId: number, source: TeamScriptSource) => {
     await fetchRemoteScriptSources();
@@ -418,17 +486,22 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, any>>({});
 
   const fetchActiveSyncSessions = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       const response = await silentApi.get('/api/sync/active-sessions');
       if (response.data) setActiveSyncSessions(response.data);
     } catch (err) { }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setActiveSyncSessions({});
+      return;
+    }
     fetchActiveSyncSessions();
     const interval = setInterval(fetchActiveSyncSessions, 2000);
     return () => clearInterval(interval);
-  }, [fetchActiveSyncSessions]);
+  }, [fetchActiveSyncSessions, isAuthenticated]);
 
   const isSyncActive = useCallback((scriptPath: string) => {
     if (!scriptPath || !activeSyncSessions) return false;
