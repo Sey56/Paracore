@@ -7,16 +7,14 @@ import { useScriptExecution } from "@/features/automation";
 import { ParametersTab } from './ParametersTab';
 import { ConsoleTabContent } from './ConsoleTabContent';
 import { TableTabContent } from './TableTabContent';
+import { MetadataTabContent } from './MetadataTabContent';
 
 import {
-  faCompress,
-  faExpand,
-  faExpandAlt,
-  faCompressAlt,
-  faLayerGroup,
   faSlidersH,
   faTerminal,
-  faChartLine
+  faChartLine,
+  faInfoCircle,
+  faTimes
 } from "@fortawesome/free-solid-svg-icons";
 
 interface InspectorTabsProps {
@@ -25,11 +23,9 @@ interface InspectorTabsProps {
   onViewCodeClick: () => void;
   isActionable: boolean;
   tooltipMessage: string;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
 }
 
-export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning, onViewCodeClick, isActionable, tooltipMessage, isExpanded, onToggleExpand }) => {
+export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab } = useUI();
   const {
     executionResult,
@@ -37,10 +33,9 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   } = useScriptExecution();
 
   const [hasUnviewedTableData, setHasUnviewedTableData] = useState(false);
+  const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const lastExecutionCountRef = useRef<number>(0);
   const currentExecutionCountRef = useRef<number>(0);
-
-
 
   const allTabs = [
     { id: "parameters", label: "Parameters", icon: faSlidersH },
@@ -55,10 +50,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
       executionResult.structuredOutput.some(item => item.type === 'table');
 
     if (hasTableData) {
-      // Increment execution count for each new result
       currentExecutionCountRef.current++;
-
-      // Show badge if this is a new execution (count changed)
       if (currentExecutionCountRef.current > lastExecutionCountRef.current) {
         setHasUnviewedTableData(true);
       }
@@ -72,6 +64,11 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
       lastExecutionCountRef.current = currentExecutionCountRef.current;
     }
   }, [activeInspectorTab, hasUnviewedTableData]);
+
+  // Close metadata panel when switching scripts
+  useEffect(() => {
+    setIsMetadataOpen(false);
+  }, [script.id]);
 
   return (
     <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
@@ -102,19 +99,39 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
           ))}
         </div>
         <div className="ml-auto px-2 flex items-center gap-1">
-
           <button
-            onClick={onToggleExpand}
-            className="p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 rounded hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
-            title={isExpanded ? "Collapse View" : "Expand View"}
+            onClick={() => setIsMetadataOpen(!isMetadataOpen)}
+            className={`p-1.5 rounded transition-all duration-200 ${isMetadataOpen
+              ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
+              : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60"
+              }`}
+            title="Script Info"
           >
-            <FontAwesomeIcon icon={isExpanded ? faCompress : faExpand} />
+            <FontAwesomeIcon icon={faInfoCircle} />
           </button>
         </div>
       </div>
 
+      {/* Metadata Slide-Down Panel */}
+      {isMetadataOpen && script.metadata && (
+        <div className="border-b border-slate-200/60 dark:border-slate-700/40 bg-slate-50/80 dark:bg-slate-900/60 animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between px-5 pt-3 pb-1">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Script Info</span>
+            <button
+              onClick={() => setIsMetadataOpen(false)}
+              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
+            >
+              <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+            </button>
+          </div>
+          <div className="px-5 pb-4 max-h-[200px] overflow-y-auto custom-scrollbar">
+            <MetadataTabContent metadata={script.metadata} />
+          </div>
+        </div>
+      )}
+
       {/* Tab Content Area */}
-      <div className="mt-4 flex-grow min-h-0 min-w-0 w-full overflow-hidden relative">
+      <div className="flex-grow min-h-0 min-w-0 w-full overflow-hidden relative">
         {activeInspectorTab === 'parameters' && (
           <div className="h-full overflow-y-auto custom-scrollbar">
             <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
@@ -135,9 +152,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             <TableTabContent executionResult={executionResult} />
           </div>
         )}
-
       </div>
     </div>
   );
 };
-

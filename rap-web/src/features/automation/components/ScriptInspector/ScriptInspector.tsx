@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { InspectorTabs } from './InspectorTabs';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { useScripts } from '../../hooks/useScripts';
@@ -13,7 +13,6 @@ export const ScriptInspector: React.FC = () => {
   const { toggleFloatingCodeViewer, agentSelectedScriptPath } = useUI();
   const { revitStatus } = useRevitStatus(); // Get Revit status
   const { isAuthenticated, user } = useAuth();
-  const [isExpanded, setIsExpanded] = useState(true);
 
   useEffect(() => {
     if (agentSelectedScriptPath && scripts.length > 0) {
@@ -78,7 +77,7 @@ export const ScriptInspector: React.FC = () => {
 
 
   return (
-    <div className={`flex flex-col h-full rounded-none shadow-none bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl overflow-hidden min-w-0 ${isExpanded ? 'p-0' : 'p-4'}`}>
+    <div className="flex flex-col h-full rounded-none shadow-none bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl overflow-hidden min-w-0">
       {!script ? (
         <div className="text-center py-10 text-slate-400 dark:text-slate-500">
           <i className="fas fa-mouse-pointer text-4xl mb-3"></i>
@@ -92,8 +91,6 @@ export const ScriptInspector: React.FC = () => {
             onViewCodeClick={toggleFloatingCodeViewer}
             isActionable={isActionable}
             tooltipMessage={tooltipMessage}
-            isExpanded={isExpanded}
-            onToggleExpand={() => setIsExpanded(!isExpanded)}
           />
         </>
       )}
