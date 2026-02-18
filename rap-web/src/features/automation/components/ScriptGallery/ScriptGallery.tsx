@@ -435,126 +435,170 @@ export const ScriptGallery: React.FC = () => {
       {/* --- NORMAL VIEW CONTENT --- */}
       <div className={`p-4 transition-opacity duration-300 ${(isFocusMode || isArmingWatchdogs) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <>
-          {/* 1. Main Header */}
-          <div className="flex justify-between items-center mb-4 transition-all">
-            <div className="flex items-center space-x-3 shrink-0">
-              <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
-                {activeScriptSource?.type === 'team' ? 'Team Scripts' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'Script Gallery')}
-              </h1>
+          {/* 1. Main Header & Category Chips (Compact Layout) */}
+          <div className="flex flex-col space-y-4 mb-6">
+            {/* Category Filter Chips */}
+            <div className={`flex flex-wrap gap-1.5 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
+              {defaultCategories.map(category => {
+                const isActive = selectedDefaultCategories.includes(category.name);
+                return (
+                  <button
+                    key={category.name}
+                    onClick={() => handleDefaultCategoryChange(category.name)}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all duration-200 border uppercase tracking-wider
+                      ${isActive 
+                        ? 'bg-blue-600 border-blue-500 text-white shadow-md' 
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-blue-400'
+                      }`}
+                  >
+                    <FontAwesomeIcon icon={category.icon} className={isActive ? 'text-white' : `text-[9px] ${category.color}`} />
+                    <span>{category.name}</span>
+                  </button>
+                );
+              })}
             </div>
-            <div className={`flex-grow flex justify-center items-center space-x-4 px-2 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
-              {defaultCategories.map(category => (
-                <div key={category.name} className="flex items-center whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    id={`category-${category.name}`}
-                    checked={selectedDefaultCategories.includes(category.name)}
-                    onChange={() => handleDefaultCategoryChange(category.name)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    disabled={!isAuthenticated}
-                  />
-                  <label htmlFor={`category-${category.name}`} className="ml-2 text-sm text-gray-900 dark:text-gray-300 cursor-pointer">
-                    <FontAwesomeIcon icon={category.icon} className={`mr-1 ${category.color}`} />
-                    {category.name}
-                  </label>
+
+            <div className="flex justify-between items-start">
+              <div className="flex flex-col space-y-1 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <div className="w-1 h-4 bg-blue-600 dark:bg-blue-500 rounded-full" />
+                  <h1 className="text-sm font-black text-slate-700 dark:text-slate-200 tracking-tight uppercase">
+                    {activeScriptSource?.type === 'team' ? 'Team Forge' : (activeScriptSource?.type === 'local' ? 'Local Foundry' : 'Automation Registry')}
+                  </h1>
                 </div>
-              ))}
-            </div>
-            <div className={`flex items-center space-x-3 shrink-0 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
-              <p className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                {`${favoriteScripts.length + otherScripts.length} scripts`}
-              </p>
+                {/* Long Path as a subtle Station Location */}
+                {selectedFolder && (
+                  <div className="flex items-center space-x-2 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/30 max-w-[500px]">
+                    <FontAwesomeIcon icon={faGlobe} className="text-[10px] text-slate-400" />
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate lowercase italic">
+                      {selectedFolder}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-end space-y-1 shrink-0">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 tabular-nums tracking-[0.15em]">
+                  {favoriteScripts.length + otherScripts.length} UNITS STATIONED
+                </span>
+                <div className="flex items-center gap-2">
+                   <button
+                    onClick={() => {
+                      const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
+                      if (path) loadScriptsForFolder(path);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                    title="Refresh Registry"
+                  >
+                    <FontAwesomeIcon icon={faSync} className="text-xs" />
+                  </button>
+                  {canCreateScripts && (
+                    <button
+                      onClick={openNewScriptModal}
+                      className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline"
+                    >
+                      + Forge New
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
           {pillFilters.length > 0 && (
-            <div className="mb-4">
+            <div className="mb-6">
               <FilterPills filters={pillFilters} onRemoveFilter={handleRemoveFilter} />
             </div>
           )}
 
-          {/* 2. Search & Sort Bar */}
-          <div className={`flex items-center space-x-4 mb-6 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
-            <div className="flex-grow relative">
-              <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+          {/* 2. Unified Command Console (Search, Family, Sort, View) */}
+          <div className={`flex flex-col xl:flex-row xl:items-center gap-3 p-3 rounded-2xl bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 shadow-xl mb-8 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
+            {/* Search Cluster */}
+            <div className="flex-1 relative group">
+              <FontAwesomeIcon icon={faSearch} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
               <input
                 type="text"
-                placeholder="Search scripts (author:John created:>2023-01-01)"
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Search foundry..."
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-transparent bg-slate-50 dark:bg-slate-900 text-sm font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 disabled={!isAuthenticated}
               />
             </div>
-            <div className="relative">
-              <select
-                className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-800 dark:text-gray-200"
-                onChange={(e) => setSortOrder(e.target.value)}
-                value={sortOrder}
-                disabled={!isAuthenticated}
+            
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Family Segmented Control */}
+              <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'scripts', label: 'Scripts' },
+                  { id: 'guards', label: 'Sentinels' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTypeFilter(t.id as any)}
+                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all
+                      ${typeFilter === t.id 
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                      }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort Selector */}
+              <div className="relative min-w-[160px]">
+                <select
+                  className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-8 py-2 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 focus:outline-none transition-all cursor-pointer"
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  value={sortOrder}
+                  disabled={!isAuthenticated}
+                >
+                  <option value="name-asc">Name (A-Z)</option>
+                  <option value="name-desc">Name (Z-A)</option>
+                  <option value="author-asc">Author (A-Z)</option>
+                  <option value="author-desc">Author (Z-A)</option>
+                  <option value="lastRun-desc">Last Run (Newest)</option>
+                  <option value="lastRun-asc">Last Run (Oldest)</option>
+                  <option value="created-desc">Created (Newest)</option>
+                  <option value="created-asc">Created (Oldest)</option>
+                  <option value="modified-desc">Modified (Newest)</option>
+                  <option value="modified-asc">Modified (Oldest)</option>
+                </select>
+                <FontAwesomeIcon icon={faExpandAlt} className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] text-slate-400 pointer-events-none rotate-45" />
+              </div>
+
+              {/* View Toggle */}
+              <button
+                onClick={() => setIsCompactView(!isCompactView)}
+                className={`p-2 px-3 rounded-xl border transition-all flex items-center gap-2
+                  ${isCompactView 
+                    ? 'bg-blue-50 border-blue-200 text-blue-600' 
+                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400'
+                  }`}
+                title={isCompactView ? "Expand List" : "Compact View"}
               >
-                <option value="name-asc">Sort by Name (A-Z)</option>
-                <option value="name-desc">Sort by Name (Z-A)</option>
-                <option value="author-asc">Sort by Author (A-Z)</option>
-                <option value="author-desc">Sort by Author (Z-A)</option>
-                <option value="lastRun-desc">Sort by Last Run (Newest)</option>
-                <option value="lastRun-asc">Sort by Last Run (Oldest)</option>
-                <option value="created-desc">Sort by Date Created (Newest)</option>
-                <option value="created-asc">Sort by Date Created (Oldest)</option>
-                <option value="modified-desc">Sort by Date Modified (Newest)</option>
-                <option value="modified-asc">Sort by Date Modified (Oldest)</option>
-              </select>
+                <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} className="text-xs" />
+              </button>
             </div>
           </div>
-
-          {/* 3. Folder Actions Toolbar (Fixed Position) */}
-          {selectedFolder && (
-            <div className="flex items-end justify-between transition-all mb-6 w-full overflow-hidden">
-              <h2 className="text-sm text-gray-400 dark:text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis mr-4 pb-1">
-                {selectedFolder}
-              </h2>
-              {canCreateScripts && (
-                <div className="flex items-center space-x-2 shrink-0">
-                  <button
-                    onClick={() => {
-                      const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
-                      if (path) loadScriptsForFolder(path);
-                    }}
-                    className="p-1 px-2 text-gray-400 hover:text-blue-500 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 w-8 flex items-center justify-center"
-                    title="Rescan folder for new/deleted scripts"
-                    disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
-                  >
-                    <FontAwesomeIcon icon={faSync} />
-                  </button>
-
-                  <button
-                    onClick={() => setIsCompactView(!isCompactView)}
-                    className="p-1 px-2 text-gray-400 hover:text-blue-500 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-all h-8 w-8 flex items-center justify-center"
-                    title={isCompactView ? "Expand Non-Favorites" : "Collapse Non-Favorites"}
-                    disabled={!isAuthenticated}
-                  >
-                    <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} />
-                  </button>
-
-                  <div className="relative" title={getNewScriptButtonTooltip()}>
-                    <button
-                      onClick={openNewScriptModal}
-                      className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 py-1 px-3 rounded-md font-bold border border-blue-200 dark:border-blue-800 transition-all text-sm h-8 flex items-center disabled:opacity-50 min-w-fit"
-                      disabled={!isAuthenticated || isParacoreDisconnected || !activeScriptSource}
-                    >
-                      <span className="truncate">New Script</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="relative flex flex-col">
             {/* Favorites Section */}
             {favoriteScripts.length > 0 && (
-              <div className="mb-2 w-full order-1">
-                <h2 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">Favorites</h2>
+              <div className="mb-8 w-full order-1">
+                {/* Foundry Style Divider */}
+                <div className="flex items-center gap-4 mb-6 opacity-60">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <FontAwesomeIcon icon={faShieldHeart} className="text-[10px] text-yellow-500" />
+                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.25em]">
+                      Pinned Units
+                    </span>
+                  </div>
+                  <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent dark:from-slate-700" />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {favoriteScripts.map((script) => (
                     <ScriptCard
@@ -571,9 +615,17 @@ export const ScriptGallery: React.FC = () => {
               </div>
             )}
 
-            {/* Divider */}
+            {/* Divider between sections (only if both exist) */}
             {favoriteScripts.length > 0 && otherScripts.length > 0 && (
-              <div className="border-t border-gray-200 dark:border-gray-700 mt-2 mb-4 order-2 w-full"></div>
+              <div className="flex items-center gap-4 mt-2 mb-8 order-2 w-full opacity-60">
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="w-1 h-1 rounded-full bg-slate-400" />
+                  <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.25em]">
+                    General Registry
+                  </span>
+                </div>
+                <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent dark:from-slate-700" />
+              </div>
             )}
 
             {/* Other Scripts Section */}
@@ -624,22 +676,6 @@ export const ScriptGallery: React.FC = () => {
           scriptToReplace={scriptToReplace}
         />
       )}
-
-      {/* 5. Type Filter Bar */}
-      <div className={`p-4 transition-opacity duration-300 ${isFocusMode || isArmingWatchdogs ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-        <div className={styles.filterBar}>
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'scripts', label: 'Scripts' },
-            { id: 'guards', label: 'Sentinels' }
-          ].map(t => (
-            <div key={t.id} className={`${styles.filterItem} ${typeFilter === t.id ? styles.activeFilter : ''}`} onClick={() => setTypeFilter(t.id as 'all' | 'scripts' | 'guards')}>
-              <input type="radio" checked={typeFilter === t.id} readOnly />
-              <label className="capitalize cursor-pointer">{t.label}</label>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

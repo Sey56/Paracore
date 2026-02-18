@@ -97,134 +97,162 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow-lg p-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-center space-x-4">
-        <button onClick={toggleSidebar} className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-          <FontAwesomeIcon icon={faBars} className="text-xl" />
+    <div className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 z-40 relative">
+      {/* 1. Logo & Sidebar Toggle Cluster */}
+      <div className="flex items-center gap-4">
+        <button 
+          onClick={toggleSidebar} 
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300 active:scale-95"
+        >
+          <FontAwesomeIcon icon={faBars} className="text-lg" />
         </button>
-        <div className="flex items-center space-x-1">
-          <img src="/RAP.png" alt="Paracore Logo" className="h-8 w-auto" />
-          <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">Paracore</h1>
+        
+        <div className="flex items-center gap-2 pr-4 border-r border-slate-100 dark:border-slate-800">
+          <img src="/RAP.png" alt="Paracore Logo" className="h-7 w-auto drop-shadow-sm" />
+          <h1 className="font-black text-sm text-slate-800 dark:text-white tracking-[0.15em] uppercase">
+            Paracore
+          </h1>
         </div>
+
+        {/* Theme Toggle - Integrated */}
         <button
           onClick={toggleTheme}
-          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-90"
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
         >
-          <FontAwesomeIcon icon={theme === 'dark' ? faSun : faMoon} />
+          <FontAwesomeIcon icon={theme === 'dark' ? faSun : faMoon} className="text-sm" />
         </button>
       </div>
 
-      {/* Connection Status - Hidden on mobile, shown on larger screens */}
-      <div className="flex items-center gap-4">
-        <div className={`hidden md:flex items-center text-sm px-3 py-1.5 rounded-full ${!ParacoreConnected ? "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" : "bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"}`}>
-          <span className={`w-2.5 h-2.5 rounded-full ${getConnectionStatusColorClass()} mr-2`}></span>
-          <span className="font-medium">{getConnectionStatusText()}</span>
+      {/* 2. Central Navigation Center (Segmented Switcher) */}
+      <div className="hidden lg:flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
+        {[
+          { id: 'scripts', label: 'Foundry', icon: faRectangleList },
+          { id: 'agent', label: 'Command', icon: faRobot, needsCloud: true },
+          { id: 'playlists', label: 'Playlists', icon: faListUl, needsCloud: true }
+        ].map(nav => {
+          const isLocked = nav.needsCloud && (!activeTeam || activeTeam.team_id === 0);
+          const isActive = activeMainView === nav.id;
+          
+          return (
+            <button
+              key={nav.id}
+              onClick={() => {
+                if (!isLocked) {
+                  if (nav.id === 'agent') handleAgentModeClick();
+                  else setActiveMainView(nav.id as any);
+                }
+              }}
+              disabled={isLocked}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300
+                ${isActive 
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]' 
+                  : isLocked 
+                    ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-40' 
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              title={isLocked ? `${nav.label} (Team/Cloud Required)` : `${nav.label} Mode`}
+            >
+              <FontAwesomeIcon icon={nav.icon} className={isActive ? 'text-blue-500' : ''} />
+              {nav.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 3. Status & System Cluster */}
+      <div className="flex items-center gap-3">
+        {/* Connection Status Badge (Live Feed Style) */}
+        <div className={`hidden xl:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-500 shadow-sm
+          ${!ParacoreConnected 
+            ? "bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-800/50 text-rose-600 dark:text-rose-400" 
+            : "bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400"
+          }`}>
+          <div className="relative flex h-2 w-2">
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${!ParacoreConnected ? 'bg-rose-400' : 'bg-emerald-400'}`}></span>
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${!ParacoreConnected ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">
+            {ParacoreConnected ? 'Forge Online' : 'Forge Offline'}
+          </span>
+          {ParacoreConnected && revitStatus.document && (
+            <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-1 pl-2">
+              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate max-w-[120px] lowercase italic">
+                {revitStatus.document}
+              </span>
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className="flex items-center space-x-2">
-        {/* Agent/Automation Toggle */}
-        <button
-          onClick={() => setActiveMainView('scripts')}
-          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'scripts' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-          title="Automation Mode"
-        >
-          <FontAwesomeIcon icon={faRectangleList} />
-        </button>
+        <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 mx-1" />
 
-        <button
-          onClick={() => {
-            if (activeTeam && activeTeam.team_id !== 0) handleAgentModeClick();
-          }}
-          disabled={!activeTeam || activeTeam.team_id === 0}
-          className={`p-2 rounded-full transition-colors duration-300 mr-2 ${activeMainView === 'agent' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
-          title={(!activeTeam || activeTeam.team_id === 0) ? "Agentic Mode (Cloud feature)" : "Agent Mode"}
-        >
-          <FontAwesomeIcon icon={faRobot} />
-        </button>
-        <button
-          onClick={() => {
-            if (activeTeam && activeTeam.team_id !== 0) setActiveMainView('playlists');
-          }}
-          disabled={!activeTeam || activeTeam.team_id === 0}
-          className={`p-2 rounded-full transition-colors duration-300 ${activeMainView === 'playlists' ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} ${(!activeTeam || activeTeam.team_id === 0) ? 'opacity-30 cursor-not-allowed' : ''}`}
-          title={(!activeTeam || activeTeam.team_id === 0) ? "Playlists Mode (Cloud feature)" : "Playlists Mode"}
-        >
-          <FontAwesomeIcon icon={faListUl} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggleLayoutSwap}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all
+              ${isLayoutSwapped ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            title="Swap Panels"
+          >
+            <FontAwesomeIcon icon={faExchangeAlt} className={isLayoutSwapped ? "rotate-180 transition-transform duration-500" : "transition-transform duration-500"} />
+          </button>
 
-        <div className="h-6 w-[1px] bg-gray-200 dark:border-gray-700 mx-2"></div>
-
-        <button
-          onClick={toggleLayoutSwap}
-          className={`p-2 rounded-full transition-all duration-300 ${isLayoutSwapped ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-          title="Swap Layout"
-        >
-          <FontAwesomeIcon icon={faExchangeAlt} className={isLayoutSwapped ? "rotate-180 transition-transform duration-500" : "transition-transform duration-500"} />
-        </button>
-
-        <div className="action-icons flex items-center space-x-2 border-r border-gray-200 dark:border-gray-700 pr-4">
           <div className="relative" ref={helpDropdownRef}>
             <button
               onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all"
             >
               <FontAwesomeIcon icon={faQuestionCircle} />
             </button>
             {isHelpDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg z-10 py-1">
-                <button
-                  onClick={handleHelpClick}
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 w-full text-left"
-                >
-                  Help
+              <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-2 animate-in slide-in-from-top-2 duration-200">
+                <button onClick={handleHelpClick} className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 w-full text-left transition-colors">
+                  Online Codex
                 </button>
-                <button
-                  onClick={handleAboutClick}
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 w-full text-left"
-                >
-                  About
+                <button onClick={handleAboutClick} className="flex items-center gap-3 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 w-full text-left transition-colors">
+                  About Foundry
                 </button>
               </div>
             )}
           </div>
-          <button onClick={openSettingsModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+
+          <button onClick={openSettingsModal} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
             <FontAwesomeIcon icon={faCog} />
           </button>
         </div>
-        <div className="flex items-center space-x-2 pl-2">
+
+        <div className="pl-3 border-l border-slate-100 dark:border-slate-800">
           <UserMenu user={user} onLogin={login} onLoginLocal={loginLocal} onLogout={logout} />
         </div>
       </div>
 
       {/* About Modal */}
-      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="About Paracore" size="sm">
-        <div className="p-6 space-y-4 text-sm">
-          <div className="text-center">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Paracore</h2>
-            <p className="text-gray-600 dark:text-gray-400">Revit Automation Platform</p>
-          </div>
-          <div className="space-y-2 pt-2">
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700 dark:text-gray-300">Version:</span>
-              <span className="text-gray-600 dark:text-gray-400">4.0.0</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700 dark:text-gray-300">Developer:</span>
-              <span className="text-gray-600 dark:text-gray-400">Paras Codarch (Ethiopia)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700 dark:text-gray-300">Contact:</span>
-              <span className="text-gray-600 dark:text-gray-400">codarch46@gmail.com</span>
+      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="Foundry Registry" size="sm">
+        <div className="p-8 space-y-6 text-center">
+          <div className="flex justify-center">
+            <div className="w-20 h-20 rounded-[2.5rem] bg-blue-600 dark:bg-blue-500 flex items-center justify-center shadow-2xl shadow-blue-500/30">
+              <img src="/RAP.png" alt="Paracore Logo" className="h-12 w-auto brightness-0 invert" />
             </div>
           </div>
-          <div className="pt-4 text-center space-y-3">
-            <a href="https://sey56.github.io/paracore-help" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline block text-xs">
-              Online Documentation
-            </a>
-
-
+          <div>
+            <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">Paracore</h2>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Foundry Core v4.0.0</p>
           </div>
+          <div className="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-slate-400 uppercase">Artisan</span>
+              <span className="text-slate-700 dark:text-slate-200">Paras Codarch</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-slate-400 uppercase">Region</span>
+              <span className="text-slate-700 dark:text-slate-200">Ethiopia</span>
+            </div>
+          </div>
+          <button 
+            onClick={() => shell.open('https://sey56.github.io/paracore-help')}
+            className="w-full py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
+          >
+            Access Codex
+          </button>
         </div>
       </Modal>
     </div>
