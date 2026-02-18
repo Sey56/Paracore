@@ -294,7 +294,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   return (
     <div className="tab-content py-4 flex flex-col h-full relative overflow-hidden">
       <div className="flex-grow relative min-h-0 min-w-0">
-        <div className="absolute inset-0 overflow-auto rounded bg-gray-50/50 dark:bg-gray-900/30 p-2">
+        <div className="absolute inset-0 overflow-auto rounded bg-slate-50/50 dark:bg-slate-900/40 p-2">
           <pre className="font-mono text-sm whitespace-pre-wrap text-left indent-0 text-gray-800 dark:text-gray-200">
             {isRunning && <code className="p-0 m-0">Executing script...</code>}
             {executionResult?.output ? (
@@ -327,7 +327,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
       </div>
 
       {/* Footer Buttons for Console Tab */}
-      <div className="pt-4 mt-auto border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 z-30">
+      <div className="pt-4 mt-auto border-t border-slate-200/60 dark:border-slate-700/40 flex justify-between items-center bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm z-30">
         <div className="flex-shrink-0">
           {showAiButton && (
             <button

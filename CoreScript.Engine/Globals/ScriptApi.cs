@@ -1,4 +1,4 @@
-using Autodesk.Revit.DB;
+﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.DB.Mechanical;
@@ -152,13 +152,13 @@ namespace CoreScript.Engine.Globals
                 }
                 else
                 {
-                    Println("âš ï¸ Watchdog registration failed: Script path not found in context.");
+                    Println("[WARNING] Watchdog registration failed: Script path not found in context.");
                 }
             }
             else
             {
                 // MANUAL TEST MODE: Just run the logic once so the user sees results in the Console/Table
-                Println("â„¹ï¸ Running Watchdog logic in Manual Test mode (no background registration).");
+                Println("[INFO] Running Watchdog logic in Manual Test mode (no background registration).");
                 callback(Doc);
             }
         }
@@ -182,13 +182,13 @@ namespace CoreScript.Engine.Globals
                 }
                 else
                 {
-                    Println("âš ï¸ Watchdog registration failed: Script path not found in context.");
+                    Println("[WARNING] Watchdog registration failed: Script path not found in context.");
                 }
             }
             else
             {
                 // MANUAL TEST MODE: Just run the logic once
-                Println("â„¹ï¸ Running Watchdog logic in Manual Test mode (no background registration).");
+                Println("[INFO] Running Watchdog logic in Manual Test mode (no background registration).");
                 callback();
             }
         }

@@ -31,8 +31,8 @@ async def run_script_logic(
 
         script_files_payload = []
         
-        # 1. Handle .ptool (Binary tools)
-        if path.endswith('.ptool'):
+        # 1. Handle .ptool / .wtool (Binary tools)
+        if path.endswith('.ptool') or path.endswith('.wtool'):
             import base64
             with open(resolved_path, 'r', encoding='utf-8') as f:
                 package = json.load(f)

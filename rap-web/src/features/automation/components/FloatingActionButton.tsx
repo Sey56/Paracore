@@ -9,7 +9,7 @@ interface FloatingActionButtonProps {
 }
 
 export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disabled }) => {
-  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs } = useWatchdog(); 
+  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs } = useWatchdog();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLDivElement>(null);
@@ -142,10 +142,9 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
         {/* Dropdown Menu (Pop-upwards and to the Left) */}
         {isOpen && !isArmingWatchdogs && isWatchdogInitialized && ( // Only show dropdown if not arming and initialized
           <div className="absolute bottom-full right-0 mb-4 w-80 bg-slate-900/98 dark:bg-white/95 rounded-[2rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] border border-white/10 dark:border-slate-200/60 z-[100] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 origin-bottom-right cursor-default backdrop-blur-3xl"
-            onMouseDown={(e) => e.stopPropagation()}
           >
-            {/* Watchtower Header with subtle "living" glow */}
-            <div className="p-6 pb-4 border-b border-white/5 dark:border-slate-100 relative overflow-hidden">
+            {/* Watchtower Header — acts as a drag handle (mouseDown propagates to parent) */}
+            <div className="p-6 pb-4 border-b border-white/5 dark:border-slate-100 relative overflow-hidden cursor-grab active:cursor-grabbing select-none">
               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent opacity-50" />
               <h3 className="relative text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
@@ -153,7 +152,9 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
               </h3>
             </div>
 
-            <div className="max-h-[32rem] overflow-y-auto custom-scrollbar p-4 space-y-3">
+            <div className="max-h-[32rem] overflow-y-auto custom-scrollbar p-4 space-y-3"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               {watchdogs.length === 0 ? (
                 <div className="py-16 px-6 text-center">
                   <div className="w-16 h-16 rounded-[2rem] bg-white/5 dark:bg-slate-100 flex items-center justify-center mx-auto mb-6 shadow-inner">
@@ -166,10 +167,9 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                 watchdogs.map((w, idx) => (
                   <div key={idx} className="p-5 rounded-[1.75rem] bg-white/5 dark:bg-slate-50/50 hover:bg-white/10 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent hover:border-white/10 dark:hover:border-slate-200 hover:shadow-xl">
                     <div className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${
-                        w.status === 'success' ? 'bg-emerald-500/20' : 
-                        w.status === 'warning' ? 'bg-amber-500/20' : 'bg-rose-500/20'
-                      }`}>
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${w.status === 'success' ? 'bg-emerald-500/20' :
+                          w.status === 'warning' ? 'bg-amber-500/20' : 'bg-rose-500/20'
+                        }`}>
                         <FontAwesomeIcon icon={getStatusIcon(w.status)} className={`${getStatusColor(w.status)} text-lg`} />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -181,7 +181,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="mt-5 pt-4 border-t border-white/5 dark:border-slate-200/60 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-1 h-1 rounded-full bg-slate-500" />

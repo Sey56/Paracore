@@ -38,6 +38,12 @@ namespace Paracore.Addin.Handlers
             RegisterWatchdogSourceResponse response = new RegisterWatchdogSourceResponse { IsSuccess = true };
             try
             {
+                // FAST PATH: Direct .wtool file registration (when arming a single binary sentinel)
+                if (request.Path.EndsWith(".wtool", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(request.Path))
+                {
+                    return RegisterSingleWtool(request.Path);
+                }
+
                 if (!System.IO.Directory.Exists(request.Path))
                 {
                     return new RegisterWatchdogSourceResponse
@@ -194,6 +200,77 @@ namespace Paracore.Addin.Handlers
             }
 
             return response;
+        }
+
+        /// <summary>
+        /// Registers a single .wtool binary sentinel file directly.
+        /// Called when the frontend arms an individual binary sentinel by its file path.
+        /// </summary>
+        private RegisterWatchdogSourceResponse RegisterSingleWtool(string wtoolPath)
+        {
+            try
+            {
+                string json = System.IO.File.ReadAllText(wtoolPath);
+                using (JsonDocument doc = JsonDocument.Parse(json))
+                {
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("assembly", out var assemblyElem) &&
+                        root.TryGetProperty("parameters", out var paramsElem))
+                    {
+                        byte[] assemblyBytes = Convert.FromBase64String(assemblyElem.GetString());
+
+                        var parameters = new Dictionary<string, object>();
+                        foreach (var p in paramsElem.EnumerateArray())
+                        {
+                            string name = p.GetProperty("name").GetString();
+                            string valJson = p.TryGetProperty("defaultValueJson", out var dj) ? dj.GetString() : "null";
+                            try { parameters[name] = JsonSerializer.Deserialize<object>(valJson); } catch { }
+                        }
+
+                        parameters["__absolute_path__"] = wtoolPath.Replace('\\', '/');
+                        parameters["__script_name__"] = System.IO.Path.GetFileName(wtoolPath);
+                        parameters["__is_watchdog_registration__"] = true;
+
+                        string paramsJson = JsonSerializer.Serialize(parameters);
+
+                        if (_uiApp != null)
+                        {
+                            var serverContext = new ServerContext(_uiApp);
+                            CoreScriptExecutionDispatcher.Instance.QueueBinaryScriptFromServer(
+                                assemblyBytes,
+                                paramsJson,
+                                serverContext,
+                                isSilent: true,
+                                priority: ExecutionPriority.Normal);
+
+                            _logger.Log($"[ScriptExecutionHandler] Loaded Binary Sentinel (direct): '{System.IO.Path.GetFileName(wtoolPath)}'", LogLevel.Info);
+
+                            return new RegisterWatchdogSourceResponse
+                            {
+                                IsSuccess = true,
+                                WatchdogsRegistered = 1
+                            };
+                        }
+                    }
+                }
+
+                return new RegisterWatchdogSourceResponse
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "Invalid .wtool format or missing UIApp context.",
+                    WatchdogsRegistered = 0
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[ScriptExecutionHandler] Failed to load binary sentinel {wtoolPath}: {ex.Message}");
+                return new RegisterWatchdogSourceResponse
+                {
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message,
+                    WatchdogsRegistered = 0
+                };
+            }
         }
 
         public async Task<UnregisterWatchdogSourceResponse> UnregisterWatchdogSource(UnregisterWatchdogSourceRequest request)
