@@ -148,98 +148,101 @@ export const AppLayout: React.FC = () => {
           onClose={closeFloatingCodeViewer}
         />
       )}
-      <TopBar />
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div
-          className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} bg-gray-50/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg z-30 border-t border-gray-200 dark:border-gray-700`}
-        >
-          <Sidebar />
-        </div>
-
-        {/* Main Content Area */}
-        <div
-          id="main-content-area"
-          className="flex flex-col flex-1 bg-gray-100 dark:bg-gray-900 isolate"
-          onClick={() => {
-            if (isSidebarOpen) {
-              toggleSidebar();
-            }
-          }}
-        >
-          <div className="flex flex-1 overflow-hidden">
-            {/* Left/Right Panels based on layout swap */}
-            {isLayoutSwapped ? (
-              <>
-                {/* Inspector Panel (Swapped to Left) */}
-                {activeMainView !== 'playlists' && (
-                  <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 border-r border-gray-200 dark:border-gray-700 transition-all duration-500">
-                    <ScriptInspector />
-                  </div>
-                )}
-
-                {/* Resizer */}
-                {activeMainView !== 'playlists' && (
-                  <div
-                    className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
-                    onMouseDown={handleMouseDown}
-                  ></div>
-                )}
-
-                {/* Main Content Area (Swapped to Right) */}
-                <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''} transition-all duration-500`}>
-                  {activeMainView === 'scripts' && <ScriptGallery />}
-                  {activeMainView === 'agent' && <AgentView />}
-                  {activeMainView === 'playlists' && <PlaylistsTab />}
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Main Content Area (Original Left) */}
-                <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''} transition-all duration-500`}>
-                  {activeMainView === 'scripts' && <ScriptGallery />}
-                  {activeMainView === 'agent' && <AgentView />}
-                  {activeMainView === 'playlists' && <PlaylistsTab />}
-                </div>
-
-                {/* Resizer */}
-                {activeMainView !== 'playlists' && (
-                  <div
-                    className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
-                    onMouseDown={handleMouseDown}
-                  ></div>
-                )}
-
-                {/* Inspector Panel (Original Right) */}
-                {activeMainView !== 'playlists' && (
-                  <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 transition-all duration-500">
-                    <ScriptInspector />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}
-        </div>
-        {/* Mobile Inspector */}
-        {isMobile && selectedScript && (
+      
+      <div className={`flex flex-col h-full transition-opacity duration-700 ${isArmingWatchdogs ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <TopBar />
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
           <div
-            className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`}
-            style={{ height: '70vh' }}
+            className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} bg-gray-50/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg z-30 border-t border-gray-200 dark:border-gray-700`}
           >
-            <div className="h-full flex flex-col relative">
-              {/* Close button positioned absolutely at top right */}
-              <button onClick={toggleInspector} className="absolute top-2 right-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white">
-                <FontAwesomeIcon icon={faTimes} size="lg" />
-              </button>
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-4 pt-8">
-                  <ScriptInspector />
+            <Sidebar />
+          </div>
+
+          {/* Main Content Area */}
+          <div
+            id="main-content-area"
+            className="flex flex-col flex-1 bg-gray-100 dark:bg-gray-900 isolate"
+            onClick={() => {
+              if (isSidebarOpen) {
+                toggleSidebar();
+              }
+            }}
+          >
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left/Right Panels based on layout swap */}
+              {isLayoutSwapped ? (
+                <>
+                  {/* Inspector Panel (Swapped to Left) */}
+                  {activeMainView !== 'playlists' && (
+                    <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 border-r border-gray-200 dark:border-gray-700 transition-all duration-500">
+                      <ScriptInspector />
+                    </div>
+                  )}
+
+                  {/* Resizer */}
+                  {activeMainView !== 'playlists' && (
+                    <div
+                      className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
+                      onMouseDown={handleMouseDown}
+                    ></div>
+                  )}
+
+                  {/* Main Content Area (Swapped to Right) */}
+                  <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''} transition-all duration-500`}>
+                    {activeMainView === 'scripts' && <ScriptGallery />}
+                    {activeMainView === 'agent' && <AgentView />}
+                    {activeMainView === 'playlists' && <PlaylistsTab />}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Main Content Area (Original Left) */}
+                  <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''} transition-all duration-500`}>
+                    {activeMainView === 'scripts' && <ScriptGallery />}
+                    {activeMainView === 'agent' && <AgentView />}
+                    {activeMainView === 'playlists' && <PlaylistsTab />}
+                  </div>
+
+                  {/* Resizer */}
+                  {activeMainView !== 'playlists' && (
+                    <div
+                      className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
+                      onMouseDown={handleMouseDown}
+                    ></div>
+                  )}
+
+                  {/* Inspector Panel (Original Right) */}
+                  {activeMainView !== 'playlists' && (
+                    <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 transition-all duration-500">
+                      <ScriptInspector />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}
+          </div>
+          {/* Mobile Inspector */}
+          {isMobile && selectedScript && (
+            <div
+              className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`}
+              style={{ height: '70vh' }}
+            >
+              <div className="h-full flex flex-col relative">
+                {/* Close button positioned absolutely at top right */}
+                <button onClick={toggleInspector} className="absolute top-2 right-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white">
+                  <FontAwesomeIcon icon={faTimes} size="lg" />
+                </button>
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-4 pt-8">
+                    <ScriptInspector />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

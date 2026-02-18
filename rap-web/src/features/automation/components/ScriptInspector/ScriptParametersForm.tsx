@@ -110,26 +110,6 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
 
     return (
         <div className="space-y-4">
-            {/* Global Group Controls */}
-            {hasGroups && (
-                <div className="flex justify-end gap-4 mb-2 px-1">
-                    <button 
-                        onClick={handleExpandAll}
-                        className="text-[9px] font-black text-slate-400 dark:text-slate-500 hover:text-blue-500 uppercase tracking-widest transition-colors flex items-center gap-1.5"
-                    >
-                        <FontAwesomeIcon icon={faExpandAlt} className="text-[8px]" />
-                        Expand Matrix
-                    </button>
-                    <button 
-                        onClick={handleCollapseAll}
-                        className="text-[9px] font-black text-slate-400 dark:text-slate-500 hover:text-rose-500 uppercase tracking-widest transition-colors flex items-center gap-1.5"
-                    >
-                        <FontAwesomeIcon icon={faCompressAlt} className="text-[8px]" />
-                        Collapse Matrix
-                    </button>
-                </div>
-            )}
-
             {/* Render Ungrouped Parameters First */}
             {ungroupedParams.map((param) => {
                 // Find original index in the main array to pass back to onChange

@@ -78,15 +78,15 @@ namespace CoreScript.Engine.Core
                         ForgeTypeId unitTypeId = null;
                         
                         string u = p.Unit.ToLower().Trim();
-                        if (u == "mm") unitTypeId = UnitTypeId.Millimeters;
-                        else if (u == "cm") unitTypeId = UnitTypeId.Centimeters;
-                        else if (u == "m") unitTypeId = UnitTypeId.Meters;
-                        else if (u == "ft") unitTypeId = UnitTypeId.Feet;
-                        else if (u == "in" || u == "inch") unitTypeId = UnitTypeId.Inches;
-                        else if (u == "m2" || u == "sqm") unitTypeId = UnitTypeId.SquareMeters;
-                        else if (u == "ft2" || u == "sqft") unitTypeId = UnitTypeId.SquareFeet;
-                        else if (u == "m3" || u == "cum") unitTypeId = UnitTypeId.CubicMeters;
-                        else if (u == "ft3" || u == "cuft") unitTypeId = UnitTypeId.CubicFeet;
+                        if (u == "mm" || u == "millimeter" || u == "millimeters") unitTypeId = UnitTypeId.Millimeters;
+                        else if (u == "cm" || u == "centimeter" || u == "centimeters") unitTypeId = UnitTypeId.Centimeters;
+                        else if (u == "m" || u == "meter" || u == "meters") unitTypeId = UnitTypeId.Meters;
+                        else if (u == "ft" || u == "foot" || u == "feet") unitTypeId = UnitTypeId.Feet;
+                        else if (u == "in" || u == "inch" || u == "inches") unitTypeId = UnitTypeId.Inches;
+                        else if (u == "m2" || u == "sqm" || u == "squaremeter" || u == "squaremeters") unitTypeId = UnitTypeId.SquareMeters;
+                        else if (u == "ft2" || u == "sqft" || u == "squarefoot" || u == "squarefeet") unitTypeId = UnitTypeId.SquareFeet;
+                        else if (u == "m3" || u == "cum" || u == "cubicmeter" || u == "cubicmeters") unitTypeId = UnitTypeId.CubicMeters;
+                        else if (u == "ft3" || u == "cuft" || u == "cubicfoot" || u == "cubicfeet") unitTypeId = UnitTypeId.CubicFeet;
 
                         if (unitTypeId != null)
                         {

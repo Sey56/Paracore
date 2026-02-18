@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { Script } from "@/types/scriptModel";
 import type { InspectorTab } from "@/context/providers/UIContext";
 import { useUI } from "@/hooks/useUI";
@@ -8,8 +9,17 @@ import { ConsoleTabContent } from './ConsoleTabContent';
 import { TableTabContent } from './TableTabContent';
 import { MetadataTabContent } from './MetadataTabContent';
 
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCompress, faExpand, faExpandAlt, faCompressAlt, faLayerGroup } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCompress,
+  faExpand,
+  faExpandAlt,
+  faCompressAlt,
+  faLayerGroup,
+  faSlidersH,
+  faTerminal,
+  faChartLine,
+  faInfoCircle
+} from "@fortawesome/free-solid-svg-icons";
 
 interface InspectorTabsProps {
   script: Script;
@@ -39,7 +49,12 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
     window.dispatchEvent(new CustomEvent(newState ? 'expand-all-groups' : 'collapse-all-groups'));
   };
 
-  const allTabs = ["parameters", "console", "table", "metadata"] as const;
+  const allTabs = [
+    { id: "parameters", label: "Parameters", icon: faSlidersH },
+    { id: "console", label: "Console", icon: faTerminal },
+    { id: "table", label: "Analytics", icon: faChartLine },
+    { id: "metadata", label: "Metadata", icon: faInfoCircle }
+  ] as const;
 
   // Detect new execution with table data
   useEffect(() => {
@@ -68,26 +83,29 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
 
   return (
     <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
-      <div className="flex border-b border-gray-200 dark:border-gray-700 items-center">
+      <div className="flex border-b border-gray-200 dark:border-gray-700 items-center px-4 bg-gray-50/30 dark:bg-slate-900/30">
         <div className="flex">
-          {allTabs.map((tab: InspectorTab) => (
+          {allTabs.map((tab) => (
             <button
-              key={tab}
-              className={`tab-button px-4 py-2 font-medium text-sm relative ${activeInspectorTab === tab
-                ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
+              key={tab.id}
+              className={`tab-button px-4 py-3 flex items-center gap-2 transition-all duration-300 relative border-b-2
+                ${activeInspectorTab === tab.id
+                  ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white/50 dark:bg-slate-800/50"
+                  : "text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-300"
                 }`}
-              onClick={() => setActiveInspectorTab(tab)}
+              onClick={() => setActiveInspectorTab(tab.id as InspectorTab)}
             >
-              <span className="relative inline-flex items-center">
-                {tab === 'console' ? 'Console' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                {tab === 'table' && hasUnviewedTableData && (
-                  <span className="absolute -top-2 -right-2 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
-                  </span>
-                )}
+              <FontAwesomeIcon icon={tab.icon} className={`text-[10px] ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-50'}`} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+                {tab.label}
               </span>
+              
+              {tab.id === 'table' && hasUnviewedTableData && (
+                <span className="absolute top-2 right-2 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+              )}
             </button>
           ))}
         </div>

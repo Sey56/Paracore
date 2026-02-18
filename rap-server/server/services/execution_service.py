@@ -40,22 +40,24 @@ async def run_script_logic(
             metadata = package.get("metadata", {})
             script_name = metadata.get("name") or os.path.basename(path)
             
-            params_to_send = parameters
+            # --- V4 FIX: Preserve Rich Parameters for Units ---
+            # Do NOT flatten here. Pass the full list to the C# engine
+            # so it can see the [Unit] attributes.
+            params_payload = parameters
             if isinstance(parameters, str):
-                try: params_to_send = json.loads(parameters)
+                try: params_payload = json.loads(parameters)
                 except: pass
 
-            if isinstance(params_to_send, list):
+            # Inject script name if missing
+            if isinstance(params_payload, list):
                 found = False
-                for p in params_to_send:
+                for p in params_payload:
                     if p.get("name") == "__script_name__":
                         p["value"] = script_name
                         found = True; break
-                if not found: params_to_send.append({"name": "__script_name__", "value": script_name})
-            elif isinstance(params_to_send, dict):
-                params_to_send["__script_name__"] = script_name
+                if not found: params_payload.append({"name": "__script_name__", "value": script_name})
             
-            parameters_json = json.dumps(params_to_send)
+            parameters_json = json.dumps(params_payload)
             compiled_assembly = base64.b64decode(package.get("assembly", ""))
             
             response_data = execute_script(None, parameters_json, compiled_assembly)
@@ -78,29 +80,33 @@ async def run_script_logic(
             raise HTTPException(status_code=404, detail="No script files found in this project.")
 
         # Parameter Processing
-        def parse_value(val):
-            if isinstance(val, str) and val.startswith('[') and val.endswith(']'):
-                try: return json.loads(val)
-                except: pass
-            return val
-
         script_name_for_dashboard = script.name if script else os.path.basename(path)
         
-        if parameters is None: parameters = {}
+        # --- V4 CORE FIX: Unit Regression ---
+        # We now send the FULL rich parameters list (including metadata like Unit)
+        # to the C# engine instead of flattening it to a simple dictionary.
+        # This allows HardenParameters to work.
+        
+        rich_params = []
+        if parameters is None: rich_params = []
         elif isinstance(parameters, str):
-            try:
-                param_list = json.loads(parameters)
-                parameters = {p["name"]: parse_value(p.get("value")) for p in param_list if p.get("name")}
-            except: parameters = {}
+            try: rich_params = json.loads(parameters)
+            except: rich_params = []
         elif isinstance(parameters, list):
-            parameters = {p.get("name", p.get("Name")): parse_value(p.get("value", p.get("Value"))) for p in parameters if p.get("name") or p.get("Name")}
+            rich_params = parameters
 
-        if isinstance(parameters, dict):
-            parameters["__script_name__"] = script_name_for_dashboard
-            parameters["__absolute_path__"] = resolved_path
+        # Ensure essential technical parameters are present in the rich list
+        if isinstance(rich_params, list):
+            # Inject Script Name
+            if not any(p.get("name") == "__script_name__" for p in rich_params):
+                rich_params.append({"name": "__script_name__", "value": script_name_for_dashboard})
+            
+            # Inject Absolute Path
+            if not any(p.get("name") == "__absolute_path__" for p in rich_params):
+                rich_params.append({"name": "__absolute_path__", "value": resolved_path})
 
-        # Execute
-        response_data = execute_script(json.dumps(script_files_payload), json.dumps(parameters))
+        # Execute with the FULL JSON list
+        response_data = execute_script(json.dumps(script_files_payload), json.dumps(rich_params))
 
         # Log Run
         if script:

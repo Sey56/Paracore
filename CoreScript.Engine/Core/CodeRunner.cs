@@ -28,15 +28,18 @@ namespace CoreScript.Engine.Core
         private readonly IScriptCombiner _scriptCombiner;
         private readonly IScriptExecutor _scriptExecutor;
         private readonly IScriptRewriter _scriptRewriter;
+        private readonly IParameterExtractor _parameterExtractor;
 
         public CodeRunner()
         {
+            var logger = new RunnerLogger();
             _parameterService = new ParameterService();
             _scriptCompiler = new ScriptCompiler();
             _scriptParser = new ScriptParser();
             _scriptCombiner = new ScriptCombiner(_scriptParser);
             _scriptExecutor = new ScriptExecutor();
             _scriptRewriter = new ScriptRewriter();
+            _parameterExtractor = new ParameterExtractor(logger);
         }
 
         public ExecutionResult Execute(string scriptContent, string parametersJson, ICoreScriptContext context)
@@ -54,18 +57,12 @@ namespace CoreScript.Engine.Core
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 
-                // DEBUG: Log all parameters
-                FileLogger.Log($"[CodeRunner] Final Parameters Dictionary Keys: {string.Join(", ", parameters.Keys)}");
-                foreach (var kvp in parameters)
-                {
-                    FileLogger.Log($"[CodeRunner] Param '{kvp.Key}' = {kvp.Value} (Type: {kvp.Value?.GetType().Name ?? "null"})");
-                }
+                // ... (existing logging) ...
 
                 if (parameters.ContainsKey("__script_name__"))
                 {
                     var forcedName = parameters["__script_name__"]?.ToString();
                     if (!string.IsNullOrWhiteSpace(forcedName)) topLevelScriptName = forcedName;
-                    // Do NOT remove — ScriptApi.Watchdog() needs it at runtime
                 }
 
                 if (parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj != null)
@@ -81,12 +78,23 @@ namespace CoreScript.Engine.Core
                 }
                 catch 
                 { 
-                    // Fallback: If not JSON, it's a single script. 
-                    // We wrap it in a ScriptFile so the Combiner/Rewriter workflow remains unified.
                     scriptFiles.Add(new ScriptFile { FileName = topLevelScriptName + ".cs", Content = scriptContent });
                 }
 
                 string combinedUserCode = _scriptCombiner.Combine(scriptFiles);
+
+                // --- V4 CORE FIX: Unit Regression ---
+                // If the provided parametersJson was a simple dictionary (richParams is empty),
+                // we MUST extract the parameters from the script to get [Unit] and other metadata.
+                if (richParams.Count == 0 && !string.IsNullOrEmpty(combinedUserCode))
+                {
+                    FileLogger.Log("[CodeRunner] No rich parameters provided. Extracting from source code to ensure [Unit] conversion works.");
+                    richParams = _parameterExtractor.ExtractParameters(combinedUserCode);
+                }
+
+                if (richParams.Count > 0) _parameterService.HardenParameters(parameters, richParams);
+                // -------------------------------------
+
                 string modifiedUserCode = _scriptRewriter.Rewrite(combinedUserCode, parameters);
                 
                 // V3.1: Start with #line hidden to ensure internal using doesn't count toward line numbers
@@ -102,8 +110,6 @@ namespace CoreScript.Engine.Core
                 }
                 catch { }
 
-                if (richParams.Count > 0) _parameterService.HardenParameters(parameters, richParams);
-                
                 ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters));
 
                 var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
