@@ -25,8 +25,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     const { resetScriptParameters } = useScriptExecution();
 
     const [scriptName, setScriptName] = useState('');
-    const [activeTab, setActiveTab] = useState<'query' | 'template' | 'blank'>('query');
-    const [selectedTemplate, setSelectedTemplate] = useState('BIMWatchdog');
+    const [activeTab, setActiveTab] = useState<'query' | 'blank'>('query');
 
     const [generatedLogic, setGeneratedLogic] = useState('');
     const [generatedParams, setGeneratedParams] = useState('');
@@ -107,7 +106,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
             try {
                 const result = await createNewScript({
                     script_name: scriptName,
-                    template_id: activeTab === 'query' ? 'ProjectAuditor' : selectedTemplate,
+                    template_id: activeTab === 'query' ? 'ProjectAuditor' : 'BlankScript',
                     generated_logic: generatedLogic,
                     generated_params: generatedParams,
                     parent_folder: selectedFolder
@@ -168,15 +167,14 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                             {[
                                 { id: 'query', label: 'Visual Builder', icon: faFilter },
-                                { id: 'template', label: 'Templates', icon: faLayerGroup },
                                 { id: 'blank', label: 'Blank Script', icon: faCode }
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as any)}
                                     className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${activeTab === tab.id
-                                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                            : 'text-gray-400 hover:text-gray-600'
+                                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                        : 'text-gray-400 hover:text-gray-600'
                                         }`}
                                 >
                                     <FontAwesomeIcon icon={tab.icon} className={activeTab === tab.id ? 'text-blue-500' : ''} />
@@ -196,31 +194,6 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                     onConfigChange={handleConfigChange}
                                     onQueryGenerated={handleQueryGenerated}
                                 />
-                            )}
-
-                            {activeTab === 'template' && (
-                                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
-                                        {[
-                                            { id: 'BIMWatchdog', label: 'BIM Watchdog', desc: 'Runs silently in the background to validate models when Revit is idle.', icon: faBolt, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-900/20' },
-                                            { id: 'ExcelLink', label: 'Excel Live Link', desc: 'Bidirectional sync between Revit elements and external spreadsheets.', icon: faTable, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-900/20' },
-                                        ].map(t => (
-                                            <div
-                                                key={t.id}
-                                                onClick={() => setSelectedTemplate(t.id)}
-                                                className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all flex gap-5 items-start group ${selectedTemplate === t.id ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : 'border-gray-100 dark:border-gray-800 hover:border-blue-300 bg-white dark:bg-gray-800/50'}`}
-                                            >
-                                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${t.bg}`}>
-                                                    <FontAwesomeIcon icon={t.icon} className={`${t.color} text-lg`} />
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-gray-900 dark:text-gray-100 text-base">{t.label}</div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{t.desc}</div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
                             )}
 
                             {activeTab === 'blank' && (
