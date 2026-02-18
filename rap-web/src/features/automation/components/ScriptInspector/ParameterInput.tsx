@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSync, faSpinner, faFolderOpen, faMousePointer, faCrosshairs, faSearch, faCheck, faExclamationTriangle } from "@fortawesome/free-solid-svg-icons";
 import { open, save } from "@tauri-apps/api/dialog";
@@ -35,7 +35,7 @@ const ToggleSwitch = ({ checked, onChange, disabled }: { checked: boolean; onCha
     role="switch"
     aria-checked={checked}
     onClick={() => !disabled && onChange(!checked)}
-    className={`${checked ? 'bg-blue-600 shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-slate-200 dark:bg-slate-800'} 
+    className={`${checked ? 'bg-blue-600 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'bg-slate-200 dark:bg-slate-800'} 
       relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
       transition-all duration-300 ease-in-out focus:outline-none 
       ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -87,11 +87,11 @@ const VirtualList: React.FC<{
               className={`absolute left-0 right-0 grid grid-cols-[1fr_auto] gap-2 items-center px-4 rounded-lg cursor-pointer transition-all text-[11px] select-none
                 ${isSelected
                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold'
-                  : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+                  : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
               style={{ top, height: rowHeight }}
             >
               <div className="min-w-0" title={item}>
-                <div className="truncate w-full block uppercase tracking-wide">{item}</div>
+                <div className="truncate w-full block tracking-wide">{item}</div>
               </div>
 
               {type === 'multi' && (
@@ -135,27 +135,24 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
 
   return (
     <div className={`relative w-full ${isOpen ? 'z-50' : ''}`}>
-      {/* Trigger Button */}
       <button
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full h-10 border-2 border-transparent rounded-xl px-4 text-xs font-bold bg-slate-50 dark:bg-slate-900 text-left flex justify-between items-center focus:outline-none focus:border-blue-500/30 focus:ring-4 focus:ring-blue-500/5 transition-all shadow-sm ${disabled ? 'opacity-50 cursor-not-allowed' : 'text-slate-700 dark:text-slate-200'}`}
+        className={`w-full h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-left flex justify-between items-center focus:outline-none focus:border-blue-500/30 transition-all shadow-sm ${disabled ? 'opacity-50 cursor-not-allowed' : 'text-slate-600 dark:text-slate-300'}`}
       >
-        <span className="truncate mr-2 block min-w-0 uppercase tracking-wide">
-          {value || <span className="text-slate-400 dark:text-slate-600 italic font-normal normal-case">Select configuration...</span>}
+        <span className="truncate mr-2 block min-w-0 tracking-wide">
+          {value || <span className="text-slate-400 dark:text-slate-600 italic font-normal">Select configuration...</span>}
         </span>
         <svg className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
-      {/* Dropdown Popover */}
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
           <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 origin-top backdrop-blur-xl">
-            {/* Search */}
             <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -167,12 +164,10 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
-                  className="w-full pl-9 pr-3 py-2 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
-
-            {/* Virtual List */}
             <div className="bg-transparent p-1">
               {filteredOptions.length > 0 ? (
                 <VirtualList
@@ -215,7 +210,6 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
   };
 
   const selectedValues = getMultiSelectValues();
-
   const filteredOptions = (param.options || []).filter(opt =>
     opt.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -232,10 +226,8 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
     onChange(index, JSON.stringify(newValues));
   };
 
-
   return (
-    <div className="flex flex-col border-2 border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-900/50 shadow-inner overflow-hidden w-full min-w-0">
-      {/* Search Header */}
+    <div className="flex flex-col border border-slate-200 dark:border-slate-700/50 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20 shadow-inner overflow-hidden w-full min-w-0">
       <div className="flex items-center px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50">
         <div className="relative flex-grow min-w-0">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -246,7 +238,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             placeholder="Filter options..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-[11px] font-bold rounded-xl border border-transparent bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+            className="w-full pl-9 pr-3 py-2 text-[11px] font-semibold rounded-xl border border-transparent bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             disabled={disabled}
           />
         </div>
@@ -259,9 +251,6 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
                ${param.options && param.options.length > 0
                 ? "bg-white dark:bg-slate-800 text-slate-500 hover:text-blue-600 border border-slate-200 dark:border-slate-700"
                 : "bg-blue-600 text-white shadow-lg shadow-blue-500/20"}`}
-            title={isContextMismatch
-              ? `Context Mismatch. Click to update for '${revitStatus.document}'.`
-              : (param.options && param.options.length > 0 ? `Sync registry (${param.options.length} found)` : "Start component discovery")}
           >
             <FontAwesomeIcon
               icon={isComputing ? faSpinner : (isContextMismatch ? faExclamationTriangle : faSync)}
@@ -271,7 +260,6 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
         )}
       </div>
 
-      {/* Virtualized Options List */}
       <div className="bg-transparent p-1">
         {filteredOptions.length > 0 ? (
           <VirtualList
@@ -289,26 +277,13 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
         )}
       </div>
 
-      {/* Footer Actions */}
       <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest">
         <span className="text-blue-600 dark:text-blue-400 tabular-nums">
           {selectedValues.length} Selected
         </span>
         <div className="flex gap-4">
-          <button
-            onClick={() => handleAllNone(true)}
-            disabled={disabled}
-            className="text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50"
-          >
-            All
-          </button>
-          <button
-            onClick={() => handleAllNone(false)}
-            disabled={disabled}
-            className="text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50"
-          >
-            None
-          </button>
+          <button onClick={() => handleAllNone(true)} disabled={disabled} className="text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50">All</button>
+          <button onClick={() => handleAllNone(false)} disabled={disabled} className="text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50">None</button>
         </div>
       </div>
     </div>
@@ -317,10 +292,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
 
 export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, onPickObject, isComputing, disabled }) => {
   const { revitStatus } = useRevitStatus();
-  
-  const [localValue, setLocalValue] = useState<string>(
-    param.value !== null && param.value !== undefined ? String(param.value) : ""
-  );
+  const [localValue, setLocalValue] = useState<string>(param.value !== null && param.value !== undefined ? String(param.value) : "");
 
   React.useEffect(() => {
     const incomingValue = param.value !== null && param.value !== undefined ? String(param.value) : "";
@@ -335,7 +307,6 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   const handleFileBrowse = async () => {
     try {
       let selection: string | string[] | null = null;
-
       if (param.inputType === 'SaveFile') {
         selection = await save({
           title: param.description || "Forge Output Destination",
@@ -349,17 +320,11 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           title: param.description || `Station: Select ${param.inputType}`
         });
       }
-
-      if (selection && typeof selection === 'string') {
-        onChange(index, selection);
-      }
-    } catch (err) {
-      console.error("Failed to open file dialog:", err);
-    }
+      if (selection && typeof selection === 'string') onChange(index, selection);
+    } catch (err) { console.error("Failed to open file dialog:", err); }
   };
 
   const renderInput = () => {
-    // Case 0: File/Folder Picker
     if (param.inputType === 'File' || param.inputType === 'Folder' || param.inputType === 'SaveFile') {
       return (
         <div className="flex gap-2 w-full">
@@ -367,15 +332,14 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             type="text"
             value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
             onChange={(e) => onChange(index, e.target.value)}
-            className="flex-grow h-10 border-2 border-transparent rounded-xl px-4 text-xs font-bold bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-medium bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
             disabled={disabled}
             placeholder={param.inputType === 'Folder' ? "Select source folder..." : "Select target path..."}
           />
           <button
             onClick={handleFileBrowse}
             disabled={disabled}
-            className="w-10 h-10 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-500 transition-all flex items-center justify-center flex-shrink-0 shadow-sm active:scale-90"
-            title="Browse Directory..."
+            className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 transition-all flex items-center justify-center flex-shrink-0 shadow-sm active:scale-90"
           >
             <FontAwesomeIcon icon={faFolderOpen} className="text-xs" />
           </button>
@@ -383,99 +347,35 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       );
     }
 
-    // Case 1: Dropdown (Single Select)
     if (param.options && param.options.length > 0 && !param.multiSelect) {
-      if (param.inputType === 'Segmented') {
-        return (
-          <SegmentedControl
-            options={param.options ?? []}
-            value={param.value as string}
-            onChange={(val) => onChange(index, val)}
-            disabled={disabled}
-          />
-        );
-      }
-
-      return (
-        <SingleSelectInput
-          param={param}
-          index={index}
-          onChange={onChange}
-          disabled={disabled}
-        />
-      );
+      if (param.inputType === 'Segmented') return <SegmentedControl options={param.options ?? []} value={param.value as string} onChange={(val) => onChange(index, val)} disabled={disabled} />;
+      return <SingleSelectInput param={param} index={index} onChange={onChange} disabled={disabled} />;
     }
 
-    // Case 2: Multi-Select (Checkboxes)
-    if (param.multiSelect) {
-      return (
-        <MultiSelectInput
-          param={param}
-          index={index}
-          onChange={onChange}
-          onCompute={onCompute}
-          isComputing={isComputing}
-          disabled={disabled}
-        />
-      );
-    }
+    if (param.multiSelect) return <MultiSelectInput param={param} index={index} onChange={onChange} onCompute={onCompute} isComputing={isComputing} disabled={disabled} />;
 
-    // Case 3: Boolean
     if (param.type === "boolean") {
       const isChecked = param.value === true || (typeof param.value === 'string' && param.value.toLowerCase() === 'true');
       return (
-        <div className="flex items-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 transition-all">
-          <ToggleSwitch
-            checked={isChecked}
-            onChange={(checked) => onChange(index, checked)}
-            disabled={disabled}
-          />
-          <span className={`ml-4 text-[10px] font-black uppercase tracking-widest ${isChecked ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-600'}`}>
+        <div className="flex items-center p-3 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50 transition-all">
+          <ToggleSwitch checked={isChecked} onChange={(checked) => onChange(index, checked)} disabled={disabled} />
+          <span className={`ml-4 text-[10px] font-bold uppercase tracking-[0.15em] ${isChecked ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
             {isChecked ? 'Active' : 'Offline'}
           </span>
         </div>
       );
     }
 
-    // Case 4: Number
     if (param.type === "number") {
       const isDecimal = param.numericType === 'double';
       const step = param.step || (isDecimal ? 0.1 : 1);
       const min = (param.min !== undefined && param.min !== null) ? param.min : undefined;
       const max = (param.max !== undefined && param.max !== null) ? param.max : undefined;
-
-      const hasSlider = min !== undefined && max !== undefined && max > min;
-
-      if (hasSlider) {
-        return (
-          <SliderInput
-            min={min!}
-            max={max!}
-            step={step}
-            value={Number(param.value) || min!}
-            onChange={(val) => onChange(index, val)}
-            disabled={disabled}
-            suffix={param.suffix}
-          />
-        );
-      }
-
+      if (min !== undefined && max !== undefined && max > min) return <SliderInput min={min!} max={max!} step={step} value={Number(param.value) || min!} onChange={(val) => onChange(index, val)} disabled={disabled} suffix={param.suffix} />;
       if (param.inputType === 'Stepper') {
-        const stepperVal = (param.value !== null && param.value !== undefined && param.value !== "")
-          ? Number(param.value)
-          : (param.defaultValue !== undefined && param.defaultValue !== null ? Number(param.defaultValue) : (min ?? 0));
-        return (
-          <StepperInput
-            value={isNaN(stepperVal) ? 0 : stepperVal}
-            min={min}
-            max={max}
-            step={step}
-            onChange={(val) => onChange(index, val)}
-            disabled={disabled}
-          />
-        );
+        const stepperVal = (param.value !== null && param.value !== undefined && param.value !== "") ? Number(param.value) : (param.defaultValue !== undefined && param.defaultValue !== null ? Number(param.defaultValue) : (min ?? 0));
+        return <StepperInput value={isNaN(stepperVal) ? 0 : stepperVal} min={min} max={max} step={step} onChange={(val) => onChange(index, val)} disabled={disabled} />;
       }
-
       return (
         <div className="flex gap-2 w-full items-center">
           <input
@@ -488,12 +388,10 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
                 if (val !== "" && !val.endsWith(".")) {
                   const parsed = parseFloat(val);
                   if (!isNaN(parsed)) onChange(index, parsed);
-                } else if (val === "") {
-                  onChange(index, 0);
-                }
+                } else if (val === "") onChange(index, 0);
               }
             }}
-            className="flex-grow h-10 border-2 border-transparent rounded-xl px-4 text-xs font-bold bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
             disabled={disabled}
             inputMode="decimal"
           />
@@ -501,64 +399,34 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             <button
               onClick={() => onPickObject(param.selectionType!, index)}
               disabled={disabled || isComputing}
-              className="w-10 h-10 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
-              title={isContextMismatch ? `Re-acquire ${param.selectionType}` : `Forge: Select ${param.selectionType}`}
+              className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
             >
-              <FontAwesomeIcon
-                icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)}
-                className={isContextMismatch ? 'text-amber-500' : ''}
-              />
+              <FontAwesomeIcon icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)} className={isContextMismatch ? 'text-amber-500' : ''} />
             </button>
           )}
         </div>
       );
     }
 
-    // Case X: Point Selection (XYZ)
-    if (param.selectionType === 'Point') {
-      return (
-        <PointInput
-          value={String(param.value || "0,0,0")}
-          onChange={(val) => onChange(index, val)}
-          onPick={() => onPickObject && onPickObject('Point', index)}
-          disabled={disabled}
-          isPicking={isComputing}
-          computedInDocument={param.computedInDocument}
-        />
-      );
-    }
+    if (param.selectionType === 'Point') return <PointInput value={String(param.value || "0,0,0")} onChange={(val) => onChange(index, val)} onPick={() => onPickObject && onPickObject('Point', index)} disabled={disabled} isPicking={isComputing} computedInDocument={param.computedInDocument} />;
+    if (param.inputType === 'Color') return <ColorInput value={String(param.value || "#000000")} onChange={(val) => onChange(index, val)} disabled={disabled} />;
 
-    // Case Y: Color Input
-    if (param.inputType === 'Color') {
-      return (
-        <ColorInput
-          value={String(param.value || "#000000")}
-          onChange={(val) => onChange(index, val)}
-          disabled={disabled}
-        />
-      );
-    }
-
-    // Case 5: Default (String)
     return (
       <div className="flex gap-2 w-full items-center">
         <input
           type="text"
           value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
           onChange={(e) => onChange(index, e.target.value)}
-          className="flex-grow h-10 border-2 border-transparent rounded-xl px-4 text-xs font-bold bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+          className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
           disabled={disabled}
         />
         {param.selectionType && param.selectionType !== "None" && onPickObject && (
           <button
             onClick={() => onPickObject(param.selectionType!, index)}
             disabled={disabled || isComputing}
-            className="w-10 h-10 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
+            className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
           >
-            <FontAwesomeIcon
-              icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)}
-              className={isContextMismatch ? 'text-amber-500' : ''}
-            />
+            <FontAwesomeIcon icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)} className={isContextMismatch ? 'text-amber-500' : ''} />
           </button>
         )}
       </div>
@@ -566,20 +434,20 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   };
 
   return (
-    <div key={index} className="flex flex-col space-y-2 pb-4 border-b border-slate-50 dark:border-slate-800/50 last:border-0 last:pb-0">
+    <div key={index} className="flex flex-col space-y-2 pb-4 border-b border-slate-50 dark:border-slate-800/30 last:border-0 last:pb-0">
       <div className="flex justify-between items-center min-w-0">
-        <label className="flex items-center text-sm font-black tracking-tight text-slate-800 dark:text-slate-100 truncate">
-          <div className="w-1 h-3.5 bg-blue-500 rounded-full mr-2.5 shadow-[0_0_8px_rgba(59,130,246,0.4)]" />
+        <label className="flex items-center text-[13px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 truncate">
+          <div className="w-1 h-3 bg-slate-300 dark:bg-slate-600 rounded-full mr-2.5" />
           {param.name}
-          {param.suffix && <span className="ml-1 text-slate-400 font-bold text-[10px]">({param.suffix})</span>}
+          {param.suffix && <span className="ml-1 text-slate-400 font-medium text-[10px]">({param.suffix})</span>}
           {param.required && <span className="text-rose-500 ml-1 font-bold">*</span>}
         </label>
         {param.description && (
           <div className="relative group/info cursor-help">
-            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 italic uppercase tracking-wider truncate max-w-[120px] block">
+            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 italic tracking-tight truncate max-w-[120px] block">
               {param.description}
             </span>
-            <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 text-white text-[10px] font-bold leading-relaxed max-w-[200px] break-words opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-300 transform translate-y-1 group-hover/info:translate-y-0 border border-white/10">
+            <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 text-white text-[10px] font-medium leading-relaxed max-w-[200px] break-words opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-300 transform translate-y-1 group-hover/info:translate-y-0 border border-white/10">
               {param.description}
             </div>
           </div>
@@ -593,10 +461,10 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           <button
             onClick={() => onCompute(param.name)}
             disabled={disabled || isComputing}
-            className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm active:scale-90
+            className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border transition-all active:scale-90
               ${isComputing ? 'animate-pulse bg-blue-50 dark:bg-blue-900/20' : ''}
               ${param.options && param.options.length > 0
-                ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-500"
+                ? "bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500"
                 : "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"}`}
           >
             <FontAwesomeIcon

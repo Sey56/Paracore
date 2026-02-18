@@ -50,7 +50,7 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
                 <div className="flex items-center space-x-3">
                     <div className={`w-1 h-4 rounded-full transition-all duration-500 ${isExpanded ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
                     <div className="flex flex-col">
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isExpanded ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                        <span className={`text-xs font-bold uppercase tracking-[0.15em] transition-colors ${isExpanded ? 'text-slate-400 dark:text-slate-400' : 'text-slate-500 dark:text-slate-500'}`}>
                             {groupName}
                         </span>
                     </div>
