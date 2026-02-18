@@ -31,7 +31,7 @@ const SettingsModal: React.FC = () => {
     const tabs: TabItem[] = [];
 
     tabs.push({
-      name: 'BIM Watchdogs',
+      name: 'Sentinels',
       component: WatchdogSettings,
     });
 
@@ -104,7 +104,7 @@ const SettingsModal: React.FC = () => {
         <div className="flex-1 p-8 overflow-y-auto">
           {ActiveComponent && (
             <>
-              {isOffline && activeTab !== 'LLM Settings' && activeTab !== 'BIM Watchdogs' ? (
+              {isOffline && activeTab !== 'LLM Settings' && activeTab !== 'Sentinels' ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-full">
                     <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -121,7 +121,7 @@ const SettingsModal: React.FC = () => {
               ) : (
                 <ActiveComponent
                   isAuthenticated={isAuthenticated || isOffline}
-                  isReadOnly={activeTab === 'LLM Settings' || activeTab === 'BIM Watchdogs' ? false : isOffline}
+                  isReadOnly={activeTab === 'LLM Settings' || activeTab === 'Sentinels' ? false : isOffline}
                 />
               )}
             </>
