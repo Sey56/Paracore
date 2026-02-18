@@ -35,16 +35,48 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { showNotification } = useNotifications();
   const { activeScriptSource, setActiveScriptSource } = useUI();
 
-  // 1. AUTOMATION FOLDER STATE (The Sidebar)
-  const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>(`rap_customScriptFolders_${user?.id || 'anon'}`, []);
-  const [userSourcePaths, setUserSourcePaths] = useLocalStorage<Record<number, { path: string; name: string }>>(`rap_userSourcePaths_${user?.id || 'anon'}`, {});
-  const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>(`agentScriptsPath_${user?.id || 'anon'}`, null);
+  // V4: Determine stable user key
+  const stableUserId = user?.id || 'anon';
+
+  // 1. AUTOMATION FOLDER STATE (The Sidebar) - Strictly Isolated
+  const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>(`rap_customScriptFolders_${stableUserId}`, []);
+  const [userSourcePaths, setUserSourcePaths] = useLocalStorage<Record<number, { path: string; name: string }>>(`rap_userSourcePaths_${stableUserId}`, {});
+  const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>(`agentScriptsPath_${stableUserId}`, null);
+
+  const [isSystemReady, setIsSystemReady] = useState(false);
+  const normalizationHelper = (p: string) => (p || "").replace(/\\/g, '/').toLowerCase().trim();
+
+  // 2. BOOTSTRAP: Ensure system is ready when user settles
+  useEffect(() => {
+    const hasToken = !!localStorage.getItem('rap_cloud_token');
+    if (hasToken && !user) {
+      setIsSystemReady(false);
+      return;
+    }
+    setIsSystemReady(true);
+  }, [user]);
+
+  // 3. HEALING: Ensure active source is always in the Sidebar list
+  useEffect(() => {
+    const hasToken = !!localStorage.getItem('rap_cloud_token');
+    if (hasToken && stableUserId === 'anon') return;
+    if (!isSystemReady || !activeScriptSource) return;
+    
+    if (activeScriptSource.type === 'local' && activeScriptSource.path) {
+      const path = activeScriptSource.path;
+      const normPath = normalizationHelper(path);
+      if (!customScriptFolders.some(f => normalizationHelper(f) === normPath)) {
+        console.log("[ScriptProvider] 🩹 Healing: Restoring missing active source to Sidebar registry:", path);
+        setCustomScriptFolders(prev => Array.from(new Set([...prev, path])));
+      }
+    }
+  }, [activeScriptSource, isSystemReady, customScriptFolders, setCustomScriptFolders, stableUserId]);
 
   const setUserSourcePath = useCallback((sourceId: number, path: string, name: string) => {
     setUserSourcePaths(prev => ({ ...prev, [sourceId]: { path, name } }));
   }, [setUserSourcePaths]);
 
-  // 2. REMOTE SOURCES
+  // 4. REMOTE SOURCES
   const [remoteScriptSources, setRemoteScriptSources] = useState<Record<number, TeamScriptSource[]>>({});
 
   const fetchRemoteScriptSources = useCallback(async () => {
@@ -68,11 +100,11 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     fetchRemoteScriptSources();
   }, [fetchRemoteScriptSources, activeTeam]);
 
-  // 3. SELECTION & LOADING
+  // 5. SELECTION & LOADING
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [favoriteScripts, setFavoriteScripts] = useLocalStorage<string[]>(`rap_favoriteScripts_${user?.id || 'anon'}`, []);
-  const [recentScripts, setRecentScripts] = useLocalStorage<string[]>(`rap_recentScripts_${user?.id || 'anon'}`, []);
-  const [lastRunTimes, setLastRunTimes] = useLocalStorage<Record<string, string>>(`rap_lastRunTimes_${user?.id || 'anon'}`, {});
+  const [favoriteScripts, setFavoriteScripts] = useLocalStorage<string[]>(`rap_favoriteScripts_${stableUserId}`, []);
+  const [recentScripts, setRecentScripts] = useLocalStorage<string[]>(`rap_recentScripts_${stableUserId}`, []);
+  const [lastRunTimes, setLastRunTimes] = useLocalStorage<Record<string, string>>(`rap_lastRunTimes_${stableUserId}`, {});
 
   const toggleFavoriteScript = useCallback((scriptId: string) => {
     setFavoriteScripts(prev => {
@@ -118,7 +150,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [showNotification]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user || !activeTeam) return;
+    if (!isAuthenticated || !user || !activeTeam || !isSystemReady) return;
 
     let path_to_load: string | null = null;
     if (activeScriptSource) {
@@ -140,7 +172,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setScripts([]);
       setSelectedFolder(null);
     }
-  }, [activeScriptSource, loadScriptsFromPath, setActiveScriptSource, userSourcePaths, canUseLocalFolders, isAuthenticated, user, activeTeam]);
+  }, [activeScriptSource, loadScriptsFromPath, setActiveScriptSource, userSourcePaths, canUseLocalFolders, isAuthenticated, user, activeTeam, isSystemReady]);
 
   const createNewScript = useCallback(async (details: any) => {
     try {

@@ -568,8 +568,8 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   return (
     <div key={index} className="flex flex-col space-y-2 pb-4 border-b border-slate-50 dark:border-slate-800/50 last:border-0 last:pb-0">
       <div className="flex justify-between items-center min-w-0">
-        <label className="flex items-center text-[10px] font-black uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 truncate">
-          <div className="w-1 h-3 bg-slate-200 dark:bg-slate-700 rounded-full mr-2" />
+        <label className="flex items-center text-[11px] font-black tracking-wide text-slate-700 dark:text-slate-200 truncate">
+          <div className="w-1 h-3 bg-blue-500/50 rounded-full mr-2" />
           {param.name}
           {param.suffix && <span className="ml-1 text-slate-400 font-bold text-[9px]">({param.suffix})</span>}
           {param.required && <span className="text-rose-500 ml-1 font-bold">*</span>}

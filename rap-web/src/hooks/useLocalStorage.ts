@@ -39,6 +39,24 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val
     });
   }, [key]);
 
+  // V4 FIX: Sync state when key changes (e.g. Identity switch)
+  useEffect(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      if (item === null) {
+        setStoredValue(initialValue);
+      } else {
+        try {
+          setStoredValue(JSON.parse(item));
+        } catch {
+          setStoredValue(item as T);
+        }
+      }
+    } catch (e) {
+      setStoredValue(initialValue);
+    }
+  }, [key]);
+
   return [storedValue, setValue];
 }
 
