@@ -81,8 +81,21 @@ public class Params
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(script_content)
         
+    # V5: Fetch full metadata so frontend can select and scroll
+    try:
+        import asyncio
+        all_scripts = asyncio.run(script_service.get_all_scripts(target_folder))
+        new_script = next((s for s in all_scripts if s["absolutePath"].replace('\\', '/') == script_path.replace('\\', '/')), None)
+        if new_script:
+            return {
+                "success": True,
+                "script": new_script
+            }
+    except Exception as e:
+        print(f"[QueryToWatchdog] Failed to fetch script metadata: {e}")
+
     return {
         "success": True,
-        "path": script_path,
-        "file_path": file_path
+        "path": script_path.replace('\\', '/'),
+        "file_path": file_path.replace('\\', '/')
     }

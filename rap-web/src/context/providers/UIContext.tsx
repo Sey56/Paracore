@@ -45,6 +45,10 @@ export interface UIContextProps {
   openNewScriptModal: () => void;
   closeNewScriptModal: () => void;
 
+  isNewSentinelModalOpen: boolean;
+  openNewSentinelModal: () => void;
+  closeNewSentinelModal: () => void;
+
   // Floating Code Viewer
   isFloatingCodeViewerOpen: boolean;
   openFloatingCodeViewer: () => void;

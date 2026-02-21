@@ -84,7 +84,7 @@ const VirtualList: React.FC<{
             <div
               key={item}
               onClick={() => !disabled && onChange(item, !isSelected)}
-              className={`absolute left-0 right-0 grid grid-cols-[1fr_auto] gap-2 items-center px-4 rounded-lg cursor-pointer transition-all text-[11px] select-none
+              className={`absolute left-0 right-0 grid grid-cols-[1fr_auto] gap-2 items-center px-4 rounded-lg cursor-pointer transition-all text-xs select-none
                 ${isSelected
                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold'
                   : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
@@ -164,7 +164,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
-                  className="w-full pl-9 pr-3 py-2 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
@@ -238,7 +238,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             placeholder="Filter options..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-[11px] font-semibold rounded-xl border border-transparent bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+            className="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-transparent bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             disabled={disabled}
           />
         </div>
@@ -277,7 +277,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
         )}
       </div>
 
-      <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest">
+      <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-[11px] font-black uppercase tracking-widest">
         <span className="text-blue-600 dark:text-blue-400 tabular-nums">
           {selectedValues.length} Selected
         </span>
@@ -359,7 +359,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       return (
         <div className="flex items-center p-3 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50 transition-all">
           <ToggleSwitch checked={isChecked} onChange={(checked) => onChange(index, checked)} disabled={disabled} />
-          <span className={`ml-4 text-[10px] font-bold uppercase tracking-[0.15em] ${isChecked ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
+          <span className={`ml-4 text-[11px] font-bold uppercase tracking-[0.15em] ${isChecked ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
             {isChecked ? 'Active' : 'Offline'}
           </span>
         </div>

@@ -60,7 +60,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         csharp_type = "string"
         is_revit_type = False
         
-        if storage == "Double": csharp_type = "double"
+        if storage == "Double": 
+            csharp_type = "double"
         elif storage == "Integer": 
             csharp_type = "int"
             if "Parameter" in prop_name: csharp_type = "BuiltInParameter"
@@ -87,15 +88,25 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             param_fields.append(f"{attr_prefix}public {csharp_type} {prop_id} {{ get; set; }} = {default_val};")
 
     def build_filter_logic(group):
-        child_filters = []
+        # We now generate a block of C# that builds the filters dynamically
+        # to handle null/optional parameters gracefully.
+        
+        lines = []
+        logical_type = "LogicalAndFilter" if group["combinator"] == "AND" else "LogicalOrFilter"
+        list_var = f"filters_{id(group)}"
+        
+        lines.append(f"List<ElementFilter> {list_var} = new();")
+        
         for child in group["children"]:
             if child["type"] == "group":
-                inner = build_filter_logic(child)
-                if inner: child_filters.append(inner)
+                inner_lines, inner_var = build_filter_logic(child)
+                lines.extend(inner_lines)
+                lines.append(f"if ({inner_var} != null) {list_var}.Add({inner_var});")
             else:
                 storage = child["storage_type"]
                 op = child["operator"]
-                prop_id = child["name"].replace(" ", "")
+                prop_name = child["name"]
+                prop_id = prop_name.replace(" ", "")
                 
                 if child.get("is_builtin") and child.get("builtin_id"):
                     b_name = child.get('builtin_name')
@@ -104,7 +115,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     else:
                         param_id = f"new ElementId((BuiltInParameter)({child['builtin_id']}))"
                 else:
-                    param_id = f"GetParamId(Doc, \"{child['name']}\")"
+                    param_id = f"GetParamId(Doc, \"{prop_name}\")"
 
                 evaluator = "new FilterNumericEquals()"
                 if op == "!=": evaluator = "new FilterNumericGreater()" 
@@ -114,18 +125,25 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                 elif op == "<=": evaluator = "new FilterNumericLessLessEqual()"
 
                 rule_obj = "null"
+                condition = "true"
+                
                 if storage == "Double":
-                    val_expr = f"p.{prop_id}"
-                    if child.get("unit") and child.get("unit") in UNIT_MAP:
-                        val_expr = f"UnitUtils.ConvertToInternalUnits((double)p.{prop_id}, {UNIT_MAP[child['unit']]})"
-                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr}, 1e-6)"
+                    condition = f"p.{prop_id} != 0"
+                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, p.{prop_id}, 1e-6)"
                 elif storage == "Integer":
+                    condition = f"p.{prop_id} != 0"
                     rule_obj = f"new FilterIntegerRule(new ParameterValueProvider({param_id}), {evaluator}, (int)p.{prop_id})"
                 elif storage == "ElementId":
                     is_hydrated = (child.get("revit_element_type") or "ElementId") != "ElementId"
-                    val_expr = f"p.{prop_id}?.Id ?? ElementId.InvalidElementId" if is_hydrated else f"p.{prop_id}"
+                    if is_hydrated:
+                        condition = f"p.{prop_id} != null"
+                        val_expr = f"p.{prop_id}.Id"
+                    else:
+                        condition = f"p.{prop_id} != ElementId.InvalidElementId"
+                        val_expr = f"p.{prop_id}"
                     rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr})"
                 elif storage == "String":
+                    condition = f"!string.IsNullOrEmpty(p.{prop_id})"
                     str_eval = "new FilterStringEquals()"
                     if op == "Contains": str_eval = "new FilterStringContains()"
                     elif op == "Starts With": str_eval = "new FilterStringBeginsWith()"
@@ -133,14 +151,15 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     rule_obj = f"new FilterStringRule(new ParameterValueProvider({param_id}), {str_eval}, p.{prop_id})"
 
                 if rule_obj != "null":
-                    child_filters.append(f"new ElementParameterFilter({rule_obj})")
+                    lines.append(f"if ({condition}) {list_var}.Add(new ElementParameterFilter({rule_obj}));")
 
-        if not child_filters: return "null"
-        if len(child_filters) == 1: return child_filters[0]
-        logical_type = "LogicalAndFilter" if group["combinator"] == "AND" else "LogicalOrFilter"
-        return f"new {logical_type}([{', '.join(child_filters)}])"
+        result_var = f"final_{id(group)}"
+        lines.append(f"ElementFilter {result_var} = {list_var}.Count > 0 ? ({list_var}.Count == 1 ? {list_var}[0] : new {logical_type}({list_var})) : null;")
+        
+        return lines, result_var
 
-    revit_filter = build_filter_logic(root_group)
+    filter_construction_lines, final_filter_var = build_filter_logic(root_group)
+    filter_construction_code = "\n".join(filter_construction_lines)
 
     query_metadata = {
         "category": category_name, "rootGroup": root_group,
@@ -161,8 +180,11 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         logic_parts.append(f"FilteredElementCollector collector = new(Doc);")
         
     logic_parts.append(f"collector.OfCategory(BuiltInCategory.{category_name}).WhereElementIsNotElementType();")
-    if revit_filter != "null":
-        logic_parts.append(f"collector.WherePasses({revit_filter});")
+    
+    # Inject the dynamic filter construction
+    logic_parts.append(filter_construction_code)
+    logic_parts.append(f"if ({final_filter_var} != null) collector.WherePasses({final_filter_var});")
+    
     logic_parts.append(f"List<{cast_type}> elements = [.. collector.Cast<{cast_type}>()];")
     
     logic_parts.append(f"\n// 2. Output Results")

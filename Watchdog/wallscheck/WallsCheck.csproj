@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <RunAnalyzers>true</RunAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>C:\Program Files\Autodesk\Revit 2025\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="CoreScript.Engine">
+      <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\CoreScript.Engine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+        <Reference Include="Microsoft.CodeAnalysis.CSharp">
+                          <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\Microsoft.CodeAnalysis.CSharp.dll</HintPath>
+                          <Private>false</Private>
+                        </Reference>
+                        <Reference Include="Microsoft.CodeAnalysis.CSharp.Scripting">
+                          <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\Microsoft.CodeAnalysis.CSharp.Scripting.dll</HintPath>
+                          <Private>false</Private>
+                        </Reference>
+                        <Reference Include="Microsoft.CodeAnalysis.CSharp.Workspaces">
+                          <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\Microsoft.CodeAnalysis.CSharp.Workspaces.dll</HintPath>
+                          <Private>false</Private>
+                        </Reference>
+                        <Reference Include="Microsoft.CodeAnalysis">
+                          <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\Microsoft.CodeAnalysis.dll</HintPath>
+                          <Private>false</Private>
+                        </Reference>
+                        <Reference Include="Microsoft.CodeAnalysis.Scripting">
+                          <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\Microsoft.CodeAnalysis.Scripting.dll</HintPath>
+                          <Private>false</Private>
+                        </Reference>
+                        <Reference Include="Microsoft.CodeAnalysis.VisualBasic">
+                          <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\Microsoft.CodeAnalysis.VisualBasic.dll</HintPath>
+                          <Private>false</Private>
+                        </Reference>
+                        <Reference Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces">
+                          <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\Microsoft.CodeAnalysis.VisualBasic.Workspaces.dll</HintPath>
+                          <Private>false</Private>
+                        </Reference>
+                        <Reference Include="Microsoft.CodeAnalysis.Workspaces">
+                          <HintPath>C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore\Microsoft.CodeAnalysis.Workspaces.dll</HintPath>
+                          <Private>false</Private>
+                        </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    <PackageReference Include="RestSharp" Version="113.1.0" />
+    <PackageReference Include="MiniExcel" Version="1.31.2" />
+    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
+  </ItemGroup>
+</Project>

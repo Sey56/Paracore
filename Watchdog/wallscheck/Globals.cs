@@ -1,0 +1,24 @@
+// This file enables IntelliSense for custom globals and implicit imports.
+global using System;
+global using System.Collections.Generic;
+global using System.Linq;
+global using System.Text.Json;
+global using Microsoft.CSharp;
+global using Autodesk.Revit.DB;
+global using Autodesk.Revit.DB.Architecture;
+global using Autodesk.Revit.DB.Structure;
+global using Autodesk.Revit.DB.Mechanical;
+global using Autodesk.Revit.DB.Plumbing;
+global using Autodesk.Revit.DB.Electrical;
+global using Autodesk.Revit.UI;
+global using CoreScript.Engine.Globals;
+global using static CoreScript.Engine.Globals.ScriptApi;
+global using static CoreScript.Engine.Globals.WatchdogRegistry;
+global using SixLabors.ImageSharp;
+global using SixLabors.ImageSharp.Processing;
+global using SixLabors.ImageSharp.PixelFormats;
+global using RestSharp;
+global using MiniExcelLibs;
+global using MathNet.Numerics;
+global using MathNet.Numerics.LinearAlgebra;
+global using MathNet.Numerics.Statistics;

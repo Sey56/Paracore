@@ -28,6 +28,7 @@ class ReplaceCodeRequest(BaseModel):
     script_path: str
     new_logic: str
     new_params: str
+    template_id: Optional[str] = "blank"
 
 class DeleteScriptRequest(BaseModel):
     script_path: str
@@ -132,8 +133,6 @@ async def replace_script_code(request: ReplaceCodeRequest, current_user: Current
     """
     Surgically replaces logic and parameters for an existing script.
     """
-    # Fix: Correctly resolve pack_folder and project_name
-    # For a project folder like C:/MyPack/MyTool/, dirname is C:/MyPack
     project_root = os.path.normpath(request.script_path)
     parent_folder = os.path.dirname(project_root)
     script_name = os.path.basename(project_root)
@@ -141,6 +140,7 @@ async def replace_script_code(request: ReplaceCodeRequest, current_user: Current
     return await script_service.create_new_script_logic(
         parent_folder,
         script_name,
+        template_id=request.template_id,
         generated_logic=request.new_logic,
         generated_params=request.new_params,
         overwrite=True

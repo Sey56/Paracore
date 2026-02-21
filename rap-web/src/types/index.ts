@@ -8,6 +8,7 @@ export interface TeamScriptSource {
   repo_url: string;
   localId?: number;
   isOrphaned?: boolean;
+  path?: string;
 }
 
 export interface Membership {

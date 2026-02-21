@@ -18,7 +18,6 @@ import { Role } from '@/features/auth';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import SettingsModal from '@/features/settings/components/SettingsModal';
 import TeamManagementModal from '@/features/settings/components/TeamManagementModal';
-import { NewScriptModal } from '@/features/automation/components/NewScriptModal';
 import { AddFolderModal } from '@/features/automation/components/AddFolderModal';
 import { AddCategoryModal } from '@/features/automation/components/AddCategoryModal';
 import { AgentView } from "@/features/agent/components/AgentView";
@@ -56,8 +55,6 @@ export const AppLayout: React.FC = () => {
     isInspectorOpen,
     toggleInspector,
     isSettingsModalOpen,
-    isNewScriptModalOpen,
-    closeNewScriptModal,
     isTeamManagementModalOpen, // Access isTeamManagementModalOpen
     closeTeamManagementModal, // Access closeTeamManagementModal
 
@@ -159,7 +156,6 @@ export const AppLayout: React.FC = () => {
       )}
 
       <SettingsModal />
-      <NewScriptModal isOpen={isNewScriptModalOpen} onClose={closeNewScriptModal} selectedFolder="" /> {/* Render NewScriptModal */}
       <TeamManagementModal />
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
       <FloatingActionButton />

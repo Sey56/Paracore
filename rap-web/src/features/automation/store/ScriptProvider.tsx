@@ -178,7 +178,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const response = await api.post("/api/scripts/new", details);
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
-      return undefined;
+      return response.data; // Return the created script object
     } catch (error: any) {
       showNotification(error.response?.data?.detail || "Failed to create script", "error");
       return undefined;

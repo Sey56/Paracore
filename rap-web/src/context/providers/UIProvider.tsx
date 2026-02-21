@@ -18,6 +18,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [isInspectorOpen, setInspectorOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [isNewScriptModalOpen, setIsNewScriptModalOpen] = useState(false);
+  const [isNewSentinelModalOpen, setIsNewSentinelModalOpen] = useState(false);
   const [isTeamManagementModalOpen, setIsTeamManagementModalOpen] = useState(false);
 
   const [isFloatingCodeViewerOpen, setFloatingCodeViewerOpen] = useState(false);
@@ -119,6 +120,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const openNewScriptModal = useCallback(() => setIsNewScriptModalOpen(true), []);
   const closeNewScriptModal = useCallback(() => setIsNewScriptModalOpen(false), []);
 
+  const openNewSentinelModal = useCallback(() => setIsNewSentinelModalOpen(true), []);
+  const closeNewSentinelModal = useCallback(() => setIsNewSentinelModalOpen(false), []);
+
   const openTeamManagementModal = useCallback(() => setIsTeamManagementModalOpen(true), []);
   const closeTeamManagementModal = useCallback(() => setIsTeamManagementModalOpen(false), []);
 
@@ -218,6 +222,10 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     openNewScriptModal,
     closeNewScriptModal,
 
+    isNewSentinelModalOpen,
+    openNewSentinelModal,
+    closeNewSentinelModal,
+
     isFloatingCodeViewerOpen,
     openFloatingCodeViewer,
     closeFloatingCodeViewer,
@@ -264,6 +272,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isNewScriptModalOpen,
     openNewScriptModal,
     closeNewScriptModal,
+    isNewSentinelModalOpen,
+    openNewSentinelModal,
+    closeNewSentinelModal,
     isFloatingCodeViewerOpen,
     openFloatingCodeViewer,
     closeFloatingCodeViewer,
