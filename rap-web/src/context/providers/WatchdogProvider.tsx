@@ -157,7 +157,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     const armAllInList = async (scripts: string[]) => {
-        showNotification(`Activating ${scripts.length} Sentinels...`, "info");
+        showNotification(`Deploying ${scripts.length} Sentinels...`, "info");
 
         // Use a local copy to calculate what needs arming
         const currentArmed = new Set(watchdogSources.map(normalize));
@@ -175,11 +175,11 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             try { await api.post("/api/watchdogs/register-source", { path }); } catch (e) { }
             await new Promise(r => setTimeout(r, 300));
         }
-        showNotification("Sentinel activation sequence complete.", "success");
+        showNotification("Sentinel deployment complete.", "success");
     };
 
     const decommissionAll = async () => {
-        showNotification("Decommissioning background systems...", "info");
+        showNotification("Undeploying all sentinels...", "info");
         // Build a complete set of all paths to unregister — from both status reports AND local armed state
         const allPaths = new Set([
             ...watchdogs.map(w => normalize(w.script_path)),
@@ -190,7 +190,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { }
         }
         setWatchdogSources([]);
-        showNotification("All Sentinels decommissioned.", "success");
+        showNotification("All Sentinels undeployed.", "success");
     };
 
     const hasIssues = watchdogs.some(w => w.status === 'warning' || w.status === 'error') || failedWatchdogs.length > 0;

@@ -52,7 +52,9 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
       setRootScripts(prev => ({ ...prev, [folder]: { data: [], loading: true } }));
       try {
         const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(folder)}`);
-        setRootScripts(prev => ({ ...prev, [folder]: { data: response.data, loading: false } }));
+        // V5: Only load sentinels and .wtools
+        const sentinelsOnly = response.data.filter((s: Script) => s.metadata?.isWatchdog || s.metadata?.is_watchdog);
+        setRootScripts(prev => ({ ...prev, [folder]: { data: sentinelsOnly, loading: false } }));
       } catch (err) {
         setRootScripts(prev => ({ ...prev, [folder]: { data: [], loading: false } }));
         showNotification("Failed to load scripts for this source.", "error");
@@ -86,22 +88,22 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
             onClick={() => setIsDecommissionModalOpen(true)}
             className="text-[9px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
           >
-            Disarm All
+            Undeploy All
           </button>
         )}
       </div>
 
       <div className="space-y-4 mb-8 text-sm">
         <p className="text-gray-600 dark:text-gray-400">
-          Add folders containing sentinel scripts. Scripts in these folders can be armed to run as background monitors.
+          Add folders containing sentinel scripts. Scripts in these folders can be deployed to run as background monitors.
         </p>
 
         <div className="flex items-center space-x-3">
           <button onClick={handleAddFolder} className="px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all">
-            Add Folder
+            Add Sentinel Source
           </button>
           <button onClick={handleArmAll} className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 transition-all">
-            Arm All
+            Deploy All
           </button>
         </div>
       </div>
@@ -127,7 +129,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                     <div className="flex flex-col gap-1 min-w-0">
                       <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{folder}</span>
                       <span className="text-[10px] text-slate-400 tabular-nums">
-                        {scriptsState?.loading ? 'Scanning...' : `${scripts.length} scripts found · ${armedCount} armed`}
+                        {scriptsState?.loading ? 'Scanning...' : `${scripts.length} sentinels found · ${armedCount} deployed`}
                       </span>
                     </div>
                   </div>
@@ -156,7 +158,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                             className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
                               ${isArmed ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 border border-amber-200 dark:border-amber-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600'}`}
                           >
-                            {isArmed ? 'ARMED' : 'ARM'}
+                            {isArmed ? 'DEPLOYED' : 'DEPLOY'}
                           </button>
                         </div>
                       );
@@ -177,9 +179,9 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
         isOpen={isDecommissionModalOpen}
         onClose={() => setIsDecommissionModalOpen(false)}
         onConfirm={decommissionAll}
-        title="Disarm All Sentinels"
-        message="This will disarm all sentinels and clear your armed registry. Proceed?"
-        confirmButtonText="Disarm All"
+        title="Undeploy All Sentinels"
+        message="This will undeploy all sentinels and clear your active registry. Proceed?"
+        confirmButtonText="Undeploy All"
         confirmButtonColor="red"
       />
     </fieldset>

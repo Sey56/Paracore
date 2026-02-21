@@ -57,22 +57,24 @@ namespace CoreScript.Engine.Core
 
         private void ExtractFromClasses(CompilationUnitSyntax root, List<ScriptParameter> parameters)
         {
-            var paramsClass = root.DescendantNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault(c => c.Identifier.Text == "Params");
-            if (paramsClass == null) return;
-
-            var regionMap = BuildRegionMap(paramsClass);
-            var properties = paramsClass.Members.OfType<PropertyDeclarationSyntax>().Where(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)));
-
-            foreach (var prop in properties)
+            var paramsClasses = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(c => c.Identifier.Text == "Params");
+            
+            foreach (var paramsClass in paramsClasses)
             {
-                string propName = prop.Identifier.Text;
-                if (propName.EndsWith("_Options") || propName.EndsWith("_Range") || propName.EndsWith("_Visible") || propName.EndsWith("_Enabled") || propName.EndsWith("_Filter") || propName.EndsWith("_Unit")) continue;
+                var regionMap = BuildRegionMap(paramsClass);
+                var properties = paramsClass.Members.OfType<PropertyDeclarationSyntax>().Where(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)));
 
-                bool hasSetter = prop.AccessorList?.Accessors.Any(a => a.IsKind(SyntaxKind.SetAccessorDeclaration) || a.IsKind(SyntaxKind.InitAccessorDeclaration)) ?? false;
-                if (!hasSetter && prop.Initializer == null) continue;
+                foreach (var prop in properties)
+                {
+                    string propName = prop.Identifier.Text;
+                    if (propName.EndsWith("_Options") || propName.EndsWith("_Range") || propName.EndsWith("_Visible") || propName.EndsWith("_Enabled") || propName.EndsWith("_Filter") || propName.EndsWith("_Unit")) continue;
 
-                var param = ParsePropertyV3(prop, paramsClass, regionMap);
-                if (param != null) parameters.Add(param);
+                    bool hasSetter = prop.AccessorList?.Accessors.Any(a => a.IsKind(SyntaxKind.SetAccessorDeclaration) || a.IsKind(SyntaxKind.InitAccessorDeclaration)) ?? false;
+                    if (!hasSetter && prop.Initializer == null) continue;
+
+                    var param = ParsePropertyV3(prop, paramsClass, regionMap);
+                    if (param != null) parameters.Add(param);
+                }
             }
         }
 
@@ -203,10 +205,10 @@ namespace CoreScript.Engine.Core
             {
                 if (initializer is LiteralExpressionSyntax lit)
                 {
-                    // V3.1 FIX: Use raw text for numbers to preserve decimal formatting (e.g. 6.00)
                     if (lit.Kind() == SyntaxKind.NumericLiteralExpression)
                     {
-                        p.DefaultValueJson = JsonSerializer.Serialize(lit.Token.Text);
+                        // Use raw text to preserve precision (e.g. 6.00) and ensure it's a valid JSON number
+                        p.DefaultValueJson = lit.Token.Text;
                     }
                     else
                     {

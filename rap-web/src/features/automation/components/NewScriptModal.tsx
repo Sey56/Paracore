@@ -148,11 +148,11 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         }
                         // Use returned script metadata or fallback to a partial object with ID for selection
                         const finalId = (response.data.script?.id || response.data.path || '').replace(/\\/g, '/');
-                        result = response.data.script || { 
-                            id: finalId, 
-                            name: scriptName, 
+                        result = response.data.script || {
+                            id: finalId,
+                            name: scriptName,
                             absolutePath: finalId,
-                            metadata: { displayName: scriptName } 
+                            metadata: { displayName: scriptName }
                         };
                     }
                 } else {
@@ -193,96 +193,114 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
             <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="full">
                 <div className="flex flex-col h-full bg-white dark:bg-gray-900">
 
-                    {/* Toolbar & Name Input */}
-                    <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-gray-900 shrink-0">
-                        <div className="flex items-center gap-4 flex-1">
-                            {!isReplacing ? (
-                                <>
-                                    <div className="flex flex-col w-1/4 min-w-[250px]">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <label className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.1em] px-1">
-                                                {mode === 'sentinel' ? 'Sentinel Name' : 'Tool Name'}
-                                            </label>
-                                            {isDuplicate && (
-                                                <span className="text-[10px] font-bold text-red-500 flex items-center gap-1.5 animate-pulse">
-                                                    <FontAwesomeIcon icon={faExclamationTriangle} />
-                                                    Exists
-                                                </span>
-                                            )}
+                    {/* Optimized Identity Header */}
+                    <div className={`px-8 py-6 border-b transition-colors duration-500 shrink-0 ${mode === 'sentinel'
+                        ? 'bg-amber-50/30 dark:bg-amber-900/10 border-amber-100/50 dark:border-amber-800/30'
+                        : 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100/50 dark:border-blue-800/30'
+                        }`}>
+                        <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8 items-end">
+                            {/* 1. Identity Group */}
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                                {!isReplacing ? (
+                                    <>
+                                        <div className="flex flex-col gap-1.5 focus-within:z-10">
+                                            <div className="flex justify-between items-center px-1">
+                                                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
+                                                    {mode === 'sentinel' ? 'Sentinel Name' : 'Tool Name'}
+                                                </label>
+                                                {isDuplicate && (
+                                                    <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1.5 animate-in slide-in-from-right-2">
+                                                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-[8px]" />
+                                                        Name Exists
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="relative group">
+                                                <input
+                                                    autoFocus
+                                                    type="text"
+                                                    value={scriptName}
+                                                    onChange={(e) => setScriptName(e.target.value)}
+                                                    placeholder="e.g. Audit Fire Ratings..."
+                                                    className={`w-full bg-white dark:bg-slate-900 border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none transition-all shadow-sm ${isDuplicate
+                                                        ? 'border-rose-500/50 ring-4 ring-rose-500/5'
+                                                        : 'border-slate-200 dark:border-slate-700/50 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5'
+                                                        }`}
+                                                />
+                                            </div>
                                         </div>
-                                        <input
-                                            autoFocus
-                                            type="text"
-                                            value={scriptName}
-                                            onChange={(e) => setScriptName(e.target.value)}
-                                            placeholder="e.g. Audit Fire Ratings..."
-                                            className={`bg-gray-50 dark:bg-gray-800 border rounded-lg px-4 py-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 outline-none transition-all ${isDuplicate
-                                                ? 'border-red-500/50 focus:ring-red-500/20 focus:border-red-500'
-                                                : 'border-gray-200 dark:border-gray-700 focus:ring-blue-500/20 focus:border-blue-500'
-                                                }`}
-                                        />
+                                        <div className="flex flex-col gap-1.5 ">
+                                            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 leading-none">
+                                                Purpose & Goal
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
+                                                placeholder="e.g. Ensure all office walls comply with safety ratings."
+                                                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all shadow-sm"
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="md:col-span-2 flex items-center gap-4 px-5 py-3 bg-white/50 dark:bg-slate-900/50 rounded-xl border border-blue-100/50 dark:border-blue-800/20 shadow-sm animate-in zoom-in-95">
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                            <FontAwesomeIcon icon={faCogs} className="text-sm" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Surgical Modification</span>
+                                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate max-w-md">{targetPath?.split(/[\\/]/).pop()}</span>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col w-1/3 min-w-[300px]">
-                                        <label className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.1em] px-1 mb-1">Description / Success Msg</label>
-                                        <input
-                                            type="text"
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            placeholder="e.g. Checks if fire ratings match specs."
-                                            className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-1.5 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                                        />
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/50">
-                                    <FontAwesomeIcon icon={faCogs} className="text-blue-500 text-sm" />
-                                    <div className="flex flex-col">
-                                        <span className="text-[11px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Updating Target</span>
-                                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate max-w-[300px]">{targetPath?.split(/[\\/]/).pop()}</span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
 
-                        {/* Clean Segmented Tabs */}
-                        <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-                            {[
-                                { id: 'query', label: 'Visual Builder', icon: faFilter },
-                                { id: 'blank', label: 'Blank Script', icon: faCode }
-                            ].map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as any)}
-                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${activeTab === tab.id
-                                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                        : 'text-gray-400 hover:text-gray-600'
-                                        }`}
-                                >
-                                    <FontAwesomeIcon icon={tab.icon} className={activeTab === tab.id ? 'text-blue-500' : ''} />
-                                    {tab.label}
-                                </button>
-                            ))}
+                            {/* 2. Mode Selector Segment */}
+                            <div className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/30 shrink-0">
+                                {[
+                                    { id: 'query', label: 'Builder', icon: faFilter },
+                                    { id: 'blank', label: 'Blank', icon: faCode }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`px-5 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2.5 ${activeTab === tab.id
+                                            ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-md'
+                                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                                            }`}
+                                    >
+                                        <FontAwesomeIcon icon={tab.icon} className={`text-[10px] ${activeTab === tab.id ? (mode === 'sentinel' ? 'text-amber-500' : 'text-blue-500') : ''}`} />
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Content Area */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 min-h-0 bg-white dark:bg-gray-900">
-                        <div className="max-w-7xl mx-auto">
+                    {/* Main Construction Area */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 bg-slate-50/50 dark:bg-slate-950/20">
+                        <div className="max-w-5xl mx-auto py-6 px-6">
                             {activeTab === 'query' && (
-                                <VisualQueryBuilder
-                                    key={initialQueryState ? 'persistent' : 'new'}
-                                    initialState={initialQueryState}
-                                    onConfigChange={handleConfigChange}
-                                    onQueryGenerated={handleQueryGenerated}
-                                />
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <VisualQueryBuilder
+                                        key={initialQueryState ? 'persistent' : 'new'}
+                                        initialState={initialQueryState}
+                                        onConfigChange={handleConfigChange}
+                                        onQueryGenerated={handleQueryGenerated}
+                                    />
+                                </div>
                             )}
 
                             {activeTab === 'blank' && (
-                                <div className="flex items-center justify-center p-12">
-                                    <div className="max-w-lg w-full text-center p-10 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-                                        <FontAwesomeIcon icon={faFileCode} className="text-gray-400 text-4xl mb-4" />
-                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Empty C# Logic</h3>
-                                        <p className="text-sm text-gray-500 mt-2">Start with a blank canvas for custom Revit API development.</p>
+                                <div className="flex items-center justify-center py-20 animate-in fade-in zoom-in-95 duration-500">
+                                    <div className="max-w-md w-full text-center p-12 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/30 active:scale-[0.99] transition-transform">
+                                        <div className="w-20 h-20 mx-auto bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
+                                            <FontAwesomeIcon icon={faFileCode} className="text-slate-400 text-3xl" />
+                                        </div>
+                                        <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Pure Code Archetype</h3>
+                                        <p className="text-sm font-medium text-slate-400 dark:text-slate-500 mt-2">
+                                            Initializes a clean {mode === 'sentinel' ? 'Watchdog' : 'C#'} project. Ideal for manual high-logic development.
+                                        </p>
                                     </div>
                                 </div>
                             )}
@@ -296,22 +314,21 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         <button
                             onClick={handleMainActionClick}
                             disabled={(!scriptName && !isReplacing) || (activeTab === 'query' && !isCompiled) || isSubmitting}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all disabled:opacity-50 active:scale-95 flex items-center gap-2 ${
-                                mode === 'sentinel' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
-                            }`}
+                            className={`px-6 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all disabled:opacity-50 active:scale-95 flex items-center gap-2 ${mode === 'sentinel' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
+                                }`}
                         >
                             {isSubmitting ? (
                                 <FontAwesomeIcon icon={faSpinner} spin />
                             ) : (
                                 <FontAwesomeIcon icon={mode === 'sentinel' ? faShieldHeart : (isReplacing ? faCogs : faCode)} />
                             )}
-                            
-                            {isSubmitting 
-                                ? 'Creating...' 
-                                : (mode === 'sentinel' 
-                                    ? 'Create Sentinel' 
+
+                            {isSubmitting
+                                ? 'Creating...'
+                                : (mode === 'sentinel'
+                                    ? 'Create Sentinel'
                                     : (isReplacing ? 'Confirm Changes' : 'Create Script')
-                                  )
+                                )
                             }
                         </button>
                     </div>

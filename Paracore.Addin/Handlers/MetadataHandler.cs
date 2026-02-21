@@ -209,7 +209,7 @@ namespace Paracore.Addin.Handlers
 
                             foreach (var p in parameters)
                             {
-                                projResponse.Parameters.Add(new CoreScript.ScriptParameter
+                                var protoParam = new CoreScript.ScriptParameter
                                 {
                                     Name = p.Name,
                                     Type = p.Type,
@@ -217,10 +217,27 @@ namespace Paracore.Addin.Handlers
                                     Description = p.Description,
                                     MultiSelect = p.MultiSelect,
                                     NumericType = p.NumericType ?? "",
-                                    Unit = p.Unit ?? "",
+                                    IsRevitElement = p.IsRevitElement,
+                                    RevitElementType = p.RevitElementType ?? "",
+                                    RevitElementCategory = p.RevitElementCategory ?? "",
+                                    RequiresCompute = p.RequiresCompute,
                                     Group = p.Group ?? "",
-                                    InputType = p.InputType ?? ""
-                                });
+                                    InputType = p.InputType ?? "",
+                                    Required = p.Required,
+                                    Suffix = p.Suffix ?? "",
+                                    Pattern = p.Pattern ?? "",
+                                    EnabledWhenParam = p.EnabledWhenParam ?? "",
+                                    EnabledWhenValue = p.EnabledWhenValue ?? "",
+                                    Unit = p.Unit ?? "",
+                                    SelectionType = p.SelectionType ?? ""
+                                };
+
+                                protoParam.Options.AddRange(p.Options);
+                                if (p.Min.HasValue) protoParam.Min = p.Min.Value;
+                                if (p.Max.HasValue) protoParam.Max = p.Max.Value;
+                                if (p.Step.HasValue) protoParam.Step = p.Step.Value;
+
+                                projResponse.Parameters.Add(protoParam);
                             }
                         }
                     }

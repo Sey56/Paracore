@@ -197,10 +197,18 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         finalParameters = freshParameters.map(fresh => {
           const cached = cachedParams.find(c => c.name === fresh.name);
           if (cached) {
+            // V5: Intelligent Merging
+            // If the user's current value matches the OLD default, it means they are "following" the script.
+            // In that case, we should adopt the NEW default from the fresh parse.
+            // If they have diverged (value !== defaultValue), we preserve their manual entry.
+            const isFollowingDefault = cached.value === cached.defaultValue;
+            const valueToUse = isFollowingDefault ? fresh.defaultValue : cached.value;
+
             const resolvedOptions = (fresh.options && fresh.options.length > 0) ? fresh.options : (cached.options || []);
             return {
               ...fresh,
-              value: cached.value,
+              value: valueToUse,
+              defaultValue: fresh.defaultValue, // Always update the baseline default
               options: resolvedOptions,
               computedInDocument: cached.computedInDocument
             };

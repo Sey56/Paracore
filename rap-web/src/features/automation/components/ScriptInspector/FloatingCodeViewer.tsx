@@ -3,7 +3,7 @@ import { Rnd } from 'react-rnd';
 const CodeViewer = lazy(() => import('./CodeViewer').then(module => ({ default: module.CodeViewer })));
 import type { Script } from '@/types/scriptModel';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faEdit, faShieldAlt } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faEdit, faShieldAlt, faHammer } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { useAuth } from '@/features/auth';
@@ -102,8 +102,8 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
               ? `Compile this script into a sealed ${script.metadata.isWatchdog ? '.wtool Sentinel' : '.ptool Tool'} package`
               : "Paracore is disconnected. Please connect to Revit to compile scripts."}
           >
-            <FontAwesomeIcon icon={faShieldAlt} className="mr-2" />
-            {script.metadata.isWatchdog ? "Compile Sentinel" : "Compile Tool"}
+            <FontAwesomeIcon icon={script.metadata.isWatchdog ? faShieldAlt : faHammer} className="mr-2" />
+            {script.metadata.isWatchdog ? "Forge Sentinel" : "Forge Tool"}
           </button>
         )}
       </div>

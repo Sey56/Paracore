@@ -22,12 +22,12 @@ export const RuleGroup: React.FC<RuleGroupProps> = ({
   const isRoot = path.length === 0;
 
   return (
-    <div className={`space-y-4 ${!isRoot ? 'pl-6 border-l-2 border-gray-100 dark:border-gray-800 ml-2 py-2' : ''}`}>
+    <div className={`space-y-2 ${!isRoot ? 'pl-6 border-l-2 border-slate-100 dark:border-slate-800 ml-2 py-1' : ''}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
-          <select 
-            value={group.combinator} 
-            onChange={(e) => setGroupCombinator(path, e.target.value as 'AND' | 'OR')} 
+          <select
+            value={group.combinator}
+            onChange={(e) => setGroupCombinator(path, e.target.value as 'AND' | 'OR')}
             className={`text-[11px] font-black px-3 py-1 rounded-full outline-none cursor-pointer transition-colors ${group.combinator === 'AND' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'}`}
           >
             <option value="AND">AND</option>
@@ -47,18 +47,18 @@ export const RuleGroup: React.FC<RuleGroupProps> = ({
           if (child.type === 'group') {
             return (
               <div key={idx}>
-                <RuleGroup 
-                  group={child} 
-                  path={childPath} 
-                  availableParams={availableParams} 
-                  updateRootGroupRecursive={updateRootGroupRecursive} 
+                <RuleGroup
+                  group={child}
+                  path={childPath}
+                  availableParams={availableParams}
+                  updateRootGroupRecursive={updateRootGroupRecursive}
                   setGroupCombinator={setGroupCombinator}
                 />
               </div>
             );
           }
           return (
-            <RuleRow 
+            <RuleRow
               key={idx}
               child={child}
               childPath={childPath}

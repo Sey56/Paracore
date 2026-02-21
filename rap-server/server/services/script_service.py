@@ -34,6 +34,7 @@ def _hydrate_params_for_frontend(params: List[Dict]) -> List[Dict]:
         item = {
             "name": p.get("name"),
             "type": p.get("type"),
+            "defaultValueJson": val_json,
             "defaultValue": real_val,
             "value": real_val,
             "description": p.get("description"),
