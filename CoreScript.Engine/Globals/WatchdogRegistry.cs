@@ -28,6 +28,7 @@ namespace CoreScript.Engine.Globals
         public Action<Document> Action { get; set; } = null!;
         public DateTime LastRun { get; set; } = DateTime.MinValue;
         public int IntervalSeconds { get; set; } = 5;
+        public Dictionary<string, object> Parameters { get; set; } = new Dictionary<string, object>();
         public WatchdogReport LatestReport { get; set; } = new WatchdogReport();
     }
 
@@ -40,7 +41,7 @@ namespace CoreScript.Engine.Globals
         [ThreadStatic]
         public static string? CurrentWatchdogPath;
 
-        public static void Register(string scriptPath, string scriptName, Action<Document> action, int intervalSeconds = 5)
+        public static void Register(string scriptPath, string scriptName, Action<Document> action, int intervalSeconds = 5, Dictionary<string, object>? parameters = null)
         {
             lock (_lock)
             {
@@ -55,6 +56,7 @@ namespace CoreScript.Engine.Globals
                     ScriptName = scriptName,
                     Action = action,
                     IntervalSeconds = intervalSeconds,
+                    Parameters = parameters ?? new Dictionary<string, object>(),
                     LastRun = DateTime.MinValue
                 };
                 FileLogger.Log($"[WatchdogRegistry] Registered: {scriptName} ({intervalSeconds}s)");

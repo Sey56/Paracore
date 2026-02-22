@@ -13,10 +13,11 @@ namespace Paracore.Addin.Services
         private readonly Document _doc;
         private readonly List<string> _printLog = new();
 
-        public WatchdogContext(UIApplication uiApp, Document doc)
+        public WatchdogContext(UIApplication uiApp, Document doc, Dictionary<string, object> parameters)
         {
             _uiApp = uiApp;
             _doc = doc;
+            Parameters = parameters ?? new Dictionary<string, object>();
         }
 
         public UIApplication UIApp => _uiApp;
@@ -27,7 +28,7 @@ namespace Paracore.Addin.Services
         public IReadOnlyList<string> PrintLog => _printLog;
         public bool IsReadOnly => true; // Watchdogs run in Idling, usually assume read-only unless Starting Transaction
 
-        public Dictionary<string, object> Parameters { get; } = new Dictionary<string, object>();
+        public Dictionary<string, object> Parameters { get; }
 
         public void Println(string message) 
         { 

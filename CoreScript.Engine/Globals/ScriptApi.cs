@@ -148,7 +148,7 @@ namespace CoreScript.Engine.Globals
                 if (Parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj is string path)
                 {
                     string scriptName = Parameters.TryGetValue("__script_name__", out var nameObj) ? nameObj.ToString()! : "Watcher";
-                    WatchdogRegistry.Register(path, scriptName, callback, intervalSeconds);
+                    WatchdogRegistry.Register(path, scriptName, callback, intervalSeconds, new Dictionary<string, object>(Parameters));
                 }
                 else
                 {
@@ -178,7 +178,7 @@ namespace CoreScript.Engine.Globals
                 if (Parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj is string path)
                 {
                     string scriptName = Parameters.TryGetValue("__script_name__", out var nameObj) ? nameObj.ToString()! : "Watcher";
-                    WatchdogRegistry.Register(path, scriptName, (doc) => callback(), intervalSeconds);
+                    WatchdogRegistry.Register(path, scriptName, (doc) => callback(), intervalSeconds, new Dictionary<string, object>(Parameters));
                 }
                 else
                 {

@@ -108,10 +108,8 @@ namespace Paracore.Addin.App
                     WatchdogRegistry.CurrentWatchdogPath = watchdog.ScriptPath;
                     
                     // Initialize Global Context for ScriptApi access
-                    var ctx = new WatchdogContext(uiApp, doc);
-                    // Pass current script parameters if stored? For now, empty is fine. The user script might expect them though.
-                    // WatchdogRegistry currently doesn't store params.
-                    var execContext = new ExecutionGlobals(ctx, new Dictionary<string, object>());
+                    var ctx = new WatchdogContext(uiApp, doc, watchdog.Parameters);
+                    var execContext = new ExecutionGlobals(ctx, watchdog.Parameters);
                     ExecutionGlobals.SetContext(execContext);
 
                     // Use Low priority for background loops

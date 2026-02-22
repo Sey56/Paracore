@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Autodesk.Revit.UI;
@@ -77,21 +78,13 @@ namespace Paracore.Addin.Handlers
                             {
                                 byte[] assemblyBytes = Convert.FromBase64String(assemblyElem.GetString());
                                 
-                                // Map parameters to a flat dictionary for the registry
-                                var parameters = new Dictionary<string, object>();
-                                foreach (var p in paramsElem.EnumerateArray())
-                                {
-                                    string name = p.GetProperty("name").GetString();
-                                    string valJson = p.TryGetProperty("defaultValueJson", out var dj) ? dj.GetString() : "null";
-                                    try { parameters[name] = JsonSerializer.Deserialize<object>(valJson); } catch { }
-                                }
+                                // V4.2 FIX: Using JsonNode to safely preserve rich metadata without disposal issues
+                                var wtoolParams = JsonNode.Parse(paramsElem.GetRawText())?.AsArray() ?? new JsonArray();
+                                wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
+                                wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = System.IO.Path.GetFileName(wtoolPath), ["type"] = "string" });
+                                wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
 
-                                // System metadata
-                                parameters["__absolute_path__"] = wtoolPath.Replace('\\', '/');
-                                parameters["__script_name__"] = System.IO.Path.GetFileName(wtoolPath);
-                                parameters["__is_watchdog_registration__"] = true;
-
-                                string paramsJson = JsonSerializer.Serialize(parameters);
+                                string paramsJson = wtoolParams.ToJsonString();
 
                                 if (_uiApp != null)
                                 {
@@ -219,19 +212,13 @@ namespace Paracore.Addin.Handlers
                     {
                         byte[] assemblyBytes = Convert.FromBase64String(assemblyElem.GetString());
 
-                        var parameters = new Dictionary<string, object>();
-                        foreach (var p in paramsElem.EnumerateArray())
-                        {
-                            string name = p.GetProperty("name").GetString();
-                            string valJson = p.TryGetProperty("defaultValueJson", out var dj) ? dj.GetString() : "null";
-                            try { parameters[name] = JsonSerializer.Deserialize<object>(valJson); } catch { }
-                        }
+                        // V4.2 FIX: Using JsonNode to safely preserve rich metadata without disposal issues
+                        var wtoolParams = JsonNode.Parse(paramsElem.GetRawText())?.AsArray() ?? new JsonArray();
+                        wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
+                        wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = System.IO.Path.GetFileName(wtoolPath), ["type"] = "string" });
+                        wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
 
-                        parameters["__absolute_path__"] = wtoolPath.Replace('\\', '/');
-                        parameters["__script_name__"] = System.IO.Path.GetFileName(wtoolPath);
-                        parameters["__is_watchdog_registration__"] = true;
-
-                        string paramsJson = JsonSerializer.Serialize(parameters);
+                        string paramsJson = wtoolParams.ToJsonString();
 
                         if (_uiApp != null)
                         {

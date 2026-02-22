@@ -29,42 +29,24 @@ namespace CoreScript.Engine.Core.Rewriters
 
             // REWRITE LOGIC:
             // Transform: public string MyParam { get; set; }
-            // Into:      public string MyParam { get { return ExecutionGlobals.Get<string>("MyParam"); } set { } }
-            
+            // Into:      public string MyParam { get; set; } = CoreScript.Engine.Globals.ExecutionGlobals.Get<string>("MyParam");
+
             string type = node.Type.ToString();
-            
-            // 1. Create the GET accessor block
-            var getStatement = SyntaxFactory.ReturnStatement(
-                SyntaxFactory.Token(SyntaxKind.ReturnKeyword).WithTrailingTrivia(SyntaxFactory.Space),
-                SyntaxFactory.ParseExpression($"ExecutionGlobals.Get<{type}>(\"{name}\")"),
-                SyntaxFactory.Token(SyntaxKind.SemicolonToken)
-            );
-            
-            var getter = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                .WithBody(SyntaxFactory.Block(getStatement));
 
-            // 2. Create the SET accessor block (empty)
-            var setter = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-                .WithBody(SyntaxFactory.Block()); 
+            // V4 FIX: Keep the original { get; set; } so the property remains writable.
+            // Add an initializer that pulls the value from globals at construction time.
+            var pullExpression = SyntaxFactory.ParseExpression($"CoreScript.Engine.Globals.ExecutionGlobals.Get<{type}>(\"{name}\")");
 
-            // 3. Construct the new property, PRESERVING existing trivia (like #endregion)
-            var newNode = node
-                .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { getter, setter })))
-                .WithInitializer(null) 
-                .WithSemicolonToken(default);
+            var initializer = SyntaxFactory.EqualsValueClause(pullExpression)
+                .WithLeadingTrivia(SyntaxFactory.Space);
 
-            // CRITICAL: Preserve trailing trivia from the original node (semicolon or closing brace)
-            // This ensures #endregion stays on its own line if it was right after the property.
-            if (node.SemicolonToken.Kind() != SyntaxKind.None)
-            {
-                return newNode.WithTrailingTrivia(node.SemicolonToken.TrailingTrivia);
-            }
-            else if (node.AccessorList != null)
-            {
-                return newNode.WithTrailingTrivia(node.AccessorList.GetTrailingTrivia());
-            }
+            // Construct the updated node
+            var updatedNode = node
+                .WithInitializer(initializer)
+                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)
+                    .WithTrailingTrivia(node.GetTrailingTrivia()));
 
-            return newNode;
+            return updatedNode;
         }
     }
 }
