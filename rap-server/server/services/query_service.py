@@ -88,18 +88,28 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             param_fields.append(f"{attr_prefix}public {csharp_type} {prop_id} {{ get; set; }} = {default_val};")
 
     uses_get_param_id = False
+    subgroup_counter = 0
 
-    def build_filter_logic(group):
-        nonlocal uses_get_param_id
+    def build_filter_logic(group, is_root=True):
+        nonlocal uses_get_param_id, subgroup_counter
         lines = []
         logical_type = "LogicalAndFilter" if group["combinator"] == "AND" else "LogicalOrFilter"
-        list_var = f"filters_{id(group)}"
+        
+        # Use clean, category-prefixed names for the root group.
+        # Use simple numeric suffixes for nested groups.
+        if is_root:
+            list_var = f"{clean_cat.lower()}Filters"
+            result_var = f"final{clean_cat}Filter"
+        else:
+            subgroup_counter += 1
+            list_var = f"subFilters{subgroup_counter}"
+            result_var = f"groupFilter{subgroup_counter}"
         
         lines.append(f"List<ElementFilter> {list_var} = [];")
         
         for child in group["children"]:
             if child["type"] == "group":
-                inner_lines, inner_var = build_filter_logic(child)
+                inner_lines, inner_var = build_filter_logic(child, is_root=False)
                 lines.extend(inner_lines)
                 lines.append(f"if ({inner_var} != null)")
                 lines.append(f"{{")
@@ -160,8 +170,10 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     lines.append(f"    {list_var}.Add(new ElementParameterFilter({rule_obj}));")
                     lines.append(f"}}")
 
-        result_var = f"final_{id(group)}"
-        lines.append(f"ElementFilter? {result_var} = {list_var}.Count > 0 ? ({list_var}.Count == 1 ? {list_var}[0] : new {logical_type}({list_var})) : null;")
+        # Clean up the final group filter assignment
+        lines.append(f"ElementFilter? {result_var} = {list_var}.Count > 0")
+        lines.append(f"    ? ({list_var}.Count == 1 ? {list_var}[0] : new {logical_type}({list_var}))")
+        lines.append(f"    : null;")
         
         return lines, result_var
 

@@ -1,4 +1,4 @@
-// Watchdog: Sentinel for OST_Walls
+// Watchdog: Generated Sentinel
 // Generated from Visual Query Builder
 Watchdog(() =>
 {
@@ -11,19 +11,21 @@ Watchdog(() =>
     FilteredElementCollector collector = new(Doc);
     _ = collector.OfCategory(BuiltInCategory.OST_Walls);
     _ = collector.WhereElementIsNotElementType();
-    List<ElementFilter> filters_1764734590400 = [];
+    List<ElementFilter> wallsFilters = [];
     if (p.BaseConstraint != null)
     {
-        filters_1764734590400.Add(new ElementParameterFilter(new FilterElementIdRule(new ParameterValueProvider(new ElementId(BuiltInParameter.WALL_BASE_CONSTRAINT)), new FilterNumericEquals(), p.BaseConstraint.Id)));
+        wallsFilters.Add(new ElementParameterFilter(new FilterElementIdRule(new ParameterValueProvider(new ElementId(BuiltInParameter.WALL_BASE_CONSTRAINT)), new FilterNumericEquals(), p.BaseConstraint.Id)));
     }
     if (p.Length != 0)
     {
-        filters_1764734590400.Add(new ElementParameterFilter(new FilterDoubleRule(new ParameterValueProvider(new ElementId(BuiltInParameter.CURVE_ELEM_LENGTH)), new FilterNumericLess(), p.Length, 1e-6)));
+        wallsFilters.Add(new ElementParameterFilter(new FilterDoubleRule(new ParameterValueProvider(new ElementId(BuiltInParameter.CURVE_ELEM_LENGTH)), new FilterNumericLess(), p.Length, 1e-6)));
     }
-    ElementFilter? final_1764734590400 = filters_1764734590400.Count > 0 ? (filters_1764734590400.Count == 1 ? filters_1764734590400[0] : new LogicalAndFilter(filters_1764734590400)) : null;
-    if (final_1764734590400 != null)
+    ElementFilter? finalWallsFilter = wallsFilters.Count > 0
+        ? (wallsFilters.Count == 1 ? wallsFilters[0] : new LogicalAndFilter(wallsFilters))
+        : null;
+    if (finalWallsFilter != null)
     {
-        _ = collector.WherePasses(final_1764734590400);
+        _ = collector.WherePasses(finalWallsFilter);
     }
     List<Wall> elements = [.. collector.Cast<Wall>()];
 
