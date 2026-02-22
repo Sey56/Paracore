@@ -235,7 +235,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
                     <div key={fname} className="space-y-2">
                       <div className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border-l-4 border-blue-500 text-xs font-bold text-gray-700 dark:text-gray-200 rounded-r shadow-sm flex justify-between items-center">
                         <span>{fname}</span>
-                        <span className="text-[10px] text-gray-400 font-normal uppercase">Modified</span>
+                        <span className="text-xs text-gray-400 font-normal uppercase">Modified</span>
                       </div>
                       <div className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs w-full overflow-hidden">
                         <SyntaxHighlighter

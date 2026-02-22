@@ -70,8 +70,14 @@ export const AppLayout: React.FC = () => {
   const isMobile = useBreakpoint();
   const [activeTab, setActiveTab] = useState<'scripts' | 'summary'>('scripts'); // New state for active tab
 
-  const [galleryWidth, setGalleryWidth] = useState(0.6);
-  const [inspectorWidth, setInspectorWidth] = useState(0.4);
+  const [galleryWidth, setGalleryWidth] = useState(() => {
+    const saved = localStorage.getItem('paracore_gallery_width');
+    return saved ? parseFloat(saved) : 0.595;
+  });
+  const [inspectorWidth, setInspectorWidth] = useState(() => {
+    const saved = localStorage.getItem('paracore_inspector_width');
+    return saved ? parseFloat(saved) : 0.405;
+  });
   const [isResizing, setIsResizing] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -98,8 +104,8 @@ export const AppLayout: React.FC = () => {
     }
 
     const minGalleryWidth = 0.3;
-    const maxGalleryWidth = 0.7;
-    const minInspectorWidth = 0.3;
+    const maxGalleryWidth = 0.75;
+    const minInspectorWidth = 0.25;
     const maxInspectorWidth = 0.7;
 
     if (newGalleryWidth >= minGalleryWidth && newGalleryWidth <= maxGalleryWidth &&
@@ -107,11 +113,15 @@ export const AppLayout: React.FC = () => {
       setGalleryWidth(newGalleryWidth);
       setInspectorWidth(newInspectorWidth);
     }
-  }, [isResizing, setGalleryWidth, setInspectorWidth, isLayoutSwapped]);
+  }, [isResizing, isLayoutSwapped]);
 
   const handleMouseUp = useCallback(() => {
-    setIsResizing(false);
-  }, [setIsResizing]);
+    if (isResizing) {
+      localStorage.setItem('paracore_gallery_width', galleryWidth.toString());
+      localStorage.setItem('paracore_inspector_width', inspectorWidth.toString());
+      setIsResizing(false);
+    }
+  }, [isResizing, galleryWidth, inspectorWidth]);
 
   React.useEffect(() => {
     if (isResizing) {
@@ -194,7 +204,7 @@ export const AppLayout: React.FC = () => {
                 <>
                   {/* Inspector Panel (Swapped to Left) */}
                   {activeMainView !== 'playlists' && (
-                    <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 border-r border-gray-200 dark:border-gray-700 transition-all duration-500">
+                    <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 border-r border-gray-200 dark:border-gray-700 transition-all duration-500">
                       <ScriptInspector />
                     </div>
                   )}
@@ -233,7 +243,7 @@ export const AppLayout: React.FC = () => {
 
                   {/* Inspector Panel (Original Right) */}
                   {activeMainView !== 'playlists' && (
-                    <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 transition-all duration-500">
+                    <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 transition-all duration-500">
                       <ScriptInspector />
                     </div>
                   )}

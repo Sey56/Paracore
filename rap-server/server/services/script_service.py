@@ -265,14 +265,26 @@ async def create_new_script_logic(parent_folder: str, script_name: str, folder_n
     try:
         os.makedirs(s_dir, exist_ok=True)
         template = ARCHETYPES.get(template_id, ARCHETYPES["blank"])
-        if generated_logic: template = re.sub(r"// __INJECT_QUERY_BLOCK__", generated_logic, template, flags=re.DOTALL | re.IGNORECASE)
-        if generated_params:
+        
+        # 1. Inject Logic
+        if generated_logic: 
+            template = re.sub(r"// __INJECT_QUERY_BLOCK__", generated_logic, template, flags=re.DOTALL | re.IGNORECASE)
+        
+        # 2. Inject Parameters (SKIP for raw_injection as it is self-contained)
+        if generated_params and template_id != "raw_injection":
             indented = "\n".join([f"    {line}" if line.strip() else "" for line in generated_params.split("\n")])
-            p_pattern = r'(public\s+class\s+Params\s*)\{.*?(\}\s*$)'
+            # Improved regex to handle Allman-style braces and potential whitespace
+            p_pattern = r'(public\s+class\s+Params\s*[\r\n]*\s*)\{.*?(\}\s*[\r\n]*\s*$)'
             replacement = f"\\1\n{{\n    #region Generated Parameters\n{indented}\n    #endregion\n\\2"
-            if re.search(p_pattern, template, re.DOTALL | re.MULTILINE): template = re.sub(p_pattern, replacement, template, flags=re.DOTALL | re.MULTILINE)
-            else: template += f"\n\npublic class Params\n{{\n    #region Generated Parameters\n{indented}\n    #endregion\n}}"
-        with open(os.path.join(s_dir, f"{clean_name}.cs"), 'w', encoding='utf-8') as f: f.write(template)
+            
+            if re.search(p_pattern, template, re.DOTALL | re.MULTILINE): 
+                template = re.sub(p_pattern, replacement, template, flags=re.DOTALL | re.MULTILINE)
+            else: 
+                # Append if not found
+                template += f"\n\npublic class Params\n{{\n    #region Generated Parameters\n{indented}\n    #endregion\n}}"
+                
+        with open(os.path.join(s_dir, f"{clean_name}.cs"), 'w', encoding='utf-8') as f: 
+            f.write(template)
         _ensure_pack_gitignore(parent_folder)
         return {"success": True, "path": p_dir}
     except Exception as e: raise HTTPException(status_code=500, detail=f"Failed: {e}")

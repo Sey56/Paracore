@@ -31,7 +31,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
     if (!user) return "You must be signed in to edit scripts";
     if (!ParacoreConnected) return "Paracore is disconnected. Please connect to Revit.";
     if (script.metadata.isProtected) return "Source code for this tool is protected and cannot be edited.";
-    return "Edit Script";
+    return script.metadata.isWatchdog ? "Edit Sentinel" : "Edit Script";
   };
 
   const onDragResizeStart = () => {
@@ -90,7 +90,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
           title={getTitleMessage()}
         >
           <FontAwesomeIcon icon={faEdit} className="mr-2" />
-          Edit Script
+          {script.metadata.isWatchdog ? "Edit Sentinel" : "Edit Script"}
         </button>
         {!script.metadata.isProtected && (
           <button

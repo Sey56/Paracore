@@ -70,7 +70,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     handleDelete,
     editScript,
     isAuthenticated,
-    activeRole
+    activeRole,
+    toggleFloatingCodeViewer
   } = useScriptCard(script, onSelect);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
@@ -97,6 +98,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
         deleteError={deleteError}
         isActiveInIDE={isActiveInIDE}
         isProtectedTool={isProtectedTool}
+        isGuard={isGuard}
         displayName={getDisplayName()}
         onDelete={handleDelete}
       />
@@ -145,6 +147,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
         setShowDeleteModal={setShowDeleteModal}
         setDeleteError={setDeleteError}
         editTooltipMessage={getEditTitleMessage()}
+        toggleFloatingCodeViewer={toggleFloatingCodeViewer}
       />
     </div>
   );

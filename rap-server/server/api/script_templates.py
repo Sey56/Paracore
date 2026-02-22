@@ -2,6 +2,7 @@
 # Usings are handled by GlobalUsings in the workspace.
 
 ARCHETYPES = {
+    "raw_injection": "// __INJECT_QUERY_BLOCK__",
     "ProjectAuditor": """// 1. Query & Setup
 Params p = new();
 
@@ -78,6 +79,27 @@ Params p = new();
 
 public class Params
 {
+}
+""",
+
+    "BlankSentinel": """// Blank Watchdog Sentinel
+Watchdog(() =>
+{
+    Params p = new();
+    
+    // Sentinel Logic here
+    var elements = new FilteredElementCollector(doc)
+        .OfCategory(BuiltInCategory.OST_Walls)
+        .WhereElementIsNotElementType()
+        .ToElements();
+        
+    WatchdogReport($"Found {elements.Count} elements", "success");
+});
+
+public class Params
+{
+    #region Generated Parameters
+    #endregion
 }
 """
 }

@@ -97,7 +97,7 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <div className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 z-40 relative">
+    <div className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 z-30 relative">
       {/* 1. Logo & Sidebar Toggle Cluster */}
       <div className="flex items-center gap-4">
         <button

@@ -3,44 +3,50 @@ from typing import Dict, Any, List, Optional
 from services import query_service
 from services import script_service
 
-def generate_watchdog_script(
-    name: str, 
+async def generate_watchdog_script_content(
+    name: str,
     description: str,
-    target_folder: str,
-    category_name: str, 
-    root_group: Dict[str, Any], 
+    category_name: str,
+    root_group: Dict[str, Any],
     scope: str = "project"
-) -> Dict[str, Any]:
+) -> str:
     """
-    Generates a Watchdog script from a Query Builder configuration.
-    Reuses the existing query generation logic to ensure identical filtering behavior.
+    Generates the C# source code for a Watchdog script.
     """
-    
     # 1. Generate the standard query code
-    # We pass empty selected_columns because we'll add our own Watchdog reporting
     query_code = query_service.generate_query_code(category_name, root_group, selected_columns=[], scope=scope)
     
-    raw_logic = query_code["logic"]
-    helpers = query_code["helpers"]
-    params_class_content = query_code["params"]
+    # Clean logic with strict 4-space indentation and no trailing spaces on empty lines
+    logic_lines = []
+    for line in query_code["logic"].splitlines():
+        if line.strip():
+            logic_lines.append(f"    {line}")
+        else:
+            logic_lines.append("")
+    raw_logic = "\n".join(logic_lines)
     
-    # 3. Construct the Watchdog script
-    # We include the FULL raw_logic (Filtering + Table Output) so the user can test manually.
-    # Then we append the WatchdogReport part.
-    script_content = f"""using Autodesk.Revit.DB;
-using System.Linq;
-using System.Collections.Generic;
-
-// Watchdog: {description}
+    helpers = query_code["helpers"]
+    
+    # Clean params with strict 4-space indentation
+    param_lines = []
+    for line in query_code["params"].splitlines():
+        if line.strip():
+            param_lines.append(f"    {line}")
+        else:
+            param_lines.append("")
+    params_class_content = "\n".join(param_lines)
+    
+    # Construct the Watchdog script with Allman style (brace-down)
+    desc_str = description or f"Sentinel for {category_name}"
+    return f"""// Watchdog: {desc_str}
 // Generated from Visual Query Builder
-Watchdog(() => 
+Watchdog(() =>
 {{
     Params p = new();
-    
-    {raw_logic}
-    
+
+{raw_logic}
+
     // --- Background Watchdog Reporting ---
-    // (This part handles the persistent dashboard reporting)
     if (elements.Count > 0)
     {{
         WatchdogReport($"Found {{elements.Count}} elements matching '{name}'", "warning", elements.Select(el => el.Id).ToList());
@@ -55,14 +61,26 @@ Watchdog(() =>
 
 public class Params
 {{
+    #region Generated Parameters
 {params_class_content}
+    #endregion
 }}
 """
 
+async def generate_watchdog_script(
+    name: str, 
+    description: str,
+    target_folder: str,
+    category_name: str, 
+    root_group: Dict[str, Any], 
+    scope: str = "project"
+) -> Dict[str, Any]:
+    """
+    Generates and saves a Watchdog script.
+    """
+    script_content = await generate_watchdog_script_content(name, description, category_name, root_group, scope)
+
     # 4. Save the script
-    # We use the existing script creation logic to handle file writing and folder management
-    # But we bypass the template system and write content directly
-    
     clean_name = "".join(x for x in name if x.isalnum() or x in " _-")
     script_path = os.path.join(target_folder, clean_name)
     
@@ -70,8 +88,6 @@ public class Params
     if not os.path.exists(target_folder):
         os.makedirs(target_folder)
         
-    # Create the script folder structure (standard Paracore script)
-    # /Scripts/ScriptName.cs
     actual_script_folder = os.path.join(script_path, "Scripts")
     if not os.path.exists(actual_script_folder):
         os.makedirs(actual_script_folder)
@@ -83,8 +99,7 @@ public class Params
         
     # V5: Fetch full metadata so frontend can select and scroll
     try:
-        import asyncio
-        all_scripts = asyncio.run(script_service.get_all_scripts(target_folder))
+        all_scripts = await script_service.get_all_scripts(target_folder)
         new_script = next((s for s in all_scripts if s["absolutePath"].replace('\\', '/') == script_path.replace('\\', '/')), None)
         if new_script:
             return {
@@ -93,6 +108,12 @@ public class Params
             }
     except Exception as e:
         print(f"[QueryToWatchdog] Failed to fetch script metadata: {e}")
+
+    return {
+        "success": True,
+        "path": script_path.replace('\\', '/'),
+        "file_path": file_path.replace('\\', '/')
+    }
 
     return {
         "success": True,

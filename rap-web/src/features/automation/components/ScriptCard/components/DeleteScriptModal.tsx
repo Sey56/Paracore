@@ -1,10 +1,10 @@
 import React from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { 
-  faExclamationTriangle, 
-  faSpinner, 
-  faTrash, 
-  faBroom 
+import {
+  faExclamationTriangle,
+  faSpinner,
+  faTrash,
+  faBroom
 } from "@fortawesome/free-solid-svg-icons";
 import { Modal } from '@/components/common/Modal';
 
@@ -15,6 +15,7 @@ interface DeleteScriptModalProps {
   deleteError: string | null;
   isActiveInIDE: boolean;
   isProtectedTool: boolean;
+  isGuard: boolean;
   displayName: string;
   onDelete: (scaffoldingOnly: boolean) => void;
 }
@@ -26,6 +27,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
   deleteError,
   isActiveInIDE,
   isProtectedTool,
+  isGuard,
   displayName,
   onDelete
 }) => {
@@ -33,7 +35,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={() => !isDeleting && onClose()}
-      title={isProtectedTool ? "Delete Sealed Automation Tool" : "Manage Automation Script"}
+      title={isProtectedTool ? "Delete Sealed Automation Tool" : `Manage Automation ${isGuard ? 'Sentinel' : 'Script'}`}
       size="md"
     >
       <div className="space-y-6">
@@ -55,7 +57,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
                 Active IDE Session Detected
               </h4>
               <p className="text-xs text-amber-700/70 dark:text-amber-400/70 leading-relaxed font-medium">
-                This automation script is currently open in VS Code. To prevent data corruption and Windows file lock errors, please close the script environment in VS Code before deleting.
+                This {isGuard ? 'sentinel' : 'script'} is currently open in VS Code. To prevent data corruption and Windows file lock errors, please close the script environment in VS Code before deleting.
               </p>
             </div>
           </div>
@@ -81,7 +83,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
           <>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Choose how you want to manage <span className="font-bold text-gray-900 dark:text-white">"{displayName}"</span>:
+                Choose how you want to manage {isGuard ? 'this sentinel' : 'this script'} <span className="font-bold text-gray-900 dark:text-white">"{displayName}"</span>:
               </p>
             </div>
 
@@ -105,7 +107,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
                   <h4 className="font-bold text-red-700 dark:text-red-400">Full Delete</h4>
                   {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-red-500" /> : <FontAwesomeIcon icon={faTrash} className="text-red-400 group-hover:scale-110 transition-transform" />}
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the entire automation folder and all its contents. This cannot be undone.</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the entire automation folder and all its contents. This action cannot be undone.</p>
               </div>
             </div>
           </>

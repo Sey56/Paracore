@@ -94,7 +94,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
 
   return (
     <div className="flex-1 max-w-md relative" ref={dropdownRef}>
-      <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1">Target Category</label>
+      <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1">Target Category</label>
       <div className="relative">
         <input
           type="text"
@@ -110,7 +110,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
         {isCategoryDropdownOpen && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-2">
             <div className="p-2 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">{showAllCategories ? 'All Categories' : 'Common Categories'}</span>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">{showAllCategories ? 'All Categories' : 'Common Categories'}</span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -127,7 +127,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
             {filteredCategories.map(cat => (
               <div key={cat.id} onClick={() => { setCategory(cat.id); setCategorySearch(''); setIsCategoryDropdownOpen(false); }} className={`px-4 py-1.5 text-sm font-bold cursor-pointer transition-colors flex items-center justify-between group ${category === cat.id ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
                 <span>{cat.label}</span>
-                <span className="text-[9px] font-black text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity">{cat.id}</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity">{cat.id}</span>
               </div>
             ))}
           </div>

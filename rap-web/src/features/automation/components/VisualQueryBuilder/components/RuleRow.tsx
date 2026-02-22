@@ -40,7 +40,7 @@ export const RuleRow: React.FC<RuleRowProps> = ({
       </div>
       <div className="flex-[1.5] min-w-[120px]">
         {child.storage_type === 'ElementId' && child.revit_element_type && child.revit_element_type !== 'ElementId' ? (
-          <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-[11px] font-bold text-blue-600 dark:text-blue-400 italic text-center uppercase tracking-tight">Select {child.revit_element_type}</div>
+          <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 italic text-center uppercase tracking-tight">Select {child.revit_element_type}</div>
         ) : (
           <input
             type="text"
@@ -60,7 +60,7 @@ export const RuleRow: React.FC<RuleRowProps> = ({
           <select
             value={child.unit || ''}
             onChange={(e) => updateRootGroupRecursive(childPath, { unit: e.target.value || undefined }, 'update')}
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-[11px] font-bold outline-none dark:text-white uppercase shadow-sm"
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-xs font-bold outline-none dark:text-white uppercase shadow-sm"
           >
             <option value="">UNIT</option>
             {relevantUnits.map(u => <option key={u} value={u}>{u}</option>)}
@@ -68,9 +68,9 @@ export const RuleRow: React.FC<RuleRowProps> = ({
         </div>
       )}
       <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
-        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'move_up')} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 rounded-lg transition-all"><FontAwesomeIcon icon={faArrowUp} className="text-[10px]" /></button>
-        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'move_down')} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 rounded-lg transition-all"><FontAwesomeIcon icon={faArrowDown} className="text-[10px]" /></button>
-        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'remove')} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-all"><FontAwesomeIcon icon={faTrash} className="text-[10px]" /></button>
+        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'move_up')} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 rounded-lg transition-all"><FontAwesomeIcon icon={faArrowUp} className="text-xs" /></button>
+        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'move_down')} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 rounded-lg transition-all"><FontAwesomeIcon icon={faArrowDown} className="text-xs" /></button>
+        <button onClick={() => updateRootGroupRecursive(childPath, {}, 'remove')} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-all"><FontAwesomeIcon icon={faTrash} className="text-xs" /></button>
       </div>
     </div>
   );

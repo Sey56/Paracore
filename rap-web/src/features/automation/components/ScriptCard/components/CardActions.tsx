@@ -1,17 +1,18 @@
 import React from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { 
-  faSpinner, 
-  faPlay, 
-  faCompressAlt, 
-  faBullseye, 
-  faShieldHeart, 
-  faTools, 
-  faEllipsisH, 
-  faEdit, 
-  faICursor, 
-  faSyncAlt, 
-  faTrash 
+import {
+  faSpinner,
+  faPlay,
+  faCompressAlt,
+  faBullseye,
+  faShieldHeart,
+  faTools,
+  faEllipsisH,
+  faEdit,
+  faICursor,
+  faSyncAlt,
+  faTrash,
+  faCode
 } from "@fortawesome/free-solid-svg-icons";
 import { Script } from "@/types/scriptModel";
 
@@ -38,6 +39,7 @@ interface CardActionsProps {
   setShowDeleteModal: (show: boolean) => void;
   setDeleteError: (err: string | null) => void;
   editTooltipMessage: string;
+  toggleFloatingCodeViewer: () => void;
 }
 
 export const CardActions: React.FC<CardActionsProps> = ({
@@ -62,7 +64,8 @@ export const CardActions: React.FC<CardActionsProps> = ({
   onReplace,
   setShowDeleteModal,
   setDeleteError,
-  editTooltipMessage
+  editTooltipMessage,
+  toggleFloatingCodeViewer
 }) => {
   return (
     <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 rounded-b-lg">
@@ -127,19 +130,34 @@ export const CardActions: React.FC<CardActionsProps> = ({
             {canCreateScripts && (
               <>
                 {!isProtectedTool && (
-                  <button
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelect();
-                      editScript(script);
-                      setShowMenu(false);
-                    }}
-                    title={editTooltipMessage}
-                  >
-                    <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
-                    Edit Script
-                  </button>
+                  <>
+                    <button
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect();
+                        toggleFloatingCodeViewer();
+                        setShowMenu(false);
+                      }}
+                      title={isGuard ? "View Sentinel Code" : "View Script Code"}
+                    >
+                      <FontAwesomeIcon icon={faCode} className="mr-2 w-4" />
+                      {isGuard ? "View Sentinel" : "View Script"}
+                    </button>
+                    <button
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect();
+                        editScript(script);
+                        setShowMenu(false);
+                      }}
+                      title={editTooltipMessage}
+                    >
+                      <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
+                      {isGuard ? "Edit Sentinel" : "Edit Script"}
+                    </button>
+                  </>
                 )}
 
                 <button
@@ -149,10 +167,10 @@ export const CardActions: React.FC<CardActionsProps> = ({
                     onSelect();
                     handleStartRename(e);
                   }}
-                  title="Rename Script"
+                  title={isGuard ? "Rename Sentinel" : "Rename Script"}
                 >
                   <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
-                  Rename
+                  {isGuard ? "Rename Sentinel" : "Rename Script"}
                 </button>
                 {!isProtectedTool && (
                   <button
@@ -179,10 +197,10 @@ export const CardActions: React.FC<CardActionsProps> = ({
                     setShowDeleteModal(true);
                     setShowMenu(false);
                   }}
-                  title="Delete Script"
+                  title={isGuard ? "Delete Sentinel" : "Delete Script"}
                 >
                   <FontAwesomeIcon icon={faTrash} className="mr-2 w-4" />
-                  Delete Script
+                  {isGuard ? "Delete Sentinel" : "Delete Script"}
                 </button>
               </>
             )}

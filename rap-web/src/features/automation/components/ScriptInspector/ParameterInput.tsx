@@ -100,7 +100,7 @@ const VirtualList: React.FC<{
                     ${isSelected
                       ? 'bg-blue-500 border-blue-500 text-white'
                       : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'}`}>
-                    {isSelected && <FontAwesomeIcon icon={faCheck} className="text-[8px]" />}
+                    {isSelected && <FontAwesomeIcon icon={faCheck} className="text-[10px]" />}
                   </div>
                 </div>
               )}
@@ -156,7 +156,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
             <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-[10px]" />
+                  <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-xs" />
                 </div>
                 <input
                   type="text"
@@ -179,7 +179,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
                   type="single"
                 />
               ) : (
-                <div className="py-6 text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">
+                <div className="py-6 text-center text-xs text-slate-400 font-bold uppercase tracking-widest italic">
                   No matches found
                 </div>
               )}
@@ -231,7 +231,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
       <div className="flex items-center px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50">
         <div className="relative flex-grow min-w-0">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-[10px]" />
+            <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-xs" />
           </div>
           <input
             type="text"
@@ -271,13 +271,13 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             disabled={disabled}
           />
         ) : (
-          <div className="h-56 py-10 text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">
+          <div className="h-56 py-10 text-center text-xs text-slate-400 font-bold uppercase tracking-widest italic">
             Discovery awaiting...
           </div>
         )}
       </div>
 
-      <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-[11px] font-black uppercase tracking-widest">
+      <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-xs font-black uppercase tracking-widest">
         <span className="text-blue-600 dark:text-blue-400 tabular-nums">
           {selectedValues.length} Selected
         </span>
@@ -359,7 +359,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       return (
         <div className="flex items-center p-3 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50 transition-all">
           <ToggleSwitch checked={isChecked} onChange={(checked) => onChange(index, checked)} disabled={disabled} />
-          <span className={`ml-4 text-[11px] font-bold uppercase tracking-[0.15em] ${isChecked ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
+          <span className={`ml-4 text-xs font-bold uppercase tracking-[0.15em] ${isChecked ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
             {isChecked ? 'Active' : 'Offline'}
           </span>
         </div>
@@ -439,15 +439,15 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
         <label className="flex items-center text-[13px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 truncate">
           <div className="w-1 h-3 bg-slate-300 dark:bg-slate-600 rounded-full mr-2.5" />
           {param.name}
-          {param.suffix && <span className="ml-1 text-slate-400 font-medium text-[10px]">({param.suffix})</span>}
+          {param.suffix && <span className="ml-1 text-slate-400 font-medium text-xs">({param.suffix})</span>}
           {param.required && <span className="text-rose-500 ml-1 font-bold">*</span>}
         </label>
         {param.description && (
           <div className="relative group/info cursor-help">
-            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 italic tracking-tight truncate max-w-[120px] block">
+            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 italic tracking-tight truncate max-w-[120px] block">
               {param.description}
             </span>
-            <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 text-white text-[10px] font-medium leading-relaxed max-w-[200px] break-words opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-300 transform translate-y-1 group-hover/info:translate-y-0 border border-white/10">
+            <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 text-white text-xs font-medium leading-relaxed max-w-[200px] break-words opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-300 transform translate-y-1 group-hover/info:translate-y-0 border border-white/10">
               {param.description}
             </div>
           </div>

@@ -51,7 +51,9 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
 
     // Persistence Logic: Load existing query if replacing
     useEffect(() => {
-        if (isOpen && targetPath) {
+        if (!isOpen) return;
+
+        if (targetPath) {
             const fetchExisting = async () => {
                 try {
                     const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(targetPath)}`);
@@ -64,6 +66,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                             const state = JSON.parse(rawJson);
                             setInitialQueryState(state);
                             setActiveTab('query');
+                            setIsCompiled(true);
                         } catch (e) {
                             console.error("[NewScriptModal] Failed to parse query metadata", e);
                         }
@@ -73,7 +76,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                 }
             };
             fetchExisting();
-        } else if (isOpen) {
+        } else {
+            // New script - reset fields
             setScriptName('');
             setDescription('');
             setGeneratedLogic('');
@@ -85,9 +89,11 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     }, [isOpen, targetPath]);
 
     useEffect(() => {
-        if (!isOpen) return; // Don't check duplicates if closed
-        if (!isReplacing && scriptName && scripts && scripts.length > 0 && !isSubmitting) {
-            const searchName = (scriptName || '').toLowerCase();
+        if (!isOpen) return;
+
+        const nameToCheck = (scriptName || '').trim();
+        if (!isReplacing && nameToCheck && scripts && scripts.length > 0 && !isSubmitting) {
+            const searchName = nameToCheck.toLowerCase();
             const exists = scripts.some((s: Script) => {
                 const sName = (s.name || '').toLowerCase();
                 const dName = (s.metadata?.displayName || '').toLowerCase();
@@ -109,7 +115,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                 const response = await api.post("/api/scripts/replace-code", {
                     script_path: targetPath,
                     new_logic: generatedLogic,
-                    new_params: generatedParams
+                    new_params: generatedParams,
+                    template_id: mode === 'sentinel' ? 'raw_injection' : 'blank'
                 });
 
                 if (response.status === 200 || response.status === 201) {
@@ -190,27 +197,27 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
 
     return (
         <>
-            <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="full">
+            <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="full" noPadding>
                 <div className="flex flex-col h-full bg-white dark:bg-gray-900">
 
                     {/* Optimized Identity Header */}
-                    <div className={`px-8 py-6 border-b transition-colors duration-500 shrink-0 ${mode === 'sentinel'
+                    <div className={`px-6 py-3 border-b transition-colors duration-500 shrink-0 ${mode === 'sentinel'
                         ? 'bg-amber-50/30 dark:bg-amber-900/10 border-amber-100/50 dark:border-amber-800/30'
                         : 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100/50 dark:border-blue-800/30'
                         }`}>
-                        <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8 items-end">
+                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 items-end">
                             {/* 1. Identity Group */}
                             <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                                 {!isReplacing ? (
                                     <>
                                         <div className="flex flex-col gap-1.5 focus-within:z-10">
                                             <div className="flex justify-between items-center px-1">
-                                                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
+                                                <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
                                                     {mode === 'sentinel' ? 'Sentinel Name' : 'Tool Name'}
                                                 </label>
                                                 {isDuplicate && (
-                                                    <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1.5 animate-in slide-in-from-right-2">
-                                                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-[8px]" />
+                                                    <span className="text-xs font-bold text-rose-500 flex items-center gap-1.5 animate-in slide-in-from-right-2">
+                                                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px]" />
                                                         Name Exists
                                                     </span>
                                                 )}
@@ -230,7 +237,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-1.5 ">
-                                            <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 leading-none">
+                                            <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 leading-none">
                                                 Purpose & Goal
                                             </label>
                                             <input
@@ -248,7 +255,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                             <FontAwesomeIcon icon={faCogs} className="text-sm" />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Surgical Modification</span>
+                                            <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Surgical Modification</span>
                                             <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate max-w-md">{targetPath?.split(/[\\/]/).pop()}</span>
                                         </div>
                                     </div>
@@ -279,14 +286,17 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
 
                     {/* Main Construction Area */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 bg-slate-50/50 dark:bg-slate-950/20">
-                        <div className="max-w-5xl mx-auto py-6 px-6">
+                        <div className="max-w-6xl mx-auto pt-4 pb-0 px-6">
                             {activeTab === 'query' && (
                                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     <VisualQueryBuilder
-                                        key={initialQueryState ? 'persistent' : 'new'}
+                                        key="shared-builder-instance"
                                         initialState={initialQueryState}
                                         onConfigChange={handleConfigChange}
                                         onQueryGenerated={handleQueryGenerated}
+                                        isWatchdog={mode === 'sentinel'}
+                                        name={isReplacing ? targetPath?.split(/[\\/]/).pop()?.replace(".cs", "") : scriptName}
+                                        description={isReplacing ? (scriptToReplace?.metadata?.description || description) : description}
                                     />
                                 </div>
                             )}
@@ -308,13 +318,25 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                     </div>
 
                     {/* Action Footer */}
-                    <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3 bg-white dark:bg-gray-900 shrink-0">
+                    <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3 bg-white dark:bg-gray-900 shrink-0">
                         <button onClick={() => onClose()} className="px-6 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Cancel</button>
+
+                        {!isReplacing && isCompiled && !scriptName.trim() && (
+                            <div className="flex items-center gap-2 px-4 text-rose-500 animate-pulse">
+                                <FontAwesomeIcon icon={faExclamationTriangle} className="text-xs" />
+                                <span className="text-xs font-black uppercase tracking-wider">Name Required</span>
+                            </div>
+                        )}
 
                         <button
                             onClick={handleMainActionClick}
-                            disabled={(!scriptName && !isReplacing) || (activeTab === 'query' && !isCompiled) || isSubmitting}
-                            className={`px-6 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all disabled:opacity-50 active:scale-95 flex items-center gap-2 ${mode === 'sentinel' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
+                            disabled={
+                                isSubmitting ||
+                                isDuplicate ||
+                                (activeTab === 'query' && !isCompiled) ||
+                                (!isReplacing && !scriptName.trim())
+                            }
+                            className={`px-6 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 flex items-center gap-2 ${mode === 'sentinel' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
                                 }`}
                         >
                             {isSubmitting ? (
@@ -326,7 +348,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                             {isSubmitting
                                 ? 'Creating...'
                                 : (mode === 'sentinel'
-                                    ? 'Create Sentinel'
+                                    ? (isReplacing ? 'Update Sentinel' : 'Create Sentinel')
                                     : (isReplacing ? 'Confirm Changes' : 'Create Script')
                                 )
                             }
@@ -344,13 +366,13 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                 <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-600 dark:text-amber-400 text-lg" />
                             </div>
                             <div>
-                                <div className="text-sm font-black text-amber-800 dark:text-amber-200 uppercase">Warning: Surgical Injection</div>
-                                <p className="text-xs text-amber-700/70 dark:text-amber-400/70 font-bold mt-0.5">This will overwrite the current filtering logic and parameters. IDE scaffolding will be preserved.</p>
+                                <div className="text-sm font-black text-amber-800 dark:text-amber-200 uppercase">Warning: {mode === 'sentinel' ? 'Sentinel' : 'Surgical'} Update</div>
+                                <p className="text-xs text-amber-700/70 dark:text-amber-400/70 font-bold mt-0.5">This will overwrite the current {mode === 'sentinel' ? 'sentinel detection' : 'filtering'} logic and parameters. IDE scaffolding will be preserved.</p>
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <button onClick={() => setShowConfirmReplace(false)} className="px-6 py-2 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-100 transition-all">Go Back</button>
-                            <button onClick={() => handleExecuteAction()} className="px-6 py-2 rounded-lg text-xs font-black bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all">Overwrite Logic</button>
+                            <button onClick={() => handleExecuteAction()} className="px-6 py-2 rounded-lg text-xs font-black bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all">{mode === 'sentinel' ? 'Update Sentinel' : 'Overwrite Logic'}</button>
                         </div>
                     </div>
                 </Modal>

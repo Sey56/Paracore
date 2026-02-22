@@ -69,7 +69,7 @@ export const StepperInput: React.FC<StepperInputProps> = ({ value, min, max, ste
                 className="w-9 h-full flex items-center justify-center p-0 bg-gray-50 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-30 disabled:grayscale transition-all border-r border-gray-200 dark:border-gray-600"
                 title="Decrease"
             >
-                <FontAwesomeIcon icon={faMinus} className="text-[0.7rem]" />
+                <FontAwesomeIcon icon={faMinus} className="text-xs" />
             </button>
 
             <input
@@ -87,7 +87,7 @@ export const StepperInput: React.FC<StepperInputProps> = ({ value, min, max, ste
                 className="w-9 h-full flex items-center justify-center p-0 bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-30 disabled:grayscale transition-all border-l border-gray-200 dark:border-gray-600"
                 title="Increase"
             >
-                <FontAwesomeIcon icon={faPlus} className="text-[0.7rem]" />
+                <FontAwesomeIcon icon={faPlus} className="text-xs" />
             </button>
         </div>
     );

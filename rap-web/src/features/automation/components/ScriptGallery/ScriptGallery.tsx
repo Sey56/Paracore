@@ -75,16 +75,36 @@ export const ScriptGallery: React.FC = () => {
     closeNewSentinelModal();
 
     if (resultScript && resultScript.id) {
-      setSelectedScript(resultScript);
+      const normalizedTargetId = resultScript.id.toLowerCase().replace(/\\/g, '/');
+
+      // Try to find the canonical script object from our updated list to ensure ID match
+      const canonicalScript = scripts.find(s =>
+        s.id.toLowerCase().replace(/\\/g, '/') === normalizedTargetId
+      );
+
+      const scriptToSelect = canonicalScript || resultScript;
+      setSelectedScript(scriptToSelect);
       setActiveInspectorTab('parameters');
 
       // Use a timeout to ensure the gallery has fully re-rendered with the new units
       setTimeout(() => {
-        const cardElement = document.getElementById(`script-card-${resultScript.id}`);
+        const finalId = scriptToSelect.id;
+        const cardElement = document.getElementById(`script-card-${finalId}`);
+
         if (cardElement && galleryRef.current?.parentElement) {
           cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add a brief subtle animation trigger if needed, but the selection border usually suffices
+        } else {
+          // Fallback search in case of ID mismatch
+          const allCards = document.querySelectorAll('.script-card');
+          const foundCard = Array.from(allCards).find(el =>
+            el.id.toLowerCase().replace(/\\/g, '/').includes(normalizedTargetId)
+          );
+          if (foundCard && galleryRef.current?.parentElement) {
+            foundCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
         }
-      }, 100);
+      }, 300);
     }
   };
 

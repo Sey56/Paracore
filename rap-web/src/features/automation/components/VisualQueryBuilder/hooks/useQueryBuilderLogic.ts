@@ -10,7 +10,10 @@ export const useQueryBuilderLogic = (
     selectedColumns: QueryRule[];
     scope?: 'project' | 'selection';
   },
-  onConfigChange?: (config: { category: string, rootGroup: QueryGroup, scope: string }) => void
+  onConfigChange?: (config: { category: string, rootGroup: QueryGroup, scope: string }) => void,
+  isWatchdog: boolean = false,
+  name?: string,
+  description?: string
 ) => {
   const [scope, setScope] = useState<'project' | 'selection'>(initialState?.scope || 'project');
   const [category, setCategory] = useState(initialState?.category || 'OST_Walls');
@@ -157,10 +160,13 @@ export const useQueryBuilderLogic = (
         category_name: category,
         root_group: rootGroup,
         selected_columns: mappedColumns,
-        scope: scope
+        scope: scope,
+        is_watchdog: isWatchdog,
+        name: name,
+        description: description
       });
 
-      if (response.data.logic && response.data.params) {
+      if (response.data.logic !== undefined && response.data.params !== undefined) {
         onQueryGenerated(response.data.logic, response.data.params, true);
         setLastGeneratedTimestamp(Date.now());
       }

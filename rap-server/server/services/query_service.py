@@ -74,11 +74,11 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     attrs.append(f'RevitElements(Category = "{clean_cat}")')
         
         attr_prefix = f"[{', '.join(attrs)}]\n" if attrs else ""
-        # USE SIMPLE ONE-LINER
+        # Indent once (4 spaces)
         param_fields.append(f"/// Filter value for {prop_name}")
         
         if is_revit_type:
-            param_fields.append(f"{attr_prefix}public {csharp_type}? {prop_id} {{ get; set; }} = null;")
+            param_fields.append(f"{attr_prefix}public {csharp_type}? {prop_id} {{ get; set; }}")
         else:
             if storage in ["Double", "Integer"]:
                 default_val = str(val)
@@ -87,21 +87,24 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                 if isinstance(val, bool): default_val = str(val).lower()
             param_fields.append(f"{attr_prefix}public {csharp_type} {prop_id} {{ get; set; }} = {default_val};")
 
+    uses_get_param_id = False
+
     def build_filter_logic(group):
-        # We now generate a block of C# that builds the filters dynamically
-        # to handle null/optional parameters gracefully.
-        
+        nonlocal uses_get_param_id
         lines = []
         logical_type = "LogicalAndFilter" if group["combinator"] == "AND" else "LogicalOrFilter"
         list_var = f"filters_{id(group)}"
         
-        lines.append(f"List<ElementFilter> {list_var} = new();")
+        lines.append(f"List<ElementFilter> {list_var} = [];")
         
         for child in group["children"]:
             if child["type"] == "group":
                 inner_lines, inner_var = build_filter_logic(child)
                 lines.extend(inner_lines)
-                lines.append(f"if ({inner_var} != null) {list_var}.Add({inner_var});")
+                lines.append(f"if ({inner_var} != null)")
+                lines.append(f"{{")
+                lines.append(f"    {list_var}.Add({inner_var});")
+                lines.append(f"}}")
             else:
                 storage = child["storage_type"]
                 op = child["operator"]
@@ -115,6 +118,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     else:
                         param_id = f"new ElementId((BuiltInParameter)({child['builtin_id']}))"
                 else:
+                    uses_get_param_id = True
                     param_id = f"GetParamId(Doc, \"{prop_name}\")"
 
                 evaluator = "new FilterNumericEquals()"
@@ -151,10 +155,13 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     rule_obj = f"new FilterStringRule(new ParameterValueProvider({param_id}), {str_eval}, p.{prop_id})"
 
                 if rule_obj != "null":
-                    lines.append(f"if ({condition}) {list_var}.Add(new ElementParameterFilter({rule_obj}));")
+                    lines.append(f"if ({condition})")
+                    lines.append(f"{{")
+                    lines.append(f"    {list_var}.Add(new ElementParameterFilter({rule_obj}));")
+                    lines.append(f"}}")
 
         result_var = f"final_{id(group)}"
-        lines.append(f"ElementFilter {result_var} = {list_var}.Count > 0 ? ({list_var}.Count == 1 ? {list_var}[0] : new {logical_type}({list_var})) : null;")
+        lines.append(f"ElementFilter? {result_var} = {list_var}.Count > 0 ? ({list_var}.Count == 1 ? {list_var}[0] : new {logical_type}({list_var})) : null;")
         
         return lines, result_var
 
@@ -174,16 +181,24 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     
     if scope == "selection":
         logic_parts.append("var selection = Uidoc.Selection.GetElementIds();")
-        logic_parts.append("if (selection.Count == 0) { Println(\"Nothing selected. Please select elements in Revit.\"); return; }")
-        logic_parts.append(f"FilteredElementCollector collector = new FilteredElementCollector(Doc, selection);")
+        logic_parts.append("if (selection.Count == 0)")
+        logic_parts.append("{")
+        logic_parts.append("    Println(\"Nothing selected. Please select elements in Revit.\");")
+        logic_parts.append("    return;")
+        logic_parts.append("}")
+        logic_parts.append(f"FilteredElementCollector collector = new(Doc, selection);")
     else:
         logic_parts.append(f"FilteredElementCollector collector = new(Doc);")
         
-    logic_parts.append(f"collector.OfCategory(BuiltInCategory.{category_name}).WhereElementIsNotElementType();")
+    logic_parts.append(f"_ = collector.OfCategory(BuiltInCategory.{category_name});")
+    logic_parts.append(f"_ = collector.WhereElementIsNotElementType();")
     
     # Inject the dynamic filter construction
     logic_parts.append(filter_construction_code)
-    logic_parts.append(f"if ({final_filter_var} != null) collector.WherePasses({final_filter_var});")
+    logic_parts.append(f"if ({final_filter_var} != null)")
+    logic_parts.append("{")
+    logic_parts.append(f"    _ = collector.WherePasses({final_filter_var});")
+    logic_parts.append("}")
     
     logic_parts.append(f"List<{cast_type}> elements = [.. collector.Cast<{cast_type}>()];")
     
@@ -224,7 +239,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             val_expr = f"{getter}?.AsValueString() ?? \"-\""
         logic_parts.append(f"        object {p_id}Value = {val_expr};")
 
-    logic_parts.append("\n        return new")
+    logic_parts.append("")
+    logic_parts.append("        return new")
     logic_parts.append("        {")
     logic_parts.append("            Id = el.Id.Value,")
     logic_parts.append("            el.Name,")
@@ -236,12 +252,18 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     logic_parts.append("    Table(results);")
     logic_parts.append("}")
 
-    helper = f"""
+    helper = ""
+    if uses_get_param_id:
+        helper = f"""
 // Helper to resolve parameter ID for shared/project params
-ElementId GetParamId(Document doc, string name)
+static ElementId GetParamId(Document doc, string name)
 {{
     Element? first = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.{category_name}).WhereElementIsNotElementType().FirstElement();
     return first?.LookupParameter(name)?.Id ?? ElementId.InvalidElementId;
 }}
 """
-    return {"logic": "\n".join(logic_parts), "helpers": helper, "params": "\n".join(param_fields)}
+    return {
+        "logic": "\n".join([line.rstrip() for line in logic_parts]),
+        "helpers": helper.rstrip() if helper else "",
+        "params": "\n".join([line.rstrip() for line in param_fields])
+    }

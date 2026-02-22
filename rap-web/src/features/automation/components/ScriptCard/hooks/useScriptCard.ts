@@ -18,7 +18,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     renameScript,
     userEditedScriptParameters
   } = useScriptExecution();
-  
+
   const { toggleFavoriteScript, deleteScript, isSyncActive } = useScripts();
   const { setActiveInspectorTab } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
@@ -44,18 +44,18 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isSelected = selectedScript?.id === script.id;
+  const isSelected = selectedScript?.id?.toLowerCase().replace(/\\/g, '/') === script.id?.toLowerCase().replace(/\\/g, '/');
   const isRunning = runningScriptPath === script.id;
-  
+
   const path = (script.absolutePath || script.id || script.name || "").toLowerCase().replace(/\\/g, '/');
   const isWTool = path.endsWith('.wtool') || path.includes('.wtool/');
   const isPTool = path.endsWith('.ptool') || path.includes('.ptool/');
-  
-  const isGuard = script.metadata?.isWatchdog === true || 
-                  script.metadata?.is_watchdog === true || 
-                  (script.metadata as any)?.IsWatchdog === true ||
-                  path.endsWith('.wtool') || 
-                  path.includes('.wtool');
+
+  const isGuard = script.metadata?.isWatchdog === true ||
+    script.metadata?.is_watchdog === true ||
+    (script.metadata as any)?.IsWatchdog === true ||
+    path.endsWith('.wtool') ||
+    path.includes('.wtool');
 
   const isProtectedTool = script.metadata?.isProtected === true || script.metadata?.isCompiled === true || isPTool || isWTool;
 
@@ -148,7 +148,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     setDeleteError(null);
     const success = await deleteScript(script, scaffoldingOnly);
     setIsDeleting(false);
-    
+
     if (success) {
       setShowDeleteModal(false);
       // If we deleted the whole script (not just scaffolding) and it was selected, clear the inspector
@@ -159,6 +159,8 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
       setDeleteError("An unexpected error occurred during deletion.");
     }
   };
+
+  const { toggleFloatingCodeViewer } = useUI();
 
   return {
     isSelected,
@@ -192,6 +194,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     editScript,
     setSelectedScript,
     setActiveInspectorTab,
+    toggleFloatingCodeViewer,
     isAuthenticated,
     activeRole,
     ParacoreConnected

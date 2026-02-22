@@ -77,7 +77,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
           {allTabs.map((tab) => (
             <button
               key={tab.id}
-              className={`tab-button px-5 py-3.5 flex items-center gap-2.5 transition-all duration-300 relative border-b-2 rounded-t-lg
+              className={`tab-button px-3.5 py-3.5 flex items-center gap-2 transition-all duration-300 relative border-b-2 rounded-t-lg
                 ${activeInspectorTab === tab.id
                   ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white/50 dark:bg-slate-800/50"
                   : "text-slate-400/80 dark:text-slate-500/80 border-transparent hover:text-slate-600 dark:hover:text-slate-200"
@@ -85,7 +85,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
               onClick={() => setActiveInspectorTab(tab.id as InspectorTab)}
             >
               <FontAwesomeIcon icon={tab.icon} className={`text-xs ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-50'}`} />
-              <span className="text-[11px] font-black uppercase tracking-[0.15em] whitespace-nowrap">
+              <span className="text-xs font-black uppercase tracking-[0.15em] whitespace-nowrap">
                 {tab.label}
               </span>
 
@@ -98,7 +98,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             </button>
           ))}
         </div>
-        <div className="ml-auto px-2 flex items-center gap-1">
+        <div className="ml-auto pl-2 flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => setIsMetadataOpen(!isMetadataOpen)}
             className={`p-1.5 rounded transition-all duration-200 ${isMetadataOpen
@@ -116,12 +116,12 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
       {isMetadataOpen && script.metadata && (
         <div className="border-b border-slate-200/60 dark:border-slate-700/40 bg-slate-50/80 dark:bg-slate-900/60 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between px-5 pt-3 pb-1">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Script Info</span>
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Script Info</span>
             <button
               onClick={() => setIsMetadataOpen(false)}
               className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
             >
-              <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+              <FontAwesomeIcon icon={faTimes} className="text-xs" />
             </button>
           </div>
           <div className="px-5 pb-4 max-h-[200px] overflow-y-auto custom-scrollbar">

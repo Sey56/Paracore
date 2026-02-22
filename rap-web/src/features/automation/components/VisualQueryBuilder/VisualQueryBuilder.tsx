@@ -24,12 +24,18 @@ interface VisualQueryBuilderProps {
     scope?: 'project' | 'selection';
   };
   onConfigChange?: (config: { category: string, rootGroup: QueryGroup, scope: string }) => void;
+  isWatchdog?: boolean;
+  name?: string;
+  description?: string;
 }
 
 export const VisualQueryBuilder: React.FC<VisualQueryBuilderProps> = ({
   onQueryGenerated,
   initialState,
-  onConfigChange
+  onConfigChange,
+  isWatchdog = false,
+  name,
+  description
 }) => {
   const {
     scope, setScope,
@@ -55,10 +61,10 @@ export const VisualQueryBuilder: React.FC<VisualQueryBuilderProps> = ({
     handleGenerate,
     setGroupCombinator,
     setLastGeneratedTimestamp
-  } = useQueryBuilderLogic(onQueryGenerated, initialState, onConfigChange);
+  } = useQueryBuilderLogic(onQueryGenerated, initialState, onConfigChange, isWatchdog, name, description);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {/* 1. Header: Category & Scope */}
       <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
         <CategorySelector
@@ -129,8 +135,9 @@ export const VisualQueryBuilder: React.FC<VisualQueryBuilderProps> = ({
         isGenerating={isGenerating}
         lastGeneratedTimestamp={lastGeneratedTimestamp}
         handleGenerate={handleGenerate}
-        canGenerate={rootGroup.children.length > 0 || selectedColumns.length > 0}
+        canGenerate={(rootGroup.children.length > 0 || selectedColumns.length > 0 || !!initialState) && !isLoadingParams}
         isReplacing={!!initialState}
+        hasName={!!name && name.trim().length > 0}
       />
     </div>
   );

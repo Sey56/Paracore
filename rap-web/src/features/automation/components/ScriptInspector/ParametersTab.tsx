@@ -259,7 +259,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     <option key={i} value={preset.name}>{preset.name}</option>
                   ))}
                 </select>
-                <FontAwesomeIcon icon={faSync} className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none opacity-50" />
+                <FontAwesomeIcon icon={faSync} className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none opacity-50" />
               </div>
 
               <div className="flex items-center gap-1.5 pr-1">
@@ -374,7 +374,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
             {!isParamsValid && (
               <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800 animate-in slide-in-from-bottom-2 duration-300">
                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest leading-none">
+                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest leading-none">
                   Configuration Issues: {validationErrors.join(', ')}
                 </span>
               </div>

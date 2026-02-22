@@ -8,9 +8,10 @@ interface ModalProps {
   children: React.ReactNode;
   title: string;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | 'full';
+  noPadding?: boolean;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md' }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md', noPadding = false }) => {
   const [show, setShow] = useState(false);
   const [render, setRender] = useState(false);
 
@@ -40,24 +41,22 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
   }[size];
 
   return (
-    <Portal wrapperId="modal-portal">
-      <div 
-        className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-200 ease-out ${
-          show ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'
-        }`}
+    <Portal wrapperId="portal-wrapper">
+      <div
+        className={`fixed inset-0 z-[99999] flex justify-center items-center p-4 transition-all duration-200 ease-out ${show ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'
+          }`}
         onClick={onClose}
       >
-        <div 
-          className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-gray-100 dark:border-gray-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden max-h-[82vh] ${
-            show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
-          }`}
-          style={size === 'full' ? { height: '82vh' } : {}}
+        <div
+          className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-gray-100 dark:border-gray-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden max-h-[92vh] ${show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
+            }`}
+          style={size === 'full' ? { height: '90vh' } : {}}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <div className="flex justify-between items-center px-6 py-3 border-b border-gray-100 dark:border-gray-800 shrink-0">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{title}</h2>
-            <button 
+            <button
               onClick={onClose}
               className="group p-2 rounded-full text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               title="Close"
@@ -67,9 +66,9 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
               </svg>
             </button>
           </div>
-          
+
           {/* Content */}
-          <div className="p-6 flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className={`${noPadding ? 'p-0' : 'p-6'} flex-1 min-h-0 flex flex-col overflow-hidden`}>
             {children}
           </div>
         </div>
