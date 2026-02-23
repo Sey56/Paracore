@@ -7,6 +7,8 @@ import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { ConfirmActionModal } from '@/features/automation/components/ScriptInspector/ConfirmActionModal';
+import { ScriptExecutionContext } from '@/features/automation/store/ScriptExecutionContext';
+import { useContext } from 'react';
 
 interface WatchdogSettingsProps {
   isAuthenticated: boolean;
@@ -25,6 +27,9 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
     decommissionAll,
     executeSentinelAction
   } = useWatchdog();
+
+  const scriptContext = useContext(ScriptExecutionContext);
+  const userEditedScriptParameters = scriptContext?.userEditedScriptParameters || {};
 
   const { showNotification } = useNotifications();
 
@@ -70,7 +75,12 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
   };
 
   const handleArmAll = async () => {
-    const allScripts = Object.values(rootScripts).flatMap(r => r.data).map(s => s.absolutePath);
+    const allScripts = Object.values(rootScripts).flatMap(r => r.data).map(s => {
+      return {
+        path: s.absolutePath,
+        parameters: userEditedScriptParameters[s.id] || s.parameters
+      };
+    });
     if (allScripts.length === 0) {
       showNotification("No scripts found to arm.", "warning");
       return;
@@ -192,7 +202,10 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                               </>
                             )}
                             <button
-                              onClick={() => toggleScriptArm(path)}
+                              onClick={() => {
+                                const paramsSnapshot = userEditedScriptParameters[s.id] || s.parameters;
+                                toggleScriptArm(path, paramsSnapshot);
+                              }}
                               className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all active:scale-95
                                 ${isArmed ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 border border-amber-200 dark:border-amber-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-indigo-600 border border-transparent hover:border-indigo-100'}`}
                             >

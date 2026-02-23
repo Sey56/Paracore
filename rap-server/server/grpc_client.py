@@ -2,6 +2,7 @@ import logging
 import os
 import json
 from contextlib import contextmanager
+from typing import Optional
 
 import corescript_pb2
 import corescript_pb2_grpc
@@ -48,13 +49,17 @@ def get_corescript_runner_stub():
         if local_channel:
             local_channel.close()
 
-def register_watchdog_source(path: str):
+def register_watchdog_source(path: str, parameters_json: Optional[str] = None):
     """
     Calls the gRPC service to scan a folder and arm all watchdogs found.
     """
     try:
         with get_corescript_runner_stub() as stub:
-            request = corescript_pb2.RegisterWatchdogSourceRequest(path=path)
+            req_params = {'path': path}
+            if parameters_json is not None:
+                req_params['parameters_json'] = parameters_json.encode('utf-8')
+            
+            request = corescript_pb2.RegisterWatchdogSourceRequest(**req_params)
             response = stub.RegisterWatchdogSource(request)
             return {
                 "is_success": response.is_success,

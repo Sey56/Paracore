@@ -3,7 +3,6 @@
 Watchdog(() =>
 {
     Params p = new();
-    p.BaseConstraint = GetElement<Level>("Level 3");
 
     // __PARACORE_QUERY_DATA__{"category": "OST_Walls", "rootGroup": {"type": "group", "combinator": "AND", "children": [{"type": "rule", "name": "Base Constraint", "storage_type": "ElementId", "operator": "==", "value": "0", "unit": null, "is_builtin": true, "builtin_id": -1001107, "builtin_name": "WALL_BASE_CONSTRAINT", "revit_element_type": "Level", "spec_type_id": ""}, {"type": "rule", "name": "Length", "storage_type": "Double", "operator": "<", "value": "2000", "unit": "mm", "is_builtin": true, "builtin_id": -1004005, "builtin_name": "CURVE_ELEM_LENGTH", "revit_element_type": "", "spec_type_id": "autodesk.spec.aec:length-2.0.1"}]}, "selectedColumns": [], "scope": "project"}
 
@@ -49,6 +48,21 @@ Watchdog(() =>
         Table(results);
     }
 
+    // 3. Interactive Actions
+    if (p.AutomationMode == "Select")
+    {
+        UIDoc.Selection.SetElementIds(elements.Select(e => e.Id).ToList());
+        Println($"Selected {elements.Count} elements in Revit.");
+    }
+    else if (p.AutomationMode == "Isolate")
+    {
+        Transact("Isolate Elements", () =>
+        {
+            Doc.ActiveView.IsolateElementsTemporary(elements.Select(e => e.Id).ToList());
+        });
+        Println($"Isolated {elements.Count} elements in Revit.");
+    }
+
     // --- Background Watchdog Reporting ---
     if (elements.Count > 0)
     {
@@ -65,6 +79,9 @@ Watchdog(() =>
 public class Params
 {
     #region Generated Parameters
+    /// Mode of operation: Report, Select, or Isolate
+    public string AutomationMode { get; set; } = "Report";
+
     /// Filter value for Base Constraint
     public Level? BaseConstraint { get; set; }
     /// Filter value for Length

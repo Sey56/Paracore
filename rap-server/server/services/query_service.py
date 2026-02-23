@@ -196,7 +196,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     logic_parts.append("// 1. Filtering Logic (High-Performance Native Filter)")
     
     if scope == "selection":
-        logic_parts.append("var selection = Uidoc.Selection.GetElementIds();")
+        logic_parts.append("var selection = UIDoc.Selection.GetElementIds();")
         logic_parts.append("if (selection.Count == 0)")
         logic_parts.append("{")
         logic_parts.append("    Println(\"Nothing selected. Please select elements in Revit.\");")
@@ -271,14 +271,15 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     logic_parts.append("\n// 3. Interactive Actions")
     logic_parts.append("if (p.AutomationMode == \"Select\")")
     logic_parts.append("{")
-    logic_parts.append("    Uidoc.Selection.SetElementIds(elements.Select(e => e.Id).ToList());")
+    logic_parts.append("    UIDoc.Selection.SetElementIds(elements.Select(e => e.Id).ToList());")
     logic_parts.append("    Println($\"Selected {elements.Count} elements in Revit.\");")
     logic_parts.append("}")
     logic_parts.append("else if (p.AutomationMode == \"Isolate\")")
     logic_parts.append("{")
-    logic_parts.append("    Transact(() => {")
+    logic_parts.append("    Transact(\"Isolate Elements\", () =>")
+    logic_parts.append("    {")
     logic_parts.append("        Doc.ActiveView.IsolateElementsTemporary(elements.Select(e => e.Id).ToList());")
-    logic_parts.append("    }, \"Isolate Elements\");")
+    logic_parts.append("    });")
     logic_parts.append("    Println($\"Isolated {elements.Count} elements in Revit.\");")
     logic_parts.append("}")
 

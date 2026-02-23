@@ -42,7 +42,7 @@ namespace Paracore.Addin.Handlers
                 // FAST PATH: Direct .wtool file registration (when arming a single binary sentinel)
                 if (request.Path.EndsWith(".wtool", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(request.Path))
                 {
-                    return RegisterSingleWtool(request.Path);
+                    return RegisterSingleWtool(request.Path, request.ParametersJson.ToStringUtf8());
                 }
 
                 if (!System.IO.Directory.Exists(request.Path))
@@ -80,6 +80,44 @@ namespace Paracore.Addin.Handlers
                                 
                                 // V4.2 FIX: Using JsonNode to safely preserve rich metadata without disposal issues
                                 var wtoolParams = JsonNode.Parse(paramsElem.GetRawText())?.AsArray() ?? new JsonArray();
+                                
+                                // NEW: Override with UI snapshot parameters if provided
+                                string incomingParamsJson = request.ParametersJson.ToStringUtf8();
+                                if (!string.IsNullOrWhiteSpace(incomingParamsJson) && incomingParamsJson != "null")
+                                {
+                                    try
+                                    {
+                                        var incomingParams = JsonNode.Parse(incomingParamsJson)?.AsArray();
+                                        if (incomingParams != null)
+                                        {
+                                            foreach (var incomingNode in incomingParams)
+                                            {
+                                                var incomingName = incomingNode?["name"]?.GetValue<string>();
+                                                if (incomingName != null)
+                                                {
+                                                    // Find matching param in wtoolParams and replace its value/defaultValueJson
+                                                    var match = wtoolParams.FirstOrDefault(p => p?["name"]?.GetValue<string>() == incomingName);
+                                                    if (match != null)
+                                                    {
+                                                        if (incomingNode?["value"] != null)
+                                                        {
+                                                            match["value"] = incomingNode["value"]?.DeepClone();
+                                                        }
+                                                        if (incomingNode?["defaultValueJson"] != null)
+                                                        {
+                                                            match["defaultValueJson"] = incomingNode["defaultValueJson"]?.DeepClone();
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (Exception parseEx)
+                                    {
+                                        _logger.LogError($"[ScriptExecutionHandler] Error parsing incoming parameters for {wtoolPath}: {parseEx.Message}");
+                                    }
+                                }
+
                                 wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
                                 wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = System.IO.Path.GetFileName(wtoolPath), ["type"] = "string" });
                                 wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
@@ -146,13 +184,24 @@ namespace Paracore.Addin.Handlers
                             {
                                 var serverContext = new ServerContext(_uiApp);
                                 // We must include the absolute path in parameters so ScriptApi.Watchdog() works
-                                var parameters = new Dictionary<string, object>
+                                
+                                string incomingParamsJson = request.ParametersJson.ToStringUtf8();
+                                JsonArray uiParams = new JsonArray();
+                                
+                                if (!string.IsNullOrWhiteSpace(incomingParamsJson) && incomingParamsJson != "null")
                                 {
-                                    { "__absolute_path__", projectPath.Replace('\\', '/') },
-                                    { "__script_name__", System.IO.Path.GetFileName(projectPath) },
-                                    { "__is_watchdog_registration__", true }
-                                };
-                                string paramsJson = JsonSerializer.Serialize(parameters);
+                                    try
+                                    {
+                                        uiParams = JsonNode.Parse(incomingParamsJson)?.AsArray() ?? new JsonArray();
+                                    }
+                                    catch { }
+                                }
+                                
+                                uiParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = projectPath.Replace('\\', '/'), ["type"] = "string" });
+                                uiParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = System.IO.Path.GetFileName(projectPath), ["type"] = "string" });
+                                uiParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
+                                
+                                string paramsJson = uiParams.ToJsonString();
 
                                 // V4: NON-BLOCKING Registration with Normal Priority
                                 // PriorityQueue in Dispatcher ensures manual scripts (High) jump to the front.
@@ -199,7 +248,7 @@ namespace Paracore.Addin.Handlers
         /// Registers a single .wtool binary sentinel file directly.
         /// Called when the frontend arms an individual binary sentinel by its file path.
         /// </summary>
-        private RegisterWatchdogSourceResponse RegisterSingleWtool(string wtoolPath)
+        private RegisterWatchdogSourceResponse RegisterSingleWtool(string wtoolPath, string incomingParamsJson)
         {
             try
             {
@@ -214,6 +263,36 @@ namespace Paracore.Addin.Handlers
 
                         // V4.2 FIX: Using JsonNode to safely preserve rich metadata without disposal issues
                         var wtoolParams = JsonNode.Parse(paramsElem.GetRawText())?.AsArray() ?? new JsonArray();
+
+                        // NEW: Override with UI snapshot parameters if provided
+                        if (!string.IsNullOrWhiteSpace(incomingParamsJson) && incomingParamsJson != "null")
+                        {
+                            try
+                            {
+                                var incomingParams = JsonNode.Parse(incomingParamsJson)?.AsArray();
+                                if (incomingParams != null)
+                                {
+                                    foreach (var incomingNode in incomingParams)
+                                    {
+                                        var incomingName = incomingNode?["name"]?.GetValue<string>();
+                                        if (incomingName != null)
+                                        {
+                                            var match = wtoolParams.FirstOrDefault(p => p?["name"]?.GetValue<string>() == incomingName);
+                                            if (match != null)
+                                            {
+                                                if (incomingNode?["value"] != null) match["value"] = incomingNode["value"]?.DeepClone();
+                                                if (incomingNode?["defaultValueJson"] != null) match["defaultValueJson"] = incomingNode["defaultValueJson"]?.DeepClone();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception parseEx)
+                            {
+                                _logger.LogError($"[ScriptExecutionHandler] Error parsing incoming parameters for {wtoolPath}: {parseEx.Message}");
+                            }
+                        }
+
                         wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
                         wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = System.IO.Path.GetFileName(wtoolPath), ["type"] = "string" });
                         wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });

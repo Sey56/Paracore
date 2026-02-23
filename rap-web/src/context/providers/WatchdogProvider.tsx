@@ -35,8 +35,8 @@ interface WatchdogContextType {
     // Actions
     addConfiguredWatchdogRoot: (path: string) => void;
     removeConfiguredWatchdogRoot: (path: string) => void;
-    toggleScriptArm: (scriptPath: string) => Promise<void>;
-    armAllInList: (scripts: string[]) => Promise<void>;
+    toggleScriptArm: (scriptPath: string, parameters?: any[]) => Promise<void>;
+    armAllInList: (scripts: { path: string, parameters?: any[] }[]) => Promise<void>;
     decommissionAll: () => Promise<void>;
     executeSentinelAction: (scriptPath: string, mode: 'Select' | 'Isolate') => Promise<void>;
 }
@@ -149,7 +149,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setConfiguredWatchdogRoots(prev => prev.filter(p => normalize(p) !== norm));
     }, [setConfiguredWatchdogRoots]);
 
-    const toggleScriptArm = async (scriptPath: string) => {
+    const toggleScriptArm = async (scriptPath: string, parameters?: any[]) => {
         const path = normalize(scriptPath);
         const isArmed = watchdogSources.some(s => normalize(s) === path);
 
@@ -158,16 +158,16 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { }
         } else {
             setWatchdogSources(prev => Array.from(new Set([...prev, path])));
-            try { await api.post("/api/watchdogs/register-source", { path }); } catch (e) { }
+            try { await api.post("/api/watchdogs/register-source", { path, parameters }); } catch (e) { }
         }
     };
 
-    const armAllInList = async (scripts: string[]) => {
+    const armAllInList = async (scripts: { path: string, parameters?: any[] }[]) => {
         showNotification(`Deploying ${scripts.length} Sentinels...`, "info");
 
         // Use a local copy to calculate what needs arming
         const currentArmed = new Set(watchdogSources.map(normalize));
-        const toArm = scripts.map(normalize).filter(p => !currentArmed.has(p));
+        const toArm = scripts.filter(s => !currentArmed.has(normalize(s.path)));
 
         if (toArm.length === 0) {
             showNotification("All selected units are already active.", "info");
@@ -175,10 +175,10 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         // Add to state immediately for UI feedback
-        setWatchdogSources(prev => Array.from(new Set([...prev, ...toArm])));
+        setWatchdogSources(prev => Array.from(new Set([...prev, ...toArm.map(s => normalize(s.path))])));
 
-        for (const path of toArm) {
-            try { await api.post("/api/watchdogs/register-source", { path }); } catch (e) { }
+        for (const script of toArm) {
+            try { await api.post("/api/watchdogs/register-source", { path: normalize(script.path), parameters: script.parameters }); } catch (e) { }
             await new Promise(r => setTimeout(r, 300));
         }
         showNotification("Sentinel deployment complete.", "success");

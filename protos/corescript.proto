@@ -38,6 +38,7 @@ message UnregisterWatchdogSourceResponse {
 
 message RegisterWatchdogSourceRequest {
   string path = 1;
+  bytes parameters_json = 2;
 }
 
 message RegisterWatchdogSourceResponse {

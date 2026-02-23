@@ -331,7 +331,11 @@ def initialize_source_logic(path: str):
     with open(marker, "w", encoding="utf-8") as f: json.dump({"name": os.path.basename(path), "type": "automation-pack"}, f, indent=4)
     return {"success": True}
 
-def register_watchdog_source_logic(path: str): return grpc_client.register_watchdog_source(path)
+def register_watchdog_source_logic(path: str, parameters: Optional[List[Dict[str, Any]]] = None):
+    # If parameters were provided, serialize them to JSON. Otherwise pass None.
+    parameters_json = json.dumps(parameters) if parameters is not None else None
+    return grpc_client.register_watchdog_source(path, parameters_json)
+
 def unregister_watchdog_source_logic(path: str): return grpc_client.unregister_watchdog_source(path)
 def get_category_parameters_logic(category_name: str):
     res = grpc_client.get_category_parameters(category_name)

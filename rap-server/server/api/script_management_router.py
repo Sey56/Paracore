@@ -51,6 +51,7 @@ class SaveScriptRequest(BaseModel):
 
 class RegisterWatchdogSourceRequest(BaseModel):
     path: str
+    parameters: Optional[List[Dict[str, Any]]] = None
 
 class InitializeSourceRequest(BaseModel):
     path: str
@@ -93,7 +94,7 @@ async def register_watchdog_source(request: RegisterWatchdogSourceRequest, curre
     Tells the Addin to scan a folder and arm all watchdogs found within.
     """
     try:
-        result = script_service.register_watchdog_source_logic(request.path)
+        result = script_service.register_watchdog_source_logic(request.path, request.parameters)
         return JSONResponse(content=result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
