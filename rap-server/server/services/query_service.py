@@ -42,7 +42,11 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             else: collect_rules(child)
     collect_rules(root_group)
 
-    param_fields = []
+    param_fields = [
+        "/// Mode of operation: Report, Select, or Isolate",
+        "public string AutomationMode { get; set; } = \"Report\";",
+        ""
+    ]
     seen_props = set()
     for rule in all_filter_rules:
         prop_name = rule["name"]
@@ -262,6 +266,20 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     logic_parts.append("        };")
     logic_parts.append("    }).ToList();")
     logic_parts.append("    Table(results);")
+    logic_parts.append("}")
+    
+    logic_parts.append("\n// 3. Interactive Actions")
+    logic_parts.append("if (p.AutomationMode == \"Select\")")
+    logic_parts.append("{")
+    logic_parts.append("    Uidoc.Selection.SetElementIds(elements.Select(e => e.Id).ToList());")
+    logic_parts.append("    Println($\"Selected {elements.Count} elements in Revit.\");")
+    logic_parts.append("}")
+    logic_parts.append("else if (p.AutomationMode == \"Isolate\")")
+    logic_parts.append("{")
+    logic_parts.append("    Transact(() => {")
+    logic_parts.append("        Doc.ActiveView.IsolateElementsTemporary(elements.Select(e => e.Id).ToList());")
+    logic_parts.append("    }, \"Isolate Elements\");")
+    logic_parts.append("    Println($\"Isolated {elements.Count} elements in Revit.\");")
     logic_parts.append("}")
 
     helper = ""

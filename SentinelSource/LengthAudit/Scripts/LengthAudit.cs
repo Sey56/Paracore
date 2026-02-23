@@ -1,4 +1,4 @@
-// Watchdog: Generated Sentinel
+// Watchdog: Sentinel for OST_Walls
 // Generated from Visual Query Builder
 Watchdog(() =>
 {
@@ -52,11 +52,11 @@ Watchdog(() =>
     // --- Background Watchdog Reporting ---
     if (elements.Count > 0)
     {
-        WatchdogReport($"Found {elements.Count} elements matching 'LengthChecker'", "warning", elements.Select(el => el.Id).ToList());
+        WatchdogReport($"Found {elements.Count} elements matching 'LengthAudit'", "warning", elements.Select(el => el.Id).ToList());
     }
     else
     {
-        WatchdogReport("No elements match 'LengthChecker'", "success");
+        WatchdogReport("No elements match 'LengthAudit'", "success");
     }
 });
 

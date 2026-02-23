@@ -77,15 +77,15 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
           {allTabs.map((tab) => (
             <button
               key={tab.id}
-              className={`tab-button px-3.5 py-3.5 flex items-center gap-2 transition-all duration-300 relative border-b-2 rounded-t-lg
+              className={`tab-button px-4 py-4 flex items-center gap-3 transition-all duration-300 relative border-b-2 rounded-t-xl
                 ${activeInspectorTab === tab.id
-                  ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white/50 dark:bg-slate-800/50"
-                  : "text-slate-400/80 dark:text-slate-500/80 border-transparent hover:text-slate-600 dark:hover:text-slate-200"
+                  ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white dark:bg-slate-800"
+                  : "text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-300"
                 }`}
               onClick={() => setActiveInspectorTab(tab.id as InspectorTab)}
             >
-              <FontAwesomeIcon icon={tab.icon} className={`text-xs ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-50'}`} />
-              <span className="text-xs font-black uppercase tracking-[0.15em] whitespace-nowrap">
+              <FontAwesomeIcon icon={tab.icon} className={`text-[10px] ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-60'}`} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
                 {tab.label}
               </span>
 

@@ -38,7 +38,7 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
     const hasErrors = validationErrors.length > 0;
 
     return (
-        <div ref={containerRef} className={`rounded-2xl mb-4 w-full transition-all duration-300 border
+        <div ref={containerRef} className={`rounded-xl mb-4 w-full transition-all duration-300 border
             ${isExpanded
                 ? 'bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 shadow-xl'
                 : 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700'}`}>
@@ -64,11 +64,11 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <span className={`text-xs font-black tabular-nums px-2 py-0.5 rounded-md border tracking-widest transition-all
+                    <span className={`text-[10px] font-black tabular-nums px-2 py-0.5 rounded-md border tracking-widest transition-all
                         ${isExpanded
                             ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                        {parameters.length} COMPONENTS
+                        {parameters.length}
                     </span>
                     <FontAwesomeIcon
                         icon={faChevronRight}

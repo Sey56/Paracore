@@ -214,10 +214,10 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="flex flex-col space-y-4">
 
-            <div className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
+            <div className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
               <div className="relative flex-1 group">
                 <select
-                  className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-transparent rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer shadow-sm"
+                  className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-transparent rounded-lg px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer shadow-sm"
                   value={selectedPreset}
                   onChange={(e) => {
                     const presetName = e.target.value;
@@ -254,7 +254,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     }
                   }}
                 >
-                  <option value="<Default Parameters>">Parameter Defaults</option>
+                  <option value="<Default Parameters>">Registry Defaults</option>
                   {presets.map((preset, i) => (
                     <option key={i} value={preset.name}>{preset.name}</option>
                   ))}
@@ -265,7 +265,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               <div className="flex items-center gap-1.5 pr-1">
                 <button
                   onClick={toggleAllGroups}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${areGroupsExpanded
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 ${areGroupsExpanded
                     ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 shadow-sm"
                     : "text-slate-400 hover:text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-900/20"
                     }`}
@@ -281,7 +281,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
                 {isDefaultPreset ? (
                   <button
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-300"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-300"
                     onClick={() => setIsResetModalOpen(true)}
                     disabled={!isActionable || isRunning}
                     title="Reset to Defaults"
@@ -290,13 +290,13 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                   </button>
                 ) : (
                   <>
-                    <button title="Rename Configuration" className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" onClick={handleRenamePreset}>
+                    <button title="Rename Configuration" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" onClick={handleRenamePreset}>
                       <FontAwesomeIcon icon={faEdit} className="text-xs" />
                     </button>
-                    <button title="Update Configuration" className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" onClick={handleUpdatePreset}>
+                    <button title="Update Configuration" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" onClick={handleUpdatePreset}>
                       <FontAwesomeIcon icon={faSync} className="text-xs" />
                     </button>
-                    <button title="Delete Configuration" className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all" onClick={handleDeletePreset}>
+                    <button title="Delete Configuration" className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all" onClick={handleDeletePreset}>
                       <FontAwesomeIcon icon={faTrash} className="text-xs" />
                     </button>
                   </>
@@ -304,7 +304,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
                 <button
                   title="Save New Preset"
-                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-90"
+                  className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-90"
                   onClick={handleNewPreset}
                 >
                   <FontAwesomeIcon icon={faPlus} className="text-xs" />
@@ -334,7 +334,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               <div className="flex items-center gap-4">
                 <div className="relative group" title={finalTooltipMessage}>
                   <button
-                    className={`flex items-center gap-3 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-2xl active:scale-95
+                    className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-2xl active:scale-95
                       ${isRunDisabled
                         ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
                         : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30 hover:shadow-blue-500/40 ring-4 ring-blue-500/5'
@@ -362,7 +362,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               {activeRole !== Role.User && !isProtectedTool && (
                 <button
                   title="View Source Code"
-                  className="w-12 h-12 rounded-2xl text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center shadow-sm group"
+                  className="w-12 h-12 rounded-xl text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center shadow-sm group"
                   onClick={onViewCodeClick}
                 >
                   <FontAwesomeIcon icon={faExternalLinkAlt} className="text-sm group-hover:scale-110 transition-transform" />

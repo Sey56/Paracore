@@ -75,26 +75,26 @@ const SettingsModal: React.FC = () => {
 
   return (
     <Modal isOpen={isSettingsModalOpen} onClose={closeSettingsModal} title="Settings" size="2xl">
-      <div className="flex overflow-hidden max-h-[65vh]">
-        <div className="w-1/4 border-r border-gray-200 dark:border-gray-700 p-6 flex-shrink-0 overflow-y-auto">
+      <div className="flex overflow-hidden max-h-[70vh] animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/60 p-6 flex-shrink-0 overflow-y-auto bg-slate-50/30 dark:bg-slate-900/10">
           <nav className="flex flex-col space-y-2">
             {/* Core Features Grouping */}
-            <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mt-4 mb-1">
+            <h3 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mt-4 mb-2 tracking-widest px-4">
               Core Features
             </h3>
-            <div className="ml-4 flex flex-col space-y-2">
+            <div className="flex flex-col space-y-1.5">
               {coreFeaturesTabs.map((tab: TabItem) => (
                 <button
                   key={tab.name}
                   onClick={tab.onClick || (() => setActiveTab(tab.name))}
                   disabled={tab.disabled}
-                  className={`px - 4 py - 2.5 text - sm font - medium text - left rounded - lg transition - colors ${activeTab === tab.name && !tab.onClick
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    } ${tab.disabled ? 'opacity-50 cursor-not-allowed' : ''
+                  className={`px-4 py-3 text-sm font-semibold text-left rounded-xl transition-all group relative overflow-hidden ${activeTab === tab.name && !tab.onClick
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-800'
+                    } ${tab.disabled ? 'opacity-30 cursor-not-allowed' : ''
                     } `}
                 >
-                  {tab.name}
+                  <span className="relative z-10">{tab.name}</span>
                 </button>
               ))}
             </div>
@@ -102,21 +102,7 @@ const SettingsModal: React.FC = () => {
         </div>
 
         <div className="flex-1 p-8 overflow-y-auto">
-          {!isAuthenticated ? (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-              <div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-full">
-                <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Sign In Required</h3>
-                <p className="text-gray-600 dark:text-gray-400 max-w-xs mx-auto">
-                  Please sign in with Google or continue offline to access settings.
-                </p>
-              </div>
-            </div>
-          ) : ActiveComponent && (
+          {ActiveComponent && (
             <>
               {isOffline && activeTab !== 'LLM Settings' && activeTab !== 'Sentinels' ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">

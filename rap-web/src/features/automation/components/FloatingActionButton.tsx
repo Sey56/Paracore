@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner, faMousePointer, faEye } from '@fortawesome/free-solid-svg-icons';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { useUI } from '@/hooks/useUI';
 
@@ -9,7 +9,7 @@ interface FloatingActionButtonProps {
 }
 
 export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disabled }) => {
-  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs } = useWatchdog();
+  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs, executeSentinelAction } = useWatchdog();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLDivElement>(null);
@@ -148,7 +148,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent opacity-50" />
               <h3 className="relative text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
-                Sentinel Watchtower
+                Sentinel Control
               </h3>
             </div>
 
@@ -160,23 +160,23 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                   <div className="w-16 h-16 rounded-[2rem] bg-white/5 dark:bg-slate-100 flex items-center justify-center mx-auto mb-6 shadow-inner">
                     <FontAwesomeIcon icon={faShieldHeart} className="text-2xl text-slate-500 dark:text-slate-300" />
                   </div>
-                  <span className="block text-sm font-bold tracking-wide text-slate-300 dark:text-slate-400">The Watchtower is Empty</span>
-                  <span className="block text-[11px] text-slate-500 dark:text-slate-500 mt-2 uppercase tracking-widest">No Sentinels Stationed</span>
+                  <span className="block text-sm font-bold tracking-wide text-slate-300 dark:text-slate-400">No Active Sentinels</span>
+                  <span className="block text-[11px] text-slate-500 dark:text-slate-500 mt-2 uppercase tracking-widest">Deploy a source to begin monitoring</span>
                 </div>
               ) : (
                 watchdogs.map((w, idx) => (
                   <div key={idx} className="p-5 rounded-[1.75rem] bg-white/5 dark:bg-slate-50/50 hover:bg-white/10 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent hover:border-white/10 dark:hover:border-slate-200 hover:shadow-xl">
                     <div className="flex items-start gap-4">
                       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${w.status === 'success' ? 'bg-emerald-500/20' :
-                          w.status === 'warning' ? 'bg-amber-500/20' : 'bg-rose-500/20'
+                        w.status === 'warning' ? 'bg-amber-500/20' : 'bg-rose-500/20'
                         }`}>
                         <FontAwesomeIcon icon={getStatusIcon(w.status)} className={`${getStatusColor(w.status)} text-lg`} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-bold text-slate-100 dark:text-slate-800 leading-tight tracking-wide mb-1 uppercase">
-                          {w.script_name.replace('.wtool', '').replace('.ptool', '')}
+                        <div className="text-sm font-bold text-slate-100 dark:text-slate-800 leading-tight tracking-tight mb-0.5">
+                          {w.script_name.replace(/\.(wtool|ptool|cs)$/i, '')}
                         </div>
-                        <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed line-clamp-3">
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed line-clamp-2">
                           {w.summary}
                         </div>
                       </div>
@@ -189,11 +189,34 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                           {new Date(w.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      {w.status !== 'success' && (
-                        <div className="px-3 py-1 rounded-full bg-rose-500/10 dark:bg-rose-500/5 text-rose-400 dark:text-rose-600 text-[9px] font-black uppercase tracking-widest border border-rose-500/20">
-                          Breach Detected
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {w.status !== 'success' && (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); executeSentinelAction(w.script_path, 'Select'); }}
+                              className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center border border-indigo-500/20"
+                              title="Select Elements"
+                            >
+                              <FontAwesomeIcon icon={faMousePointer} className="text-[10px]" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); executeSentinelAction(w.script_path, 'Isolate'); }}
+                              className="w-7 h-7 rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center border border-amber-500/20"
+                              title="Isolate in View"
+                            >
+                              <FontAwesomeIcon icon={faEye} className="text-[10px]" />
+                            </button>
+                            <div className="px-3 py-1 rounded-full bg-rose-500/10 dark:bg-rose-500/5 text-rose-400 dark:text-rose-500 text-[9px] font-black uppercase tracking-widest border border-rose-500/10">
+                              Breach Detected
+                            </div>
+                          </>
+                        )}
+                        {w.status === 'success' && (
+                          <div className="px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-400 dark:text-emerald-600 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
+                            Clear
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -209,12 +232,16 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
             ${fabColorClass} ${disabled ? 'bg-gray-400 cursor-not-allowed' : ''}`}
           onClick={handleFabClick}
           disabled={disabled || isArmingWatchdogs || !isWatchdogInitialized}
+          style={{ animationDuration: '4s' }}
           title={isArmingWatchdogs || !isWatchdogInitialized ? "Sentinels Initializing..." : "Sentinel System Status (Drag to move)"}
         >
           <div className="relative">
             <FontAwesomeIcon icon={fabIcon} className={`text-base text-white ${isArmingWatchdogs || !isWatchdogInitialized ? 'animate-spin' : ''}`} />
             {!isHealthy && !isArmingWatchdogs && (
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-amber-500 animate-ping" />
+              <div
+                className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-amber-500 animate-ping"
+                style={{ animationDuration: '3s' }}
+              />
             )}
           </div>
           <span className="text-[11px] font-bold tracking-normal text-white">
