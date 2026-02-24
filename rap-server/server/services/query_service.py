@@ -214,11 +214,11 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     
     logic_parts.append(f"List<{cast_type}> elements = [.. collector.Cast<{cast_type}>()];")
     
-    logic_parts.append(f"\n// 2. Output Results")
+    logic_parts.append("\n// 2. Output Results")
     logic_parts.append(f"Println($\"Query complete. Found {{elements.Count}} elements in category '{clean_cat}'.\");")
     logic_parts.append("if (elements.Count > 0)")
     logic_parts.append("{")
-    logic_parts.append("    var results = elements.Select(el =>")
+    logic_parts.append("    List<object> results = [.. elements.Select(el =>")
     logic_parts.append("    {")
     
     reporting_columns = []
@@ -252,7 +252,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         logic_parts.append(f"        object {p_id}Value = {val_expr};")
 
     logic_parts.append("")
-    logic_parts.append("        return new")
+    logic_parts.append("        return (object)new")
     logic_parts.append("        {")
     logic_parts.append("            Id = el.Id.Value,")
     logic_parts.append("            el.Name,")
@@ -260,7 +260,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         p_id = col["name"].replace(" ", "")
         logic_parts.append(f"            {p_id} = {p_id}Value,")
     logic_parts.append("        };")
-    logic_parts.append("    }).ToList();")
+    logic_parts.append("    })];")
     logic_parts.append("    Table(results);")
     logic_parts.append("}")
     

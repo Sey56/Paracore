@@ -105,6 +105,52 @@ namespace CoreScript.Engine.Globals
         /// Renders a list of objects as an interactive table in the Summary tab.
         /// </summary>
         public static void Table(object data) => Globals.Output.Show("table", data);
+
+        /// <summary>
+        /// Renders a list of Revit elements as an interactive table in the Summary tab.
+        /// </summary>
+        public static void Table(IEnumerable<Element> elements) => Globals.Output.Show("table", elements);
+
+        /// <summary>
+        /// Selects the specified elements in the Revit user interface and zooms to them.
+        /// </summary>
+        public static void Select(IEnumerable<Element> elements)
+        {
+            if (UIDoc == null) return;
+            var ids = elements.Select(e => e.Id).ToList();
+            UIDoc.Selection.SetElementIds(ids);
+            Zoom(elements);
+        }
+
+        /// <summary>
+        /// Temporarily isolates the specified elements in the active view and zooms to them.
+        /// </summary>
+        public static void Isolate(IEnumerable<Element> elements)
+        {
+            if (Doc == null || Doc.ActiveView == null) return;
+            var ids = elements.Select(e => e.Id).ToList();
+            Doc.ActiveView.IsolateElementsTemporary(ids);
+            Zoom(elements);
+        }
+
+        /// <summary>
+        /// Zooms the active view to fit the specified elements.
+        /// </summary>
+        public static void Zoom(IEnumerable<Element> elements)
+        {
+            if (UIDoc == null) return;
+            var ids = elements.Select(e => e.Id).ToList();
+            if (ids.Count == 0) return;
+
+            var uiViews = UIDoc.GetOpenUIViews();
+            var activeView = Doc.ActiveView;
+            var currentUIView = uiViews.FirstOrDefault(v => v.ViewId == activeView.Id);
+            
+            if (currentUIView != null)
+            {
+                currentUIView.ZoomToElements(ids);
+            }
+        }
         
         /// <summary>
         /// Renders a bar chart in the Summary tab. Data should have 'name' and 'value' properties.

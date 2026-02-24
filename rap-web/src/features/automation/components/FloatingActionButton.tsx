@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner, faMousePointer, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner, faMousePointer, faEye, faTable } from '@fortawesome/free-solid-svg-icons';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { useUI } from '@/hooks/useUI';
 import api from '@/api/axios';
@@ -32,7 +32,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
 
   const normalize = (p: string) => (p || "").replace(/\\/g, '/').toLowerCase().trim();
 
-  const handleAction = useCallback(async (scriptPath: string) => {
+  const handleAction = useCallback(async (scriptPath: string, action: string) => {
     try {
       let s: Script | undefined = scriptContext?.scripts.find((scriptItem: Script) => normalize(scriptItem.absolutePath) === normalize(scriptPath));
 
@@ -71,7 +71,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                   name: k,
                   value: parsed[k],
                   type: typeof parsed[k] === 'number' ? 'number' : typeof parsed[k] === 'boolean' ? 'boolean' : 'string',
-                  defaultValueJson: JSON.stringify(parsed[k]),
+                  defaultValue: parsed[k],
                   required: true,
                   options: []
                 }));
@@ -81,6 +81,17 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
             console.warn("[Watchtower] Failed to parse parameters_json", e);
           }
         }
+
+        // Add the requested action so the C# Sentinel logic can pivot (Select, Isolate, Table)
+        const paramAction: ScriptParameter = {
+          name: '__sentinel_action__',
+          value: action,
+          type: 'string',
+          defaultValue: action,
+          required: true,
+          options: []
+        };
+        execParams = [paramAction, ...execParams];
 
         // Execute exactly like the "Run" button but substituting tracked parameters
         scriptExecutionContext.runScript(s, execParams);
@@ -256,30 +267,35 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                           {new Date(w.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         {w.status !== 'success' && (
                           <>
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleAction(w.script_path); }}
-                              className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center border border-indigo-500/20"
+                              onClick={(e) => { e.stopPropagation(); handleAction(w.script_path, 'select'); }}
+                              className="w-10 h-10 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/5 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center border border-indigo-500/20 hover:scale-105 active:scale-95 shadow-sm"
                               title="Select Elements"
                             >
-                              <FontAwesomeIcon icon={faMousePointer} className="text-[10px]" />
+                              <FontAwesomeIcon icon={faMousePointer} className="text-sm" />
                             </button>
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleAction(w.script_path); }}
-                              className="w-7 h-7 rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center border border-amber-500/20"
+                              onClick={(e) => { e.stopPropagation(); handleAction(w.script_path, 'isolate'); }}
+                              className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 text-amber-500 hover:bg-amber-500 hover:text-white transition-all flex items-center justify-center border border-amber-500/20 hover:scale-105 active:scale-95 shadow-sm"
                               title="Isolate in View"
                             >
-                              <FontAwesomeIcon icon={faEye} className="text-[10px]" />
+                              <FontAwesomeIcon icon={faEye} className="text-sm" />
                             </button>
-                            <div className="px-3 py-1 rounded-full bg-rose-500/10 dark:bg-rose-500/5 text-rose-400 dark:text-rose-500 text-[9px] font-black uppercase tracking-widest border border-rose-500/10">
-                              Breach Detected
-                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleAction(w.script_path, 'table'); }}
+                              className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center border border-emerald-500/20 hover:scale-105 active:scale-95 shadow-sm"
+                              title="Show in Table"
+                            >
+                              <FontAwesomeIcon icon={faTable} className="text-sm" />
+                            </button>
                           </>
                         )}
                         {w.status === 'success' && (
-                          <div className="px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-400 dark:text-emerald-600 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
+                          <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 flex items-center gap-2">
+                            <FontAwesomeIcon icon={faCheckCircle} className="text-[10px]" />
                             Clear
                           </div>
                         )}

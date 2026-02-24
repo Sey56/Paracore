@@ -16,25 +16,36 @@ async def generate_watchdog_script_content(
     # 1. Generate the standard query code
     query_code = query_service.generate_query_code(category_name, root_group, selected_columns=[], scope=scope)
     
-    # Clean logic with strict 4-space indentation and no trailing spaces on empty lines
-    logic_lines = []
-    for line in query_code["logic"].splitlines():
-        if line.strip():
-            logic_lines.append(f"    {line}")
-        else:
-            logic_lines.append("")
-    raw_logic = "\n".join(logic_lines)
+    # Split logic into filtering and output parts BEFORE indentation
+    raw_logic = query_code["logic"]
+    if "// 2. Output Results" in raw_logic:
+        filtering_raw, output_raw = raw_logic.split("// 2. Output Results", 1)
+        output_raw = "// 2. Output Results" + output_raw
+    else:
+        filtering_raw = raw_logic
+        output_raw = ""
+
+    def indent_block(code: str, indent_level: int) -> str:
+        prefix = " " * indent_level
+        lines = []
+        for line in code.splitlines():
+            if line.strip():
+                lines.append(f"{prefix}{line}")
+            else:
+                lines.append("")
+        return "\n".join(lines)
+
+    # Indent the blocks for their respective locations
+    filtering_code = indent_block(filtering_raw.strip(), 4)
+    # output_code used in 'table' case (depth 8)
+    table_output = indent_block(output_raw.strip(), 8)
+    # manual_run_output used in 'else -> if string.IsNullOrEmpty' (depth 12)
+    manual_run_output = indent_block(output_raw.strip(), 12)
     
     helpers = query_code["helpers"]
     
     # Clean params with strict 4-space indentation
-    param_lines = []
-    for line in query_code["params"].splitlines():
-        if line.strip():
-            param_lines.append(f"    {line}")
-        else:
-            param_lines.append("")
-    params_class_content = "\n".join(param_lines)
+    params_class_content = indent_block(query_code["params"].strip(), 4)
     
     # Construct the Watchdog script with Allman style (brace-down)
     desc_str = description or f"Sentinel for {category_name}"
@@ -44,16 +55,40 @@ Watchdog(() =>
 {{
     Params p = new();
 
-{raw_logic}
+{filtering_code}
 
     // --- Actions & Reporting ---
-    if (elements.Count > 0)
+    string action = ExecutionGlobals.Get<string>("__sentinel_action__")?.ToLowerInvariant() ?? string.Empty;
+
+    if (action == "select")
     {{
-        WatchdogReport($"Found {{elements.Count}} elements matching '{name}'", "warning", elements.Select(el => el.Id).ToList());
+        Select(elements);
+    }}
+    else if (action == "isolate")
+    {{
+        Transact("Isolate Sentinel Results", () => Isolate(elements));
+    }}
+    else if (action == "table")
+    {{
+{table_output}
     }}
     else
     {{
-        WatchdogReport("No elements match '{name}'", "success");
+        // Background Reporting (or Manual Gallery Run)
+        if (elements.Count > 0)
+        {{
+            WatchdogReport($"Found {{elements.Count}} elements matching '{name}'", "warning", elements.Select(el => el.Id).ToList());
+        }}
+        else
+        {{
+            WatchdogReport("No elements match '{name}'", "success");
+        }}
+
+        // If running manually in Gallery (no action), also show results
+        if (string.IsNullOrEmpty(action))
+        {{
+{manual_run_output}
+        }}
     }}
 }});
 
