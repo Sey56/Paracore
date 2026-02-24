@@ -129,7 +129,8 @@ namespace Paracore.Addin.Services
                     Summary = w.LatestReport.Summary,
                     Status = w.LatestReport.Status,
                     DetailsJson = w.LatestReport.DetailsJson,
-                    Timestamp = w.LatestReport.Timestamp.ToString("o")
+                    Timestamp = w.LatestReport.Timestamp.ToString("o"),
+                    ParametersJson = System.Text.Json.JsonSerializer.Serialize(w.SnapshotParameters)
                 });
             }
 

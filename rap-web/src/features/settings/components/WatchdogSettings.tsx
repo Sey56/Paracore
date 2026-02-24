@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { open } from '@tauri-apps/api/dialog';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faTrash, faShieldHeart, faChevronRight, faChevronDown, faSpinner, faCheckCircle, faMousePointer, faEye, faGlobe } from '@fortawesome/free-solid-svg-icons';
@@ -24,12 +24,11 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
     removeConfiguredWatchdogRoot,
     toggleScriptArm,
     armAllInList,
-    decommissionAll,
-    executeSentinelAction
+    decommissionAll
   } = useWatchdog();
 
-  const scriptContext = useContext(ScriptExecutionContext);
-  const userEditedScriptParameters = scriptContext?.userEditedScriptParameters || {};
+  const scriptExecutionContext = useContext(ScriptExecutionContext);
+  const userEditedScriptParameters = scriptExecutionContext?.userEditedScriptParameters || {};
 
   const { showNotification } = useNotifications();
 
@@ -183,24 +182,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            {isArmed && (
-                              <>
-                                <button
-                                  onClick={() => executeSentinelAction(path, 'Select')}
-                                  className="w-8 h-8 rounded-lg bg-indigo-600/10 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center border border-indigo-500/10"
-                                  title="Select Elements"
-                                >
-                                  <FontAwesomeIcon icon={faMousePointer} className="text-[10px]" />
-                                </button>
-                                <button
-                                  onClick={() => executeSentinelAction(path, 'Isolate')}
-                                  className="w-8 h-8 rounded-lg bg-amber-600/10 text-amber-500 hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center border border-amber-500/10"
-                                  title="Isolate Elements"
-                                >
-                                  <FontAwesomeIcon icon={faEye} className="text-[10px]" />
-                                </button>
-                              </>
-                            )}
+
                             <button
                               onClick={() => {
                                 const paramsSnapshot = userEditedScriptParameters[s.id] || s.parameters;
@@ -238,6 +220,6 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
         confirmButtonText="Undeploy All"
         confirmButtonColor="red"
       />
-    </fieldset>
+    </fieldset >
   );
 };

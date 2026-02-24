@@ -3,13 +3,20 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner, faMousePointer, faEye } from '@fortawesome/free-solid-svg-icons';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { useUI } from '@/hooks/useUI';
-
+import api from '@/api/axios';
+import { useContext } from 'react';
+import type { Script, ScriptParameter } from '@/types/scriptModel';
+import { ScriptContext } from '@/features/automation/store/ScriptContext';
+import { ScriptExecutionContext } from '@/features/automation/store/ScriptExecutionContext';
 interface FloatingActionButtonProps {
   disabled?: boolean;
 }
 
 export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disabled }) => {
-  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs, executeSentinelAction } = useWatchdog();
+  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs } = useWatchdog();
+  const scriptContext = useContext(ScriptContext);
+  const scriptExecutionContext = useContext(ScriptExecutionContext);
+
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLDivElement>(null);
@@ -22,6 +29,66 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
   const hasMoved = useRef(false);
 
   const { toggleInspector } = useUI();
+
+  const normalize = (p: string) => (p || "").replace(/\\/g, '/').toLowerCase().trim();
+
+  const handleAction = useCallback(async (scriptPath: string) => {
+    try {
+      let s: Script | undefined = scriptContext?.scripts.find((scriptItem: Script) => normalize(scriptItem.absolutePath) === normalize(scriptPath));
+
+      // If the script is NOT in the gallery context, dynamically fetch its complete structure
+      if (!s) {
+        const response = await api.get(`/api/script-details?scriptPath=${encodeURIComponent(scriptPath)}`);
+        s = response.data as Script;
+      }
+
+      if (s && scriptExecutionContext) {
+        // Set the script active so the inspector populates
+        await scriptExecutionContext.setSelectedScript(s, 'user');
+
+        let execParams = scriptExecutionContext.userEditedScriptParameters[s.id] || s.parameters;
+
+        // Fetch exactly what the background watcher sees
+        const watchdog = watchdogs.find(w => normalize(w.script_path) === normalize(scriptPath));
+        if (watchdog?.parameters_json) {
+          try {
+            const parsed = JSON.parse(watchdog.parameters_json);
+            if (Array.isArray(parsed)) {
+              execParams = parsed;
+            } else if (typeof parsed === 'object' && parsed !== null) {
+              // The backend snapshot is a Dictionary (key-value pair). 
+              if (execParams && Array.isArray(execParams) && execParams.length > 0) {
+                // Map values over the existing schema array if it exists.
+                execParams = execParams.map((p: ScriptParameter) => {
+                  if (parsed[p.name] !== undefined) {
+                    return { ...p, value: parsed[p.name] };
+                  }
+                  return p;
+                });
+              } else {
+                // We don't have the UI parameter schema loaded. Synthesize the bare minimum structure expected by the execution backend.
+                execParams = Object.keys(parsed).map(k => ({
+                  name: k,
+                  value: parsed[k],
+                  type: typeof parsed[k] === 'number' ? 'number' : typeof parsed[k] === 'boolean' ? 'boolean' : 'string',
+                  defaultValueJson: JSON.stringify(parsed[k]),
+                  required: true,
+                  options: []
+                }));
+              }
+            }
+          } catch (e) {
+            console.warn("[Watchtower] Failed to parse parameters_json", e);
+          }
+        }
+
+        // Execute exactly like the "Run" button but substituting tracked parameters
+        scriptExecutionContext.runScript(s, execParams);
+      }
+    } catch (error) {
+      console.error("[Watchtower] Failed to fetch or execute ad-hoc script:", error);
+    }
+  }, [scriptContext, scriptExecutionContext]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -193,14 +260,14 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                         {w.status !== 'success' && (
                           <>
                             <button
-                              onClick={(e) => { e.stopPropagation(); executeSentinelAction(w.script_path, 'Select'); }}
+                              onClick={(e) => { e.stopPropagation(); handleAction(w.script_path); }}
                               className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center border border-indigo-500/20"
                               title="Select Elements"
                             >
                               <FontAwesomeIcon icon={faMousePointer} className="text-[10px]" />
                             </button>
                             <button
-                              onClick={(e) => { e.stopPropagation(); executeSentinelAction(w.script_path, 'Isolate'); }}
+                              onClick={(e) => { e.stopPropagation(); handleAction(w.script_path); }}
                               className="w-7 h-7 rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center border border-amber-500/20"
                               title="Isolate in View"
                             >

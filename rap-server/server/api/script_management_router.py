@@ -165,6 +165,12 @@ async def get_metadata(request: Dict[str, str]):
         raise HTTPException(status_code=400, detail="scriptPath is required")
     return await script_service.get_script_metadata_logic(path)
 
+@router.get("/api/script-details", tags=["Script Management"])
+async def get_script_details(scriptPath: str = Query(...)):
+    if not scriptPath or not os.path.isabs(scriptPath):
+        raise HTTPException(status_code=400, detail="scriptPath is required and must be absolute")
+    return await script_service.get_single_script_logic(scriptPath)
+
 @router.post("/api/get-script-parameters", tags=["Script Management"])
 async def get_parameters(request: Dict[str, str]):
     path = request.get("scriptPath")

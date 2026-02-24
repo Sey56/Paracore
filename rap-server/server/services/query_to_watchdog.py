@@ -46,7 +46,7 @@ Watchdog(() =>
 
 {raw_logic}
 
-    // --- Background Watchdog Reporting ---
+    // --- Actions & Reporting ---
     if (elements.Count > 0)
     {{
         WatchdogReport($"Found {{elements.Count}} elements matching '{name}'", "warning", elements.Select(el => el.Id).ToList());

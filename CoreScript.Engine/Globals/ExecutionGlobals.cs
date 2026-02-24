@@ -199,14 +199,15 @@ namespace CoreScript.Engine.Globals
         private readonly ICoreScriptContext _context;
 
         public Dictionary<string, object> Parameters { get; }
+        public Dictionary<string, object> RawParameters { get; }
         public Output Output { get; }
         public IParameterHydrator Hydrator { get; }
 
-
-        public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters)
+        public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters, Dictionary<string, object> rawParameters = null)
         {
             _context = context;
             Parameters = parameters;
+            RawParameters = rawParameters ?? parameters;
             Output = new Output(context);
             var revitResolver = new RevitObjectResolver(context.Doc);
             Hydrator = new ParameterHydrator(revitResolver);

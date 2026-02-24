@@ -56,6 +56,7 @@ namespace CoreScript.Engine.Core
             try
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
+                var rawParameters = new Dictionary<string, object>(parameters);
                 
                 // ... (existing logging) ...
 
@@ -110,7 +111,7 @@ namespace CoreScript.Engine.Core
                 }
                 catch { }
 
-                ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters));
+                ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters, rawParameters));
 
                 var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
                 var state = _scriptExecutor.ExecuteAsync(script).Result;
@@ -202,6 +203,7 @@ namespace CoreScript.Engine.Core
             try
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
+                var rawParameters = new Dictionary<string, object>(parameters);
                 
                 // DEBUG: Log all parameters
                 FileLogger.Log($"[CodeRunner] Final Parameters Dictionary Keys: {string.Join(", ", parameters.Keys)}");
@@ -219,7 +221,7 @@ namespace CoreScript.Engine.Core
 
                 if (richParams.Count > 0) _parameterService.HardenParameters(parameters, richParams);
                 
-                ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters));
+                ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters, rawParameters));
 
                 var result = _scriptExecutor.ExecuteBinary(assemblyBytes, context);
                 

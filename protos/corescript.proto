@@ -57,6 +57,7 @@ message WatchdogStatus {
   string status = 4;
   string details_json = 5;
   string timestamp = 6;
+  string parameters_json = 7;
 }
 
 message FailedWatchdog {

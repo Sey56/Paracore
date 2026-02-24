@@ -133,7 +133,8 @@ def get_watchdog_statuses():
                     "summary": w.summary,
                     "status": w.status,
                     "details_json": w.details_json,
-                    "timestamp": w.timestamp
+                    "timestamp": w.timestamp,
+                    "parameters_json": getattr(w, "parameters_json", "")
                 })
 
             failed_watchdogs = []

@@ -125,6 +125,61 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+async def get_single_script_logic(script_path: str):
+    """Fetches full Script object structure (metadata + params) for a single absolute path."""
+    try:
+        abs_p = resolve_script_path(script_path).replace('\\', '/')
+        
+        # 1. Handle binary/compiled scripts natively
+        if abs_p.lower().endswith(('.ptool', '.wtool')):
+            with open(abs_p, 'r', encoding='utf-8') as f:
+                pkg = json.load(f)
+            return {
+                "id": abs_p,
+                "name": os.path.basename(abs_p),
+                "absolutePath": abs_p,
+                "metadata": {**pkg.get("metadata", {}), "isProtected": True, "isCompiled": True},
+                "parameters": _hydrate_params_for_frontend(pkg.get("parameters", []))
+            }
+            
+        # 2. Handle standard folder scripts
+        script_files = []
+        project_name = os.path.basename(abs_p)
+        scripts_dir = os.path.join(abs_p, "Scripts")
+        
+        if os.path.isdir(scripts_dir):
+            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
+                if os.path.basename(fp).lower() == "globals.cs": continue
+                try:
+                    with open(fp, 'r', encoding='utf-8-sig') as f:
+                        script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
+                except Exception:
+                    pass
+                    
+        # Request full metadata + parameters extraction from the backend Engine
+        projects_to_fetch = [{
+            "project_name": project_name,
+            "absolute_path": abs_p,
+            "files": script_files
+        }]
+        
+        bulk_results = grpc_client.get_bulk_metadata(projects_to_fetch)
+        if not bulk_results:
+            raise HTTPException(status_code=404, detail="Script not found or failed to parse.")
+            
+        res = bulk_results[0]
+        raw_params = res.get("parameters") if isinstance(res, dict) else getattr(res, "parameters", [])
+        
+        return {
+            "id": abs_p,
+            "name": project_name,
+            "absolutePath": abs_p,
+            "metadata": res.get("metadata") if isinstance(res, dict) else res.metadata,
+            "parameters": _hydrate_params_for_frontend(raw_params)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def get_script_parameters_logic(script_path: str):
     """Refreshes parameter metadata for a specific script/tool."""
     try:

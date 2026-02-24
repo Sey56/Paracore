@@ -1,4 +1,4 @@
-// Watchdog: Sentinel for OST_Walls
+// Watchdog: Generated Sentinel
 // Generated from Visual Query Builder
 Watchdog(() =>
 {
@@ -48,22 +48,9 @@ Watchdog(() =>
         Table(results);
     }
 
-    // 3. Interactive Actions
-    if (p.AutomationMode == "Select")
-    {
-        UIDoc.Selection.SetElementIds(elements.Select(e => e.Id).ToList());
-        Println($"Selected {elements.Count} elements in Revit.");
-    }
-    else if (p.AutomationMode == "Isolate")
-    {
-        Transact("Isolate Elements", () =>
-        {
-            Doc.ActiveView.IsolateElementsTemporary(elements.Select(e => e.Id).ToList());
-        });
-        Println($"Isolated {elements.Count} elements in Revit.");
-    }
+    // 3. Interactive Actions (Removed)
 
-    // --- Background Watchdog Reporting ---
+    // --- Actions & Reporting ---
     if (elements.Count > 0)
     {
         WatchdogReport($"Found {elements.Count} elements matching 'LengthAudit'", "warning", elements.Select(el => el.Id).ToList());
@@ -79,9 +66,6 @@ Watchdog(() =>
 public class Params
 {
     #region Generated Parameters
-    /// Mode of operation: Report, Select, or Isolate
-    public string AutomationMode { get; set; } = "Report";
-
     /// Filter value for Base Constraint
     public Level? BaseConstraint { get; set; }
     /// Filter value for Length
