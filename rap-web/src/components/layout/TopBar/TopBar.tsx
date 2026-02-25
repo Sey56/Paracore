@@ -144,7 +144,7 @@ export const TopBar: React.FC = () => {
                 }
               }}
               disabled={isLocked}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300
                 ${isActive
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]'
                   : isLocked
@@ -172,12 +172,12 @@ export const TopBar: React.FC = () => {
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${!ParacoreConnected ? 'bg-rose-400' : 'bg-emerald-400'}`}></span>
             <span className={`relative inline-flex rounded-full h-2 w-2 ${!ParacoreConnected ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-tighter">
+          <span className="text-[11px] font-bold uppercase tracking-tight">
             {ParacoreConnected ? 'Connected' : 'Disconnected'}
           </span>
           {ParacoreConnected && revitStatus.document && (
             <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-1 pl-2">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate max-w-[120px] lowercase italic">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px] lowercase italic">
                 {revitStatus.document}
               </span>
             </div>
@@ -234,22 +234,22 @@ export const TopBar: React.FC = () => {
             </div>
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">Paracore</h2>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Paracore v4.0.0</p>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white uppercase tracking-[0.2em]">Paracore</h2>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Paracore v4.0.0</p>
           </div>
           <div className="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <div className="flex justify-between items-center text-[10px] font-bold">
+            <div className="flex justify-between items-center text-[11px] font-bold">
               <span className="text-slate-400 uppercase">Developer</span>
               <span className="text-slate-700 dark:text-slate-200">Paras Codarch</span>
             </div>
-            <div className="flex justify-between items-center text-[10px] font-bold">
+            <div className="flex justify-between items-center text-[11px] font-bold">
               <span className="text-slate-400 uppercase">Region</span>
               <span className="text-slate-700 dark:text-slate-200">Ethiopia</span>
             </div>
           </div>
           <button
             onClick={() => shell.open('https://sey56.github.io/paracore-help')}
-            className="w-full py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
+            className="w-full py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
           >
             Documentation
           </button>

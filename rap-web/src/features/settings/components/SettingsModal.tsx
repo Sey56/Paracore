@@ -75,11 +75,11 @@ const SettingsModal: React.FC = () => {
 
   return (
     <Modal isOpen={isSettingsModalOpen} onClose={closeSettingsModal} title="Settings" size="2xl">
-      <div className="flex overflow-hidden max-h-[70vh] animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/60 p-6 flex-shrink-0 overflow-y-auto bg-slate-50/30 dark:bg-slate-900/10">
+      <div className="flex overflow-hidden max-h-[80vh] animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 dark:bg-slate-900">
+        <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/60 p-6 flex-shrink-0 overflow-y-auto bg-white/50 dark:bg-slate-950/40 backdrop-blur-sm">
           <nav className="flex flex-col space-y-2">
             {/* Core Features Grouping */}
-            <h3 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mt-4 mb-2 tracking-widest px-4">
+            <h3 className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500 mt-4 mb-4 tracking-[0.2em] px-4">
               Core Features
             </h3>
             <div className="flex flex-col space-y-1.5">
@@ -88,9 +88,9 @@ const SettingsModal: React.FC = () => {
                   key={tab.name}
                   onClick={tab.onClick || (() => setActiveTab(tab.name))}
                   disabled={tab.disabled}
-                  className={`px-4 py-3 text-sm font-semibold text-left rounded-xl transition-all group relative overflow-hidden ${activeTab === tab.name && !tab.onClick
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-800'
+                  className={`px-5 py-3.5 text-[11px] font-black uppercase tracking-widest text-left rounded-2xl transition-all group relative overflow-hidden ${activeTab === tab.name && !tab.onClick
+                    ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1)] border border-blue-100/50 dark:border-blue-900/20'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800'
                     } ${tab.disabled ? 'opacity-30 cursor-not-allowed' : ''
                     } `}
                 >
@@ -101,7 +101,7 @@ const SettingsModal: React.FC = () => {
           </nav>
         </div>
 
-        <div className="flex-1 p-8 overflow-y-auto">
+        <div className="flex-1 p-10 overflow-y-auto bg-white/20 dark:bg-slate-950/10">
           {ActiveComponent && (
             <>
               {isOffline && activeTab !== 'LLM Settings' && activeTab !== 'Sentinels' ? (

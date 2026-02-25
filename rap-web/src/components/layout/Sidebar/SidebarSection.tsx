@@ -33,13 +33,13 @@ export const SidebarSection: React.FC<SidebarSectionProps> = ({
           <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`}>
             <FontAwesomeIcon
               icon={faChevronRight}
-              className="text-[10px] text-gray-300 dark:text-gray-600 w-2.5"
+              className="text-[11px] text-gray-300 dark:text-gray-600 w-2.5"
             />
           </div>
-          <h3 className="text-xs font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400 truncate flex items-center gap-2">
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400 truncate flex items-center gap-2">
             {icon && (
               <div className={`w-5 h-5 rounded-md flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 group-hover/section:scale-110 transition-transform ${iconColor || "text-gray-400"}`}>
-                <FontAwesomeIcon icon={icon} className="text-[10px]" />
+                <FontAwesomeIcon icon={icon} className="text-[11px]" />
               </div>
             )}
             {title}

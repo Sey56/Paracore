@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { open } from '@tauri-apps/api/dialog';
+import { invoke } from '@tauri-apps/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faTrash, faShieldHeart, faChevronRight, faChevronDown, faSpinner, faCheckCircle, faMousePointer, faEye, faGlobe } from '@fortawesome/free-solid-svg-icons';
 import { Script } from '@/types/scriptModel';
@@ -68,8 +69,19 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
   const handleAddFolder = async () => {
     const selected = await open({ directory: true, multiple: false });
     if (typeof selected === 'string') {
-      addConfiguredWatchdogRoot(selected);
-      toggleRootExpansion(normalize(selected));
+      try {
+        // Validate: must be an initialized script source (.paracore marker)
+        const discoveredSources: string[] = await invoke('discover_script_sources', { path: selected });
+        if (discoveredSources.length > 0) {
+          // Use first discovered source (could be the folder itself or a direct child)
+          addConfiguredWatchdogRoot(discoveredSources[0]);
+          toggleRootExpansion(normalize(discoveredSources[0]));
+        } else {
+          showNotification("Not a Paracore Script Source. Please initialize it first from the Sidebar.", "error");
+        }
+      } catch {
+        showNotification("Failed to validate source folder.", "error");
+      }
     }
   };
 
@@ -103,7 +115,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
             onClick={handleAddFolder}
             className="px-6 py-3 bg-indigo-600 text-white text-[11px] font-bold uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2"
           >
-            Add Source
+            Add Sentinel Source
           </button>
           <button
             onClick={handleArmAll}
@@ -123,12 +135,17 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
       </div>
 
       <div className="space-y-6">
-        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">Sentinel Sources</h4>
+        <h4 className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-[0.25em] px-4">Sentinel Sources</h4>
         {configuredWatchdogRoots.length > 0 ? (
           configuredWatchdogRoots.map((folder) => {
             const isExpanded = expandedRoots[folder];
             const scriptsState = rootScripts[folder];
-            const scripts = scriptsState?.data || [];
+            const allScripts = scriptsState?.data || [];
+            const scripts = allScripts.filter(s => {
+              const isSentinel = s.metadata?.isWatchdog === true || (s.metadata as any)?.is_watchdog === true;
+              const isBinarySentinel = s.absolutePath?.endsWith('.wtool');
+              return isSentinel || isBinarySentinel;
+            });
             const armedCount = scripts.filter(s => watchdogSources.includes(normalize(s.absolutePath))).length;
 
             return (
@@ -139,17 +156,17 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                 >
                   <div className="flex items-center gap-5 min-w-0">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${isExpanded ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-800 text-slate-400'}`}>
-                      <FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronRight} className="text-[10px]" />
+                      <FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronRight} className="text-[11px]" />
                     </div>
                     <div className="flex flex-col gap-1.5 min-w-0">
                       <div className="flex items-center space-x-2 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/30 w-fit max-w-full">
-                        <FontAwesomeIcon icon={faGlobe} className="text-[10px] text-slate-400 flex-shrink-0" />
+                        <FontAwesomeIcon icon={faGlobe} className="text-[11px] text-slate-400 flex-shrink-0" />
                         <span className="text-xs font-bold text-slate-500 dark:text-slate-400 truncate italic">
                           {folder}
                         </span>
                       </div>
-                      <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">
-                        {scriptsState?.loading ? 'Scanning...' : `${scripts.length} scripts found · ${armedCount} deployed`}
+                      <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] pl-1">
+                        {scriptsState?.loading ? 'Scanning...' : `${scripts.length} Sentinels · ${armedCount} Active`}
                       </span>
                     </div>
                   </div>
@@ -188,7 +205,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                                 const paramsSnapshot = userEditedScriptParameters[s.id] || s.parameters;
                                 toggleScriptArm(path, paramsSnapshot);
                               }}
-                              className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all active:scale-95
+                              className={`px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all active:scale-95
                                 ${isArmed ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 border border-amber-200 dark:border-amber-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-indigo-600 border border-transparent hover:border-indigo-100'}`}
                             >
                               {isArmed ? 'Deployed' : 'Deploy'}

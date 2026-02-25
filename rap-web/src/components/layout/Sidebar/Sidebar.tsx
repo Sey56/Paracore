@@ -15,6 +15,7 @@ import { SetupSourceModal } from '@/features/team-sources/components/SetupSource
 import { AddCategoryModal } from '@/features/automation/components/AddCategoryModal';
 import { AddFolderModal } from '@/features/automation/components/AddFolderModal';
 import { ConfirmActionModal } from '@/features/automation/components/ScriptInspector/ConfirmActionModal';
+import { InitializeSourceModal } from '@/features/automation/components/InitializeSourceModal';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cloneSource } from '@/features/team-sources/services/teamSources';
 import { useUserTeamSources } from '@/features/team-sources';
@@ -226,15 +227,15 @@ export const Sidebar = () => {
     }
   };
 
-  const handleInitializeSource = async () => {
+  const handleInitializeSource = async (description: string) => {
     if (!folderToInit) return;
     try {
       showNotification("Initializing source...", "info");
-      const res = await api.post("/api/scripts/initialize-source", { path: folderToInit });
+      const res = await api.post("/api/scripts/initialize-source", { path: folderToInit, description });
       if (res.data.success) {
         await addCustomScriptFolder(folderToInit);
         setActiveScriptSource({ type: 'local', path: folderToInit });
-        showNotification(res.data.message, "success");
+        showNotification(res.data.message || "Source initialized!", res.data.already_initialized ? "info" : "success");
       }
     } catch (err: any) {
       console.error("[Sidebar] Failed to initialize source:", err);
@@ -322,14 +323,11 @@ export const Sidebar = () => {
           onAddFolder={handleAddFolderSubmit}
         />
 
-        <ConfirmActionModal
+        <InitializeSourceModal
           isOpen={isInitModalOpen}
           onClose={() => setIsInitModalOpen(false)}
           onConfirm={handleInitializeSource}
-          title="Initialize Script Source"
-          message={`The selected folder is not a Paracore Script Source yet. Would you like to initialize it? This will allow you to create and manage automation scripts inside it.`}
-          confirmButtonText="Initialize"
-          confirmButtonColor="blue"
+          folderName={folderToInit ? folderToInit.split(/[\\/]/).pop() || 'Unknown' : ''}
         />
 
         <ConfirmActionModal

@@ -152,7 +152,7 @@ export const AppLayout: React.FC = () => {
 
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Deploying Sentinels</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                 Initializing background monitoring systems. Manual script execution will be available in a few seconds.
               </p>
             </div>

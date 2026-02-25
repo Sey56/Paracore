@@ -83,7 +83,7 @@ export const useParameterComputations = (
     try {
       const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
       const param = currentParams.find(p => p.name === paramName);
-      const response = await api.post("/api/pick-object", { selection_type: selectionType, category_filter: param?.revitElementCategory });
+      const response = await api.post("/api/pick-object", { selection_type: selectionType, category_filter: param?.revitElementCategory || param?.revitElementType });
       const { value, is_success } = response.data;
 
       if (is_success) {

@@ -224,7 +224,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
             {/* Watchtower Header — acts as a drag handle (mouseDown propagates to parent) */}
             <div className="p-6 pb-4 border-b border-white/5 dark:border-slate-100 relative overflow-hidden cursor-grab active:cursor-grabbing select-none">
               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent opacity-50" />
-              <h3 className="relative text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] flex items-center gap-3">
+              <h3 className="relative text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
                 Sentinel Control
               </h3>
@@ -263,7 +263,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                     <div className="mt-5 pt-4 border-t border-white/5 dark:border-slate-200/60 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-1 h-1 rounded-full bg-slate-500" />
-                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
                           {new Date(w.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
@@ -294,8 +294,8 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                           </>
                         )}
                         {w.status === 'success' && (
-                          <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 flex items-center gap-2">
-                            <FontAwesomeIcon icon={faCheckCircle} className="text-[10px]" />
+                          <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold uppercase tracking-widest border border-emerald-500/20 flex items-center gap-2">
+                            <FontAwesomeIcon icon={faCheckCircle} className="text-[11px]" />
                             Clear
                           </div>
                         )}

@@ -254,7 +254,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     }
                   }}
                 >
-                  <option value="<Default Parameters>">Registry Defaults</option>
+                  <option value="<Default Parameters>">Parameter Defaults</option>
                   {presets.map((preset, i) => (
                     <option key={i} value={preset.name}>{preset.name}</option>
                   ))}
@@ -374,8 +374,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
             {!isParamsValid && (
               <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800 animate-in slide-in-from-bottom-2 duration-300">
                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest leading-none">
-                  Configuration Issues: {validationErrors.join(', ')}
+                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 tracking-widest leading-none">
+                  <span className="uppercase">Configuration Issues:</span> {validationErrors.join(', ')}
                 </span>
               </div>
             )}

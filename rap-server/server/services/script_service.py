@@ -379,12 +379,39 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
 
 def get_script_manifest_logic(path: str): return grpc_client.get_script_manifest(path)
 def rename_script_logic(old_path: str, new_name: str): return grpc_client.rename_script(old_path, new_name)
-def initialize_source_logic(path: str):
+def initialize_source_logic(path: str, description: str = ""):
     if not os.path.exists(path): os.makedirs(path, exist_ok=True)
     marker = os.path.join(path, ".paracore")
-    if os.path.exists(marker): return {"success": True}
-    with open(marker, "w", encoding="utf-8") as f: json.dump({"name": os.path.basename(path), "type": "automation-pack"}, f, indent=4)
-    return {"success": True}
+
+    # Handle re-initialization: if already initialized, just return success
+    if os.path.exists(marker):
+        return {"success": True, "message": "Already initialized. Source loaded.", "already_initialized": True}
+
+    # Nesting Guard 1: Walk UP to check if any parent is already a script source
+    parent = os.path.dirname(os.path.abspath(path))
+    while parent and parent != os.path.dirname(parent):  # Stop at filesystem root
+        if os.path.exists(os.path.join(parent, ".paracore")) or os.path.exists(os.path.join(parent, ".scriptsource")):
+            raise Exception(f"Cannot create a source inside an existing source. Parent source found at: {os.path.basename(parent)}")
+        parent = os.path.dirname(parent)
+
+    # Nesting Guard 2: Check immediate children for existing sources
+    try:
+        for child in os.listdir(path):
+            child_path = os.path.join(path, child)
+            if os.path.isdir(child_path):
+                if os.path.exists(os.path.join(child_path, ".paracore")) or os.path.exists(os.path.join(child_path, ".scriptsource")):
+                    raise Exception(f"This folder contains existing script sources (e.g., '{child}'). Choose a different empty folder.")
+    except PermissionError:
+        pass  # If we can't read, just proceed
+
+    source_data = {
+        "name": os.path.basename(path),
+        "description": description or f"Automation scripts in {os.path.basename(path)}",
+        "version": "4.0.0",
+        "type": "automation-pack"
+    }
+    with open(marker, "w", encoding="utf-8") as f: json.dump(source_data, f, indent=4)
+    return {"success": True, "message": f"Source '{os.path.basename(path)}' initialized successfully."}
 
 def register_watchdog_source_logic(path: str, parameters: Optional[List[Dict[str, Any]]] = None):
     # If parameters were provided, serialize them to JSON. Otherwise pass None.

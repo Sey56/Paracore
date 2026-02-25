@@ -55,6 +55,7 @@ class RegisterWatchdogSourceRequest(BaseModel):
 
 class InitializeSourceRequest(BaseModel):
     path: str
+    description: Optional[str] = None
 
 # --- Endpoints ---
 
@@ -62,12 +63,13 @@ class InitializeSourceRequest(BaseModel):
 async def initialize_source(request: InitializeSourceRequest):
     """
     Initializes a folder as a Paracore Script Source by creating the .paracore marker file.
+    Prevents nested sources and accepts an optional description.
     """
     try:
-        result = script_service.initialize_source_logic(request.path)
+        result = script_service.initialize_source_logic(request.path, request.description or "")
         return JSONResponse(content=result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/api/scripts/check-lock", tags=["Script Management"])
 async def check_script_lock(request: Dict[str, str]):
