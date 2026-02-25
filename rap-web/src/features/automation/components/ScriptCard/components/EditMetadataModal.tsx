@@ -320,7 +320,6 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
                     {isSaving ? 'Saving...' : 'Save Metadata'}
                 </button>
             </div>
-        </div>
-        </Modal >
+        </Modal>
     );
 };
