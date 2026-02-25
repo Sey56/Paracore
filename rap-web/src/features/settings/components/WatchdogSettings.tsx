@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { open } from '@tauri-apps/api/dialog';
 import { invoke } from '@tauri-apps/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder, faTrash, faShieldHeart, faChevronRight, faChevronDown, faSpinner, faCheckCircle, faMousePointer, faEye, faGlobe } from '@fortawesome/free-solid-svg-icons';
+import { faFolder, faTrash, faShieldHeart, faChevronRight, faChevronDown, faSpinner, faCheckCircle, faMousePointer, faEye, faGlobe, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { Script } from '@/types/scriptModel';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -10,6 +10,7 @@ import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { ConfirmActionModal } from '@/features/automation/components/ScriptInspector/ConfirmActionModal';
 import { ScriptExecutionContext } from '@/features/automation/store/ScriptExecutionContext';
 import { useContext } from 'react';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
 
 interface WatchdogSettingsProps {
   isAuthenticated: boolean;
@@ -19,6 +20,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
   const {
     configuredWatchdogRoots,
     watchdogSources,
+    deployedDocumentMap,
     watchdogs,
     failedWatchdogs,
     addConfiguredWatchdogRoot,
@@ -27,6 +29,9 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
     armAllInList,
     decommissionAll
   } = useWatchdog();
+
+  const { revitStatus } = useRevitStatus();
+  const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
 
   const scriptExecutionContext = useContext(ScriptExecutionContext);
   const userEditedScriptParameters = scriptExecutionContext?.userEditedScriptParameters || {};
@@ -191,6 +196,18 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                               <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                                 {s.name.replace(/\.(wtool|ptool|cs)$/i, '')}
                               </span>
+                              {s.absolutePath?.endsWith('.wtool') && (
+                                <span className="ml-2 px-2 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[9px] font-black uppercase tracking-widest">BIN</span>
+                              )}
+                              {(() => {
+                                const deployedDoc = deployedDocumentMap[path];
+                                const isDocMismatch = deployedDoc && currentDocTitle && deployedDoc !== currentDocTitle;
+                                return isDocMismatch ? (
+                                  <span title={`Deployed for '${deployedDoc}'. Redeploy for '${currentDocTitle}'.`} className="ml-2 text-amber-500 cursor-help">
+                                    <FontAwesomeIcon icon={faExclamationTriangle} className="text-[11px]" />
+                                  </span>
+                                ) : null;
+                              })()}
                               {status?.summary && (
                                 <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 tracking-tight leading-tight">
                                   {status.summary}

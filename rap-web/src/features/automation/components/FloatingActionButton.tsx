@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner, faMousePointer, faEye, faTable } from '@fortawesome/free-solid-svg-icons';
+import { faShieldHeart, faCheckCircle, faExclamationCircle, faTimesCircle, faChevronRight, faSpinner, faMousePointer, faEye, faTable, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { useUI } from '@/hooks/useUI';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
 import api from '@/api/axios';
 import { useContext } from 'react';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
@@ -13,9 +14,11 @@ interface FloatingActionButtonProps {
 }
 
 export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disabled }) => {
-  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs } = useWatchdog();
+  const { watchdogs, hasIssues, isWatchdogInitialized, isArmingWatchdogs, deployedDocumentMap } = useWatchdog();
   const scriptContext = useContext(ScriptContext);
   const scriptExecutionContext = useContext(ScriptExecutionContext);
+  const { revitStatus } = useRevitStatus();
+  const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -251,8 +254,20 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                         <FontAwesomeIcon icon={getStatusIcon(w.status)} className={`${getStatusColor(w.status)} text-lg`} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-bold text-slate-100 dark:text-slate-800 leading-tight tracking-tight mb-0.5">
+                        <div className="text-sm font-bold text-slate-100 dark:text-slate-800 leading-tight tracking-tight mb-0.5 flex items-center gap-1.5">
                           {w.script_name.replace(/\.(wtool|ptool|cs)$/i, '')}
+                          {w.script_name.endsWith('.wtool') && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-violet-500/20 text-violet-400 dark:text-violet-500 text-[8px] font-black uppercase tracking-widest">BIN</span>
+                          )}
+                          {(() => {
+                            const deployedDoc = deployedDocumentMap[normalize(w.script_path)];
+                            const isDocMismatch = deployedDoc && currentDocTitle && deployedDoc !== currentDocTitle;
+                            return isDocMismatch ? (
+                              <span title={`Deployed for '${deployedDoc}'. Redeploy for '${currentDocTitle}'.`} className="text-amber-500 cursor-help">
+                                <FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px]" />
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                         <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed line-clamp-2">
                           {w.summary}

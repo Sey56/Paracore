@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import api from '@/api/axios';
 import { useAuth } from '@/features/auth';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
 import useLocalStorage from '@/hooks/useLocalStorage';
 
 export interface WatchdogStatus {
@@ -25,6 +26,7 @@ interface WatchdogContextType {
     // Configuration State (The Sovereign Truth)
     configuredWatchdogRoots: string[];
     watchdogSources: string[];
+    deployedDocumentMap: Record<string, string>;
 
     // UI/Execution State
     watchdogs: WatchdogStatus[];
@@ -46,13 +48,16 @@ const WatchdogContext = createContext<WatchdogContextType | undefined>(undefined
 export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { user, isAuthenticated } = useAuth();
     const { showNotification } = useNotifications();
+    const { revitStatus } = useRevitStatus();
     const stableUserId = user?.id || 'anon';
+    const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
 
     const normalize = (p: string) => (p || "").replace(/\\/g, '/').toLowerCase().trim();
 
     // 1. Sovereign Configuration State (Managed by fixed useLocalStorage)
     const [configuredWatchdogRoots, setConfiguredWatchdogRoots] = useLocalStorage<string[]>(`rap_configuredWatchdogRoots_${stableUserId}`, []);
     const [watchdogSources, setWatchdogSources] = useLocalStorage<string[]>(`rap_watchdogSources_${stableUserId}`, []);
+    const [deployedDocumentMap, setDeployedDocumentMap] = useLocalStorage<Record<string, string>>(`rap_deployedDocMap_${stableUserId}`, {});
 
     // 2. Runtime Status State (Polled from Backend)
     const [watchdogs, setWatchdogs] = useState<WatchdogStatus[]>([]);
@@ -155,9 +160,11 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         if (isArmed) {
             setWatchdogSources(prev => prev.filter(s => normalize(s) !== path));
+            setDeployedDocumentMap(prev => { const next = { ...prev }; delete next[path]; return next; });
             try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { }
         } else {
             setWatchdogSources(prev => Array.from(new Set([...prev, path])));
+            setDeployedDocumentMap(prev => ({ ...prev, [path]: currentDocTitle || 'Unknown' }));
             try { await api.post("/api/watchdogs/register-source", { path, parameters }); } catch (e) { }
         }
     };
@@ -176,6 +183,11 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         // Add to state immediately for UI feedback
         setWatchdogSources(prev => Array.from(new Set([...prev, ...toArm.map(s => normalize(s.path))])));
+        setDeployedDocumentMap(prev => {
+            const next = { ...prev };
+            toArm.forEach(s => { next[normalize(s.path)] = currentDocTitle || 'Unknown'; });
+            return next;
+        });
 
         for (const script of toArm) {
             try { await api.post("/api/watchdogs/register-source", { path: normalize(script.path), parameters: script.parameters }); } catch (e) { }
@@ -196,6 +208,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { }
         }
         setWatchdogSources([]);
+        setDeployedDocumentMap({});
         showNotification("All Sentinels undeployed.", "success");
     };
 
@@ -203,7 +216,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return (
         <WatchdogContext.Provider value={{
-            configuredWatchdogRoots, watchdogSources, watchdogs, failedWatchdogs,
+            configuredWatchdogRoots, watchdogSources, deployedDocumentMap, watchdogs, failedWatchdogs,
             isArmingWatchdogs, isWatchdogInitialized, hasIssues,
             addConfiguredWatchdogRoot, removeConfiguredWatchdogRoot, toggleScriptArm, armAllInList, decommissionAll
         }}>
