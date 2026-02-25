@@ -12,7 +12,8 @@ import {
   faICursor,
   faSyncAlt,
   faTrash,
-  faCode
+  faCode,
+  faTags
 } from "@fortawesome/free-solid-svg-icons";
 import { Script } from "@/types/scriptModel";
 
@@ -40,6 +41,7 @@ interface CardActionsProps {
   setDeleteError: (err: string | null) => void;
   editTooltipMessage: string;
   toggleFloatingCodeViewer: () => void;
+  setShowMetadataModal: (show: boolean) => void;
 }
 
 export const CardActions: React.FC<CardActionsProps> = ({
@@ -65,7 +67,8 @@ export const CardActions: React.FC<CardActionsProps> = ({
   setShowDeleteModal,
   setDeleteError,
   editTooltipMessage,
-  toggleFloatingCodeViewer
+  toggleFloatingCodeViewer,
+  setShowMetadataModal
 }) => {
   return (
     <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 rounded-b-lg">
@@ -185,6 +188,21 @@ export const CardActions: React.FC<CardActionsProps> = ({
                   >
                     <FontAwesomeIcon icon={faSyncAlt} className="mr-2 w-4" />
                     Replace Code
+                  </button>
+                )}
+                {!isProtectedTool && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect();
+                      setShowMetadataModal(true);
+                      setShowMenu(false);
+                    }}
+                    title="Edit Script Metadata"
+                  >
+                    <FontAwesomeIcon icon={faTags} className="mr-2 w-4" />
+                    Edit Metadata
                   </button>
                 )}
                 <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>

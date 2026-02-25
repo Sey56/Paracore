@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from grpc_client import stop_sync_session
-from ide_manager import ACTIVE_IDE_SESSIONS, remove_active_ide_session
+from ide_manager import ACTIVE_IDE_SESSIONS, remove_active_ide_session, cleanup_stale_sessions
 
 logging.basicConfig(level=logging.INFO)
 
@@ -59,7 +59,9 @@ class RenameRequest(BaseModel):
 async def get_active_ide_sessions(current_user: CurrentUser = Depends(get_current_user)):
     """
     Returns a map of which project folders are currently open in VS Code.
+    Auto-cleans stale sessions on every poll.
     """
+    cleanup_stale_sessions()
     return ACTIVE_IDE_SESSIONS
 
 @router.post("/api/sync/clear-session", tags=["IDE Sessions"])

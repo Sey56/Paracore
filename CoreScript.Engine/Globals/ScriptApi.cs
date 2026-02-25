@@ -139,8 +139,32 @@ namespace CoreScript.Engine.Globals
         public static void Zoom(IEnumerable<Element> elements)
         {
             if (UIDoc == null) return;
-            var ids = elements.Select(e => e.Id).ToList();
-            if (ids.Count == 0) return;
+            var elementList = elements.ToList();
+            if (elementList.Count == 0) return;
+
+            // Compute a union bounding box of all elements
+            BoundingBoxXYZ unionBox = null;
+            foreach (var el in elementList)
+            {
+                var bb = el.get_BoundingBox(Doc.ActiveView);
+                if (bb == null) continue;
+                if (unionBox == null)
+                {
+                    unionBox = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max };
+                }
+                else
+                {
+                    unionBox.Min = new XYZ(
+                        Math.Min(unionBox.Min.X, bb.Min.X),
+                        Math.Min(unionBox.Min.Y, bb.Min.Y),
+                        Math.Min(unionBox.Min.Z, bb.Min.Z));
+                    unionBox.Max = new XYZ(
+                        Math.Max(unionBox.Max.X, bb.Max.X),
+                        Math.Max(unionBox.Max.Y, bb.Max.Y),
+                        Math.Max(unionBox.Max.Z, bb.Max.Z));
+                }
+            }
+            if (unionBox == null) return;
 
             var uiViews = UIDoc.GetOpenUIViews();
             var activeView = Doc.ActiveView;
@@ -148,7 +172,7 @@ namespace CoreScript.Engine.Globals
             
             if (currentUIView != null)
             {
-                currentUIView.ZoomToElements(ids);
+                currentUIView.ZoomAndCenterRectangle(unionBox.Min, unionBox.Max);
             }
         }
         

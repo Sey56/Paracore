@@ -29,15 +29,37 @@ public class Params
 }
 """,
 
-    "blank": """// 1. Query & Setup
-Params p = new();
+    "blank": """/*
+DocumentType: Project
+Categories: Template
+Author: Paracore Team
+Dependencies: RevitAPI 2025+, Paracore.Addin
 
-// __INJECT_QUERY_BLOCK__
-Println("Hello from Paracore!");
+Description:
+This is a top level statement script. Doc, UIDoc, Transact, Println,...
+are accessible everywhere in this script or other scripts in the Scripts folder
+
+*/
+
+Params p = new();
+string userName = Doc.Application.Username;
+
+Println($"{p.Greeting} {userName}");
+Println($"Selected WallType name is: {p.CurrentWallTypes?.Name}");
 
 public class Params
 {
-    #region Generated Parameters
+    #region parameters
+
+    /// Greeting message
+    public string Greeting { get; set; } = "Welcome to Paracore!";
+
+    /// <summary>
+    /// Click the compute button and select 
+    /// a wall type from the dropdown
+    /// </summary>
+    public WallType? CurrentWallTypes { get; set; }
+
     #endregion
 }
 """,
@@ -82,23 +104,44 @@ public class Params
 }
 """,
 
-    "BlankSentinel": """// Blank Watchdog Sentinel
+    "BlankSentinel": """/*
+DocumentType: Project
+Categories: Template
+Author: Paracore Team
+Dependencies: RevitAPI 2025+, Paracore.Addin
+
+Description:
+A template sentinel script structure
+*/
 Watchdog(() =>
 {
     Params p = new();
-    
+
     // Sentinel Logic here
-    var elements = new FilteredElementCollector(doc)
-        .OfCategory(BuiltInCategory.OST_Walls)
+    IList<Element> elements = new FilteredElementCollector(Doc)
+        .OfCategory(p.SelectedCategory)
         .WhereElementIsNotElementType()
         .ToElements();
-        
+
     WatchdogReport($"Found {elements.Count} elements", "success");
+    
+    Println($"Found {elements.Count} elements");
 });
 
 public class Params
 {
     #region Generated Parameters
+
+    [Segmented]
+    public BuiltInCategory SelectedCategory { get; set; } = BuiltInCategory.OST_Walls; // default selection
+    public List<BuiltInCategory> SelectedCategory_Options => 
+     [
+        BuiltInCategory.OST_Walls,
+        BuiltInCategory.OST_Windows,
+        BuiltInCategory.OST_Doors,
+        BuiltInCategory.OST_Rooms,
+    ];
+
     #endregion
 }
 """

@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 SESSIONS_FILE = "active_ide_sessions.json"
 ACTIVE_IDE_SESSIONS = {}  # normalized_path -> { "last_modified": timestamp }
 
+# Stale session threshold: 2 minutes without any file change
+STALE_SESSION_TIMEOUT_SECONDS = 120
+
 # Global observer for file changes
 _observer = Observer()
 _watchers = {} # normalized_path -> watch_object
@@ -99,6 +102,50 @@ def remove_active_ide_session(script_path: str):
 def is_ide_session_active(script_path: str) -> bool:
     normalized_path = script_path.lower().replace('\\', '/')
     return normalized_path in ACTIVE_IDE_SESSIONS
+
+def cleanup_stale_sessions():
+    """
+    Removes IDE sessions that have been inactive beyond the timeout threshold.
+    Called on every /api/sync/active-sessions poll to keep the list accurate.
+    Sessions are considered stale if:
+    1. The Scripts/ folder no longer exists on disk, OR
+    2. No .cs file modification detected within STALE_SESSION_TIMEOUT_SECONDS
+    """
+    now = time.time()
+    stale_keys = []
+
+    for normalized_path, session_data in ACTIVE_IDE_SESSIONS.items():
+        last_modified = session_data.get("last_modified", 0) if isinstance(session_data, dict) else 0
+
+        # Check if the folder still exists on disk
+        # Try to reconstruct the original path (it was lowercased)
+        scripts_dir_exists = False
+        for orig_path in list(_watchers.keys()) + [normalized_path]:
+            candidate = os.path.join(orig_path, "Scripts")
+            if os.path.isdir(candidate):
+                scripts_dir_exists = True
+                break
+
+        if not scripts_dir_exists:
+            stale_keys.append(normalized_path)
+            continue
+
+        # Check if session is stale (no file activity)
+        if (now - last_modified) > STALE_SESSION_TIMEOUT_SECONDS:
+            stale_keys.append(normalized_path)
+
+    for key in stale_keys:
+        logger.info(f"Auto-removing stale IDE session: {key}")
+        # Stop watcher
+        if key in _watchers:
+            try:
+                _observer.unschedule(_watchers[key])
+                del _watchers[key]
+            except: pass
+        del ACTIVE_IDE_SESSIONS[key]
+
+    if stale_keys:
+        save_ide_sessions()
 
 # Initialize
 load_ide_sessions()

@@ -243,7 +243,12 @@ namespace CoreScript.Engine.Core
             
             // 1. Try XML Match
             var xmlMatch = Regex.Match(combined, @"<summary>(.*?)</summary>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-            if (xmlMatch.Success) return xmlMatch.Groups[1].Value.Trim('/', ' ', '\n', '\r');
+            if (xmlMatch.Success) {
+                return string.Join(" ", xmlMatch.Groups[1].Value.Split('\n')
+                    .Select(l => l.Trim().TrimStart('/').Trim())
+                    .Select(l => Regex.Replace(l, @"</?(?:para|summary|remarks)>", "", RegexOptions.IgnoreCase).Trim())
+                    .Where(l => !string.IsNullOrWhiteSpace(l))).Trim();
+            }
 
             // 2. Fallback: Clean one-liners (Remove /// and whitespace)
             var cleanLines = lines.Select(l => l.TrimStart('/').Trim());

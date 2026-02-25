@@ -31,6 +31,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showMetadataModal, setShowMetadataModal] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -182,6 +183,8 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     isDeleting,
     deleteError,
     setDeleteError,
+    showMetadataModal,
+    setShowMetadataModal,
     menuRef,
     getDisplayName,
     handleRunClick,

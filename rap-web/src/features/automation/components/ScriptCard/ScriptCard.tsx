@@ -9,6 +9,7 @@ import { CardHeader } from './components/CardHeader';
 import { CardBody } from './components/CardBody';
 import { CardActions } from './components/CardActions';
 import { DeleteScriptModal } from './components/DeleteScriptModal';
+import { EditMetadataModal } from './components/EditMetadataModal';
 
 // Hooks
 import { useScriptCard } from './hooks/useScriptCard';
@@ -71,7 +72,9 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     editScript,
     isAuthenticated,
     activeRole,
-    toggleFloatingCodeViewer
+    toggleFloatingCodeViewer,
+    showMetadataModal,
+    setShowMetadataModal
   } = useScriptCard(script, onSelect);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
@@ -102,6 +105,17 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
         displayName={getDisplayName()}
         onDelete={handleDelete}
       />
+
+      {showMetadataModal && (
+        <EditMetadataModal
+          isOpen={showMetadataModal}
+          onClose={() => setShowMetadataModal(false)}
+          script={script}
+          onSaved={() => {
+            // Metadata was saved — could trigger a reload if needed
+          }}
+        />
+      )}
 
       <div className={`p-4 flex-grow flex flex-col ${isCompact ? "py-2" : ""}`}>
         <CardHeader
@@ -148,6 +162,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
         setDeleteError={setDeleteError}
         editTooltipMessage={getEditTitleMessage()}
         toggleFloatingCodeViewer={toggleFloatingCodeViewer}
+        setShowMetadataModal={setShowMetadataModal}
       />
     </div>
   );

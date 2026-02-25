@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { useScripts } from '../../hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
@@ -60,6 +60,10 @@ export const ScriptGallery: React.FC = () => {
   const savedScrollTop = useRef(0);
   const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
 
+  // Ref to always hold latest scripts for closure-safe access in timers
+  const scriptsRef = useRef(scripts);
+  useEffect(() => { scriptsRef.current = scripts; }, [scripts]);
+
   const handleReplaceScript = (script: Script) => {
     setScriptToReplace(script);
     if (script.metadata.isWatchdog) {
@@ -74,38 +78,53 @@ export const ScriptGallery: React.FC = () => {
     closeNewScriptModal();
     closeNewSentinelModal();
 
-    if (resultScript && resultScript.id) {
-      const normalizedTargetId = resultScript.id.toLowerCase().replace(/\\/g, '/');
+    if (!resultScript) return;
 
-      // Try to find the canonical script object from our updated list to ensure ID match
-      const canonicalScript = scripts.find(s =>
-        s.id.toLowerCase().replace(/\\/g, '/') === normalizedTargetId
-      );
+    // The backend may return {success, path} (new script) or a Script object (replace).
+    // Extract the path from whichever shape we got.
+    const resultPath = (resultScript as any).path || resultScript.absolutePath || resultScript.id || '';
+    if (!resultPath) return;
 
-      const scriptToSelect = canonicalScript || resultScript;
-      setSelectedScript(scriptToSelect);
-      setActiveInspectorTab('parameters');
+    // Store the path — createNewScript already triggered a gallery reload.
+    // We poll the scripts list until the new script appears, then select + scroll.
+    const normalizedTarget = resultPath.replace(/\\/g, '/').toLowerCase();
 
-      // Use a timeout to ensure the gallery has fully re-rendered with the new units
-      setTimeout(() => {
-        const finalId = scriptToSelect.id;
-        const cardElement = document.getElementById(`script-card-${finalId}`);
+    const trySelectAndScroll = (attempt: number) => {
+      // Search through the current scripts list for a path match
+      const found = scriptsRef.current.find(s => {
+        const sPath = (s.absolutePath || s.id || '').replace(/\\/g, '/').toLowerCase();
+        return sPath === normalizedTarget || sPath.includes(normalizedTarget) || normalizedTarget.includes(sPath);
+      });
 
-        if (cardElement && galleryRef.current?.parentElement) {
-          cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Add a brief subtle animation trigger if needed, but the selection border usually suffices
-        } else {
-          // Fallback search in case of ID mismatch
-          const allCards = document.querySelectorAll('.script-card');
-          const foundCard = Array.from(allCards).find(el =>
-            el.id.toLowerCase().replace(/\\/g, '/').includes(normalizedTargetId)
-          );
-          if (foundCard && galleryRef.current?.parentElement) {
-            foundCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (found) {
+        setSelectedScript(found);
+        setActiveInspectorTab('parameters');
+
+        // Scroll to the card
+        setTimeout(() => {
+          const cardElement = document.getElementById(`script-card-${found.id}`);
+          if (cardElement) {
+            cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else {
+            // Fallback: search all cards by normalized path
+            const normalizedId = found.id.toLowerCase().replace(/\\/g, '/');
+            const allCards = document.querySelectorAll('.script-card');
+            const foundCard = Array.from(allCards).find(el =>
+              el.id.toLowerCase().replace(/\\/g, '/').includes(normalizedId)
+            );
+            if (foundCard) {
+              foundCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
           }
-        }
-      }, 300);
-    }
+        }, 200);
+      } else if (attempt < 6) {
+        // Scripts list may not have updated yet — retry up to 3 seconds
+        setTimeout(() => trySelectAndScroll(attempt + 1), 500);
+      }
+    };
+
+    // Start trying after a short delay for the state to propagate
+    setTimeout(() => trySelectAndScroll(0), 400);
   };
 
   const handleEnterFocusMode = (rect: DOMRect) => {

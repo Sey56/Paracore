@@ -208,3 +208,53 @@ async def get_manifest(path: str):
 @router.post("/api/rename-script", tags=["Script Management"])
 async def rename_script(request: RenameRequest, current_user: CurrentUser = Depends(get_current_user)):
     return script_service.rename_script_logic(request.oldPath, request.newName)
+
+class UpdateMetadataRequest(BaseModel):
+    script_path: str
+    metadata_block: str
+
+@router.get("/api/scripts/raw-main-file", tags=["Script Management"])
+async def get_raw_main_file(scriptPath: str = Query(...)):
+    """Returns the raw content of the main .cs file (not the combined script)."""
+    try:
+        abs_p = script_service.resolve_script_path(scriptPath)
+        script_name = os.path.basename(abs_p)
+        main_file = os.path.join(abs_p, "Scripts", f"{script_name}.cs")
+        if not os.path.isfile(main_file):
+            raise HTTPException(status_code=404, detail=f"Main file not found: {script_name}.cs")
+        with open(main_file, 'r', encoding='utf-8-sig') as f:
+            content = f.read()
+        return {"content": content, "filename": f"{script_name}.cs"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/scripts/update-metadata", tags=["Script Management"])
+async def update_metadata(request: UpdateMetadataRequest, current_user: CurrentUser = Depends(get_current_user)):
+    """Replaces or prepends the /* ... */ metadata block in the main .cs file."""
+    import re
+    try:
+        abs_p = script_service.resolve_script_path(request.script_path)
+        script_name = os.path.basename(abs_p)
+        main_file = os.path.join(abs_p, "Scripts", f"{script_name}.cs")
+        if not os.path.isfile(main_file):
+            raise HTTPException(status_code=404, detail=f"Main file not found: {script_name}.cs")
+
+        with open(main_file, 'r', encoding='utf-8-sig') as f:
+            content = f.read()
+
+        metadata_pattern = r'^/\*[\s\S]*?\*/\s*'
+        if re.match(metadata_pattern, content):
+            updated = re.sub(metadata_pattern, request.metadata_block + '\n', content, count=1)
+        else:
+            updated = request.metadata_block + '\n' + content
+
+        with open(main_file, 'w', encoding='utf-8') as f:
+            f.write(updated)
+
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
