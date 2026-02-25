@@ -11,6 +11,9 @@ import { useScriptExecution } from "@/features/automation";
 import { useUI } from "@/hooks/useUI";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useScripts } from "@/features/automation";
+import { listen } from '@tauri-apps/api/event';
+import api from '@/api/axios';
+import type { Script, ScriptParameter } from '@/types/scriptModel';
 import { GitStatusPanel } from "@/features/team-sources/components/GitStatusPanel";
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from "@/features/auth";
@@ -25,8 +28,8 @@ import { PlaylistsTab } from "@/features/automation/components/Playlists/Playlis
 
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
-  const { selectedScript } = useScriptExecution();
-  const { isArmingWatchdogs } = useWatchdog();
+  const { selectedScript, setSelectedScript, runScript, userEditedScriptParameters } = useScriptExecution();
+  const { isArmingWatchdogs, watchdogs } = useWatchdog();
   // Startup gate — branded entrance on every app launch.
   // Always shows for 2.5s, re-triggers on sign-in transitions too.
   const [gateVisible, setGateVisible] = useState(true);
@@ -46,6 +49,47 @@ export const AppLayout: React.FC = () => {
     const timer = setTimeout(() => setGateVisible(false), 2500);
     return () => clearTimeout(timer);
   }, [gateVisible]);
+
+  // Cross-window event listener: handle 'table' action from detached Sentinel Control
+  const normalize = (p: string) => (p || "").replace(/\\/g, '/').toLowerCase().trim();
+  useEffect(() => {
+    const unlisten = listen<{ scriptPath: string; action: string }>('sentinel-table-action', async (event) => {
+      try {
+        const { scriptPath, action } = event.payload;
+        const response = await api.get(`/api/script-details?scriptPath=${encodeURIComponent(scriptPath)}`);
+        const s = response.data as Script;
+        if (s) {
+          await setSelectedScript(s, 'user');
+          let execParams = userEditedScriptParameters[s.id] || s.parameters || [];
+
+          // Get snapshot params from watchdog
+          const watchdog = watchdogs.find(w => normalize(w.script_path) === normalize(scriptPath));
+          if (watchdog?.parameters_json) {
+            try {
+              const parsed = JSON.parse(watchdog.parameters_json);
+              if (Array.isArray(parsed)) execParams = parsed;
+              else if (typeof parsed === 'object' && parsed !== null) {
+                if (execParams.length > 0) {
+                  execParams = execParams.map((p: ScriptParameter) =>
+                    parsed[p.name] !== undefined ? { ...p, value: parsed[p.name] } : p
+                  );
+                }
+              }
+            } catch { /* ignore parse error */ }
+          }
+
+          const paramAction: ScriptParameter = {
+            name: '__sentinel_action__', value: action, type: 'string',
+            defaultValue: action, required: true, options: []
+          };
+          runScript(s, [paramAction, ...execParams]);
+        }
+      } catch (err) {
+        console.error("[AppLayout] Failed to handle sentinel-table-action:", err);
+      }
+    });
+    return () => { unlisten.then(f => f()); };
+  }, [watchdogs, userEditedScriptParameters]);
 
   const showGate = gateVisible;
   const { addCustomScriptFolder } = useScripts();

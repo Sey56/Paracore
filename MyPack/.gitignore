@@ -1,9 +1,0 @@
-# Paracore Automation Pack - IDE Scaffolding Exclusions
-**/bin/
-**/obj/
-**/*.csproj
-**/global.json
-**/Globals.cs
-**/.editorconfig
-**/.github/
-**/.vscode/

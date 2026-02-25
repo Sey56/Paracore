@@ -43,6 +43,18 @@
         "height": 600,
         "resizable": true,
         "fullscreen": false
+      },
+      {
+        "label": "sentinel-control",
+        "title": "Sentinel Status",
+        "url": "/",
+        "width": 380,
+        "height": 600,
+        "resizable": true,
+        "decorations": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {
@@ -78,8 +90,9 @@
         "relaunch": true
       },
       "window": {
-        "all": false,
+        "all": true,
         "close": true,
+        "create": true,
         "hide": true,
         "show": true,
         "maximize": true,
@@ -97,10 +110,3 @@
     }
   }
 }
-
-
-
-
-
-
-

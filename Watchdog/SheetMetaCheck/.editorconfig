@@ -1,3 +1,0 @@
-[*.{cs,vb}]
-dotnet_diagnostic.CA1050.severity = none
-dotnet_diagnostic.CS8019.severity = warning

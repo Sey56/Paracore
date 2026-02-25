@@ -4,6 +4,7 @@ import { appWindow } from '@tauri-apps/api/window';
 import { process } from '@tauri-apps/api';
 import { resolveResource } from '@tauri-apps/api/path';
 import { AppLayout } from "@/components/layout/AppLayout";
+import { SentinelControlList } from "@/features/automation/components/SentinelControlList";
 import NotificationDisplay from "@/components/common/NotificationDisplay";
 import { AppProvider } from "@/context/AppProvider"; // Import the main AppProvider
 
@@ -30,7 +31,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           <pre className="bg-slate-800 p-4 rounded-lg text-left text-xs text-rose-300 overflow-auto max-w-full mb-8">
             {this.state.error?.message}
           </pre>
-          <button 
+          <button
             onClick={() => window.location.reload()}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-full font-bold transition-all"
           >
@@ -46,19 +47,19 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 function AppContent() {
   const rapServerProcess = useRef<Child | null>(null); // Ref to store the rap-server process
+  const isSentinelControl = appWindow.label === 'sentinel-control';
 
   useEffect(() => {
-    const stopRapServer = async () => {
-      if (rapServerProcess.current) {
-        console.log('Attempting to kill rap-server with pid:', rapServerProcess.current.pid);
-        await rapServerProcess.current.kill();
-        console.log('rap-server killed.');
-      }
-    };
-
     // Register a listener for the window close request
-    const unlisten = appWindow.onCloseRequested(async () => {
-      process.exit(0); // Exit the Tauri app gracefully
+    const unlisten = appWindow.onCloseRequested(async (event) => {
+      if (isSentinelControl) {
+        // Detached sentinel window: just hide, don't kill the app
+        event.preventDefault();
+        await appWindow.hide();
+      } else {
+        // Main window: exit entire app
+        process.exit(0);
+      }
     });
 
     // Cleanup on component unmount
@@ -69,8 +70,23 @@ function AppContent() {
 
   return (
     <React.Fragment>
-      <AppLayout />
-      <NotificationDisplay />
+      {isSentinelControl ? (
+        <div className="h-screen flex flex-col bg-slate-900">
+          {/* Header for detached sentinel window */}
+          <div className="p-5 pb-3 border-b border-white/5 flex items-center justify-between select-none" data-tauri-drag-region>
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.25em] flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
+              Sentinel Control
+            </h3>
+          </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <SentinelControlList isDetached />
+          </div>
+        </div>
+      ) : (
+        <AppLayout />
+      )}
+      {!isSentinelControl && <NotificationDisplay />}
     </React.Fragment>
   );
 }
