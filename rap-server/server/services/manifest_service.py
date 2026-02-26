@@ -35,6 +35,8 @@ async def generate_manifest_logic(agent_scripts_path: str):
                     "categories": metadata.get("categories", []),
                     "documentType": metadata.get("document_type") or "Any",
                     "usage_examples": metadata.get("usage_examples", []),
+                    "dateCreated": metadata.get("dateCreated"),
+                    "dateModified": metadata.get("dateModified"),
                 }
             })
 

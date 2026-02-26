@@ -89,11 +89,11 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
           </div>
           <div>
             <h4 className="font-medium text-slate-600 dark:text-slate-300">Date Created</h4>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{metadata.dateCreated ? new Date(metadata.dateCreated).toLocaleDateString() : 'N/A'}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 whitespace-pre-wrap">{formatLastRun(metadata.dateCreated)}</p>
           </div>
           <div>
             <h4 className="font-medium text-slate-600 dark:text-slate-300">Date Modified</h4>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{metadata.dateModified ? new Date(metadata.dateModified).toLocaleDateString() : 'N/A'}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 whitespace-pre-wrap">{formatLastRun(metadata.dateModified)}</p>
           </div>
           {metadata.gitInfo && (
             <div>

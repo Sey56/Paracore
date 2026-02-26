@@ -127,8 +127,10 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setRecentScripts]);
   const clearRecentScripts = useCallback(() => setRecentScripts([]), [setRecentScripts]);
   const updateScriptLastRunTime = useCallback((scriptId: string) => {
-    setLastRunTimes(prev => ({ ...prev, [scriptId]: new Date().toISOString() }));
-  }, [setLastRunTimes]);
+    const now = new Date().toISOString();
+    setLastRunTimes(prev => ({ ...prev, [scriptId]: now }));
+    setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: { ...s.metadata, lastRun: now } } : s));
+  }, [setLastRunTimes, setScripts]);
 
   const canUseLocalFolders = useMemo(() => {
     if (!user || !activeTeam) return false;
@@ -194,8 +196,20 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const newScriptId = response.data.id;
       if (newScriptId) {
         const now = new Date().toISOString();
+
+        // V5: Clear stale metadata if this path was used before (fixing "inheriting" old run times)
+        setLastRunTimes(prev => {
+          const next = { ...prev };
+          delete next[newScriptId];
+          return next;
+        });
+        setModificationTimes(prev => {
+          const next = { ...prev };
+          delete next[newScriptId];
+          return next;
+        });
+
         setCreationTimes(prev => ({ ...prev, [newScriptId]: now }));
-        // Note: loadScriptsFromPath will be called below, which will inject this.
       }
 
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);

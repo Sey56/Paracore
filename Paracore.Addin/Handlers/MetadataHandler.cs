@@ -62,7 +62,9 @@ namespace Paracore.Addin.Handlers
                     Dependencies = { extractedMetadata.Dependencies },
                     DocumentType = extractedMetadata.DocumentType,
                     UsageExamples = { extractedMetadata.UsageExamples },
-                    IsWatchdog = extractedMetadata.IsWatchdog
+                    IsWatchdog = extractedMetadata.IsWatchdog,
+                    DateCreated = "", 
+                    DateModified = ""
                 };
             }
             catch (Exception ex)
@@ -204,7 +206,9 @@ namespace Paracore.Addin.Handlers
                                 Dependencies = { metadata.Dependencies },
                                 DocumentType = metadata.DocumentType,
                                 UsageExamples = { metadata.UsageExamples },
-                                IsWatchdog = metadata.IsWatchdog
+                                IsWatchdog = metadata.IsWatchdog,
+                                DateCreated = GetScriptsFolderCreated(project.AbsolutePath),
+                                DateModified = GetScriptsFolderModified(project.AbsolutePath)
                             };
 
                             foreach (var p in parameters)
@@ -318,8 +322,8 @@ namespace Paracore.Addin.Handlers
                                 document_type = metadata.DocumentType,
                                 usage_examples = metadata.UsageExamples,
                                 isWatchdog = metadata.IsWatchdog,
-                                dateCreated = DateTime.FromFileTime(new DirectoryInfo(projectDir).CreationTime.ToFileTime()).ToString("o"),
-                                dateModified = DateTime.FromFileTime(new DirectoryInfo(projectDir).LastWriteTime.ToFileTime()).ToString("o")
+                                dateCreated = GetScriptsFolderCreated(projectDir),
+                                dateModified = GetScriptsFolderModified(projectDir)
                             },
                             parameters = parameters.Select(p => new {
                                 name = p.Name,
@@ -348,6 +352,58 @@ namespace Paracore.Addin.Handlers
                 response.ErrorMessage = $"Failed to generate manifest: {ex.Message}";
             }
             return response;
+        }
+
+        /// <summary>
+        /// Returns the earliest creation time of any file inside the Scripts/ subfolder.
+        /// Falls back to the project directory creation time.
+        /// </summary>
+        private static string GetScriptsFolderCreated(string projectPath)
+        {
+            try
+            {
+                var scriptsDir = Path.Combine(projectPath, "Scripts");
+                if (Directory.Exists(scriptsDir))
+                {
+                    var files = Directory.GetFiles(scriptsDir, "*.*", SearchOption.TopDirectoryOnly);
+                    if (files.Length > 0)
+                    {
+                        var earliest = files.Select(f => new FileInfo(f).CreationTime).Min();
+                        return earliest.ToString("o");
+                    }
+                }
+                // Fallback: use directory creation time
+                if (Directory.Exists(projectPath))
+                    return new DirectoryInfo(projectPath).CreationTime.ToString("o");
+            }
+            catch { }
+            return "";
+        }
+
+        /// <summary>
+        /// Returns the latest write time of any file inside the Scripts/ subfolder.
+        /// Falls back to the project directory last write time.
+        /// </summary>
+        private static string GetScriptsFolderModified(string projectPath)
+        {
+            try
+            {
+                var scriptsDir = Path.Combine(projectPath, "Scripts");
+                if (Directory.Exists(scriptsDir))
+                {
+                    var files = Directory.GetFiles(scriptsDir, "*.*", SearchOption.TopDirectoryOnly);
+                    if (files.Length > 0)
+                    {
+                        var latest = files.Select(f => new FileInfo(f).LastWriteTime).Max();
+                        return latest.ToString("o");
+                    }
+                }
+                // Fallback: use directory last write time
+                if (Directory.Exists(projectPath))
+                    return new DirectoryInfo(projectPath).LastWriteTime.ToString("o");
+            }
+            catch { }
+            return "";
         }
     }
 }

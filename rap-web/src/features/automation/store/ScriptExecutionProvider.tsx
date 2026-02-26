@@ -21,6 +21,7 @@ import { useParameterComputations } from '../hooks/execution/useParameterComputa
 export const ScriptExecutionProvider = ({ children }: { children: React.ReactNode }) => {
   const { showNotification } = useNotifications();
   const {
+    scripts,
     setScripts,
     addRecentScript,
     fetchScriptMetadata,
@@ -77,7 +78,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     selectedFolder,
     loadScriptsFromPath,
     setCombinedScriptContent,
-    setSelectedScriptState
+    setSelectedScriptState,
+    updateScriptModificationTime
   );
 
   // 5. Execution Logic
@@ -102,23 +104,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   );
 
   const lastKnownModifiedRef = useRef<Record<string, number>>({});
-
-  // Sync session changes
-  useEffect(() => {
-    if (selectedScript && selectedScript.absolutePath) {
-      const normalizedPath = selectedScript.absolutePath.toLowerCase().replace(/\\/g, '/');
-      const sessionData = activeSyncSessions[normalizedPath];
-
-      if (sessionData && sessionData.last_modified) {
-        const lastSeen = lastKnownModifiedRef.current[normalizedPath] || 0;
-        if (sessionData.last_modified > lastSeen) {
-          updateScriptModificationTime(selectedScript.id);
-          setSelectedScript(selectedScript, 'refresh');
-          lastKnownModifiedRef.current[normalizedPath] = sessionData.last_modified;
-        }
-      }
-    }
-  }, [activeSyncSessions, selectedScript]);
 
   // Reset logic when source/team changes
   useEffect(() => {
@@ -237,6 +222,38 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       }
     }
   }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setPresets, setAgentSelectedScriptPath, updateUserEditedParameters, clearParameterCache, setSelectedScriptState, showNotification]);
+
+  // Sync session changes
+  useEffect(() => {
+    if (selectedScript && selectedScript.absolutePath) {
+      const normalizedPath = selectedScript.absolutePath.toLowerCase().replace(/\\/g, '/');
+      const sessionData = activeSyncSessions[normalizedPath];
+
+      if (sessionData && sessionData.last_modified) {
+        const lastSeen = lastKnownModifiedRef.current[normalizedPath] || 0;
+        if (sessionData.last_modified > lastSeen) {
+          updateScriptModificationTime(selectedScript.id);
+          lastKnownModifiedRef.current[normalizedPath] = sessionData.last_modified;
+          // Trigger a refresh after sync
+          setSelectedScript(selectedScript, 'refresh');
+        }
+      }
+    }
+  }, [activeSyncSessions, selectedScript, updateScriptModificationTime, setSelectedScript]);
+
+  // Sync selectedScript with global scripts state to ensure metadata updates (like Last Run) are reflected in the Inspector
+  useEffect(() => {
+    if (selectedScript) {
+      const globalScript = scripts.find(s => s.id === selectedScript.id);
+      if (globalScript && (
+        globalScript.metadata.lastRun !== selectedScript.metadata.lastRun ||
+        globalScript.metadata.dateModified !== selectedScript.metadata.dateModified ||
+        globalScript.metadata.dateCreated !== selectedScript.metadata.dateCreated
+      )) {
+        setSelectedScriptState(globalScript);
+      }
+    }
+  }, [scripts, selectedScript, setSelectedScriptState]);
 
   const resetScriptParameters = useCallback(async (scriptId: string) => {
     clearParameterCache(scriptId);

@@ -9,7 +9,8 @@ export const useScriptOperations = (
   selectedFolder: string | null,
   loadScriptsFromPath: (path: string, silent?: boolean) => Promise<Script[] | undefined>,
   setCombinedScriptContent: (content: string | null) => void,
-  setSelectedScriptState: (script: Script | null) => void
+  setSelectedScriptState: (script: Script | null) => void,
+  updateScriptModificationTime?: (scriptId: string) => void
 ) => {
   const { showNotification } = useNotifications();
 
@@ -38,13 +39,14 @@ export const useScriptOperations = (
       if (response.data.is_success) {
         showNotification(response.data.message, "success");
         if (selectedFolder) loadScriptsFromPath(selectedFolder, true);
+        if (updateScriptModificationTime) updateScriptModificationTime(script.id);
         return { success: true, message: response.data.message };
       } else throw new Error(response.data.detail);
     } catch (error: any) {
       showNotification(error.message || "Failed to compile script.", "error");
       return { success: false, message: error.message };
     }
-  }, [showNotification, selectedFolder, loadScriptsFromPath]);
+  }, [showNotification, selectedFolder, loadScriptsFromPath, updateScriptModificationTime]);
 
   const editScript = useCallback(async (script: Script) => {
     if (!script || !isAuthenticated) return;

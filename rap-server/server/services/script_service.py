@@ -62,6 +62,39 @@ def _hydrate_params_for_frontend(params: List[Dict]) -> List[Dict]:
         hydrated.append(item)
     return hydrated
 
+def _hydrate_metadata_for_frontend(metadata: Any) -> Dict:
+    """
+    V4 ELITE: Ensures metadata is consistent (camelCase) for the frontend.
+    Bridges gRPC (snake_case) and JSON/Binary (camelCase).
+    """
+    if not metadata: return {}
+    
+    # Handle gRPC objects vs dicts
+    if hasattr(metadata, "ListFields"):
+        m_dict = {f.name: v for f, v in metadata.ListFields()}
+    elif isinstance(metadata, dict):
+        m_dict = metadata
+    else:
+        m_dict = {}
+
+    return {
+        **m_dict,
+        "name": m_dict.get("name", ""),
+        "displayName": m_dict.get("name", ""),
+        "description": m_dict.get("description", ""),
+        "author": m_dict.get("author", ""),
+        "website": m_dict.get("website", ""),
+        "categories": list(m_dict.get("categories", [])),
+        "lastRun": m_dict.get("lastRun") or m_dict.get("last_run", ""),
+        "dateCreated": m_dict.get("dateCreated") or m_dict.get("date_created", ""),
+        "dateModified": m_dict.get("dateModified") or m_dict.get("date_modified", ""),
+        "documentType": m_dict.get("documentType") or m_dict.get("document_type", ""),
+        "usageExamples": list(m_dict.get("usageExamples") or m_dict.get("usage_examples", [])),
+        "isWatchdog": m_dict.get("isWatchdog") or m_dict.get("is_watchdog", False),
+        "isProtected": m_dict.get("isProtected") or m_dict.get("is_protected", False),
+        "isCompiled": m_dict.get("isCompiled") or m_dict.get("is_compiled", False)
+    }
+
 async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
     """V3 Pack Discovery: Loads all folders inside an Automation Pack."""
     if not os.path.isdir(pack_path): return []
@@ -101,11 +134,12 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             res = bulk_results_map.get(p_path)
             if not res: continue
             
-            # Map parameters through unified hydration
+            # Map metadata and parameters through unified hydration
+            raw_meta = res.get("metadata") if isinstance(res, dict) else getattr(res, "metadata", None)
             raw_params = res.get("parameters") if isinstance(res, dict) else getattr(res, "parameters", [])
             tools.append({
                 "id": p_path, "name": project["project_name"], "absolutePath": p_path,
-                "metadata": res.get("metadata") if isinstance(res, dict) else res.metadata,
+                "metadata": _hydrate_metadata_for_frontend(raw_meta),
                 "parameters": _hydrate_params_for_frontend(raw_params)
             })
 
@@ -116,7 +150,7 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
                 with open(abs_p, 'r', encoding='utf-8') as f: pkg = json.load(f)
                 tools.append({
                     "id": abs_p, "name": os.path.basename(abs_p), "absolutePath": abs_p,
-                    "metadata": {**pkg.get("metadata", {}), "isProtected": True, "isCompiled": True},
+                    "metadata": _hydrate_metadata_for_frontend({**pkg.get("metadata", {}), "isProtected": True, "isCompiled": True}),
                     "parameters": _hydrate_params_for_frontend(pkg.get("parameters", []))
                 })
             except: continue
@@ -138,7 +172,7 @@ async def get_single_script_logic(script_path: str):
                 "id": abs_p,
                 "name": os.path.basename(abs_p),
                 "absolutePath": abs_p,
-                "metadata": {**pkg.get("metadata", {}), "isProtected": True, "isCompiled": True},
+                "metadata": _hydrate_metadata_for_frontend({**pkg.get("metadata", {}), "isProtected": True, "isCompiled": True}),
                 "parameters": _hydrate_params_for_frontend(pkg.get("parameters", []))
             }
             
@@ -294,7 +328,14 @@ async def get_script_metadata_logic(script_path: str):
                 if os.path.basename(fp).lower() == "globals.cs": continue
                 with open(fp, 'r', encoding='utf-8-sig') as f: script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
         if not script_files: return {"metadata": {"displayName": os.path.basename(abs_p)}}
-        return grpc_client.get_script_metadata(script_files)
+        
+        # Use bulk_metadata even for single scripts to ensure we get file-system timestamps (which require a path)
+        projects_to_fetch = [{"project_name": os.path.basename(abs_p), "absolute_path": abs_p, "files": script_files}]
+        results = grpc_client.get_bulk_metadata(projects_to_fetch)
+        if not results: return {"metadata": {"displayName": os.path.basename(abs_p)}}
+        
+        raw_meta = results[0].get("metadata") if isinstance(results[0], dict) else results[0].metadata
+        return {"metadata": _hydrate_metadata_for_frontend(raw_meta)}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 async def get_script_content_logic(script_path: str):

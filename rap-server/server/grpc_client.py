@@ -299,6 +299,8 @@ def get_bulk_metadata(projects_data: list):
             "usage_examples": list(m.usage_examples),
             "website": m.website,
             "lastRun": m.last_run,
+            "dateCreated": m.date_created,
+            "dateModified": m.date_modified,
             "isProtected": m.is_protected,
             "isCompiled": m.is_compiled,
             "isWatchdog": m.is_watchdog

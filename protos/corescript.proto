@@ -208,6 +208,8 @@ message ScriptMetadata {
   bool is_protected = 12;           
   bool is_compiled = 13;            
   bool is_watchdog = 14;
+  string date_created = 15;
+  string date_modified = 16;
 }
 
 

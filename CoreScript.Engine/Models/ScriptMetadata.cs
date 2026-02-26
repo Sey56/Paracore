@@ -20,5 +20,7 @@ namespace CoreScript.Engine.Models
         public bool IsProtected { get; set; } = false;
         public bool IsCompiled { get; set; } = false;
         public bool IsWatchdog { get; set; } = false;
+        public string DateCreated { get; set; } = "";
+        public string DateModified { get; set; } = "";
     }
 }
