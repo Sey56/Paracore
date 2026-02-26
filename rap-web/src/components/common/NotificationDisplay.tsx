@@ -21,7 +21,7 @@ const NotificationDisplay: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[99999] w-full max-w-sm space-y-3 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-[999999] w-full max-w-sm space-y-3 pointer-events-none">
       {notifications.map((notification) => {
         const classes = getNotificationClasses(notification.type);
         return (
