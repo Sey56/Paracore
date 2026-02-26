@@ -165,7 +165,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } else {
             setWatchdogSources(prev => Array.from(new Set([...prev, path])));
             setDeployedDocumentMap(prev => ({ ...prev, [path]: currentDocTitle || 'Unknown' }));
-            try { await api.post("/api/watchdogs/register-source", { path, parameters }); } catch (e) { }
+            try { await api.post("/api/watchdogs/register-source", { path: scriptPath, parameters }); } catch (e) { }
         }
     };
 
@@ -190,7 +190,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
 
         for (const script of toArm) {
-            try { await api.post("/api/watchdogs/register-source", { path: normalize(script.path), parameters: script.parameters }); } catch (e) { }
+            try { await api.post("/api/watchdogs/register-source", { path: script.path, parameters: script.parameters }); } catch (e) { }
             await new Promise(r => setTimeout(r, 300));
         }
         showNotification("Sentinel deployment complete.", "success");

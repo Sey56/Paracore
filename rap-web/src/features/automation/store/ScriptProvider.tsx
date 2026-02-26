@@ -61,7 +61,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const hasToken = !!localStorage.getItem('rap_cloud_token');
     if (hasToken && stableUserId === 'anon') return;
     if (!isSystemReady || !activeScriptSource) return;
-    
+
     if (activeScriptSource.type === 'local' && activeScriptSource.path) {
       const path = activeScriptSource.path;
       const normPath = normalizationHelper(path);
@@ -106,6 +106,10 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [recentScripts, setRecentScripts] = useLocalStorage<string[]>(`rap_recentScripts_${stableUserId}`, []);
   const [lastRunTimes, setLastRunTimes] = useLocalStorage<Record<string, string>>(`rap_lastRunTimes_${stableUserId}`, {});
 
+  // V4: Frontend-driven Metadata Tracking
+  const [creationTimes, setCreationTimes] = useLocalStorage<Record<string, string>>(`rap_creationTimes_${stableUserId}`, {});
+  const [modificationTimes, setModificationTimes] = useLocalStorage<Record<string, string>>(`rap_modificationTimes_${stableUserId}`, {});
+
   const toggleFavoriteScript = useCallback((scriptId: string) => {
     setFavoriteScripts(prev => {
       const isFavorite = prev.includes(scriptId);
@@ -138,7 +142,15 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!silent) setScripts([]);
       setSelectedFolder(folderPath);
       const response = await api.get(`/api/scripts?folderPath=${encodeURIComponent(folderPath)}`);
-      const loadedScripts: Script[] = response.data;
+      const loadedScripts: Script[] = response.data.map((s: Script) => ({
+        ...s,
+        metadata: {
+          ...s.metadata,
+          lastRun: lastRunTimes[s.id] || s.metadata.lastRun,
+          dateCreated: creationTimes[s.id] || s.metadata.dateCreated,
+          dateModified: modificationTimes[s.id] || s.metadata.dateModified
+        }
+      }));
       setScripts(loadedScripts);
       return loadedScripts;
     } catch (error: any) {
@@ -177,6 +189,15 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const createNewScript = useCallback(async (details: any) => {
     try {
       const response = await api.post("/api/scripts/new", details);
+
+      // Update creation time in frontend storage
+      const newScriptId = response.data.id;
+      if (newScriptId) {
+        const now = new Date().toISOString();
+        setCreationTimes(prev => ({ ...prev, [newScriptId]: now }));
+        // Note: loadScriptsFromPath will be called below, which will inject this.
+      }
+
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
       return response.data; // Return the created script object
     } catch (error: any) {
@@ -244,15 +265,42 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!script) return;
     try {
       const response = await api.post("/api/script-metadata", { scriptPath: script.absolutePath });
-      setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: { ...s.metadata, ...response.data.metadata } } : s));
+
+      const backendMetadata = response.data.metadata;
+      const mergedMetadata = {
+        ...script.metadata,
+        ...backendMetadata,
+        lastRun: lastRunTimes[scriptId] || backendMetadata.lastRun,
+        dateCreated: creationTimes[scriptId] || backendMetadata.dateCreated,
+        dateModified: modificationTimes[scriptId] || backendMetadata.dateModified
+      };
+
+      setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: mergedMetadata } : s));
     } catch (err) { }
-  }, []);
+  }, [creationTimes, lastRunTimes, modificationTimes, setScripts]);
+
+  const updateScriptModificationTime = useCallback((scriptId: string) => {
+    const now = new Date().toISOString();
+    setModificationTimes(prev => ({ ...prev, [scriptId]: now }));
+    setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: { ...s.metadata, dateModified: now } } : s));
+  }, [setModificationTimes, setScripts]);
 
   const reloadScript = useCallback(async (script: Script, options: { silent?: boolean } = {}) => {
     try {
       const paramsRes = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath });
       const metadataRes = await api.post("/api/script-metadata", { scriptPath: script.absolutePath });
-      setScripts(prev => prev.map(s => s.id === script.id ? { ...s, parameters: paramsRes.data.parameters, metadata: { ...s.metadata, ...metadataRes.data.metadata } } : s));
+
+      // Merge with locally tracked timestamps
+      const backendMetadata = metadataRes.data.metadata;
+      const mergedMetadata = {
+        ...script.metadata,
+        ...backendMetadata,
+        lastRun: lastRunTimes[script.id] || backendMetadata.lastRun,
+        dateCreated: creationTimes[script.id] || backendMetadata.dateCreated,
+        dateModified: modificationTimes[script.id] || backendMetadata.dateModified
+      };
+
+      setScripts(prev => prev.map(s => s.id === script.id ? { ...s, parameters: paramsRes.data.parameters, metadata: mergedMetadata } : s));
     } catch (err) { }
   }, []);
 
@@ -291,9 +339,9 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isSyncActive, activeSyncSessions,
     customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
-    pullAllTeamSources, pullTeamSource, clearScriptsForSource,
-    toolLibraryPath, setToolLibraryPath,
-    userSourcePaths, setUserSourcePath, canUseLocalFolders, selectedFolder
+    pullAllTeamSources, pullTeamSource, clearScriptsForSource, toolLibraryPath, setToolLibraryPath,
+    userSourcePaths, setUserSourcePath, canUseLocalFolders, selectedFolder,
+    updateScriptModificationTime
   }), [
     scripts, activeScriptSource, setActiveScriptSource, loadScriptsFromPath, fetchScriptMetadata, reloadScript,
     combinedScriptContent, createNewScript, deleteScript, favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
@@ -301,7 +349,8 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isSyncActive, activeSyncSessions, customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
     pullAllTeamSources, pullTeamSource, clearScriptsForSource, toolLibraryPath, setToolLibraryPath,
-    userSourcePaths, setUserSourcePath, canUseLocalFolders, selectedFolder
+    userSourcePaths, setUserSourcePath, canUseLocalFolders, selectedFolder,
+    updateScriptModificationTime
   ]);
 
   return <ScriptContext.Provider value={contextValue}>{children}</ScriptContext.Provider>;

@@ -118,25 +118,28 @@ namespace Paracore.Addin.Handlers
                                     }
                                 }
 
-                                wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
-                                wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = System.IO.Path.GetFileName(wtoolPath), ["type"] = "string" });
-                                wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
+                                 // DISK-AWARE NAMING: Retrieve actual casing from the file system
+                                 string actualFileName = GetActualPathCasing(wtoolPath);
+                                 
+                                 wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
+                                 wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = actualFileName, ["type"] = "string" });
+                                 wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
 
-                                string paramsJson = wtoolParams.ToJsonString();
+                                 string paramsJson = wtoolParams.ToJsonString();
 
-                                if (_uiApp != null)
-                                {
-                                    var serverContext = new ServerContext(_uiApp);
-                                    CoreScriptExecutionDispatcher.Instance.QueueBinaryScriptFromServer(
-                                        assemblyBytes,
-                                        paramsJson,
-                                        serverContext,
-                                        isSilent: true,
-                                        priority: ExecutionPriority.Normal);
+                                 if (_uiApp != null)
+                                 {
+                                     var serverContext = new ServerContext(_uiApp);
+                                     CoreScriptExecutionDispatcher.Instance.QueueBinaryScriptFromServer(
+                                         assemblyBytes,
+                                         paramsJson,
+                                         serverContext,
+                                         isSilent: true,
+                                         priority: ExecutionPriority.Normal);
 
-                                    count++;
-                                    details.Add($"Loaded Binary Sentinel: '{System.IO.Path.GetFileName(wtoolPath)}'");
-                                }
+                                     count++;
+                                     details.Add($"Loaded Binary Sentinel: '{actualFileName}'");
+                                 }
                             }
                         }
                     }
@@ -149,7 +152,8 @@ namespace Paracore.Addin.Handlers
 
                 foreach (var projectPath in projectsPtr)
                 {
-                    string folderName = System.IO.Path.GetFileName(projectPath);
+                    // DISK-AWARE NAMING: Retrieve actual casing from the file system
+                    string folderName = GetActualPathCasing(projectPath);
                     string scriptsPath = System.IO.Path.Combine(projectPath, "Scripts");
                     
                     if (!System.IO.Directory.Exists(scriptsPath))
@@ -198,7 +202,7 @@ namespace Paracore.Addin.Handlers
                                 }
                                 
                                 uiParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = projectPath.Replace('\\', '/'), ["type"] = "string" });
-                                uiParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = System.IO.Path.GetFileName(projectPath), ["type"] = "string" });
+                                uiParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = folderName, ["type"] = "string" });
                                 uiParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
                                 
                                 string paramsJson = uiParams.ToJsonString();
@@ -293,8 +297,11 @@ namespace Paracore.Addin.Handlers
                             }
                         }
 
+                        // DISK-AWARE NAMING: Retrieve actual casing from the file system
+                        string actualFileName = GetActualPathCasing(wtoolPath);
+
                         wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
-                        wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = System.IO.Path.GetFileName(wtoolPath), ["type"] = "string" });
+                        wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = actualFileName, ["type"] = "string" });
                         wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
 
                         string paramsJson = wtoolParams.ToJsonString();
@@ -309,7 +316,7 @@ namespace Paracore.Addin.Handlers
                                 isSilent: true,
                                 priority: ExecutionPriority.Normal);
 
-                            _logger.Log($"[ScriptExecutionHandler] Loaded Binary Sentinel (direct): '{System.IO.Path.GetFileName(wtoolPath)}'", LogLevel.Info);
+                            _logger.Log($"[ScriptExecutionHandler] Loaded Binary Sentinel (direct): '{actualFileName}'", LogLevel.Info);
 
                             return new RegisterWatchdogSourceResponse
                             {
@@ -512,6 +519,44 @@ namespace Paracore.Addin.Handlers
 
             response.InternalData = finalResult.InternalData ?? "";
             return response;
+        }
+
+        /// <summary>
+        /// Retrieves the actual casing of a file or directory as it exists on the Windows file system.
+        /// <see cref="System.IO.DirectoryInfo"/> and <see cref="System.IO.FileInfo"/> often inherit the 
+        /// casing of the string provided to them rather than querying the disk.
+        /// </summary>
+        private string GetActualPathCasing(string path)
+        {
+            try
+            {
+                if (System.IO.Directory.Exists(path))
+                {
+                    var parentPath = System.IO.Path.GetDirectoryName(path);
+                    if (string.IsNullOrEmpty(parentPath)) return System.IO.Path.GetFileName(path); // Drive root
+                    
+                    var parentDir = new System.IO.DirectoryInfo(parentPath);
+                    var searchName = System.IO.Path.GetFileName(path);
+                    var actualDir = parentDir.GetDirectories(searchName).FirstOrDefault();
+                    return actualDir != null ? actualDir.Name : searchName;
+                }
+                else if (System.IO.File.Exists(path))
+                {
+                    var parentPath = System.IO.Path.GetDirectoryName(path);
+                    if (string.IsNullOrEmpty(parentPath)) return System.IO.Path.GetFileName(path); // Drive root
+                    
+                    var parentDir = new System.IO.DirectoryInfo(parentPath);
+                    var searchName = System.IO.Path.GetFileName(path);
+                    var actualFile = parentDir.GetFiles(searchName).FirstOrDefault();
+                    return actualFile != null ? actualFile.Name : searchName;
+                }
+                
+                return System.IO.Path.GetFileName(path);
+            }
+            catch (Exception)
+            {
+                return System.IO.Path.GetFileName(path);
+            }
         }
     }
 }

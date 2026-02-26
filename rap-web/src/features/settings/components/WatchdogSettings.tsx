@@ -193,12 +193,12 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                               {isArmed && status?.type === 'active' && <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-20"></div>}
                             </div>
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                                {s.name.replace(/\.(wtool|ptool|cs)$/i, '')}
-                              </span>
-                              {s.absolutePath?.endsWith('.wtool') && (
-                                <span className="ml-2 px-2 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[9px] font-black uppercase tracking-widest">BIN</span>
-                              )}
+                              <div className="text-sm font-bold text-slate-700 dark:text-slate-200 tracking-tight leading-tight flex flex-wrap items-center gap-2">
+                                <span className="truncate">{s.name.replace(/\.(wtool|ptool|cs)$/i, '')}</span>
+                                {path.endsWith('.wtool') && (
+                                  <span className="shrink-0 inline-flex px-1.5 py-0.5 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[9px] font-black uppercase tracking-widest leading-none items-center self-center">BIN</span>
+                                )}
+                              </div>
                               {(() => {
                                 const deployedDoc = deployedDocumentMap[path];
                                 const isDocMismatch = deployedDoc && currentDocTitle && deployedDoc !== currentDocTitle;

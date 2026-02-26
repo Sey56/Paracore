@@ -1,4 +1,4 @@
-// Watchdog: Generated Sentinel
+// Watchdog: Sentinel for OST_Walls
 // Generated from Visual Query Builder
 Watchdog(() =>
 {
@@ -68,11 +68,11 @@ Watchdog(() =>
         // Background Reporting (or Manual Gallery Run)
         if (elements.Count > 0)
         {
-            WatchdogReport($"Found {elements.Count} elements matching 'TestSentinel'", "warning", elements.Select(el => el.Id).ToList());
+            WatchdogReport($"Found {elements.Count} elements matching 'LengthChecker'", "warning", elements.Select(el => el.Id).ToList());
         }
         else
         {
-            WatchdogReport("No elements match 'TestSentinel'", "success");
+            WatchdogReport("No elements match 'LengthChecker'", "success");
         }
 
         // If running manually in Gallery (no action), also show results

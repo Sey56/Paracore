@@ -214,7 +214,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                         <div className="flex flex-col gap-3">
                                             <div className="flex justify-between items-center px-1">
                                                 <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none">
-                                                    {mode === 'sentinel' ? 'Sentinel ID' : 'Command Name'}
+                                                    {mode === 'sentinel' ? 'Sentinel Name' : 'Script Name'}
                                                 </label>
                                                 {isDuplicate && (
                                                     <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500 text-[10px] font-black text-white rounded-full animate-in slide-in-from-right-2">
@@ -348,7 +348,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                     <FontAwesomeIcon icon={mode === 'sentinel' ? faShieldHeart : (isReplacing ? faCogs : faPlus)} className="text-lg group-hover:scale-110 transition-transform" />
                                 )}
                                 <span className="uppercase tracking-[0.15em]">
-                                    {isSubmitting ? 'Processing...' : (mode === 'sentinel' ? (isReplacing ? 'Update Sentinel' : 'Create Sentinel') : (isReplacing ? 'Confirm Update' : 'Initialize Command'))}
+                                    {isSubmitting ? 'Processing...' : (mode === 'sentinel' ? (isReplacing ? 'Update Sentinel' : 'Create Sentinel') : (isReplacing ? 'Update Script' : 'Create Script'))}
                                 </span>
                             </button>
                         </div>

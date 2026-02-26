@@ -135,10 +135,10 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                                 <FontAwesomeIcon icon={getStatusIcon(w.status)} className={`${getStatusColor(w.status)} text-lg`} />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <div className="text-sm font-bold text-slate-100 dark:text-slate-800 leading-tight tracking-tight mb-0.5 flex items-center gap-1.5 min-w-0">
+                                <div className="text-sm font-bold text-slate-100 dark:text-slate-800 leading-tight tracking-tight mb-0.5 flex flex-wrap items-center gap-2 min-w-0">
                                     <span className="truncate">{w.script_name.replace(/\.(wtool|ptool|cs)$/i, '')}</span>
                                     {w.script_name.endsWith('.wtool') && (
-                                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-violet-500/20 text-violet-400 dark:text-violet-500 text-[8px] font-black uppercase tracking-widest">BIN</span>
+                                        <span className="shrink-0 inline-flex px-1.5 py-0.5 rounded-md bg-violet-500/20 text-violet-400 dark:text-violet-500 text-[8px] font-black uppercase tracking-widest leading-none items-center self-center">BIN</span>
                                     )}
                                     {(() => {
                                         const deployedDoc = deployedDocumentMap[normalize(w.script_path)];

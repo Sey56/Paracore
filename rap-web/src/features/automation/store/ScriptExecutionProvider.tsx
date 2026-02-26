@@ -26,6 +26,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     fetchScriptMetadata,
     setCombinedScriptContent,
     updateScriptLastRunTime,
+    updateScriptModificationTime,
     selectedFolder,
     loadScriptsForFolder: loadScriptsFromPath,
     activeSyncSessions
@@ -111,6 +112,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (sessionData && sessionData.last_modified) {
         const lastSeen = lastKnownModifiedRef.current[normalizedPath] || 0;
         if (sessionData.last_modified > lastSeen) {
+          updateScriptModificationTime(selectedScript.id);
           setSelectedScript(selectedScript, 'refresh');
           lastKnownModifiedRef.current[normalizedPath] = sessionData.last_modified;
         }
@@ -160,6 +162,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     if (source === 'replace') {
       clearParameterCache(script.id);
+      updateScriptModificationTime(script.id);
     }
 
     if (source === 'user' && selectedScriptRef.current?.id === script.id && selectedScriptRef.current.parameters?.length > 0) {

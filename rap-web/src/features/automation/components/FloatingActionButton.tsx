@@ -165,23 +165,29 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
     ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
     : !isWatchdogInitialized
       ? 'bg-gray-500 hover:bg-gray-600'
-      : hasIssuesInternal
-        ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
-        : 'bg-green-500 hover:bg-green-600';
+      : watchdogs.length === 0
+        ? 'bg-gray-500 hover:bg-gray-600'
+        : hasIssuesInternal
+          ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
+          : 'bg-green-500 hover:bg-green-600';
 
   const fabText = !isWatchdogInitialized
     ? "Loading..."
     : isArmingWatchdogs
       ? "Initializing..."
-      : isHealthy
-        ? "System Healthy"
-        : `${watchdogs.length} Active`;
+      : watchdogs.length === 0
+        ? "Idle"
+        : isHealthy
+          ? "System Healthy"
+          : `${watchdogs.length} Active`;
 
   const fabIcon = !isWatchdogInitialized || isArmingWatchdogs
     ? faSpinner
-    : isHealthy
-      ? faCheckCircle
-      : faShieldHeart;
+    : watchdogs.length === 0
+      ? faShieldHeart
+      : isHealthy
+        ? faCheckCircle
+        : faShieldHeart;
 
   return (
     <div

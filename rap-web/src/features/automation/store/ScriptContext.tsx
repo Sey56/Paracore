@@ -27,6 +27,7 @@ export interface ScriptContextProps {
   clearRecentScripts: () => void;
   lastRunTimes: Record<string, string>;
   updateScriptLastRunTime: (scriptId: string) => void;
+  updateScriptModificationTime: (scriptId: string) => void;
 
   // Sync & Active State
   isSyncActive: (scriptPath: string) => boolean;
