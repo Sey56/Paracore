@@ -38,6 +38,7 @@ message UnregisterWatchdogSourceResponse {
 
 message RegisterWatchdogSourceRequest {
   string path = 1;
+  bytes parameters_json = 2;
 }
 
 message RegisterWatchdogSourceResponse {
@@ -206,6 +207,9 @@ message ScriptMetadata {
   string last_run = 11;
   bool is_protected = 12;           
   bool is_compiled = 13;            
+  bool is_watchdog = 14;
+  string date_created = 15;
+  string date_modified = 16;
 }
 
 

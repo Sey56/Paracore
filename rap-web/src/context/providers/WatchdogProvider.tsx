@@ -126,7 +126,19 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             try {
                 const res = await api.get('/api/watchdogs');
                 if (res.data) {
-                    setWatchdogs(Array.isArray(res.data.watchdogs) ? res.data.watchdogs : []);
+                    const rawWatchdogs: WatchdogStatus[] = Array.isArray(res.data.watchdogs) ? res.data.watchdogs : [];
+
+                    // Deduplicate by normalized script_path, keeping the latest entry per path
+                    const deduped = new Map<string, WatchdogStatus>();
+                    for (const w of rawWatchdogs) {
+                        const key = normalize(w.script_path);
+                        const existing = deduped.get(key);
+                        if (!existing || new Date(w.timestamp) > new Date(existing.timestamp)) {
+                            deduped.set(key, w);
+                        }
+                    }
+                    setWatchdogs(Array.from(deduped.values()));
+
                     setFailedWatchdogs(Array.isArray(res.data.failed_watchdogs) ? res.data.failed_watchdogs : []);
                 }
             } catch (err) { }

@@ -200,10 +200,19 @@ pub fn main() {
         })
         .on_window_event(|event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event.event() {
-                // Prevent the window from closing immediately
+                let window = event.window().clone();
+                let label = window.label().to_string();
+
+                // Sentinel control window: just hide it, don't kill the app
+                if label == "sentinel-control" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                    return;
+                }
+
+                // Main window: clean up server process and exit
                 api.prevent_close();
 
-                let window = event.window().clone();
                 let app_handle = event.window().app_handle();
                 let state: State<AppState> = app_handle.state();
                 
