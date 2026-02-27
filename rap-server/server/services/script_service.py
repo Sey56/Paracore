@@ -349,7 +349,9 @@ async def get_script_content_logic(script_path: str):
                 with open(fp, 'r', encoding='utf-8-sig') as f: script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
         if not script_files: return {"sourceCode": "// No scripts found."}
         res = grpc_client.get_combined_script(script_files)
-        clean_code = re.sub(r'^#line\s+\d+.*(?:\r?\n|$)', '', res.get("combined_script", ""), flags=re.MULTILINE).strip()
+        clean_code = re.sub(r'^#line\s+\d+.*(?:\r?\n|$)', '', res.get("combined_script", ""), flags=re.MULTILINE)
+        clean_code = re.sub(r'^[ \t]+$', '', clean_code, flags=re.MULTILINE)
+        clean_code = re.sub(r'\n{3,}', '\n\n', clean_code).strip()
         return {"sourceCode": clean_code}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 

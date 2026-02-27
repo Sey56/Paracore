@@ -235,18 +235,36 @@ export const TopBar: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-white uppercase tracking-[0.2em]">Paracore</h2>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Paracore v4.0.0</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Intelligent Revit Automation</p>
           </div>
-          <div className="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <div className="flex justify-between items-center text-[11px] font-bold">
-              <span className="text-slate-400 uppercase">Developer</span>
-              <span className="text-slate-700 dark:text-slate-200">Paras Codarch</span>
+
+          <div className="space-y-2 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 text-left">
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-slate-400 uppercase tracking-tighter">Developer</span>
+              <span className="text-slate-700 dark:text-slate-200">Paras Codarch (Ethiopia)</span>
             </div>
-            <div className="flex justify-between items-center text-[11px] font-bold">
-              <span className="text-slate-400 uppercase">Region</span>
-              <span className="text-slate-700 dark:text-slate-200">Ethiopia</span>
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-slate-400 uppercase tracking-tighter">Paracore App</span>
+              <span className="text-slate-700 dark:text-slate-200 italic font-mono">v4.0.0</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-slate-400 uppercase tracking-tighter">Paracore Addin</span>
+              <span className="text-slate-700 dark:text-slate-200 italic font-mono">v4.0.0</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-slate-400 uppercase tracking-tighter">Revit Version</span>
+              <span className="text-slate-700 dark:text-slate-200 italic font-mono">2025+</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-slate-400 uppercase tracking-tighter">Framework</span>
+              <span className="text-slate-700 dark:text-slate-200 italic font-mono">Tauri v1.6.0</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold border-t border-slate-200 dark:border-slate-800 pt-2 mt-2">
+              <span className="text-slate-400 uppercase tracking-tighter">License</span>
+              <span className="text-slate-700 dark:text-slate-200 uppercase font-black text-[9px] tracking-widest px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">MIT</span>
             </div>
           </div>
+
           <button
             onClick={() => shell.open('https://sey56.github.io/paracore-help')}
             className="w-full py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
