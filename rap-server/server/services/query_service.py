@@ -45,8 +45,11 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     param_fields = []
     seen_props = set()
     for rule in all_filter_rules:
-        prop_name = rule["name"]
+        # Strip the disambiguation suffix if present (e.g., "Level [Reference]")
+        raw_name = rule["name"]
+        prop_name = re.sub(r'\s+\[.*?\]$', '', raw_name)
         prop_id = prop_name.replace(" ", "")
+        
         if prop_id in seen_props: continue
         seen_props.add(prop_id)
         
@@ -118,7 +121,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             else:
                 storage = child["storage_type"]
                 op = child["operator"]
-                prop_name = child["name"]
+                raw_name = child["name"]
+                prop_name = re.sub(r'\s+\[.*?\]$', '', raw_name)
                 prop_id = prop_name.replace(" ", "")
                 
                 if child.get("is_builtin") and child.get("builtin_id"):
@@ -129,7 +133,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                         param_id = f"new ElementId((BuiltInParameter)({child['builtin_id']}))"
                 else:
                     uses_get_param_id = True
-                    param_id = f"GetParamId(Doc, \"{prop_name}\")"
+                    param_id = f"GetParamId(Doc, \"{raw_name}\")"
 
                 evaluator = "new FilterNumericEquals()"
                 if op == "!=": evaluator = "new FilterNumericGreater()" 
@@ -234,7 +238,9 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             reporting_columns.append(col)
 
     for col in reporting_columns:
-        p_name = col["name"]; p_id = p_name.replace(" ", ""); storage = col["storage_type"]; unit = col.get("unit")
+        raw_name = col["name"]
+        p_name = re.sub(r'\s+\[.*?\]$', '', raw_name)
+        p_id = p_name.replace(" ", ""); storage = col["storage_type"]; unit = col.get("unit")
         if p_name == "Family Name": val_expr = "el.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM)?.AsValueString() ?? el.Name"
         elif p_name == "Type Name": val_expr = "el.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)?.AsValueString() ?? el.Name"
         elif col.get("is_builtin") and col.get("builtin_id"):
@@ -247,7 +253,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             elif storage == "String": val_expr = f"{getter}?.AsString() ?? \"-\""
             else: val_expr = f"{getter}?.AsValueString() ?? \"-\""
         else:
-            getter = f"el.LookupParameter(\"{p_name}\")"
+            getter = f"el.LookupParameter(\"{raw_name}\")"
             val_expr = f"{getter}?.AsValueString() ?? \"-\""
         logic_parts.append(f"        object {p_id}Value = {val_expr};")
 
@@ -257,7 +263,9 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     logic_parts.append("            Id = el.Id.Value,")
     logic_parts.append("            el.Name,")
     for col in reporting_columns:
-        p_id = col["name"].replace(" ", "")
+        raw_name = col["name"]
+        p_name = re.sub(r'\s+\[.*?\]$', '', raw_name)
+        p_id = p_name.replace(" ", "")
         logic_parts.append(f"            {p_id} = {p_id}Value,")
     logic_parts.append("        };")
     logic_parts.append("    })];")

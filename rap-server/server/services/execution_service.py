@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
 import models
-from grpc_client import execute_script, pick_object, select_elements
+from grpc_client import execute_script, pick_object, select_elements, update_element_parameter, batch_update_element_parameters
 from utils import get_or_create_script, resolve_script_path
 
 async def run_script_logic(
@@ -147,5 +147,24 @@ async def pick_object_logic(selection_type: str, category_filter: Optional[str])
 async def select_elements_logic(element_ids: List[int]):
     try:
         return select_elements(element_ids)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def update_element_parameter_logic(element_id: int, parameter_name: str, new_value_string: str):
+    """
+    Service wrapper for updating a single element parameter via gRPC.
+    """
+    try:
+        return update_element_parameter(element_id, parameter_name, new_value_string)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def batch_update_element_parameters_logic(updates: list):
+    """
+    Service wrapper for updating multiple element parameters in a single transaction via gRPC.
+    `updates` is a list of dicts.
+    """
+    try:
+        return batch_update_element_parameters(updates)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

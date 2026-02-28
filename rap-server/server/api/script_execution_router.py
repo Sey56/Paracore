@@ -46,3 +46,23 @@ async def select_elements_endpoint(request: Request):
     element_ids = [int(eid) for eid in element_ids]
     response = await execution_service.select_elements_logic(element_ids)
     return JSONResponse(content=response)
+
+class UpdateElementParameterRequestModel(BaseModel):
+    element_id: int
+    parameter_name: str
+    new_value_string: str
+
+class BatchUpdateElementParametersRequestModel(BaseModel):
+    updates: list
+
+@router.post("/api/update-element-parameter", tags=["Script Execution"])
+async def update_element_parameter_endpoint(request: UpdateElementParameterRequestModel):
+    response = await execution_service.update_element_parameter_logic(
+        request.element_id, request.parameter_name, request.new_value_string
+    )
+    return JSONResponse(content=response)
+
+@router.post("/api/batch-update-element-parameters", tags=["Script Execution"])
+async def batch_update_element_parameters_endpoint(request: BatchUpdateElementParametersRequestModel):
+    response = await execution_service.batch_update_element_parameters_logic(request.updates)
+    return JSONResponse(content=response)

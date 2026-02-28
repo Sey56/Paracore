@@ -1,21 +1,27 @@
-# Paracore v4.0.0 — The "Source of Truth" Update
+# Paracore v4.0.0 — Achieving Model Quality at the Source
 
-V4.0.0 marks a major evolution in Paracore, moving from a temporary workspace model to a professional, permanent, and unified architecture.
+V4.0.0 transforms Paracore into a professional validation factory, shifting from a reactive script runner to an entire ecosystem enabling "Quality-at-the-Source" workflows.
 
-## 🏛️ One Source of Truth: Automated Workflow
-We have eliminated the complexity of manual script organization and file synchronization.
-*   **Zero-Manual-Management**: You no longer need to worry about complex folder structures. Just provide an empty folder as a "Script Source," and Paracore handles everything—initialization, scaffolding, and organization—automatically and transparently.
-*   **In-Place Scaffolding**: Clicking "Edit Script" now generates a full C# development environment (`csproj`, `sln`, `Globals`) directly within your script's folder. There are no temporary files; your development environment and your execution target are the same.
-*   **Unified Script Concept**: We've simplified authorship. Every automation is simply a **Script**. Whether it's a single file or a modular project with multiple files in a `Scripts/` folder, Paracore manages it with the same robust logic.
-*   **Immediate Execution**: Since there is now a single source of truth for your code, changes made in VS Code are immediately available for execution in Revit—no background sync or file-watchers required.
+## 🛡️ Sentinels: Enabling Quality Assurance at the Source
+Sentinels are the heartbeat of this release, providing the framework to move model validation to the early design stages.
+*   **Preventative Monitoring**: Build Watchdogs that identify compliance breaches in real-time, catching errors before they reach external coordination platforms.
+*   **Empowering Clean Models**: Paracore provides the complete environment to create, execute, and manage these live validation tools, eliminating large-scale rework and ensuring quality from day one.
 
-## 🌊 Major New Features
-*   **Visual Query Builder**: A professional logic engine for filtering Revit elements using complex AND/OR hierarchies without writing any code.
-*   **Sentinels (Watchdogs)**: Professional background monitoring with a dedicated Control Window and real-time Revit reporting.
-*   **Forge (Binary Compilation)**: Package your logic into sealed `.ptool` (Tools) or `.wtool` (Sentinels). For Sentinels, compilation ensures background monitoring is **extremely fast and ultra-efficient**, optimized for intensive data gathering tasks.
+## 🧠 Visual Query Builder: Automated Logic Generation
+The Visual Query Builder simplifies complex element targeting through automated C# logic generation.
+*   **No-Manual-Code Filtering**: Configure professional AND/OR hierarchies through a specialized UI that generates optimized filter logic automatically.
+*   **Precision Targeting**: Target elements with surgical precision based on categories, parameters, and types without writing a single line of manual code.
 
-## 💡 Pro Tip: Explore the Gold Standard
-The best way to see the V4 architecture in action is to download the [Paracore-Examples](https://github.com/Sey56/Paracore-Examples) repository. Simply load the folder into Paracore to explore dozens of production-ready automations instantly.
+## 🏛️ One Source of Truth: Unified Architecture
+We have unified the development and execution environments into a permanent, professional project structure.
+*   **Zero-Manual-Management**: Paracore automates the entire C# lifecycle—from initialization to professional scaffolding—transparently at the source.
+*   **Integrated Scaffolding**: Editing a script builds a permanent development environment (`csproj`, `sln`) directly within your project tree, ensuring zero synchronization lag.
+
+## ⚡ Performance & Examples
+*   **Forge (Binary Distribution)**: Package your logic into sealed `.ptool` (Automation) or `.wtool` (Sentinel) binaries for professional distribution. For Sentinels, Forge compilation supercharges performance—ensuring that live background validation remains ultra-efficient and highly optimized.
+*   **Modernized Library**: The [Paracore-Examples](https://github.com/Sey56/Paracore-Examples) repository has been fully upgraded to the V4 Standard, featuring starter templates for building your own custom automations and Sentinels.
+
+
 
 ---
 

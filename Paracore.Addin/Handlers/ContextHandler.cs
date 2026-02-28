@@ -651,13 +651,49 @@ namespace Paracore.Addin.Handlers
                         }
                     }
 
-                    // 3. Extract definitions
-                    var uniqueParams = parameters
-                        .GroupBy(p => p.Definition.Name)
+                    // 3. Extract definitions and resolve name collisions
+                    var allParams = parameters
+                        .GroupBy(p => p.Id) // Deduplicate by exact Revit Parameter ID first
                         .Select(g => g.First())
-                        .OrderBy(p => p.Definition.Name);
+                        .ToList();
 
-                    foreach (var p in uniqueParams)
+                    var nameGroups = allParams.GroupBy(p => p.Definition.Name).ToList();
+                    
+                    var finalizedParams = new List<Parameter>();
+                    var disambiguatedNames = new Dictionary<ElementId, string>();
+
+                    foreach (var group in nameGroups)
+                    {
+                        var groupList = group.ToList();
+                        if (groupList.Count == 1)
+                        {
+                            finalizedParams.Add(groupList[0]);
+                            disambiguatedNames[groupList[0].Id] = groupList[0].Definition.Name;
+                        }
+                        else
+                        {
+                            // Collision detected (e.g., multiple "Level" parameters)
+                            // We keep all of them, but disambiguate their UI name 
+                            // by appending the StorageType or BuiltIn status
+                            foreach (var p in groupList)
+                            {
+                                finalizedParams.Add(p);
+                                
+                                string suffix = p.StorageType.ToString();
+                                if (p.StorageType == StorageType.ElementId)
+                                {
+                                     // Better semantic suffix for ElementId
+                                     suffix = "Reference"; 
+                                }
+                                
+                                disambiguatedNames[p.Id] = $"{p.Definition.Name} [{suffix}]";
+                            }
+                        }
+                    }
+
+                    var sortedParams = finalizedParams.OrderBy(p => disambiguatedNames[p.Id]);
+
+                    foreach (var p in sortedParams)
                     {
                         string specId = "";
                         try {
@@ -666,7 +702,7 @@ namespace Paracore.Addin.Handlers
 
                         var def = new ParameterDefinition
                         {
-                            Name = p.Definition.Name,
+                            Name = disambiguatedNames[p.Id], 
                             StorageType = p.StorageType.ToString(),
                             IsBuiltin = p.IsShared == false && p.Id.Value < 0,
                             BuiltinId = (int)p.Id.Value,
@@ -703,6 +739,202 @@ namespace Paracore.Addin.Handlers
             catch (Exception ex)
             {
                 _logger.LogError($"[ContextHandler] GetCategoryParameters failed: {ex.Message}");
+                response.ErrorMessage = ex.Message;
+            }
+
+            return response;
+        }
+
+        public async Task<UpdateElementParameterResponse> UpdateElementParameter(UpdateElementParameterRequest request)
+        {
+            _logger.Log($"[ContextHandler] Entering UpdateElementParameter. ElementId: {request.ElementId}, Param: {request.ParameterName}, Value: {request.NewValueString}", LogLevel.Debug);
+            var response = new UpdateElementParameterResponse { IsSuccess = false };
+
+            if (_uiApp == null)
+            {
+                response.ErrorMessage = "Revit UI Application is not available.";
+                return response;
+            }
+
+            try
+            {
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
+                {
+                    var uidoc = _uiApp.ActiveUIDocument;
+                    if (uidoc == null) throw new Exception("No active document.");
+
+                    var doc = uidoc.Document;
+                    var element = doc.GetElement(new ElementId(request.ElementId));
+                    if (element == null) throw new Exception($"Element with ID {request.ElementId} not found.");
+
+                    Parameter? targetParam = element.LookupParameter(request.ParameterName);
+                    
+                    if (targetParam == null)
+                    {
+                        foreach (Parameter p in element.Parameters)
+                        {
+                            if (p.Definition.Name.Equals(request.ParameterName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                targetParam = p;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (targetParam == null) throw new Exception($"Parameter '{request.ParameterName}' not found on element {request.ElementId}.");
+                    if (targetParam.IsReadOnly) throw new Exception($"Parameter '{request.ParameterName}' is read-only.");
+
+                    using (Transaction t = new Transaction(doc, $"Paracore: Update {request.ParameterName}"))
+                    {
+                        t.Start();
+                        bool setSuccess = false;
+                        
+                        switch (targetParam.StorageType)
+                        {
+                            case StorageType.String:
+                                setSuccess = targetParam.Set(request.NewValueString ?? string.Empty);
+                                break;
+                            case StorageType.Integer:
+                                if (int.TryParse(request.NewValueString, out int intVal))
+                                    setSuccess = targetParam.Set(intVal);
+                                else
+                                    throw new Exception($"Cannot parse '{request.NewValueString}' as Integer.");
+                                break;
+                            case StorageType.Double:
+                                if (double.TryParse(request.NewValueString, out double doubleVal))
+                                    setSuccess = targetParam.Set(doubleVal);
+                                else
+                                    throw new Exception($"Cannot parse '{request.NewValueString}' as Double.");
+                                break;
+                            case StorageType.ElementId:
+                                if (long.TryParse(request.NewValueString, out long idVal))
+                                    setSuccess = targetParam.Set(new ElementId(idVal));
+                                else
+                                    throw new Exception($"Cannot parse '{request.NewValueString}' as ElementId.");
+                                break;
+                            default:
+                                throw new Exception($"Unsupported StorageType {targetParam.StorageType} for parameter '{request.ParameterName}'.");
+                        }
+
+                        if (!setSuccess)
+                        {
+                            throw new Exception($"Failed to set parameter '{request.ParameterName}' to '{request.NewValueString}'. Value might be out of range or invalid for this parameter type.");
+                        }
+
+                        t.Commit();
+                    }
+                    return true;
+                });
+
+                response.IsSuccess = true;
+                _logger.Log($"[ContextHandler] Successfully updated parameter '{request.ParameterName}' for Element {request.ElementId}.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[ContextHandler] UpdateElementParameter failed: {ex.Message}");
+                response.IsSuccess = false;
+                response.ErrorMessage = ex.Message;
+            }
+
+            return response;
+        }
+
+        public async Task<BatchUpdateElementParametersResponse> BatchUpdateElementParameters(BatchUpdateElementParametersRequest request)
+        {
+            _logger.Log($"[ContextHandler] Entering BatchUpdateElementParameters. Processing {request.Updates.Count} updates.", LogLevel.Debug);
+            var response = new BatchUpdateElementParametersResponse { IsSuccess = false };
+
+            if (_uiApp == null)
+            {
+                response.ErrorMessage = "Revit UI Application is not available.";
+                return response;
+            }
+
+            try
+            {
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
+                {
+                    var uidoc = _uiApp.ActiveUIDocument;
+                    if (uidoc == null) throw new Exception("No active document.");
+
+                    var doc = uidoc.Document;
+
+                    using (Transaction t = new Transaction(doc, "Paracore: Batch Parameter Update"))
+                    {
+                        t.Start();
+                        int processedCount = 0;
+
+                        foreach (var update in request.Updates)
+                        {
+                            var element = doc.GetElement(new ElementId(update.ElementId));
+                            if (element == null) throw new Exception($"Element {update.ElementId} not found.");
+
+                            Parameter? targetParam = element.LookupParameter(update.ParameterName);
+
+                            if (targetParam == null)
+                            {
+                                foreach (Parameter p in element.Parameters)
+                                {
+                                    if (p.Definition.Name.Equals(update.ParameterName, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        targetParam = p;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (targetParam == null) throw new Exception($"Parameter '{update.ParameterName}' not found on Element {update.ElementId}.");
+                            if (targetParam.IsReadOnly) throw new Exception($"Parameter '{update.ParameterName}' on Element {update.ElementId} is read-only.");
+
+                            bool setSuccess = false;
+
+                            switch (targetParam.StorageType)
+                            {
+                                case StorageType.String:
+                                    setSuccess = targetParam.Set(update.NewValueString ?? string.Empty);
+                                    break;
+                                case StorageType.Integer:
+                                    if (int.TryParse(update.NewValueString, out int intVal))
+                                        setSuccess = targetParam.Set(intVal);
+                                    else
+                                        throw new Exception($"Cannot parse '{update.NewValueString}' as Integer for Parameter '{update.ParameterName}' on Element {update.ElementId}.");
+                                    break;
+                                case StorageType.Double:
+                                    if (double.TryParse(update.NewValueString, out double doubleVal))
+                                        setSuccess = targetParam.Set(doubleVal);
+                                    else
+                                        throw new Exception($"Cannot parse '{update.NewValueString}' as Double for Parameter '{update.ParameterName}' on Element {update.ElementId}.");
+                                    break;
+                                case StorageType.ElementId:
+                                    if (long.TryParse(update.NewValueString, out long idVal))
+                                        setSuccess = targetParam.Set(new ElementId(idVal));
+                                    else
+                                        throw new Exception($"Cannot parse '{update.NewValueString}' as ElementId for Parameter '{update.ParameterName}' on Element {update.ElementId}.");
+                                    break;
+                                default:
+                                    throw new Exception($"Unsupported StorageType {targetParam.StorageType} for Parameter '{update.ParameterName}' on Element {update.ElementId}.");
+                            }
+
+                            if (!setSuccess)
+                            {
+                                throw new Exception($"Failed to set Parameter '{update.ParameterName}' on Element {update.ElementId}. Value might be out of range.");
+                            }
+
+                            processedCount++;
+                        }
+
+                        t.Commit();
+                        response.Count = processedCount;
+                        response.IsSuccess = true;
+                        _logger.Log($"[ContextHandler] Atomic batch update successful. Total updates: {processedCount}.", LogLevel.Info);
+                    }
+                    return true;
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[ContextHandler] BatchUpdateElementParameters failed: {ex.Message}");
+                response.IsSuccess = false;
                 response.ErrorMessage = ex.Message;
             }
 

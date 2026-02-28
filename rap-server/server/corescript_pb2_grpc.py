@@ -139,6 +139,16 @@ class CoreScriptRunnerStub(object):
                 request_serializer=corescript__pb2.UnregisterWatchdogSourceRequest.SerializeToString,
                 response_deserializer=corescript__pb2.UnregisterWatchdogSourceResponse.FromString,
                 _registered_method=True)
+        self.UpdateElementParameter = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/UpdateElementParameter',
+                request_serializer=corescript__pb2.UpdateElementParameterRequest.SerializeToString,
+                response_deserializer=corescript__pb2.UpdateElementParameterResponse.FromString,
+                _registered_method=True)
+        self.BatchUpdateElementParameters = channel.unary_unary(
+                '/CoreScript.CoreScriptRunner/BatchUpdateElementParameters',
+                request_serializer=corescript__pb2.BatchUpdateElementParametersRequest.SerializeToString,
+                response_deserializer=corescript__pb2.BatchUpdateElementParametersResponse.FromString,
+                _registered_method=True)
 
 
 class CoreScriptRunnerServicer(object):
@@ -270,6 +280,19 @@ class CoreScriptRunnerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UpdateElementParameter(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def BatchUpdateElementParameters(self, request, context):
+        """New V4 Data Grid Feature: Mass Single-Transaction Edit
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreScriptRunnerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -377,6 +400,16 @@ def add_CoreScriptRunnerServicer_to_server(servicer, server):
                     servicer.UnregisterWatchdogSource,
                     request_deserializer=corescript__pb2.UnregisterWatchdogSourceRequest.FromString,
                     response_serializer=corescript__pb2.UnregisterWatchdogSourceResponse.SerializeToString,
+            ),
+            'UpdateElementParameter': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateElementParameter,
+                    request_deserializer=corescript__pb2.UpdateElementParameterRequest.FromString,
+                    response_serializer=corescript__pb2.UpdateElementParameterResponse.SerializeToString,
+            ),
+            'BatchUpdateElementParameters': grpc.unary_unary_rpc_method_handler(
+                    servicer.BatchUpdateElementParameters,
+                    request_deserializer=corescript__pb2.BatchUpdateElementParametersRequest.FromString,
+                    response_serializer=corescript__pb2.BatchUpdateElementParametersResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -946,6 +979,60 @@ class CoreScriptRunner(object):
             '/CoreScript.CoreScriptRunner/UnregisterWatchdogSource',
             corescript__pb2.UnregisterWatchdogSourceRequest.SerializeToString,
             corescript__pb2.UnregisterWatchdogSourceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateElementParameter(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/UpdateElementParameter',
+            corescript__pb2.UpdateElementParameterRequest.SerializeToString,
+            corescript__pb2.UpdateElementParameterResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def BatchUpdateElementParameters(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.CoreScriptRunner/BatchUpdateElementParameters',
+            corescript__pb2.BatchUpdateElementParametersRequest.SerializeToString,
+            corescript__pb2.BatchUpdateElementParametersResponse.FromString,
             options,
             channel_credentials,
             insecure,

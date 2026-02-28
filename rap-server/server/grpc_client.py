@@ -497,6 +497,71 @@ def select_elements(element_ids: list[int]):
                 "error_message": f"Unexpected error: {str(e)}"
             }
 
+def update_element_parameter(element_id: int, parameter_name: str, new_value_string: str):
+    """
+    Calls the gRPC service to update a parameter on a specific element.
+    """
+    logging.info(f"Attempting to update parameter '{parameter_name}' on element {element_id} via gRPC.")
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.UpdateElementParameterRequest(
+                element_id=element_id,
+                parameter_name=parameter_name,
+                new_value_string=new_value_string
+            )
+            response = stub.UpdateElementParameter(request)
+            return {
+                "is_success": response.is_success,
+                "error_message": response.error_message
+            }
+    except grpc.RpcError as e:
+        logging.error(format_grpc_error(e))
+        return {
+            "is_success": False,
+            "error_message": f"gRPC error: {e.details()}"
+        }
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during gRPC UpdateElementParameter call: {e}")
+        return {
+            "is_success": False,
+            "error_message": f"Unexpected error: {str(e)}"
+        }
+
+def batch_update_element_parameters(updates: list):
+    """
+    Calls the gRPC service to update multiple parameters in a single transaction.
+    `updates` is a list of dicts: [{'element_id': int, 'parameter_name': str, 'new_value_string': str}]
+    """
+    logging.info(f"Attempting to batch update {len(updates)} parameters via gRPC.")
+    try:
+        with get_corescript_runner_stub() as stub:
+            proto_items = [
+                corescript_pb2.ParameterUpdateItem(
+                    element_id=int(u["element_id"]),
+                    parameter_name=str(u["parameter_name"]),
+                    new_value_string=str(u["new_value_string"])
+                ) for u in updates
+            ]
+            request = corescript_pb2.BatchUpdateElementParametersRequest(updates=proto_items)
+            response = stub.BatchUpdateElementParameters(request)
+            return {
+                "is_success": response.is_success,
+                "error_message": response.error_message,
+                "count": response.count
+            }
+    except grpc.RpcError as e:
+        logging.error(format_grpc_error(e))
+        return {
+            "is_success": False,
+            "error_message": f"gRPC error: {e.details()}"
+        }
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during gRPC BatchUpdateElementParameters call: {e}")
+        return {
+            "is_success": False,
+            "error_message": f"Unexpected error: {str(e)}"
+        }
+
 def pick_object(selection_type: str, category_filter: str = None):
     """
     Calls the gRPC service to let the user pick an object in Revit.

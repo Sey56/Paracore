@@ -158,5 +158,15 @@ namespace Paracore.Addin.Services
         {
             return _executionHandler.UnregisterWatchdogSource(request);
         }
+
+        public override Task<UpdateElementParameterResponse> UpdateElementParameter(UpdateElementParameterRequest request, ServerCallContext context)
+        {
+            return _contextHandler.UpdateElementParameter(request);
+        }
+
+        public override Task<BatchUpdateElementParametersResponse> BatchUpdateElementParameters(BatchUpdateElementParametersRequest request, ServerCallContext context)
+        {
+            return _contextHandler.BatchUpdateElementParameters(request);
+        }
     }
 }
