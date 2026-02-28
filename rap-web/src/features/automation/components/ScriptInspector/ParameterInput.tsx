@@ -244,19 +244,31 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
         </div>
 
         {param.requiresCompute && onCompute && (
-          <button
-            onClick={() => onCompute(param.name)}
-            disabled={disabled || isComputing}
-            className={`ml-3 p-2 rounded-xl text-xs transition-all shadow-sm ${isComputing ? 'animate-pulse' : 'active:scale-90'} 
-               ${param.options && param.options.length > 0
-                ? "bg-white dark:bg-slate-800 text-slate-500 hover:text-blue-600 border border-slate-200 dark:border-slate-700"
-                : "bg-blue-600 text-white shadow-lg shadow-blue-500/20"}`}
-          >
-            <FontAwesomeIcon
-              icon={isComputing ? faSpinner : (isContextMismatch ? faExclamationTriangle : faSync)}
-              className={`${isComputing ? 'animate-spin' : ''}`}
-            />
-          </button>
+          <div className="relative group/compute ml-3">
+            <button
+              onClick={() => onCompute(param.name)}
+              disabled={disabled || isComputing}
+              className={`p-2 rounded-xl text-xs transition-all shadow-sm ${isComputing ? 'animate-pulse' : 'active:scale-90'} 
+                 ${param.options && param.options.length > 0
+                  ? "bg-white dark:bg-slate-800 text-slate-500 hover:text-blue-600 border border-slate-200 dark:border-slate-700"
+                  : "bg-blue-600 text-white shadow-lg shadow-blue-500/20"}`}
+            >
+              <FontAwesomeIcon
+                icon={isComputing ? faSpinner : (isContextMismatch ? faExclamationTriangle : faSync)}
+                className={`${isComputing ? 'animate-spin' : ''}`}
+              />
+            </button>
+            {isContextMismatch && !isComputing && (
+              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 border border-white/10 text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
+                <div className="text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest border-b border-white/5 pb-1">
+                  <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+                </div>
+                Data computed in <span className="text-blue-400">'{param.computedInDocument}'</span>.
+                <br />
+                Re-compute for <span className="text-emerald-400">'{currentDocTitle}'</span> to ensure accuracy.
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -458,20 +470,32 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           {renderInput()}
         </div>
         {param.requiresCompute && onCompute && !param.multiSelect && (
-          <button
-            onClick={() => onCompute(param.name)}
-            disabled={disabled || isComputing}
-            className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border transition-all active:scale-90
-              ${isComputing ? 'animate-pulse bg-blue-50 dark:bg-blue-900/20' : ''}
-              ${param.options && param.options.length > 0
-                ? "bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500"
-                : "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"}`}
-          >
-            <FontAwesomeIcon
-              icon={isComputing ? faSpinner : (isContextMismatch ? faExclamationTriangle : faSync)}
-              className={`${isComputing ? 'animate-spin' : ''} ${isContextMismatch ? 'text-amber-500' : ''}`}
-            />
-          </button>
+          <div className="relative group/compute">
+            <button
+              onClick={() => onCompute(param.name)}
+              disabled={disabled || isComputing}
+              className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border transition-all active:scale-90
+                ${isComputing ? 'animate-pulse bg-blue-50 dark:bg-blue-900/20' : ''}
+                ${param.options && param.options.length > 0
+                  ? "bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500"
+                  : "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"}`}
+            >
+              <FontAwesomeIcon
+                icon={isComputing ? faSpinner : (isContextMismatch ? faExclamationTriangle : faSync)}
+                className={`${isComputing ? 'animate-spin' : ''} ${isContextMismatch ? 'text-amber-500' : ''}`}
+              />
+            </button>
+            {isContextMismatch && !isComputing && (
+              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 border border-white/10 text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
+                <div className="text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest border-b border-white/5 pb-1">
+                  <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+                </div>
+                Data computed in <span className="text-blue-400">'{param.computedInDocument}'</span>.
+                <br />
+                Re-compute for <span className="text-emerald-400">'{currentDocTitle}'</span> to ensure accuracy.
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

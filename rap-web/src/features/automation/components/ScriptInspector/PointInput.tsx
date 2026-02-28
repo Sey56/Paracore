@@ -63,19 +63,28 @@ export const PointInput: React.FC<PointInputProps> = ({ value, onChange, onPick,
         ))}
       </div>
 
-      <button
-        onClick={onPick}
-        disabled={disabled || isPicking}
-        className={`w-9 h-9 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors flex-shrink-0 p-0 ${isPicking ? 'animate-pulse' : ''}`}
-        title={isContextMismatch
-          ? `Picked in '${computedInDocument}'. Click to re-pick for '${revitStatus.document}'.`
-          : "Pick Point in Revit"}
-      >
-        <FontAwesomeIcon
-          icon={isContextMismatch ? faExclamationTriangle : faCrosshairs}
-          className={isContextMismatch ? 'text-amber-500' : ''}
-        />
-      </button>
+      <div className="relative group/pick">
+        <button
+          onClick={onPick}
+          disabled={disabled || isPicking}
+          className={`w-9 h-9 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors flex-shrink-0 p-0 ${isPicking ? 'animate-pulse' : ''}`}
+        >
+          <FontAwesomeIcon
+            icon={isContextMismatch ? faExclamationTriangle : faCrosshairs}
+            className={isContextMismatch ? 'text-amber-500' : ''}
+          />
+        </button>
+        {isContextMismatch && !isPicking && (
+          <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 border border-white/10 text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/pick:opacity-100 group-hover/pick:visible transition-all duration-300 transform translate-y-1 group-hover/pick:translate-y-0 pointer-events-none">
+            <div className="text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest border-b border-white/5 pb-1">
+              <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+            </div>
+            Point picked in <span className="text-blue-400">'{computedInDocument}'</span>.
+            <br />
+            Click to re-pick for <span className="text-emerald-400">'{revitStatus.document}'</span>.
+          </div>
+        )}
+      </div>
     </div>
   );
 };
