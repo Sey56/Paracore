@@ -147,6 +147,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         target_folder: selectedFolder,
                         category_name: sentinelConfig.category,
                         root_group: sentinelConfig.rootGroup,
+                        selected_columns: sentinelConfig.selectedColumns,
                         scope: sentinelConfig.scope
                     });
                     if (response.data.success) {

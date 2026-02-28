@@ -23,7 +23,7 @@ interface VisualQueryBuilderProps {
     selectedColumns: QueryRule[];
     scope?: 'project' | 'selection';
   };
-  onConfigChange?: (config: { category: string, rootGroup: QueryGroup, scope: string }) => void;
+  onConfigChange?: (config: { category: string, rootGroup: QueryGroup, selectedColumns: QueryRule[], scope: string }) => void;
   isWatchdog?: boolean;
   name?: string;
   description?: string;

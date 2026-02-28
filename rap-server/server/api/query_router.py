@@ -45,6 +45,7 @@ class SaveAsWatchdogRequest(BaseModel):
     target_folder: str
     category_name: str
     root_group: QueryGroup
+    selected_columns: Optional[List[QueryRule]] = None
     scope: str = "project"
 
 @router.get("/all-categories")
@@ -68,6 +69,7 @@ async def get_params(category_name: str):
 async def generate_code(request: GenerateQueryRequest):
     try:
         root_dict = request.root_group.dict()
+        cols_dict = [c.dict() for c in request.selected_columns] if request.selected_columns else []
         
         if request.is_watchdog:
             from services.query_to_watchdog import generate_watchdog_script_content
@@ -76,17 +78,17 @@ async def generate_code(request: GenerateQueryRequest):
                 request.description or "Generated Sentinel",
                 request.category_name,
                 root_dict,
+                cols_dict,
                 request.scope
             )
             # Re-run standard generation to get the parameters list for the UI
-            standard = query_service.generate_query_code(request.category_name, root_dict, [], request.scope)
+            standard = query_service.generate_query_code(request.category_name, root_dict, cols_dict, request.scope)
             
             return {
                 "logic": content,
                 "params": standard["params"]
             }
 
-        cols_dict = [c.dict() for c in request.selected_columns] if request.selected_columns else None
         return query_service.generate_query_code(request.category_name, root_dict, cols_dict, request.scope)
     except Exception as e:
         print(f"Error in generate_code: {traceback.format_exc()}")
@@ -99,12 +101,14 @@ async def save_as_watchdog(request: SaveAsWatchdogRequest):
     """
     try:
         root_dict = request.root_group.dict()
+        cols_dict = [c.dict() for c in request.selected_columns] if request.selected_columns else []
         return await generate_watchdog_script(
             request.name,
             request.description,
             request.target_folder,
             request.category_name,
             root_dict,
+            cols_dict,
             request.scope
         )
     except Exception as e:

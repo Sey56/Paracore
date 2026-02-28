@@ -258,11 +258,19 @@ async def update_metadata(request: UpdateMetadataRequest, current_user: CurrentU
         with open(main_file, 'r', encoding='utf-8-sig') as f:
             content = f.read()
 
-        metadata_pattern = r'^/\*[\s\S]*?\*/\s*'
-        if re.match(metadata_pattern, content):
-            updated = re.sub(metadata_pattern, request.metadata_block + '\n', content, count=1)
+        # V4 ELITE: Robust metadata replacement. Matches the block even if preceded by BOM/whitespace.
+        metadata_pattern = r'/\*[\s\S]*?\*/'
+        # Search only in the first 2000 chars to target the header block
+        match = re.search(metadata_pattern, content[:2000])
+
+        if match:
+            # Replace the found block and preserve surrounding text
+            # We add \n\n to ensure an empty line exists before the script content
+            # .lstrip() ensures we don't end up with more than one empty line
+            updated = content[:match.start()] + request.metadata_block + '\n\n' + content[match.end():].lstrip()
         else:
-            updated = request.metadata_block + '\n' + content
+            # Prepend to the top
+            updated = request.metadata_block + '\n\n' + content
 
         with open(main_file, 'w', encoding='utf-8') as f:
             f.write(updated)

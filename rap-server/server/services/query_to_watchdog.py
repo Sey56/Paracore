@@ -8,13 +8,14 @@ async def generate_watchdog_script_content(
     description: str,
     category_name: str,
     root_group: Dict[str, Any],
+    selected_columns: Optional[List[Dict[str, Any]]] = None,
     scope: str = "project"
 ) -> str:
     """
     Generates the C# source code for a Watchdog script.
     """
     # 1. Generate the standard query code
-    query_code = query_service.generate_query_code(category_name, root_group, selected_columns=[], scope=scope)
+    query_code = query_service.generate_query_code(category_name, root_group, selected_columns=selected_columns or [], scope=scope)
     
     # Split logic into filtering and output parts BEFORE indentation
     raw_logic = query_code["logic"]
@@ -108,12 +109,13 @@ async def generate_watchdog_script(
     target_folder: str,
     category_name: str, 
     root_group: Dict[str, Any], 
+    selected_columns: Optional[List[Dict[str, Any]]] = None,
     scope: str = "project"
 ) -> Dict[str, Any]:
     """
     Generates and saves a Watchdog script.
     """
-    script_content = await generate_watchdog_script_content(name, description, category_name, root_group, scope)
+    script_content = await generate_watchdog_script_content(name, description, category_name, root_group, selected_columns, scope)
 
     # 4. Save the script
     clean_name = "".join(x for x in name if x.isalnum() or x in " _-")

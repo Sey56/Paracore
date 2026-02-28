@@ -19,7 +19,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     userEditedScriptParameters
   } = useScriptExecution();
 
-  const { toggleFavoriteScript, deleteScript, isSyncActive } = useScripts();
+  const { toggleFavoriteScript, deleteScript, isSyncActive, reloadScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { isAuthenticated, activeRole, user } = useAuth();
@@ -200,6 +200,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     toggleFloatingCodeViewer,
     isAuthenticated,
     activeRole,
-    ParacoreConnected
+    ParacoreConnected,
+    reloadScript
   };
 };

@@ -10,7 +10,7 @@ export const useQueryBuilderLogic = (
     selectedColumns: QueryRule[];
     scope?: 'project' | 'selection';
   },
-  onConfigChange?: (config: { category: string, rootGroup: QueryGroup, scope: string }) => void,
+  onConfigChange?: (config: { category: string, rootGroup: QueryGroup, selectedColumns: QueryRule[], scope: string }) => void,
   isWatchdog: boolean = false,
   name?: string,
   description?: string
@@ -39,9 +39,9 @@ export const useQueryBuilderLogic = (
 
   useEffect(() => {
     if (onConfigChange) {
-      onConfigChange({ category, rootGroup, scope });
+      onConfigChange({ category, rootGroup, selectedColumns, scope });
     }
-  }, [category, rootGroup, scope, onConfigChange]);
+  }, [category, rootGroup, selectedColumns, scope, onConfigChange]);
 
   useEffect(() => {
     if (initialState) {

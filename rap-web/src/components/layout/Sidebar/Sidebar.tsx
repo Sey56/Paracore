@@ -25,7 +25,7 @@ import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { Script, TeamScriptSource } from '@/types/index';
 import { Role } from '@/features/auth';
 
-import { getFolderNameFromPath } from '@/utils/pathHelpers';
+import { getFolderNameFromPath, normalizePath } from '@/utils/pathHelpers';
 import api from '@/api/axios';
 
 // Sub-components
@@ -175,7 +175,7 @@ export const Sidebar = () => {
     try {
       if (sourceToRemove.id === 0 && sourceToRemove.path) {
         removeCustomScriptFolder(sourceToRemove.path);
-        if (activeScriptSource?.type === 'local' && activeScriptSource.path === sourceToRemove.path) {
+        if (activeScriptSource?.type === 'local' && normalizePath(activeScriptSource.path || "") === normalizePath(sourceToRemove.path)) {
           setActiveScriptSource(null);
           setSelectedScript(null);
           clearScriptsForSource(sourceToRemove.path);
@@ -274,7 +274,13 @@ export const Sidebar = () => {
       clearAllCustomScriptFolders();
       showNotification("Local folders cleared.", "success");
     } else if (clearActionType === 'team-sources') {
-      Object.keys(userSourcePaths).forEach(id => removeSourcePath(id));
+      // V5: Preservation logic for Team Sources
+      const activeSourceId = activeScriptSource?.type === 'team' ? activeScriptSource.id : null;
+      Object.keys(userSourcePaths).forEach(id => {
+        if (id !== activeSourceId) {
+          removeSourcePath(id);
+        }
+      });
       showNotification("Team sources cleared.", "success");
     }
     setIsClearConfirmModalOpen(false);

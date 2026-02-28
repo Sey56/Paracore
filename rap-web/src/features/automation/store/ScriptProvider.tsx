@@ -11,6 +11,7 @@ import { getRemoteSources } from '@/features/auth/services/rapAuthApiClient';
 import api from '@/api/axios';
 import { ScriptContext } from './ScriptContext';
 import { useUI } from '@/hooks/useUI';
+import { normalizePath } from '@/utils/pathHelpers';
 
 const silentApi = axios.create({ baseURL: 'http://localhost:8000' });
 
@@ -44,7 +45,6 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>(`agentScriptsPath_${stableUserId}`, null);
 
   const [isSystemReady, setIsSystemReady] = useState(false);
-  const normalizationHelper = (p: string) => (p || "").replace(/\\/g, '/').toLowerCase().trim();
 
   // 2. BOOTSTRAP: Ensure system is ready when user settles
   useEffect(() => {
@@ -58,19 +58,17 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // 3. HEALING: Ensure active source is always in the Sidebar list
   useEffect(() => {
-    const hasToken = !!localStorage.getItem('rap_cloud_token');
-    if (hasToken && stableUserId === 'anon') return;
     if (!isSystemReady || !activeScriptSource) return;
 
     if (activeScriptSource.type === 'local' && activeScriptSource.path) {
       const path = activeScriptSource.path;
-      const normPath = normalizationHelper(path);
-      if (!customScriptFolders.some(f => normalizationHelper(f) === normPath)) {
+      const normPath = normalizePath(path);
+      if (!customScriptFolders.some(f => normalizePath(f) === normPath)) {
         console.log("[ScriptProvider] 🩹 Healing: Restoring missing active source to Sidebar registry:", path);
         setCustomScriptFolders(prev => Array.from(new Set([...prev, path])));
       }
     }
-  }, [activeScriptSource, isSystemReady, customScriptFolders, setCustomScriptFolders, stableUserId]);
+  }, [activeScriptSource, isSystemReady, customScriptFolders, setCustomScriptFolders]);
 
   const setUserSourcePath = useCallback((sourceId: number, path: string, name: string) => {
     setUserSourcePaths(prev => ({ ...prev, [sourceId]: { path, name } }));
@@ -245,10 +243,30 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setCustomScriptFolders]);
 
   const removeCustomScriptFolder = useCallback((path: string) => {
-    setCustomScriptFolders(prev => prev.filter(p => p !== path));
-  }, [setCustomScriptFolders]);
+    const normTarget = normalizePath(path);
+    setCustomScriptFolders(prev => prev.filter(p => normalizePath(p) !== normTarget));
 
-  const clearAllCustomScriptFolders = useCallback(async () => setCustomScriptFolders([]), [setCustomScriptFolders]);
+    // Proactively clear active source to prevent the "Healing" useEffect from restoring it
+    if (activeScriptSource?.type === 'local' && normalizePath(activeScriptSource.path || "") === normTarget) {
+      setActiveScriptSource(null);
+      setScripts([]);
+    }
+  }, [setCustomScriptFolders, activeScriptSource, setActiveScriptSource, setScripts]);
+
+  const clearAllCustomScriptFolders = useCallback(async () => {
+    // V5: "Clear all Except Active" logic. 
+    // If a local source is currently active, preserve it in the list.
+    if (activeScriptSource?.type === 'local' && activeScriptSource.path) {
+      setCustomScriptFolders([activeScriptSource.path]);
+    } else {
+      setCustomScriptFolders([]);
+      // Only clear active source if it was local and we're force-clearing everything
+      if (activeScriptSource?.type === 'local') {
+        setActiveScriptSource(null);
+        setScripts([]);
+      }
+    }
+  }, [setCustomScriptFolders, activeScriptSource, setActiveScriptSource, setScripts]);
 
   const addRemoteScriptSource = useCallback(async (teamId: number, source: TeamScriptSource) => {
     await fetchRemoteScriptSources();
@@ -364,7 +382,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Normalize existenceMap for robust lookup
       const normalizedMap: Record<string, boolean> = {};
       Object.entries(existenceMap).forEach(([p, exists]) => {
-        normalizedMap[normalizationHelper(p)] = exists;
+        normalizedMap[normalizePath(p)] = exists;
       });
 
       // Reconciliation logic
@@ -372,7 +390,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // A. Heal local folders
       const validCustomFolders = customScriptFolders.filter(p => {
-        const exists = normalizedMap[normalizationHelper(p)];
+        const exists = normalizedMap[normalizePath(p)];
         if (exists === false) {
           console.log(`[ScriptProvider] 🩹 Auto-Healing: Removing stale local source: ${p}`);
           hasChanges = true;
@@ -386,7 +404,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       let newUserSourcePaths = { ...userSourcePaths };
       let userPathsChanged = false;
       Object.entries(userSourcePaths).forEach(([id, info]) => {
-        if (info.path && normalizedMap[normalizationHelper(info.path)] === false) {
+        if (info.path && normalizedMap[normalizePath(info.path)] === false) {
           console.log(`[ScriptProvider] 🩹 Auto-Healing: Removing stale team source link: ${info.path}`);
           delete newUserSourcePaths[Number(id)];
           userPathsChanged = true;
@@ -395,19 +413,19 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (userPathsChanged) setUserSourcePaths(newUserSourcePaths);
 
       // C. Heal tool library (Agent)
-      if (toolLibraryPath && normalizedMap[normalizationHelper(toolLibraryPath)] === false) {
+      if (toolLibraryPath && normalizedMap[normalizePath(toolLibraryPath)] === false) {
         console.log(`[ScriptProvider] 🩹 Auto-Healing: Clearing stale agent scripts path: ${toolLibraryPath}`);
         setToolLibraryPath(null);
       }
 
       // D. Active source mismatch
-      if (activeScriptSource?.type === 'local' && activeScriptSource.path && normalizedMap[normalizationHelper(activeScriptSource.path)] === false) {
+      if (activeScriptSource?.type === 'local' && activeScriptSource.path && normalizedMap[normalizePath(activeScriptSource.path)] === false) {
         console.log(`[ScriptProvider] 🩹 Auto-Healing: Reseting stale active source: ${activeScriptSource.path}`);
         setActiveScriptSource(null);
         setScripts([]);
       } else if (activeScriptSource?.type === 'team' && activeScriptSource.id) {
         const info = userSourcePaths[Number(activeScriptSource.id)];
-        if (info?.path && normalizedMap[normalizationHelper(info.path)] === false) {
+        if (info?.path && normalizedMap[normalizePath(info.path)] === false) {
           console.log(`[ScriptProvider] 🩹 Auto-Healing: Reseting stale active source (Team): ${info.path}`);
           setActiveScriptSource(null);
           setScripts([]);

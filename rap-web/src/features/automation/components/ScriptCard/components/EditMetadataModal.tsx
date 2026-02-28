@@ -14,7 +14,7 @@ interface EditMetadataModalProps {
 
 interface MetadataFields {
     documentType: string;
-    categories: string;
+    categories: string[];
     author: string;
     dependencies: string;
     description: string;
@@ -22,15 +22,26 @@ interface MetadataFields {
 
 const DOC_TYPES = ['Project', 'Family', 'ConceptualMass'];
 
-// Regex to match the /* ... */ metadata block at top of file
-const METADATA_BLOCK_REGEX = /^\/\*[\s\S]*?\*\/\s*/;
+// Regex to match the /* ... */ metadata block (no ^ anchor to allow BOM/whitespace)
+const METADATA_BLOCK_REGEX = /\/\*[\s\S]*?\*\//;
 
 function parseMetadataBlock(source: string): MetadataFields {
-    const match = source.match(METADATA_BLOCK_REGEX);
-    if (!match) return { documentType: 'Project', categories: '', author: '', dependencies: 'RevitAPI 2025+, Paracore.Addin', description: '' };
+    // We search only in the first 2000 chars to avoid scanning entire large files
+    const head = source.substring(0, 2000);
+    const match = head.match(METADATA_BLOCK_REGEX);
+
+    const defaults: MetadataFields = {
+        documentType: 'Project',
+        categories: [],
+        author: '',
+        dependencies: 'RevitAPI 2025+, Paracore.Addin',
+        description: ''
+    };
+
+    if (!match) return defaults;
 
     const block = match[0];
-    const fields: MetadataFields = { documentType: '', categories: '', author: '', dependencies: '', description: '' };
+    const fields: MetadataFields = { ...defaults };
 
     const content = block.replace(/^\/\*\s*/, '').replace(/\s*\*\/\s*$/, '');
     const lines = content.split(/\r?\n/).map(l => l.trim().replace(/^\*\s?/, ''));
@@ -41,13 +52,12 @@ function parseMetadataBlock(source: string): MetadataFields {
     const flushKey = () => {
         if (currentKey && currentValue.length > 0) {
             const val = currentValue.join('\n').trim();
-            switch (currentKey.toLowerCase().replace(/\s+/g, '')) {
-                case 'documenttype': fields.documentType = val; break;
-                case 'categories': fields.categories = val; break;
-                case 'author': fields.author = val; break;
-                case 'dependencies': fields.dependencies = val; break;
-                case 'description': fields.description = val; break;
-            }
+            const key = currentKey.toLowerCase().replace(/\s+/g, '');
+            if (key === 'documenttype') fields.documentType = val;
+            else if (key === 'categories') fields.categories = val.split(',').map(c => c.trim()).filter(Boolean);
+            else if (key === 'author') fields.author = val;
+            else if (key === 'dependencies') fields.dependencies = val;
+            else if (key === 'description') fields.description = val;
         }
         currentValue = [];
     };
@@ -65,13 +75,20 @@ function parseMetadataBlock(source: string): MetadataFields {
     }
     flushKey();
 
+    // Enforce valid DocTypes
+    if (!DOC_TYPES.includes(fields.documentType)) {
+        fields.documentType = 'Project';
+    }
+
     return fields;
 }
 
 function serializeMetadataBlock(fields: MetadataFields): string {
     const lines = ['/*'];
-    if (fields.documentType) lines.push(`DocumentType: ${fields.documentType}`);
-    if (fields.categories) lines.push(`Categories: ${fields.categories}`);
+    lines.push(`DocumentType: ${fields.documentType || 'Project'}`);
+    if (fields.categories && fields.categories.length > 0) {
+        lines.push(`Categories: ${fields.categories.join(', ')}`);
+    }
     if (fields.author) lines.push(`Author: ${fields.author}`);
     if (fields.dependencies) lines.push(`Dependencies: ${fields.dependencies}`);
     if (fields.description) {
@@ -79,7 +96,6 @@ function serializeMetadataBlock(fields: MetadataFields): string {
         lines.push('Description:');
         fields.description.split('\n').forEach(l => lines.push(l));
     }
-    lines.push('');
     lines.push('*/');
     return lines.join('\n');
 }
@@ -91,8 +107,8 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
     onSaved
 }) => {
     const [fields, setFields] = useState<MetadataFields>({
-        documentType: '',
-        categories: '',
+        documentType: 'Project',
+        categories: [],
         author: '',
         dependencies: '',
         description: ''
@@ -143,20 +159,17 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
         }
     };
 
-    const updateField = (key: keyof MetadataFields, value: string) => {
+    const updateField = (key: keyof MetadataFields, value: any) => {
         setFields(prev => ({ ...prev, [key]: value }));
     };
 
     // Category chip logic
-    const categoryList = fields.categories
-        .split(',')
-        .map(c => c.trim())
-        .filter(c => c.length > 0);
+    const categoryList = fields.categories;
 
     const removeCategory = (index: number) => {
         const updated = [...categoryList];
         updated.splice(index, 1);
-        updateField('categories', updated.join(', '));
+        updateField('categories', updated);
     };
 
     const [categoryInput, setCategoryInput] = useState('');
@@ -164,7 +177,7 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
         const trimmed = categoryInput.trim();
         if (!trimmed || categoryList.length >= 3) return;
         if (categoryList.includes(trimmed)) { setCategoryInput(''); return; }
-        updateField('categories', [...categoryList, trimmed].join(', '));
+        updateField('categories', [...categoryList, trimmed]);
         setCategoryInput('');
     };
 
@@ -198,13 +211,12 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
                                 onChange={(e) => updateField('documentType', e.target.value)}
                                 className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
                             >
-                                <option value="">Any (default)</option>
                                 {DOC_TYPES.map((dt) => (
                                     <option key={dt} value={dt}>{dt}</option>
                                 ))}
                             </select>
                             <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                                Restricts this {isGuard ? 'sentinel' : 'script'} to a specific Revit document environment. Leave empty for "Any".
+                                Restricts this {isGuard ? 'sentinel' : 'script'} to a specific Revit document environment.
                             </p>
                         </div>
 

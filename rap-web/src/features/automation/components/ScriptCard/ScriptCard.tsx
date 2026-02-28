@@ -74,7 +74,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     activeRole,
     toggleFloatingCodeViewer,
     showMetadataModal,
-    setShowMetadataModal
+    setShowMetadataModal,
+    reloadScript
   } = useScriptCard(script, onSelect);
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
@@ -112,7 +113,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
           onClose={() => setShowMetadataModal(false)}
           script={script}
           onSaved={() => {
-            // Metadata was saved — could trigger a reload if needed
+            console.log(`[ScriptCard] Metadata saved for ${script.name}. Reloading...`);
+            reloadScript(script);
           }}
         />
       )}

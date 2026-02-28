@@ -5,3 +5,5 @@ export const getFolderNameFromPath = (path: string) => {
   return parts.pop() || '';
 };
 
+export const normalizePath = (p: string) => (p || "").replace(/\\/g, '/').toLowerCase().trim();
+
