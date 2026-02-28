@@ -25,6 +25,8 @@ service CoreScriptRunner {
   rpc RegisterWatchdogSource (RegisterWatchdogSourceRequest) returns (RegisterWatchdogSourceResponse);
   rpc UnregisterWatchdogSource(UnregisterWatchdogSourceRequest) returns (UnregisterWatchdogSourceResponse);
   rpc UpdateElementParameter (UpdateElementParameterRequest) returns (UpdateElementParameterResponse);
+  // New V4 Data Grid Feature: Mass Single-Transaction Edit
+  rpc BatchUpdateElementParameters(BatchUpdateElementParametersRequest) returns (BatchUpdateElementParametersResponse);
 }
 
 message UnregisterWatchdogSourceRequest {
@@ -366,6 +368,22 @@ message BuildScriptResponse {
   bool is_success = 1;
   bytes compiled_assembly = 2;
   string error_message = 3;
+}
+
+message ParameterUpdateItem {
+  int32 element_id = 1;
+  string parameter_name = 2;
+  string new_value_string = 3;
+}
+
+message BatchUpdateElementParametersRequest {
+  repeated ParameterUpdateItem updates = 1;
+}
+
+message BatchUpdateElementParametersResponse {
+  bool is_success = 1;
+  string error_message = 2;
+  int32 count = 3;
 }
 
 message UpdateElementParameterRequest {

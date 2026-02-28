@@ -318,6 +318,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (err) { }
   }, []);
 
+  // 6. SYNC SESSION TRACKING
   const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, any>>({});
   const fetchActiveSyncSessions = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -342,6 +343,98 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const normalized = scriptPath.replace(/\\/g, '/').toLowerCase();
     return Object.keys(activeSyncSessions).some(key => key.replace(/\\/g, '/').toLowerCase() === normalized);
   }, [activeSyncSessions]);
+
+  // 7. STALE SOURCE RECONCILIATION (Auto-Healing)
+  const validateSources = useCallback(async () => {
+    if (!isSystemReady) return;
+
+    // Gather all local paths to validate
+    const localPaths = new Set<string>();
+    customScriptFolders.forEach(p => localPaths.add(p));
+    Object.values(userSourcePaths).forEach(s => { if (s.path) localPaths.add(s.path); });
+    if (toolLibraryPath) localPaths.add(toolLibraryPath);
+
+    if (localPaths.size === 0) return;
+
+    try {
+      console.log(`[ScriptProvider] 🔍 Validating ${localPaths.size} script source paths...`);
+      const resp = await api.post("/api/scripts/validate-sources", { paths: Array.from(localPaths) });
+      const existenceMap: Record<string, boolean> = resp.data;
+
+      // Normalize existenceMap for robust lookup
+      const normalizedMap: Record<string, boolean> = {};
+      Object.entries(existenceMap).forEach(([p, exists]) => {
+        normalizedMap[normalizationHelper(p)] = exists;
+      });
+
+      // Reconciliation logic
+      let hasChanges = false;
+
+      // A. Heal local folders
+      const validCustomFolders = customScriptFolders.filter(p => {
+        const exists = normalizedMap[normalizationHelper(p)];
+        if (exists === false) {
+          console.log(`[ScriptProvider] 🩹 Auto-Healing: Removing stale local source: ${p}`);
+          hasChanges = true;
+          return false;
+        }
+        return true;
+      });
+      if (hasChanges) setCustomScriptFolders(validCustomFolders);
+
+      // B. Heal user source paths (Teams)
+      let newUserSourcePaths = { ...userSourcePaths };
+      let userPathsChanged = false;
+      Object.entries(userSourcePaths).forEach(([id, info]) => {
+        if (info.path && normalizedMap[normalizationHelper(info.path)] === false) {
+          console.log(`[ScriptProvider] 🩹 Auto-Healing: Removing stale team source link: ${info.path}`);
+          delete newUserSourcePaths[Number(id)];
+          userPathsChanged = true;
+        }
+      });
+      if (userPathsChanged) setUserSourcePaths(newUserSourcePaths);
+
+      // C. Heal tool library (Agent)
+      if (toolLibraryPath && normalizedMap[normalizationHelper(toolLibraryPath)] === false) {
+        console.log(`[ScriptProvider] 🩹 Auto-Healing: Clearing stale agent scripts path: ${toolLibraryPath}`);
+        setToolLibraryPath(null);
+      }
+
+      // D. Active source mismatch
+      if (activeScriptSource?.type === 'local' && activeScriptSource.path && normalizedMap[normalizationHelper(activeScriptSource.path)] === false) {
+        console.log(`[ScriptProvider] 🩹 Auto-Healing: Reseting stale active source: ${activeScriptSource.path}`);
+        setActiveScriptSource(null);
+        setScripts([]);
+      } else if (activeScriptSource?.type === 'team' && activeScriptSource.id) {
+        const info = userSourcePaths[Number(activeScriptSource.id)];
+        if (info?.path && normalizedMap[normalizationHelper(info.path)] === false) {
+          console.log(`[ScriptProvider] 🩹 Auto-Healing: Reseting stale active source (Team): ${info.path}`);
+          setActiveScriptSource(null);
+          setScripts([]);
+        }
+      }
+
+    } catch (err) {
+      console.error("[ScriptProvider] Failed to validate sources:", err);
+    }
+  }, [isSystemReady, customScriptFolders, userSourcePaths, toolLibraryPath, activeScriptSource, setCustomScriptFolders, setUserSourcePaths, setToolLibraryPath, setActiveScriptSource]);
+
+  // Trigger Validation: Mount, Focus, and Interval
+  useEffect(() => {
+    if (!isSystemReady) return;
+
+    validateSources();
+
+    const handleFocus = () => validateSources();
+    window.addEventListener('focus', handleFocus);
+
+    const interval = setInterval(validateSources, 60000); // Every 60s
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, [isSystemReady, validateSources]);
 
   const contextValue = useMemo(() => ({
     scripts, setScripts, activeScriptSource, setActiveScriptSource,

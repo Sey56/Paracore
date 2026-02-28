@@ -57,7 +57,21 @@ class InitializeSourceRequest(BaseModel):
     path: str
     description: Optional[str] = None
 
+class ValidateSourcesRequest(BaseModel):
+    paths: List[str]
+
 # --- Endpoints ---
+
+@router.post("/api/scripts/validate-sources", tags=["Script Management"])
+async def validate_sources(request: ValidateSourcesRequest):
+    """
+    Checks which of the provided absolute paths still exist on the file system.
+    Used for auto-healing the Sidebar from stale entries.
+    """
+    results = {}
+    for p in request.paths:
+        results[p] = os.path.isdir(p)
+    return results
 
 @router.post("/api/scripts/initialize-source", tags=["Script Management"])
 async def initialize_source(request: InitializeSourceRequest):
