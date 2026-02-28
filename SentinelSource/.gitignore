@@ -1,4 +1,4 @@
-# Paracore Automation Pack - IDE Scaffolding Exclusions
+# Paracore Scaffolding
 **/bin/
 **/obj/
 **/*.csproj

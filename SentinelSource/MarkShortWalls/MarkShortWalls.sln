@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LengthChecker", "LengthChecker.csproj", "{562D296A-4C54-3B9E-CAF0-7287C9AD4362}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkShortWalls", "MarkShortWalls.csproj", "{4A928672-437D-E065-88A0-A2A707C89C41}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -10,15 +10,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{562D296A-4C54-3B9E-CAF0-7287C9AD4362}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{562D296A-4C54-3B9E-CAF0-7287C9AD4362}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{562D296A-4C54-3B9E-CAF0-7287C9AD4362}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{562D296A-4C54-3B9E-CAF0-7287C9AD4362}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A928672-437D-E065-88A0-A2A707C89C41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A928672-437D-E065-88A0-A2A707C89C41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A928672-437D-E065-88A0-A2A707C89C41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A928672-437D-E065-88A0-A2A707C89C41}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {20F20D5F-7038-43D0-954D-31EECE850C28}
+		SolutionGuid = {2B31CAAE-2B63-4A40-A64C-8A32A1D358E1}
 	EndGlobalSection
 EndGlobal
