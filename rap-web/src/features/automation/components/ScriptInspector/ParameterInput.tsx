@@ -372,7 +372,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
         <div className="flex items-center p-3 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50 transition-all">
           <ToggleSwitch checked={isChecked} onChange={(checked) => onChange(index, checked)} disabled={disabled} />
           <span className={`ml-4 text-xs font-bold uppercase tracking-[0.15em] ${isChecked ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500'}`}>
-            {isChecked ? 'Active' : 'Offline'}
+            {isChecked ? 'On' : 'Off'}
           </span>
         </div>
       );
