@@ -12,8 +12,8 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
   const hasOutput = executionResult?.structuredOutput && executionResult.structuredOutput.length > 0;
 
   return (
-    <div className="tab-content py-4 flex flex-col h-full overflow-hidden">
-      <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+    <div className="tab-content py-4 flex flex-col h-full w-full min-w-0 overflow-hidden">
+      <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar w-full min-w-0">
         {hasOutput && executionResult?.structuredOutput ? (
           <div className="space-y-6">
             {executionResult.structuredOutput.map((item, index) => (

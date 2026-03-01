@@ -148,7 +148,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
           </div>
         )}
         {activeInspectorTab === 'table' && (
-          <div className="h-full">
+          <div className="h-full w-full min-w-0 overflow-hidden">
             <TableTabContent executionResult={executionResult} />
           </div>
         )}

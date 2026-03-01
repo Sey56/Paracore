@@ -105,7 +105,7 @@ class GetCategoryParametersRequest(_message.Message):
     def __init__(self, category_name: _Optional[str] = ...) -> None: ...
 
 class ParameterDefinition(_message.Message):
-    __slots__ = ("name", "storage_type", "is_builtin", "builtin_id", "revit_element_type", "builtin_name", "spec_type_id")
+    __slots__ = ("name", "storage_type", "is_builtin", "builtin_id", "revit_element_type", "builtin_name", "spec_type_id", "is_type")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STORAGE_TYPE_FIELD_NUMBER: _ClassVar[int]
     IS_BUILTIN_FIELD_NUMBER: _ClassVar[int]
@@ -113,6 +113,7 @@ class ParameterDefinition(_message.Message):
     REVIT_ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     BUILTIN_NAME_FIELD_NUMBER: _ClassVar[int]
     SPEC_TYPE_ID_FIELD_NUMBER: _ClassVar[int]
+    IS_TYPE_FIELD_NUMBER: _ClassVar[int]
     name: str
     storage_type: str
     is_builtin: bool
@@ -120,7 +121,8 @@ class ParameterDefinition(_message.Message):
     revit_element_type: str
     builtin_name: str
     spec_type_id: str
-    def __init__(self, name: _Optional[str] = ..., storage_type: _Optional[str] = ..., is_builtin: bool = ..., builtin_id: _Optional[int] = ..., revit_element_type: _Optional[str] = ..., builtin_name: _Optional[str] = ..., spec_type_id: _Optional[str] = ...) -> None: ...
+    is_type: bool
+    def __init__(self, name: _Optional[str] = ..., storage_type: _Optional[str] = ..., is_builtin: bool = ..., builtin_id: _Optional[int] = ..., revit_element_type: _Optional[str] = ..., builtin_name: _Optional[str] = ..., spec_type_id: _Optional[str] = ..., is_type: bool = ...) -> None: ...
 
 class GetCategoryParametersResponse(_message.Message):
     __slots__ = ("parameters", "error_message")
@@ -593,12 +595,14 @@ class BatchUpdateElementParametersRequest(_message.Message):
     def __init__(self, updates: _Optional[_Iterable[_Union[ParameterUpdateItem, _Mapping]]] = ...) -> None: ...
 
 class BatchUpdateElementParametersResponse(_message.Message):
-    __slots__ = ("is_success", "error_message")
+    __slots__ = ("is_success", "error_message", "count")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     error_message: str
-    def __init__(self, is_success: bool = ..., error_message: _Optional[str] = ...) -> None: ...
+    count: int
+    def __init__(self, is_success: bool = ..., error_message: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
 
 class UpdateElementParameterRequest(_message.Message):
     __slots__ = ("element_id", "parameter_name", "new_value_string")

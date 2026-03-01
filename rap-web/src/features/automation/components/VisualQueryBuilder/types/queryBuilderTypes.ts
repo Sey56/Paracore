@@ -6,6 +6,7 @@ export interface ParameterDefinition {
   builtin_name?: string;
   revit_element_type?: string;
   spec_type_id?: string;
+  is_type: boolean;
 }
 
 export interface QueryRule {
@@ -20,6 +21,7 @@ export interface QueryRule {
   builtin_name?: string;
   revit_element_type?: string;
   spec_type_id?: string;
+  is_type: boolean;
 }
 
 export interface QueryGroup {

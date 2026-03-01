@@ -672,7 +672,8 @@ def get_category_parameters(category_name: str):
                     "builtin_id": p.builtin_id,
                     "builtin_name": p.builtin_name,
                     "revit_element_type": p.revit_element_type,
-                    "spec_type_id": p.spec_type_id
+                    "spec_type_id": p.spec_type_id,
+                    "is_type": getattr(p, 'is_type', False)
                 })
             
             return {

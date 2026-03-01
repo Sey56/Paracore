@@ -101,6 +101,7 @@ export const useQueryBuilderLogic = (
           rule.builtin_name = pDef.builtin_name;
           rule.revit_element_type = pDef.revit_element_type;
           rule.spec_type_id = pDef.spec_type_id;
+          rule.is_type = pDef.is_type;
           rule.operator = OPERATORS[pDef.storage_type] ? OPERATORS[pDef.storage_type][0] : '==';
           rule.value = pDef.storage_type === 'String' ? '' : '0';
           rule.unit = undefined;
@@ -114,7 +115,7 @@ export const useQueryBuilderLogic = (
         operator: OPERATORS[firstParam.storage_type][0], value: firstParam.storage_type === 'String' ? '' : '0',
         is_builtin: firstParam.is_builtin, builtin_id: firstParam.builtin_id,
         builtin_name: firstParam.builtin_name, revit_element_type: firstParam.revit_element_type,
-        spec_type_id: firstParam.spec_type_id,
+        spec_type_id: firstParam.spec_type_id, is_type: firstParam.is_type,
       });
     } else if (action === 'add_group') current.children.push({ type: 'group', combinator: 'AND', children: [] });
     else if (action === 'move_up' && index > 0) [current.children[index], current.children[index - 1]] = [current.children[index - 1], current.children[index]];
@@ -128,7 +129,8 @@ export const useQueryBuilderLogic = (
     setSelectedColumns(prev => [...prev, {
       type: 'rule', name: param.name, storage_type: param.storage_type, operator: '==', value: '',
       is_builtin: param.is_builtin, builtin_id: param.builtin_id, builtin_name: param.builtin_name,
-      revit_element_type: param.revit_element_type, unit: undefined, spec_type_id: param.spec_type_id
+      revit_element_type: param.revit_element_type, unit: undefined, spec_type_id: param.spec_type_id,
+      is_type: param.is_type
     }]);
     setColumnSearch('');
     setIsColumnDropdownOpen(false);
@@ -153,7 +155,8 @@ export const useQueryBuilderLogic = (
       const mappedColumns = selectedColumns.map(col => ({
         type: 'rule', name: col.name, storage_type: col.storage_type, operator: '==', value: '',
         is_builtin: col.is_builtin, builtin_id: col.builtin_id, builtin_name: col.builtin_name,
-        revit_element_type: col.revit_element_type, unit: col.unit, spec_type_id: col.spec_type_id
+        revit_element_type: col.revit_element_type, unit: col.unit, spec_type_id: col.spec_type_id,
+        is_type: col.is_type
       }));
 
       const response = await api.post('/api/query/generate', {

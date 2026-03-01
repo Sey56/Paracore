@@ -46,7 +46,8 @@ const TableView: React.FC<{
   data: Record<string, unknown>[];
   onSelect: (ids: number[]) => void;
   onUpdate?: (elementId: number, parameterName: string, newValue: string) => Promise<boolean>;
-}> = ({ data: initialData, onSelect, onUpdate }) => {
+  actions?: React.ReactNode;
+}> = ({ data: initialData, onSelect, onUpdate, actions }) => {
   const { showNotification } = useNotifications();
   const [data, setData] = useState(initialData);
   const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
@@ -140,20 +141,27 @@ const TableView: React.FC<{
   };
 
   return (
-    <div className="flex flex-col space-y-2">
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <FontAwesomeIcon icon={faSearch} className="text-gray-400" />
+    <div className="flex flex-col space-y-2 w-full min-w-0 overflow-hidden">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-grow min-w-0">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <FontAwesomeIcon icon={faSearch} className="text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Filter table..."
+            className="pl-10 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 p-2 border"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+          />
         </div>
-        <input
-          type="text"
-          placeholder="Filter table..."
-          className="pl-10 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 p-2 border"
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-        />
+        {actions && (
+          <div className="flex shrink-0 gap-1 items-center">
+            {actions}
+          </div>
+        )}
       </div>
-      <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg max-h-[500px]">
+      <div className="w-full min-w-0 overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
           <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
             <tr>
@@ -728,30 +736,32 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   try {
     const commonChartProps = { height: '300px', width: '100%', minHeight: '300px' };
 
-    const Toolbar = () => (
+    const TableToolbarActions = () => (
+      <>
+        <button onClick={handleCopy} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-600" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
+        <button onClick={handleDownloadCsv} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500" title="Export CSV (Save As...)"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
+        <button onClick={handleUploadCsv} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
+      </>
+    );
+
+    const ChartToolbar = () => (
       <div className="absolute top-2 right-2 z-10 flex gap-1">
-        {item.type === 'table' ? (
-          <>
-            <button onClick={handleCopy} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-600" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
-            <button onClick={handleDownloadCsv} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500" title="Export CSV (Save As...)"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-            <button onClick={handleUploadCsv} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
-          </>
-        ) : (
-          <>
-            <button onClick={handleDownloadCsv} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500" title="Download CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-            <button onClick={handleDownloadSvg} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500" title="Download SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
-          </>
-        )}
+        <button onClick={handleDownloadCsv} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500" title="Download CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
+        <button onClick={handleDownloadSvg} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500" title="Download SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
       </div>
     );
 
     if (item.type === 'table') {
       if (!tableData || tableData.length === 0) return <div className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center"><p className="text-gray-500 dark:text-gray-400 text-xs italic">No data returned.</p></div>;
       return (
-        <div className="relative group">
+        <div className="relative group w-full min-w-0">
           <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
-          <Toolbar />
-          <TableView data={tableData} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} />
+          <TableView
+            data={tableData}
+            onSelect={handleSelectElements}
+            onUpdate={handleUpdateParameter}
+            actions={<TableToolbarActions />}
+          />
         </div>
       );
     }
@@ -759,7 +769,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     if (item.type === 'chart-bar') {
       return (
         <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ ...commonChartProps, minWidth: 0 }}>
-          <Toolbar />
+          <ChartToolbar />
           <ResponsiveContainer width="100%" height={300}><BarChart data={parsedData}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }} itemStyle={{ color: '#60a5fa' }} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
         </div>
       );
@@ -768,7 +778,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     if (item.type === 'chart-pie') {
       return (
         <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ ...commonChartProps, minWidth: 0 }}>
-          <Toolbar />
+          <ChartToolbar />
           <ResponsiveContainer width="100%" height={300}><PieChart><Pie data={parsedData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" label={{ fontSize: 10 }} isAnimationActive={true}>{(parsedData as { value: number }[]).map((_, i: number) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip content={<CustomPieTooltip />} /><Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer>
         </div>
       );
@@ -777,17 +787,27 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     if (item.type === 'chart-line') {
       return (
         <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ ...commonChartProps, minWidth: 0 }}>
-          <Toolbar />
+          <ChartToolbar />
           <ResponsiveContainer width="100%" height={300}><LineChart data={parsedData} margin={{ right: 30 }}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} /></LineChart></ResponsiveContainer>
         </div>
       );
     }
 
     if (item.type === 'message') {
-      return <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap text-sm">{parsedData}</p>;
+      return (
+        <div className="w-full min-w-0 overflow-hidden">
+          <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap text-sm">{parsedData}</p>
+        </div>
+      );
     }
 
-    return <pre className="px-3 py-2 rounded-lg font-mono text-xs whitespace-pre-wrap text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-900/50">{JSON.stringify(parsedData, null, 2)}</pre>;
+    return (
+      <div className="w-full min-w-0 overflow-hidden">
+        <pre className="px-3 py-2 rounded-lg font-mono text-xs whitespace-pre-wrap text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-900/50 overflow-x-auto">
+          {JSON.stringify(parsedData, null, 2)}
+        </pre>
+      </div>
+    );
   } catch (e) {
     return <pre className="px-3 py-2 rounded-lg font-mono text-xs whitespace-pre-wrap text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30">Error rendering output: Invalid JSON data.<br />Raw data: {item.data}</pre>;
   }

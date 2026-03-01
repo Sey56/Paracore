@@ -96,6 +96,7 @@ message ParameterDefinition {
   string revit_element_type = 5; 
   string builtin_name = 6;
   string spec_type_id = 7;
+  bool is_type = 8;
 }
 
 message GetCategoryParametersResponse {

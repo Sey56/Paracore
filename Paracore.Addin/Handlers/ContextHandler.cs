@@ -611,13 +611,14 @@ namespace Paracore.Addin.Handlers
                         .WhereElementIsNotElementType()
                         .FirstOrDefault();
 
-                    var parameters = new List<Parameter>();
+                    var parametersWithSource = new List<(Parameter Param, bool IsType)>();
+                    _logger.Log($"[ContextHandler] Discovering parameters for {bic}...", LogLevel.Debug);
                     if (sampleElement != null)
                     {
                         // Instance parameters
                         foreach (Parameter p in sampleElement.Parameters)
                         {
-                            parameters.Add(p);
+                            parametersWithSource.Add((p, false));
                         }
 
                         // Type parameters
@@ -629,7 +630,7 @@ namespace Paracore.Addin.Handlers
                             {
                                 foreach (Parameter p in typeElement.Parameters)
                                 {
-                                    parameters.Add(p);
+                                    parametersWithSource.Add((p, true));
                                 }
                             }
                         }
@@ -646,20 +647,22 @@ namespace Paracore.Addin.Handlers
                         {
                             foreach (Parameter p in sampleType.Parameters)
                             {
-                                parameters.Add(p);
+                                parametersWithSource.Add((p, true));
                             }
                         }
                     }
 
                     // 3. Extract definitions and resolve name collisions
-                    var allParams = parameters
-                        .GroupBy(p => p.Id) // Deduplicate by exact Revit Parameter ID first
+                    var allParamsWithMetadata = parametersWithSource
+                        .GroupBy(x => x.Param.Id) // Deduplicate by exact Revit Parameter ID first
                         .Select(g => g.First())
                         .ToList();
 
-                    var nameGroups = allParams.GroupBy(p => p.Definition.Name).ToList();
+                    _logger.Log($"[ContextHandler] Found {allParamsWithMetadata.Count} unique parameters.", LogLevel.Debug);
+
+                    var nameGroups = allParamsWithMetadata.GroupBy(x => x.Param.Definition.Name).ToList();
                     
-                    var finalizedParams = new List<Parameter>();
+                    var finalizedWithMetadata = new List<(Parameter Param, bool IsType)>();
                     var disambiguatedNames = new Dictionary<ElementId, string>();
 
                     foreach (var group in nameGroups)
@@ -667,34 +670,33 @@ namespace Paracore.Addin.Handlers
                         var groupList = group.ToList();
                         if (groupList.Count == 1)
                         {
-                            finalizedParams.Add(groupList[0]);
-                            disambiguatedNames[groupList[0].Id] = groupList[0].Definition.Name;
+                            var item = groupList[0];
+                            finalizedWithMetadata.Add(item);
+                            disambiguatedNames[item.Param.Id] = item.Param.Definition.Name;
                         }
                         else
                         {
-                            // Collision detected (e.g., multiple "Level" parameters)
-                            // We keep all of them, but disambiguate their UI name 
-                            // by appending the StorageType or BuiltIn status
-                            foreach (var p in groupList)
+                            // Collision detected
+                            foreach (var item in groupList)
                             {
-                                finalizedParams.Add(p);
+                                finalizedWithMetadata.Add(item);
                                 
-                                string suffix = p.StorageType.ToString();
-                                if (p.StorageType == StorageType.ElementId)
+                                string suffix = item.Param.StorageType.ToString();
+                                if (item.Param.StorageType == StorageType.ElementId)
                                 {
-                                     // Better semantic suffix for ElementId
                                      suffix = "Reference"; 
                                 }
                                 
-                                disambiguatedNames[p.Id] = $"{p.Definition.Name} [{suffix}]";
+                                disambiguatedNames[item.Param.Id] = $"{item.Param.Definition.Name} [{suffix}]";
                             }
                         }
                     }
 
-                    var sortedParams = finalizedParams.OrderBy(p => disambiguatedNames[p.Id]);
+                    var sortedMeta = finalizedWithMetadata.OrderBy(x => disambiguatedNames[x.Param.Id]);
 
-                    foreach (var p in sortedParams)
+                    foreach (var item in sortedMeta)
                     {
+                        var p = item.Param;
                         string specId = "";
                         try {
                             specId = p.Definition.GetDataType().TypeId;
@@ -706,7 +708,8 @@ namespace Paracore.Addin.Handlers
                             StorageType = p.StorageType.ToString(),
                             IsBuiltin = p.IsShared == false && p.Id.Value < 0,
                             BuiltinId = (int)p.Id.Value,
-                            SpecTypeId = specId
+                            SpecTypeId = specId,
+                            IsType = item.IsType
                         };
 
                         if (def.IsBuiltin)
@@ -717,7 +720,6 @@ namespace Paracore.Addin.Handlers
                         // Resolve Revit element type for ElementId parameters
                         if (p.StorageType == StorageType.ElementId)
                         {
-                            // Try to infer the type from the parameter name or category
                             string typeName = "Element";
                             string name = p.Definition.Name.ToLower();
                             

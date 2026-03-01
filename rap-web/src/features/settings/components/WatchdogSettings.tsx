@@ -98,7 +98,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
       };
     });
     if (allScripts.length === 0) {
-      showNotification("No scripts found to arm.", "warning");
+      showNotification("No sentinels found to deploy.", "warning");
       return;
     }
     await armAllInList(allScripts);

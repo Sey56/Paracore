@@ -235,20 +235,27 @@ export const AppLayout: React.FC = () => {
           {/* Main Content Area */}
           <div
             id="main-content-area"
-            className="flex flex-col flex-1 bg-gray-100 dark:bg-gray-900 isolate"
+            className="flex flex-col flex-1 bg-gray-100 dark:bg-gray-900 isolate min-w-0"
             onClick={() => {
               if (isSidebarOpen) {
                 toggleSidebar();
               }
             }}
           >
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden w-full max-w-full">
               {/* Left/Right Panels based on layout swap */}
               {isLayoutSwapped ? (
                 <>
                   {/* Inspector Panel (Swapped to Left) */}
                   {activeMainView !== 'playlists' && (
-                    <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 border-r border-gray-200 dark:border-gray-700 transition-all duration-500">
+                    <div 
+                      style={{ 
+                        width: `calc(${inspectorWidth * 100}% - 4px)`, 
+                        flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
+                        maxWidth: `calc(${inspectorWidth * 100}% - 4px)`
+                      }} 
+                      className="hidden lg:block p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-hidden min-w-0 border-r border-gray-200 dark:border-gray-700"
+                    >
                       <ScriptInspector />
                     </div>
                   )}
@@ -262,7 +269,14 @@ export const AppLayout: React.FC = () => {
                   )}
 
                   {/* Main Content Area (Swapped to Right) */}
-                  <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''} transition-all duration-500`}>
+                  <div 
+                    style={{ 
+                      width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, 
+                      flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`,
+                      maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`
+                    }} 
+                    className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''}`}
+                  >
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
@@ -271,7 +285,14 @@ export const AppLayout: React.FC = () => {
               ) : (
                 <>
                   {/* Main Content Area (Original Left) */}
-                  <div style={{ flex: activeMainView === 'playlists' ? 1 : galleryWidth, maxWidth: activeMainView === 'playlists' ? '100%' : `${galleryWidth * 100}%` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''} transition-all duration-500`}>
+                  <div 
+                    style={{ 
+                      width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, 
+                      flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`,
+                      maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`
+                    }} 
+                    className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''}`}
+                  >
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
@@ -287,7 +308,14 @@ export const AppLayout: React.FC = () => {
 
                   {/* Inspector Panel (Original Right) */}
                   {activeMainView !== 'playlists' && (
-                    <div style={{ flex: inspectorWidth, maxWidth: `${inspectorWidth * 100}%` }} className="hidden lg:block p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-y-auto overflow-x-hidden min-w-0 transition-all duration-500">
+                    <div 
+                      style={{ 
+                        width: `calc(${inspectorWidth * 100}% - 4px)`, 
+                        flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
+                        maxWidth: `calc(${inspectorWidth * 100}% - 4px)`
+                      }} 
+                      className="hidden lg:block p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-hidden min-w-0"
+                    >
                       <ScriptInspector />
                     </div>
                   )}

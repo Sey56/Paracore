@@ -245,7 +245,12 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         elif p_name == "Type Name": val_expr = "el.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)?.AsValueString() ?? el.Name"
         elif col.get("is_builtin") and col.get("builtin_id"):
             b_name = col.get('builtin_name')
-            getter = f"el.get_Parameter(BuiltInParameter.{b_name})" if b_name and not b_name.isdigit() else f"el.get_Parameter((BuiltInParameter)({col['builtin_id']}))"
+            p_enum = f"BuiltInParameter.{b_name}" if b_name and not b_name.isdigit() else f"(BuiltInParameter)({col['builtin_id']})"
+            if col.get("is_type"):
+                getter = f"Doc.GetElement(el.GetTypeId())?.get_Parameter({p_enum})"
+            else:
+                getter = f"el.get_Parameter({p_enum})"
+                
             if storage == "Double":
                 if unit and unit in UNIT_MAP: val_expr = f"Math.Round(UnitUtils.ConvertFromInternalUnits({getter}?.AsDouble() ?? 0, {UNIT_MAP[unit]}), 4)"
                 else: val_expr = f"Math.Round({getter}?.AsDouble() ?? 0, 4)"
@@ -253,7 +258,10 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             elif storage == "String": val_expr = f"{getter}?.AsString() ?? \"-\""
             else: val_expr = f"{getter}?.AsValueString() ?? \"-\""
         else:
-            getter = f"el.LookupParameter(\"{raw_name}\")"
+            if col.get("is_type"):
+                getter = f"Doc.GetElement(el.GetTypeId())?.LookupParameter(\"{raw_name}\")"
+            else:
+                getter = f"el.LookupParameter(\"{raw_name}\")"
             val_expr = f"{getter}?.AsValueString() ?? \"-\""
         logic_parts.append(f"        object {p_id}Value = {val_expr};")
 

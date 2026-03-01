@@ -22,6 +22,7 @@ class QueryRule(BaseModel):
     builtin_name: Optional[str] = None
     revit_element_type: Optional[str] = None
     spec_type_id: Optional[str] = None
+    is_type: bool = False
 
 class QueryGroup(BaseModel):
     type: Literal["group"] = "group"
