@@ -18,13 +18,13 @@ export const useScriptOperations = (
     if (!script || !isAuthenticated) return { success: false, message: "Authentication required." };
     try {
       const response = await api.post("/api/rename-script", { oldPath: script.absolutePath, newName: newName });
-      if (response.data.success) {
+      if (response.data.is_success) {
         showNotification(`Script renamed successfully.`, "success");
         if (selectedFolder) loadScriptsFromPath(selectedFolder, true);
         setSelectedScriptState(null);
         setCombinedScriptContent(null);
         return { success: true, message: "Script renamed successfully." };
-      } else throw new Error(response.data.message);
+      } else throw new Error(response.data.error_message);
     } catch (error: any) {
       showNotification(error.message || "Failed to rename script.", "error");
       return { success: false, message: error.message };
