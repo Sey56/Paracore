@@ -282,8 +282,6 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [fetchRemoteScriptSources]);
 
   const removeSourcePath = useCallback(async (sourceId: string) => {
-    isRemovingRef.current = `team-${sourceId}`;
-
     // Clear active source if it matches the one being removed
     if (activeScriptSource?.type === 'team' && activeScriptSource.id === sourceId) {
       setActiveScriptSource(null);
@@ -295,10 +293,6 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const { [Number(sourceId)]: _, ...next } = prev;
       return next;
     });
-
-    setTimeout(() => {
-      if (isRemovingRef.current === `team-${sourceId}`) isRemovingRef.current = null;
-    }, 1000);
   }, [activeScriptSource, setActiveScriptSource, setScripts, setUserSourcePaths]);
 
   const updateRemoteScriptSource = useCallback(async (teamId: number, sourceId: number, name: string | undefined, repoUrl: string | undefined) => {
@@ -431,7 +425,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (hasChanges) setCustomScriptFolders(validCustomFolders);
 
       // B. Heal user source paths (Teams)
-      let newUserSourcePaths = { ...userSourcePaths };
+      const newUserSourcePaths = { ...userSourcePaths };
       let userPathsChanged = false;
       Object.entries(userSourcePaths).forEach(([id, info]) => {
         if (info.path && normalizedMap[normalizePath(info.path)] === false) {
