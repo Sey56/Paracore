@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth';
 import TeamSourceSettings from '@/features/team-sources/components/TeamSourceSettings';
 import LLMSettings from './LLMSettings';
 import { WatchdogSettings } from './WatchdogSettings';
+import { AutomationSettings } from './AutomationSettings';
 import AgentSettings from './AgentSettings';
 import { Modal } from '@/components/common/Modal';
 import { Role } from '@/features/auth';
@@ -33,6 +34,11 @@ const SettingsModal: React.FC = () => {
     tabs.push({
       name: 'Sentinels',
       component: WatchdogSettings,
+    });
+
+    tabs.push({
+      name: 'Automation',
+      component: AutomationSettings,
     });
 
     // All tabs are now visible, but restricted internally if offline
