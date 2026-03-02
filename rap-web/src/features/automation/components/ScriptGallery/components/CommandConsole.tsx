@@ -32,7 +32,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
         <FontAwesomeIcon icon={faSearch} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
         <input
           type="text"
-          placeholder="Search foundry..."
+          placeholder="Search Gallery..."
           className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-transparent bg-slate-50 dark:bg-slate-900 text-sm font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}

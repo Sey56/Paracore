@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { Script, ScriptMetadata } from '@/types/scriptModel';
+import { Script } from '@/types/scriptModel';
 import { TeamScriptSource } from '@/types';
 import { useAuth } from '@/features/auth';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -41,7 +41,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // 1. AUTOMATION FOLDER STATE (The Sidebar) - Strictly Isolated
   const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>(`rap_customScriptFolders_${stableUserId}`, []);
-  const [userSourcePaths, setUserSourcePaths] = useLocalStorage<Record<number, { path: string; name: string }>>(`rap_userSourcePaths_${stableUserId}`, {});
+  const [userSourcePaths, setUserSourcePaths] = useLocalStorage<Record<number, { path: string; name: string }>>(`rap-user-source-paths_${stableUserId}`, {});
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>(`agentScriptsPath_${stableUserId}`, null);
 
   const [isSystemReady, setIsSystemReady] = useState(false);
@@ -56,19 +56,22 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsSystemReady(true);
   }, [user]);
 
-  // 3. HEALING: Ensure active source is always in the Sidebar list
+  // 3. BOOTSTRAP RECOVERY: One-time check to ensure active source is valid
+  // We only run this ONCE when the system becomes ready. We do NOT watch activeScriptSource
+  // constantly, as that creates race conditions when trying to unload sources.
   useEffect(() => {
-    if (!isSystemReady || !activeScriptSource) return;
+    if (!isSystemReady) return;
 
-    if (activeScriptSource.type === 'local' && activeScriptSource.path) {
+    if (activeScriptSource?.type === 'local' && activeScriptSource.path) {
       const path = activeScriptSource.path;
       const normPath = normalizePath(path);
+
       if (!customScriptFolders.some(f => normalizePath(f) === normPath)) {
-        console.log("[ScriptProvider] 🩹 Healing: Restoring missing active source to Sidebar registry:", path);
+        console.log("[ScriptProvider] 🚀 Bootstrap: Restoring missing active source to Sidebar registry:", path);
         setCustomScriptFolders(prev => Array.from(new Set([...prev, path])));
       }
     }
-  }, [activeScriptSource, isSystemReady, customScriptFolders, setCustomScriptFolders]);
+  }, [isSystemReady]); // Dependency array intentionally minimal to run only on mount/ready
 
   const setUserSourcePath = useCallback((sourceId: number, path: string, name: string) => {
     setUserSourcePaths(prev => ({ ...prev, [sourceId]: { path, name } }));
@@ -244,27 +247,29 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const removeCustomScriptFolder = useCallback((path: string) => {
     const normTarget = normalizePath(path);
-    setCustomScriptFolders(prev => prev.filter(p => normalizePath(p) !== normTarget));
+    console.log("[ScriptProvider] 🗑️ Unloading source:", normTarget);
 
-    // Proactively clear active source to prevent the "Healing" useEffect from restoring it
+    // 1. If we are unloading the currently active source, clear the active state first
     if (activeScriptSource?.type === 'local' && normalizePath(activeScriptSource.path || "") === normTarget) {
+      console.log("[ScriptProvider] 🗑️ Source was active. Clearing active state.");
       setActiveScriptSource(null);
       setScripts([]);
     }
+
+    // 2. Remove from the list
+    setCustomScriptFolders(prev => prev.filter(p => normalizePath(p) !== normTarget));
   }, [setCustomScriptFolders, activeScriptSource, setActiveScriptSource, setScripts]);
 
   const clearAllCustomScriptFolders = useCallback(async () => {
-    // V5: "Clear all Except Active" logic. 
-    // If a local source is currently active, preserve it in the list.
     if (activeScriptSource?.type === 'local' && activeScriptSource.path) {
-      setCustomScriptFolders([activeScriptSource.path]);
+      // Preserve ONLY the active one
+      const activePath = activeScriptSource.path;
+      setCustomScriptFolders([activePath]);
     } else {
+      // Clear everything
+      setActiveScriptSource(null);
+      setScripts([]);
       setCustomScriptFolders([]);
-      // Only clear active source if it was local and we're force-clearing everything
-      if (activeScriptSource?.type === 'local') {
-        setActiveScriptSource(null);
-        setScripts([]);
-      }
     }
   }, [setCustomScriptFolders, activeScriptSource, setActiveScriptSource, setScripts]);
 
@@ -275,6 +280,26 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const removeRemoteScriptSource = useCallback(async (teamId: number, sourceId: number) => {
     await fetchRemoteScriptSources();
   }, [fetchRemoteScriptSources]);
+
+  const removeSourcePath = useCallback(async (sourceId: string) => {
+    isRemovingRef.current = `team-${sourceId}`;
+
+    // Clear active source if it matches the one being removed
+    if (activeScriptSource?.type === 'team' && activeScriptSource.id === sourceId) {
+      setActiveScriptSource(null);
+      setScripts([]);
+    }
+
+    // Relay to the hook via setUserSourcePaths (which is just a setter here)
+    setUserSourcePaths(prev => {
+      const { [Number(sourceId)]: _, ...next } = prev;
+      return next;
+    });
+
+    setTimeout(() => {
+      if (isRemovingRef.current === `team-${sourceId}`) isRemovingRef.current = null;
+    }, 1000);
+  }, [activeScriptSource, setActiveScriptSource, setScripts, setUserSourcePaths]);
 
   const updateRemoteScriptSource = useCallback(async (teamId: number, sourceId: number, name: string | undefined, repoUrl: string | undefined) => {
     await fetchRemoteScriptSources();
@@ -334,7 +359,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setScripts(prev => prev.map(s => s.id === script.id ? { ...s, parameters: paramsRes.data.parameters, metadata: mergedMetadata } : s));
     } catch (err) { }
-  }, []);
+  }, [creationTimes, lastRunTimes, modificationTimes, setScripts]);
 
   // 6. SYNC SESSION TRACKING
   const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, any>>({});
@@ -343,7 +368,12 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const response = await silentApi.get('/api/sync/active-sessions');
       if (response.data) setActiveSyncSessions(response.data);
-    } catch (err) { }
+    } catch (err: any) {
+      if (err.response?.status !== 401) {
+        // Only log non-auth errors
+        console.error("Failed to fetch active sessions:", err);
+      }
+    }
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -465,7 +495,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
     pullAllTeamSources, pullTeamSource, clearScriptsForSource, toolLibraryPath, setToolLibraryPath,
-    userSourcePaths, setUserSourcePath, canUseLocalFolders, selectedFolder,
+    userSourcePaths, setUserSourcePath, removeSourcePath, canUseLocalFolders, selectedFolder,
     updateScriptModificationTime
   }), [
     scripts, activeScriptSource, setActiveScriptSource, loadScriptsFromPath, fetchScriptMetadata, reloadScript,
@@ -474,7 +504,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isSyncActive, activeSyncSessions, customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
     pullAllTeamSources, pullTeamSource, clearScriptsForSource, toolLibraryPath, setToolLibraryPath,
-    userSourcePaths, setUserSourcePath, canUseLocalFolders, selectedFolder,
+    userSourcePaths, setUserSourcePath, removeSourcePath, canUseLocalFolders, selectedFolder,
     updateScriptModificationTime
   ]);
 

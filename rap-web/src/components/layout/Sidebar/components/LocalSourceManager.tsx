@@ -3,7 +3,7 @@ import { SidebarSection } from '../SidebarSection';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFolder, faPlus, faBroom, faChevronDown, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { ActiveScriptSource } from '@/context/providers/UIContext';
-import { getFolderNameFromPath } from '@/utils/pathHelpers';
+import { getFolderNameFromPath, normalizePath } from '@/utils/pathHelpers';
 
 interface LocalSourceManagerProps {
   activeScriptSource: ActiveScriptSource;
@@ -58,14 +58,14 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
             title="Initialize New Source">
             <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
           </button>
-          {customScriptFolders.length > 0 && !(customScriptFolders.length === 1 && activeScriptSource?.type === 'local' && customScriptFolders[0] === activeScriptSource.path) && (
+          {customScriptFolders.length > (activeScriptSource?.type === 'local' && activeScriptSource.path && customScriptFolders.some(f => normalizePath(f) === normalizePath(activeScriptSource.path)) ? 1 : 0) && (
             <button
               className="text-gray-400 hover:text-red-500 p-1.5 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 onClear();
               }}
-              title="Clear all except active"
+              title="Unload all non-active sources"
             >
               <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
             </button>
@@ -110,23 +110,21 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
             </div>
 
             <div className="w-[34px] flex items-center justify-center shrink-0">
-              {activeScriptSource?.type === 'local' && (
-                <div className="opacity-0 group-hover/source:opacity-100 transition-all duration-300 translate-x-2 group-hover/source:translate-x-0" onClick={e => e.stopPropagation()}>
+              {activeScriptSource?.type === 'local' && activeScriptSource.path && (
+                <div className="opacity-100 transition-all duration-300" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-lg p-0.5 shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (activeScriptSource?.type === 'local') {
-                          onUnload({
-                            id: 0,
-                            name: getFolderNameFromPath(activeScriptSource.path),
-                            repo_url: '',
-                            path: activeScriptSource.path
-                          });
-                        }
+                        onUnload({
+                          id: 0,
+                          name: getFolderNameFromPath(activeScriptSource.path || ''),
+                          repo_url: '',
+                          path: activeScriptSource.path || ''
+                        });
                       }}
-                      className="text-gray-400 hover:text-red-500 transition-colors p-1.5"
-                      title="Unload Source"
+                      className="text-rose-400 hover:text-rose-600 transition-colors p-1.5"
+                      title="Unload active source"
                     >
                       <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                     </button>

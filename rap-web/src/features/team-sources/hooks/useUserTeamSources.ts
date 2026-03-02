@@ -12,7 +12,7 @@ type UserTeamSourcePaths = Record<string, LocalSourceInfo>;
 
 export const useUserTeamSources = () => {
   const { user } = useAuth();
-  const STORAGE_KEY = user ? `rap-user-source-paths_${user.id}` : 'rap-user-source-paths_anonymous';
+  const STORAGE_KEY = user ? `rap-user-source-paths_${user.id}` : 'rap-user-source-paths_anon';
 
   const [userSourcePaths, setUserSourcePaths] = useState<UserTeamSourcePaths>({});
   const [isLoaded, setIsLoaded] = useState(false);

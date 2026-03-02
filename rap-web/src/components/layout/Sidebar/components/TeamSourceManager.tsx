@@ -114,7 +114,7 @@ export const TeamSourceManager: React.FC<TeamSourceManagerProps> = ({
                       }
                     }}
                     className="text-gray-400 hover:text-red-500 transition-colors p-1.5"
-                    title="Unload Source"
+                    title="Unload active source"
                   >
                     <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                   </button>

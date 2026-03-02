@@ -58,6 +58,7 @@ export interface ScriptContextProps {
   // User paths mapping
   userSourcePaths: Record<number, { path: string; name: string }>;
   setUserSourcePath: (sourceId: number, path: string, name: string) => void;
+  removeSourcePath: (sourceId: string) => Promise<void>;
   canUseLocalFolders: boolean;
   selectedFolder: string | null;
 }

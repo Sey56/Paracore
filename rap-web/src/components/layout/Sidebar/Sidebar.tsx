@@ -70,7 +70,8 @@ export const Sidebar = () => {
     pullTeamSource,
     fetchRemoteScriptSources,
     loadScriptsForFolder,
-    clearScriptsForSource
+    clearScriptsForSource,
+    removeSourcePath
   } = useScripts();
   const { setSelectedScript } = useScriptExecution();
 
@@ -85,7 +86,7 @@ export const Sidebar = () => {
   const [isClearConfirmModalOpen, setIsClearConfirmModalOpen] = useState(false);
   const [clearActionType, setClearActionType] = useState<'favorites' | 'recents' | 'local-folders' | 'team-sources' | null>(null);
 
-  const { userSourcePaths, setSourcePath, removeSourcePath } = useUserTeamSources();
+  const { userSourcePaths, setSourcePath } = useUserTeamSources();
 
   const currentTeamSources = useMemo(() => {
     if (!activeTeam) return [];
@@ -175,19 +176,14 @@ export const Sidebar = () => {
     try {
       if (sourceToRemove.id === 0 && sourceToRemove.path) {
         removeCustomScriptFolder(sourceToRemove.path);
-        if (activeScriptSource?.type === 'local' && normalizePath(activeScriptSource.path || "") === normalizePath(sourceToRemove.path)) {
-          setActiveScriptSource(null);
-          setSelectedScript(null);
-          clearScriptsForSource(sourceToRemove.path);
-        }
       } else {
-        await removeSourcePath(String(sourceToRemove.id));
         if (activeScriptSource?.type === 'team' && Number(activeScriptSource.id) === sourceToRemove.id) {
           setActiveScriptSource(null);
           setSelectedScript(null);
           const localPath = userSourcePaths[sourceToRemove.id]?.path;
           if (localPath) clearScriptsForSource(localPath);
         }
+        await removeSourcePath(String(sourceToRemove.id));
       }
       showNotification(`Successfully unloaded '${sourceToRemove.name}'`, "success");
       setIsRemoveModalOpen(false);
