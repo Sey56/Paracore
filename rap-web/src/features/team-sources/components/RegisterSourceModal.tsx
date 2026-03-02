@@ -86,7 +86,7 @@ export const RegisterSourceModal: FC<RegisterSourceModalProps> = ({
                   as="h3"
                   className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
                 >
-                  {isEditMode ? 'Edit Script Source' : 'Register New Script Source for Team'}
+                  {isEditMode ? 'Edit TeamSource' : 'Register New TeamSource for Team'}
                 </Dialog.Title>
                  <button
                     onClick={onClose}

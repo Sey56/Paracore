@@ -23,7 +23,7 @@ export const TeamRegistryManager: React.FC<TeamRegistryManagerProps> = ({
 }) => {
   return (
     <SidebarSection
-      title="Team Registry"
+      title="TeamSource Registry"
       icon={faGlobe}
       iconColor="text-slate-400"
       defaultExpanded={false}

@@ -77,7 +77,7 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
       await addRemoteScriptSource(activeTeam.team_id, newSource as TeamScriptSource);
       setIsRegisterModalOpen(false);
     } catch (err) {
-      const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to register script source.';
+      const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to register TeamSource.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -95,11 +95,11 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
     setError(null);
     try {
       await updateRemoteScriptSource(activeTeam.team_id, sourceToEdit.id, name, repoUrl);
-      showNotification(`Script source '${name}' updated successfully.`, 'success');
+      showNotification(`TeamSource '${name}' updated successfully.`, 'success');
       setIsEditModalOpen(false);
       setSourceToEdit(null);
     } catch (err) {
-      const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to update script source.';
+      const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to update TeamSource.';
       setError(errorMessage);
       showNotification(errorMessage, 'error');
     } finally {
@@ -113,7 +113,7 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
       showNotification('No active team selected.', 'error');
       return;
     }
-    const userConfirmed = await confirm(`Are you sure you want to un-register script source '${sourceToRemove.name}'? This will not delete the local folder.`);
+    const userConfirmed = await confirm(`Are you sure you want to un-register TeamSource '${sourceToRemove.name}'? This will not delete the local folder.`);
     if (userConfirmed !== true) {
       return;
     }
@@ -121,9 +121,9 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
     setError(null);
     try {
       await removeRemoteScriptSource(activeTeam.team_id, sourceToRemove.id);
-      showNotification(`Script source '${sourceToRemove.name}' un-registered successfully.`, 'success');
+      showNotification(`TeamSource '${sourceToRemove.name}' un-registered successfully.`, 'success');
     } catch (err) {
-      const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to un-register script source.';
+      const errorMessage = (err as ApiResponseError).response?.data?.detail || 'Failed to un-register TeamSource.';
       setError(errorMessage);
       showNotification(errorMessage, 'error');
     } finally {
@@ -155,9 +155,9 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
         />
       )}
       <fieldset disabled={!isAuthenticated || !activeTeam} className="disabled:opacity-50">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Team Script Sources</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">TeamSources</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-          Manage your Git-connected script sources for the team: <span className="font-semibold">{activeTeam?.team_name || 'N/A'}</span>.
+          Manage your Git-connected TeamSources for the team: <span className="font-semibold">{activeTeam?.team_name || 'N/A'}</span>.
         </p>
 
         {isReadOnly && (
@@ -178,20 +178,20 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
               onClick={() => setIsRegisterModalOpen(true)}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading || !isAuthenticated || !activeTeam || isReadOnly}
-              title={isReadOnly ? "Available in Enterprise Edition" : "Register new script source"}
+              title={isReadOnly ? "Available in Enterprise Edition" : "Register TeamSource"}
             >
-              {isLoading ? 'Registering...' : 'Register Script Source'}
+              {isLoading ? 'Registering...' : 'Register TeamSource'}
             </button>
           )}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Registry</h3>
             {!activeTeam ? (
               <div className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
-                <p className="text-gray-500 dark:text-gray-400">Please select an active team to manage script sources.</p>
+                <p className="text-gray-500 dark:text-gray-400">Please select an active team to manage TeamSources.</p>
               </div>
             ) : teamSourcesWithLocalPaths.length === 0 ? (
               <div className="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
-                <p className="text-gray-500 dark:text-gray-400">No script sources are registered for this team yet. Admins can register one.</p>
+                <p className="text-gray-500 dark:text-gray-400">No TeamSources are registered for this team yet. Admins can register one.</p>
               </div>
             ) : (
               <ul className="space-y-2">
