@@ -234,6 +234,11 @@ namespace CoreScript.Engine.Runtime
             return _runner.CompileToBytes(scriptContent);
         }
 
+        public void ClearCache()
+        {
+            _runner.ClearCache();
+        }
+
         private static void LogErrorToFile(string errorMessage)
         {
             var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");

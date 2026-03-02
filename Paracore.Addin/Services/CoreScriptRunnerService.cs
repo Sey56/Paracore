@@ -168,5 +168,15 @@ namespace Paracore.Addin.Services
         {
             return _contextHandler.BatchUpdateElementParameters(request);
         }
+
+        public override Task<ClearAssemblyCacheResponse> ClearAssemblyCache(ClearAssemblyCacheRequest request, ServerCallContext context)
+        {
+            ServerViewModel.Instance.ClearAssemblyCache();
+            return Task.FromResult(new ClearAssemblyCacheResponse
+            {
+                IsSuccess = true,
+                Message = "Assembly cache cleared successfully."
+            });
+        }
     }
 }

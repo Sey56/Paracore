@@ -223,6 +223,14 @@ async def get_manifest(path: str):
 async def rename_script(request: RenameRequest, current_user: CurrentUser = Depends(get_current_user)):
     return script_service.rename_script_logic(request.oldPath, request.newName)
 
+@router.post("/api/scripts/clear-cache", tags=["Script Management"])
+async def clear_cache(current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Clears the internal in-memory assembly cache in the Revit engine.
+    """
+    from grpc_client import clear_assembly_cache
+    return clear_assembly_cache()
+
 class UpdateMetadataRequest(BaseModel):
     script_path: str
     metadata_block: str

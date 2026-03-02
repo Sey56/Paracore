@@ -320,6 +320,15 @@ namespace CoreScript.Engine.Core
 
             return _scriptCompiler.CompileToBytes(finalScriptCode);
         }
+
+        public void ClearCache()
+        {
+            lock (_cacheLock)
+            {
+                _assemblyCache.Clear();
+                FileLogger.Log("[CodeRunner] 🧹 Assembly cache cleared manually.");
+            }
+        }
     }
 
     internal class RunnerLogger : ILogger { public void Log(string m, LogLevel l) => FileLogger.Log(m, l); public void LogError(string m) => FileLogger.LogError(m); }

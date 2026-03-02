@@ -763,3 +763,21 @@ def unregister_watchdog_source(path: str):
             "error_message": str(e),
             "watchdogs_removed": 0
         }
+
+def clear_assembly_cache():
+    """
+    Calls the gRPC service to clear the internal in-memory assembly cache.
+    """
+    try:
+        with get_corescript_runner_stub() as stub:
+            response = stub.ClearAssemblyCache(corescript_pb2.ClearAssemblyCacheRequest())
+            return {
+                "is_success": response.is_success,
+                "message": response.message
+            }
+    except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.UNAVAILABLE:
+            return {"is_success": False, "message": "Revit is closed or Paracore server is unavailable."}
+        return {"is_success": False, "message": str(e)}
+    except Exception as e:
+        return {"is_success": False, "message": str(e)}

@@ -154,6 +154,11 @@ namespace Paracore.Addin.ViewModels
             return CoreScriptExecutionDispatcher.Instance.BuildScript(scriptContent);
         }
 
+        public void ClearAssemblyCache()
+        {
+            CoreScriptExecutionDispatcher.Instance.ClearCache();
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)

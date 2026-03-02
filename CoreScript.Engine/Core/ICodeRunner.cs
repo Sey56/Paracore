@@ -33,5 +33,10 @@ namespace CoreScript.Engine.Core
         /// Compiles a script into a binary assembly and returns the bytes.
         /// </summary>
         byte[] CompileToBytes(string scriptContent);
+
+        /// <summary>
+        /// Clears the internal assembly cache.
+        /// </summary>
+        void ClearCache();
     }
 }
