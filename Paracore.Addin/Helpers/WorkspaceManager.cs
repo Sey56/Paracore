@@ -81,7 +81,25 @@ namespace Paracore.Addin.Helpers
             // V3: No-op. We no longer manage temporary watchers.
         }
 
-        // --- SCAFFOLDING WRITERS ---
+        // --- SCAFFOLDING WRITERS (Self-Healing) ---
+
+        private static void SafeWriteAllText(string path, string content)
+        {
+            try
+            {
+                // Only write if file is missing or content has changed
+                if (File.Exists(path))
+                {
+                    string existing = File.ReadAllText(path);
+                    if (existing == content) return;
+                }
+                File.WriteAllText(path, content);
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"Failed to write scaffolding file {path}: {ex.Message}");
+            }
+        }
 
         private static void WriteCsproj(string folderPath, string projectName)
         {
@@ -132,12 +150,12 @@ namespace Paracore.Addin.Helpers
                 </Project>
                 """;
 
-            File.WriteAllText(Path.Combine(folderPath, $"{projectName}.csproj"), csprojContent);
+            SafeWriteAllText(Path.Combine(folderPath, $"{projectName}.csproj"), csprojContent);
         }
 
         private static void WriteGlobalJson(string folderPath)
         {
-            File.WriteAllText(Path.Combine(folderPath, "global.json"),
+            SafeWriteAllText(Path.Combine(folderPath, "global.json"),
                 "{\n" +
                 "    \"sdk\": {\n" +
                 "        \"rollForward\": \"latestFeature\"\n" +
@@ -147,7 +165,7 @@ namespace Paracore.Addin.Helpers
 
         private static void WriteGlobalsCs(string folderPath)
         {
-            File.WriteAllText(Path.Combine(folderPath, "Globals.cs"),
+            SafeWriteAllText(Path.Combine(folderPath, "Globals.cs"),
                 "// This file enables IntelliSense for custom globals and implicit imports.\n" +
                 "global using System;\n" +
                 "global using System.Collections.Generic;\n" +
@@ -176,7 +194,7 @@ namespace Paracore.Addin.Helpers
 
         private static void WriteEditorConfig(string folderPath)
         {
-            File.WriteAllText(Path.Combine(folderPath, ".editorconfig"),
+            SafeWriteAllText(Path.Combine(folderPath, ".editorconfig"),
                 "[*.{cs,vb}]\n" +
                 "dotnet_diagnostic.CA1050.severity = none\n" +
                 "dotnet_diagnostic.CS8019.severity = warning");
@@ -195,8 +213,7 @@ namespace Paracore.Addin.Helpers
                 string filePath = Path.Combine(githubFolder, "copilot-instructions.md");
                 string contextHeader = "# Current Script Context: FOLDER PROJECT\n# All logic goes into the Scripts/ folder.\n# Use #region GroupName directives to organize parameters.\n\n";
                 
-                File.WriteAllText(filePath, contextHeader + AiInstructions.CopilotInstructions);
-                FileLogger.Log($"Successfully generated Copilot instructions at: {filePath}");
+                SafeWriteAllText(filePath, contextHeader + AiInstructions.CopilotInstructions);
             }
             catch (Exception ex)
             {

@@ -93,7 +93,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
                 onClick={() => !isDeleting && onDelete(true)}
               >
                 <div className="flex justify-between items-center mb-1">
-                  <h4 className="font-bold text-blue-700 dark:text-blue-400">Clear Construction Files</h4>
+                  <h4 className="font-bold text-blue-700 dark:text-blue-400">Delete Scaffolding</h4>
                   {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-blue-500" /> : <FontAwesomeIcon icon={faBroom} className="text-blue-400 group-hover:scale-110 transition-transform" />}
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Removes .sln, .csproj and other IDE files. Your C# logic in <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">Scripts/</code> will be preserved.</p>
