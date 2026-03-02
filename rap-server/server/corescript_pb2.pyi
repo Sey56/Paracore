@@ -6,6 +6,18 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ClearAssemblyCacheRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ClearAssemblyCacheResponse(_message.Message):
+    __slots__ = ("is_success", "message")
+    IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    is_success: bool
+    message: str
+    def __init__(self, is_success: bool = ..., message: _Optional[str] = ...) -> None: ...
+
 class UnregisterWatchdogSourceRequest(_message.Message):
     __slots__ = ("path",)
     PATH_FIELD_NUMBER: _ClassVar[int]

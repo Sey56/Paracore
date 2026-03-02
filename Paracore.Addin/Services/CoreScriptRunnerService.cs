@@ -2,6 +2,7 @@ using CoreScript;
 using CoreScript.Engine.Logging;
 using Grpc.Core;
 using Paracore.Addin.Handlers;
+using Paracore.Addin.ViewModels;
 using System.Threading.Tasks;
 
 namespace Paracore.Addin.Services
