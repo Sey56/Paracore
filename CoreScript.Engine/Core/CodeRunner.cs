@@ -30,6 +30,10 @@ namespace CoreScript.Engine.Core
         private readonly IScriptRewriter _scriptRewriter;
         private readonly IParameterExtractor _parameterExtractor;
 
+        // V4: Assembly Cache for blazingly fast repeated runs
+        private static readonly Dictionary<string, byte[]> _assemblyCache = new Dictionary<string, byte[]>();
+        private static readonly object _cacheLock = new object();
+
         public CodeRunner()
         {
             var logger = new RunnerLogger();
@@ -58,8 +62,6 @@ namespace CoreScript.Engine.Core
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
                 
-                // ... (existing logging) ...
-
                 if (parameters.ContainsKey("__script_name__"))
                 {
                     var forcedName = parameters["__script_name__"]?.ToString();
@@ -85,8 +87,6 @@ namespace CoreScript.Engine.Core
                 string combinedUserCode = _scriptCombiner.Combine(scriptFiles);
 
                 // --- V4 CORE FIX: Unit Regression ---
-                // If the provided parametersJson was a simple dictionary (richParams is empty),
-                // we MUST extract the parameters from the script to get [Unit] and other metadata.
                 if (richParams.Count == 0 && !string.IsNullOrEmpty(combinedUserCode))
                 {
                     FileLogger.Log("[CodeRunner] No rich parameters provided. Extracting from source code to ensure [Unit] conversion works.");
@@ -113,11 +113,46 @@ namespace CoreScript.Engine.Core
 
                 ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters, rawParameters));
 
-                var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
-                var state = _scriptExecutor.ExecuteAsync(script).Result;
+                // --- V4 ELITE: Assembly Caching Logic ---
+                string codeHash = _scriptCompiler.GetCodeHash(finalScriptCode);
+                byte[]? cachedAssembly = null;
+                lock (_cacheLock)
+                {
+                    if (_assemblyCache.TryGetValue(codeHash, out cachedAssembly))
+                    {
+                        FileLogger.Log($"[CodeRunner] ⚡ CACHE HIT: Re-using compiled assembly for {topLevelScriptName}");
+                    }
+                }
+
+                ExecutionResult result;
+                if (cachedAssembly != null)
+                {
+                    // Run pre-compiled assembly (Blazingly Fast)
+                    result = _scriptExecutor.ExecuteBinary(cachedAssembly, context);
+                }
+                else
+                {
+                    // Compile fresh (Slow path)
+                    FileLogger.Log($"[CodeRunner] 🐢 CACHE MISS: Compiling {topLevelScriptName}...");
+                    var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
+                    var state = _scriptExecutor.ExecuteAsync(script).Result;
+                    
+                    result = ExecutionResult.Success("✅ Code executed successfully", state.ReturnValue);
+                    
+                    // Add to cache for next time
+                    try
+                    {
+                        var assemblyBytes = _scriptCompiler.CompileToBytes(finalScriptCode);
+                        lock (_cacheLock) { _assemblyCache[codeHash] = assemblyBytes; }
+                        FileLogger.Log($"[CodeRunner] 💾 Cached assembly for future runs ({assemblyBytes.Length} bytes)");
+                    }
+                    catch (Exception cacheEx)
+                    {
+                        FileLogger.LogError($"[CodeRunner] Failed to cache assembly: {cacheEx.Message}");
+                    }
+                }
 
                 context.Println("✅ Code executed successfully | " + timestamp);
-                var result = ExecutionResult.Success("✅ Code executed successfully", state.ReturnValue);
                 result.PrintLog = context.PrintLog.ToList();
                 result.ScriptName = topLevelScriptName;
 

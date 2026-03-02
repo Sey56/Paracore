@@ -7,5 +7,6 @@ namespace CoreScript.Engine.Core
     {
         Script<object> CreateScript(string code, string scriptName);
         byte[] CompileToBytes(string code);
+        string GetCodeHash(string code);
     }
 }

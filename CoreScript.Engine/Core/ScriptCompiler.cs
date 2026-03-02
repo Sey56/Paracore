@@ -7,6 +7,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace CoreScript.Engine.Core
@@ -17,6 +19,17 @@ namespace CoreScript.Engine.Core
         {
             var options = GetScriptOptions(scriptName);
             return CSharpScript.Create(code, options);
+        }
+
+        public string GetCodeHash(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return string.Empty;
+            using (var sha = SHA256.Create())
+            {
+                var bytes = Encoding.UTF8.GetBytes(code);
+                var hash = sha.ComputeHash(bytes);
+                return Convert.ToBase64String(hash);
+            }
         }
 
         public byte[] CompileToBytes(string code)
