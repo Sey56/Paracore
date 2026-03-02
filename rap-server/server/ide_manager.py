@@ -19,30 +19,30 @@ STALE_SESSION_TIMEOUT_SECONDS = 120
 _observer = Observer()
 _watchers = {} # normalized_path -> watch_object
 
-def _is_vscode_running_for_project(normalized_path: str) -> bool:
+def _get_all_vscode_open_paths() -> set:
     """
-    Checks if there's an active VS Code process that appears to be handling 
-    the given project path. This is more robust than just checking file changes.
+    Scans the system process list once and returns a set of all normalized 
+    folder paths currently open in VS Code instances.
     """
+    open_paths = set()
     try:
-        search_term = normalized_path.lower().replace('\\', '/')
         for proc in psutil.process_iter(['name', 'cmdline']):
             try:
+                # Check if it's a VS Code process
                 if proc.info['name'] and 'code' in proc.info['name'].lower():
                     cmdline = proc.info.get('cmdline')
                     if cmdline:
-                        # Check if any part of the command line contains our project path
-                        # VS Code often passes the folder path as an argument
                         for arg in cmdline:
-                            norm_arg = arg.lower().replace('\\', '/')
-                            if search_term in norm_arg:
-                                return True
+                            # VS Code arguments often include the path to the folder/file
+                            # We look for strings that look like absolute paths
+                            if (len(arg) > 3 and (arg[1:3] == ":/" or arg[1:3] == ":\\")):
+                                open_paths.add(arg.lower().replace('\\', '/').rstrip('/'))
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
     except Exception as e:
-        logger.error(f"Error checking VS Code processes: {e}")
+        logger.error(f"Error gathering VS Code paths: {e}")
     
-    return False
+    return open_paths
 
 class ScriptChangeHandler(FileSystemEventHandler):
     def __init__(self, normalized_path):
@@ -133,12 +133,12 @@ def cleanup_stale_sessions():
     """
     Removes IDE sessions that have been inactive beyond the timeout threshold.
     Called on every /api/sync/active-sessions poll to keep the list accurate.
-    Sessions are considered stale if:
-    1. The project folder no longer exists on disk, OR
-    2. No VS Code process is found for this project AND no recent file activity
     """
     now = time.time()
     stale_keys = []
+
+    # Get all currently open VS Code project paths in ONE scan
+    vscode_paths = _get_all_vscode_open_paths()
 
     for normalized_path, session_data in ACTIVE_IDE_SESSIONS.items():
         last_modified = session_data.get("last_modified", 0) if isinstance(session_data, dict) else 0
@@ -150,19 +150,19 @@ def cleanup_stale_sessions():
             continue
 
         # 2. Process Check: Is VS Code actually running this project?
-        is_running = _is_vscode_running_for_project(normalized_path)
+        # Use our pre-scanned set for O(1) lookup
+        is_running = normalized_path in vscode_paths
         
         # 3. Time Check: How long since last .cs change?
         idle_time = now - last_modified
 
         # DECISION LOGIC:
         # If it's NOT running in VS Code AND it's been idle for > 30s, clear it.
-        # (We use 30s as a buffer for the process check which might be slightly flaky)
         if not is_running and idle_time > 30:
             stale_keys.append(normalized_path)
             continue
             
-        # If it IS running or very recently active, but overall idle for > timeout, clear it.
+        # If it IS running or very recently active, but overall idle for > timeout (2 mins), clear it.
         if idle_time > STALE_SESSION_TIMEOUT_SECONDS:
             stale_keys.append(normalized_path)
 
