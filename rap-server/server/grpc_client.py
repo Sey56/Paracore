@@ -68,6 +68,13 @@ def register_watchdog_source(path: str, parameters_json: Optional[str] = None):
                 "load_details": list(response.load_details)
             }
     except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.UNAVAILABLE:
+            return {
+                "is_success": False,
+                "error_message": "Revit is closed or Paracore server is unavailable.",
+                "watchdogs_registered": 0,
+                "load_details": []
+            }
         logging.error(format_grpc_error(e))
         return {
             "is_success": False,
@@ -91,8 +98,11 @@ def get_status():
             response = stub.GetStatus(corescript_pb2.GetStatusRequest())
         return response
     except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.UNAVAILABLE:
+            # Silently return a disconnected response instead of raising/logging
+            return corescript_pb2.GetStatusResponse(paracore_connected=False, revit_open=False)
         logging.error(format_grpc_error(e))
-        raise # Re-raise the gRPC error
+        raise # Re-raise other gRPC errors
     except Exception as e:
         logging.error(f"An unexpected error occurred during gRPC GetStatus call: {e}")
         raise # Re-raise the unexpected error
@@ -114,6 +124,8 @@ def get_model_categories():
                 "error_message": response.error_message
             }
     except Exception as e:
+        if isinstance(e, grpc.RpcError) and e.code() == grpc.StatusCode.UNAVAILABLE:
+            return {"categories": [], "error_message": "Revit is closed or Paracore server is unavailable."}
         logging.error(f"Error calling GetModelCategories gRPC: {e}")
         return {"categories": [], "error_message": str(e)}
 
@@ -150,9 +162,17 @@ def get_watchdog_statuses():
                 "watchdogs": watchdogs,
                 "failed_watchdogs": failed_watchdogs
             }
+    except grpc.RpcError as e:
+        # Handle connection errors gracefully when Revit is closed
+        if e.code() == grpc.StatusCode.UNAVAILABLE:
+            # We don't log the full stack trace for a simple unavailable state (usually just Revit closed)
+            return {"watchdogs": [], "failed_watchdogs": [], "error_message": "Revit is closed or Paracore server is unavailable."}
+        
+        logging.error(f"gRPC Error in GetWatchdogStatus: {e.details()}")
+        return {"watchdogs": [], "failed_watchdogs": [], "error_message": str(e)}
     except Exception as e:
         logging.error(f"Error calling GetWatchdogStatus gRPC: {e}")
-        return {"watchdogs": [], "error_message": str(e)}
+        return {"watchdogs": [], "failed_watchdogs": [], "error_message": str(e)}
 
 def execute_script(script_content, parameters_json, compiled_assembly=None):
     # logging.info("Attempting to execute script via gRPC.")
@@ -178,6 +198,15 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
                 "internal_data": response.internal_data,
             }
         except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.UNAVAILABLE:
+                return {
+                    "is_success": False,
+                    "output": "",
+                    "error_message": "Revit is closed or Paracore server is unavailable.",
+                    "error_details": [],
+                    "structured_output": [],
+                    "internal_data": "",
+                }
             logging.error(format_grpc_error(e))
             raise # Re-raise the gRPC error
 
@@ -340,15 +369,22 @@ def create_and_open_workspace(tool_path: str):
     """
     Tells the Addin to scaffold the Tool folder and open it in VS Code.
     """
-    with get_corescript_runner_stub() as stub:
-        request = corescript_pb2.CreateWorkspaceRequest(
-            script_path=tool_path
-        )
-        response = stub.CreateAndOpenWorkspace(request)
-    return {
-        "workspace_path": response.workspace_path,
-        "error_message": response.error_message
-    }
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.CreateWorkspaceRequest(
+                script_path=tool_path
+            )
+            response = stub.CreateAndOpenWorkspace(request)
+        return {
+            "workspace_path": response.workspace_path,
+            "error_message": response.error_message
+        }
+    except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.UNAVAILABLE:
+            return {"workspace_path": "", "error_message": "Revit is closed or Paracore server is unavailable."}
+        return {"workspace_path": "", "error_message": str(e)}
+    except Exception as e:
+        return {"workspace_path": "", "error_message": str(e)}
 
 def stop_sync_session(script_path: str):
     """
@@ -370,10 +406,17 @@ def get_script_manifest(script_path: str) -> str:
     """
     Calls the gRPC service to get a JSON manifest of scripts from a given path.
     """
-    with get_corescript_runner_stub() as stub:
-        request = corescript_pb2.GetScriptManifestRequest(script_path=script_path)
-        response = stub.GetScriptManifest(request)
-        return response.manifest_json
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.GetScriptManifestRequest(script_path=script_path)
+            response = stub.GetScriptManifest(request)
+            return response.manifest_json
+    except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.UNAVAILABLE:
+            return json.dumps({"scripts": [], "error": "Revit is closed or Paracore server is unavailable."})
+        return json.dumps({"scripts": [], "error": str(e)})
+    except Exception as e:
+        return json.dumps({"scripts": [], "error": str(e)})
 
 def get_context():
     """
@@ -581,6 +624,13 @@ def pick_object(selection_type: str, category_filter: str = None):
                 "error_message": response.error_message
             }
     except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.UNAVAILABLE:
+            return {
+                "value": "",
+                "is_success": False,
+                "cancelled": False,
+                "error_message": "Revit is closed or Paracore server is unavailable."
+            }
         logging.error(format_grpc_error(e))
         return {
             "is_success": False,
