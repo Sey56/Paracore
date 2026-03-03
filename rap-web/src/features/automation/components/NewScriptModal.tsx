@@ -39,6 +39,15 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     // Sentinel Logic
     const [sentinelConfig, setSentinelConfig] = useState<any>(null);
 
+    const handleTabChange = (tab: 'query' | 'blank') => {
+        setActiveTab(tab);
+        if (tab === 'blank') {
+            setIsCompiled(true);
+        } else {
+            setIsCompiled(!!generatedLogic);
+        }
+    };
+
     const handleConfigChange = React.useCallback((config: any) => {
         setSentinelConfig(config);
     }, []);
@@ -110,13 +119,20 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     const handleExecuteAction = async () => {
         const isSentinel = mode === 'sentinel';
         setIsSubmitting(true);
+
+        const finalLogic = activeTab === 'query' ? generatedLogic : '';
+        const finalParams = activeTab === 'query' ? generatedParams : '';
+        const finalTemplate = isSentinel
+            ? (activeTab === 'query' ? 'raw_injection' : 'BlankSentinel')
+            : (activeTab === 'query' ? 'ProjectAuditor' : 'blank');
+
         if (isReplacing && targetPath) {
             try {
                 const response = await api.post("/api/scripts/replace-code", {
                     script_path: targetPath,
-                    new_logic: generatedLogic,
-                    new_params: generatedParams,
-                    template_id: mode === 'sentinel' ? 'raw_injection' : 'blank'
+                    new_logic: finalLogic,
+                    new_params: finalParams,
+                    template_id: finalTemplate
                 });
 
                 if (response.status === 200 || response.status === 201) {
@@ -167,9 +183,9 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                     // Use standard create script for everything else
                     result = await createNewScript({
                         script_name: scriptName,
-                        template_id: isSentinel ? 'BlankSentinel' : (activeTab === 'query' ? 'ProjectAuditor' : 'blank'),
-                        generated_logic: generatedLogic,
-                        generated_params: generatedParams,
+                        template_id: finalTemplate,
+                        generated_logic: finalLogic,
+                        generated_params: finalParams,
                         parent_folder: selectedFolder
                     });
                 }
@@ -202,17 +218,17 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                 <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
 
                     {/* 1. Identity Header: Premium, high-contrast identity block */}
-                    <div className={`px-8 py-6 border-b transition-all duration-700 shrink-0 ${mode === 'sentinel'
+                    <div className={`px-8 py-4 border-b transition-all duration-700 shrink-0 ${mode === 'sentinel'
                         ? 'bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 border-amber-100 dark:border-amber-900/40'
                         : 'bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-slate-900 border-blue-100 dark:border-blue-900/40'
                         }`}>
-                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-10 items-end">
+                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-6 items-center">
 
                             {/* Column 1: Core Identity */}
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                                 {!isReplacing ? (
                                     <>
-                                        <div className="flex flex-col gap-3">
+                                        <div className="flex flex-col gap-2">
                                             <div className="flex justify-between items-center px-1">
                                                 <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none">
                                                     {mode === 'sentinel' ? 'Sentinel Name' : 'Script Name'}
@@ -230,13 +246,13 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                                 value={scriptName}
                                                 onChange={(e) => setScriptName(e.target.value)}
                                                 placeholder="e.g. Audit Building Heights"
-                                                className={`w-full bg-white dark:bg-slate-950 border-2 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none transition-all shadow-sm group ${isDuplicate
+                                                className={`w-full bg-white dark:bg-slate-950 border-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none transition-all shadow-sm group ${isDuplicate
                                                     ? 'border-rose-500/50 ring-4 ring-rose-500/5'
                                                     : 'border-slate-100 dark:border-slate-800/50 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5'
                                                     }`}
                                             />
                                         </div>
-                                        <div className="flex flex-col gap-3">
+                                        <div className="flex flex-col gap-2">
                                             <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-1 leading-none">
                                                 Operational Intent
                                             </label>
@@ -245,17 +261,17 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                                 value={description}
                                                 onChange={(e) => setDescription(e.target.value)}
                                                 placeholder="e.g. Detect level deviations and report safety breaches."
-                                                className="w-full bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800/50 rounded-2xl px-5 py-3.5 text-sm font-semibold text-slate-600 dark:text-slate-400 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all shadow-sm"
+                                                className="w-full bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800/50 rounded-2xl px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all shadow-sm"
                                             />
                                         </div>
                                     </>
                                 ) : (
-                                    <div className="md:col-span-2 flex items-center gap-6 px-8 py-5 bg-white/50 dark:bg-slate-950/40 rounded-3xl border border-blue-100 dark:border-blue-800/20 shadow-sm animate-in zoom-in-95">
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${mode === 'sentinel' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
+                                    <div className="md:col-span-2 flex items-center gap-5 px-6 py-3 bg-white/50 dark:bg-slate-950/40 rounded-3xl border border-blue-100 dark:border-blue-800/20 shadow-sm animate-in zoom-in-95">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${mode === 'sentinel' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
                                             }`}>
                                             <FontAwesomeIcon icon={isReplacing ? faCogs : faPlus} className="text-xl" />
                                         </div>
-                                        <div className="flex flex-col gap-1.5 min-w-0">
+                                        <div className="flex flex-col gap-1 min-w-0">
                                             <span className={`text-[11px] font-black uppercase tracking-[0.25em] ${mode === 'sentinel' ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'
                                                 }`}>Surgical Logic Update</span>
                                             <span className="text-base font-bold text-slate-800 dark:text-slate-100 truncate">{targetPath?.split(/[\\/]/).pop()}</span>
@@ -265,15 +281,15 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                             </div>
 
                             {/* Column 2: Mode Selector Segment */}
-                            <div className="flex bg-slate-200/50 dark:bg-slate-800/60 p-1.5 rounded-[1.25rem] border border-slate-200/50 dark:border-slate-700/30 shrink-0 mb-1">
+                            <div className="flex bg-slate-200/50 dark:bg-slate-800/60 p-1 rounded-[1.25rem] border border-slate-200/50 dark:border-slate-700/30 shrink-0">
                                 {[
                                     { id: 'query', label: 'Builder', icon: faFilter },
                                     { id: 'blank', label: 'Archetype', icon: faCode }
                                 ].map((tab) => (
                                     <button
                                         key={tab.id}
-                                        onClick={() => setActiveTab(tab.id as any)}
-                                        className={`px-7 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${activeTab === tab.id
+                                        onClick={() => handleTabChange(tab.id as any)}
+                                        className={`px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${activeTab === tab.id
                                             ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1)]'
                                             : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                                             }`}
@@ -288,7 +304,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
 
                     {/* 2. Main Canvas: Where the magic happens */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20 dark:bg-slate-950/10">
-                        <div className="max-w-6xl mx-auto py-10 px-8">
+                        <div className="max-w-6xl mx-auto py-6 px-8">
                             {activeTab === 'query' ? (
                                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
                                     <VisualQueryBuilder
@@ -302,10 +318,10 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                     />
                                 </div>
                             ) : (
-                                <div className="flex items-center justify-center py-24 animate-in fade-in zoom-in-95 duration-700">
-                                    <div className="max-w-md w-full text-center p-14 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 shadow-xl shadow-slate-200/20 dark:shadow-none">
-                                        <div className="w-24 h-24 mx-auto bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] flex items-center justify-center mb-10 rotate-6 border border-slate-100 dark:border-slate-700 shadow-sm transition-transform hover:rotate-0 duration-500">
-                                            <FontAwesomeIcon icon={faFileCode} className="text-slate-400 dark:text-slate-500 text-4xl -rotate-6 transition-transform group-hover:rotate-0" />
+                                <div className="flex items-center justify-center py-16 animate-in fade-in zoom-in-95 duration-700">
+                                    <div className="max-w-md w-full text-center p-10 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 shadow-xl shadow-slate-200/20 dark:shadow-none">
+                                        <div className="w-20 h-20 mx-auto bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] flex items-center justify-center mb-8 rotate-6 border border-slate-100 dark:border-slate-700 shadow-sm transition-transform hover:rotate-0 duration-500">
+                                            <FontAwesomeIcon icon={faFileCode} className="text-slate-400 dark:text-slate-500 text-3xl -rotate-6 transition-transform group-hover:rotate-0" />
                                         </div>
                                         <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Pure Code Archetype</h3>
                                         <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mt-4 leading-relaxed px-4">
@@ -318,7 +334,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                     </div>
 
                     {/* 3. Action Footer: High-impact termination */}
-                    <div className="px-10 py-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0 shadow-[0_-12px_24px_rgba(0,0,0,0.02)]">
+                    <div className="px-10 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0 shadow-[0_-12px_24px_rgba(0,0,0,0.02)]">
                         <div className="flex items-center gap-4">
                             {!isReplacing && isCompiled && !scriptName.trim() && (
                                 <div className="flex items-center gap-3 px-5 py-2.5 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 font-bold animate-pulse">

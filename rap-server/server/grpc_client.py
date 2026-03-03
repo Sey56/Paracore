@@ -715,15 +715,27 @@ def get_category_parameters(category_name: str):
             
             params = []
             for p in response.parameters:
+                # Differentiate identical names with extra context: Name [StorageType][Type/Instance][BuiltInName]
+                storage = p.storage_type or "Unknown"
+                is_type_val = getattr(p, 'is_type', False)
+                type_or_instance = "Type" if is_type_val else "Instance"
+                builtin = p.builtin_name if p.builtin_name else ""
+                
+                # Compose enriched display name
+                display_name = f"{p.name} [{storage}][{type_or_instance}]"
+                if builtin:
+                    display_name += f"[{builtin}]"
+
                 params.append({
                     "name": p.name,
+                    "displayName": display_name,
                     "storage_type": p.storage_type,
                     "is_builtin": p.is_builtin,
                     "builtin_id": p.builtin_id,
                     "builtin_name": p.builtin_name,
                     "revit_element_type": p.revit_element_type,
                     "spec_type_id": p.spec_type_id,
-                    "is_type": getattr(p, 'is_type', False)
+                    "is_type": is_type_val
                 })
             
             return {

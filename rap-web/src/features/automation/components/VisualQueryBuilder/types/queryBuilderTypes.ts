@@ -1,5 +1,6 @@
 export interface ParameterDefinition {
   name: string;
+  displayName?: string;
   storage_type: string;
   is_builtin: boolean;
   builtin_id: number;
@@ -12,6 +13,7 @@ export interface ParameterDefinition {
 export interface QueryRule {
   type: 'rule';
   name: string;
+  displayName?: string;
   storage_type: string;
   operator: string;
   value: any;

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTable, faFilter, faTimes, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faTable, faFilter, faTimes, faChevronDown, faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { ParameterDefinition, QueryRule, getAvailableUnits, QueryGroup } from '../types/queryBuilderTypes';
 
 interface ReportingParametersProps {
@@ -51,7 +51,7 @@ export const ReportingParameters: React.FC<ReportingParametersProps> = ({
   }, [isColumnDropdownOpen, setIsColumnDropdownOpen]);
 
   const filteredColumns = availableParams.filter(p =>
-    p.name.toLowerCase().includes(columnSearch.toLowerCase()) &&
+    (p.displayName || p.name).toLowerCase().includes(columnSearch.toLowerCase()) &&
     !selectedColumns.some(sc => sc.name === p.name)
   );
 
@@ -88,11 +88,32 @@ export const ReportingParameters: React.FC<ReportingParametersProps> = ({
                   <div className="px-4 py-3 text-xs font-bold text-slate-400 text-center uppercase tracking-tight">No parameters found</div>
                 ) : (
                   filteredColumns.map(p => (
-                    <div key={p.name} onClick={() => { addColumn(p); setIsColumnDropdownOpen(false); }} className="px-4 py-1.5 text-sm font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-300 transition-colors flex items-center justify-between group">
-                      <span>{p.name}</span>
-                      <div className="flex items-center gap-2">
-                        {rootGroupJson.includes(`"${p.name}"`) && <span className="text-[10px] font-black text-blue-500 uppercase tracking-tighter">Filtered</span>}
-                        <span className="text-[10px] font-black text-gray-400 opacity-60 group-hover:opacity-100 transition-opacity uppercase">{p.storage_type}</span>
+                    <div key={p.name} onClick={() => { addColumn(p); setIsColumnDropdownOpen(false); }} className="px-4 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors flex items-center justify-between group">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{p.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{p.storage_type}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                          <span className={`text-[10px] font-black uppercase tracking-tighter ${p.is_type ? 'text-amber-500/70' : 'text-indigo-500/70'}`}>
+                            {p.is_type ? 'Type' : 'Instance'}
+                          </span>
+                          {p.builtin_name && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                              <span className="text-[10px] font-bold text-slate-400/60 font-mono tracking-tight">{p.builtin_name}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {rootGroupJson.includes(`"${p.name}"`) && (
+                          <div className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 rounded text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+                            Filtered
+                          </div>
+                        )}
+                        <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <FontAwesomeIcon icon={faPlus} className="text-[10px] text-blue-500" />
+                        </div>
                       </div>
                     </div>
                   ))
@@ -102,9 +123,9 @@ export const ReportingParameters: React.FC<ReportingParametersProps> = ({
           </div>
           <div className="flex flex-wrap gap-2">
             {availableParams.filter(p => rootGroupJson.includes(`"${p.name}"`)).map(p => (
-              <div key={p.name} className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800/50 flex items-center gap-2">
-                <FontAwesomeIcon icon={faFilter} className="text-[10px] text-blue-500" />
-                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">{p.name}</span>
+              <div key={p.name} className="px-3 py-1.5 rounded-lg bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100/50 dark:border-blue-800/30 flex items-center gap-2">
+                <FontAwesomeIcon icon={faFilter} className="text-[10px] text-blue-500/70" />
+                <span className="text-xs font-bold text-blue-700/80 dark:text-blue-300/80">{p.name}</span>
               </div>
             ))}
             {selectedColumns.map(col => {

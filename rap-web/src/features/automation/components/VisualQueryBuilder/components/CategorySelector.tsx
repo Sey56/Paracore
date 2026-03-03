@@ -118,7 +118,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
                   setShowAllCategories(nextState);
                   if (nextState) fetchAllCategories();
                 }}
-                className={`text-[9px] font-black px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${showAllCategories ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}`}
+                className={`text-[10px] font-black px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${showAllCategories ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}`}
               >
                 <FontAwesomeIcon icon={isFetchingCategories ? faSync : faGlobe} className={isFetchingCategories ? 'animate-spin' : ''} />
                 {isFetchingCategories ? 'SYNCING...' : (showAllCategories ? 'MODE: ALL' : 'MODE: COMMON')}
@@ -127,7 +127,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
             {filteredCategories.map(cat => (
               <div key={cat.id} onClick={() => { setCategory(cat.id); setCategorySearch(''); setIsCategoryDropdownOpen(false); }} className={`px-4 py-1.5 text-sm font-bold cursor-pointer transition-colors flex items-center justify-between group ${category === cat.id ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
                 <span>{cat.label}</span>
-                <span className="text-[11px] font-black text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity">{cat.id}</span>
+                <span className="text-xs font-black text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity">{cat.id}</span>
               </div>
             ))}
           </div>

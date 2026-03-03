@@ -365,8 +365,17 @@ async def create_new_script_logic(parent_folder: str, script_name: str, folder_n
         template = ARCHETYPES.get(template_id, ARCHETYPES["blank"])
         
         # 1. Inject Logic
-        if generated_logic: 
-            template = re.sub(r"// __INJECT_QUERY_BLOCK__", generated_logic, template, flags=re.DOTALL | re.IGNORECASE)
+        if generated_logic:
+            if "// __INJECT_QUERY_BLOCK__" in template:
+                template = re.sub(r"// __INJECT_QUERY_BLOCK__", generated_logic, template, flags=re.DOTALL | re.IGNORECASE)
+            elif template_id == "raw_injection":
+                # For raw injection, if the tag isn't there, we just use the logic as the full template
+                template = generated_logic
+        else:
+            # Clear the tag if no logic provided
+            template = template.replace("// __INJECT_QUERY_BLOCK__", "")
+            # Also clear the "Visual Query Injection" comment if it exists
+            template = template.replace("// Visual Query Injection", "")
         
         # 2. Inject Parameters (SKIP for raw_injection as it is self-contained)
         if generated_params and template_id != "raw_injection":
