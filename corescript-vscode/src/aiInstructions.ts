@@ -36,6 +36,8 @@ export const COPILOT_INSTRUCTIONS = "# Script Context: Paracore Tool Project\n" 
 "| `SetExecutionTimeout(seconds)` | void | Extend the default 10s timeout |\n" +
 "| `GetElement<T>(name)` | T? | Find a Revit element by its Name |\n" +
 "| `GetElements<T>()` | List<T> | Get all elements of type T in the document |\n" +
+"| `Watchdog(action)` | void | **SENTINEL ONLY**: Wrapper for background monitoring logic |\n" +
+"| `WatchdogReport(msg, status)` | void | **SENTINEL ONLY**: Push a status report (\"success\", \"warning\", \"error\") |\n" +
 "\n" +
 "## Implicit Using Statements\n" +
 "\n" +
@@ -120,13 +122,13 @@ export const COPILOT_INSTRUCTIONS = "# Script Context: Paracore Tool Project\n" 
 "\n" +
 "### Data Providers (Suffix Conventions)\n" +
 "\n" +
-"Define a companion property or method with the `_Suffix` naming convention:\n" +
+"Define a companion property or method with the `_Suffix\" naming convention:\n" +
 "\n" +
 "| Suffix | Purpose | Example |\n" +
 "|--------|---------|---------|\n" +
 "| `_Options` | Custom dropdown items | See below |\n" +
-"| `_Visible` | Conditional visibility | `public bool ShowAdvanced_Visible => IsActive;` |\n" +
-"| `_Range` | Dynamic range values | `public (double, double, double) Count_Range => (1, 100, 1);` |\n" +
+"| `_Visible\" | Conditional visibility | `public bool ShowAdvanced_Visible => IsActive;` |\n" +
+"| `_Range\" | Dynamic range values | `public (double, double, double) Count_Range => (1, 100, 1);` |\n" +
 "\n" +
 "#### _Options: Custom Data Provider (IMPORTANT)\n" +
 "\n" +
@@ -160,12 +162,13 @@ export const COPILOT_INSTRUCTIONS = "# Script Context: Paracore Tool Project\n" 
 "## Coding Rules\n" +
 "\n" +
 "1. **Transactions**: One `Transact(\"Name\", () => { ... })` block. All modifications inside.\n" +
-"2. **No Async**: NEVER use `await` or `async`. Scripts run in a synchronous UI thread.\n" +
-"3. **Target Existing File**: Write ALL code in the existing .cs file provided in the context (e.g. `MyScript.cs`). NEVER create `Script.cs` or other new files.\n" +
-"4. **Early Exits**: Use `throw new Exception(\"message\")` instead of top-level `return`.\n" +
-"5. **ElementId**: `ElementId.IntegerValue` is FORBIDDEN in Revit 2025+. Use `ElementId.Value` (long).\n" +
-"6. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use `[Confirm(\"DELETE\")]`.\n" +
-"7. **Unit suffix shorthand**: Name parameters with `_mm`, `_cm`, `_m`, `_ft`, `_in` for auto unit detection.\n" +
+"2. **Sentinels (Watchdogs)**: If the user asks for background monitoring or a \"Sentinel\", wrap the logic in `Watchdog(() => { ... });`. Use `WatchdogReport(msg, status)` to send feedback (\"success\", \"warning\", \"error\").\n" +
+"3. **No Async**: NEVER use `await` or `async`. Scripts run in a synchronous UI thread.\n" +
+"4. **Target Existing File**: Write ALL code in the existing .cs file provided in the context (e.g. `MyScript.cs`). NEVER create `Script.cs` or other new files.\n" +
+"5. **Early Exits**: Use `throw new Exception(\"message\")` instead of top-level `return`.\n" +
+"6. **ElementId**: `ElementId.IntegerValue\" is FORBIDDEN in Revit 2025+. Use `ElementId.Value` (long).\n" +
+"7. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use `[Confirm(\"DELETE\")]`.\n" +
+"8. **Unit suffix shorthand**: Name parameters with `_mm`, `_cm\", `_m`, `_ft\", `_in` for auto unit detection.\n" +
 "\n" +
 "## Complete Example\n" +
 "\n" +
@@ -217,5 +220,39 @@ export const COPILOT_INSTRUCTIONS = "# Script Context: Paracore Tool Project\n" 
 "    public bool ApplyChanges { get; set; } = false;\n" +
 "\n" +
 "    #endregion\n" +
+"}\n" +
+"```\n" +
+"\n" +
+"## Sentinel (Watchdog) Example\n" +
+"\n" +
+"```csharp\n" +
+"using Autodesk.Revit.DB;\n" +
+"\n" +
+"Watchdog(() => \n" +
+"{\n" +
+"    var p = new Params();\n" +
+"\n" +
+"    // 1. Audit Logic\n" +
+"    var elements = new FilteredElementCollector(Doc)\n" +
+"        .OfCategory(p.TargetCategory)\n" +
+"        .WhereElementIsNotElementType()\n" +
+"        .ToElements();\n" +
+"\n" +
+"    var breachCount = elements.Count(e => e.Name.Contains(\"TEMP\"));\n" +
+"\n" +
+"    // 2. Report\n" +
+"    if (breachCount > 0)\n" +
+"    {\n" +
+"        WatchdogReport($\"Found {breachCount} temporary elements.\", \"warning\");\n" +
+"    }\n" +
+"    else\n" +
+"    {\n" +
+"        WatchdogReport(\"Compliance verified.\", \"success\");\n" +
+"    }\n" +
+"});\n" +
+"\n" +
+"public class Params\n" +
+"{\n" +
+"    public BuiltInCategory TargetCategory { get; set; } = BuiltInCategory.OST_Walls;\n" +
 "}\n" +
 "```\n";

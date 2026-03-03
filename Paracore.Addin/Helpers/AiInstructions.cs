@@ -33,6 +33,8 @@ Scripts use **Top-Level Statements**. The order is mandatory:
 | `PieChart(data)` | void | Render a pie chart in the Summary tab |
 | `LineChart(data)` | void | Render a line chart in the Summary tab |
 | `SetExecutionTimeout(seconds)` | void | Extend the default 10s timeout |
+| `Watchdog(action)` | void | **SENTINEL ONLY**: Wrapper for background monitoring logic |
+| `WatchdogReport(msg, status)` | void | **SENTINEL ONLY**: Push a status report (""success"", ""warning"", ""error"") |
 
 ## Implicit Using Statements
 
@@ -157,12 +159,13 @@ public List<string> Mode_Options => [""Preview"", ""Commit"", ""Audit""];
 ## Coding Rules
 
 1. **Transactions**: One `Transact(""Name"", () => { ... })` block. All modifications inside.
-2. **No Async**: NEVER use `await` or `async`. Scripts run in a synchronous UI thread.
-3. **Target Existing File**: Write ALL code in the existing .cs file provided in the context (e.g. `MyScript.cs`). NEVER create `Script.cs` or other new files.
-4. **Early Exits**: Use `throw new Exception(""message"")` instead of top-level `return`.
-5. **ElementId**: `ElementId.IntegerValue` is FORBIDDEN in Revit 2025+. Use `ElementId.Value` (long).
-6. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use `[Confirm(""DELETE"")]`.
-7. **Unit suffix shorthand**: Name parameters with `_mm`, `_cm`, `_m`, `_ft`, `_in` for auto unit detection.
+2. **Sentinels (Watchdogs)**: If the user asks for background monitoring or a ""Sentinel"", wrap the logic in `Watchdog(() => { ... });`. Use `WatchdogReport(msg, status)` to send feedback (""success"", ""warning"", ""error"").
+3. **No Async**: NEVER use `await` or `async`. Scripts run in a synchronous UI thread.
+4. **Target Existing File**: Write ALL code in the existing .cs file provided in the context (e.g. `MyScript.cs`). NEVER create `Script.cs` or other new files.
+5. **Early Exits**: Use `throw new Exception(""message"")` instead of top-level `return`.
+6. **ElementId**: `ElementId.IntegerValue` is FORBIDDEN in Revit 2025+. Use `ElementId.Value` (long).
+7. **Safety Locks**: For destructive operations (Delete, Overwrite), MUST use `[Confirm(""DELETE"")]`.
+8. **Unit suffix shorthand**: Name parameters with `_mm`, `_cm`, `_m`, `_ft`, `_in` for auto unit detection.
 
 ## Complete Example
 
@@ -214,6 +217,39 @@ public class Params
     public bool ApplyChanges { get; set; } = false;
 
     #endregion
+}
+
+## Sentinel (Watchdog) Example
+
+```csharp
+using Autodesk.Revit.DB;
+
+Watchdog(() => 
+{
+    var p = new Params();
+
+    // 1. Audit Logic
+    var elements = new FilteredElementCollector(Doc)
+        .OfCategory(p.TargetCategory)
+        .WhereElementIsNotElementType()
+        .ToElements();
+
+    var breachCount = elements.Count(e => e.Name.Contains(""TEMP""));
+
+    // 2. Report
+    if (breachCount > 0)
+    {
+        WatchdogReport($""Found {breachCount} temporary elements."", ""warning"");
+    }
+    else
+    {
+        WatchdogReport(""Compliance verified."", ""success"");
+    }
+});
+
+public class Params
+{
+    public BuiltInCategory TargetCategory { get; set; } = BuiltInCategory.OST_Walls;
 }
 ```
 ";
