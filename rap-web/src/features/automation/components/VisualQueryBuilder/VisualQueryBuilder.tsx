@@ -108,6 +108,7 @@ export const VisualQueryBuilder: React.FC<VisualQueryBuilderProps> = ({
         ) : (
           <RuleGroup
             group={rootGroup}
+            rootGroup={rootGroup}
             availableParams={availableParams}
             updateRootGroupRecursive={updateRootGroupRecursive}
             setGroupCombinator={setGroupCombinator}

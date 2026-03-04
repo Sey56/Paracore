@@ -6,6 +6,8 @@ import {
 } from 'recharts';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useScripts } from '../../hooks/useScripts';
+import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy } from '@fortawesome/free-solid-svg-icons';
 import { save } from '@tauri-apps/api/dialog';
@@ -123,23 +125,6 @@ const TableView: React.FC<{
     setSortConfig({ key, direction });
   };
 
-  const handleRowClick = (row: Record<string, unknown>, index: number) => {
-    const idKey = Object.keys(row).find(k =>
-      ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase())
-    );
-
-    if (idKey) {
-      const val = row[idKey];
-      const id = typeof val === 'string' ? parseInt(val, 10) : Number(val);
-      if (!isNaN(id) && id > 0) {
-        setActiveRowIndex(index);
-        onSelect([id]);
-      } else {
-        showNotification("Invalid Element ID detected.", "warning");
-      }
-    }
-  };
-
   return (
     <div className="flex flex-col space-y-2 w-full min-w-0 overflow-hidden">
       <div className="flex items-center gap-2">
@@ -196,9 +181,8 @@ const TableView: React.FC<{
               return (
                 <tr
                   key={rowIndex}
-                  onClick={() => handleRowClick(row, rowIndex)}
                   className={`
-                    ${hasId ? "cursor-pointer transition-colors" : ""}
+                    ${hasId ? "transition-colors" : ""}
                     ${isActive ? "bg-blue-100 dark:bg-blue-800/40 border-l-4 border-blue-500" : "hover:bg-blue-50 dark:hover:bg-blue-900/20"}
                   `}
                 >
@@ -209,6 +193,19 @@ const TableView: React.FC<{
                     const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === header;
 
                     const canEdit = !isIdColumn && !!onUpdate && hasId;
+
+                    // Specialized click for ID selection
+                    const handleIdClick = (e: React.MouseEvent) => {
+                      if (isIdColumn && idColKey) {
+                        e.stopPropagation();
+                        const val = row[idColKey];
+                        const id = typeof val === 'string' ? parseInt(val, 10) : Number(val);
+                        if (!isNaN(id) && id > 0) {
+                          setActiveRowIndex(rowIndex);
+                          onSelect([id]);
+                        }
+                      }
+                    };
 
                     const handleDoubleClick = () => {
                       if (canEdit) {
@@ -254,7 +251,8 @@ const TableView: React.FC<{
                     return (
                       <td
                         key={colIndex}
-                        className={`px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-[200px] ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
+                        className={`px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-[200px] ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
+                        onClick={handleIdClick}
                         onDoubleClick={handleDoubleClick}
                       >
                         {isEditing ? (
@@ -288,9 +286,24 @@ const TableView: React.FC<{
 
 export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ item }) => {
   const { showNotification } = useNotifications();
+  const { selectedScript } = useScriptExecution();
   const chartId = useId().replace(/:/g, '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // --- Build Metadata Map for Parameter Mapping ---
+  const paramMetadataMap = useMemo(() => {
+    const map = new Map<string, { name: string; unit: string }>();
+    if (!selectedScript?.parameters) return map;
+
+    selectedScript.parameters.forEach(p => {
+      // Map clean C# property name (FloorFinish) to real Revit name (Floor Finish)
+      const cleanId = p.name.replace(/\s+/g, '');
+      map.set(cleanId, { name: p.name, unit: p.unit || "" });
+      map.set(p.name, { name: p.name, unit: p.unit || "" });
+    });
+    return map;
+  }, [selectedScript]);
 
   const handleSelectElements = useCallback(async (ids: number[]) => {
     try {
@@ -303,13 +316,18 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
   const handleUpdateParameter = useCallback(async (elementId: number, parameterName: string, newValue: string) => {
     try {
+      // Translate C# property back to real Revit name
+      const meta = paramMetadataMap.get(parameterName);
+      const realName = meta?.name || parameterName;
+
       const response = await api.post('/api/update-element-parameter', {
         element_id: elementId,
-        parameter_name: parameterName,
-        new_value_string: newValue
+        parameter_name: realName,
+        new_value_string: newValue,
+        unit: meta?.unit || ""
       });
       if (response.data?.is_success) {
-        showNotification(`Updated ${parameterName}`, "success");
+        showNotification(`Updated ${realName}`, "success");
         return true;
       } else {
         showNotification(`Update failed: ${response.data?.error_message || 'Unknown error'}`, "error");
@@ -320,7 +338,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       showNotification("Failed to update parameter in Revit.", "error");
       return false;
     }
-  }, [showNotification]);
+  }, [showNotification, paramMetadataMap]);
 
   const handleCopy = useCallback(() => {
     try {
@@ -375,47 +393,24 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   }, [item.data, item.type, showNotification]);
 
   const handleUploadCsv = () => {
-    console.log("handleUploadCsv clicked. ref current:", fileInputRef.current);
-    if (!fileInputRef.current) {
-      console.error("fileInputRef.current is NULL. Input might not be mounted.");
-      showNotification("Upload system is initializing, please try again in a moment.", "warning");
-      return;
-    }
+    if (!fileInputRef.current) return;
     fileInputRef.current.click();
   };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) {
-      console.log("No file selected.");
-      return;
-    }
+    if (!file) return;
 
-    console.log(`File selected: ${file.name}, Size: ${file.size} bytes`);
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         let text = event.target?.result as string;
-        if (!text) {
-          console.error("FileReader result is empty.");
-          showNotification("Could not read file content.", "error");
-          return;
-        }
+        if (!text) return;
 
-        // --- Strip UTF-8 BOM if present ---
-        if (text.startsWith('\uFEFF')) {
-          console.log("UTF-8 BOM detected and stripped.");
-          text = text.substring(1);
-        }
+        if (text.startsWith('\uFEFF')) text = text.substring(1);
 
-        console.log("File content read. Starting CSV scan...");
-        showNotification("Scanning CSV for changes...", "info");
-
-        // --- Robust CSV Parser ---
         const parseCSV = (csv: string) => {
-          // Normalize line endings and filter out empty lines
           const lines = csv.replace(/\r/g, "").split("\n").filter(l => l.trim() !== "");
-          console.log(`CSV lines found: ${lines.length}`);
           if (lines.length < 2) return [];
 
           const parseLine = (line: string) => {
@@ -425,98 +420,50 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
             for (let i = 0; i < line.length; i++) {
               const char = line[i];
               if (char === '"') {
-                // Handle double quotes inside quoted fields
-                if (inQuotes && line[i + 1] === '"') {
-                  curr += '"';
-                  i++; // Skip next quote
-                } else {
-                  inQuotes = !inQuotes;
-                }
-              } else if (char === ',' && !inQuotes) {
-                result.push(curr.trim());
-                curr = "";
-              } else {
-                curr += char;
-              }
+                if (inQuotes && line[i + 1] === '"') { curr += '"'; i++; }
+                else inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) { result.push(curr.trim()); curr = ""; }
+              else curr += char;
             }
             result.push(curr.trim());
             return result;
           };
 
           const headers = parseLine(lines[0]);
-          console.log("CSV Headers identified:", headers);
-          return lines.slice(1).map((line, lineIdx) => {
+          return lines.slice(1).map(line => {
             const values = parseLine(line);
             const obj: any = {};
-            headers.forEach((h, i) => {
-              if (h) obj[h] = values[i] !== undefined ? values[i] : "";
-            });
+            headers.forEach((h, i) => { if (h) obj[h] = values[i] !== undefined ? values[i] : ""; });
             return obj;
           });
         };
 
         const importedData = parseCSV(text);
-        console.log(`Imported data rows: ${importedData.length}`);
-        if (importedData.length === 0) {
-          showNotification("CSV file is empty or formatted incorrectly.", "error");
-          return;
-        }
+        if (importedData.length === 0) return;
 
         let currentTableData: any[] = [];
         try {
           const parsed = JSON.parse(item.data);
           currentTableData = Array.isArray(parsed) ? parsed : [parsed];
-          console.log(`Current table rows: ${currentTableData.length}`);
-        } catch (err) {
-          console.error("Failed to parse current table data JSON:", err);
-          showNotification("Error parsing active table data.", "error");
-          return;
-        }
+        } catch { return; }
 
-        if (currentTableData.length === 0) {
-          showNotification("No data in current table to update.", "warning");
-          return;
-        }
+        if (currentTableData.length === 0) return;
 
-        // --- ID Key Discovery ---
-        const firstRow = currentTableData[0];
-        const tableKeys = Object.keys(firstRow);
-        const idKey = tableKeys.find(k =>
-          ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase())
-        );
+        const tableKeys = Object.keys(currentTableData[0]);
+        const idKey = tableKeys.find(k => ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase()));
+        if (!idKey) return;
 
-        if (!idKey) {
-          console.error("No ID column found in current table keys:", tableKeys);
-          showNotification("Cannot mass update: Table has no ID column.", "error");
-          return;
-        }
-        console.log(`Using ID column: ${idKey}`);
-
-        // --- Build Case-Insensitive Mapping for Table Keys ---
         const tableKeyMap = new Map<string, string>();
-        tableKeys.forEach(k => tableKeyMap.set(k.toLowerCase(), k));
+        tableKeys.forEach(k => {
+          tableKeyMap.set(k.toLowerCase(), k);
+          tableKeyMap.set(k.toLowerCase().replace(/\s+/g, ''), k);
+        });
 
         const updates: any[] = [];
-        let matchedRowsCount = 0;
-
-        importedData.forEach((importedRow, idx) => {
-          // Find the ID in the imported row (case-insensitive check for common ID headers)
-          const importedRowKeys = Object.keys(importedRow);
-          const importedIdKey = importedRowKeys.find(k => k.toLowerCase() === idKey.toLowerCase()) ||
-            importedRowKeys.find(k => ['id', 'elementid', 'revitid'].includes(k.toLowerCase()));
-
-          if (!importedIdKey) {
-            if (idx === 0) console.warn(`Imported row ${idx} is missing an ID column. Looking for ${idKey}`);
-            return;
-          }
-
-          const importedIdStr = String(importedRow[importedIdKey]);
-          const importedId = parseInt(importedIdStr.replace(/,/g, ''), 10); // Remove thousand separators if any
-
-          if (isNaN(importedId)) {
-            if (idx === 0) console.warn(`Row ${idx} has invalid ID: ${importedIdStr}`);
-            return;
-          }
+        importedData.forEach((importedRow) => {
+          const importedIdKey = Object.keys(importedRow).find(k => k.toLowerCase() === idKey.toLowerCase()) || 'Id';
+          const importedId = parseInt(String(importedRow[importedIdKey] || '').replace(/,/g, ''), 10);
+          if (isNaN(importedId)) return;
 
           const matchingRow = currentTableData.find(r => {
             const rId = typeof r[idKey] === 'string' ? parseInt(r[idKey], 10) : Number(r[idKey]);
@@ -524,24 +471,23 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           });
 
           if (matchingRow) {
-            matchedRowsCount++;
-            importedRowKeys.forEach(csvColName => {
-              const lowerCsvCol = csvColName.toLowerCase();
-              // Skip ID column
+            Object.keys(importedRow).forEach(csvColName => {
+              const lowerCsvCol = csvColName.toLowerCase().replace(/\s+/g, '');
               if (['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(lowerCsvCol)) return;
 
-              // Check if table has this column (case-insensitively)
               const actualTableColName = tableKeyMap.get(lowerCsvCol);
               if (actualTableColName) {
                 const newVal = String(importedRow[csvColName]).trim();
                 const oldVal = String(matchingRow[actualTableColName]).trim();
 
                 if (newVal !== oldVal) {
-                  console.log(`Change detected for element ${importedId} at column ${actualTableColName}: "${oldVal}" -> "${newVal}"`);
+                  // Use translation engine for mass updates too
+                  const meta = paramMetadataMap.get(actualTableColName);
                   updates.push({
                     element_id: importedId,
-                    parameter_name: actualTableColName,
-                    new_value_string: newVal
+                    parameter_name: meta?.name || actualTableColName,
+                    new_value_string: newVal,
+                    unit: meta?.unit || ""
                   });
                 }
               }
@@ -549,43 +495,27 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           }
         });
 
-        console.log(`Scan complete. Matches: ${matchedRowsCount}, Total updates pending: ${updates.length}`);
-
         if (updates.length === 0) {
-          if (matchedRowsCount === 0) {
-            showNotification(`No matches found. Ensure the CSV Element IDs match the table Element IDs.`, "warning");
-          } else {
-            showNotification(`Found ${matchedRowsCount} matching rows but no value changes detected.`, "info");
-          }
+          showNotification("No value changes detected in CSV.", "info");
           return;
         }
 
         setIsUpdating(true);
-        console.log("Sending batch update to server...");
         const response = await api.post("/api/batch-update-element-parameters", { updates });
         setIsUpdating(false);
-        console.log("Server response received:", response.data);
 
         if (response.data.is_success) {
-          showNotification(`Successfully updated all ${response.data.count} parameters in a single transaction.`, "success");
+          showNotification(`Successfully updated ${response.data.count} parameters.`, "success");
           window.dispatchEvent(new CustomEvent('paracore-table-updated', { detail: { updates, idKey } }));
         } else {
-          console.error("Batch update reported failure:", response.data.error_message);
-          showNotification(`Batch update failed: ${response.data.error_message || "Unknown error"}. No changes were made to the model.`, "error");
+          showNotification(`Batch update failed: ${response.data.error_message}`, "error");
         }
       } catch (error) {
         setIsUpdating(false);
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("CRITICAL: Unexpected error during CSV import processing:", error);
-        showNotification(`Unexpected error during CSV import: ${msg}`, "error");
+        showNotification("Failed to process CSV import.", "error");
       }
     };
-    reader.onerror = (e) => {
-      console.error("FileReader error event:", e);
-      showNotification("Failed to read the selected file.", "error");
-    };
     reader.readAsText(file);
-    // Reset input value to allow same file re-upload
     if (e.target) e.target.value = "";
   };
 
@@ -604,105 +534,17 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           originalSvg = svg;
         }
       }
-      if (!originalSvg || maxArea < 1000) {
-        showNotification("Could not find the chart image to export.", "warning");
-        return;
-      }
+      if (!originalSvg) return;
       const rect = originalSvg.getBoundingClientRect();
-      let width = rect.width;
-      let height = rect.height;
-      if (!width || !height) {
-        width = parseFloat(originalSvg.getAttribute("width") || "0");
-        height = parseFloat(originalSvg.getAttribute("height") || "0");
-      }
-      if (!width || !height) {
-        showNotification("Chart has no dimensions to export.", "warning");
-        return;
-      }
+      const width = rect.width;
+      const height = rect.height;
       const clonedSvg = originalSvg.cloneNode(true) as SVGSVGElement;
       clonedSvg.setAttribute("width", width.toString());
       clonedSvg.setAttribute("height", height.toString());
       clonedSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-      clonedSvg.style.overflow = "visible";
-
-      const originalNodes = originalSvg.querySelectorAll('*');
-      const clonedNodes = clonedSvg.querySelectorAll('*');
-      const stylesToCopy = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'transform', 'transform-origin', 'visibility', 'display'];
-
-      const rootComputed = window.getComputedStyle(originalSvg);
-      stylesToCopy.forEach(s => {
-        const v = rootComputed.getPropertyValue(s);
-        if (v) clonedSvg.style.setProperty(s, v);
-      });
-
-      originalNodes.forEach((orig, idx) => {
-        const clone = clonedNodes[idx];
-        if (clone instanceof Element) {
-          const comp = window.getComputedStyle(orig);
-          stylesToCopy.forEach(s => {
-            const v = comp.getPropertyValue(s);
-            if (v && (clone instanceof HTMLElement || clone instanceof SVGElement)) {
-              (clone as HTMLElement | SVGElement).style.setProperty(s, v);
-            }
-          });
-        }
-      });
-
-      const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      const padding = 20;
-      let dataForLegend: { name?: string }[] = [];
-      try {
-        dataForLegend = JSON.parse(item.data);
-      } catch (err) {
-        console.error("Failed to parse data for legend:", err);
-      }
-      const legendHeight = (item.type === 'chart-pie' && Array.isArray(dataForLegend)) ? 40 : 0;
-      const totalW = width + (padding * 2);
-      const totalH = height + legendHeight + (padding * 2);
-      wrapperSvg.setAttribute("width", totalW.toString());
-      wrapperSvg.setAttribute("height", totalH.toString());
-      wrapperSvg.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
-      wrapperSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-      const bgColor = window.getComputedStyle(container).backgroundColor || '#ffffff';
-      const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      bgRect.setAttribute("width", "100%");
-      bgRect.setAttribute("height", "100%");
-      bgRect.setAttribute("fill", bgColor);
-      wrapperSvg.appendChild(bgRect);
-
-      const chartG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      chartG.setAttribute("transform", `translate(${padding}, ${padding})`);
-      chartG.appendChild(clonedSvg);
-      wrapperSvg.appendChild(chartG);
-
-      if (item.type === 'chart-pie' && legendHeight > 0) {
-        const legendG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        const legendX = totalW - 120 - padding;
-        const rowH = 20;
-        const startY = padding + (height / 2) - ((dataForLegend.length * rowH) / 2);
-        legendG.setAttribute("transform", `translate(${legendX}, ${startY})`);
-        dataForLegend.forEach((entry, idx) => {
-          const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-          r.setAttribute("y", (idx * rowH).toString());
-          r.setAttribute("width", "10"); r.setAttribute("height", "10");
-          r.setAttribute("fill", COLORS[idx % COLORS.length]);
-          legendG.appendChild(r);
-          const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          t.setAttribute("x", "15"); t.setAttribute("y", (idx * rowH + 10).toString());
-          t.setAttribute("font-family", "sans-serif"); t.setAttribute("font-size", "11");
-          t.setAttribute("fill", COLORS[idx % COLORS.length]); t.setAttribute("dominant-baseline", "middle");
-          t.textContent = entry.name || `Item ${idx}`;
-          legendG.appendChild(t);
-        });
-        wrapperSvg.appendChild(legendG);
-      }
 
       const ser = new XMLSerializer();
-      let src = ser.serializeToString(wrapperSvg);
-      if (!src.match(/^<svg[^>]+"http:\/\/www\.w3\.org\/1999\/xlink"/)) {
-        src = src.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
-      }
+      const src = ser.serializeToString(clonedSvg);
       const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(src);
       const link = document.createElement("a");
       link.href = url;
@@ -714,7 +556,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     } catch (err) {
       showNotification("Failed to export chart image.", "error");
     }
-  }, [chartId, item.data, item.type, showNotification]);
+  }, [chartId, item.type, showNotification]);
 
   const parsedData = useMemo(() => {
     try {
@@ -740,7 +582,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       <>
         <button onClick={handleCopy} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-600" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
         <button onClick={handleDownloadCsv} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-green-500" title="Export CSV (Save As...)"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-        <button onClick={handleUploadCsv} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
+        <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-600 rounded shadow-sm hover:text-blue-500" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
       </>
     );
 

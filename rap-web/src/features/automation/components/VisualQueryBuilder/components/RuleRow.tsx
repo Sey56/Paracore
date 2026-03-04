@@ -1,13 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUp, faArrowDown, faTrash, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
-import { ParameterDefinition, QueryRule, OPERATORS, getAvailableUnits } from '../types/queryBuilderTypes';
+import { faArrowUp, faArrowDown, faTrash, faChevronDown, faSearch, faFilter } from '@fortawesome/free-solid-svg-icons';
+import { ParameterDefinition, QueryRule, OPERATORS, getAvailableUnits, QueryGroup } from '../types/queryBuilderTypes';
 
 interface RuleRowProps {
   child: QueryRule;
   childPath: number[];
   availableParams: ParameterDefinition[];
   updateRootGroupRecursive: (path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => void;
+  rootGroup: QueryGroup;
 }
 
 interface CustomMiniSelectProps {
@@ -62,7 +63,8 @@ export const RuleRow: React.FC<RuleRowProps> = ({
   child,
   childPath,
   availableParams,
-  updateRootGroupRecursive
+  updateRootGroupRecursive,
+  rootGroup
 }) => {
   const relevantUnits = getAvailableUnits(child.spec_type_id);
   const [isOpen, setIsOpen] = useState(false);
@@ -83,6 +85,8 @@ export const RuleRow: React.FC<RuleRowProps> = ({
     p.name.toLowerCase().includes(search.toLowerCase()) || 
     (p.displayName || '').toLowerCase().includes(search.toLowerCase())
   );
+
+  const rootGroupJson = useMemo(() => JSON.stringify(rootGroup), [rootGroup]);
 
   return (
     <div className="flex items-center gap-2 p-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 group/item transition-all hover:bg-white dark:hover:bg-slate-800">
@@ -115,30 +119,52 @@ export const RuleRow: React.FC<RuleRowProps> = ({
               {filteredParams.length === 0 ? (
                 <div className="px-4 py-3 text-xs font-bold text-slate-400 text-center uppercase">No matches</div>
               ) : (
-                filteredParams.map(p => (
-                  <div 
-                    key={p.name}
-                    onClick={() => {
-                      updateRootGroupRecursive(childPath, { name: p.name }, 'update');
-                      setIsOpen(false);
-                      setSearch('');
-                    }}
-                    className={`px-4 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors flex flex-col gap-0.5 ${child.name === p.name ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''}`}
-                  >
-                    <span className={`text-sm font-bold ${child.name === p.name ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}>{p.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{p.storage_type}</span>
-                      <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-                      <span className={`text-[10px] font-black uppercase tracking-tighter ${p.is_type ? 'text-amber-500/70' : 'text-indigo-500/70'}`}>{p.is_type ? 'Type' : 'Instance'}</span>
-                      {p.builtin_name && (
-                        <>
+                filteredParams.map(p => {
+                  const uniqueKey = `${p.name}_${p.is_type ? 'type' : 'inst'}_${p.builtin_name || p.builtin_id || ''}`;
+                  return (
+                    <div 
+                      key={uniqueKey}
+                      onClick={() => {
+                        updateRootGroupRecursive(childPath, { 
+                          name: p.name, 
+                          storage_type: p.storage_type,
+                          is_type: p.is_type,
+                          is_builtin: p.is_builtin,
+                          builtin_id: p.builtin_id,
+                          builtin_name: p.builtin_name,
+                          revit_element_type: p.revit_element_type,
+                          spec_type_id: p.spec_type_id
+                        }, 'update');
+                        setIsOpen(false);
+                        setSearch('');
+                      }}
+                      className={`px-4 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors flex items-center justify-between group ${child.name === p.name ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''}`}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className={`text-sm font-bold ${child.name === p.name ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}>{p.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{p.storage_type}</span>
                           <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-                          <span className="text-[10px] font-bold text-slate-400/60 font-mono tracking-tight">{p.builtin_name}</span>
-                        </>
+                          <span className={`text-[10px] font-black uppercase tracking-tighter ${p.is_type ? 'text-amber-500/70' : 'text-indigo-500/70'}`}>{p.is_type ? 'Type' : 'Instance'}</span>
+                          {p.builtin_name && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                              <span className="text-[10px] font-bold text-slate-400/60 font-mono tracking-tight">{p.builtin_name}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* CRITICAL FIX: Add 'Active' marker for already used filters */}
+                      {(rootGroupJson.includes(`"${p.name}"`) || (p.builtin_name && rootGroupJson.includes(`"${p.builtin_name}"`)) || (p.builtin_id && rootGroupJson.includes(String(p.builtin_id)))) && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500 rounded-md shadow-sm shrink-0">
+                          <FontAwesomeIcon icon={faFilter} className="text-[10px] text-white" />
+                          <span className="text-[9px] font-black text-white uppercase tracking-wider">Active</span>
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

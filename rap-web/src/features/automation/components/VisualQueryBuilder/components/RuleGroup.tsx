@@ -10,6 +10,7 @@ interface RuleGroupProps {
   availableParams: ParameterDefinition[];
   updateRootGroupRecursive: (path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => void;
   setGroupCombinator: (path: number[], combinator: 'AND' | 'OR') => void;
+  rootGroup: QueryGroup;
 }
 
 export const RuleGroup: React.FC<RuleGroupProps> = ({
@@ -17,7 +18,8 @@ export const RuleGroup: React.FC<RuleGroupProps> = ({
   path = [],
   availableParams,
   updateRootGroupRecursive,
-  setGroupCombinator
+  setGroupCombinator,
+  rootGroup
 }) => {
   const isRoot = path.length === 0;
 
@@ -53,6 +55,7 @@ export const RuleGroup: React.FC<RuleGroupProps> = ({
                   availableParams={availableParams}
                   updateRootGroupRecursive={updateRootGroupRecursive}
                   setGroupCombinator={setGroupCombinator}
+                  rootGroup={rootGroup}
                 />
               </div>
             );
@@ -64,6 +67,7 @@ export const RuleGroup: React.FC<RuleGroupProps> = ({
               childPath={childPath}
               availableParams={availableParams}
               updateRootGroupRecursive={updateRootGroupRecursive}
+              rootGroup={rootGroup}
             />
           );
         })}
