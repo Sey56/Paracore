@@ -105,13 +105,14 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
   const lastKnownModifiedRef = useRef<Record<string, number>>({});
 
-  // Reset logic when source/team changes
+  // Reset logic when source/team/user changes
   useEffect(() => {
     setSelectedScriptState(null);
     setPersistedScriptId(null);
     setCombinedScriptContent(null);
     setExecutionResult(null);
-  }, [activeScriptSource, setPersistedScriptId, setCombinedScriptContent, setExecutionResult, setSelectedScriptState]);
+    setAgentSelectedScriptPath(null);
+  }, [activeScriptSource, user?.id, selectedFolder, setPersistedScriptId, setCombinedScriptContent, setExecutionResult, setSelectedScriptState, setAgentSelectedScriptPath]);
 
   const lastTeamIdRef = useRef<number | null>(null);
   useEffect(() => {
@@ -241,10 +242,26 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [activeSyncSessions, selectedScript, updateScriptModificationTime, setSelectedScript]);
 
-  // Sync selectedScript with global scripts state to ensure metadata updates (like Last Run) are reflected in the Inspector
+  // V5: SMART EXISTENCE GUARD
+  // Sync selectedScript metadata updates (like Last Run) from the global list
+  // and authoritatively clear selection if the script is deleted from the active view.
   useEffect(() => {
     if (selectedScript) {
       const globalScript = scripts.find(s => s.id === selectedScript.id);
+      
+      // If the script is missing from the list, check if it belongs to the current gallery view.
+      if (!globalScript && scripts.length >= 0) {
+        const scriptPath = (selectedScript.absolutePath || "").replace(/\\/g, '/').toLowerCase();
+        const galleryPath = (selectedFolder || "").replace(/\\/g, '/').toLowerCase();
+        
+        // Only clear if the script BELONGS to the current folder (it was truly deleted/unloaded)
+        if (galleryPath && scriptPath.startsWith(galleryPath)) {
+          console.log("[ScriptExecutionProvider] 👻 Ghost selection detected (belongs to active view but gone). Clearing.");
+          setSelectedScriptState(null);
+          return;
+        }
+      }
+
       if (globalScript && (
         globalScript.metadata.lastRun !== selectedScript.metadata.lastRun ||
         globalScript.metadata.dateModified !== selectedScript.metadata.dateModified ||
@@ -253,7 +270,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         setSelectedScriptState(globalScript);
       }
     }
-  }, [scripts, selectedScript, setSelectedScriptState]);
+  }, [scripts, selectedScript, selectedFolder, setSelectedScriptState]);
 
   const resetScriptParameters = useCallback(async (scriptId: string) => {
     clearParameterCache(scriptId);

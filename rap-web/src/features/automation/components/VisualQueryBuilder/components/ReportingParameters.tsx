@@ -87,59 +87,51 @@ export const ReportingParameters: React.FC<ReportingParametersProps> = ({
                 {filteredColumns.length === 0 ? (
                   <div className="px-4 py-3 text-xs font-bold text-slate-400 text-center uppercase tracking-tight">No parameters found</div>
                 ) : (
-                  filteredColumns.map(p => {
-                    const uniqueKey = `${p.name}_${p.is_type ? 'type' : 'inst'}_${p.builtin_name || p.builtin_id || ''}`;
-                    return (
-                      <div key={uniqueKey} onClick={() => { addColumn(p); setIsColumnDropdownOpen(false); }} className="px-4 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors flex items-center justify-between group">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{p.name}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{p.storage_type}</span>
-                            <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-                            <span className={`text-[10px] font-black uppercase tracking-tighter ${p.is_type ? 'text-amber-500/70' : 'text-indigo-500/70'}`}>
-                              {p.is_type ? 'Type' : 'Instance'}
-                            </span>
-                            {p.builtin_name && (
-                              <>
-                                <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-                                <span className="text-[10px] font-bold text-slate-400/60 font-mono tracking-tight">{p.builtin_name}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          {(rootGroupJson.includes(`"${p.name}"`) || (p.builtin_name && rootGroupJson.includes(`"${p.builtin_name}"`)) || (p.builtin_id && rootGroupJson.includes(String(p.builtin_id)))) && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500 rounded-md shadow-sm">
-                              <FontAwesomeIcon icon={faFilter} className="text-[10px] text-white" />
-                              <span className="text-[9px] font-black text-white uppercase tracking-wider">Filtered</span>
-                            </div>
+                  filteredColumns.map(p => (
+                    <div key={p.name} onClick={() => { addColumn(p); setIsColumnDropdownOpen(false); }} className="px-4 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors flex items-center justify-between group">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{p.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{p.storage_type}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                          <span className={`text-[10px] font-black uppercase tracking-tighter ${p.is_type ? 'text-amber-500/70' : 'text-indigo-500/70'}`}>
+                            {p.is_type ? 'Type' : 'Instance'}
+                          </span>
+                          {p.builtin_name && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                              <span className="text-[10px] font-bold text-slate-400/60 font-mono tracking-tight">{p.builtin_name}</span>
+                            </>
                           )}
-                          <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <FontAwesomeIcon icon={faPlus} className="text-[10px] text-blue-500" />
-                          </div>
                         </div>
                       </div>
-                    );
-                  })
+                      <div className="flex items-center gap-2 shrink-0">
+                        {rootGroupJson.includes(`"${p.name}"`) && (
+                          <div className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 rounded text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+                            Filtered
+                          </div>
+                        )}
+                        <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <FontAwesomeIcon icon={faPlus} className="text-[10px] text-blue-500" />
+                        </div>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            {availableParams.filter(p => rootGroupJson.includes(`"${p.name}"`)).map(p => {
-              const uniqueKey = `chip_${p.name}_${p.is_type ? 'type' : 'inst'}_${p.builtin_name || p.builtin_id || ''}`;
-              return (
-                <div key={uniqueKey} className="px-3 py-1.5 rounded-lg bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100/50 dark:border-blue-800/30 flex items-center gap-2">
-                  <FontAwesomeIcon icon={faFilter} className="text-[10px] text-blue-500/70" />
-                  <span className="text-xs font-bold text-blue-700/80 dark:text-blue-300/80">{p.name}</span>
-                </div>
-              );
-            })}
+            {availableParams.filter(p => rootGroupJson.includes(`"${p.name}"`)).map(p => (
+              <div key={p.name} className="px-3 py-1.5 rounded-lg bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100/50 dark:border-blue-800/30 flex items-center gap-2">
+                <FontAwesomeIcon icon={faFilter} className="text-[10px] text-blue-500/70" />
+                <span className="text-xs font-bold text-blue-700/80 dark:text-blue-300/80">{p.name}</span>
+              </div>
+            ))}
             {selectedColumns.map(col => {
               const relevantUnits = getAvailableUnits(col.spec_type_id);
-              const uniqueKey = `sel_${col.name}_${col.is_type ? 'type' : 'inst'}_${col.builtin_name || col.builtin_id || ''}`;
               return (
-                <div key={uniqueKey} className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center gap-3 shadow-sm">
+                <div key={col.name} className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center gap-3 shadow-sm">
                   <div className="flex items-center gap-2">
                     <FontAwesomeIcon icon={faTable} className="text-xs text-gray-400" />
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-200 tracking-tight">{col.name}</span>

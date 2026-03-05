@@ -290,6 +290,11 @@ namespace Paracore.Addin.Handlers
 
                     foreach (var item in allParams.OrderBy(x => disambiguatedNames[x.Param.Id])) {
                         var p = item.Param;
+                        
+                        // CRITICAL UX FIX: Filter out redundant Category parameters from VQB list
+                        string lowName = p.Definition.Name.ToLower();
+                        if (lowName == "category" || lowName == "element category") continue;
+
                         string specId = ""; try { specId = p.Definition.GetDataType().TypeId; } catch { }
                         var def = new ParameterDefinition {
                             Name = disambiguatedNames[p.Id], StorageType = p.StorageType.ToString(),
@@ -301,7 +306,8 @@ namespace Paracore.Addin.Handlers
                         if (p.StorageType == StorageType.ElementId) {
                             string typeName = "Element";
                             string name = p.Definition.Name.ToLower();
-                            if (name.Contains("level") || name.Contains("constraint")) typeName = "Level";
+                            if (name.Contains("category")) typeName = "Category";
+                            else if (name.Contains("level") || name.Contains("constraint")) typeName = "Level";
                             else if (name.Contains("material")) typeName = "Material";
                             else if (name.Contains("type")) typeName = "ElementType";
                             else if (name.Contains("phase")) typeName = "Phase";

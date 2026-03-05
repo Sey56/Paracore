@@ -258,14 +258,24 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
                 className={`${isComputing ? 'animate-spin' : ''}`}
               />
             </button>
-            {isContextMismatch && !isComputing && (
+            
+            {/* COMPUTE TOOLTIP: Always show info when options exist */}
+            {param.options && param.options.length > 0 && !isComputing && (
               <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 border border-white/10 text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
-                <div className="text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest border-b border-white/5 pb-1">
-                  <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1 border-b border-white/5 uppercase tracking-widest">
+                  <FontAwesomeIcon icon={faCheck} className="text-[8px]" /> Computed Results
                 </div>
-                Data computed in <span className="text-blue-400">'{param.computedInDocument}'</span>.
-                <br />
-                Re-compute for <span className="text-emerald-400">'{currentDocTitle}'</span> to ensure accuracy.
+                <span className="text-white text-xs">{param.options.length} options discovered.</span>
+                {param.computedInDocument && (
+                  <div className="mt-1 text-slate-400 text-[9px] italic">
+                    Source: {param.computedInDocument}
+                  </div>
+                )}
+                {isContextMismatch && (
+                  <div className="mt-2 text-amber-400 font-black border-t border-white/5 pt-1 uppercase">
+                    ⚠ Document Mismatch!
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -485,14 +495,24 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
                 className={`${isComputing ? 'animate-spin' : ''} ${isContextMismatch ? 'text-amber-500' : ''}`}
               />
             </button>
-            {isContextMismatch && !isComputing && (
+            
+            {/* COMPUTE TOOLTIP: High-fidelity feedback for standard inputs */}
+            {param.options && param.options.length > 0 && !isComputing && (
               <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 border border-white/10 text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
-                <div className="text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest border-b border-white/5 pb-1">
-                  <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1 border-b border-white/5 uppercase tracking-widest">
+                  <FontAwesomeIcon icon={faCheck} className="text-[8px]" /> Computed Results
                 </div>
-                Data computed in <span className="text-blue-400">'{param.computedInDocument}'</span>.
-                <br />
-                Re-compute for <span className="text-emerald-400">'{currentDocTitle}'</span> to ensure accuracy.
+                <span className="text-white text-xs">{param.options.length} options discovered.</span>
+                {param.computedInDocument && (
+                  <div className="mt-1 text-slate-400 text-[9px] italic">
+                    Source: {param.computedInDocument}
+                  </div>
+                )}
+                {isContextMismatch && (
+                  <div className="mt-2 text-amber-400 font-black border-t border-white/5 pt-1 uppercase">
+                    ⚠ Document Mismatch!
+                  </div>
+                )}
               </div>
             )}
           </div>

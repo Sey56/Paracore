@@ -80,6 +80,51 @@ export const useQueryBuilderLogic = (
     fetchParams();
   }, [category]);
 
+  // CATEGORY GUARD: Prune invalid parameters when category changes
+  useEffect(() => {
+    if (!category || availableParams.length === 0) return;
+
+    const validNames = new Set(availableParams.map(p => p.name));
+    const validBuiltins = new Set(availableParams.filter(p => p.builtin_name).map(p => p.builtin_name));
+    const validIds = new Set(availableParams.filter(p => p.builtin_id).map(p => String(p.builtin_id)));
+
+    const isParamValid = (item: any) => {
+      // Identity check: prioritize builtin match, fallback to name+type
+      if (item.is_builtin) {
+        return (item.builtin_name && validBuiltins.has(item.builtin_name)) || 
+               (item.builtin_id && validIds.has(String(item.builtin_id)));
+      }
+      return validNames.has(item.name);
+    };
+
+    // 1. Prune Selected Columns
+    setSelectedColumns(prev => {
+      const filtered = prev.filter(isParamValid);
+      return filtered.length !== prev.length ? filtered : prev;
+    });
+
+    // 2. Recursive Prune Root Group
+    const pruneGroup = (group: QueryGroup): QueryGroup => {
+      return {
+        ...group,
+        children: group.children.filter(child => {
+          if (child.type === 'group') {
+            const pruned = pruneGroup(child);
+            return pruned.children.length > 0;
+          }
+          return isParamValid(child);
+        })
+      };
+    };
+
+    setRootGroup(prev => {
+      const pruned = pruneGroup(prev);
+      // Deep compare to prevent unnecessary state updates/cycles
+      return JSON.stringify(pruned) !== JSON.stringify(prev) ? pruned : prev;
+    });
+
+  }, [category, availableParams]);
+
   const updateRootGroupRecursive = useCallback((path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => {
     setLastGeneratedTimestamp(null);
     onQueryGenerated('', '', false);

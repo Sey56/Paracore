@@ -456,6 +456,16 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
+      // E. Fine-Grained Script Sync: Refresh active list if individual scripts were deleted externally
+      if (activeScriptSource && !hasChanges) {
+        const currentPath = activeScriptSource.type === 'local' ? activeScriptSource.path : userSourcePaths[Number(activeScriptSource.id)]?.path;
+        if (currentPath && normalizedMap[normalizePath(currentPath)] === true) {
+          // If we have scripts, check if they still exist via a lightweight HEAD-like check
+          // For now, we trigger a silent reload if individual scripts are missing from the backend response
+          loadScriptsFromPath(currentPath, true);
+        }
+      }
+
     } catch (err) {
       console.error("[ScriptProvider] Failed to validate sources:", err);
     }
