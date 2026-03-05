@@ -14,6 +14,18 @@ from ide_manager import set_active_ide_session, remove_active_ide_session
 from utils import resolve_script_path
 from api.script_templates import ARCHETYPES
 
+def recover_true_path(path: str) -> str:
+    """Recovers the actual filesystem casing for a given path to ensure consistency."""
+    abs_p = resolve_script_path(path).replace('\\', '/')
+    parent_dir = os.path.dirname(abs_p)
+    base_name = os.path.basename(abs_p)
+    
+    if os.path.isdir(parent_dir):
+        for item in os.listdir(parent_dir):
+            if item.lower() == base_name.lower():
+                return os.path.abspath(os.path.join(parent_dir, item)).replace('\\', '/')
+    return abs_p
+
 def _hydrate_params_for_frontend(params: List[Dict]) -> List[Dict]:
     """
     V4 ELITE: Single source of truth for parameter hydration.
@@ -175,7 +187,8 @@ async def get_single_script_logic(script_path: str):
             for item in os.listdir(parent_dir):
                 if item.lower() == base_name.lower():
                     project_name = item
-                    abs_p = os.path.join(parent_dir, item).replace('\\', '/')
+                    # Recalculate the absolute path with the real casing
+                    abs_p = os.path.abspath(os.path.join(parent_dir, item)).replace('\\', '/')
                     break
 
         # 2. Handle binary/compiled scripts natively
@@ -296,7 +309,9 @@ async def compute_parameter_options_logic(script_path: str, parameter_name: str,
 
 async def edit_script_logic(tool_path: str):
     try:
-        project_root = resolve_script_path(tool_path)
+        print(f"[DEBUG] edit_script_logic received tool_path: {repr(tool_path)}")
+        project_root = recover_true_path(tool_path)
+        print(f"[DEBUG] edit_script_logic recovered project_root: {repr(project_root)}")
         project_name = os.path.basename(project_root)
         scripts_dir = os.path.join(project_root, "Scripts")
         if not os.path.isdir(scripts_dir): os.makedirs(scripts_dir, exist_ok=True)
@@ -370,7 +385,8 @@ async def get_script_content_logic(script_path: str):
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
 async def create_new_script_logic(parent_folder: str, script_name: str, folder_name: Optional[str] = None, template_id: str = "blank", generated_logic: Optional[str] = None, generated_params: Optional[str] = None, overwrite: bool = False):
-    clean_name = script_name.replace('.cs', '')
+    # CRITICAL FIX: Remove ALL spaces (leading, trailing, and middle) to ensure a valid C# identifier
+    clean_name = script_name.replace(" ", "").replace('.cs', '')
     p_dir = os.path.join(parent_folder, clean_name)
     s_dir = os.path.join(p_dir, "Scripts")
     if os.path.exists(p_dir) and not overwrite: raise HTTPException(status_code=409, detail=f"Tool folder exists.")

@@ -60,19 +60,37 @@ namespace Paracore.Addin.Helpers
             FileLogger.Log($"Launching VS Code for project: {projectPath}");
             try
             {
+                // Attempt to launch 'code' directly via ShellExecute
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "cmd.exe",
-                    Arguments = $"/c code \"{projectPath}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
+                    FileName = "code",
+                    Arguments = $"\"{projectPath}\"",
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
                 };
                 Process.Start(psi);
             }
             catch (Exception ex)
             {
-                FileLogger.LogError($"LaunchVsCode Error: {ex.Message}");
-                Process.Start("explorer.exe", projectPath);
+                FileLogger.Log($"Direct 'code' launch failed, trying fallback: {ex.Message}");
+                try
+                {
+                    // Fallback to cmd.exe with absolute pathing logic
+                    var psiFallback = new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c code \"{projectPath}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                    };
+                    Process.Start(psiFallback);
+                }
+                catch (Exception lastEx)
+                {
+                    FileLogger.LogError($"All VSCode launch attempts failed: {lastEx.Message}");
+                    // Last resort: Open the folder in Explorer so the user can open it manually
+                    Process.Start("explorer.exe", projectPath);
+                }
             }
         }
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowUp, faArrowDown, faTrash, faChevronDown, faSearch } from '@fortawesome/free-solid-svg-icons';
 import { ParameterDefinition, QueryRule, OPERATORS, getAvailableUnits } from '../types/queryBuilderTypes';
@@ -79,10 +79,41 @@ export const RuleRow: React.FC<RuleRowProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const filteredParams = availableParams.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    (p.displayName || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredParams = useMemo(() => {
+    if (!search) return availableParams;
+    const lowSearch = search.toLowerCase();
+    
+    return availableParams
+      .filter(p => {
+        const nameMatch = p.name.toLowerCase().includes(lowSearch) || (p.displayName || '').toLowerCase().includes(lowSearch);
+        const metaMatch = p.storage_type.toLowerCase().includes(lowSearch) || 
+                         (p.builtin_name || '').toLowerCase().includes(lowSearch) ||
+                         (p.is_type ? 'type' : 'instance').toLowerCase().includes(lowSearch);
+        return nameMatch || metaMatch;
+      })
+      .sort((a, b) => {
+        const aNameLow = a.name.toLowerCase();
+        const bNameLow = b.name.toLowerCase();
+        
+        // 1. Exact name match gets top priority
+        if (aNameLow === lowSearch && bNameLow !== lowSearch) return -1;
+        if (bNameLow === lowSearch && aNameLow !== lowSearch) return 1;
+        
+        // 2. Name starts with search
+        const aStarts = aNameLow.startsWith(lowSearch);
+        const bStarts = bNameLow.startsWith(lowSearch);
+        if (aStarts && !bStarts) return -1;
+        if (bStarts && !aStarts) return 1;
+        
+        // 3. Name contains search
+        const aContains = aNameLow.includes(lowSearch);
+        const bContains = bNameLow.includes(lowSearch);
+        if (aContains && !bContains) return -1;
+        if (bContains && !aContains) return 1;
+        
+        return 0; // Maintain original order for other metadata matches
+      });
+  }, [availableParams, search]);
 
   return (
     <div className="flex items-center gap-2 p-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 group/item transition-all hover:bg-white dark:hover:bg-slate-800">

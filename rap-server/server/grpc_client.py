@@ -369,6 +369,7 @@ def create_and_open_workspace(tool_path: str):
     """
     Tells the Addin to scaffold the Tool folder and open it in VS Code.
     """
+    print(f"[DEBUG] create_and_open_workspace sending tool_path via gRPC: {repr(tool_path)}")
     try:
         with get_corescript_runner_stub() as stub:
             request = corescript_pb2.CreateWorkspaceRequest(

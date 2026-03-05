@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTable, faFilter, faTimes, faChevronDown, faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { ParameterDefinition, QueryRule, getAvailableUnits, QueryGroup } from '../types/queryBuilderTypes';
@@ -50,10 +50,47 @@ export const ReportingParameters: React.FC<ReportingParametersProps> = ({
     };
   }, [isColumnDropdownOpen, setIsColumnDropdownOpen]);
 
-  const filteredColumns = availableParams.filter(p =>
-    (p.displayName || p.name).toLowerCase().includes(columnSearch.toLowerCase()) &&
-    !selectedColumns.some(sc => sc.name === p.name)
-  );
+  const filteredColumns = useMemo(() => {
+    const lowSearch = columnSearch.toLowerCase();
+    
+    // 1. Initial Filtering (Names + Metadata)
+    const filtered = availableParams.filter(p => {
+      // Exclude already selected columns
+      if (selectedColumns.some(sc => sc.name === p.name)) return false;
+      
+      const nameMatch = p.name.toLowerCase().includes(lowSearch) || (p.displayName || '').toLowerCase().includes(lowSearch);
+      const metaMatch = p.storage_type.toLowerCase().includes(lowSearch) || 
+                       (p.builtin_name || '').toLowerCase().includes(lowSearch) ||
+                       (p.is_type ? 'type' : 'instance').toLowerCase().includes(lowSearch);
+      return nameMatch || metaMatch;
+    });
+
+    if (!lowSearch) return filtered;
+
+    // 2. Ranked Sorting
+    return filtered.sort((a, b) => {
+      const aNameLow = a.name.toLowerCase();
+      const bNameLow = b.name.toLowerCase();
+      
+      // Tier 1: Exact name match
+      if (aNameLow === lowSearch && bNameLow !== lowSearch) return -1;
+      if (bNameLow === lowSearch && aNameLow !== lowSearch) return 1;
+      
+      // Tier 2: Name starts with search
+      const aStarts = aNameLow.startsWith(lowSearch);
+      const bStarts = bNameLow.startsWith(lowSearch);
+      if (aStarts && !bStarts) return -1;
+      if (bStarts && !aStarts) return 1;
+      
+      // Tier 3: Name contains search
+      const aContains = aNameLow.includes(lowSearch);
+      const bContains = bNameLow.includes(lowSearch);
+      if (aContains && !bContains) return -1;
+      if (bContains && !aContains) return 1;
+      
+      return 0; // Maintain original order for metadata matches
+    });
+  }, [availableParams, columnSearch, selectedColumns]);
 
   const rootGroupJson = JSON.stringify(rootGroup);
 

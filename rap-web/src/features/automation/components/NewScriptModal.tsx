@@ -244,8 +244,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                                 autoFocus
                                                 type="text"
                                                 value={scriptName}
-                                                onChange={(e) => setScriptName(e.target.value)}
-                                                placeholder="e.g. Audit Building Heights"
+                                                onChange={(e) => setScriptName(e.target.value.replace(/\s+/g, ''))}
+                                                placeholder="e.g. AuditBuildingHeights"
                                                 className={`w-full bg-white dark:bg-slate-950 border-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none transition-all shadow-sm group ${isDuplicate
                                                     ? 'border-rose-500/50 ring-4 ring-rose-500/5'
                                                     : 'border-slate-100 dark:border-slate-800/50 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5'
