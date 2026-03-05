@@ -191,6 +191,8 @@ message GetStatusResponse {
   bool document_open = 4;
   string document_title = 5;
   string document_type = 6;
+  string revit_install_path = 7;
+  string addin_server_path = 8;
 }
 
 message GetScriptMetadataRequest {

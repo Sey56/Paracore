@@ -103,6 +103,14 @@ def is_ide_session_active(script_path: str) -> bool:
     normalized_path = script_path.lower().replace('\\', '/')
     return normalized_path in ACTIVE_IDE_SESSIONS
 
+def normalize_ide_path(path: str) -> str:
+    """Normalizes a path for IDE session lookups."""
+    return path.lower().replace('\\', '/')
+
+def is_folder_locked(normalized_path: str) -> bool:
+    """Checks if a folder is tracked as an active IDE session."""
+    return normalized_path in ACTIVE_IDE_SESSIONS
+
 def cleanup_stale_sessions():
     """
     Removes IDE sessions that have been inactive beyond the timeout threshold.

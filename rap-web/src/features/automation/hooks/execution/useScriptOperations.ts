@@ -10,7 +10,8 @@ export const useScriptOperations = (
   loadScriptsFromPath: (path: string, silent?: boolean) => Promise<Script[] | undefined>,
   setCombinedScriptContent: (content: string | null) => void,
   setSelectedScriptState: (script: Script | null) => void,
-  updateScriptModificationTime?: (scriptId: string) => void
+  updateScriptModificationTime?: (scriptId: string) => void,
+  editScriptFromContext?: (script: Script) => Promise<boolean>
 ) => {
   const { showNotification } = useNotifications();
 
@@ -51,32 +52,37 @@ export const useScriptOperations = (
   const editScript = useCallback(async (script: Script) => {
     if (!script || !isAuthenticated) return;
     try {
-      const response = await fetch("http://localhost:8000/api/edit-script", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cloudToken}` },
-        body: JSON.stringify({ scriptPath: script.absolutePath }),
-      });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      // Use the centralized implementation if available
+      if (editScriptFromContext) {
+        return await editScriptFromContext(script);
+      }
+      
+      // Fallback (should not be reached if context is used correctly)
+      await api.post("/api/edit-script", { scriptPath: script.absolutePath });
       showNotification(`Opening project in VS Code...`, "success");
-    } catch (error) {
+    } catch (error: any) {
       console.error("[EditScript] Error:", error);
-      showNotification("Failed to open script in VSCode.", "error");
+      showNotification(error.response?.data?.detail || "Failed to open script in VSCode.", "error");
     }
-  }, [isAuthenticated, cloudToken, showNotification]);
+  }, [isAuthenticated, editScriptFromContext, showNotification]);
 
   const fetchScriptContent = useCallback(async (script: Script) => {
     if (!script?.absolutePath) return null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(script.absolutePath)}`);
-        return response.data.sourceCode;
+        const content = response.data.sourceCode;
+        if (content !== undefined) {
+          setCombinedScriptContent(content);
+        }
+        return content;
       } catch (error) {
         if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 300));
         else return null;
       }
     }
     return null;
-  }, []);
+  }, [setCombinedScriptContent]);
 
   return {
     renameScript,

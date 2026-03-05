@@ -3,6 +3,8 @@ import glob
 import os
 import shutil
 import json
+import stat
+import time
 import traceback
 import re
 from datetime import datetime
@@ -11,7 +13,7 @@ from typing import Dict, List, Optional, Any
 from fastapi import HTTPException
 import grpc_client
 from ide_manager import set_active_ide_session, remove_active_ide_session
-from utils import resolve_script_path
+from utils import resolve_script_path, launch_vscode
 from api.script_templates import ARCHETYPES
 
 def recover_true_path(path: str) -> str:
@@ -309,22 +311,49 @@ async def compute_parameter_options_logic(script_path: str, parameter_name: str,
 
 async def edit_script_logic(tool_path: str):
     try:
-        print(f"[DEBUG] edit_script_logic received tool_path: {repr(tool_path)}")
+        # 1. Resolve the path (minimal work)
         project_root = recover_true_path(tool_path)
-        print(f"[DEBUG] edit_script_logic recovered project_root: {repr(project_root)}")
         project_name = os.path.basename(project_root)
         scripts_dir = os.path.join(project_root, "Scripts")
-        if not os.path.isdir(scripts_dir): os.makedirs(scripts_dir, exist_ok=True)
+
+        # 2. Ensure Scripts/ folder exists with at least one .cs file
+        if not os.path.isdir(scripts_dir):
+            os.makedirs(scripts_dir, exist_ok=True)
+        
         existing_cs_files = glob.glob(os.path.join(scripts_dir, "*.cs"))
         if not existing_cs_files:
             entry_file = os.path.join(scripts_dir, f"{project_name}.cs")
             if not os.path.exists(entry_file):
-                with open(entry_file, 'w', encoding='utf-8') as f: f.write(ARCHETYPES["blank"])
-        _scaffold_project_inplace(project_root, project_name)
-        set_active_ide_session(project_root)
-        grpc_client.create_and_open_workspace(project_root)
+                # Detect archetype based on parent folder or context
+                template_id = "BlankSentinel" if project_root.lower().endswith(('.wtool', 'sentinels')) else "blank"
+                with open(entry_file, 'w', encoding='utf-8') as f:
+                    f.write(ARCHETYPES.get(template_id, ARCHETYPES["blank"]))
+
+        # 3. Perform FULL Scaffolding in Python (Fast, Local, Non-blocking)
+        scaffold_project_full(project_root)
+
+        # 4. Trigger VS Code Launch from Python (Robust & Non-blocking)
+        launch_vscode(project_root)
+
+        # 5. gRPC call — C# handles its own internal sync/scaffolding if needed
+        # We don't wait for this; it's fire-and-forget for the Addin
+        try:
+            grpc_client.create_and_open_workspace(project_root)
+        except:
+            pass
+
+        # 6. Track IDE session
+        try:
+            set_active_ide_session(project_root)
+            _ensure_pack_gitignore(os.path.dirname(project_root))
+        except:
+            pass
+
         return {"message": f"Opening tool: {project_name}"}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        print(f"[EditLogic] Error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 def _scaffold_project_inplace(project_root: str, project_name: str):
     try:
@@ -341,6 +370,98 @@ def _ensure_pack_gitignore(pack_dir: str):
         if not os.path.exists(path):
             with open(path, 'w', encoding='utf-8') as f: f.write(content)
     except: pass
+
+def scaffold_project_full(project_root: str):
+    """
+    Python-based scaffolding implementation. 
+    Handles creation of .csproj, Globals.cs, global.json, etc.
+    """
+    try:
+        project_name = os.path.basename(project_root)
+        config = grpc_client.get_revit_config()
+        
+        # 1. Fallback paths if Revit hasn't connected yet
+        revit_path = config.revit_install_path or r"C:\Program Files\Autodesk\Revit 2025"
+        addin_dir = config.addin_server_path or r"C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore"
+        engine_path = os.path.join(addin_dir, "CoreScript.Engine.dll")
+
+        # 2. global.json
+        with open(os.path.join(project_root, "global.json"), 'w', encoding='utf-8') as f:
+            f.write('{\n    "sdk": {\n        "rollForward": "latestFeature"\n    }\n}')
+
+        # 3. .editorconfig
+        with open(os.path.join(project_root, ".editorconfig"), 'w', encoding='utf-8') as f:
+            f.write("[*.{cs,vb}]\ndotnet_diagnostic.CA1050.severity = none\ndotnet_diagnostic.CS8019.severity = warning")
+
+        # 4. Globals.cs
+        globals_content = (
+            "// This file enables IntelliSense for custom globals and implicit imports.\n"
+            "global using System;\nglobal using System.Collections.Generic;\nglobal using System.Linq;\nglobal using System.Text.Json;\n"
+            "global using Microsoft.CSharp;\nglobal using Autodesk.Revit.DB;\nglobal using Autodesk.Revit.DB.Architecture;\n"
+            "global using Autodesk.Revit.DB.Structure;\nglobal using Autodesk.Revit.DB.Mechanical;\nglobal using Autodesk.Revit.DB.Plumbing;\n"
+            "global using Autodesk.Revit.DB.Electrical;\nglobal using Autodesk.Revit.UI;\nglobal using CoreScript.Engine.Globals;\n"
+            "global using static CoreScript.Engine.Globals.ScriptApi;\nglobal using static CoreScript.Engine.Globals.WatchdogRegistry;\n"
+            "global using SixLabors.ImageSharp;\nglobal using SixLabors.ImageSharp.Processing;\nglobal using SixLabors.ImageSharp.PixelFormats;\n"
+            "global using RestSharp;\nglobal using MiniExcelLibs;\nglobal using MathNet.Numerics;\nglobal using MathNet.Numerics.LinearAlgebra;\n"
+            "global using MathNet.Numerics.Statistics;"
+        )
+        with open(os.path.join(project_root, "Globals.cs"), 'w', encoding='utf-8') as f:
+            f.write(globals_content)
+
+        # 5. .csproj
+        # Find Roslyn DLLs in addin directory
+        roslyn_refs = ""
+        if os.path.isdir(addin_dir):
+            for dll in glob.glob(os.path.join(addin_dir, "Microsoft.CodeAnalysis*.dll")):
+                dll_name = os.path.splitext(os.path.basename(dll))[0]
+                roslyn_refs += f'    <Reference Include="{dll_name}">\n      <HintPath>{dll}</HintPath>\n      <Private>false</Private>\n    </Reference>\n'
+
+        csproj_content = f"""<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <RunAnalyzers>true</RunAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>{revit_path}\\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>{revit_path}\\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="CoreScript.Engine">
+      <HintPath>{engine_path}</HintPath>
+      <Private>false</Private>
+    </Reference>
+{roslyn_refs}  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    <PackageReference Include="RestSharp" Version="113.1.0" />
+    <PackageReference Include="MiniExcel" Version="1.31.2" />
+    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
+  </ItemGroup>
+</Project>"""
+        with open(os.path.join(project_root, f"{project_name}.csproj"), 'w', encoding='utf-8') as f:
+            f.write(csproj_content)
+
+        # 6. .github/copilot-instructions.md
+        github_dir = os.path.join(project_root, ".github")
+        os.makedirs(github_dir, exist_ok=True)
+        from api.ai_instructions import COPILOT_INSTRUCTIONS
+        context_header = "# Current Script Context: FOLDER PROJECT\n# All logic goes into the Scripts/ folder.\n# Use #region GroupName directives to organize parameters.\n\n"
+        with open(os.path.join(github_dir, "copilot-instructions.md"), 'w', encoding='utf-8') as f:
+            f.write(context_header + COPILOT_INSTRUCTIONS)
+
+        return True
+    except Exception as e:
+        print(f"[Scaffold] Python scaffolding error: {e}")
+        return False
 
 async def get_script_metadata_logic(script_path: str):
     try:
@@ -441,20 +562,43 @@ async def save_script_logic(script_path: str, content: Optional[str], filename: 
         return {"success": True}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
+def _on_rm_error(func, path, exc_info):
+    """Handle read-only or locked files during rmtree."""
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
+
+def _robust_rmtree(path: str, retries: int = 3, delay: float = 1.0):
+    """rmtree with retry for Windows file-lock issues."""
+    for attempt in range(retries):
+        try:
+            shutil.rmtree(path, onerror=_on_rm_error)
+            return
+        except Exception:
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                raise
+
 def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False):
     try:
         path = resolve_script_path(script_path)
         if not os.path.exists(path): return {"success": True}
+        # 1. Stop the gRPC sync session (release C# side file handles)
+        try: grpc_client.stop_sync_session(path)
+        except: pass
+        # 2. Stop the Python watchdog observer (release Python side file handles)
         try: remove_active_ide_session(path)
         except: pass
+        # 3. Give Windows time to release directory handles
+        time.sleep(0.5)
         if delete_scaffolding_only:
             for item in os.listdir(path):
                 if item == "Scripts": continue
                 ip = os.path.join(path, item)
-                if os.path.isdir(ip): shutil.rmtree(ip)
+                if os.path.isdir(ip): _robust_rmtree(ip)
                 else: os.remove(ip)
         else:
-            if os.path.isdir(path): shutil.rmtree(path)
+            if os.path.isdir(path): _robust_rmtree(path)
             else: os.remove(path)
         return {"success": True}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))

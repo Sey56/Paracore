@@ -17,80 +17,38 @@ namespace Paracore.Addin.Helpers
         /// </summary>
         public static string ScaffoldAndOpenProject(string projectPath)
         {
-            FileLogger.Log($"ScaffoldAndOpenProject requested for: {projectPath}");
+            // V4: Scaffolding is now primarily handled by the Python rap-server.
+            // The Addin only performs a non-blocking background "Safety Scaffolding" 
+            // to ensure its own internal state is happy.
             try
             {
-                if (!Directory.Exists(projectPath))
-                {
-                    throw new DirectoryNotFoundException($"Project directory not found: {projectPath}");
-                }
+                if (!Directory.Exists(projectPath)) return projectPath;
 
-                // V3: projectPath IS the Tool folder. No need to create a subfolder.
                 string projectName = new DirectoryInfo(projectPath).Name;
-                string scriptsPath = Path.Combine(projectPath, "Scripts");
                 
-                // 1. Ensure Scripts folder exists
-                if (!Directory.Exists(scriptsPath))
-                {
-                    Directory.CreateDirectory(scriptsPath);
-                    FileLogger.Log($"Created missing 'Scripts' folder in project: {projectPath}");
-                }
+                // Fire-and-forget background task
+                System.Threading.Tasks.Task.Run(() => {
+                    try {
+                        // Minimal safety check
+                        if (!Directory.Exists(Path.Combine(projectPath, "Scripts")))
+                        {
+                            Directory.CreateDirectory(Path.Combine(projectPath, "Scripts"));
+                        }
 
-                // 2. Write Scaffolding Files In-Place
-                WriteCsproj(projectPath, projectName);
-                WriteGlobalJson(projectPath);
-                WriteGlobalsCs(projectPath);
-                WriteEditorConfig(projectPath);
-                WriteCopilotInstructions(projectPath);
-
-                // 3. Open in VS Code
-                LaunchVsCode(projectPath);
+                        // Write Scaffolding Files (Safety Net)
+                        WriteCsproj(projectPath, projectName);
+                        WriteGlobalJson(projectPath);
+                        WriteGlobalsCs(projectPath);
+                        WriteEditorConfig(projectPath);
+                        WriteCopilotInstructions(projectPath);
+                    } catch { /* Silent fail - Python is the master now */ }
+                });
 
                 return projectPath;
             }
-            catch (Exception ex)
+            catch
             {
-                FileLogger.LogError($"ScaffoldAndOpenProject Error: {ex.Message}");
-                throw;
-            }
-        }
-
-        private static void LaunchVsCode(string projectPath)
-        {
-            FileLogger.Log($"Launching VS Code for project: {projectPath}");
-            try
-            {
-                // Attempt to launch 'code' directly via ShellExecute
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "code",
-                    Arguments = $"\"{projectPath}\"",
-                    UseShellExecute = true,
-                    WindowStyle = ProcessWindowStyle.Hidden
-                };
-                Process.Start(psi);
-            }
-            catch (Exception ex)
-            {
-                FileLogger.Log($"Direct 'code' launch failed, trying fallback: {ex.Message}");
-                try
-                {
-                    // Fallback to cmd.exe with absolute pathing logic
-                    var psiFallback = new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c code \"{projectPath}\"",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                    };
-                    Process.Start(psiFallback);
-                }
-                catch (Exception lastEx)
-                {
-                    FileLogger.LogError($"All VSCode launch attempts failed: {lastEx.Message}");
-                    // Last resort: Open the folder in Explorer so the user can open it manually
-                    Process.Start("explorer.exe", projectPath);
-                }
+                return projectPath;
             }
         }
 

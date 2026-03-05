@@ -221,6 +221,19 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [selectedFolder, loadScriptsFromPath, showNotification]);
 
+  const editScript = useCallback(async (script: Script) => {
+    if (!script || !isAuthenticated) return false;
+    try {
+      await api.post("/api/edit-script", { scriptPath: script.absolutePath });
+      showNotification(`Opening project in VS Code...`, "success");
+      return true;
+    } catch (error: any) {
+      console.error("[EditScript] Error:", error);
+      showNotification(error.response?.data?.detail || "Failed to open script in VSCode.", "error");
+      return false;
+    }
+  }, [isAuthenticated, showNotification]);
+
   const deleteScript = useCallback(async (script: Script, scaffoldingOnly: boolean = false): Promise<boolean> => {
     try {
       await api.post("/api/scripts/delete", {
@@ -491,7 +504,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const contextValue = useMemo(() => ({
     scripts, setScripts, activeScriptSource, setActiveScriptSource,
     loadScriptsForFolder: loadScriptsFromPath, fetchScriptMetadata, reloadScript,
-    combinedScriptContent, setCombinedScriptContent, createNewScript, deleteScript,
+    combinedScriptContent, setCombinedScriptContent, createNewScript, editScript, deleteScript,
     favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
     recentScripts, addRecentScript, clearRecentScripts,
     lastRunTimes, updateScriptLastRunTime,
@@ -503,7 +516,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     updateScriptModificationTime
   }), [
     scripts, activeScriptSource, setActiveScriptSource, loadScriptsFromPath, fetchScriptMetadata, reloadScript,
-    combinedScriptContent, createNewScript, deleteScript, favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
+    combinedScriptContent, createNewScript, editScript, deleteScript, favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
     recentScripts, addRecentScript, clearRecentScripts, lastRunTimes, updateScriptLastRunTime,
     isSyncActive, activeSyncSessions, customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
     remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,

@@ -25,12 +25,14 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setScripts,
     addRecentScript,
     fetchScriptMetadata,
+    combinedScriptContent,
     setCombinedScriptContent,
     updateScriptLastRunTime,
     updateScriptModificationTime,
     selectedFolder,
     loadScriptsForFolder: loadScriptsFromPath,
-    activeSyncSessions
+    activeSyncSessions,
+    editScript: editScriptFromContext
   } = useScripts();
   const { isAuthenticated, activeTeam, user, cloudToken } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, setActiveInspectorTab, threadId } = useUI();
@@ -79,7 +81,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     loadScriptsFromPath,
     setCombinedScriptContent,
     setSelectedScriptState,
-    updateScriptModificationTime
+    updateScriptModificationTime,
+    editScriptFromContext
   );
 
   // 5. Execution Logic
@@ -104,6 +107,28 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   );
 
   const lastKnownModifiedRef = useRef<Record<string, number>>({});
+
+  // Effect: Auto-refresh script content when sync session modification detected
+  useEffect(() => {
+    if (!selectedScript?.absolutePath || !activeSyncSessions) return;
+    
+    const normalized = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
+    const session = Object.entries(activeSyncSessions).find(([path]) => path.toLowerCase() === normalized);
+    
+    if (session) {
+      const [path, data] = session;
+      const lastModified = data.last_modified;
+      
+      // If modification detected, re-fetch content
+      if (lastModified && lastModified !== lastKnownModifiedRef.current[normalized]) {
+        console.log("[Sync] Detected change in active IDE session. Refreshing content viewer...");
+        lastKnownModifiedRef.current[normalized] = lastModified;
+        
+        // Use fetchScriptContent from useScriptOperations to refresh the combined content
+        fetchScriptContent(selectedScript).catch(() => {});
+      }
+    }
+  }, [selectedScript, activeSyncSessions, fetchScriptContent]);
 
   // Reset logic when source/team/user changes
   useEffect(() => {
@@ -224,23 +249,30 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setPresets, setAgentSelectedScriptPath, updateUserEditedParameters, clearParameterCache, setSelectedScriptState, showNotification]);
 
-  // Sync session changes
+  // Sync session changes (Automated refresh when editing in IDE)
   useEffect(() => {
-    if (selectedScript && selectedScript.absolutePath) {
-      const normalizedPath = selectedScript.absolutePath.toLowerCase().replace(/\\/g, '/');
-      const sessionData = activeSyncSessions[normalizedPath];
-
-      if (sessionData && sessionData.last_modified) {
-        const lastSeen = lastKnownModifiedRef.current[normalizedPath] || 0;
-        if (sessionData.last_modified > lastSeen) {
-          updateScriptModificationTime(selectedScript.id);
-          lastKnownModifiedRef.current[normalizedPath] = sessionData.last_modified;
-          // Trigger a refresh after sync
-          setSelectedScript(selectedScript, 'refresh');
-        }
+    if (!selectedScript?.absolutePath || !activeSyncSessions) return;
+    
+    const normalized = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
+    const session = activeSyncSessions[normalized];
+    
+    if (session && session.last_modified) {
+      const lastSeen = lastKnownModifiedRef.current[normalized] || 0;
+      if (session.last_modified > lastSeen) {
+        console.log(`[Sync] Detected change in IDE for: ${selectedScript.name}. Refreshing content...`);
+        lastKnownModifiedRef.current[normalized] = session.last_modified;
+        
+        // 1. Update the local modification time
+        updateScriptModificationTime(selectedScript.id);
+        
+        // 2. Refresh the code content (used by FloatingCodeViewer)
+        fetchScriptContent(selectedScript).catch(() => {});
+        
+        // 3. Trigger a metadata/parameter refresh (non-blocking)
+        setSelectedScript(selectedScript, 'refresh');
       }
     }
-  }, [activeSyncSessions, selectedScript, updateScriptModificationTime, setSelectedScript]);
+  }, [activeSyncSessions, selectedScript, updateScriptModificationTime, fetchScriptContent, setSelectedScript]);
 
   // V5: SMART EXISTENCE GUARD
   // Sync selectedScript metadata updates (like Last Run) from the global list
@@ -289,8 +321,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, [runScript]);
 
   const contextValue = useMemo(() => ({
-    selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, runScript: handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, editScript, renameScript, resetScriptParameters, buildTool,
-  }), [selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, editScript, renameScript, resetScriptParameters, buildTool]);
+    selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, runScript: handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, renameScript, resetScriptParameters, buildTool,
+  }), [selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, renameScript, resetScriptParameters, buildTool]);
 
   return <ScriptExecutionContext.Provider value={contextValue}>{children}</ScriptExecutionContext.Provider>;
 };

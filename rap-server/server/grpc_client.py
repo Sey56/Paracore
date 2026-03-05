@@ -12,6 +12,16 @@ from utils import format_grpc_error
 # Global channel variable
 _channel = None
 
+class RevitConfig:
+    def __init__(self):
+        self.revit_install_path: Optional[str] = None
+        self.addin_server_path: Optional[str] = None
+
+_revit_config = RevitConfig()
+
+def get_revit_config():
+    return _revit_config
+
 def init_channel():
     """Initializes the global gRPC channel."""
     global _channel
@@ -96,6 +106,12 @@ def get_status():
     try:
         with get_corescript_runner_stub() as stub:
             response = stub.GetStatus(corescript_pb2.GetStatusRequest())
+        
+        # Cache paths for scaffolding
+        if response.paracore_connected:
+            _revit_config.revit_install_path = response.revit_install_path
+            _revit_config.addin_server_path = response.addin_server_path
+            
         return response
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:

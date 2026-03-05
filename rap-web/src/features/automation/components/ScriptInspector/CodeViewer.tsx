@@ -3,7 +3,7 @@ import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import csharp from 'react-syntax-highlighter/dist/esm/languages/prism/csharp';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Script } from '@/types/scriptModel';
-import { useScripts } from '../../hooks/useScripts';
+import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { useTheme } from '@/context/ThemeContext';
 
 SyntaxHighlighter.registerLanguage('csharp', csharp);
@@ -14,7 +14,7 @@ interface CodeViewerProps {
 
 export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
   const { theme } = useTheme();
-  const { combinedScriptContent } = useScripts(); // Get combinedScriptContent from context
+  const { combinedScriptContent } = useScriptExecution(); // Use combinedScriptContent from execution context
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 

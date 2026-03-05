@@ -54,7 +54,9 @@ namespace Paracore.Addin.Handlers
                 RevitVersion = revitVersion ?? "",
                 DocumentOpen = documentOpen,
                 DocumentTitle = documentTitle ?? "",
-                DocumentType = documentType
+                DocumentType = documentType,
+                RevitInstallPath = App.ParacoreApp.RevitInstallPath,
+                AddinServerPath = System.IO.Path.GetDirectoryName(typeof(App.ParacoreApp).Assembly.Location) ?? ""
             };
 
             _logger.Log($"[ContextHandler] Revit Status: Open={revitOpen}, Version={revitVersion}, DocOpen={documentOpen}, DocTitle='{documentTitle}', DocType={documentType}.", LogLevel.Debug);
