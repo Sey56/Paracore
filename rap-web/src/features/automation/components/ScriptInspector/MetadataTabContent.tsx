@@ -3,6 +3,7 @@ import type { ScriptMetadata } from "@/types/scriptModel";
 
 interface MetadataTabContentProps {
   metadata: ScriptMetadata;
+  scriptName?: string;
 }
 
 const formatLastRun = (isoString: string | undefined | null): string => {
@@ -35,9 +36,21 @@ const formatLastRun = (isoString: string | undefined | null): string => {
 
 export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
   metadata,
+  scriptName
 }) => {
+  const getDisplayName = () => {
+    const rawName = metadata.displayName || scriptName || 'Unnamed Script';
+    return rawName.replace(/\.(cs|ptool|wtool)$/i, "");
+  };
+
   return (
     <div className="tab-content py-4 h-full overflow-y-auto pr-2 custom-scrollbar">
+      {/* Full-width Script Name section */}
+      <div className="mb-6">
+        <h4 className="font-medium text-slate-600 dark:text-slate-300">Script Name</h4>
+        <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-1">{getDisplayName()}</p>
+      </div>
+
       {/* Full-width Description section */}
       <div className="mb-6">
         <h4 className="font-medium text-slate-600 dark:text-slate-300">Description</h4>

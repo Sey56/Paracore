@@ -125,7 +125,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
             </button>
           </div>
           <div className="px-5 pb-4 max-h-[200px] overflow-y-auto custom-scrollbar">
-            <MetadataTabContent metadata={script.metadata} />
+            <MetadataTabContent metadata={script.metadata} scriptName={script.name} />
           </div>
         </div>
       )}

@@ -164,7 +164,21 @@ async def get_single_script_logic(script_path: str):
     try:
         abs_p = resolve_script_path(script_path).replace('\\', '/')
         
-        # 1. Handle binary/compiled scripts natively
+        # 1. Recover Original Casing from Filesystem
+        # The input path might be lowercased for normalization, but we want the real name
+        parent_dir = os.path.dirname(abs_p)
+        base_name = os.path.basename(abs_p)
+        project_name = base_name # Fallback
+        
+        if os.path.isdir(parent_dir):
+            # Find the actual folder name on disk to preserve casing (e.g. UnplacedRooms)
+            for item in os.listdir(parent_dir):
+                if item.lower() == base_name.lower():
+                    project_name = item
+                    abs_p = os.path.join(parent_dir, item).replace('\\', '/')
+                    break
+
+        # 2. Handle binary/compiled scripts natively
         if abs_p.lower().endswith(('.ptool', '.wtool')):
             with open(abs_p, 'r', encoding='utf-8') as f:
                 pkg = json.load(f)
