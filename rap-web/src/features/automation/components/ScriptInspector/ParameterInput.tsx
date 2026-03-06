@@ -314,11 +314,21 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
 
 export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, onChange, onCompute, onPickObject, isComputing, disabled }) => {
   const { revitStatus } = useRevitStatus();
-  const [localValue, setLocalValue] = useState<string>(param.value !== null && param.value !== undefined ? String(param.value) : "");
+  const [localValue, setLocalValue] = useState<string>(
+    param.value !== null && param.value !== undefined ? String(param.value) : ""
+  );
 
   React.useEffect(() => {
     const incomingValue = param.value !== null && param.value !== undefined ? String(param.value) : "";
-    if (parseFloat(incomingValue) !== parseFloat(localValue)) {
+    // V5 PRECISION FIX: Use strict string comparison to preserve .00 precision
+    // We only update local state if the string representation has actually diverged.
+    if (incomingValue !== localValue) {
+      // Additional check: if they represent the same numerical value but localValue is more precise (has trailing zeros)
+      // and the user is currently focused, we preserve the localValue.
+      const isFocused = document.activeElement?.tagName === 'INPUT' && (document.activeElement as HTMLInputElement).value === localValue;
+      if (isFocused && parseFloat(incomingValue) === parseFloat(localValue)) {
+          return;
+      }
       setLocalValue(incomingValue);
     }
   }, [param.value]);
@@ -393,7 +403,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       const step = param.step || (isDecimal ? 0.1 : 1);
       const min = (param.min !== undefined && param.min !== null) ? param.min : undefined;
       const max = (param.max !== undefined && param.max !== null) ? param.max : undefined;
-      if (min !== undefined && max !== undefined && max > min) return <SliderInput min={min!} max={max!} step={step} value={Number(param.value) || min!} onChange={(val) => onChange(index, val)} disabled={disabled} suffix={param.suffix} />;
+      if (min !== undefined && max !== undefined && max > min) return <SliderInput min={min!} max={max!} step={step} value={Number(param.value) || min!} onChange={(val) => onChange(index, val)} disabled={disabled} suffix={param.suffix} isDecimal={isDecimal} />;
       if (param.inputType === 'Stepper') {
         const stepperVal = (param.value !== null && param.value !== undefined && param.value !== "") ? Number(param.value) : (param.defaultValue !== undefined && param.defaultValue !== null ? Number(param.defaultValue) : (min ?? 0));
         return <StepperInput value={isNaN(stepperVal) ? 0 : stepperVal} min={min} max={max} step={step} onChange={(val) => onChange(index, val)} disabled={disabled} />;
@@ -407,10 +417,28 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
               const val = e.target.value;
               if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
                 setLocalValue(val);
-                if (val !== "" && !val.endsWith(".")) {
+                // V5 FIX: Only propagate to global state if it's a "settled" number
+                // This allows typing "6." or "6.0" without losing state
+                if (val !== "" && !val.endsWith(".") && !val.endsWith(".0")) {
                   const parsed = parseFloat(val);
                   if (!isNaN(parsed)) onChange(index, parsed);
-                } else if (val === "") onChange(index, 0);
+                } else if (val === "") {
+                  onChange(index, 0);
+                }
+              }
+            }}
+            onBlur={() => {
+              // V5 PRECISION FORMATTER: If it's a double and doesn't have a decimal, add .0
+              if (param.numericType === 'double' && localValue !== "") {
+                const parsed = parseFloat(localValue);
+                if (!isNaN(parsed)) {
+                  let formatted = String(parsed);
+                  if (!formatted.includes(".")) {
+                    formatted = parsed.toFixed(1);
+                  }
+                  setLocalValue(formatted);
+                  onChange(index, parsed);
+                }
               }
             }}
             className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"

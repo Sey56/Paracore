@@ -11,9 +11,6 @@ logger = logging.getLogger(__name__)
 SESSIONS_FILE = "active_ide_sessions.json"
 ACTIVE_IDE_SESSIONS = {}  # normalized_path -> { "last_modified": timestamp }
 
-# Stale session threshold: 2 minutes without any file change
-STALE_SESSION_TIMEOUT_SECONDS = 120
-
 # Global observer for file changes
 _observer = Observer()
 _watchers = {} # normalized_path -> watch_object
@@ -22,17 +19,44 @@ class ScriptChangeHandler(FileSystemEventHandler):
     def __init__(self, normalized_path):
         self.normalized_path = normalized_path
 
+    def _trigger_update(self, event_path):
+        if event_path.lower().endswith(".cs"):
+            if self.normalized_path in ACTIVE_IDE_SESSIONS:
+                ACTIVE_IDE_SESSIONS[self.normalized_path]["last_modified"] = time.time()
+                print(f"[Watchdog] 🔔 Detected change in {event_path}. Updating session: {self.normalized_path}")
+                save_ide_sessions()
+
     def on_modified(self, event):
         if event.is_directory: return
-        if event.src_path.lower().endswith(".cs"):
-            # Update the last_modified timestamp for this session
-            if self.normalized_path in ACTIVE_IDE_SESSIONS:
-                # Ensure it is a dict before assignment
-                if not isinstance(ACTIVE_IDE_SESSIONS[self.normalized_path], dict):
-                    ACTIVE_IDE_SESSIONS[self.normalized_path] = {"last_modified": time.time()}
-                else:
-                    ACTIVE_IDE_SESSIONS[self.normalized_path]["last_modified"] = time.time()
-                logger.info(f"Detected change in tool: {self.normalized_path}")
+        self._trigger_update(event.src_path)
+
+    def on_created(self, event):
+        if event.is_directory: return
+        self._trigger_update(event.src_path)
+
+    def on_moved(self, event):
+        if event.is_directory: return
+        self._trigger_update(event.dest_path)
+
+def _start_watcher(script_path: str):
+    """Starts a watchdog on the Scripts/ folder of the tool."""
+    normalized = script_path.lower().replace('\\', '/')
+    scripts_dir = os.path.join(script_path, "Scripts")
+    
+    if not os.path.isdir(scripts_dir):
+        print(f"[Watchdog] ⚠️ Cannot start watcher - Scripts dir missing: {scripts_dir}")
+        return
+        
+    if normalized in _watchers:
+        return
+
+    try:
+        handler = ScriptChangeHandler(normalized)
+        watch = _observer.schedule(handler, scripts_dir, recursive=False)
+        _watchers[normalized] = watch
+        print(f"[Watchdog] 🚀 Started watcher for: {scripts_dir}")
+    except Exception as e:
+        print(f"[Watchdog] ❌ Failed to start watcher for {scripts_dir}: {e}")
 
 def load_ide_sessions():
     global ACTIVE_IDE_SESSIONS
@@ -40,7 +64,6 @@ def load_ide_sessions():
         try:
             with open(SESSIONS_FILE, "r") as f:
                 data = json.load(f)
-                # Ensure all entries are dictionaries
                 ACTIVE_IDE_SESSIONS = {
                     k: (v if isinstance(v, dict) else {"last_modified": time.time()})
                     for k, v in data.items()
@@ -50,6 +73,13 @@ def load_ide_sessions():
                     _start_watcher(path)
         except:
             ACTIVE_IDE_SESSIONS = {}
+    
+    # V5: Always ensure the observer is running
+    if not _observer.is_alive():
+        try:
+            _observer.start()
+            print("[Watchdog] 🌐 Global file observer started.")
+        except: pass
 
 def save_ide_sessions():
     try:
@@ -57,26 +87,6 @@ def save_ide_sessions():
             json.dump(ACTIVE_IDE_SESSIONS, f)
     except:
         pass
-
-def _start_watcher(script_path: str):
-    """Starts a watchdog on the Scripts/ folder of the tool."""
-    normalized = script_path.lower().replace('\\', '/')
-    scripts_dir = os.path.join(script_path, "Scripts")
-    
-    # Check if directory exists and we aren't already watching it
-    if not os.path.isdir(scripts_dir) or normalized in _watchers:
-        return
-
-    try:
-        if not _observer.is_alive():
-            _observer.start()
-        
-        handler = ScriptChangeHandler(normalized)
-        watch = _observer.schedule(handler, scripts_dir, recursive=False)
-        _watchers[normalized] = watch
-        logger.info(f"Started watcher for: {scripts_dir}")
-    except Exception as e:
-        logger.error(f"Failed to start watcher: {e}")
 
 def set_active_ide_session(script_path: str):
     """Marks a project as currently open in VS Code and starts a watcher."""
@@ -113,38 +123,28 @@ def is_folder_locked(normalized_path: str) -> bool:
 
 def cleanup_stale_sessions():
     """
-    Removes IDE sessions that have been inactive beyond the timeout threshold.
-    Called on every /api/sync/active-sessions poll to keep the list accurate.
-    Sessions are considered stale if:
-    1. The Scripts/ folder no longer exists on disk, OR
-    2. No .cs file modification detected within STALE_SESSION_TIMEOUT_SECONDS
+    Removes IDE sessions where the directory no longer exists.
+    V5: Removed the timeout cleanup - sessions persist as long as folder exists.
     """
-    now = time.time()
     stale_keys = []
 
-    for normalized_path, session_data in ACTIVE_IDE_SESSIONS.items():
-        last_modified = session_data.get("last_modified", 0) if isinstance(session_data, dict) else 0
-
-        # Check if the folder still exists on disk
-        # Try to reconstruct the original path (it was lowercased)
-        scripts_dir_exists = False
-        for orig_path in list(_watchers.keys()) + [normalized_path]:
-            candidate = os.path.join(orig_path, "Scripts")
-            if os.path.isdir(candidate):
-                scripts_dir_exists = True
-                break
-
-        if not scripts_dir_exists:
-            stale_keys.append(normalized_path)
-            continue
-
-        # Check if session is stale (no file activity)
-        if (now - last_modified) > STALE_SESSION_TIMEOUT_SECONDS:
-            stale_keys.append(normalized_path)
+    for normalized_path in list(ACTIVE_IDE_SESSIONS.keys()):
+        # Handle path variations
+        scripts_dir = os.path.join(normalized_path, "Scripts")
+        
+        if not os.path.isdir(scripts_dir):
+            # Try original OS path if normalization was too aggressive
+            found = False
+            for orig in list(_watchers.keys()):
+                if orig.lower().replace('\\', '/') == normalized_path:
+                    if os.path.isdir(os.path.join(orig, "Scripts")):
+                        found = True
+                        break
+            if not found:
+                print(f"[Watchdog] 🗑️ Cleaning up stale session (folder missing): {normalized_path}")
+                stale_keys.append(normalized_path)
 
     for key in stale_keys:
-        logger.info(f"Auto-removing stale IDE session: {key}")
-        # Stop watcher
         if key in _watchers:
             try:
                 _observer.unschedule(_watchers[key])

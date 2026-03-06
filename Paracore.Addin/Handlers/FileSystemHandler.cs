@@ -1,6 +1,5 @@
 using CoreScript;
 using CoreScript.Engine.Logging;
-using Paracore.Addin.Helpers;
 using Paracore.Addin.App;
 using System;
 using System.IO;
@@ -189,14 +188,14 @@ namespace Paracore.Addin.Handlers
             var response = new CreateWorkspaceResponse();
             try
             {
-                // V3 Architecture: Everything is an in-place Project Folder
-                string projectPath = WorkspaceManager.ScaffoldAndOpenProject(request.ScriptPath);
-                response.WorkspacePath = projectPath;
+                // V4: Scaffolding is now handled by the Python server.
+                // The Addin just returns the path immediately.
+                response.WorkspacePath = request.ScriptPath;
             }
             catch (Exception ex)
             {
                 _logger.LogError($"[FileSystemHandler] Error in CreateAndOpenWorkspace: {ex.Message}");
-                response.ErrorMessage = $"Failed to open project in VSCode: {ex.Message}";
+                response.ErrorMessage = ex.Message;
             }
             return response;
         }

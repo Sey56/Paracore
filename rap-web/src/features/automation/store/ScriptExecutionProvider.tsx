@@ -25,6 +25,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setScripts,
     addRecentScript,
     fetchScriptMetadata,
+    reloadScript,
     combinedScriptContent,
     setCombinedScriptContent,
     updateScriptLastRunTime,
@@ -108,28 +109,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
   const lastKnownModifiedRef = useRef<Record<string, number>>({});
 
-  // Effect: Auto-refresh script content when sync session modification detected
-  useEffect(() => {
-    if (!selectedScript?.absolutePath || !activeSyncSessions) return;
-    
-    const normalized = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
-    const session = Object.entries(activeSyncSessions).find(([path]) => path.toLowerCase() === normalized);
-    
-    if (session) {
-      const [path, data] = session;
-      const lastModified = data.last_modified;
-      
-      // If modification detected, re-fetch content
-      if (lastModified && lastModified !== lastKnownModifiedRef.current[normalized]) {
-        console.log("[Sync] Detected change in active IDE session. Refreshing content viewer...");
-        lastKnownModifiedRef.current[normalized] = lastModified;
-        
-        // Use fetchScriptContent from useScriptOperations to refresh the combined content
-        fetchScriptContent(selectedScript).catch(() => {});
-      }
-    }
-  }, [selectedScript, activeSyncSessions, fetchScriptContent]);
-
   // Reset logic when source/team/user changes
   useEffect(() => {
     setSelectedScriptState(null);
@@ -198,7 +177,17 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (paramsResult.parameters) {
         freshParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
           let value: any = p.defaultValueJson;
-          try { value = JSON.parse(p.defaultValueJson); } catch { }
+          try { 
+            // V5 PRECISION FIX: If it's a double/number and contains a decimal, 
+            // we preserve the string to keep trailing zeros (e.g. 6.0)
+            const isDouble = p.type === 'number' || p.numericType === 'double';
+            if (isDouble && p.defaultValueJson.includes('.')) {
+                value = p.defaultValueJson.replace(/"/g, '');
+            } else {
+                value = JSON.parse(p.defaultValueJson); 
+            }
+          } catch { }
+          
           if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
           return { ...p, type: p.type as ScriptParameter['type'], value, defaultValue: value };
         });
@@ -252,27 +241,32 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   // Sync session changes (Automated refresh when editing in IDE)
   useEffect(() => {
     if (!selectedScript?.absolutePath || !activeSyncSessions) return;
+
+    const normalizedSelected = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
     
-    const normalized = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
-    const session = activeSyncSessions[normalized];
-    
-    if (session && session.last_modified) {
-      const lastSeen = lastKnownModifiedRef.current[normalized] || 0;
-      if (session.last_modified > lastSeen) {
-        console.log(`[Sync] Detected change in IDE for: ${selectedScript.name}. Refreshing content...`);
-        lastKnownModifiedRef.current[normalized] = session.last_modified;
+    // Find the session by normalizing all keys in activeSyncSessions
+    const sessionEntry = Object.entries(activeSyncSessions).find(([path]) => 
+      path.replace(/\\/g, '/').toLowerCase() === normalizedSelected
+    );
+
+    if (sessionEntry) {
+      const [originalPath, data] = sessionEntry;
+      const lastModified = data.last_modified;
+
+      if (lastModified) {
+        const lastSeen = lastKnownModifiedRef.current[normalizedSelected] || 0;
         
-        // 1. Update the local modification time
-        updateScriptModificationTime(selectedScript.id);
-        
-        // 2. Refresh the code content (used by FloatingCodeViewer)
-        fetchScriptContent(selectedScript).catch(() => {});
-        
-        // 3. Trigger a metadata/parameter refresh (non-blocking)
-        setSelectedScript(selectedScript, 'refresh');
+        if (lastModified > lastSeen) {
+          lastKnownModifiedRef.current[normalizedSelected] = lastModified;
+          console.log(`[Sync] 🔔 REFRESH: Detected IDE change for ${selectedScript.name}.`);
+          
+          reloadScript(selectedScript).then(() => {
+              setSelectedScript(selectedScript, 'refresh');
+          }).catch((err: any) => console.error("[Sync] Refresh failed:", err));
+        }
       }
     }
-  }, [activeSyncSessions, selectedScript, updateScriptModificationTime, fetchScriptContent, setSelectedScript]);
+  }, [activeSyncSessions, selectedScript, reloadScript, setSelectedScript]);
 
   // V5: SMART EXISTENCE GUARD
   // Sync selectedScript metadata updates (like Last Run) from the global list

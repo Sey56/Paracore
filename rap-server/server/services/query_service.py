@@ -57,14 +57,20 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     param_fields = []
     used_property_names = {} 
     
-    # V5: We must NOT deduplicate parameters by name/id anymore, 
-    # because two 'Comments' rules need two separate UI inputs.
-    
+    # We maintain a separate map for reporting columns to ensure they find the clean name
+    # even if they were deduplicated.
+    column_name_map = {}
+
     for idx, rule in enumerate(all_filter_rules):
-        unique_id = f"rule_{idx}" # Absolute uniqueness by position
+        unique_id = f"rule_{idx}" 
+        col_uid = f"{rule.get('builtin_id') or rule['name']}_{rule.get('is_type')}"
         
         # A. Resolve Precision Type
-        clean_name = re.sub(r'\s+\[.*?\]$', '', rule["name"])
+        # Transform [Reference] -> _Reference to preserve uniqueness while remaining C# friendly
+        raw_name = rule["name"]
+        clean_name = raw_name.replace(" [", "_").replace("[", "_").replace("]", "").replace(" ", "")
+        clean_name = re.sub(r'[^a-zA-Z0-9_]', '', clean_name)
+        
         storage = rule["storage_type"]; val = rule["value"]; unit = rule.get("unit")
         csharp_type = rule.get("revit_element_type") or "ElementId"
         is_revit_type = False
@@ -74,8 +80,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         if storage == "Double": csharp_type = "double"
         elif storage == "Integer": 
             csharp_type = "int"
-            if "Parameter" in clean_name: csharp_type = "BuiltInParameter"
-            elif "Category" in clean_name: csharp_type = "BuiltInCategory"
+            if "Parameter" in raw_name: csharp_type = "BuiltInParameter"
+            elif "Category" in raw_name: csharp_type = "BuiltInCategory"
         elif storage == "ElementId": 
             if csharp_type != "ElementId":
                 is_revit_type = True
@@ -102,7 +108,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         if clean_name.lower() in ["type", "instance", "symbol", "family"]:
             base_prop_name = display_name_base
         else:
-            base_prop_name = clean_name.replace(" ", "")
+            base_prop_name = clean_name
         
         final_name = base_prop_name
         
@@ -115,6 +121,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             used_property_names[final_name] = 1
             
         property_map[unique_id] = final_name
+        if col_uid not in column_name_map:
+            column_name_map[col_uid] = base_prop_name # Columns use the base name (deduplicated)
 
         # C. Generate C# Field
         attr_prefix = f"[{', '.join(attrs)}]\n    " if attrs else ""
@@ -154,7 +162,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                 rule_pointer = next_idx
             else:
                 uid = f"rule_{rule_pointer}"
-                prop_id = property_map.get(uid, child["name"].replace(" ", ""))
+                prop_id = property_map.get(uid, re.sub(r'[^a-zA-Z0-9]', '', child["name"]))
                 rule_pointer += 1
                 
                 storage = child["storage_type"]; op = child["operator"]
@@ -247,11 +255,19 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     seen_col_ids = set()
     for col in all_filter_rules + (selected_columns or []):
         uid = f"{col.get('builtin_id') or col['name']}_{col.get('is_type')}"
-        if uid not in seen_col_ids: seen_col_ids.add(uid); reporting_columns.append(col)
+        if uid not in seen_col_ids: 
+            seen_col_ids.add(uid)
+            reporting_columns.append(col)
+            # Ensure even columns from selectedColumns get a clean base name
+            if uid not in column_name_map:
+                c_name = re.sub(r'\s+\[.*?\]$', '', col["name"])
+                column_name_map[uid] = re.sub(r'[^a-zA-Z0-9]', '', c_name)
 
     for col in reporting_columns:
         raw_name = col["name"]; p_name = re.sub(r'\s+\[.*?\]$', '', raw_name)
-        p_id = property_map.get(f"{col.get('builtin_id') or col['name']}_{col.get('is_type')}", p_name.replace(" ", ""))
+        uid = f"{col.get('builtin_id') or col['name']}_{col.get('is_type')}"
+        p_id = column_name_map.get(uid, re.sub(r'[^a-zA-Z0-9]', '', p_name))
+        
         storage = col["storage_type"]; unit = col.get("unit")
         if p_name == "Family Name": val_expr = "el.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM)?.AsValueString() ?? el.Name"
         elif p_name == "Type Name": val_expr = "el.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)?.AsValueString() ?? el.Name"
@@ -272,7 +288,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
 
     logic_parts.extend([
         "", "        return (object)new {", "            Id = el.Id.Value, el.Name,",
-        *[f"            {property_map.get(f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}', re.sub(r'\\s+\\[.*?\\]$', '', c['name']).replace(' ', ''))} = {property_map.get(f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}', re.sub(r'\\s+\\[.*?\\]$', '', c['name']).replace(' ', ''))}Value," for c in reporting_columns],
+        *[f"            {column_name_map.get(f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}', re.sub(r'[^a-zA-Z0-9]', '', c['name']))} = {column_name_map.get(f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}', re.sub(r'[^a-zA-Z0-9]', '', c['name']))}Value," for c in reporting_columns],
         "        };", "    })];", "    Table(results);", "}", "\n// 3. Interactive Actions (Removed)"
     ])
 

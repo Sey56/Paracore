@@ -180,7 +180,6 @@ namespace Paracore.Addin.App
             _server?.Stop();
             _serverRunning = false;
             UpdateButtonState();
-            WorkspaceManager.Cleanup();
 
             FileLogger.Log("=== Paracore Shutdown Complete ===");
             return Result.Succeeded;

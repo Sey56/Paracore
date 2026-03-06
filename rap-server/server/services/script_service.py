@@ -40,6 +40,11 @@ def _hydrate_params_for_frontend(params: List[Dict]) -> List[Dict]:
         val_json = p.get("defaultValueJson") or p.get("default_value_json") or "null"
         try:
             real_val = json.loads(val_json)
+            # V5 PRECISION FIX: If it's a double/number and the JSON string contains ".0", 
+            # keep it as a string to prevent stripping trailing zeros.
+            if p.get("type") == "number" or p.get("numericType") == "double":
+                if "." in val_json:
+                    real_val = val_json.strip('"')
         except:
             real_val = val_json
 
@@ -148,6 +153,16 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             res = bulk_results_map.get(p_path)
             if not res: continue
             
+            # V5: AUTO-REGISTRATION FOR SYNC (The "Always-On" Sync)
+            # If a folder contains a .csproj, we automatically treat it as an active IDE session.
+            # This ensures sync works immediately upon discovery if it's already a project.
+            try:
+                has_csproj = any(f.endswith('.csproj') for f in os.listdir(p_path))
+                if has_csproj:
+                    from ide_manager import set_active_ide_session
+                    set_active_ide_session(p_path)
+            except: pass
+
             # Map metadata and parameters through unified hydration
             raw_meta = res.get("metadata") if isinstance(res, dict) else getattr(res, "metadata", None)
             raw_params = res.get("parameters") if isinstance(res, dict) else getattr(res, "parameters", [])
@@ -309,7 +324,7 @@ async def compute_parameter_options_logic(script_path: str, parameter_name: str,
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def edit_script_logic(tool_path: str):
+async def edit_script_logic(tool_path: str, force_scaffold: bool = False):
     try:
         # 1. Resolve the path (minimal work)
         project_root = recover_true_path(tool_path)
@@ -329,8 +344,14 @@ async def edit_script_logic(tool_path: str):
                 with open(entry_file, 'w', encoding='utf-8') as f:
                     f.write(ARCHETYPES.get(template_id, ARCHETYPES["blank"]))
 
-        # 3. Perform FULL Scaffolding in Python (Fast, Local, Non-blocking)
-        scaffold_project_full(project_root)
+        # 3. Perform FULL Scaffolding in Python ONLY if needed (Idempotent)
+        # We skip this if .csproj already exists, making "Edit Script" instant for existing projects.
+        has_csproj = any(f.endswith('.csproj') for f in os.listdir(project_root))
+        if force_scaffold or not has_csproj:
+            print(f"[EditLogic] 🏗️ Scaffolding project: {project_name} (Force={force_scaffold})")
+            scaffold_project_full(project_root)
+        else:
+            print(f"[EditLogic] ⚡ Skipping scaffolding - project already exists: {project_name}")
 
         # 4. Trigger VS Code Launch from Python (Robust & Non-blocking)
         launch_vscode(project_root)
