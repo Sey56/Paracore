@@ -408,7 +408,10 @@ def scaffold_project_full(project_root: str):
 
         # 3. .editorconfig
         with open(os.path.join(project_root, ".editorconfig"), 'w', encoding='utf-8') as f:
-            f.write("[*.{cs,vb}]\ndotnet_diagnostic.CA1050.severity = none\ndotnet_diagnostic.CS8019.severity = warning")
+            f.write("[*.{cs,vb}]\n"
+                    "dotnet_diagnostic.CA1050.severity = none\n"
+                    "dotnet_diagnostic.CS8019.severity = warning\n"
+                    "dotnet_diagnostic.CA1707.severity = none # Allow underscores in member names for Paracore conventions\n")
 
         # 4. Globals.cs
         globals_content = (
@@ -599,25 +602,42 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
     try:
         path = resolve_script_path(script_path)
         if not os.path.exists(path): return {"success": True}
-        # 1. Stop the gRPC sync session (release C# side file handles)
+        
+        # 1. Release locks
         try: grpc_client.stop_sync_session(path)
         except: pass
-        # 2. Stop the Python watchdog observer (release Python side file handles)
         try: remove_active_ide_session(path)
         except: pass
-        # 3. Give Windows time to release directory handles
+        
         time.sleep(0.5)
+        
         if delete_scaffolding_only:
+            # Delete everything EXCEPT the Scripts folder
             for item in os.listdir(path):
                 if item == "Scripts": continue
                 ip = os.path.join(path, item)
                 if os.path.isdir(ip): _robust_rmtree(ip)
                 else: os.remove(ip)
+            return {"success": True, "message": "Scaffolding removed. Source code preserved."}
         else:
-            if os.path.isdir(path): _robust_rmtree(path)
-            else: os.remove(path)
+            # FULL DELETE
+            # We try to delete the whole tree. 
+            # If we hit a PermissionError on the ROOT folder (WinError 32), 
+            # we check if we at least managed to delete the 'Scripts' folder.
+            try:
+                if os.path.isdir(path): _robust_rmtree(path)
+                else: os.remove(path)
+            except PermissionError:
+                # If the Scripts folder is gone, we consider the deletion 'practically' successful 
+                # even if VS Code is holding the parent folder handle.
+                scripts_path = os.path.join(path, "Scripts")
+                if not os.path.exists(scripts_path):
+                    return {"success": True, "message": "Script contents deleted. Workspace folder is locked and will be removed once VS Code is closed."}
+                raise HTTPException(status_code=423, detail="Could not delete script contents. Please close VS Code and try again.")
+                
         return {"success": True}
-    except Exception as e: raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 def get_script_manifest_logic(path: str): return grpc_client.get_script_manifest(path)
 def rename_script_logic(old_path: str, new_name: str): return grpc_client.rename_script(old_path, new_name)

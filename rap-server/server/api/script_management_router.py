@@ -39,6 +39,10 @@ class ComputeOptionsRequest(BaseModel):
     parameterName: str
     parameters: Optional[Dict] = None
 
+class EditScriptRequest(BaseModel):
+    scriptPath: str
+    force_scaffold: bool = False
+
 class RenameRequest(BaseModel):
     oldPath: str
     newName: str
@@ -199,11 +203,8 @@ async def get_content(scriptPath: str = Query(...)):
     return await script_service.get_script_content_logic(scriptPath)
 
 @router.post("/api/edit-script", tags=["Script Management"])
-async def edit_script(request: Dict[str, str], current_user: CurrentUser = Depends(get_current_user)):
-    path = request.get("scriptPath")
-    if not path:
-        raise HTTPException(status_code=400, detail="scriptPath is required")
-    return await script_service.edit_script_logic(path)
+async def edit_script(request: EditScriptRequest):
+    return await script_service.edit_script_logic(request.scriptPath, request.force_scaffold)
 
 @router.post("/api/save-script", tags=["Script Management"])
 async def save_script(request: SaveScriptRequest, current_user: CurrentUser = Depends(get_current_user)):

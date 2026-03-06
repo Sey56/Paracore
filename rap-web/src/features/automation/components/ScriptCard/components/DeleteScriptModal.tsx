@@ -4,7 +4,7 @@ import {
   faExclamationTriangle,
   faSpinner,
   faTrash,
-  faBroom
+  faInfoCircle
 } from "@fortawesome/free-solid-svg-icons";
 import { Modal } from '@/components/common/Modal';
 
@@ -17,7 +17,7 @@ interface DeleteScriptModalProps {
   isProtectedTool: boolean;
   isGuard: boolean;
   displayName: string;
-  onDelete: (scaffoldingOnly: boolean) => void;
+  onDelete: () => void; // No flag needed anymore, this is for FULL delete
 }
 
 export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
@@ -25,7 +25,6 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
   onClose,
   isDeleting,
   deleteError,
-  isActiveInIDE,
   isProtectedTool,
   isGuard,
   displayName,
@@ -35,7 +34,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={() => !isDeleting && onClose()}
-      title={isProtectedTool ? "Delete Sealed Automation Tool" : `Manage Automation ${isGuard ? 'Sentinel' : 'Script'}`}
+      title={isProtectedTool ? "Delete Sealed Automation Tool" : "Permanent Deletion Warning"}
       size="md"
     >
       <div className="space-y-6">
@@ -49,77 +48,51 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
           </div>
         )}
 
-        {isActiveInIDE && (
-          <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-3">
-            <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-500 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-amber-800 dark:text-amber-200">
-                Active IDE Session Detected
-              </h4>
-              <p className="text-xs text-amber-700/70 dark:text-amber-400/70 leading-relaxed font-medium">
-                This {isGuard ? 'sentinel' : 'script'} is currently open in VS Code. To prevent data corruption and Windows file lock errors, please close the script environment in VS Code before deleting.
-              </p>
-            </div>
+        <div className="space-y-4">
+          <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border-l-4 border-red-500 flex gap-4 items-center">
+             <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500 text-2xl" />
+             <div>
+                <h3 className="text-red-800 dark:text-red-400 font-black uppercase tracking-tighter">Extreme Caution Required</h3>
+                <p className="text-xs text-red-700 dark:text-red-500/80 font-medium">This action cannot be undone.</p>
+             </div>
           </div>
-        )}
 
-        {isProtectedTool ? (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Are you sure you want to permanently delete the sealed tool <span className="font-bold text-gray-900 dark:text-white">"{displayName}"</span>?
-            </p>
-            <div
-              className="p-4 rounded-xl border-2 border-red-50 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 hover:border-red-200 dark:hover:border-red-800 transition-all cursor-pointer group"
-              onClick={() => !isDeleting && onDelete(false)}
-            >
-              <div className="flex justify-between items-center mb-1">
-                <h4 className="font-bold text-red-700 dark:text-red-400">Delete Sealed Tool</h4>
-                {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-red-500" /> : <FontAwesomeIcon icon={faTrash} className="text-red-400 group-hover:scale-110 transition-transform" />}
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the .ptool or .wtool file from the library. This action cannot be undone.</p>
-            </div>
+          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+            You are about to permanently delete the {isGuard ? 'sentinel' : 'script'} <span className="font-bold text-gray-900 dark:text-white">"{displayName}"</span>. 
+            This will destroy the entire automation folder, including your <span className="text-red-600 dark:text-red-400 font-bold underline">source code</span> inside <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded italic text-[11px]">Scripts/</code>.
+          </p>
+
+          <button
+            onClick={() => !isDeleting && onDelete()}
+            disabled={isDeleting}
+            className="w-full py-4 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] transition-all text-white font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-red-500/20 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {isDeleting ? (
+              <>
+                <FontAwesomeIcon icon={faSpinner} spin />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <FontAwesomeIcon icon={faTrash} />
+                I Understand, Delete All
+              </>
+            )}
+          </button>
+
+          <div className="p-3 bg-amber-50/50 dark:bg-amber-900/5 rounded-lg flex items-start gap-2 text-[10px] text-amber-700 dark:text-amber-500/60 font-medium italic">
+            <FontAwesomeIcon icon={faInfoCircle} className="mt-0.5" />
+            <span>Note: If this project is currently open in VS Code, we will delete the contents immediately, but Windows may prevent removing the empty folder until you close the workspace.</span>
           </div>
-        ) : (
-          <>
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Choose how you want to manage {isGuard ? 'this sentinel' : 'this script'} <span className="font-bold text-gray-900 dark:text-white">"{displayName}"</span>:
-              </p>
-            </div>
+        </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              <div
-                className="p-4 rounded-xl border-2 border-blue-50 dark:border-blue-900/30 bg-blue-50/30 dark:bg-red-900/10 hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer group"
-                onClick={() => !isDeleting && onDelete(true)}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <h4 className="font-bold text-blue-700 dark:text-blue-400">Delete Scaffolding</h4>
-                  {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-blue-500" /> : <FontAwesomeIcon icon={faBroom} className="text-blue-400 group-hover:scale-110 transition-transform" />}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Removes .sln, .csproj and other IDE files. Your C# logic in <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">Scripts/</code> will be preserved.</p>
-              </div>
-
-              <div
-                className="p-4 rounded-xl border-2 border-red-50 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 hover:border-red-200 dark:hover:border-red-800 transition-all cursor-pointer group"
-                onClick={() => !isDeleting && onDelete(false)}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <h4 className="font-bold text-red-700 dark:text-red-400">Full Delete</h4>
-                  {isDeleting ? <FontAwesomeIcon icon={faSpinner} spin className="text-red-500" /> : <FontAwesomeIcon icon={faTrash} className="text-red-400 group-hover:scale-110 transition-transform" />}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Permanently removes the entire automation folder and all its contents. This action cannot be undone.</p>
-              </div>
-            </div>
-          </>
-        )}
-
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-center">
           <button
             onClick={onClose}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
           >
-            Cancel
+            Go Back
           </button>
         </div>
       </div>

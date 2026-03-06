@@ -158,6 +158,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
         menuRef={menuRef}
         canCreateScripts={canCreateScripts}
         editScript={editScript}
+        onDelete={handleDelete}
         handleStartRename={handleStartRename}
         onReplace={onReplace}
         setShowDeleteModal={setShowDeleteModal}

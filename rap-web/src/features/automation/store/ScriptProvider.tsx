@@ -221,11 +221,14 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [selectedFolder, loadScriptsFromPath, showNotification]);
 
-  const editScript = useCallback(async (script: Script) => {
+  const editScript = useCallback(async (script: Script, forceScaffold: boolean = false) => {
     if (!script || !isAuthenticated) return false;
     try {
-      await api.post("/api/edit-script", { scriptPath: script.absolutePath });
-      showNotification(`Opening project in VS Code...`, "success");
+      await api.post("/api/edit-script", { 
+        scriptPath: script.absolutePath,
+        force_scaffold: forceScaffold
+      });
+      showNotification(forceScaffold ? "Scaffolding regenerated. Opening..." : "Opening project in VS Code...", "success");
       return true;
     } catch (error: any) {
       console.error("[EditScript] Error:", error);

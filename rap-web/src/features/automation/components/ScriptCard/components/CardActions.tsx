@@ -13,7 +13,8 @@ import {
   faSyncAlt,
   faTrash,
   faCode,
-  faTags
+  faTags,
+  faBroom
 } from "@fortawesome/free-solid-svg-icons";
 import { Script } from "@/types/scriptModel";
 
@@ -34,7 +35,8 @@ interface CardActionsProps {
   setShowMenu: (show: boolean) => void;
   menuRef: React.RefObject<HTMLDivElement | null>;
   canCreateScripts: boolean;
-  editScript: (script: Script) => void;
+  editScript: (script: Script, force?: boolean) => void;
+  onDelete: (scaffoldingOnly: boolean) => void;
   handleStartRename: (e: React.MouseEvent) => void;
   onReplace?: (script: Script) => void;
   setShowDeleteModal: (show: boolean) => void;
@@ -63,6 +65,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
   menuRef,
   canCreateScripts,
   editScript,
+  onDelete,
   handleStartRename,
   onReplace,
   setShowDeleteModal,
@@ -92,7 +95,6 @@ export const CardActions: React.FC<CardActionsProps> = ({
             }`}
           onClick={handleRunClickInternal}
           disabled={isRunButtonDisabled}
-          title={tooltipMessage}
         >
           <FontAwesomeIcon
             icon={isRunning ? faSpinner : faPlay}
@@ -170,6 +172,34 @@ export const CardActions: React.FC<CardActionsProps> = ({
                       <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
                       {isGuard ? "Edit Sentinel" : "Edit Script"}
                     </button>
+                    {!isProtectedTool && (
+                      <div className="flex flex-col gap-0.5 border-b border-gray-100 dark:border-gray-800 pb-1">
+                        <button
+                          className="w-full text-left px-4 py-2 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center italic"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelect();
+                            editScript(script, true); // Force Scaffolding
+                            setShowMenu(false);
+                          }}
+                        >
+                          <FontAwesomeIcon icon={faTools} className="mr-2 w-3" />
+                          Fix Scaffolding
+                        </button>
+                        <button
+                          className="w-full text-left px-4 py-2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center italic"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelect();
+                            onDelete(true); // Scaffolding Only
+                            setShowMenu(false);
+                          }}
+                        >
+                          <FontAwesomeIcon icon={faBroom} className="mr-2 w-3" />
+                          Remove Scaffolding
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -214,7 +244,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
                 )}
                 <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center font-bold"
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelect();
