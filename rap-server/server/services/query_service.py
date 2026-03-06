@@ -36,8 +36,14 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     # Generic Revit containers that REQUIRE a category hint [RevitElements]
     GENERIC_CONTAINERS = {"Element", "ElementType", "FamilyInstance", "FamilySymbol", "SpatialElement"}
 
+    def get_singular(name: str):
+        if name.endswith("ies"): return name[:-3] + "y"
+        if name.endswith("s") and not name.endswith("ss"): return name[:-1]
+        return name
+
     cast_type = CLASS_MAP.get(category_name, "Element")
     clean_cat = category_name.replace("OST_", "")
+    singular_cat = get_singular(clean_cat)
     
     all_filter_rules = []
     def collect_rules(group):
@@ -49,13 +55,13 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     # --- PASS 1: UNIQUE IDENTITY & NAME MAPPING ---
     property_map = {} 
     param_fields = []
-    seen_unique_ids = set()
     used_property_names = {} 
-
-    for rule in all_filter_rules:
-        unique_id = f"{rule.get('builtin_id') or rule['name']}_{rule.get('is_type')}"
-        if unique_id in seen_unique_ids: continue
-        seen_unique_ids.add(unique_id)
+    
+    # V5: We must NOT deduplicate parameters by name/id anymore, 
+    # because two 'Comments' rules need two separate UI inputs.
+    
+    for idx, rule in enumerate(all_filter_rules):
+        unique_id = f"rule_{idx}" # Absolute uniqueness by position
         
         # A. Resolve Precision Type
         clean_name = re.sub(r'\s+\[.*?\]$', '', rule["name"])
@@ -75,7 +81,10 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                 is_revit_type = True
                 
                 # TOTAL TYPE PROMOTION
-                if csharp_type in ["ElementType", "FamilySymbol"]:
+                if rule.get("builtin_name") == "ELEM_FAMILY_PARAM":
+                    csharp_type = "Family"
+                    attrs.append(f'RevitElements(Category = "{clean_cat}")')
+                elif csharp_type in ["ElementType", "FamilySymbol"]:
                     if category_name in SYSTEM_TYPE_MAP:
                         csharp_type = SYSTEM_TYPE_MAP[category_name]
                     else:
@@ -86,8 +95,9 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
 
         # B. Resolve Descriptive Property Name
         display_name_base = csharp_type
-        if csharp_type == "FamilySymbol": display_name_base = f"{clean_cat}Symbol"
-        elif csharp_type == "FamilyInstance": display_name_base = f"{clean_cat}Instance"
+        if csharp_type == "Family": display_name_base = "Family"
+        elif csharp_type == "FamilySymbol": display_name_base = f"{singular_cat}Symbol"
+        elif csharp_type == "FamilyInstance": display_name_base = f"{singular_cat}Instance"
         
         if clean_name.lower() in ["type", "instance", "symbol", "family"]:
             base_prop_name = display_name_base
@@ -95,17 +105,15 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             base_prop_name = clean_name.replace(" ", "")
         
         final_name = base_prop_name
-        counter = 1
-        while final_name in used_property_names:
-            if rule.get("builtin_name"):
-                suffix = rule["builtin_name"].split('_')[-1].capitalize()
-                final_name = f"{base_prop_name}_{suffix}"
-                if final_name in used_property_names: final_name = f"{base_prop_name}_{suffix}{counter}"
-            else:
-                final_name = f"{base_prop_name}{counter}"
-            counter += 1
+        
+        # UNIQUE NAME GUARD: Use counter to handle multiple rules with same param name
+        if final_name in used_property_names:
+            counter = used_property_names[final_name] + 1
+            used_property_names[final_name] = counter
+            final_name = f"{final_name}{counter}"
+        else:
+            used_property_names[final_name] = 1
             
-        used_property_names[final_name] = True
         property_map[unique_id] = final_name
 
         # C. Generate C# Field
@@ -115,17 +123,18 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         if is_revit_type:
             param_fields.append(f"{attr_prefix}public {csharp_type}? {final_name} {{ get; set; }}")
         else:
+            actual_type = "string" if storage == "String" else csharp_type
             if storage in ["Double", "Integer"]: default_val = str(val) if val else "0"
             else:
                 default_val = f'"{val}"' if isinstance(val, str) else str(val)
                 if isinstance(val, bool): default_val = str(val).lower()
-            param_fields.append(f"{attr_prefix}public {csharp_type} {final_name} {{ get; set; }} = {default_val};")
+            param_fields.append(f"{attr_prefix}public {actual_type} {final_name} {{ get; set; }} = {default_val};")
 
     uses_get_param_id = False
     subgroup_counter = 0
 
     # --- PASS 2: LOGIC GENERATION ---
-    def build_filter_logic(group, is_root=True):
+    def build_filter_logic(group, is_root=True, current_rule_idx=0):
         nonlocal uses_get_param_id, subgroup_counter
         lines = []
         logical_type = "LogicalAndFilter" if group["combinator"] == "AND" else "LogicalOrFilter"
@@ -136,14 +145,18 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         
         lines.append(f"    List<ElementFilter> {list_var} = [];")
         
+        rule_pointer = current_rule_idx
         for child in group["children"]:
             if child["type"] == 'group':
-                inner_lines, inner_var = build_filter_logic(child, is_root=False)
+                inner_lines, inner_var, next_idx = build_filter_logic(child, is_root=False, current_rule_idx=rule_pointer)
                 lines.extend(inner_lines)
                 lines.append(f"    if ({inner_var} != null) {list_var}.Add({inner_var});")
+                rule_pointer = next_idx
             else:
-                uid = f"{child.get('builtin_id') or child['name']}_{child.get('is_type')}"
+                uid = f"rule_{rule_pointer}"
                 prop_id = property_map.get(uid, child["name"].replace(" ", ""))
+                rule_pointer += 1
+                
                 storage = child["storage_type"]; op = child["operator"]
                 
                 if child.get("is_builtin") and child.get("builtin_id"):
@@ -153,8 +166,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     uses_get_param_id = True; param_id = f"GetParamId(Doc, \"{child['name']}\")"
 
                 evaluator = "new FilterNumericEquals()"
-                if op == "!=": evaluator = "new FilterNumericEquals()"
-                elif op == ">": evaluator = "new FilterNumericGreater()"
+                if op == ">": evaluator = "new FilterNumericGreater()"
                 elif op == "<": evaluator = "new FilterNumericLess()"
                 elif op == ">=": evaluator = "new FilterNumericGreaterOrEqual()"
                 elif op == "<=": evaluator = "new FilterNumericLessOrEqual()"
@@ -162,20 +174,34 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                 rule_obj = "null"; condition = "true"
                 if storage == "Double":
                     condition = f"p.{prop_id} != 0"
-                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, p.{prop_id}, 1e-6)"
+                    val_expr = f"p.{prop_id}"
+                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr}, 1e-6)"
                 elif storage == "Integer":
                     condition = f"p.{prop_id} != 0"
                     rule_obj = f"new FilterIntegerRule(new ParameterValueProvider({param_id}), {evaluator}, (int)p.{prop_id})"
                 elif storage == "ElementId":
                     # Precision Hydration Check: if it's promoted or specialized, it's hydrated
                     revit_type = child.get("revit_element_type") or "ElementId"
+                    # If we explicitly promoted it to Family in Pass 1, we use .Id here
+                    is_family_obj = (child.get("builtin_name") == "ELEM_FAMILY_PARAM" and (revit_type == "Element" or revit_type == "Family")) or revit_type == "Family"
                     is_hydrated = revit_type != "ElementId"
-                    
-                    if is_hydrated:
-                        condition = f"p.{prop_id} != null"; val_expr = f"p.{prop_id}.Id"
+
+                    if is_family_obj:
+                        # BROAD FAMILY FILTER: Name-based string comparison is the most reliable way 
+                        # to find all instances belonging to a family in Revit.
+                        condition = f"p.{prop_id} != null"
+                        rule_obj = f"new FilterStringRule(new ParameterValueProvider(new ElementId(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM)), new FilterStringEquals(), p.{prop_id}.Name)"
+                        inverted = "true" if op == "!=" else "false"
+                        lines.append(f"    if ({condition}) {list_var}.Add(new ElementParameterFilter({rule_obj}, {inverted}));")
+                        rule_obj = "null" # Mark as handled
+                    elif is_hydrated:
+                        condition = f"p.{prop_id} != null"
+                        val_expr = f"p.{prop_id}.Id"
+                        rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr})"
                     else:
-                        condition = f"p.{prop_id} != ElementId.InvalidElementId"; val_expr = f"p.{prop_id}"
-                    rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr})"
+                        condition = f"p.{prop_id} != ElementId.InvalidElementId"
+                        val_expr = f"p.{prop_id}"
+                        rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr})"
                 elif storage == "String":
                     condition = f"!string.IsNullOrEmpty(p.{prop_id})"
                     str_eval = "new FilterStringEquals()"
@@ -185,13 +211,20 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     rule_obj = f"new FilterStringRule(new ParameterValueProvider({param_id}), {str_eval}, p.{prop_id})"
 
                 if rule_obj != "null":
-                    inverted = "true" if op == "!=" else "false"
-                    lines.append(f"    if ({condition}) {list_var}.Add(new ElementParameterFilter({rule_obj}, {inverted}));")
+                    # SPECIAL CASE: Family filtering for loadable families requires a specialized filter
+                    # because ELEM_FAMILY_PARAM on instances is inconsistent for direct ID comparison.
+                    if child.get("builtin_name") == "ELEM_FAMILY_PARAM" and (revit_type == "Family" or revit_type == "Element"):
+                        filter_expr = f"new FamilyInstanceFilter(Doc, {val_expr})"
+                        if op == "!=": filter_expr = f"new LogicalNotFilter({filter_expr})"
+                        lines.append(f"    if ({condition}) {list_var}.Add({filter_expr});")
+                    else:
+                        inverted = "true" if op == "!=" else "false"
+                        lines.append(f"    if ({condition}) {list_var}.Add(new ElementParameterFilter({rule_obj}, {inverted}));")
 
         lines.append(f"    ElementFilter? {result_var} = {list_var}.Count > 0 ? ({list_var}.Count == 1 ? {list_var}[0] : new {logical_type}({list_var})) : null;")
-        return lines, result_var
+        return lines, result_var, rule_pointer
 
-    filter_construction_lines, final_filter_var = build_filter_logic(root_group)
+    filter_construction_lines, final_filter_var, _ = build_filter_logic(root_group)
     
     logic_parts = [
         f"// __PARACORE_QUERY_DATA__{json.dumps({'category': category_name, 'rootGroup': root_group, 'selectedColumns': selected_columns or [], 'scope': scope})}",

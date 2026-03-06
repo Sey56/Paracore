@@ -291,61 +291,34 @@ namespace CoreScript.Engine.Globals
             }
         }
 
-                /// <summary>
+        /// <summary>
+        /// Sets the execution timeout for the current script. Default is 10 seconds.
+        /// Call this at the start of your script if you need more time for long-running operations.
+        /// </summary>
+        /// <param name="seconds">Maximum execution time in seconds</param>
+        public static void SetExecutionTimeout(int seconds) => ExecutionGlobals.SetExecutionTimeout(seconds);
 
-                /// Sets the execution timeout for the current script. Default is 10 seconds.
+        /// <summary>
+        /// Finds the first element of type T with the specified name.
+        /// </summary>
+        public static T? GetElement<T>(string name) where T : Element
+        {
+            return new FilteredElementCollector(Doc)
+                .OfClass(typeof(T))
+                .Cast<T>()
+                .FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
 
-                /// Call this at the start of your script if you need more time for long-running operations.
-
-                /// </summary>
-
-                /// <param name="seconds">Maximum execution time in seconds</param>
-
-                public static void SetExecutionTimeout(int seconds) => ExecutionGlobals.SetExecutionTimeout(seconds);
-
-        
-
-                /// <summary>
-
-                /// Finds the first element of type T with the specified name.
-
-                /// </summary>
-
-                public static T? GetElement<T>(string name) where T : Element
-
-                {
-
-                    return new FilteredElementCollector(Doc)
-
-                        .OfClass(typeof(T))
-
-                        .Cast<T>()
-
-                        .FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-
-                }
-
-        
-
-                /// <summary>
-
-                /// Finds all elements of type T in the document.
-
-                /// </summary>
-
-                public static List<T> GetElements<T>() where T : Element
-
-                {
-
-                    return new FilteredElementCollector(Doc)
-
-                        .OfClass(typeof(T))
-
-                        .Cast<T>()
-
-                        .ToList();
-
-                }
+        /// <summary>
+        /// Finds all elements of type T in the document.
+        /// </summary>
+        public static List<T> GetElements<T>() where T : Element
+        {
+            return new FilteredElementCollector(Doc)
+                .OfClass(typeof(T))
+                .Cast<T>()
+                .ToList();
+        }
 
             }
 

@@ -290,12 +290,29 @@ namespace Paracore.Addin.Handlers
                         }
                     }
 
+                    bool isLoadable = false;
+                    if (sample != null) {
+                        var typeId = sample.GetTypeId();
+                        if (typeId != ElementId.InvalidElementId) {
+                            var typeElement = doc.GetElement(typeId);
+                            if (typeElement is FamilySymbol) isLoadable = true;
+                        }
+                    } else {
+                        var sampleType = new FilteredElementCollector(doc).OfCategory(bic).WhereElementIsElementType().FirstOrDefault();
+                        if (sampleType is FamilySymbol) isLoadable = true;
+                    }
+
                     foreach (var item in allParams.OrderBy(x => disambiguatedNames[x.Param.Id])) {
                         var p = item.Param;
                         
-                        // CRITICAL UX FIX: Filter out redundant Category parameters from VQB list
+                        // CRITICAL UX FIX: Filter out redundant Category/Family parameters from VQB list
                         string lowName = p.Definition.Name.ToLower();
                         if (lowName == "category" || lowName == "element category") continue;
+
+                        // Family parameter for system categories (Walls, Floors, etc.) is confusing 
+                        // as it often returns IDs that don't point to selectable Family elements.
+                        // We ONLY show Family filter for truly loadable families.
+                        if (p.Id.Value == (long)BuiltInParameter.ELEM_FAMILY_PARAM && !isLoadable) continue;
 
                         string specId = ""; try { specId = p.Definition.GetDataType().TypeId; } catch { }
                         var def = new ParameterDefinition {
@@ -308,12 +325,18 @@ namespace Paracore.Addin.Handlers
                         if (p.StorageType == StorageType.ElementId) {
                             string typeName = "Element";
                             string name = p.Definition.Name.ToLower();
-                            if (name.Contains("category")) typeName = "Category";
+                            
+                            // If this is the Family parameter and it's loadable, we want the Family collector
+                            if (p.Id.Value == (long)BuiltInParameter.ELEM_FAMILY_PARAM && isLoadable) {
+                                typeName = "Family";
+                            }
+                            else if (name.Contains("category")) typeName = "Category";
                             else if (name.Contains("level") || name.Contains("constraint")) typeName = "Level";
                             else if (name.Contains("material")) typeName = "Material";
                             else if (name.Contains("type")) typeName = "ElementType";
                             else if (name.Contains("phase")) typeName = "Phase";
                             else if (name.Contains("view")) typeName = "View";
+                            
                             def.RevitElementType = typeName;
                         }
                         response.Parameters.Add(def);

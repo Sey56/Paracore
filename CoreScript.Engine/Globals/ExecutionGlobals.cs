@@ -203,7 +203,7 @@ namespace CoreScript.Engine.Globals
         public Output Output { get; }
         public IParameterHydrator Hydrator { get; }
 
-        public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters, Dictionary<string, object> rawParameters = null)
+        public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters, Dictionary<string, object>? rawParameters = null)
         {
             _context = context;
             Parameters = parameters;

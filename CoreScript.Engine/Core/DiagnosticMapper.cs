@@ -16,17 +16,17 @@ namespace CoreScript.Engine.Core
         private class LineMapping
         {
             public int CombinedLineNumber { get; set; }
-            public string SourceFileName { get; set; }
+            public string SourceFileName { get; set; } = string.Empty;
             public int SourceLineNumber { get; set; }
         }
 
         public class MappedDiagnostic
         {
-            public string FileName { get; set; }
+            public string FileName { get; set; } = string.Empty;
             public int Line { get; set; }
             public int Column { get; set; }
-            public string ErrorId { get; set; }
-            public string Message { get; set; }
+            public string ErrorId { get; set; } = string.Empty;
+            public string Message { get; set; } = string.Empty;
             public DiagnosticSeverity Severity { get; set; }
 
             public override string ToString()
@@ -39,7 +39,7 @@ namespace CoreScript.Engine.Core
                 return HashCode.Combine(FileName, Line, ErrorId);
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 if (obj is MappedDiagnostic other)
                 {

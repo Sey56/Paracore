@@ -15,15 +15,15 @@ namespace CoreScript.Engine.Globals
     public class ScriptParameterAttribute : Attribute
     {
         public bool MultiSelect { get; set; } = false;
-        public string Options { get; set; }
-        public string VisibleWhen { get; set; }
-        public string Group { get; set; }
-        public string Description { get; set; } // Deprecated in V3 if XML comments are used, but kept for back-compat
+        public string? Options { get; set; }
+        public string? VisibleWhen { get; set; }
+        public string? Group { get; set; }
+        public string? Description { get; set; } // Deprecated in V3 if XML comments are used, but kept for back-compat
         public double Min { get; set; } 
         public double Max { get; set; }
         public double Step { get; set; }
-        public string Suffix { get; set; }
-        public string InputType { get; set; } // e.g., "File", "SaveFile", "Folder"
+        public string? Suffix { get; set; }
+        public string? InputType { get; set; } // e.g., "File", "SaveFile", "Folder"
         public bool Compute { get; set; } = false;
         public bool Computable { get; set; } = false; // V3 Alias
         public SelectionType Select { get; set; } = SelectionType.None; // New Selection Mode
@@ -35,20 +35,20 @@ namespace CoreScript.Engine.Globals
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public class RevitElementsAttribute : Attribute
     {
-        public string TargetType { get; set; } // Target element type name (e.g. "WallType")
-        public string Group { get; set; }
-        public string Category { get; set; } // Filter by category (e.g., "Doors")
+        public string? TargetType { get; set; } // Target element type name (e.g. "WallType")
+        public string? Group { get; set; }
+        public string? Category { get; set; } // Filter by category (e.g., "Doors")
         public bool MultiSelect { get; set; } = false;
-        public string Options { get; set; }
-        public string VisibleWhen { get; set; }
+        public string? Options { get; set; }
+        public string? VisibleWhen { get; set; }
         public bool Compute { get; set; } = false;
         public bool Computable { get; set; } = false;
-        public string Description { get; set; }
+        public string? Description { get; set; }
         public SelectionType Select { get; set; } = SelectionType.None; // Allow selection override here too
         
         // Constructor signatures for convenience
         public RevitElementsAttribute() { }
-        public RevitElementsAttribute(string TargetType = null) { this.TargetType = TargetType; }
+        public RevitElementsAttribute(string? TargetType = null) { this.TargetType = TargetType; }
     }
 
     // Standard Validation Attributes for V3 Professional Syntax
@@ -139,8 +139,8 @@ namespace CoreScript.Engine.Globals
     // --- File System Attributes (Unified V3) ---
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class InputFileAttribute : Attribute { 
-        public string Filter { get; set; } // Optional: e.g. "csv,txt"
-        public InputFileAttribute(string filter = null) { Filter = filter; }
+        public string? Filter { get; set; } // Optional: e.g. "csv,txt"
+        public InputFileAttribute(string? filter = null) { Filter = filter; }
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
@@ -148,8 +148,8 @@ namespace CoreScript.Engine.Globals
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class OutputFileAttribute : Attribute { 
-        public string Filter { get; set; }
-        public OutputFileAttribute(string filter = null) { Filter = filter; }
+        public string? Filter { get; set; }
+        public OutputFileAttribute(string? filter = null) { Filter = filter; }
     }
 
     // --- High-End UI Controls (Day 05 Enhancements) ---

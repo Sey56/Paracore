@@ -96,12 +96,22 @@ namespace CoreScript.Engine.Core
             {
                 try 
                 {
-                    bool isTypeRequested = targetType.Name.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
-                    var collector = ParameterOptionsComputer.CreateResilientCollector(_doc, targetType);
-                    var candidates = collector.WhereElementIsNotElementType().Cast<Element>();
-                    if (isTypeRequested || typeof(ElementType).IsAssignableFrom(targetType))
+                    IEnumerable<Element> candidates;
+
+                    // SPECIAL CASE: Family resolution (since it's not an ElementType nor a standard instance in most collectors)
+                    if (targetType == typeof(Family))
                     {
-                        candidates = new FilteredElementCollector(_doc).OfClass(targetType).WhereElementIsElementType().Cast<Element>();
+                        candidates = new FilteredElementCollector(_doc).OfClass(typeof(Family)).Cast<Element>();
+                    }
+                    else
+                    {
+                        bool isTypeRequested = targetType.Name.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
+                        var collector = ParameterOptionsComputer.CreateResilientCollector(_doc, targetType);
+                        candidates = collector.WhereElementIsNotElementType().Cast<Element>();
+                        if (isTypeRequested || typeof(ElementType).IsAssignableFrom(targetType))
+                        {
+                            candidates = new FilteredElementCollector(_doc).OfClass(targetType).WhereElementIsElementType().Cast<Element>();
+                        }
                     }
                     
                     foreach (var e in candidates)

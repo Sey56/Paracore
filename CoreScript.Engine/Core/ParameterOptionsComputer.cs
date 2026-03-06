@@ -87,6 +87,23 @@ namespace CoreScript.Engine.Core
             try
             {
                 var cleanName = targetName.Trim();
+
+                // SPECIAL CASE: Family discovery (Loadable Families)
+                if (cleanName.Equals("Family", StringComparison.OrdinalIgnoreCase))
+                {
+                    var familyCollector = new FilteredElementCollector(_doc).OfClass(typeof(Family));
+                    var families = familyCollector.Cast<Family>();
+
+                    if (!string.IsNullOrEmpty(categoryFilter))
+                    {
+                        families = families.Where(f => 
+                            f.FamilyCategory?.Name.Equals(categoryFilter, StringComparison.OrdinalIgnoreCase) == true ||
+                            f.FamilyCategory?.BuiltInCategory.ToString().Contains(categoryFilter) == true);
+                    }
+
+                    return families.Select(f => f.Name).Distinct().OrderBy(n => n).ToList();
+                }
+
                 var isTypeRequested = cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
                 var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
 
