@@ -94,7 +94,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
         onClick={handleFavoriteClick}
         className={`${script.isFavorite
           ? "text-yellow-400 hover:text-yellow-500 ml-2"
-          : "text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300 ml-2"
+          : "text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300 ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           }`}
       >
         {script.isFavorite ? <FontAwesomeIcon icon={fasStar} /> : <FontAwesomeIcon icon={farStar} />}
