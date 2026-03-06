@@ -12,7 +12,8 @@ import {
     faHistory, 
     faInfoCircle,
     faCheckCircle,
-    faChevronDown
+    faChevronDown,
+    faTimesCircle
 } from '@fortawesome/free-solid-svg-icons';
 import { useScripts } from '../hooks/useScripts';
 import { useScriptExecution } from '../hooks/useScriptExecution';
@@ -32,9 +33,10 @@ interface NewScriptModalProps {
 
 const QueryTemplateSelector: React.FC<{
     templates: any[],
-    onSelect: (data: any) => void,
+    onSelect: (data: any, name: string | null) => void,
+    selectedTemplateName: string | null,
     mode: 'script' | 'sentinel'
-}> = ({ templates, onSelect, mode }) => {
+}> = ({ templates, onSelect, selectedTemplateName, mode }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -46,33 +48,45 @@ const QueryTemplateSelector: React.FC<{
         return () => document.removeEventListener('mousedown', handleClick);
     }, [isOpen]);
 
-    if (templates.length === 0) return null;
+    if (templates.length === 0 && !selectedTemplateName) return null;
 
     return (
         <div className="relative" ref={containerRef}>
-            {/* Custom Minimalist Trigger: Transparent, no border by default */}
+            {/* Custom Minimalist Trigger: Displays selected template name */}
             <div 
                 onClick={() => setIsOpen(!isOpen)}
-                className="bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg px-4 py-1.5 text-[13px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 outline-none cursor-pointer min-w-[240px] flex items-center justify-between transition-all"
+                className={`bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50 border rounded-lg px-4 py-1.5 text-[13px] font-bold outline-none cursor-pointer min-w-[240px] flex items-center justify-between transition-all ${selectedTemplateName ? 'border-blue-500/20 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
             >
-                <span className="truncate">Start from template...</span>
-                <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] text-slate-400 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />
+                <span className="truncate">{selectedTemplateName || "Start from template..."}</span>
+                <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] transition-transform ml-2 ${isOpen ? 'rotate-180' : ''} ${selectedTemplateName ? 'text-blue-400' : 'text-slate-400'}`} />
             </div>
 
             {/* Custom High-Contrast Dropdown Menu */}
             {isOpen && (
                 <div className="absolute top-full right-0 mt-2 min-w-[240px] w-max bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 overflow-hidden">
                     <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                        {/* None / Clear Option */}
+                        <div
+                            onClick={() => {
+                                onSelect(null, null);
+                                setIsOpen(false);
+                            }}
+                            className="px-4 py-2.5 text-[13px] font-bold cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors border-b border-slate-50 dark:border-slate-800 text-rose-500 flex items-center gap-3"
+                        >
+                            <FontAwesomeIcon icon={faTimesCircle} className="text-[11px] opacity-60" />
+                            Clear Canvas
+                        </div>
+
                         {templates.map(t => (
                             <div
                                 key={t.id}
                                 onClick={() => {
-                                    onSelect(t.data);
+                                    onSelect(t.data, t.name);
                                     setIsOpen(false);
                                 }}
-                                className="px-4 py-2.5 text-[13px] font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 text-slate-600 dark:text-slate-300 flex items-center gap-3"
+                                className={`px-4 py-2.5 text-[13px] font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 flex items-center gap-3 ${selectedTemplateName === t.name ? 'bg-blue-50/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300'}`}
                             >
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/40" />
+                                <div className={`w-1.5 h-1.5 rounded-full ${selectedTemplateName === t.name ? 'bg-blue-500' : 'bg-blue-500/40'}`} />
                                 {t.name}
                             </div>
                         ))}
@@ -99,10 +113,15 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     const [generatedParams, setGeneratedParams] = useState('');
     const [isCompiled, setIsCompiled] = useState(false);
     const [initialQueryState, setInitialQueryState] = useState<any>(undefined);
+    const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(null);
     const [showConfirmReplace, setShowConfirmReplace] = useState(false);
 
     const [sentinelConfig, setSentinelConfig] = useState<any>(null);
 
+    // V5 FIX: Prevent re-initialization if already active
+    const isInitializedRef = React.useRef(false);
+
+    // Template Gallery
     const queryTemplates = React.useMemo(() => {
         if (!scripts) return [];
         return scripts
@@ -130,20 +149,34 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
         setIsCompiled(compiled);
     }, []);
 
-    const handleTemplateSelect = (templateData: any) => {
-        setInitialQueryState(null);
+    const handleTemplateSelect = (templateData: any, name: string | null) => {
+        setInitialQueryState(null); // Force unmount
+        setSelectedTemplateName(name);
+        
         setTimeout(() => {
-            setInitialQueryState(templateData);
-            setIsCompiled(true);
+            // If templateData is null, it stays null (cleared state)
+            // If it's data, it reloads the builder with that graph
+            setInitialQueryState(templateData || undefined);
+            setIsCompiled(!!templateData);
         }, 10);
     };
 
+    // Persistence Logic
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            isInitializedRef.current = false;
+            return;
+        }
+
+        // Only run initialization ONCE per open/path-change
+        if (isInitializedRef.current) return;
+        isInitializedRef.current = true;
+
         if (targetPath) {
             const existing = scripts.find(s => s.absolutePath === targetPath);
             if (existing && existing.queryData) {
                 setInitialQueryState(existing.queryData);
+                setSelectedTemplateName(existing.metadata?.displayName || existing.name);
                 setActiveTab('query');
                 setIsCompiled(true);
                 return;
@@ -156,6 +189,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                     if (match && match[1]) {
                         const state = JSON.parse(match[1].trim());
                         setInitialQueryState(state);
+                        setSelectedTemplateName(targetPath.split(/[\\/]/).pop()?.replace('.cs', '') || null);
                         setActiveTab('query');
                         setIsCompiled(true);
                     }
@@ -169,6 +203,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
             setGeneratedParams('');
             setIsCompiled(false);
             setInitialQueryState(undefined);
+            setSelectedTemplateName(null);
             setActiveTab('query');
         }
     }, [isOpen, targetPath, scripts]);
@@ -276,7 +311,12 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         {/* Mode & Templates - Unified 12px Rail */}
                         <div className="flex items-center gap-2 shrink-0">
                             {activeTab === 'query' && !isReplacing && (
-                                <QueryTemplateSelector templates={queryTemplates} onSelect={handleTemplateSelect} mode={mode} />
+                                <QueryTemplateSelector 
+                                    templates={queryTemplates} 
+                                    onSelect={handleTemplateSelect} 
+                                    selectedTemplateName={selectedTemplateName}
+                                    mode={mode} 
+                                />
                             )}
 
                             <div className="flex items-center gap-1">
