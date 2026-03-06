@@ -74,10 +74,9 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
             )
           )}
 
-          <div className="flex-1 min-w-0 flex items-center gap-2">
+          <div className="flex-1 min-w-0 flex items-center gap-2" title={getDisplayName()}>
             <h3
               className={`font-medium truncate ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"}`}
-              title={getDisplayName()}
             >
               {getDisplayName()}
             </h3>

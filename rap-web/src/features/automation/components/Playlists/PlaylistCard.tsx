@@ -36,8 +36,8 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
             `}
             onClick={() => onSelect(playlist)}
         >
-            <div className="flex justify-between items-start mb-2">
-                <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 pr-16 truncate w-full" title={playlist.name}>
+            <div className="flex justify-between items-start mb-2" title={playlist.name}>
+                <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-200 pr-16 truncate w-full">
                     {playlist.name}
                 </h3>
                 <div className="flex space-x-1 absolute right-2 top-4">

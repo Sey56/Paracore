@@ -30,12 +30,28 @@ interface TooltipPayload {
   payload: Record<string, unknown>;
 }
 
+const CustomChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
+        <p className="text-slate-500 dark:text-slate-400 font-medium m-0 mb-1">{label}</p>
+        {payload.map((entry, index) => (
+          <p key={index} className="text-blue-600 dark:text-blue-400 font-bold m-0">
+            {`${entry.name} : ${entry.value}`}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 const CustomPieTooltip = ({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) => {
   if (active && payload && payload.length) {
     return (
-      <div style={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
-        <p style={{ color: '#fff', margin: 0, marginBottom: '4px' }}>{payload[0].name}</p>
-        <p style={{ color: '#60a5fa', margin: 0 }}>{`value : ${payload[0].value}`}</p>
+      <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
+        <p className="text-slate-700 dark:text-white font-bold m-0 mb-1">{payload[0].name}</p>
+        <p className="text-blue-600 dark:text-blue-400 m-0">{`value : ${payload[0].value}`}</p>
       </div>
     );
   }
@@ -254,6 +270,7 @@ const TableView: React.FC<{
                         className={`px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-[200px] ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
                         onClick={handleIdClick}
                         onDoubleClick={handleDoubleClick}
+                        title={cellValue}
                       >
                         {isEditing ? (
                           <input
@@ -267,7 +284,7 @@ const TableView: React.FC<{
                             disabled={isUpdating}
                           />
                         ) : (
-                          <div className="truncate" title={cellValue}>{cellValue}</div>
+                          <div className="truncate">{cellValue}</div>
                         )}
                       </td>
                     );
@@ -612,7 +629,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       return (
         <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ ...commonChartProps, minWidth: 0 }}>
           <ChartToolbar />
-          <ResponsiveContainer width="100%" height={300}><BarChart data={parsedData}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }} itemStyle={{ color: '#60a5fa' }} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}><BarChart data={parsedData}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip content={<CustomChartTooltip />} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
         </div>
       );
     }
@@ -630,7 +647,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       return (
         <div id={chartId} className="relative group bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700" style={{ ...commonChartProps, minWidth: 0 }}>
           <ChartToolbar />
-          <ResponsiveContainer width="100%" height={300}><LineChart data={parsedData} margin={{ right: 30 }}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff' }} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} /></LineChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}><LineChart data={parsedData} margin={{ right: 30 }}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><Tooltip content={<CustomChartTooltip />} /><Legend wrapperStyle={{ fontSize: '10px' }} /><Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} /></LineChart></ResponsiveContainer>
         </div>
       );
     }
