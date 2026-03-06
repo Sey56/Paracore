@@ -165,7 +165,9 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
         editTooltipMessage={getEditTitleMessage()}
         toggleFloatingCodeViewer={toggleFloatingCodeViewer}
         setShowMetadataModal={setShowMetadataModal}
+        isSelected={isSelected}
       />
     </div>
   );
 };
+

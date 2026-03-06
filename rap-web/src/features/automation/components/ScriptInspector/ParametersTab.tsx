@@ -208,7 +208,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     : tooltipMessage;
 
   return (
-    <div className={`tab-content p-6 overflow-y-auto h-full custom-scrollbar pb-60 bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm`}>
+    <div className={`tab-content p-6 overflow-y-auto overflow-x-hidden h-full custom-scrollbar pb-60 bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm`}>
       <div className="space-y-8">
         {/* 1. Configuration Presets */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (

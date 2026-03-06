@@ -42,6 +42,7 @@ interface CardActionsProps {
   editTooltipMessage: string;
   toggleFloatingCodeViewer: () => void;
   setShowMetadataModal: (show: boolean) => void;
+  isSelected: boolean;
 }
 
 export const CardActions: React.FC<CardActionsProps> = ({
@@ -68,7 +69,8 @@ export const CardActions: React.FC<CardActionsProps> = ({
   setDeleteError,
   editTooltipMessage,
   toggleFloatingCodeViewer,
-  setShowMetadataModal
+  setShowMetadataModal,
+  isSelected
 }) => {
   const handleRunClickInternal = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -82,7 +84,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
 
   return (
     <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 rounded-b-lg">
-      <div className="relative opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className={`relative ${isSelected ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
         <button
           className={`text-sm px-3 py-1 flex items-center rounded transition-colors ${isRunButtonDisabled
             ? 'text-gray-400 cursor-not-allowed opacity-50'
@@ -129,7 +131,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
           </div>
         )}
         <button
-          className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          className={`text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 ${isSelected ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}
           onClick={(e) => {
             e.stopPropagation();
             setShowMenu(!showMenu);
