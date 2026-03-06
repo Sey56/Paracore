@@ -370,18 +370,27 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // 6. SYNC SESSION TRACKING
   const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, any>>({});
+  const [pollingInterval, setPollingInterval] = useState(2000); 
+
   const fetchActiveSyncSessions = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       const response = await silentApi.get('/api/sync/active-sessions');
-      if (response.data) setActiveSyncSessions(response.data);
+      if (response.data) {
+        setActiveSyncSessions(response.data);
+
+        // V5 OPTIMIZATION: If the selected script is active, speed up polling for "Instant" feel
+        const hasActiveSelected = selectedFolder && Object.keys(response.data).some(key => 
+          key.replace(/\\/g, '/').toLowerCase() === selectedFolder.replace(/\\/g, '/').toLowerCase()
+        );
+        setPollingInterval(hasActiveSelected ? 500 : 2000);
+      }
     } catch (err: any) {
       if (err.response?.status !== 401) {
-        // Only log non-auth errors
         console.error("Failed to fetch active sessions:", err);
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, selectedFolder]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -389,9 +398,9 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     fetchActiveSyncSessions();
-    const interval = setInterval(fetchActiveSyncSessions, 2000);
-    return () => clearInterval(interval);
-  }, [fetchActiveSyncSessions, isAuthenticated]);
+    const id = setInterval(fetchActiveSyncSessions, pollingInterval);
+    return () => clearInterval(id);
+  }, [fetchActiveSyncSessions, isAuthenticated, pollingInterval]);
 
   const isSyncActive = useCallback((scriptPath: string) => {
     if (!scriptPath || !activeSyncSessions) return false;

@@ -127,7 +127,7 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                 </div>
             ) : (
                 watchdogs.map((w, idx) => (
-                    <div key={idx} className="p-5 rounded-[1.75rem] bg-white/5 dark:bg-slate-50/50 hover:bg-white/10 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent hover:border-white/10 dark:hover:border-slate-200 hover:shadow-xl">
+                    <div key={idx} className="p-5 rounded-[1.75rem] bg-white/5 dark:bg-slate-50/50 hover:bg-white/10 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent dark:hover:border-slate-200 hover:shadow-xl">
                         <div className="flex items-start gap-4">
                             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${w.status === 'success' ? 'bg-emerald-500/20' :
                                 w.status === 'warning' ? 'bg-amber-500/20' : 'bg-rose-500/20'
@@ -148,13 +148,13 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                                                 <span className="text-amber-500 cursor-help">
                                                     <FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px]" />
                                                 </span>
-                                                <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 border border-white/10 text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/mismatch:opacity-100 group-hover/mismatch:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch:translate-y-0 pointer-events-none">
-                                                    <div className="text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest border-b border-white/5 pb-1">
+                                                <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/mismatch:opacity-100 group-hover/mismatch:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch:translate-y-0 pointer-events-none">
+                                                    <div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest pb-1">
                                                         <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
                                                     </div>
-                                                    Deployed for <span className="text-blue-400">'{deployedDoc}'</span>.
+                                                    Deployed for <span className="text-blue-600 dark:text-blue-400">'{deployedDoc}'</span>.
                                                     <br />
-                                                    Redeploy for <span className="text-emerald-400">'{currentDocTitle}'</span> to monitor active document.
+                                                    Redeploy for <span className="text-emerald-600 dark:text-emerald-400">'{currentDocTitle}'</span> to monitor active document.
                                                 </div>
                                             </div>
                                         ) : null;
@@ -166,7 +166,7 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                             </div>
                         </div>
 
-                        <div className="mt-5 pt-4 border-t border-white/5 dark:border-slate-200/60 flex items-center justify-between">
+                        <div className="mt-5 pt-4 dark:border-slate-200/60 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="w-1 h-1 rounded-full bg-slate-500" />
                                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">

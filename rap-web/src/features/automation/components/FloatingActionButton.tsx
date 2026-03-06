@@ -199,11 +199,11 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
       <div className="relative" ref={dropdownRef}>
         {/* Dropdown Menu (Pop-upwards and to the Left) */}
         {isOpen && !isArmingWatchdogs && isWatchdogInitialized && (
-          <div className="absolute bottom-full right-0 mb-4 w-80 bg-slate-900/98 dark:bg-white/95 rounded-[2rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] border border-white/10 dark:border-slate-200/60 z-[100] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 origin-bottom-right cursor-default backdrop-blur-3xl"
+          <div className="absolute bottom-full right-0 mb-4 w-80 bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 origin-bottom-right cursor-default backdrop-blur-3xl"
           >
             {/* Watchtower Header — acts as a drag handle (mouseDown propagates to parent for FAB dragging) */}
             <div
-              className="p-6 pb-4 border-b border-white/5 dark:border-slate-100 relative overflow-hidden cursor-grab active:cursor-grabbing select-none flex items-center justify-between"
+              className="p-6 pb-4 relative overflow-hidden cursor-grab active:cursor-grabbing select-none flex items-center justify-between"
             >
               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent opacity-50" />
               <h3 className="relative text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] flex items-center gap-3">

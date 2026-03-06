@@ -25,6 +25,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setScripts,
     addRecentScript,
     fetchScriptMetadata,
+    reloadScript,
     combinedScriptContent,
     setCombinedScriptContent,
     updateScriptLastRunTime,
@@ -108,28 +109,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
   const lastKnownModifiedRef = useRef<Record<string, number>>({});
 
-  // Effect: Auto-refresh script content when sync session modification detected
-  useEffect(() => {
-    if (!selectedScript?.absolutePath || !activeSyncSessions) return;
-    
-    const normalized = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
-    const session = Object.entries(activeSyncSessions).find(([path]) => path.toLowerCase() === normalized);
-    
-    if (session) {
-      const [path, data] = session;
-      const lastModified = data.last_modified;
-      
-      // If modification detected, re-fetch content
-      if (lastModified && lastModified !== lastKnownModifiedRef.current[normalized]) {
-        console.log("[Sync] Detected change in active IDE session. Refreshing content viewer...");
-        lastKnownModifiedRef.current[normalized] = lastModified;
-        
-        // Use fetchScriptContent from useScriptOperations to refresh the combined content
-        fetchScriptContent(selectedScript).catch(() => {});
-      }
-    }
-  }, [selectedScript, activeSyncSessions, fetchScriptContent]);
-
   // Reset logic when source/team/user changes
   useEffect(() => {
     setSelectedScriptState(null);
@@ -166,7 +145,18 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
 
     const currentSelected = selectedScriptRef.current;
-    if (source !== 'refresh' && source !== 'hard_reset' && source !== 'replace' && script.id === currentSelected?.id) {
+    
+    // V5 ROBUST COMPARISON: Check both ID and Path normalization
+    const isSameScript = (s1: Script, s2: Script) => {
+        if (!s1 || !s2) return false;
+        if (s1.id === s2.id) return true;
+        if (s1.absolutePath && s2.absolutePath) {
+            return s1.absolutePath.replace(/\\/g, '/').toLowerCase() === s2.absolutePath.replace(/\\/g, '/').toLowerCase();
+        }
+        return false;
+    };
+
+    if (source !== 'refresh' && source !== 'hard_reset' && source !== 'replace' && currentSelected && isSameScript(script, currentSelected)) {
       if (source === 'agent') setAgentSelectedScriptPath(script.absolutePath);
       return;
     }
@@ -176,7 +166,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       updateScriptModificationTime(script.id);
     }
 
-    if (source === 'user' && selectedScriptRef.current?.id === script.id && selectedScriptRef.current.parameters?.length > 0) {
+    if (source === 'user' && selectedScriptRef.current && isSameScript(script, selectedScriptRef.current) && selectedScriptRef.current.parameters?.length > 0) {
       return;
     }
 
@@ -198,7 +188,15 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (paramsResult.parameters) {
         freshParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
           let value: any = p.defaultValueJson;
-          try { value = JSON.parse(p.defaultValueJson); } catch { }
+          try { 
+            // V5 PRECISION FIX: Preserve trailing zeros for double/number
+            const isDouble = p.type === 'number' || p.numericType === 'double';
+            if (isDouble && p.defaultValueJson.includes('.')) {
+                value = p.defaultValueJson.replace(/"/g, '');
+            } else {
+                value = JSON.parse(p.defaultValueJson); 
+            }
+          } catch { }
           if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
           return { ...p, type: p.type as ScriptParameter['type'], value, defaultValue: value };
         });
@@ -211,18 +209,13 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         finalParameters = freshParameters.map(fresh => {
           const cached = cachedParams.find(c => c.name === fresh.name);
           if (cached) {
-            // V5: Intelligent Merging
-            // If the user's current value matches the OLD default, it means they are "following" the script.
-            // In that case, we should adopt the NEW default from the fresh parse.
-            // If they have diverged (value !== defaultValue), we preserve their manual entry.
             const isFollowingDefault = cached.value === cached.defaultValue;
             const valueToUse = isFollowingDefault ? fresh.defaultValue : cached.value;
-
             const resolvedOptions = (fresh.options && fresh.options.length > 0) ? fresh.options : (cached.options || []);
             return {
               ...fresh,
               value: valueToUse,
-              defaultValue: fresh.defaultValue, // Always update the baseline default
+              defaultValue: fresh.defaultValue,
               options: resolvedOptions,
               computedInDocument: cached.computedInDocument
             };
@@ -253,42 +246,45 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!selectedScript?.absolutePath || !activeSyncSessions) return;
     
-    const normalized = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
-    const session = activeSyncSessions[normalized];
+    const normalizedSelected = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
+    const sessionEntry = Object.entries(activeSyncSessions).find(([path]) => 
+      path.replace(/\\/g, '/').toLowerCase() === normalizedSelected
+    );
     
-    if (session && session.last_modified) {
-      const lastSeen = lastKnownModifiedRef.current[normalized] || 0;
-      if (session.last_modified > lastSeen) {
-        console.log(`[Sync] Detected change in IDE for: ${selectedScript.name}. Refreshing content...`);
-        lastKnownModifiedRef.current[normalized] = session.last_modified;
-        
-        // 1. Update the local modification time
-        updateScriptModificationTime(selectedScript.id);
-        
-        // 2. Refresh the code content (used by FloatingCodeViewer)
-        fetchScriptContent(selectedScript).catch(() => {});
-        
-        // 3. Trigger a metadata/parameter refresh (non-blocking)
-        setSelectedScript(selectedScript, 'refresh');
+    if (sessionEntry) {
+      const [_, data] = sessionEntry;
+      const lastModified = data.last_modified;
+      if (lastModified) {
+        const lastSeen = lastKnownModifiedRef.current[normalizedSelected] || 0;
+        if (lastModified > lastSeen) {
+          lastKnownModifiedRef.current[normalizedSelected] = lastModified;
+          
+          reloadScript(selectedScript).then(() => {
+              setSelectedScript(selectedScript, 'refresh');
+          }).catch((err: any) => console.error("[Sync] Refresh failed:", err));
+        }
       }
     }
-  }, [activeSyncSessions, selectedScript, updateScriptModificationTime, fetchScriptContent, setSelectedScript]);
+  }, [activeSyncSessions, selectedScript, reloadScript, setSelectedScript]);
 
   // V5: SMART EXISTENCE GUARD
-  // Sync selectedScript metadata updates (like Last Run) from the global list
-  // and authoritatively clear selection if the script is deleted from the active view.
   useEffect(() => {
     if (selectedScript) {
-      const globalScript = scripts.find(s => s.id === selectedScript.id);
+      const isSameScript = (s1: Script, s2: Script) => {
+        if (!s1 || !s2) return false;
+        if (s1.id === s2.id) return true;
+        const p1 = (s1.absolutePath || s1.id).replace(/\\/g, '/').toLowerCase();
+        const p2 = (s2.absolutePath || s2.id).replace(/\\/g, '/').toLowerCase();
+        return p1 === p2;
+      };
+
+      const globalScript = scripts.find(s => isSameScript(s, selectedScript));
       
-      // If the script is missing from the list, check if it belongs to the current gallery view.
-      if (!globalScript && scripts.length >= 0) {
+      if (!globalScript && scripts.length > 0) {
         const scriptPath = (selectedScript.absolutePath || "").replace(/\\/g, '/').toLowerCase();
         const galleryPath = (selectedFolder || "").replace(/\\/g, '/').toLowerCase();
         
-        // Only clear if the script BELONGS to the current folder (it was truly deleted/unloaded)
         if (galleryPath && scriptPath.startsWith(galleryPath)) {
-          console.log("[ScriptExecutionProvider] 👻 Ghost selection detected (belongs to active view but gone). Clearing.");
           setSelectedScriptState(null);
           return;
         }
