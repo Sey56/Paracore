@@ -57,7 +57,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
           autoFocus
         />
       ) : (
-        <div className="flex items-center gap-2 overflow-hidden w-full">
+        <div className="flex items-center gap-2 w-full">
           {isGuard ? (
             <FontAwesomeIcon
               icon={faShieldHeart}

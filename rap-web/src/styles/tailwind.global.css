@@ -16,7 +16,8 @@
 
 /* ── Global Custom Tooltip System ── */
 /* Prevents native tooltips from showing via CSS (JS moves title→data-tooltip) */
-[data-tooltip] {
+/* Only add position:relative if element isn't already positioned */
+[data-tooltip]:not(.absolute):not(.fixed):not(.sticky) {
   position: relative;
 }
 

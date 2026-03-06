@@ -351,7 +351,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                       className={`absolute -right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all animate-in zoom-in duration-300 shadow-lg
                         ${runSucceeded ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}
                       onClick={handleStatusIconClick}
-                      title={activeInspectorTab === 'console' ? "Return to Parameters" : "View Output Terminal"}
+                      title={activeInspectorTab === 'console' ? "Return to Parameters" : "View Console"}
                     >
                       <FontAwesomeIcon icon={runSucceeded ? faCheckCircle : faTimesCircle} className="text-lg" />
                     </button>
