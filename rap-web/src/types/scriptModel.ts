@@ -125,6 +125,7 @@ export interface RawScriptFromApi {
   metadata: RawScriptMetadataFromApi;
   isFavorite?: boolean;
   metadataError?: boolean;
+  queryData?: any;
 }
 
 export interface Script {
@@ -137,4 +138,5 @@ export interface Script {
   isFavorite?: boolean;
   metadataError?: boolean;
   sourceType?: 'local' | 'team';
+  queryData?: any;
 }

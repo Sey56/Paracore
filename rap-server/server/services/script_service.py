@@ -114,6 +114,18 @@ def _hydrate_metadata_for_frontend(metadata: Any) -> Dict:
         "isCompiled": m_dict.get("isCompiled") or m_dict.get("is_compiled", False)
     }
 
+def _extract_query_data(files: List[Dict[str, str]]) -> Optional[Dict]:
+    """Surgically extracts VQB graph data from file comments if present."""
+    for f in files:
+        content = f.get("content", "")
+        match = re.search(r'// __PARACORE_QUERY_DATA__(.*)', content)
+        if match:
+            try:
+                return json.loads(match.group(1).strip())
+            except:
+                pass
+    return None
+
 async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
     """V3 Pack Discovery: Loads all folders inside an Automation Pack."""
     if not os.path.isdir(pack_path): return []
@@ -166,10 +178,15 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             # Map metadata and parameters through unified hydration
             raw_meta = res.get("metadata") if isinstance(res, dict) else getattr(res, "metadata", None)
             raw_params = res.get("parameters") if isinstance(res, dict) else getattr(res, "parameters", [])
+            
+            # V5: Pre-extract VQB graph data for the "Template Gallery"
+            extracted_query = _extract_query_data(project["files"])
+
             tools.append({
                 "id": p_path, "name": project["project_name"], "absolutePath": p_path,
                 "metadata": _hydrate_metadata_for_frontend(raw_meta),
-                "parameters": _hydrate_params_for_frontend(raw_params)
+                "parameters": _hydrate_params_for_frontend(raw_params),
+                "queryData": extracted_query
             })
 
         # Load Binaries (.ptool, .wtool)
@@ -248,12 +265,16 @@ async def get_single_script_logic(script_path: str):
         res = bulk_results[0]
         raw_params = res.get("parameters") if isinstance(res, dict) else getattr(res, "parameters", [])
         
+        # V5: Extract query data for Template Gallery support
+        extracted_query = _extract_query_data(script_files)
+
         return {
             "id": abs_p,
             "name": project_name,
             "absolutePath": abs_p,
             "metadata": res.get("metadata") if isinstance(res, dict) else res.metadata,
-            "parameters": _hydrate_params_for_frontend(raw_params)
+            "parameters": _hydrate_params_for_frontend(raw_params),
+            "queryData": extracted_query
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faCode, faCogs, faFileCode, faFilter, faLayerGroup, faBolt, faTable, faInfoCircle, faExclamationTriangle, faShieldHeart, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { 
+    faPlus, 
+    faCode, 
+    faCogs, 
+    faFileCode, 
+    faFilter, 
+    faExclamationTriangle, 
+    faShieldHeart, 
+    faSpinner, 
+    faHistory, 
+    faInfoCircle,
+    faCheckCircle,
+    faChevronDown
+} from '@fortawesome/free-solid-svg-icons';
 import { useScripts } from '../hooks/useScripts';
 import { useScriptExecution } from '../hooks/useScriptExecution';
 import { VisualQueryBuilder } from './VisualQueryBuilder/VisualQueryBuilder';
@@ -17,6 +29,64 @@ interface NewScriptModalProps {
     scriptToReplace?: Script | null;
     mode?: 'script' | 'sentinel';
 }
+
+const QueryTemplateSelector: React.FC<{
+    templates: any[],
+    onSelect: (data: any) => void,
+    mode: 'script' | 'sentinel'
+}> = ({ templates, onSelect, mode }) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
+        };
+        if (isOpen) document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [isOpen]);
+
+    if (templates.length === 0) return null;
+
+    return (
+        <div className="flex items-center gap-3 bg-white/50 dark:bg-slate-800/40 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/50 relative" ref={containerRef}>
+            <div className="flex items-center gap-2 text-slate-400 shrink-0">
+                <FontAwesomeIcon icon={faHistory} className="text-[11px]" />
+                <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Templates</span>
+            </div>
+            
+            {/* Custom High-Contrast Select Trigger (Standard 13px Font) */}
+            <div 
+                onClick={() => setIsOpen(!isOpen)}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-lg px-4 py-1.5 text-[13px] font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer min-w-[320px] flex items-center justify-between hover:border-blue-500/30 transition-all shadow-sm"
+            >
+                <span className="truncate">Start from existing query...</span>
+                <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] text-slate-400 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+
+            {/* Custom High-Contrast Dropdown Menu (Standard 13px Font) */}
+            {isOpen && (
+                <div className="absolute top-full right-0 mt-2 min-w-[320px] w-max bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+                    <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                        {templates.map(t => (
+                            <div
+                                key={t.id}
+                                onClick={() => {
+                                    onSelect(t.data);
+                                    setIsOpen(false);
+                                }}
+                                className="px-4 py-2.5 text-[13px] font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 text-slate-600 dark:text-slate-300 flex items-center gap-3"
+                            >
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/40" />
+                                {t.name}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder, scriptToReplace, mode = 'script' }: NewScriptModalProps) => {
     const { createNewScript, scripts, loadScriptsForFolder } = useScripts();
@@ -39,24 +109,27 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     // Sentinel Logic
     const [sentinelConfig, setSentinelConfig] = useState<any>(null);
 
+    // Template Gallery
+    const queryTemplates = React.useMemo(() => {
+        if (!scripts) return [];
+        return scripts
+            .filter(s => s.queryData && (mode === 'sentinel' ? s.metadata?.isWatchdog : !s.metadata?.isWatchdog))
+            .map(s => ({
+                id: s.id,
+                name: s.metadata?.displayName || s.name,
+                data: s.queryData
+            }));
+    }, [scripts, mode]);
+
     const handleTabChange = (tab: 'query' | 'blank') => {
         setActiveTab(tab);
-        if (tab === 'blank') {
-            setIsCompiled(true);
-        } else {
-            setIsCompiled(!!generatedLogic);
-        }
+        if (tab === 'blank') setIsCompiled(true);
+        else setIsCompiled(!!generatedLogic);
     };
 
     const handleConfigChange = React.useCallback((config: any) => {
         setSentinelConfig(config);
-        
-        // V5: Persistent VQB state for "Next Time"
-        if (config && config.rootGroup) {
-            const storageKey = mode === 'sentinel' ? 'paracore_last_vqb_sentinel' : 'paracore_last_vqb_script';
-            localStorage.setItem(storageKey, JSON.stringify(config));
-        }
-    }, [mode]);
+    }, []);
 
     const handleQueryGenerated = React.useCallback((logic: string, params: string, compiled: boolean) => {
         setGeneratedLogic(logic);
@@ -64,73 +137,58 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
         setIsCompiled(compiled);
     }, []);
 
-    // Persistence Logic: Load existing query if replacing
+    const handleTemplateSelect = (templateData: any) => {
+        setInitialQueryState(null);
+        setTimeout(() => {
+            setInitialQueryState(templateData);
+            setIsCompiled(true);
+        }, 10);
+    };
+
+    // Persistence Logic
     useEffect(() => {
         if (!isOpen) return;
-
         if (targetPath) {
+            const existing = scripts.find(s => s.absolutePath === targetPath);
+            if (existing && existing.queryData) {
+                setInitialQueryState(existing.queryData);
+                setActiveTab('query');
+                setIsCompiled(true);
+                return;
+            }
             const fetchExisting = async () => {
                 try {
                     const response = await api.get(`/api/script-content?scriptPath=${encodeURIComponent(targetPath)}`);
                     const content = response.data.sourceCode as string;
-
                     const match = content.match(/\/\/ __PARACORE_QUERY_DATA__(.*)/);
                     if (match && match[1]) {
-                        try {
-                            const rawJson = match[1].trim();
-                            const state = JSON.parse(rawJson);
-                            setInitialQueryState(state);
-                            setActiveTab('query');
-                            setIsCompiled(true);
-                        } catch (e) {
-                            console.error("[NewScriptModal] Failed to parse query metadata", e);
-                        }
+                        const state = JSON.parse(match[1].trim());
+                        setInitialQueryState(state);
+                        setActiveTab('query');
+                        setIsCompiled(true);
                     }
-                } catch (err) {
-                    console.error("Failed to fetch script content for persistence:", err);
-                }
+                } catch (err) {}
             };
             fetchExisting();
         } else {
-            // New script - reset fields but LOAD last used graph
             setScriptName('');
             setDescription('');
             setGeneratedLogic('');
             setGeneratedParams('');
             setIsCompiled(false);
-            
-            // V5: Restore last used graph from localStorage
-            const storageKey = mode === 'sentinel' ? 'paracore_last_vqb_sentinel' : 'paracore_last_vqb_script';
-            const savedState = localStorage.getItem(storageKey);
-            if (savedState) {
-                try {
-                    setInitialQueryState(JSON.parse(savedState));
-                } catch (e) {
-                    setInitialQueryState(undefined);
-                }
-            } else {
-                setInitialQueryState(undefined);
-            }
-            
+            setInitialQueryState(undefined);
             setActiveTab('query');
         }
-    }, [isOpen, targetPath, mode]);
+    }, [isOpen, targetPath, scripts]);
 
     useEffect(() => {
         if (!isOpen) return;
-
         const nameToCheck = (scriptName || '').trim();
         if (!isReplacing && nameToCheck && scripts && scripts.length > 0 && !isSubmitting) {
             const searchName = nameToCheck.toLowerCase();
-            const exists = scripts.some((s: Script) => {
-                const sName = (s.name || '').toLowerCase();
-                const dName = (s.metadata?.displayName || '').toLowerCase();
-                return sName === searchName || dName === searchName;
-            });
+            const exists = scripts.some((s: Script) => (s.name || '').toLowerCase() === searchName || (s.metadata?.displayName || '').toLowerCase() === searchName);
             setIsDuplicate(exists);
-        } else {
-            setIsDuplicate(false);
-        }
+        } else setIsDuplicate(false);
     }, [scriptName, scripts, isReplacing, isSubmitting, isOpen]);
 
     if (!isOpen) return null;
@@ -138,86 +196,35 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     const handleExecuteAction = async () => {
         const isSentinel = mode === 'sentinel';
         setIsSubmitting(true);
-
         const finalLogic = activeTab === 'query' ? generatedLogic : '';
         const finalParams = activeTab === 'query' ? generatedParams : '';
-        const finalTemplate = isSentinel
-            ? (activeTab === 'query' ? 'raw_injection' : 'BlankSentinel')
-            : (activeTab === 'query' ? 'ProjectAuditor' : 'blank');
+        const finalTemplate = isSentinel ? (activeTab === 'query' ? 'raw_injection' : 'BlankSentinel') : (activeTab === 'query' ? 'ProjectAuditor' : 'blank');
 
         if (isReplacing && targetPath) {
             try {
-                const response = await api.post("/api/scripts/replace-code", {
-                    script_path: targetPath,
-                    new_logic: finalLogic,
-                    new_params: finalParams,
-                    template_id: finalTemplate
-                });
-
+                const response = await api.post("/api/scripts/replace-code", { script_path: targetPath, new_logic: finalLogic, new_params: finalParams, template_id: finalTemplate });
                 if (response.status === 200 || response.status === 201) {
-                    if (scriptToReplace?.id) {
-                        await resetScriptParameters(scriptToReplace.id);
-                    }
+                    if (scriptToReplace?.id) await resetScriptParameters(scriptToReplace.id);
                     setShowConfirmReplace(false);
-                    // Return the fresh script object from the response
                     onClose(response.data as Script);
                 }
-            } catch (err) {
-                console.error("Failed to replace script code:", err);
-            } finally {
-                setIsSubmitting(false);
-            }
+            } catch (err) {} finally { setIsSubmitting(false); }
         } else {
-            if (!scriptName) {
-                setIsSubmitting(false);
-                return;
-            }
+            if (!scriptName) { setIsSubmitting(false); return; }
             try {
                 let result;
                 if (isSentinel && activeTab === 'query' && sentinelConfig) {
-                    // Use query-to-watchdog endpoint for visual builder sentinels
-                    const response = await api.post('/api/query/save-as-watchdog', {
-                        name: scriptName,
-                        description: description || `Sentinel for ${sentinelConfig.category}`,
-                        target_folder: selectedFolder,
-                        category_name: sentinelConfig.category,
-                        root_group: sentinelConfig.rootGroup,
-                        selected_columns: sentinelConfig.selectedColumns,
-                        scope: sentinelConfig.scope
-                    });
+                    const response = await api.post('/api/query/save-as-watchdog', { name: scriptName, description: description || `Sentinel for ${sentinelConfig.category}`, target_folder: selectedFolder, category_name: sentinelConfig.category, root_group: sentinelConfig.rootGroup, selected_columns: sentinelConfig.selectedColumns, scope: sentinelConfig.scope });
                     if (response.data.success) {
-                        if (selectedFolder) {
-                            await loadScriptsForFolder(selectedFolder, true);
-                        }
-                        // Use returned script metadata or fallback to a partial object with ID for selection
+                        if (selectedFolder) await loadScriptsForFolder(selectedFolder, true);
                         const finalId = (response.data.script?.id || response.data.path || '').replace(/\\/g, '/');
-                        result = response.data.script || {
-                            id: finalId,
-                            name: scriptName,
-                            absolutePath: finalId,
-                            metadata: { displayName: scriptName }
-                        };
+                        result = response.data.script || { id: finalId, name: scriptName, absolutePath: finalId, metadata: { displayName: scriptName } };
                     }
                 } else {
-                    // Use standard create script for everything else
-                    result = await createNewScript({
-                        script_name: scriptName,
-                        template_id: finalTemplate,
-                        generated_logic: finalLogic,
-                        generated_params: finalParams,
-                        parent_folder: selectedFolder
-                    });
+                    result = await createNewScript({ script_name: scriptName, template_id: finalTemplate, generated_logic: finalLogic, generated_params: finalParams, parent_folder: selectedFolder });
                 }
-
-                if (result) {
-                    setShowConfirmReplace(false);
-                    onClose(result);
-                }
-            } catch (err) {
-                console.error("Failed to create new script:", err);
-            } finally {
-                setIsSubmitting(false);
-            }
+                if (result) { setShowConfirmReplace(false); onClose(result); }
+            } catch (err) {} finally { setIsSubmitting(false); }
         }
     };
 
@@ -229,78 +236,58 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
         }
     };
 
-    const modalTitle = isReplacing ? `Edit Script` : 'New Script';
+    const modalTitle = isReplacing ? `Edit Script Logic` : (mode === 'sentinel' ? 'New Sentinel' : 'New Automation Script');
 
     return (
         <>
             <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="full" noPadding>
-                <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+                <div className="flex flex-col h-full bg-white dark:bg-slate-900">
 
-                    {/* 1. Identity Header: Premium, high-contrast identity block */}
-                    <div className={`px-8 py-4 border-b transition-all duration-700 shrink-0 ${mode === 'sentinel'
-                        ? 'bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 border-amber-100 dark:border-amber-900/40'
-                        : 'bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-slate-900 border-blue-100 dark:border-blue-900/40'
-                        }`}>
-                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-6 items-center">
-
-                            {/* Column 1: Core Identity */}
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                                {!isReplacing ? (
-                                    <>
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex justify-between items-center px-1">
-                                                <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none">
-                                                    {mode === 'sentinel' ? 'Sentinel Name' : 'Script Name'}
-                                                </label>
-                                                {isDuplicate && (
-                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500 text-[10px] font-black text-white rounded-full animate-in slide-in-from-right-2">
-                                                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-[9px]" />
-                                                        TAKEN
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <input
-                                                autoFocus
-                                                type="text"
-                                                value={scriptName}
-                                                onChange={(e) => setScriptName(e.target.value.replace(/\s+/g, ''))}
-                                                placeholder="e.g. AuditBuildingHeights"
-                                                className={`w-full bg-white dark:bg-slate-950 border-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none transition-all shadow-sm group ${isDuplicate
-                                                    ? 'border-rose-500/50 ring-4 ring-rose-500/5'
-                                                    : 'border-slate-100 dark:border-slate-800/50 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5'
-                                                    }`}
-                                            />
-                                        </div>
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-1 leading-none">
-                                                Operational Intent
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={description}
-                                                onChange={(e) => setDescription(e.target.value)}
-                                                placeholder="e.g. Detect level deviations and report safety breaches."
-                                                className="w-full bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800/50 rounded-2xl px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all shadow-sm"
-                                            />
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="md:col-span-2 flex items-center gap-5 px-6 py-3 bg-white/50 dark:bg-slate-950/40 rounded-3xl border border-blue-100 dark:border-blue-800/20 shadow-sm animate-in zoom-in-95">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${mode === 'sentinel' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
-                                            }`}>
-                                            <FontAwesomeIcon icon={isReplacing ? faCogs : faPlus} className="text-xl" />
-                                        </div>
-                                        <div className="flex flex-col gap-1 min-w-0">
-                                            <span className={`text-[11px] font-black uppercase tracking-[0.25em] ${mode === 'sentinel' ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'
-                                                }`}>Surgical Logic Update</span>
-                                            <span className="text-base font-bold text-slate-800 dark:text-slate-100 truncate">{targetPath?.split(/[\\/]/).pop()}</span>
-                                        </div>
+                    {/* 1. SLIM LINEAR HEADER: Optimized for High-Res Readability */}
+                    <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-6 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+                        
+                        {/* Name & Intent - Scaled to 14px/15px */}
+                        <div className="flex-grow flex items-center gap-4">
+                            {!isReplacing ? (
+                                <>
+                                    <div className="relative min-w-[240px]">
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            value={scriptName}
+                                            onChange={(e) => setScriptName(e.target.value.replace(/\s+/g, ''))}
+                                            placeholder={mode === 'sentinel' ? "Sentinel Name..." : "Script Name..."}
+                                            className={`w-full bg-white dark:bg-slate-950 border rounded-xl px-4 py-2 text-[14px] font-bold text-slate-700 dark:text-slate-200 outline-none transition-all ${isDuplicate ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10'}`}
+                                        />
+                                        {isDuplicate && <span className="absolute -bottom-4 left-1 text-[10px] font-black text-rose-500 uppercase tracking-widest">Name Taken</span>}
                                     </div>
-                                )}
-                            </div>
+                                    <div className="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
+                                    <input
+                                        type="text"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="Describe operational intent..."
+                                        className="flex-grow bg-transparent border-none px-2 py-2 text-[14px] font-medium text-slate-500 dark:text-slate-400 outline-none focus:text-slate-800 dark:focus:text-slate-200 transition-colors"
+                                    />
+                                </>
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${mode === 'sentinel' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}`}>
+                                        <FontAwesomeIcon icon={faCogs} className="text-sm" />
+                                    </div>
+                                    <span className="text-[15px] font-bold text-slate-800 dark:text-slate-100">{targetPath?.split(/[\\/]/).pop()}</span>
+                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-2">Surgical Update</span>
+                                </div>
+                            )}
+                        </div>
 
-                            {/* Column 2: Mode Selector Segment */}
-                            <div className="flex bg-slate-200/50 dark:bg-slate-800/60 p-1 rounded-[1.25rem] border border-slate-200/50 dark:border-slate-700/30 shrink-0">
+                        {/* Mode & Templates - Unified 12px Rail */}
+                        <div className="flex items-center gap-4 shrink-0">
+                            {activeTab === 'query' && !isReplacing && (
+                                <QueryTemplateSelector templates={queryTemplates} onSelect={handleTemplateSelect} mode={mode} />
+                            )}
+
+                            <div className="flex bg-slate-200/50 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/30">
                                 {[
                                     { id: 'query', label: 'Builder', icon: faFilter },
                                     { id: 'blank', label: 'Archetype', icon: faCode }
@@ -308,8 +295,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                     <button
                                         key={tab.id}
                                         onClick={() => handleTabChange(tab.id as any)}
-                                        className={`px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${activeTab === tab.id
-                                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1)]'
+                                        className={`px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === tab.id
+                                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                                             : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                                             }`}
                                     >
@@ -321,70 +308,72 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         </div>
                     </div>
 
-                    {/* 2. Main Canvas: Where the magic happens */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20 dark:bg-slate-950/10">
-                        <div className="max-w-6xl mx-auto py-6 px-8">
-                            {activeTab === 'query' ? (
-                                <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
-                                    <VisualQueryBuilder
-                                        key="shared-builder-instance"
-                                        initialState={initialQueryState}
-                                        onConfigChange={handleConfigChange}
-                                        onQueryGenerated={handleQueryGenerated}
-                                        isWatchdog={mode === 'sentinel'}
-                                        name={isReplacing ? targetPath?.split(/[\\/]/).pop()?.replace(".cs", "") : scriptName}
-                                        description={isReplacing ? (scriptToReplace?.metadata?.description || description) : description}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center py-16 animate-in fade-in zoom-in-95 duration-700">
-                                    <div className="max-w-md w-full text-center p-10 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 shadow-xl shadow-slate-200/20 dark:shadow-none">
-                                        <div className="w-20 h-20 mx-auto bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] flex items-center justify-center mb-8 rotate-6 border border-slate-100 dark:border-slate-700 shadow-sm transition-transform hover:rotate-0 duration-500">
-                                            <FontAwesomeIcon icon={faFileCode} className="text-slate-400 dark:text-slate-500 text-3xl -rotate-6 transition-transform group-hover:rotate-0" />
-                                        </div>
-                                        <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Pure Code Archetype</h3>
-                                        <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mt-4 leading-relaxed px-4">
-                                            Initializes a clean {mode === 'sentinel' ? 'Sentinel' : 'C#'} script. <br /> Optimal for high-precision manual development.
-                                        </p>
+                    {/* 2. MAXIMIZED CANVAS: Minimalist Workspace */}
+                    <div className="flex-1 overflow-hidden relative flex flex-col bg-slate-50/20 dark:bg-slate-950/10">
+                        <div className="flex-grow overflow-y-auto custom-scrollbar p-6">
+                            <div className="max-w-7xl mx-auto h-full">
+                                {activeTab === 'query' ? (
+                                    <div className="animate-in fade-in duration-500 h-full">
+                                        {initialQueryState !== null && (
+                                            <VisualQueryBuilder
+                                                key={JSON.stringify(initialQueryState || 'new')}
+                                                initialState={initialQueryState}
+                                                onConfigChange={handleConfigChange}
+                                                onQueryGenerated={handleQueryGenerated}
+                                                isWatchdog={mode === 'sentinel'}
+                                                name={isReplacing ? targetPath?.split(/[\\/]/).pop()?.replace(".cs", "") : scriptName}
+                                                description={isReplacing ? (scriptToReplace?.metadata?.description || description) : description}
+                                            />
+                                        )}
                                     </div>
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="h-full flex items-center justify-center py-12">
+                                        <div className="max-w-md w-full text-center p-8 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/40 shadow-sm">
+                                            <div className="w-16 h-16 mx-auto bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                                <FontAwesomeIcon icon={faFileCode} className="text-slate-400 dark:text-slate-500 text-2xl" />
+                                            </div>
+                                            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Pure Code Archetype</h3>
+                                            <p className="text-[14px] font-medium text-slate-400 dark:text-slate-500 mt-3 leading-relaxed px-4">
+                                                Initializes a clean {mode === 'sentinel' ? 'Sentinel' : 'C#'} script for professional IDE development.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* 3. Action Footer: High-impact termination */}
-                    <div className="px-10 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0 shadow-[0_-12px_24px_rgba(0,0,0,0.02)]">
-                        <div className="flex items-center gap-4">
-                            {!isReplacing && isCompiled && !scriptName.trim() && (
-                                <div className="flex items-center gap-3 px-5 py-2.5 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 font-bold animate-pulse">
-                                    <FontAwesomeIcon icon={faExclamationTriangle} className="text-[12px]" />
-                                    <span className="text-[11px] font-black uppercase tracking-widest">Name Required</span>
-                                </div>
-                            )}
+                    {/* 3. COMPACT FOOTER: Focused on confirmation (12px Buttons) */}
+                    <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <FontAwesomeIcon icon={faInfoCircle} className="text-slate-300 text-[11px]" />
+                            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                {activeTab === 'query' ? (isCompiled ? 'Ready for Deployment' : 'Definition Incomplete') : 'Archetype Ready'}
+                            </span>
                         </div>
 
-                        <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-4">
                             <button
                                 onClick={() => onClose()}
-                                className="px-8 py-3 rounded-2xl text-[11px] font-black text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 uppercase tracking-widest transition-all"
+                                className="px-5 py-2 rounded-xl text-[12px] font-black text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all uppercase tracking-widest"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleMainActionClick}
                                 disabled={isSubmitting || isDuplicate || (activeTab === 'query' && !isCompiled) || (!isReplacing && !scriptName.trim())}
-                                className={`px-12 py-4 rounded-[1.25rem] text-[11px] font-black text-white shadow-2xl transition-all disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 flex items-center gap-4 overflow-hidden relative group ${mode === 'sentinel'
-                                    ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/30'
+                                className={`px-10 py-2.5 rounded-xl text-[12px] font-black text-white shadow-lg transition-all disabled:opacity-40 disabled:grayscale hover:scale-[1.02] active:scale-95 flex items-center gap-3 relative group ${mode === 'sentinel'
+                                    ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20'
                                     : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30'
                                     }`}
                             >
                                 {isSubmitting ? (
-                                    <FontAwesomeIcon icon={faSpinner} spin className="text-lg" />
+                                    <FontAwesomeIcon icon={faSpinner} spin className="text-sm" />
                                 ) : (
-                                    <FontAwesomeIcon icon={mode === 'sentinel' ? faShieldHeart : (isReplacing ? faCogs : faPlus)} className="text-lg group-hover:scale-110 transition-transform" />
+                                    <FontAwesomeIcon icon={mode === 'sentinel' ? faShieldHeart : (isReplacing ? faCheckCircle : faPlus)} className="text-sm group-hover:scale-110 transition-transform" />
                                 )}
-                                <span className="uppercase tracking-[0.15em]">
-                                    {isSubmitting ? 'Processing...' : (mode === 'sentinel' ? (isReplacing ? 'Update Sentinel' : 'Create Sentinel') : (isReplacing ? 'Update Script' : 'Create Script'))}
+                                <span className="uppercase tracking-[0.1em]">
+                                    {isSubmitting ? 'Processing...' : (mode === 'sentinel' ? (isReplacing ? 'Update Sentinel' : 'Create Sentinel') : (isReplacing ? 'Deploy Update' : 'Generate Script'))}
                                 </span>
                             </button>
                         </div>
@@ -392,7 +381,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                 </div>
             </Modal>
 
-            {/* Confirmation Overlay */}
+            {/* Security Confirmation */}
             {showConfirmReplace && (
                 <Modal isOpen={showConfirmReplace} onClose={() => setShowConfirmReplace(false)} title="Security Confirmation" size="md">
                     <div className="space-y-6">
@@ -402,14 +391,14 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                             </div>
                             <div>
                                 <div className="text-xs font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">Overwriting Component</div>
-                                <p className="text-xs text-amber-700/60 dark:text-amber-400/60 font-bold mt-1 leading-relaxed">
+                                <p className="text-[13px] text-amber-700/60 dark:text-amber-400/60 font-bold mt-1 leading-relaxed">
                                     This will overwrite the current {mode === 'sentinel' ? 'sentinel detection' : 'filtering'} logic. Professional IDE scaffolding will be preserved.
                                 </p>
                             </div>
                         </div>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setShowConfirmReplace(false)} className="px-6 py-2 rounded-xl text-[10px] font-black text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 uppercase tracking-widest transition-all">Cancel</button>
-                            <button onClick={() => handleExecuteAction()} className="px-8 py-3 rounded-xl text-[10px] font-black bg-blue-600 text-white shadow-xl hover:bg-blue-700 uppercase tracking-widest transition-all">Confirm Overwrite</button>
+                            <button onClick={() => setShowConfirmReplace(false)} className="px-6 py-2 rounded-xl text-[12px] font-black text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 uppercase tracking-widest transition-all">Cancel</button>
+                            <button onClick={() => handleExecuteAction()} className="px-8 py-3 rounded-xl text-[12px] font-black bg-blue-600 text-white shadow-xl hover:bg-blue-700 uppercase tracking-widest transition-all">Confirm Overwrite</button>
                         </div>
                     </div>
                 </Modal>
