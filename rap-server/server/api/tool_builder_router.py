@@ -56,10 +56,6 @@ async def build_tool_endpoint(request: BuildToolRequest):
         if is_watchdog_content and metadata:
             metadata["is_watchdog"] = True
 
-        print(f"DEBUG: BuildTool - Extracted {len(parameters) if parameters else 0} parameters")
-        if parameters:
-            print(f"DEBUG: First param: {parameters[0]['name']}")
-
         if not combined_content:
              raise HTTPException(status_code=400, detail="Failed to combine script files for build")
 

@@ -348,10 +348,7 @@ async def edit_script_logic(tool_path: str, force_scaffold: bool = False):
         # We skip this if .csproj already exists, making "Edit Script" instant for existing projects.
         has_csproj = any(f.endswith('.csproj') for f in os.listdir(project_root))
         if force_scaffold or not has_csproj:
-            print(f"[EditLogic] 🏗️ Scaffolding project: {project_name} (Force={force_scaffold})")
             scaffold_project_full(project_root)
-        else:
-            print(f"[EditLogic] ⚡ Skipping scaffolding - project already exists: {project_name}")
 
         # 4. Trigger VS Code Launch from Python (Robust & Non-blocking)
         launch_vscode(project_root)
@@ -372,7 +369,6 @@ async def edit_script_logic(tool_path: str, force_scaffold: bool = False):
 
         return {"message": f"Opening tool: {project_name}"}
     except Exception as e:
-        print(f"[EditLogic] Error: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -481,7 +477,6 @@ def scaffold_project_full(project_root: str):
 
         return True
     except Exception as e:
-        print(f"[Scaffold] Python scaffolding error: {e}")
         return False
 
 async def get_script_metadata_logic(script_path: str):

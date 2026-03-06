@@ -20,10 +20,9 @@ def launch_vscode(project_path: str):
         # Method 1: Use the 'code' command (standard)
         # We use Popen so it is completely non-blocking for the Python server
         subprocess.Popen(f'code "{win_path}"', shell=True)
-        print(f"[Utils] Triggered VS Code launch for: {win_path}")
         return True
     except Exception as e:
-        print(f"[Utils] Failed to launch VS Code via 'code' command: {e}")
+        logger.error(f"[Utils] Failed to launch VS Code via 'code' command: {e}")
         return False
 
 def format_grpc_error(e: grpc.RpcError) -> str:

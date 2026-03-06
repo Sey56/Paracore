@@ -23,7 +23,6 @@ class ScriptChangeHandler(FileSystemEventHandler):
         if event_path.lower().endswith(".cs"):
             if self.normalized_path in ACTIVE_IDE_SESSIONS:
                 ACTIVE_IDE_SESSIONS[self.normalized_path]["last_modified"] = time.time()
-                print(f"[Watchdog] 🔔 Detected change in {event_path}. Updating session: {self.normalized_path}")
                 save_ide_sessions()
 
     def on_modified(self, event):
@@ -44,7 +43,6 @@ def _start_watcher(script_path: str):
     scripts_dir = os.path.join(script_path, "Scripts")
     
     if not os.path.isdir(scripts_dir):
-        print(f"[Watchdog] ⚠️ Cannot start watcher - Scripts dir missing: {scripts_dir}")
         return
         
     if normalized in _watchers:
@@ -54,9 +52,8 @@ def _start_watcher(script_path: str):
         handler = ScriptChangeHandler(normalized)
         watch = _observer.schedule(handler, scripts_dir, recursive=False)
         _watchers[normalized] = watch
-        print(f"[Watchdog] 🚀 Started watcher for: {scripts_dir}")
     except Exception as e:
-        print(f"[Watchdog] ❌ Failed to start watcher for {scripts_dir}: {e}")
+        logger.error(f"Failed to start watcher for {scripts_dir}: {e}")
 
 def load_ide_sessions():
     global ACTIVE_IDE_SESSIONS
@@ -78,7 +75,6 @@ def load_ide_sessions():
     if not _observer.is_alive():
         try:
             _observer.start()
-            print("[Watchdog] 🌐 Global file observer started.")
         except: pass
 
 def save_ide_sessions():
@@ -141,7 +137,6 @@ def cleanup_stale_sessions():
                         found = True
                         break
             if not found:
-                print(f"[Watchdog] 🗑️ Cleaning up stale session (folder missing): {normalized_path}")
                 stale_keys.append(normalized_path)
 
     for key in stale_keys:

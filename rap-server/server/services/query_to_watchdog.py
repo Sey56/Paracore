@@ -144,7 +144,7 @@ async def generate_watchdog_script(
                 "script": new_script
             }
     except Exception as e:
-        print(f"[QueryToWatchdog] Failed to fetch script metadata: {e}")
+        logger.error(f"[QueryToWatchdog] Failed to fetch script metadata: {e}")
 
     return {
         "success": True,

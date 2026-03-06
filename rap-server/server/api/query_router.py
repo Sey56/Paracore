@@ -92,7 +92,7 @@ async def generate_code(request: GenerateQueryRequest):
 
         return query_service.generate_query_code(request.category_name, root_dict, cols_dict, request.scope)
     except Exception as e:
-        print(f"Error in generate_code: {traceback.format_exc()}")
+        logger.error(f"Error in generate_code: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/save-as-watchdog")

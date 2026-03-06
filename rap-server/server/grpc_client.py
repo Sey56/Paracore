@@ -304,10 +304,6 @@ def get_combined_script(script_files):
         request = corescript_pb2.GetCombinedScriptRequest(script_files=grpc_script_files)
         response = stub.GetCombinedScript(request)
 
-    print(f"DEBUG: gRPC GetCombinedScript response length: {len(response.combined_script) if response.combined_script else 0}")
-    if response.error_message:
-        print(f"DEBUG: gRPC GetCombinedScript error: {response.error_message}")
-
     return {
         "combined_script": response.combined_script,
         "error_message": response.error_message
@@ -385,7 +381,6 @@ def create_and_open_workspace(tool_path: str):
     """
     Tells the Addin to scaffold the Tool folder and open it in VS Code.
     """
-    print(f"[DEBUG] create_and_open_workspace sending tool_path via gRPC: {repr(tool_path)}")
     try:
         with get_corescript_runner_stub() as stub:
             request = corescript_pb2.CreateWorkspaceRequest(
@@ -439,13 +434,10 @@ def get_context():
     """
     Calls the gRPC service to get the current Revit context (selection, view, etc.).
     """
-    print("DEBUG: grpc_client.get_context called")
     try:
         with get_corescript_runner_stub() as stub:
-            print("DEBUG: Stub created, sending GetContextRequest...")
             request = corescript_pb2.GetContextRequest()
             response = stub.GetContext(request)
-            print("DEBUG: Received GetContextResponse")
 
         return {
             "active_view_name": response.active_view_name,
@@ -472,7 +464,6 @@ def get_context():
             } if response.HasField("project_info") else None
         }
     except Exception as e:
-        print(f"DEBUG: grpc_client.get_context exception: {e}")
         raise e
 
 def validate_working_set_grpc(element_ids: list[int]) -> list[int]:

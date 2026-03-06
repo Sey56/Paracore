@@ -258,7 +258,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         
         if (lastModified > lastSeen) {
           lastKnownModifiedRef.current[normalizedSelected] = lastModified;
-          console.log(`[Sync] 🔔 REFRESH: Detected IDE change for ${selectedScript.name}.`);
           
           reloadScript(selectedScript).then(() => {
               setSelectedScript(selectedScript, 'refresh');
@@ -282,7 +281,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         
         // Only clear if the script BELONGS to the current folder (it was truly deleted/unloaded)
         if (galleryPath && scriptPath.startsWith(galleryPath)) {
-          console.log("[ScriptExecutionProvider] 👻 Ghost selection detected (belongs to active view but gone). Clearing.");
           setSelectedScriptState(null);
           return;
         }
