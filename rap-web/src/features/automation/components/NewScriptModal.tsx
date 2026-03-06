@@ -35,10 +35,10 @@ const QueryTemplateSelector: React.FC<{
     onSelect: (data: any) => void,
     mode: 'script' | 'sentinel'
 }> = ({ templates, onSelect, mode }) => {
-    const [isOpen, setIsOpen] = React.useState(false);
+    const [isOpen, setIsOpen] = useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const handleClick = (e: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
         };
@@ -49,24 +49,19 @@ const QueryTemplateSelector: React.FC<{
     if (templates.length === 0) return null;
 
     return (
-        <div className="flex items-center gap-3 bg-white/50 dark:bg-slate-800/40 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/50 relative" ref={containerRef}>
-            <div className="flex items-center gap-2 text-slate-400 shrink-0">
-                <FontAwesomeIcon icon={faHistory} className="text-[11px]" />
-                <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Templates</span>
-            </div>
-            
-            {/* Custom High-Contrast Select Trigger (Standard 13px Font) */}
+        <div className="relative" ref={containerRef}>
+            {/* Custom Minimalist Trigger: Transparent, no border by default */}
             <div 
                 onClick={() => setIsOpen(!isOpen)}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-lg px-4 py-1.5 text-[13px] font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer min-w-[320px] flex items-center justify-between hover:border-blue-500/30 transition-all shadow-sm"
+                className="bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg px-4 py-1.5 text-[13px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 outline-none cursor-pointer min-w-[240px] flex items-center justify-between transition-all"
             >
-                <span className="truncate">Start from existing query...</span>
+                <span className="truncate">Start from template...</span>
                 <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] text-slate-400 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
 
-            {/* Custom High-Contrast Dropdown Menu (Standard 13px Font) */}
+            {/* Custom High-Contrast Dropdown Menu */}
             {isOpen && (
-                <div className="absolute top-full right-0 mt-2 min-w-[320px] w-max bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+                <div className="absolute top-full right-0 mt-2 min-w-[240px] w-max bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 overflow-hidden">
                     <div className="max-h-64 overflow-y-auto custom-scrollbar">
                         {templates.map(t => (
                             <div
@@ -106,10 +101,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     const [initialQueryState, setInitialQueryState] = useState<any>(undefined);
     const [showConfirmReplace, setShowConfirmReplace] = useState(false);
 
-    // Sentinel Logic
     const [sentinelConfig, setSentinelConfig] = useState<any>(null);
 
-    // Template Gallery
     const queryTemplates = React.useMemo(() => {
         if (!scripts) return [];
         return scripts
@@ -145,7 +138,6 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
         }, 10);
     };
 
-    // Persistence Logic
     useEffect(() => {
         if (!isOpen) return;
         if (targetPath) {
@@ -236,7 +228,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
         }
     };
 
-    const modalTitle = isReplacing ? `Edit Script Logic` : (mode === 'sentinel' ? 'New Sentinel' : 'New Automation Script');
+    const modalTitle = isReplacing ? `Edit Script Logic` : (mode === 'sentinel' ? 'New Sentinel' : 'New Script');
 
     return (
         <>
@@ -250,14 +242,14 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         <div className="flex-grow flex items-center gap-4">
                             {!isReplacing ? (
                                 <>
-                                    <div className="relative min-w-[240px]">
+                                    <div className="relative min-w-[320px]">
                                         <input
                                             autoFocus
                                             type="text"
                                             value={scriptName}
                                             onChange={(e) => setScriptName(e.target.value.replace(/\s+/g, ''))}
                                             placeholder={mode === 'sentinel' ? "Sentinel Name..." : "Script Name..."}
-                                            className={`w-full bg-white dark:bg-slate-950 border rounded-xl px-4 py-2 text-[14px] font-bold text-slate-700 dark:text-slate-200 outline-none transition-all ${isDuplicate ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10'}`}
+                                            className={`w-full bg-transparent border-b-2 rounded-none px-1 py-2 text-[14px] font-bold text-slate-700 dark:text-slate-200 outline-none transition-all ${isDuplicate ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700 focus:border-blue-500'}`}
                                         />
                                         {isDuplicate && <span className="absolute -bottom-4 left-1 text-[10px] font-black text-rose-500 uppercase tracking-widest">Name Taken</span>}
                                     </div>
@@ -282,12 +274,12 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         </div>
 
                         {/* Mode & Templates - Unified 12px Rail */}
-                        <div className="flex items-center gap-4 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                             {activeTab === 'query' && !isReplacing && (
                                 <QueryTemplateSelector templates={queryTemplates} onSelect={handleTemplateSelect} mode={mode} />
                             )}
 
-                            <div className="flex bg-slate-200/50 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/30">
+                            <div className="flex items-center gap-1">
                                 {[
                                     { id: 'query', label: 'Builder', icon: faFilter },
                                     { id: 'blank', label: 'Archetype', icon: faCode }
@@ -295,8 +287,8 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                     <button
                                         key={tab.id}
                                         onClick={() => handleTabChange(tab.id as any)}
-                                        className={`px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === tab.id
-                                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                                        className={`px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800/50 ${activeTab === tab.id
+                                            ? 'text-slate-900 dark:text-white'
                                             : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                                             }`}
                                     >

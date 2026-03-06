@@ -97,7 +97,7 @@ export const VisualQueryBuilder: React.FC<VisualQueryBuilderProps> = ({
             <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-300 mb-3">
               <FontAwesomeIcon icon={faFilter} />
             </div>
-            <div className="text-xs font-bold text-gray-400">No logic defined. Click 'FILTER' to begin.</div>
+            <div className="text-xs font-bold text-gray-400">No logic defined. Click 'ADD FIRST FILTER' to begin.</div>
             <button
               onClick={() => updateRootGroupRecursive([], {}, 'add_rule')}
               className="mt-4 text-[10px] font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg hover:bg-blue-100 transition-all"
