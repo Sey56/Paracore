@@ -4,8 +4,8 @@ import json
 
 def generate_query_code(category_name: str, root_group: Dict[str, Any], selected_columns: Optional[List[Dict[str, Any]]] = None, scope: str = "project") -> Dict[str, Any]:
     """
-    Generates high-performance C# code using BuiltInParameter names as the absolute unique identity.
-    Category-aware type promotion and descriptive naming for both System and Loadable families.
+    Generates high-performance C# code with prefix-aware naming and nullable optional filtering.
+    Prevents anonymous type collisions and ensures clean parameter defaults.
     """
     
     CLASS_MAP = {
@@ -20,7 +20,6 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         "OST_ElectricalEquipment": "FamilyInstance", "OST_PlumbingFixtures": "FamilyInstance",
     }
 
-    # Map System Categories to their specialized Type classes
     SYSTEM_TYPE_MAP = {
         "OST_Walls": "WallType", "OST_Floors": "FloorType", "OST_Ceilings": "CeilingType",
         "OST_Roofs": "RoofType", "OST_DuctCurves": "DuctType", "OST_PipeCurves": "PipeType",
@@ -33,8 +32,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         "m3": "UnitTypeId.CubicMeters", "cum": "UnitTypeId.CubicMeters"
     }
     
-    # Generic Revit containers that REQUIRE a category hint [RevitElements]
-    GENERIC_CONTAINERS = {"Element", "ElementType", "FamilyInstance", "FamilySymbol", "SpatialElement"}
+    GENERIC_NAMES = {"Name", "Comments", "Mark", "Type", "Category", "Level", "Phase", "Instance", "Symbol"}
+    RESERVED_PROPS = {"Id", "Name", "Document", "UIDoc", "Doc", "Element"}
 
     def get_singular(name: str):
         if name.endswith("ies"): return name[:-3] + "y"
@@ -56,22 +55,18 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     property_map = {} 
     param_fields = []
     used_property_names = {} 
-    
-    # We maintain a separate map for reporting columns to ensure they find the clean name
-    # even if they were deduplicated.
     column_name_map = {}
 
     for idx, rule in enumerate(all_filter_rules):
         unique_id = f"rule_{idx}" 
         col_uid = f"{rule.get('builtin_id') or rule['name']}_{rule.get('is_type')}"
         
-        # A. Resolve Precision Type
-        # Transform [Reference] -> _Reference to preserve uniqueness while remaining C# friendly
         raw_name = rule["name"]
+        # Convert "Base [Constraint]" -> "Base_Constraint"
         clean_name = raw_name.replace(" [", "_").replace("[", "_").replace("]", "").replace(" ", "")
         clean_name = re.sub(r'[^a-zA-Z0-9_]', '', clean_name)
         
-        storage = rule["storage_type"]; val = rule["value"]; unit = rule.get("unit")
+        storage = rule["storage_type"]; unit = rule.get("unit")
         csharp_type = rule.get("revit_element_type") or "ElementId"
         is_revit_type = False
         attrs = []
@@ -85,8 +80,6 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         elif storage == "ElementId": 
             if csharp_type != "ElementId":
                 is_revit_type = True
-                
-                # TOTAL TYPE PROMOTION
                 if rule.get("builtin_name") == "ELEM_FAMILY_PARAM":
                     csharp_type = "Family"
                     attrs.append(f'RevitElements(Category = "{clean_cat}")')
@@ -96,23 +89,16 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     else:
                         csharp_type = "FamilySymbol"
                         attrs.append(f'RevitElements(Category = "{clean_cat}")')
-                elif csharp_type in GENERIC_CONTAINERS:
+                elif csharp_type in ["Element", "FamilyInstance", "SpatialElement"]:
                     attrs.append(f'RevitElements(Category = "{clean_cat}")')
 
-        # B. Resolve Descriptive Property Name
-        display_name_base = csharp_type
-        if csharp_type == "Family": display_name_base = "Family"
-        elif csharp_type == "FamilySymbol": display_name_base = f"{singular_cat}Symbol"
-        elif csharp_type == "FamilyInstance": display_name_base = f"{singular_cat}Instance"
-        
-        if clean_name.lower() in ["type", "instance", "symbol", "family"]:
-            base_prop_name = display_name_base
+        # V5: Prefix generic names to avoid collisions (e.g. RoomName instead of Name)
+        if clean_name in GENERIC_NAMES or clean_name.lower() in ["type", "instance", "symbol", "family"]:
+            base_prop_name = singular_cat + clean_name
         else:
             base_prop_name = clean_name
         
         final_name = base_prop_name
-        
-        # UNIQUE NAME GUARD: Use counter to handle multiple rules with same param name
         if final_name in used_property_names:
             counter = used_property_names[final_name] + 1
             used_property_names[final_name] = counter
@@ -121,22 +107,24 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             used_property_names[final_name] = 1
             
         property_map[unique_id] = final_name
-        if col_uid not in column_name_map:
-            column_name_map[col_uid] = base_prop_name # Columns use the base name (deduplicated)
-
-        # C. Generate C# Field
+        
+        # C. Generate C# Field (V5: Nullable, but with Default if assigned)
         attr_prefix = f"[{', '.join(attrs)}]\n    " if attrs else ""
         param_fields.append(f"/// Filter value for {rule['name']}")
         
+        val = rule.get("value")
+        has_val = val is not None and str(val).strip() != ""
+
         if is_revit_type:
+            # Revit objects (Family, Symbol) don't get hardcoded defaults in the Params class
             param_fields.append(f"{attr_prefix}public {csharp_type}? {final_name} {{ get; set; }}")
         else:
-            actual_type = "string" if storage == "String" else csharp_type
-            if storage in ["Double", "Integer"]: default_val = str(val) if val else "0"
+            actual_type = "string?" if storage == "String" else f"{csharp_type}?"
+            if has_val:
+                default_expr = f'"{val}"' if storage == "String" else (str(val).lower() if isinstance(val, bool) else str(val))
+                param_fields.append(f"{attr_prefix}public {actual_type} {final_name} {{ get; set; }} = {default_expr};")
             else:
-                default_val = f'"{val}"' if isinstance(val, str) else str(val)
-                if isinstance(val, bool): default_val = str(val).lower()
-            param_fields.append(f"{attr_prefix}public {actual_type} {final_name} {{ get; set; }} = {default_val};")
+                param_fields.append(f"{attr_prefix}public {actual_type} {final_name} {{ get; set; }}")
 
     uses_get_param_id = False
     subgroup_counter = 0
@@ -162,11 +150,10 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                 rule_pointer = next_idx
             else:
                 uid = f"rule_{rule_pointer}"
-                prop_id = property_map.get(uid, re.sub(r'[^a-zA-Z0-9]', '', child["name"]))
+                prop_id = property_map.get(uid)
                 rule_pointer += 1
                 
                 storage = child["storage_type"]; op = child["operator"]
-                
                 if child.get("is_builtin") and child.get("builtin_id"):
                     b_name = child.get('builtin_name')
                     param_id = f"new ElementId(BuiltInParameter.{b_name})" if b_name and not b_name.isdigit() and "-" not in b_name else f"new ElementId((BuiltInParameter)({child['builtin_id']}))"
@@ -179,37 +166,30 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                 elif op == ">=": evaluator = "new FilterNumericGreaterOrEqual()"
                 elif op == "<=": evaluator = "new FilterNumericLessOrEqual()"
 
-                rule_obj = "null"; condition = "true"
+                rule_obj = "null"; condition = "false"
                 if storage == "Double":
-                    condition = f"p.{prop_id} != 0"
-                    val_expr = f"p.{prop_id}"
-                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr}, 1e-6)"
+                    condition = f"p.{prop_id}.HasValue"
+                    rule_obj = f"new FilterDoubleRule(new ParameterValueProvider({param_id}), {evaluator}, p.{prop_id}.Value, 1e-6)"
                 elif storage == "Integer":
-                    condition = f"p.{prop_id} != 0"
-                    rule_obj = f"new FilterIntegerRule(new ParameterValueProvider({param_id}), {evaluator}, (int)p.{prop_id})"
+                    condition = f"p.{prop_id}.HasValue"
+                    rule_obj = f"new FilterIntegerRule(new ParameterValueProvider({param_id}), {evaluator}, (int)p.{prop_id}.Value)"
                 elif storage == "ElementId":
-                    # Precision Hydration Check: if it's promoted or specialized, it's hydrated
                     revit_type = child.get("revit_element_type") or "ElementId"
-                    # If we explicitly promoted it to Family in Pass 1, we use .Id here
                     is_family_obj = (child.get("builtin_name") == "ELEM_FAMILY_PARAM" and (revit_type == "Element" or revit_type == "Family")) or revit_type == "Family"
                     is_hydrated = revit_type != "ElementId"
 
                     if is_family_obj:
-                        # BROAD FAMILY FILTER: Name-based string comparison is the most reliable way 
-                        # to find all instances belonging to a family in Revit.
                         condition = f"p.{prop_id} != null"
                         rule_obj = f"new FilterStringRule(new ParameterValueProvider(new ElementId(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM)), new FilterStringEquals(), p.{prop_id}.Name)"
                         inverted = "true" if op == "!=" else "false"
                         lines.append(f"    if ({condition}) {list_var}.Add(new ElementParameterFilter({rule_obj}, {inverted}));")
-                        rule_obj = "null" # Mark as handled
+                        rule_obj = "null"
                     elif is_hydrated:
                         condition = f"p.{prop_id} != null"
-                        val_expr = f"p.{prop_id}.Id"
-                        rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr})"
+                        rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, p.{prop_id}.Id)"
                     else:
-                        condition = f"p.{prop_id} != ElementId.InvalidElementId"
-                        val_expr = f"p.{prop_id}"
-                        rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, {val_expr})"
+                        condition = f"p.{prop_id} != null && p.{prop_id} != ElementId.InvalidElementId"
+                        rule_obj = f"new FilterElementIdRule(new ParameterValueProvider({param_id}), {evaluator}, p.{prop_id})"
                 elif storage == "String":
                     condition = f"!string.IsNullOrEmpty(p.{prop_id})"
                     str_eval = "new FilterStringEquals()"
@@ -219,9 +199,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                     rule_obj = f"new FilterStringRule(new ParameterValueProvider({param_id}), {str_eval}, p.{prop_id})"
 
                 if rule_obj != "null":
-                    # SPECIAL CASE: Family filtering for loadable families requires a specialized filter
-                    # because ELEM_FAMILY_PARAM on instances is inconsistent for direct ID comparison.
                     if child.get("builtin_name") == "ELEM_FAMILY_PARAM" and (revit_type == "Family" or revit_type == "Element"):
+                        val_expr = f"p.{prop_id}.Id" if is_hydrated else f"p.{prop_id}"
                         filter_expr = f"new FamilyInstanceFilter(Doc, {val_expr})"
                         if op == "!=": filter_expr = f"new LogicalNotFilter({filter_expr})"
                         lines.append(f"    if ({condition}) {list_var}.Add({filter_expr});")
@@ -258,15 +237,17 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         if uid not in seen_col_ids: 
             seen_col_ids.add(uid)
             reporting_columns.append(col)
-            # Ensure even columns from selectedColumns get a clean base name
-            if uid not in column_name_map:
-                c_name = re.sub(r'\s+\[.*?\]$', '', col["name"])
-                column_name_map[uid] = re.sub(r'[^a-zA-Z0-9]', '', c_name)
+            
+            c_name = re.sub(r'\s+\[.*?\]$', '', col["name"]).replace(" ", "")
+            c_name = re.sub(r'[^a-zA-Z0-9]', '', c_name)
+            if c_name in GENERIC_NAMES or c_name in RESERVED_PROPS:
+                c_name = singular_cat + c_name
+            column_name_map[uid] = c_name
 
     for col in reporting_columns:
         raw_name = col["name"]; p_name = re.sub(r'\s+\[.*?\]$', '', raw_name)
         uid = f"{col.get('builtin_id') or col['name']}_{col.get('is_type')}"
-        p_id = column_name_map.get(uid, re.sub(r'[^a-zA-Z0-9]', '', p_name))
+        p_id = column_name_map[uid]
         
         storage = col["storage_type"]; unit = col.get("unit")
         if p_name == "Family Name": val_expr = "el.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM)?.AsValueString() ?? el.Name"
@@ -288,8 +269,8 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
 
     logic_parts.extend([
         "", "        return (object)new {", "            Id = el.Id.Value, el.Name,",
-        *[f"            {column_name_map.get(f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}', re.sub(r'[^a-zA-Z0-9]', '', c['name']))} = {column_name_map.get(f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}', re.sub(r'[^a-zA-Z0-9]', '', c['name']))}Value," for c in reporting_columns],
-        "        };", "    })];", "    Table(results);", "}", "\n// 3. Interactive Actions (Removed)"
+        *[f"            {column_name_map[f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}']} = {column_name_map[f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}']}Value," for c in reporting_columns],
+        "        };", "    })];", "    Table(results);", "}", "\n// 3. Helpers"
     ])
 
     helper = f"\nstatic ElementId GetParamId(Document doc, string name) {{ Element? first = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.{category_name}).WhereElementIsNotElementType().FirstElement(); return first?.LookupParameter(name)?.Id ?? ElementId.InvalidElementId; }}" if uses_get_param_id else ""

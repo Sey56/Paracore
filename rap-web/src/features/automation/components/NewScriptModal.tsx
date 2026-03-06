@@ -50,7 +50,13 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
 
     const handleConfigChange = React.useCallback((config: any) => {
         setSentinelConfig(config);
-    }, []);
+        
+        // V5: Persistent VQB state for "Next Time"
+        if (config && config.rootGroup) {
+            const storageKey = mode === 'sentinel' ? 'paracore_last_vqb_sentinel' : 'paracore_last_vqb_script';
+            localStorage.setItem(storageKey, JSON.stringify(config));
+        }
+    }, [mode]);
 
     const handleQueryGenerated = React.useCallback((logic: string, params: string, compiled: boolean) => {
         setGeneratedLogic(logic);
@@ -86,16 +92,29 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
             };
             fetchExisting();
         } else {
-            // New script - reset fields
+            // New script - reset fields but LOAD last used graph
             setScriptName('');
             setDescription('');
             setGeneratedLogic('');
             setGeneratedParams('');
             setIsCompiled(false);
-            setInitialQueryState(undefined);
+            
+            // V5: Restore last used graph from localStorage
+            const storageKey = mode === 'sentinel' ? 'paracore_last_vqb_sentinel' : 'paracore_last_vqb_script';
+            const savedState = localStorage.getItem(storageKey);
+            if (savedState) {
+                try {
+                    setInitialQueryState(JSON.parse(savedState));
+                } catch (e) {
+                    setInitialQueryState(undefined);
+                }
+            } else {
+                setInitialQueryState(undefined);
+            }
+            
             setActiveTab('query');
         }
-    }, [isOpen, targetPath]);
+    }, [isOpen, targetPath, mode]);
 
     useEffect(() => {
         if (!isOpen) return;
