@@ -70,6 +70,16 @@ export const CardActions: React.FC<CardActionsProps> = ({
   toggleFloatingCodeViewer,
   setShowMetadataModal
 }) => {
+  const handleRunClickInternal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isRunButtonDisabled) return;
+
+    // V5: Authoritative selection before execution
+    onSelect();
+
+    handleRunClick(e);
+  };
+
   return (
     <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 rounded-b-lg">
       <div className="relative">
@@ -78,7 +88,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
             ? 'text-gray-400 cursor-not-allowed opacity-50'
             : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold'
             }`}
-          onClick={handleRunClick}
+          onClick={handleRunClickInternal}
           disabled={isRunButtonDisabled}
           title={tooltipMessage}
         >
@@ -129,7 +139,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
         </button>
 
         {showMenu && (
-          <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+          <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-50 overflow-hidden">
             {canCreateScripts && (
               <>
                 {!isProtectedTool && (
@@ -142,7 +152,6 @@ export const CardActions: React.FC<CardActionsProps> = ({
                         toggleFloatingCodeViewer();
                         setShowMenu(false);
                       }}
-                      title={isGuard ? "View Sentinel Code" : "View Script Code"}
                     >
                       <FontAwesomeIcon icon={faCode} className="mr-2 w-4" />
                       {isGuard ? "View Sentinel" : "View Script"}
@@ -155,7 +164,6 @@ export const CardActions: React.FC<CardActionsProps> = ({
                         editScript(script);
                         setShowMenu(false);
                       }}
-                      title={editTooltipMessage}
                     >
                       <FontAwesomeIcon icon={faEdit} className="mr-2 w-4" />
                       {isGuard ? "Edit Sentinel" : "Edit Script"}
@@ -170,7 +178,6 @@ export const CardActions: React.FC<CardActionsProps> = ({
                     onSelect();
                     handleStartRename(e);
                   }}
-                  title={isGuard ? "Rename Sentinel" : "Rename Script"}
                 >
                   <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
                   {isGuard ? "Rename Sentinel" : "Rename Script"}
@@ -184,7 +191,6 @@ export const CardActions: React.FC<CardActionsProps> = ({
                       if (onReplace) onReplace(script);
                       setShowMenu(false);
                     }}
-                    title="Replace with Template/Query"
                   >
                     <FontAwesomeIcon icon={faSyncAlt} className="mr-2 w-4" />
                     Replace Code
@@ -199,7 +205,6 @@ export const CardActions: React.FC<CardActionsProps> = ({
                       setShowMetadataModal(true);
                       setShowMenu(false);
                     }}
-                    title="Edit Script Metadata"
                   >
                     <FontAwesomeIcon icon={faTags} className="mr-2 w-4" />
                     Edit Metadata
@@ -215,7 +220,6 @@ export const CardActions: React.FC<CardActionsProps> = ({
                     setShowDeleteModal(true);
                     setShowMenu(false);
                   }}
-                  title={isGuard ? "Delete Sentinel" : "Delete Script"}
                 >
                   <FontAwesomeIcon icon={faTrash} className="mr-2 w-4" />
                   {isGuard ? "Delete Sentinel" : "Delete Script"}

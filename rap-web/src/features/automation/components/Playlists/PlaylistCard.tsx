@@ -65,7 +65,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
                     </button>
 
                     {isMenuOpen && (
-                        <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50 py-1">
+                        <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-50 py-1">
                             <button
                                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
                                 onClick={(e) => {

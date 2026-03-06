@@ -152,7 +152,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 origin-top backdrop-blur-xl">
+          <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 origin-top backdrop-blur-xl">
             <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -258,21 +258,21 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
                 className={`${isComputing ? 'animate-spin' : ''}`}
               />
             </button>
-            
+
             {/* COMPUTE TOOLTIP: Always show info when options exist */}
             {param.options && param.options.length > 0 && !isComputing && (
-              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 border border-white/10 text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
-                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1 border-b border-white/5 uppercase tracking-widest">
+              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
+                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1 uppercase tracking-widest">
                   <FontAwesomeIcon icon={faCheck} className="text-[8px]" /> Computed Results
                 </div>
-                <span className="text-white text-xs">{param.options.length} options discovered.</span>
+                <span className="text-slate-700 dark:text-white text-xs">{param.options.length} options discovered.</span>
                 {param.computedInDocument && (
-                  <div className="mt-1 text-slate-400 text-[9px] italic">
+                  <div className="mt-1 text-slate-500 dark:text-slate-400 text-[9px] italic">
                     Source: {param.computedInDocument}
                   </div>
                 )}
                 {isContextMismatch && (
-                  <div className="mt-2 text-amber-400 font-black border-t border-white/5 pt-1 uppercase">
+                  <div className="mt-2 text-amber-400 font-black pt-1 uppercase">
                     ⚠ Document Mismatch!
                   </div>
                 )}
@@ -327,7 +327,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       // and the user is currently focused, we preserve the localValue.
       const isFocused = document.activeElement?.tagName === 'INPUT' && (document.activeElement as HTMLInputElement).value === localValue;
       if (isFocused && parseFloat(incomingValue) === parseFloat(localValue)) {
-          return;
+        return;
       }
       setLocalValue(incomingValue);
     }
@@ -497,7 +497,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             <span className="text-xs font-medium text-slate-400 dark:text-slate-500 italic tracking-tight truncate max-w-[120px] block">
               {param.description}
             </span>
-            <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 text-white text-xs font-medium leading-relaxed max-w-[200px] break-words opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-300 transform translate-y-1 group-hover/info:translate-y-0 border border-white/10">
+            <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-xs font-medium leading-relaxed max-w-[200px] break-words opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-300 transform translate-y-1 group-hover/info:translate-y-0">
               {param.description}
             </div>
           </div>
@@ -523,21 +523,21 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
                 className={`${isComputing ? 'animate-spin' : ''} ${isContextMismatch ? 'text-amber-500' : ''}`}
               />
             </button>
-            
+
             {/* COMPUTE TOOLTIP: High-fidelity feedback for standard inputs */}
             {param.options && param.options.length > 0 && !isComputing && (
-              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-slate-900 border border-white/10 text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
-                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1 border-b border-white/5 uppercase tracking-widest">
+              <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/compute:opacity-100 group-hover/compute:visible transition-all duration-300 transform translate-y-1 group-hover/compute:translate-y-0 pointer-events-none">
+                <div className="flex items-center gap-2 text-blue-400 mb-1 pb-1 uppercase tracking-widest">
                   <FontAwesomeIcon icon={faCheck} className="text-[8px]" /> Computed Results
                 </div>
-                <span className="text-white text-xs">{param.options.length} options discovered.</span>
+                <span className="text-slate-700 dark:text-white text-xs">{param.options.length} options discovered.</span>
                 {param.computedInDocument && (
-                  <div className="mt-1 text-slate-400 text-[9px] italic">
+                  <div className="mt-1 text-slate-500 dark:text-slate-400 text-[9px] italic">
                     Source: {param.computedInDocument}
                   </div>
                 )}
                 {isContextMismatch && (
-                  <div className="mt-2 text-amber-400 font-black border-t border-white/5 pt-1 uppercase">
+                  <div className="mt-2 text-amber-400 font-black pt-1 uppercase">
                     ⚠ Document Mismatch!
                   </div>
                 )}

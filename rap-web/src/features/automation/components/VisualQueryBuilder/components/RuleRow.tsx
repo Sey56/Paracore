@@ -32,7 +32,7 @@ const CustomMiniSelect: React.FC<CustomMiniSelectProps> = ({ value, options, onC
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
-      <div 
+      <div
         onClick={() => setIsOpen(!isOpen)}
         className="w-full bg-white dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-700/30 rounded-lg px-2 py-1.5 text-xs font-bold flex items-center justify-between cursor-pointer hover:border-blue-500/30 hover:bg-white dark:hover:bg-slate-900 transition-all shadow-sm"
       >
@@ -40,10 +40,10 @@ const CustomMiniSelect: React.FC<CustomMiniSelectProps> = ({ value, options, onC
         <FontAwesomeIcon icon={faChevronDown} className={`text-[9px] text-slate-400 transition-transform ml-1.5 ${isOpen ? 'rotate-180' : ''}`} />
       </div>
       {isOpen && (
-        <div className="absolute top-full left-0 min-w-full w-max mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[110] border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+        <div className="absolute top-full left-0 min-w-full w-max mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-1 overflow-hidden">
           <div className="max-h-48 overflow-y-auto custom-scrollbar">
             {options.map(opt => (
-              <div 
+              <div
                 key={opt}
                 onClick={() => { onChange(opt); setIsOpen(false); }}
                 className={`px-4 py-2 text-[11px] font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 ${value === opt ? 'text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10' : 'text-slate-600 dark:text-slate-300'}`}
@@ -82,35 +82,35 @@ export const RuleRow: React.FC<RuleRowProps> = ({
   const filteredParams = useMemo(() => {
     if (!search) return availableParams;
     const lowSearch = search.toLowerCase();
-    
+
     return availableParams
       .filter(p => {
         const nameMatch = p.name.toLowerCase().includes(lowSearch) || (p.displayName || '').toLowerCase().includes(lowSearch);
-        const metaMatch = p.storage_type.toLowerCase().includes(lowSearch) || 
-                         (p.builtin_name || '').toLowerCase().includes(lowSearch) ||
-                         (p.is_type ? 'type' : 'instance').toLowerCase().includes(lowSearch);
+        const metaMatch = p.storage_type.toLowerCase().includes(lowSearch) ||
+          (p.builtin_name || '').toLowerCase().includes(lowSearch) ||
+          (p.is_type ? 'type' : 'instance').toLowerCase().includes(lowSearch);
         return nameMatch || metaMatch;
       })
       .sort((a, b) => {
         const aNameLow = a.name.toLowerCase();
         const bNameLow = b.name.toLowerCase();
-        
+
         // 1. Exact name match gets top priority
         if (aNameLow === lowSearch && bNameLow !== lowSearch) return -1;
         if (bNameLow === lowSearch && aNameLow !== lowSearch) return 1;
-        
+
         // 2. Name starts with search
         const aStarts = aNameLow.startsWith(lowSearch);
         const bStarts = bNameLow.startsWith(lowSearch);
         if (aStarts && !bStarts) return -1;
         if (bStarts && !aStarts) return 1;
-        
+
         // 3. Name contains search
         const aContains = aNameLow.includes(lowSearch);
         const bContains = bNameLow.includes(lowSearch);
         if (aContains && !bContains) return -1;
         if (bContains && !aContains) return 1;
-        
+
         return 0; // Maintain original order for other metadata matches
       });
   }, [availableParams, search]);
@@ -119,7 +119,7 @@ export const RuleRow: React.FC<RuleRowProps> = ({
     <div className="flex items-center gap-2 p-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 group/item transition-all hover:bg-white dark:hover:bg-slate-800">
       {/* 1. Parameter Selector: Custom Dropdown */}
       <div className="flex-[2] min-w-[150px] relative" ref={dropdownRef}>
-        <div 
+        <div
           onClick={() => setIsOpen(!isOpen)}
           className="w-full bg-white dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-700/30 rounded-lg px-3 py-1.5 text-xs font-bold flex items-center justify-between cursor-pointer hover:border-blue-500/30 hover:bg-white dark:hover:bg-slate-900 transition-all shadow-sm"
         >
@@ -128,7 +128,7 @@ export const RuleRow: React.FC<RuleRowProps> = ({
         </div>
 
         {isOpen && (
-          <div className="absolute top-full left-0 min-w-full w-max max-w-[400px] mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[100] border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-1">
+          <div className="absolute top-full left-0 min-w-full w-max max-w-[400px] mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[100] border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-1">
             <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
               <div className="relative">
                 <input
@@ -147,7 +147,7 @@ export const RuleRow: React.FC<RuleRowProps> = ({
                 <div className="px-4 py-3 text-xs font-bold text-slate-400 text-center uppercase">No matches</div>
               ) : (
                 filteredParams.map(p => (
-                  <div 
+                  <div
                     key={p.name}
                     onClick={() => {
                       updateRootGroupRecursive(childPath, { name: p.name }, 'update');

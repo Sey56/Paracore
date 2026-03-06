@@ -52,16 +52,16 @@ export const ReportingParameters: React.FC<ReportingParametersProps> = ({
 
   const filteredColumns = useMemo(() => {
     const lowSearch = columnSearch.toLowerCase();
-    
+
     // 1. Initial Filtering (Names + Metadata)
     const filtered = availableParams.filter(p => {
       // Exclude already selected columns
       if (selectedColumns.some(sc => sc.name === p.name)) return false;
-      
+
       const nameMatch = p.name.toLowerCase().includes(lowSearch) || (p.displayName || '').toLowerCase().includes(lowSearch);
-      const metaMatch = p.storage_type.toLowerCase().includes(lowSearch) || 
-                       (p.builtin_name || '').toLowerCase().includes(lowSearch) ||
-                       (p.is_type ? 'type' : 'instance').toLowerCase().includes(lowSearch);
+      const metaMatch = p.storage_type.toLowerCase().includes(lowSearch) ||
+        (p.builtin_name || '').toLowerCase().includes(lowSearch) ||
+        (p.is_type ? 'type' : 'instance').toLowerCase().includes(lowSearch);
       return nameMatch || metaMatch;
     });
 
@@ -71,23 +71,23 @@ export const ReportingParameters: React.FC<ReportingParametersProps> = ({
     return filtered.sort((a, b) => {
       const aNameLow = a.name.toLowerCase();
       const bNameLow = b.name.toLowerCase();
-      
+
       // Tier 1: Exact name match
       if (aNameLow === lowSearch && bNameLow !== lowSearch) return -1;
       if (bNameLow === lowSearch && aNameLow !== lowSearch) return 1;
-      
+
       // Tier 2: Name starts with search
       const aStarts = aNameLow.startsWith(lowSearch);
       const bStarts = bNameLow.startsWith(lowSearch);
       if (aStarts && !bStarts) return -1;
       if (bStarts && !aStarts) return 1;
-      
+
       // Tier 3: Name contains search
       const aContains = aNameLow.includes(lowSearch);
       const bContains = bNameLow.includes(lowSearch);
       if (aContains && !bContains) return -1;
       if (bContains && !aContains) return 1;
-      
+
       return 0; // Maintain original order for metadata matches
     });
   }, [availableParams, columnSearch, selectedColumns]);
@@ -117,7 +117,7 @@ export const ReportingParameters: React.FC<ReportingParametersProps> = ({
               </div>
             </div>
             {isColumnDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-[100] max-h-64 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-2">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[100] max-h-64 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-2">
                 <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
                   <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">Available Parameters</span>
                 </div>

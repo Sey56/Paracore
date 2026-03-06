@@ -1,10 +1,10 @@
 import React from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { 
-  faStar as fasStar, 
-  faShieldHeart, 
-  faTools, 
-  faLock 
+import {
+  faStar as fasStar,
+  faShieldHeart,
+  faTools,
+  faLock
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import styles from '../ScriptCard.module.css';
@@ -59,21 +59,21 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
       ) : (
         <div className="flex items-center gap-2 overflow-hidden w-full">
           {isGuard ? (
-            <FontAwesomeIcon 
-              icon={faShieldHeart} 
-              className={`shrink-0 ${isArmed ? styles.sentinelPulse : styles.guardIcon}`} 
+            <FontAwesomeIcon
+              icon={faShieldHeart}
+              className={`shrink-0 ${isArmed ? styles.sentinelPulse : styles.guardIcon}`}
               style={{ fontSize: '0.9rem' }}
             />
           ) : (
             isProtectedTool && (
-              <FontAwesomeIcon 
-                icon={faTools} 
-                className="shrink-0 text-slate-400 dark:text-slate-500" 
+              <FontAwesomeIcon
+                icon={faTools}
+                className="shrink-0 text-slate-400 dark:text-slate-500"
                 style={{ fontSize: '0.9rem' }}
               />
             )
           )}
-          
+
           <div className="flex-1 min-w-0 flex items-center gap-2">
             <h3
               className={`font-medium truncate ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"}`}
@@ -81,7 +81,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
             >
               {getDisplayName()}
             </h3>
-            
+
             {isProtectedTool && (
               <span className={`${styles.multiFileBadge} !bg-slate-100 !text-slate-600 dark:!bg-slate-900/40 dark:!text-slate-400 border border-slate-200 dark:border-slate-800 whitespace-nowrap shrink-0`}>
                 <FontAwesomeIcon icon={faLock} className="mr-1" style={{ fontSize: '0.6rem' }} />

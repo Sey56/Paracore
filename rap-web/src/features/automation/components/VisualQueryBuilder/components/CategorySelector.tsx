@@ -108,7 +108,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
           {isFetchingCategories ? <FontAwesomeIcon icon={faSync} spin className="text-[10px]" /> : <FontAwesomeIcon icon={faChevronDown} className="text-[10px]" />}
         </div>
         {isCategoryDropdownOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-2">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto custom-scrollbar border-t-4 border-t-blue-500 animate-in fade-in slide-in-from-top-2">
             <div className="p-2 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
               <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">{showAllCategories ? 'All Categories' : 'Common Categories'}</span>
               <button
