@@ -127,7 +127,7 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                 </div>
             ) : (
                 watchdogs.map((w, idx) => (
-                    <div key={idx} className="p-5 rounded-[1.75rem] bg-white/5 dark:bg-slate-50/50 hover:bg-white/10 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent dark:hover:border-slate-200 hover:shadow-xl">
+                    <div key={idx} className="p-5 rounded-[1.75rem] bg-slate-800/40 dark:bg-slate-50/50 hover:bg-slate-800/60 dark:hover:bg-white transition-all duration-300 group mb-2 border border-transparent dark:hover:border-slate-200 hover:shadow-xl shadow-inner">
                         <div className="flex items-start gap-4">
                             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${w.status === 'success' ? 'bg-emerald-500/20' :
                                 w.status === 'warning' ? 'bg-amber-500/20' : 'bg-rose-500/20'
@@ -148,7 +148,7 @@ export const SentinelControlList: React.FC<SentinelControlListProps> = ({ onDeta
                                                 <span className="text-amber-500 cursor-help">
                                                     <FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px]" />
                                                 </span>
-                                                <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/mismatch:opacity-100 group-hover/mismatch:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch:translate-y-0 pointer-events-none">
+                                                <div className="absolute z-[130] left-1/2 -translate-x-1/2 top-full mt-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-48 opacity-0 invisible group-hover/mismatch:opacity-100 group-hover/mismatch:visible transition-all duration-300 transform -translate-y-1 group-hover/mismatch:translate-y-0 pointer-events-none">
                                                     <div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest pb-1">
                                                         <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
                                                     </div>

@@ -197,16 +197,16 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
       onMouseDown={handleMouseDown}
     >
       <div className="relative" ref={dropdownRef}>
-        {/* Dropdown Menu (Pop-upwards and to the Left) */}
+        {/* Dropdown Menu (Pop-upwards and to the Left) - INVERTED THEME for Contrast */}
         {isOpen && !isArmingWatchdogs && isWatchdogInitialized && (
-          <div className="absolute bottom-full right-0 mb-4 w-80 bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 origin-bottom-right cursor-default backdrop-blur-3xl"
+          <div className="absolute bottom-full right-0 mb-4 w-80 bg-slate-900 dark:bg-white rounded-[2rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] z-[100] animate-in fade-in slide-in-from-bottom-4 duration-500 origin-bottom-right cursor-default backdrop-blur-3xl"
           >
-            {/* Watchtower Header — acts as a drag handle (mouseDown propagates to parent for FAB dragging) */}
+            {/* Watchtower Header — acts as a drag handle (rounded-t-2rem ensures clipping matches parent) */}
             <div
-              className="p-6 pb-4 relative overflow-hidden cursor-grab active:cursor-grabbing select-none flex items-center justify-between"
+              className="p-6 pb-4 relative rounded-t-[2rem] cursor-grab active:cursor-grabbing select-none flex items-center justify-between z-10"
             >
-              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent opacity-50" />
-              <h3 className="relative text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] flex items-center gap-3">
+              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent opacity-50 rounded-t-[2rem]" />
+              <h3 className="relative text-[11px] font-bold text-white/60 dark:text-slate-400 uppercase tracking-[0.25em] flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
                 Sentinel Control
               </h3>
@@ -217,7 +217,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
                   handleDetach();
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="relative z-50 w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-blue-500 hover:bg-white/5 dark:hover:bg-slate-100 transition-all active:scale-95 group/detach"
+                className="relative z-50 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-slate-900 hover:bg-white/10 dark:hover:bg-slate-100 transition-all active:scale-95 group/detach"
                 title="Detach Window"
               >
                 <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs group-hover/detach:scale-110 transition-transform" />
