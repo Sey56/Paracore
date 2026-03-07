@@ -80,13 +80,16 @@ foreach ($file in $IssFiles) {
     }
 }
 
-# 5. Update UI Components (TopBar.tsx)
+# 5. Update UI Components (TopBar.tsx - fallback if dynamic fails or for other locations)
 $TopBarPath = Join-Path $RootDir "rap-web/src/components/layout/TopBar/TopBar.tsx"
 if (Test-Path $TopBarPath) {
     $content = Get-Content $TopBarPath -Raw
-    $newContent = $content -replace '(<span[^>]*>Version:</span>\s*)<span[^>]*>[^<]+</span>', "`$1<span className=`"text-gray-600 dark:text-gray-400`">$Version</span>"
-    $newContent | Set-Content $TopBarPath -NoNewline
-    Write-Host "Updated TopBar.tsx"
+    # Update the hardcoded version strings just in case, though TopBar now uses package.json version
+    $newContent = $content -replace 'v\d+\.\d+\.\d+', "v$Version"
+    if ($content -ne $newContent) {
+        $newContent | Set-Content $TopBarPath -NoNewline
+        Write-Host "Updated TopBar.tsx (Hardcoded fallbacks)"
+    }
 }
 
 # 6. Update Primary Scripts or Docs

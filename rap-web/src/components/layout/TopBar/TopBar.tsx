@@ -11,6 +11,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UserMenu } from './UserMenu';
 import { Modal } from '@/components/common/Modal';
 import { shell } from '@tauri-apps/api';
+import packageJson from '../../../../package.json';
 
 export const TopBar: React.FC = () => {
   const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap } = useUI();
@@ -245,11 +246,11 @@ export const TopBar: React.FC = () => {
             </div>
             <div className="flex justify-between items-center text-[10px] font-bold">
               <span className="text-slate-400 uppercase tracking-tighter">Paracore App</span>
-              <span className="text-slate-700 dark:text-slate-200 italic font-mono">v4.0.0</span>
+              <span className="text-slate-700 dark:text-slate-200 italic font-mono">v{packageJson.version}</span>
             </div>
             <div className="flex justify-between items-center text-[10px] font-bold">
               <span className="text-slate-400 uppercase tracking-tighter">Paracore Addin</span>
-              <span className="text-slate-700 dark:text-slate-200 italic font-mono">v4.0.0</span>
+              <span className="text-slate-700 dark:text-slate-200 italic font-mono">v{packageJson.version}</span>
             </div>
             <div className="flex justify-between items-center text-[10px] font-bold">
               <span className="text-slate-400 uppercase tracking-tighter">Revit Version</span>
