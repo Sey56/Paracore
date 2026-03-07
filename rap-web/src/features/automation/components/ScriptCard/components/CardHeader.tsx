@@ -49,7 +49,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
         <input
           type="text"
           value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
+          onChange={(e) => setRenameValue(e.target.value.replace(/\s+/g, ''))}
           onKeyDown={handleRenameKeyDown}
           onBlur={handleRenameSubmit}
           onClick={(e) => e.stopPropagation()}

@@ -310,7 +310,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
 
                         {/* Mode & Templates - Unified 12px Rail */}
                         <div className="flex items-center gap-2 shrink-0">
-                            {activeTab === 'query' && !isReplacing && (
+                            {activeTab === 'query' && (
                                 <QueryTemplateSelector 
                                     templates={queryTemplates} 
                                     onSelect={handleTemplateSelect} 

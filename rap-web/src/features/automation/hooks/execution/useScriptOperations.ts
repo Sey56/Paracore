@@ -21,22 +21,17 @@ export const useScriptOperations = (
       const response = await api.post("/api/rename-script", { oldPath: script.absolutePath, newName: newName });
       if (response.data.is_success) {
         showNotification(`Script renamed successfully.`, "success");
-        let newScript: Script | undefined = undefined;
-        if (selectedFolder) {
-            const reloaded = await loadScriptsFromPath(selectedFolder, true);
-            // V5 FIX: Find the new script in the reloaded list to maintain selection
-            const newPath = response.data.new_path || response.data.newPath;
-            if (reloaded && newPath) {
-                newScript = reloaded.find(s => s.absolutePath === newPath);
-            }
-        }
-        return { success: true, message: "Script renamed successfully.", newScript };
+        
+        // V5 ROBUST: We return the new path immediately. 
+        // We do NOT refresh the list here; we let the Provider coordinate the atomic handoff.
+        const newPath = response.data.new_path || response.data.newPath;
+        return { success: true, message: "Script renamed successfully.", newPath };
       } else throw new Error(response.data.error_message);
     } catch (error: any) {
       showNotification(error.message || "Failed to rename script.", "error");
       return { success: false, message: error.message };
     }
-  }, [isAuthenticated, selectedFolder, loadScriptsFromPath, showNotification]);
+  }, [isAuthenticated, showNotification]);
 
   const buildTool = useCallback(async (script: Script) => {
     if (!script || !script.absolutePath) return { success: false, message: "Invalid path." };
