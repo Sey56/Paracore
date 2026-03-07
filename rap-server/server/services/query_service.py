@@ -5,7 +5,7 @@ import json
 def generate_query_code(category_name: str, root_group: Dict[str, Any], selected_columns: Optional[List[Dict[str, Any]]] = None, scope: str = "project") -> Dict[str, Any]:
     """
     Generates high-performance C# code with prefix-aware naming and nullable optional filtering.
-    Prevents anonymous type collisions and ensures clean parameter defaults.
+    Uses Smart Header Projection to ensure editability (Mass Edit) while preventing C# collisions.
     """
     
     CLASS_MAP = {
@@ -55,14 +55,10 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
     property_map = {} 
     param_fields = []
     used_property_names = {} 
-    column_name_map = {}
 
     for idx, rule in enumerate(all_filter_rules):
         unique_id = f"rule_{idx}" 
-        col_uid = f"{rule.get('builtin_id') or rule['name']}_{rule.get('is_type')}"
-        
         raw_name = rule["name"]
-        # Convert "Base [Constraint]" -> "Base_Constraint"
         clean_name = raw_name.replace(" [", "_").replace("[", "_").replace("]", "").replace(" ", "")
         clean_name = re.sub(r'[^a-zA-Z0-9_]', '', clean_name)
         
@@ -92,7 +88,7 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
                 elif csharp_type in ["Element", "FamilyInstance", "SpatialElement"]:
                     attrs.append(f'RevitElements(Category = "{clean_cat}")')
 
-        # V5: Prefix generic names to avoid collisions (e.g. RoomName instead of Name)
+        # V5 IDENTIFIER: Prefix generic names to avoid C# collisions
         if clean_name in GENERIC_NAMES or clean_name.lower() in ["type", "instance", "symbol", "family"]:
             base_prop_name = singular_cat + clean_name
         else:
@@ -108,7 +104,6 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             
         property_map[unique_id] = final_name
         
-        # C. Generate C# Field (V5: Nullable, but with Default if assigned)
         attr_prefix = f"[{', '.join(attrs)}]\n    " if attrs else ""
         param_fields.append(f"/// Filter value for {rule['name']}")
         
@@ -116,7 +111,6 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         has_val = val is not None and str(val).strip() != ""
 
         if is_revit_type:
-            # Revit objects (Family, Symbol) don't get hardcoded defaults in the Params class
             param_fields.append(f"{attr_prefix}public {csharp_type}? {final_name} {{ get; set; }}")
         else:
             actual_type = "string?" if storage == "String" else f"{csharp_type}?"
@@ -237,17 +231,15 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
         if uid not in seen_col_ids: 
             seen_col_ids.add(uid)
             reporting_columns.append(col)
-            
-            c_name = re.sub(r'\s+\[.*?\]$', '', col["name"]).replace(" ", "")
-            c_name = re.sub(r'[^a-zA-Z0-9]', '', c_name)
-            if c_name in GENERIC_NAMES or c_name in RESERVED_PROPS:
-                c_name = singular_cat + c_name
-            column_name_map[uid] = c_name
 
     for col in reporting_columns:
         raw_name = col["name"]; p_name = re.sub(r'\s+\[.*?\]$', '', raw_name)
         uid = f"{col.get('builtin_id') or col['name']}_{col.get('is_type')}"
-        p_id = column_name_map[uid]
+        
+        # C# Local Identifier (Unique)
+        clean_id_name = p_name.replace(" ", "")
+        clean_id_name = re.sub(r'[^a-zA-Z0-9]', '', clean_id_name)
+        p_id = singular_cat + clean_id_name
         
         storage = col["storage_type"]; unit = col.get("unit")
         if p_name == "Family Name": val_expr = "el.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM)?.AsValueString() ?? el.Name"
@@ -267,9 +259,34 @@ def generate_query_code(category_name: str, root_group: Dict[str, Any], selected
             val_expr = f"{getter}?.AsValueString() ?? \"-\""
         logic_parts.append(f"        object {p_id}Value = {val_expr};")
 
+    # V5: SMART HEADER PROJECTION
+    # We map unique C# identifiers back to original Revit parameter names.
+    # We only include the default "Name" column if the user hasn't explicitly added a "Name" parameter.
+    has_explicit_name = any(re.sub(r'\s+\[.*?\]$', '', c["name"]) == "Name" for c in reporting_columns)
+    
+    projection_fields = ['            ["Id"] = el.Id.Value,']
+    if not has_explicit_name:
+        projection_fields.append('            ["Name"] = el.Name,')
+        
+    used_headers = {"Id", "Name"}
+    for col in reporting_columns:
+        header = col["name"]
+        p_name = re.sub(r'\s+\[.*?\]$', '', header)
+        clean_id_name = p_name.replace(" ", "")
+        clean_id_name = re.sub(r'[^a-zA-Z0-9]', '', clean_id_name)
+        p_id = singular_cat + clean_id_name
+        
+        # Deduplicate headers (e.g. Comments on Instance vs Comments on Type)
+        final_header = header
+        if final_header in used_headers and not (final_header == "Name" and has_explicit_name):
+            final_header = f"{header} ({'Type' if col.get('is_type') else 'Instance'})"
+        used_headers.add(final_header)
+        
+        projection_fields.append(f'            ["{final_header}"] = {p_id}Value,')
+
     logic_parts.extend([
-        "", "        return (object)new {", "            Id = el.Id.Value, el.Name,",
-        *[f"            {column_name_map[f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}']} = {column_name_map[f'{c.get('builtin_id') or c['name']}_{c.get('is_type')}']}Value," for c in reporting_columns],
+        "", "        return (object)new Dictionary<string, object> {",
+        "\n".join(projection_fields),
         "        };", "    })];", "    Table(results);", "}", "\n// 3. Helpers"
     ])
 
