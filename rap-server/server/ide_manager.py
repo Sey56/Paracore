@@ -94,16 +94,28 @@ def set_active_ide_session(script_path: str):
     save_ide_sessions()
 
 def remove_active_ide_session(script_path: str):
-    normalized_path = script_path.lower().replace('\\', '/')
-    if normalized_path in ACTIVE_IDE_SESSIONS:
-        del ACTIVE_IDE_SESSIONS[normalized_path]
-        # Stop watcher
-        if normalized_path in _watchers:
-            try:
-                _observer.unschedule(_watchers[normalized_path])
-                del _watchers[normalized_path]
-            except: pass
-        save_ide_sessions()
+    """
+    V5 AGGRESSIVE: Purges all active watchers for a path and its subdirectories.
+    Ensures Windows file handles are truly released before renames/deletes.
+    """
+    target = script_path.lower().replace('\\', '/')
+    
+    # 1. Clear session state
+    if target in ACTIVE_IDE_SESSIONS:
+        del ACTIVE_IDE_SESSIONS[target]
+    
+    # 2. Aggressive Watcher Purge: find any watcher that matches or is a sub-path
+    keys_to_remove = [k for k in _watchers.keys() if k == target or k.startswith(target + "/")]
+    
+    for key in keys_to_remove:
+        try:
+            logger.info(f"[IDE Manager] Stopping orphaned watcher for: {key}")
+            _observer.unschedule(_watchers[key])
+            del _watchers[key]
+        except Exception as e:
+            logger.error(f"[IDE Manager] Failed to unschedule {key}: {e}")
+            
+    save_ide_sessions()
 
 def is_ide_session_active(script_path: str) -> bool:
     normalized_path = script_path.lower().replace('\\', '/')

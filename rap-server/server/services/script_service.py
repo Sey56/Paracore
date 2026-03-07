@@ -661,7 +661,48 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
         raise HTTPException(status_code=500, detail=str(e))
 
 def get_script_manifest_logic(path: str): return grpc_client.get_script_manifest(path)
-def rename_script_logic(old_path: str, new_name: str): return grpc_client.rename_script(old_path, new_name)
+def rename_script_logic(old_path: str, new_name: str):
+    """
+    V5 ROBUST: Renames a script while ensuring all file handles (Watchdog + Sync) are released first.
+    Includes a retry loop to handle Windows lazy file-lock release.
+    """
+    path = resolve_script_path(old_path)
+    try:
+        # 1. Surgical Unlock: Release gRPC and Python watchdog handles
+        from ide_manager import remove_active_ide_session, set_active_ide_session
+        
+        # Stop gRPC FIRST (often holds more stubborn locks)
+        try: grpc_client.stop_sync_session(path)
+        except: pass
+        
+        # Stop aggressive Python watchdog
+        try: remove_active_ide_session(path)
+        except: pass
+
+        # 2. Resilient Execution: Give Windows more time (1.0s) and retry if needed
+        time.sleep(1.0)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # Perform actual rename via Revit Addin
+                res = grpc_client.rename_script(old_path, new_name)
+                
+                # If successful, re-register new path for 'Always-On' sync
+                if res.get("is_success") and res.get("new_path"):
+                    try: set_active_ide_session(res["new_path"])
+                    except: pass
+                
+                return res
+            except Exception as e:
+                if "denied" in str(e).lower() and attempt < max_retries - 1:
+                    time.sleep(0.5) # Wait for Windows handle release
+                    continue
+                raise
+    except Exception as e:
+        msg = str(e)
+        if "denied" in msg.lower():
+            msg = "Access denied by Windows. Please close the workspace in VS Code and try again."
+        raise HTTPException(status_code=423, detail=msg)
 def initialize_source_logic(path: str, description: str = ""):
     if not os.path.exists(path): os.makedirs(path, exist_ok=True)
     marker = os.path.join(path, ".paracore")

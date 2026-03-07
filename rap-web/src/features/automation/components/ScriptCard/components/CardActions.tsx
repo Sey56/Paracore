@@ -203,18 +203,20 @@ export const CardActions: React.FC<CardActionsProps> = ({
                   </>
                 )}
 
-                <button
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect();
-                    handleStartRename(e);
-                  }}
-                >
-                  <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
-                  {isGuard ? "Rename Sentinel" : "Rename Script"}
-                </button>
-                {!isProtectedTool && (
+                {!showExitFocus && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect();
+                      handleStartRename(e);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faICursor} className="mr-2 w-4" />
+                    {isGuard ? "Rename Sentinel" : "Rename Script"}
+                  </button>
+                )}
+                {!isProtectedTool && !showExitFocus && (
                   <button
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                     onClick={(e) => {
@@ -242,20 +244,24 @@ export const CardActions: React.FC<CardActionsProps> = ({
                     Edit Metadata
                   </button>
                 )}
-                <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-                <button
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center font-bold"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect();
-                    setDeleteError(null);
-                    setShowDeleteModal(true);
-                    setShowMenu(false);
-                  }}
-                >
-                  <FontAwesomeIcon icon={faTrash} className="mr-2 w-4" />
-                  {isGuard ? "Delete Sentinel" : "Delete Script"}
-                </button>
+                {!showExitFocus && (
+                  <>
+                    <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                    <button
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center font-bold"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect();
+                        setDeleteError(null);
+                        setShowDeleteModal(true);
+                        setShowMenu(false);
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faTrash} className="mr-2 w-4" />
+                      {isGuard ? "Delete Sentinel" : "Delete Script"}
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>

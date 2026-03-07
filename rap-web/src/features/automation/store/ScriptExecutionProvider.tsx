@@ -108,6 +108,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   );
 
   const lastKnownModifiedRef = useRef<Record<string, number>>({});
+  const isRenamingRef = useRef(false);
 
   // Reset logic when source/team/user changes
   useEffect(() => {
@@ -270,6 +271,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   // V5: SMART EXISTENCE GUARD
   useEffect(() => {
     if (selectedScript) {
+      // V5 FIX: If we are currently renaming, ignore existence checks to avoid premature deselection
+      if (isRenamingRef.current) return;
+
       const isSameScript = (s1: Script, s2: Script) => {
         if (!s1 || !s2) return false;
         if (s1.id === s2.id) return true;
@@ -316,9 +320,20 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     return runScript(script, finalParameters, shouldUpdateGlobalState);
   }, [runScript]);
 
+  const handleRenameScript = useCallback(async (script: Script, newName: string) => {
+    isRenamingRef.current = true;
+    const result = await renameScript(script, newName);
+    if (result.success && result.newScript) {
+        // V5 FIX: Immediately re-select the new identity to maintain focus and UI state
+        await setSelectedScript(result.newScript, 'replace');
+    }
+    isRenamingRef.current = false;
+    return result;
+  }, [renameScript, setSelectedScript]);
+
   const contextValue = useMemo(() => ({
-    selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, runScript: handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, renameScript, resetScriptParameters, buildTool,
-  }), [selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, renameScript, resetScriptParameters, buildTool]);
+    selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, runScript: handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, renameScript: handleRenameScript, resetScriptParameters, buildTool,
+  }), [selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, handleRenameScript, resetScriptParameters, buildTool]);
 
   return <ScriptExecutionContext.Provider value={contextValue}>{children}</ScriptExecutionContext.Provider>;
 };
