@@ -21,6 +21,7 @@ export interface StructuredOutput {
 
 interface StructuredOutputViewerProps {
   item: StructuredOutput;
+  isDashboard?: boolean;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -284,7 +285,7 @@ const TableView: React.FC<{
 
 // --- Main Component ---
 
-export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ item }) => {
+export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ item, isDashboard = false }) => {
   const { showNotification } = useNotifications();
   const { selectedScript } = useScriptExecution();
   const chartId = useId().replace(/:/g, '');
@@ -417,24 +418,83 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
   if (item.type === 'table') {
     return (
-      <div className="flex-1 w-full min-h-0">
+      <div className={isDashboard ? 'w-full max-h-[500px]' : 'flex-1 w-full min-h-0'}>
         <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
         <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} actions={<TableToolbarActions />} />
       </div>
     );
   }
 
+  // --- Rechart Export Logic ---
+  const handleExportChart = async (format: 'svg' | 'csv') => {
+    try {
+      if (format === 'csv') {
+        const csvContent = [Object.keys(parsedData[0]).join(','), ...parsedData.map((row: any) => Object.values(row).join(','))].join('\n');
+        const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `chart_data_${new Date().toISOString().slice(0, 10)}.csv` });
+        if (filePath) { await writeTextFile(filePath, csvContent); showNotification('Chart data exported!', 'success'); }
+      } else if (format === 'svg') {
+        const svgElement = document.querySelector(`#${chartId} svg`);
+        if (!svgElement) return;
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const filePath = await save({ filters: [{ name: 'SVG', extensions: ['svg'] }], defaultPath: `chart_${new Date().toISOString().slice(0, 10)}.svg` });
+        if (filePath) { await writeTextFile(filePath, svgData); showNotification('Chart exported as SVG!', 'success'); }
+      }
+    } catch { showNotification(`Failed to export chart as ${format.toUpperCase()}.`, "error"); }
+  };
+
+  const ChartToolbar = () => (
+    <div className="absolute top-2 right-2 z-10 flex gap-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-lg border border-slate-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button onClick={() => handleExportChart('csv')} className="p-1 px-2 text-slate-500 hover:text-green-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export Data to CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
+      <button onClick={() => handleExportChart('svg')} className="p-1 px-2 text-slate-500 hover:text-blue-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export as SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
+    </div>
+  );
+
   return (
-    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 group relative">
+      {(item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && <ChartToolbar />}
       {item.type === 'chart-bar' && (
-        <div id={chartId} className="h-[300px] w-full relative">
+        <div id={chartId} className="h-[300px] w-full relative px-2">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={parsedData}><CartesianGrid strokeDasharray="3 3" opacity={0.1} /><XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} /><ChartTooltip content={<CustomChartTooltip />} /><Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} /></BarChart>
+            <BarChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+              <XAxis dataKey="name" fontSize={10} />
+              <YAxis fontSize={10} />
+              <ChartTooltip content={<CustomChartTooltip />} />
+              <Legend />
+              <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      {item.type === 'chart-pie' && (
+        <div id={chartId} className="h-[350px] w-full relative px-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+              <Pie data={parsedData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`} outerRadius={90} fill="#8884d8" dataKey="value">
+                {parsedData.map((_: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+              </Pie>
+              <ChartTooltip content={<CustomPieTooltip />} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      {item.type === 'chart-line' && (
+        <div id={chartId} className="h-[300px] w-full relative px-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+              <XAxis dataKey="name" fontSize={10} />
+              <YAxis fontSize={10} />
+              <ChartTooltip content={<CustomChartTooltip />} />
+              <Legend />
+              <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       )}
       {item.type === 'message' && <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">{parsedData}</p>}
-      {item.type !== 'table' && item.type !== 'chart-bar' && item.type !== 'message' && (
+      {item.type !== 'table' && item.type !== 'chart-bar' && item.type !== 'chart-pie' && item.type !== 'chart-line' && item.type !== 'message' && (
         <pre className="p-3 font-mono text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-auto">
           {JSON.stringify(parsedData, null, 2)}
         </pre>
