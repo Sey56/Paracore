@@ -131,10 +131,10 @@ function AppContent() {
               </div>
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">Closing Paracore</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Undeploying sentinels and closing server...</p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Closing Paracore</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Undeploying sentinels and closing server...</p>
             </div>
-            <div className="flex items-center space-x-2 text-amber-500 dark:text-amber-400 font-black text-xs uppercase tracking-widest justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Shutting down...</span></div>
+            <div className="flex items-center space-x-2 text-amber-500 dark:text-amber-400 text-xs justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Shutting down...</span></div>
           </div>
         </div>
       )}

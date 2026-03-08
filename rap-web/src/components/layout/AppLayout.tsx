@@ -140,10 +140,10 @@ export const AppLayout: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">Deploying Sentinels</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Initializing background monitoring systems.</p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Deploy Sentinels</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">for BIM Quality at the Source.</p>
             </div>
-            <div className="flex items-center space-x-2 text-blue-500 dark:text-blue-400 font-black text-xs uppercase tracking-widest justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Scanning sources...</span></div>
+            <div className="flex items-center space-x-2 text-blue-500 dark:text-blue-400 text-xs justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Preparing environment...</span></div>
           </div>
         </div>
       )}
