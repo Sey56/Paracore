@@ -123,7 +123,7 @@ function AppContent() {
       {/* Graceful Shutdown Gate Overlay */}
       {isShuttingDown && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-black/60 backdrop-blur-[100px] transition-all duration-300">
-          <div className="flex flex-col items-center space-y-8 p-12 rounded-[3rem] bg-white/60 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-600/50 shadow-2xl max-w-sm text-center backdrop-blur-md">
+          <div className="flex flex-col items-center justify-center space-y-8 w-88 aspect-square rounded-[3rem] bg-white/60 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-600/50 shadow-2xl text-center backdrop-blur-md">
             <div className="relative">
               <div className="absolute inset-0 rounded-[2rem] bg-amber-500/20 animate-ping"></div>
               <div className="relative bg-amber-500 rounded-[2rem] p-5 shadow-lg shadow-amber-500/30 dark:shadow-amber-900/40">
