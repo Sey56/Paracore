@@ -440,7 +440,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     const container = document.getElementById(chartId);
     if (!container) return;
     try {
-      // Find the largest SVG in the container (the actual chart, not tiny icon SVGs)
+      // 1. Find the largest SVG in the container (the actual chart)
       const allSvgs = Array.from(container.querySelectorAll('svg')) as unknown as SVGSVGElement[];
       let originalSvg: SVGSVGElement | null = null;
       let maxArea = 0;
@@ -454,18 +454,15 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         return;
       }
       const rect = originalSvg.getBoundingClientRect();
-      let width = rect.width;
-      let height = rect.height;
-      if (!width || !height) {
-        width = parseFloat(originalSvg.getAttribute("width") || "0");
-        height = parseFloat(originalSvg.getAttribute("height") || "0");
-      }
+      const width = rect.width || parseFloat(originalSvg.getAttribute("width") || "0");
+      const height = rect.height || parseFloat(originalSvg.getAttribute("height") || "0");
+
       if (!width || !height) {
         showNotification("Chart has no dimensions to export.", "warning");
         return;
       }
 
-      // Clone the SVG and copy all computed styles for standalone rendering
+      // 2. Clone the SVG and copy all computed styles for standalone rendering
       const clonedSvg = originalSvg.cloneNode(true) as SVGSVGElement;
       clonedSvg.setAttribute("width", width.toString());
       clonedSvg.setAttribute("height", height.toString());
@@ -492,11 +489,63 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         }
       });
 
-      // Wrap in a padded SVG with background color
-      const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      // 3. Coordinate-aware Legend Scraping
       const padding = 20;
+      const legendWrapper = container.querySelector('.recharts-legend-wrapper');
+      const legendItems = legendWrapper ? Array.from(legendWrapper.querySelectorAll('.recharts-legend-item')) : [];
+      let legendG: SVGGElement | null = null;
+      let extraHeight = 0;
+
+      if (legendWrapper && legendItems.length > 0) {
+        const containerRect = container.getBoundingClientRect();
+        const lWrapperRect = legendWrapper.getBoundingClientRect();
+
+        // Calculate legend wrapper pos relative to the chart container
+        const wrapperRelX = lWrapperRect.left - containerRect.left;
+        const wrapperRelY = lWrapperRect.top - containerRect.top;
+
+        legendG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        legendG.setAttribute("transform", `translate(${wrapperRelX + padding}, ${wrapperRelY + padding})`);
+
+        legendItems.forEach((itemEl, idx) => {
+          const itemRect = itemEl.getBoundingClientRect();
+          const itemRelX = itemRect.left - lWrapperRect.left;
+          const itemRelY = itemRect.top - lWrapperRect.top;
+
+          const textEl = itemEl.querySelector('.recharts-legend-item-text');
+          const iconEl = itemEl.querySelector('.recharts-surface path') || itemEl.querySelector('.recharts-surface circle');
+          const color = iconEl ? (window.getComputedStyle(iconEl).fill || COLORS[idx % COLORS.length]) : COLORS[idx % COLORS.length];
+          const label = textEl ? textEl.textContent : `Item ${idx}`;
+
+          const itemG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          itemG.setAttribute("transform", `translate(${itemRelX}, ${itemRelY})`);
+
+          const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          r.setAttribute("width", "12"); r.setAttribute("height", "12");
+          r.setAttribute("fill", color); r.setAttribute("rx", "2");
+          itemG.appendChild(r);
+
+          const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          t.setAttribute("x", "18"); t.setAttribute("y", "10");
+          t.setAttribute("font-family", "Inter, sans-serif"); t.setAttribute("font-size", "11");
+          t.setAttribute("fill", "#64748b");
+          t.textContent = label || '';
+          itemG.appendChild(t);
+
+          legendG!.appendChild(itemG);
+        });
+
+        // Extend canvas if legend is outside chart area
+        if (wrapperRelY + lWrapperRect.height > height) {
+          extraHeight = (wrapperRelY + lWrapperRect.height) - height;
+        }
+      }
+
+      // 4. Wrap everything in a padded SVG with background color
+      const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       const totalW = width + (padding * 2);
-      const totalH = height + (padding * 2);
+      const totalH = height + extraHeight + (padding * 2);
+
       wrapperSvg.setAttribute("width", totalW.toString());
       wrapperSvg.setAttribute("height", totalH.toString());
       wrapperSvg.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
@@ -511,6 +560,8 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       chartG.setAttribute("transform", `translate(${padding}, ${padding})`);
       chartG.appendChild(clonedSvg);
       wrapperSvg.appendChild(chartG);
+
+      if (legendG) wrapperSvg.appendChild(legendG);
 
       const ser = new XMLSerializer();
       let src = ser.serializeToString(wrapperSvg);
