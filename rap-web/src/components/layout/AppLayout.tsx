@@ -70,20 +70,20 @@ export const AppLayout: React.FC = () => {
     return () => { unlisten.then(f => f()); };
   }, [watchdogs, userEditedScriptParameters]);
 
-  const { 
-    isSidebarOpen, 
-    toggleSidebar, 
+  const {
+    isSidebarOpen,
+    toggleSidebar,
     isInspectorOpen,
     toggleInspector,
-    isFloatingCodeViewerOpen, 
-    closeFloatingCodeViewer, 
-    activeMainView, 
+    isFloatingCodeViewerOpen,
+    closeFloatingCodeViewer,
+    activeMainView,
     activeScriptSource,
-    infoModalState, 
-    closeInfoModal, 
-    isLayoutSwapped 
+    infoModalState,
+    closeInfoModal,
+    isLayoutSwapped
   } = useUI();
-  
+
   const isMobile = useBreakpoint();
   const showGate = gateVisible;
 
@@ -131,19 +131,19 @@ export const AppLayout: React.FC = () => {
     <div className="flex flex-col h-screen semantic-bg-panel semantic-text font-sans overflow-hidden">
       {/* Startup Gate Overlay */}
       {showGate && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-[100px] transition-all duration-700">
-          <div className="flex flex-col items-center space-y-8 p-12 rounded-[3rem] bg-white/20 dark:bg-gray-800/20 shadow-2xl max-w-sm text-center backdrop-blur-2xl">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-black/60 backdrop-blur-[100px] transition-all duration-700">
+          <div className="flex flex-col items-center space-y-8 p-12 rounded-[3rem] bg-white/60 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-600/50 shadow-2xl max-w-sm text-center backdrop-blur-md">
             <div className="relative">
               <div className="absolute inset-0 rounded-[2rem] bg-blue-500/20 animate-ping"></div>
-              <div className="relative bg-blue-500 rounded-[2rem] p-5 shadow-lg shadow-blue-500/30">
+              <div className="relative bg-blue-500 rounded-[2rem] p-5 shadow-lg shadow-blue-500/30 dark:shadow-blue-900/40">
                 <FontAwesomeIcon icon={faShieldHeart} className="text-white text-3xl animate-pulse" />
               </div>
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Deploying Sentinels</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Initializing background monitoring systems.</p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">Deploying Sentinels</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Initializing background monitoring systems.</p>
             </div>
-            <div className="flex items-center space-x-2 text-blue-500 font-medium text-sm justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Scanning sources...</span></div>
+            <div className="flex items-center space-x-2 text-blue-500 dark:text-blue-400 font-black text-xs uppercase tracking-widest justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Scanning sources...</span></div>
           </div>
         </div>
       )}

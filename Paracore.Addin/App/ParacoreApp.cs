@@ -41,6 +41,9 @@ namespace Paracore.Addin.App
 
         public Result OnStartup(UIControlledApplication application)
         {
+            // Clear previous session logs first
+            FileLogger.ClearLog();
+
             // Capture Revit version and install path
             RevitVersion = application.ControlledApplication.VersionNumber;
             RevitInstallPath = Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName) ?? RevitInstallPath;
@@ -182,6 +185,7 @@ namespace Paracore.Addin.App
             UpdateButtonState();
 
             FileLogger.Log("=== Paracore Shutdown Complete ===");
+
             return Result.Succeeded;
         }
 

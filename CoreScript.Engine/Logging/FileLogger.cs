@@ -41,6 +41,21 @@ namespace CoreScript.Engine.Logging
             }
         }
 
+        public static void ClearLog()
+        {
+            try
+            {
+                if (File.Exists(logFile))
+                {
+                    File.WriteAllText(logFile, string.Empty);
+                }
+            }
+            catch (Exception)
+            {
+                // Fails silently to avoid blocking Revit
+            }
+        }
+
         // Existing Log method, now calls the new overload
         public static void Log(string message)
         {
