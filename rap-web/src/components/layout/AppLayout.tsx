@@ -128,7 +128,8 @@ export const AppLayout: React.FC = () => {
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen semantic-bg-panel semantic-text font-sans overflow-hidden">
+      {/* Startup Gate Overlay */}
       {showGate && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-[100px] transition-all duration-700">
           <div className="flex flex-col items-center space-y-8 p-12 rounded-[3rem] bg-white/20 dark:bg-gray-800/20 shadow-2xl max-w-sm text-center backdrop-blur-2xl">
@@ -140,7 +141,7 @@ export const AppLayout: React.FC = () => {
             </div>
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Deploying Sentinels</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Initializing background monitoring systems. Manual script execution will be available in a few seconds.</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Initializing background monitoring systems.</p>
             </div>
             <div className="flex items-center space-x-2 text-blue-500 font-medium text-sm justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Scanning sources...</span></div>
           </div>
@@ -158,18 +159,18 @@ export const AppLayout: React.FC = () => {
         <TopBar />
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <div className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} bg-white dark:bg-gray-800 shadow-xl z-30 border-r border-slate-200 dark:border-gray-700`}><Sidebar /></div>
+          <div className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} semantic-bg-panel shadow-xl z-30 border-r border-slate-200 dark:border-gray-700`}><Sidebar /></div>
 
           {/* Main Content Area */}
-          <div id="main-content-area" className="flex flex-col flex-1 bg-white dark:bg-gray-900 isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
+          <div id="main-content-area" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
             <div className="flex flex-1 overflow-hidden w-full max-w-full">
               {isLayoutSwapped ? (
                 <>
                   {activeMainView !== 'playlists' && (
-                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 bg-white dark:bg-gray-800 shadow-lg overflow-hidden min-w-0 border-r border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
+                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 semantic-bg-panel shadow-lg overflow-hidden min-w-0 border-r border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
                   )}
-                  {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-100 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
-                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 bg-white dark:bg-gray-900 ${isMobile ? 'pt-4' : ''}`}>
+                  {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-200/50 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
+                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
@@ -177,14 +178,14 @@ export const AppLayout: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 bg-white dark:bg-gray-900 ${isMobile ? 'pt-4' : ''}`}>
+                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
                   </div>
-                  {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-100 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
+                  {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-200/50 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
                   {activeMainView !== 'playlists' && (
-                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 bg-white dark:bg-gray-800 shadow-lg overflow-hidden min-w-0 border-l border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
+                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 semantic-bg-panel shadow-lg overflow-hidden min-w-0 border-l border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
                   )}
                 </>
               )}
@@ -192,9 +193,9 @@ export const AppLayout: React.FC = () => {
             {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />}
           </div>
           {isMobile && selectedScript && (
-            <div className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ height: '70vh' }}>
+            <div className={`fixed bottom-0 left-0 right-0 semantic-bg-panel border-t border-slate-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ height: '70vh' }}>
               <div className="h-full flex flex-col relative">
-                <button onClick={toggleInspector} className="absolute top-2 right-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"><FontAwesomeIcon icon={faTimes} size="lg" /></button>
+                <button onClick={toggleInspector} className="absolute top-2 right-2 semantic-text-muted hover:text-blue-500"><FontAwesomeIcon icon={faTimes} size="lg" /></button>
                 <div className="flex-1 overflow-y-auto"><div className="p-4 pt-8"><ScriptInspector /></div></div>
               </div>
             </div>

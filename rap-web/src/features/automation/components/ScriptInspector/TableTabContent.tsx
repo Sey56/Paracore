@@ -24,7 +24,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
             ))}
           </div>
         ) : (
-          <p className="text-gray-600 dark:text-gray-400 px-6">
+          <p className="text-slate-600 dark:text-slate-400 px-6">
             No structured output available.
           </p>
         )}

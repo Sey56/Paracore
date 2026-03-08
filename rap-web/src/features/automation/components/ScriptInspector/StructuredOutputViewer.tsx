@@ -73,7 +73,7 @@ const TableView: React.FC<{
 
   const handleMouseDown = (e: React.MouseEvent, key: string) => {
     e.stopPropagation(); e.preventDefault();
-    const startWidth = columnWidths[key] || 150; 
+    const startWidth = columnWidths[key] || 150;
     resizingRef.current = { key, startX: e.pageX, startWidth };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -160,12 +160,12 @@ const TableView: React.FC<{
       <div className="flex items-center gap-2 shrink-0 px-1">
         <div className="relative flex-grow min-w-0">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <FontAwesomeIcon icon={faSearch} className="text-gray-400" />
+            <FontAwesomeIcon icon={faSearch} className="text-slate-400" />
           </div>
           <input
             type="text"
             placeholder="Filter table..."
-            className="pl-10 block w-full text-sm border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/20 p-2 border transition-all"
+            className="pl-10 block w-full text-sm border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 p-2 border transition-all"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
           />
@@ -174,9 +174,9 @@ const TableView: React.FC<{
       </div>
 
       {/* VIEWPORT SCROLL HUB: Handles both axes internally */}
-      <div className="flex-1 w-full min-h-0 overflow-auto border border-gray-200 dark:border-gray-700 rounded-xl shadow-inner bg-gray-50/20 dark:bg-black/10 custom-scrollbar max-h-[calc(100vh-140px)]">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs border-collapse">
-          <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-30 shadow-sm">
+      <div className="flex-1 w-full min-h-0 overflow-auto border border-slate-200 dark:border-slate-700 rounded-xl shadow-inner bg-slate-50/20 dark:bg-black/10 custom-scrollbar max-h-[calc(100vh-140px)]">
+        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs border-collapse">
+          <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-30 shadow-sm">
             <tr>
               {headers.map((header, index) => {
                 const width = columnWidths[header] || (header.toLowerCase() === 'id' ? 80 : 150);
@@ -185,7 +185,7 @@ const TableView: React.FC<{
                     key={index}
                     scope="col"
                     style={{ width, minWidth: width }}
-                    className="relative px-3 py-2.5 text-left font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none group border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+                    className="relative px-3 py-2.5 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none group border-r border-slate-200 dark:border-slate-700 last:border-r-0"
                   >
                     <Tooltip text={header}>
                       <div className="flex items-center space-x-1" onClick={() => {
@@ -194,7 +194,7 @@ const TableView: React.FC<{
                         setSortConfig({ key: header, direction });
                       }}>
                         <span className="truncate block max-w-[200px]">{header}</span>
-                        <span className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 shrink-0">
+                        <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0">
                           {sortConfig?.key === header ? (
                             sortConfig.direction === 'asc' ? <FontAwesomeIcon icon={faSortUp} /> : <FontAwesomeIcon icon={faSortDown} />
                           ) : (
@@ -209,7 +209,7 @@ const TableView: React.FC<{
               })}
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800">
             {filteredData.map((row: Record<string, unknown>, rowIndex: number) => {
               const idColKey = Object.keys(row).find(k => ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase()));
               const hasId = !!idColKey;
@@ -227,7 +227,7 @@ const TableView: React.FC<{
                       <td
                         key={colIndex}
                         style={{ width }}
-                        className={`px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 border-r border-gray-100 dark:border-gray-800 last:border-0 ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
+                        className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 last:border-0 ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
                         onClick={() => {
                           if (isIdColumn && idColKey) {
                             const val = row[idColKey];
@@ -241,7 +241,7 @@ const TableView: React.FC<{
                           <input
                             autoFocus
                             type="text"
-                            className="w-full bg-white dark:bg-gray-800 border-b-2 border-blue-500 focus:outline-none text-gray-900 dark:text-gray-100 px-1 py-0.5"
+                            className="w-full bg-white dark:bg-slate-800 border-b-2 border-blue-500 focus:outline-none text-slate-900 dark:text-slate-100 px-1 py-0.5"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={async () => {
@@ -433,9 +433,9 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           </ResponsiveContainer>
         </div>
       )}
-      {item.type === 'message' && <p className="text-gray-800 dark:text-gray-200 text-sm whitespace-pre-wrap">{parsedData}</p>}
+      {item.type === 'message' && <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">{parsedData}</p>}
       {item.type !== 'table' && item.type !== 'chart-bar' && item.type !== 'message' && (
-        <pre className="p-3 font-mono text-xs text-gray-800 dark:text-gray-200 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-auto">
+        <pre className="p-3 font-mono text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-auto">
           {JSON.stringify(parsedData, null, 2)}
         </pre>
       )}

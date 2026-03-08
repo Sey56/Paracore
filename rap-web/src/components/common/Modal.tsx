@@ -50,18 +50,18 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
         onClick={onClose}
       >
         <div
-          className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-gray-100 dark:border-gray-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden max-h-[92vh] ${show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
+          className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-slate-100 dark:border-slate-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden max-h-[92vh] ${show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
             }`}
           style={size === 'full' ? { height: '90vh' } : {}}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           {!hideHeader && (
-            <div className="flex justify-between items-center px-6 py-3 border-b border-gray-100 dark:border-gray-800 shrink-0">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{title}</h2>
+            <div className="flex justify-between items-center px-6 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{title}</h2>
               <button
                 onClick={onClose}
-                className="group p-2 rounded-full text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="group p-2 rounded-full text-slate-400 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -54,8 +54,9 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
       minHeight={200}
       bounds="window"
       className={`
-        rounded-lg border shadow-2xl
-        ${theme === 'dark' ? 'dark bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}
+        rounded-lg border
+        ${theme === 'dark' || theme === 'midnight' || theme === 'eclipse' ? 'dark bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}
+        ${theme === 'eclipse' ? 'shadow-[0_0_40px_rgba(0,0,0,0.6)] border-slate-700/40' : 'shadow-2xl'}
       `}
       style={{ zIndex: 1000 }}
       dragHandleClassName="handle"
@@ -65,12 +66,12 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
       onResizeStop={onDragResizeStop}
     >
       <div
-        className="handle absolute top-0 left-0 right-0 h-11 flex items-center justify-between px-4 cursor-move bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700/60 rounded-t-lg"
+        className="handle absolute top-0 left-0 right-0 h-11 flex items-center justify-between px-4 cursor-move bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/60 rounded-t-lg"
       >
-        <span className="font-bold text-gray-700 dark:text-gray-200 text-sm tracking-tight">{script.name}</span>
+        <span className="font-bold text-slate-700 dark:text-slate-200 text-sm tracking-tight">{script.name}</span>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-red-500 transition-colors p-1"
+          className="text-slate-400 hover:text-red-500 transition-colors p-1"
           title="Close Viewer"
         >
           <FontAwesomeIcon icon={faTimes} />
@@ -81,7 +82,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
           <CodeViewer script={script} />
         </Suspense>
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-16 p-4 border-t border-gray-300 dark:border-gray-600 flex justify-end items-center bg-gray-200 dark:bg-gray-700">
+      <div className="absolute bottom-0 left-0 right-0 h-16 p-4 border-t border-slate-300 dark:border-slate-700 flex justify-end items-center bg-slate-100 dark:bg-slate-800">
         <button
           onClick={() => editScript(script)}
           disabled={!canEdit}

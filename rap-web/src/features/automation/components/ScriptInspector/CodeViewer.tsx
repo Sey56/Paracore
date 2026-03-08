@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import csharp from 'react-syntax-highlighter/dist/esm/languages/prism/csharp';
-import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, atomDark, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Script } from '@/types/scriptModel';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { useTheme } from '@/context/ThemeContext';
@@ -18,7 +18,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const syntaxHighlighterStyle = theme === 'dark' ? vscDarkPlus : vs;
+  const syntaxHighlighterStyle = theme === 'eclipse' ? atomDark : (theme === 'midnight' || theme === 'dark' ? vscDarkPlus : vs);
 
   // We no longer need local sourceCode state or local polling/focus logic here.
   // ScriptExecutionProvider now handles the background polling and updates combinedScriptContent.
@@ -44,11 +44,11 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
   }
 
   if (!combinedScriptContent) {
-    return <div className="text-center py-10 text-gray-400">Loading code content...</div>;
+    return <div className="text-center py-10 text-slate-400">Loading code content...</div>;
   }
 
   return (
-    <div className="overflow-auto w-full min-w-0 h-full bg-gray-100 dark:bg-gray-900">
+    <div className="overflow-auto w-full min-w-0 h-full bg-slate-100 dark:bg-slate-900 code-viewer-override">
       <SyntaxHighlighter
         key={theme}
         language="csharp"
@@ -56,6 +56,12 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
         customStyle={{
           backgroundColor: 'transparent',
           wordBreak: 'break-word',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        }}
+        codeTagProps={{
+          style: {
+            fontFamily: 'inherit'
+          }
         }}
         showLineNumbers
         wrapLines={true}

@@ -1,82 +1,96 @@
 @import "tailwindcss";
 
-@theme {
-  /* Midnight (Existing bluish dark) variables are mostly handled by standard slate/blue utilities */
-  
-  /* Eclipse (Atom One Dark inspired) overrides */
-  --color-eclipse-bg: #282c34;
-  --color-eclipse-surface: #21252b;
-  --color-eclipse-border: #181a1f;
-  --color-eclipse-text: #abb2bf;
+/* ── THEME TOKENS ── */
+:root {
+  /* Default: Light Mode */
+  --bg-ground: #f8fafc;
+  --bg-panel: #ffffff;
+  --bg-card: #f1f5f9;
+  /* Inset Gray */
+  --bg-card-focus: #ffffff;
+  /* Selected Pop */
+  --bg-group: rgba(241, 245, 249, 0.5);
+  --bg-group-focus: #ffffff;
+  --border-main: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --accent: #3b82f6;
 }
 
-/* ── Eclipse Theme Overrides ── */
-/* When both .dark and .eclipse are present, we surgically override specific surfaces */
+/* Midnight Mode (The Beloved Bluish Dark) */
+.dark:not(.eclipse) {
+  --bg-ground: #0f172a;
+  --bg-panel: #1e293b;
+  --bg-card: #1e293b;
+  /* SOLID - Restores Metallic */
+  --bg-card-focus: #334155;
+  /* SOLID */
+  --bg-group: rgba(15, 23, 42, 0.3);
+  /* TRANSPARENT - Fixes Whitewash */
+  --bg-group-focus: rgba(30, 41, 59, 0.4);
+  --border-main: #334155;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent: #60a5fa;
+}
 
+/* Eclipse Pro (Modern Neutral Matte) */
 .dark.eclipse {
-  background-color: var(--color-eclipse-bg) !important;
-  color: var(--color-eclipse-text) !important;
+  --bg-ground: #282c34;
+  --bg-panel: #21252b;
+  --bg-card: #21252b;
+  /* SOLID Matte */
+  --bg-card-focus: #2c313a;
+  /* SOLID Matte */
+  --bg-group: #21252b;
+  /* SOLID Matte */
+  --bg-group-focus: #2c313a;
+  /* SOLID Matte */
+  --border-main: #181a1f;
+  --text-main: #abb2bf;
+  --text-muted: #5c6370;
+  --accent: #61afef;
+
+  /* Override Tailwind v4 slate palette for Eclipse to stop "Midnight" mixing */
+  --color-slate-900: #282c34;
+  --color-slate-800: #21252b;
+  --color-slate-700: #2c313a;
+  --color-slate-600: #3e4451;
+  --color-slate-500: #5c6370;
+  --color-slate-400: #7f848e;
+  --color-slate-300: #9da5b4;
+  --color-slate-200: #abb2bf;
+  --color-slate-100: #c8ccd4;
+  --color-slate-50: #d7dae0;
+
+  /* Override blue to match Atom One Dark */
+  --color-blue-600: #4b9ee6;
+  --color-blue-500: #61afef;
+  --color-blue-400: #7ebcf2;
 }
 
-/* App Backgrounds */
-.dark.eclipse #main-content-area,
-.dark.eclipse .tab-content,
-.dark.eclipse .bg-slate-900\/80,
-.dark.eclipse .bg-slate-900\/60,
-.dark.eclipse .bg-slate-900 {
-  background-color: var(--color-eclipse-bg) !important;
+/* ── APPLY GLOBAL SEMANTICS ── */
+html {
+  background-color: var(--bg-ground) !important;
+  color: var(--text-main) !important;
 }
 
-/* Surface Backgrounds (Cards, Sidebar, Inspector) */
-.dark.eclipse .bg-gray-800,
-.dark.eclipse .bg-slate-800,
-.dark.eclipse .bg-slate-800\/40,
-.dark.eclipse .bg-slate-800\/50,
-.dark.eclipse .bg-slate-900\/50,
-.dark.eclipse .bg-slate-950,
-.dark.eclipse .sidebar-bg,
-.dark.eclipse .inspector-bg {
-  background-color: var(--color-eclipse-surface) !important;
+.semantic-bg-ground {
+  background-color: var(--bg-ground) !important;
 }
 
-/* Borders */
-.dark.eclipse .border-slate-800,
-.dark.eclipse .border-gray-700,
-.dark.eclipse .border-slate-700,
-.dark.eclipse .border-slate-700\/50,
-.dark.eclipse .border-slate-800\/50 {
-  border-color: var(--color-eclipse-border) !important;
+.semantic-bg-panel {
+  background-color: var(--bg-panel) !important;
 }
 
-/* Special Case: Script Cards in Eclipse */
-.dark.eclipse .script-card {
-  background-color: var(--color-eclipse-surface) !important;
-  border-color: var(--color-eclipse-border) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+.semantic-border {
+  border-color: var(--border-main) !important;
 }
 
-.dark.eclipse .script-card:hover {
-  border-color: #61afef !important; /* Atom Blue Accent */
+.semantic-text {
+  color: var(--text-main) !important;
 }
 
-.dark.eclipse .selected-card {
-  background-color: var(--color-eclipse-bg) !important;
-  border-color: #61afef !important;
-}
-
-/* Text Overrides */
-.dark.eclipse .text-slate-100,
-.dark.eclipse .text-white {
-  color: #ffffff !important;
-}
-
-.dark.eclipse .text-slate-200,
-.dark.eclipse .text-slate-300,
-.dark.eclipse .text-slate-400 {
-  color: var(--color-eclipse-text) !important;
-}
-
-.dark.eclipse .text-blue-400,
-.dark.eclipse .text-blue-500 {
-  color: #61afef !important;
+.semantic-text-muted {
+  color: var(--text-muted) !important;
 }

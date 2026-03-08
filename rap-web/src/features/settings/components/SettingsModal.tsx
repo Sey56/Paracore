@@ -118,8 +118,8 @@ const SettingsModal: React.FC = () => {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Cloud Feature Only</h3>
-                    <p className="text-gray-600 dark:text-gray-400 max-w-xs mx-auto">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Cloud Feature Only</h3>
+                    <p className="text-slate-600 dark:text-slate-400 max-w-xs mx-auto">
                       Settings for {activeTab} are only available when signed in with a Cloud Team account.
                     </p>
                   </div>

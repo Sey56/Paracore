@@ -28,17 +28,17 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   const buttonColorClass = {
     red: "bg-red-600 hover:bg-red-700 focus:ring-red-500",
     blue: "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500",
-    default: "bg-gray-600 hover:bg-gray-700 focus:ring-gray-500", // Changed default to gray for less prominence
+    default: "bg-slate-600 hover:bg-slate-700 focus:ring-slate-500", // Changed default to slate for less prominence
   }[confirmButtonColor];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className="space-y-4">
-        <p className="text-gray-700 dark:text-gray-300">{message}</p>
+        <p className="text-slate-700 dark:text-slate-300">{message}</p>
         <div className="flex justify-end space-x-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-600 rounded-md hover:bg-slate-300 dark:hover:bg-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Cancel
           </button>

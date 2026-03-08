@@ -50,16 +50,16 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
 
         <div className="space-y-4">
           <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border-l-4 border-red-500 flex gap-4 items-center">
-             <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500 text-2xl" />
-             <div>
-                <h3 className="text-red-800 dark:text-red-400 font-black uppercase tracking-tighter">Extreme Caution Required</h3>
-                <p className="text-xs text-red-700 dark:text-red-500/80 font-medium">This action cannot be undone.</p>
-             </div>
+            <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500 text-2xl" />
+            <div>
+              <h3 className="text-red-800 dark:text-red-400 font-black uppercase tracking-tighter">Extreme Caution Required</h3>
+              <p className="text-xs text-red-700 dark:text-red-500/80 font-medium">This action cannot be undone.</p>
+            </div>
           </div>
 
-          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-            You are about to permanently delete the {isGuard ? 'sentinel' : 'script'} <span className="font-bold text-gray-900 dark:text-white">"{displayName}"</span>. 
-            This will destroy the entire automation folder, including your <span className="text-red-600 dark:text-red-400 font-bold underline">source code</span> inside <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded italic text-[11px]">Scripts/</code>.
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            You are about to permanently delete the {isGuard ? 'sentinel' : 'script'} <span className="font-bold text-slate-900 dark:text-white">"{displayName}"</span>.
+            This will destroy the entire automation folder, including your <span className="text-red-600 dark:text-red-400 font-bold underline">source code</span> inside <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded italic text-[11px]">Scripts/</code>.
           </p>
 
           <button
@@ -90,7 +90,7 @@ export const DeleteScriptModal: React.FC<DeleteScriptModalProps> = ({
           <button
             onClick={onClose}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+            className="px-4 py-2 text-sm font-bold text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
           >
             Go Back
           </button>
