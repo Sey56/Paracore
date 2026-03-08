@@ -425,27 +425,133 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     );
   }
 
-  // --- Rechart Export Logic ---
-  const handleExportChart = async (format: 'svg' | 'csv') => {
+  // --- V3 Proven Export Logic (DOM cloning + computed style transfer) ---
+  const handleDownloadChartCsv = useCallback(async () => {
     try {
-      if (format === 'csv') {
-        const csvContent = [Object.keys(parsedData[0]).join(','), ...parsedData.map((row: any) => Object.values(row).join(','))].join('\n');
-        const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `chart_data_${new Date().toISOString().slice(0, 10)}.csv` });
-        if (filePath) { await writeTextFile(filePath, csvContent); showNotification('Chart data exported!', 'success'); }
-      } else if (format === 'svg') {
-        const svgElement = document.querySelector(`#${chartId} svg`);
-        if (!svgElement) return;
-        const svgData = new XMLSerializer().serializeToString(svgElement);
-        const filePath = await save({ filters: [{ name: 'SVG', extensions: ['svg'] }], defaultPath: `chart_${new Date().toISOString().slice(0, 10)}.svg` });
-        if (filePath) { await writeTextFile(filePath, svgData); showNotification('Chart exported as SVG!', 'success'); }
+      const data = Array.isArray(parsedData) ? parsedData : [parsedData];
+      if (data.length === 0) return;
+      const csvContent = [Object.keys(data[0]).join(','), ...data.map((row: any) => Object.values(row).map((val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+      const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `chart_data_${new Date().toISOString().slice(0, 10)}.csv` });
+      if (filePath) { await writeTextFile(filePath, csvContent); showNotification('Chart data exported as CSV.', 'success'); }
+    } catch { showNotification("Failed to export CSV data.", "error"); }
+  }, [parsedData, showNotification]);
+
+  const handleDownloadSvg = useCallback(async () => {
+    const container = document.getElementById(chartId);
+    if (!container) return;
+    try {
+      // Find the largest SVG in the container (the actual chart, not tiny icon SVGs)
+      const allSvgs = Array.from(container.querySelectorAll('svg')) as unknown as SVGSVGElement[];
+      let originalSvg: SVGSVGElement | null = null;
+      let maxArea = 0;
+      for (const svg of allSvgs) {
+        const rect = svg.getBoundingClientRect();
+        const area = rect.width * rect.height;
+        if (area > maxArea) { maxArea = area; originalSvg = svg; }
       }
-    } catch { showNotification(`Failed to export chart as ${format.toUpperCase()}.`, "error"); }
-  };
+      if (!originalSvg || maxArea < 1000) {
+        showNotification("Could not find the chart image to export.", "warning");
+        return;
+      }
+      const rect = originalSvg.getBoundingClientRect();
+      let width = rect.width;
+      let height = rect.height;
+      if (!width || !height) {
+        width = parseFloat(originalSvg.getAttribute("width") || "0");
+        height = parseFloat(originalSvg.getAttribute("height") || "0");
+      }
+      if (!width || !height) {
+        showNotification("Chart has no dimensions to export.", "warning");
+        return;
+      }
+
+      // Clone the SVG and copy all computed styles for standalone rendering
+      const clonedSvg = originalSvg.cloneNode(true) as SVGSVGElement;
+      clonedSvg.setAttribute("width", width.toString());
+      clonedSvg.setAttribute("height", height.toString());
+      clonedSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      clonedSvg.style.overflow = "visible";
+
+      const originalNodes = originalSvg.querySelectorAll('*');
+      const clonedNodes = clonedSvg.querySelectorAll('*');
+      const stylesToCopy = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'transform', 'transform-origin', 'visibility', 'display'];
+
+      const rootComputed = window.getComputedStyle(originalSvg);
+      stylesToCopy.forEach(s => { const v = rootComputed.getPropertyValue(s); if (v) clonedSvg.style.setProperty(s, v); });
+
+      originalNodes.forEach((orig, idx) => {
+        const clone = clonedNodes[idx];
+        if (clone instanceof Element) {
+          const comp = window.getComputedStyle(orig);
+          stylesToCopy.forEach(s => {
+            const v = comp.getPropertyValue(s);
+            if (v && (clone instanceof HTMLElement || clone instanceof SVGElement)) {
+              (clone as HTMLElement | SVGElement).style.setProperty(s, v);
+            }
+          });
+        }
+      });
+
+      // Wrap in a padded SVG with background color
+      const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const padding = 20;
+      let dataForLegend: { name?: string }[] = [];
+      try { dataForLegend = JSON.parse(item.data); } catch { /* ignore */ }
+      const legendHeight = (item.type === 'chart-pie' && Array.isArray(dataForLegend)) ? 40 : 0;
+      const totalW = width + (padding * 2);
+      const totalH = height + legendHeight + (padding * 2);
+      wrapperSvg.setAttribute("width", totalW.toString());
+      wrapperSvg.setAttribute("height", totalH.toString());
+      wrapperSvg.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
+      wrapperSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+      const bgColor = window.getComputedStyle(container).backgroundColor || '#ffffff';
+      const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bgRect.setAttribute("width", "100%"); bgRect.setAttribute("height", "100%"); bgRect.setAttribute("fill", bgColor);
+      wrapperSvg.appendChild(bgRect);
+
+      const chartG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      chartG.setAttribute("transform", `translate(${padding}, ${padding})`);
+      chartG.appendChild(clonedSvg);
+      wrapperSvg.appendChild(chartG);
+
+      // Add manual legend for pie charts in the exported SVG
+      if (item.type === 'chart-pie' && legendHeight > 0) {
+        const legendG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const legendX = totalW - 120 - padding;
+        const rowH = 20;
+        const startY = padding + (height / 2) - ((dataForLegend.length * rowH) / 2);
+        legendG.setAttribute("transform", `translate(${legendX}, ${startY})`);
+        dataForLegend.forEach((entry, idx) => {
+          const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          r.setAttribute("y", (idx * rowH).toString()); r.setAttribute("width", "10"); r.setAttribute("height", "10");
+          r.setAttribute("fill", COLORS[idx % COLORS.length]);
+          legendG.appendChild(r);
+          const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          t.setAttribute("x", "15"); t.setAttribute("y", (idx * rowH + 10).toString());
+          t.setAttribute("font-family", "sans-serif"); t.setAttribute("font-size", "11");
+          t.setAttribute("fill", COLORS[idx % COLORS.length]); t.setAttribute("dominant-baseline", "middle");
+          t.textContent = entry.name || `Item ${idx}`;
+          legendG.appendChild(t);
+        });
+        wrapperSvg.appendChild(legendG);
+      }
+
+      const ser = new XMLSerializer();
+      let src = ser.serializeToString(wrapperSvg);
+      if (!src.match(/^<svg[^>]+"http:\/\/www\.w3\.org\/1999\/xlink"/)) {
+        src = src.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+      }
+
+      const filePath = await save({ filters: [{ name: 'SVG', extensions: ['svg'] }], defaultPath: `chart_${item.type}_${new Date().toISOString().slice(0, 10)}.svg` });
+      if (filePath) { await writeTextFile(filePath, src); showNotification('Chart exported as SVG.', 'success'); }
+    } catch { showNotification("Failed to export chart image.", "error"); }
+  }, [chartId, item.data, item.type, showNotification]);
 
   const ChartToolbar = () => (
     <div className="absolute top-2 right-2 z-10 flex gap-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-lg border border-slate-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity">
-      <button onClick={() => handleExportChart('csv')} className="p-1 px-2 text-slate-500 hover:text-green-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export Data to CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-      <button onClick={() => handleExportChart('svg')} className="p-1 px-2 text-slate-500 hover:text-blue-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export as SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
+      <button onClick={handleDownloadChartCsv} className="p-1 px-2 text-slate-500 hover:text-green-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export Data to CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
+      <button onClick={handleDownloadSvg} className="p-1 px-2 text-slate-500 hover:text-blue-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export as SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
     </div>
   );
 
