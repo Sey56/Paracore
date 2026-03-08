@@ -98,7 +98,7 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <div className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 z-30 relative">
+    <div className="h-16 bg-white/80 dark:bg-slate-800/60 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between px-4 z-30 relative">
       {/* 1. Logo & Sidebar Toggle Cluster */}
       <div className="flex items-center gap-4">
         <button
@@ -119,14 +119,14 @@ export const TopBar: React.FC = () => {
         <button
           onClick={toggleTheme}
           className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90
-            ${theme === 'light' ? 'text-amber-500 hover:bg-amber-50' : 
-              theme === 'midnight' ? 'text-blue-400 hover:bg-blue-900/20' : 
-              'text-slate-400 hover:bg-slate-800'}`}
+            ${theme === 'light' ? 'text-amber-500 hover:bg-amber-50' :
+              theme === 'midnight' ? 'text-blue-400 hover:bg-blue-900/20' :
+                'text-slate-400 hover:bg-slate-800'}`}
           title={`Currently in ${theme.charAt(0).toUpperCase() + theme.slice(1)} Mode - Click to switch`}
         >
-          <FontAwesomeIcon 
-            icon={theme === 'light' ? faSun : theme === 'midnight' ? faMoon : faCircleHalfStroke} 
-            className="text-sm" 
+          <FontAwesomeIcon
+            icon={theme === 'light' ? faSun : theme === 'midnight' ? faMoon : faCircleHalfStroke}
+            className="text-sm"
           />
         </button>
       </div>
@@ -261,7 +261,7 @@ export const TopBar: React.FC = () => {
               <span className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.2em]">Developed By</span>
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Paras Codarch (Ethiopia)</span>
             </div>
-            
+
             <button
               onClick={() => shell.open('https://sey56.github.io/paracore-help')}
               className="w-full py-3.5 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.25em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
