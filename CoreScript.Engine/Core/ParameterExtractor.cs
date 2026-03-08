@@ -268,7 +268,15 @@ namespace CoreScript.Engine.Core
             }
             return false;
         }
-        private bool IsSimpleStatic(ExpressionSyntax e) => e == null || e is LiteralExpressionSyntax || e is CollectionExpressionSyntax;
+        private bool IsSimpleStatic(ExpressionSyntax e)
+        {
+            if (e == null || e is LiteralExpressionSyntax) return true;
+            if (e is CollectionExpressionSyntax col)
+            {
+                return col.Elements.All(el => el is ExpressionElementSyntax exp && exp.Expression is LiteralExpressionSyntax);
+            }
+            return false;
+        }
         
         private string ExtractString(ExpressionSyntax e) 
         {
@@ -297,7 +305,7 @@ namespace CoreScript.Engine.Core
         }
 
         private List<string> ExtractStringsFromInitializer(ExpressionSyntax e) {
-            if (e is CollectionExpressionSyntax col) return col.Elements.Select(el => ExtractString(((ExpressionElementSyntax)el).Expression)).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            if (e is CollectionExpressionSyntax col) return col.Elements.OfType<ExpressionElementSyntax>().Select(el => ExtractString(el.Expression)).Where(s => !string.IsNullOrEmpty(s)).ToList();
             if (e is ImplicitArrayCreationExpressionSyntax imp) return imp.Initializer.Expressions.Select(ExtractString).Where(s => !string.IsNullOrEmpty(s)).ToList();
             string s = ExtractString(e); return string.IsNullOrEmpty(s) ? new List<string>() : (s.Contains(",") ? s.Split(',').Select(x => x.Trim()).ToList() : new List<string> { s });
         }
