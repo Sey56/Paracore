@@ -91,12 +91,26 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
   };
 
   const handleArmAll = async () => {
-    const allScripts = Object.values(rootScripts).flatMap(r => r.data).map(s => {
-      return {
-        path: s.absolutePath,
-        parameters: userEditedScriptParameters[s.id] || s.parameters
-      };
-    });
+    const seenPaths = new Set<string>();
+    const allScripts = Object.values(rootScripts)
+      .flatMap(r => r.data)
+      .filter(s => {
+        const isSentinel = s.metadata?.isWatchdog === true || (s.metadata as any)?.is_watchdog === true;
+        const isBinarySentinel = s.absolutePath?.endsWith('.wtool');
+        return isSentinel || isBinarySentinel;
+      })
+      .filter(s => {
+        const path = normalize(s.absolutePath);
+        if (seenPaths.has(path)) return false;
+        seenPaths.add(path);
+        return true;
+      })
+      .map(s => {
+        return {
+          path: s.absolutePath,
+          parameters: userEditedScriptParameters[s.id] || s.parameters
+        };
+      });
     if (allScripts.length === 0) {
       showNotification("No sentinels found to deploy.", "warning");
       return;
