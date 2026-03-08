@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faCircleHalfStroke, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -115,13 +115,19 @@ export const TopBar: React.FC = () => {
           </h1>
         </div>
 
-        {/* Theme Toggle - Integrated */}
+        {/* Theme Toggle - Integrated Three-Way Cycle */}
         <button
           onClick={toggleTheme}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-90"
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90
+            ${theme === 'light' ? 'text-amber-500 hover:bg-amber-50' : 
+              theme === 'midnight' ? 'text-blue-400 hover:bg-blue-900/20' : 
+              'text-slate-400 hover:bg-slate-800'}`}
+          title={`Currently in ${theme.charAt(0).toUpperCase() + theme.slice(1)} Mode - Click to switch`}
         >
-          <FontAwesomeIcon icon={theme === 'dark' ? faSun : faMoon} className="text-sm" />
+          <FontAwesomeIcon 
+            icon={theme === 'light' ? faSun : theme === 'midnight' ? faMoon : faCircleHalfStroke} 
+            className="text-sm" 
+          />
         </button>
       </div>
 

@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  /* Midnight (Existing bluish dark) variables are mostly handled by standard slate/blue utilities */
+  
+  /* Eclipse (Atom One Dark inspired) overrides */
+  --color-eclipse-bg: #282c34;
+  --color-eclipse-surface: #21252b;
+  --color-eclipse-border: #181a1f;
+  --color-eclipse-text: #abb2bf;
+}
+
+/* ── Eclipse Theme Overrides ── */
+/* When both .dark and .eclipse are present, we surgically override specific surfaces */
+
+.dark.eclipse {
+  background-color: var(--color-eclipse-bg) !important;
+  color: var(--color-eclipse-text) !important;
+}
+
+/* App Backgrounds */
+.dark.eclipse #main-content-area,
+.dark.eclipse .tab-content,
+.dark.eclipse .bg-slate-900\/80,
+.dark.eclipse .bg-slate-900\/60,
+.dark.eclipse .bg-slate-900 {
+  background-color: var(--color-eclipse-bg) !important;
+}
+
+/* Surface Backgrounds (Cards, Sidebar, Inspector) */
+.dark.eclipse .bg-gray-800,
+.dark.eclipse .bg-slate-800,
+.dark.eclipse .bg-slate-800\/40,
+.dark.eclipse .bg-slate-800\/50,
+.dark.eclipse .bg-slate-900\/50,
+.dark.eclipse .bg-slate-950,
+.dark.eclipse .sidebar-bg,
+.dark.eclipse .inspector-bg {
+  background-color: var(--color-eclipse-surface) !important;
+}
+
+/* Borders */
+.dark.eclipse .border-slate-800,
+.dark.eclipse .border-gray-700,
+.dark.eclipse .border-slate-700,
+.dark.eclipse .border-slate-700\/50,
+.dark.eclipse .border-slate-800\/50 {
+  border-color: var(--color-eclipse-border) !important;
+}
+
+/* Special Case: Script Cards in Eclipse */
+.dark.eclipse .script-card {
+  background-color: var(--color-eclipse-surface) !important;
+  border-color: var(--color-eclipse-border) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark.eclipse .script-card:hover {
+  border-color: #61afef !important; /* Atom Blue Accent */
+}
+
+.dark.eclipse .selected-card {
+  background-color: var(--color-eclipse-bg) !important;
+  border-color: #61afef !important;
+}
+
+/* Text Overrides */
+.dark.eclipse .text-slate-100,
+.dark.eclipse .text-white {
+  color: #ffffff !important;
+}
+
+.dark.eclipse .text-slate-200,
+.dark.eclipse .text-slate-300,
+.dark.eclipse .text-slate-400 {
+  color: var(--color-eclipse-text) !important;
+}
+
+.dark.eclipse .text-blue-400,
+.dark.eclipse .text-blue-500 {
+  color: #61afef !important;
+}

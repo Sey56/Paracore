@@ -10,3 +10,4 @@ body,
 }
 
 @import "tailwindcss";
+@import "./themes.css";
