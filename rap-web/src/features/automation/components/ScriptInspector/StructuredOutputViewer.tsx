@@ -495,11 +495,8 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       // Wrap in a padded SVG with background color
       const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       const padding = 20;
-      let dataForLegend: { name?: string }[] = [];
-      try { dataForLegend = JSON.parse(item.data); } catch { /* ignore */ }
-      const legendHeight = (item.type === 'chart-pie' && Array.isArray(dataForLegend)) ? 40 : 0;
       const totalW = width + (padding * 2);
-      const totalH = height + legendHeight + (padding * 2);
+      const totalH = height + (padding * 2);
       wrapperSvg.setAttribute("width", totalW.toString());
       wrapperSvg.setAttribute("height", totalH.toString());
       wrapperSvg.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
@@ -514,28 +511,6 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       chartG.setAttribute("transform", `translate(${padding}, ${padding})`);
       chartG.appendChild(clonedSvg);
       wrapperSvg.appendChild(chartG);
-
-      // Add manual legend for pie charts in the exported SVG
-      if (item.type === 'chart-pie' && legendHeight > 0) {
-        const legendG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        const legendX = totalW - 120 - padding;
-        const rowH = 20;
-        const startY = padding + (height / 2) - ((dataForLegend.length * rowH) / 2);
-        legendG.setAttribute("transform", `translate(${legendX}, ${startY})`);
-        dataForLegend.forEach((entry, idx) => {
-          const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-          r.setAttribute("y", (idx * rowH).toString()); r.setAttribute("width", "10"); r.setAttribute("height", "10");
-          r.setAttribute("fill", COLORS[idx % COLORS.length]);
-          legendG.appendChild(r);
-          const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          t.setAttribute("x", "15"); t.setAttribute("y", (idx * rowH + 10).toString());
-          t.setAttribute("font-family", "sans-serif"); t.setAttribute("font-size", "11");
-          t.setAttribute("fill", COLORS[idx % COLORS.length]); t.setAttribute("dominant-baseline", "middle");
-          t.textContent = entry.name || `Item ${idx}`;
-          legendG.appendChild(t);
-        });
-        wrapperSvg.appendChild(legendG);
-      }
 
       const ser = new XMLSerializer();
       let src = ser.serializeToString(wrapperSvg);
