@@ -21,8 +21,6 @@ import { Role } from '@/features/auth';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import SettingsModal from '@/features/settings/components/SettingsModal';
 import TeamManagementModal from '@/features/settings/components/TeamManagementModal';
-import { AddFolderModal } from '@/features/automation/components/AddFolderModal';
-import { AddCategoryModal } from '@/features/automation/components/AddCategoryModal';
 import { AgentView } from "@/features/agent/components/AgentView";
 import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
 
@@ -30,27 +28,20 @@ export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
   const { selectedScript, setSelectedScript, runScript, userEditedScriptParameters } = useScriptExecution();
   const { isArmingWatchdogs, watchdogs } = useWatchdog();
-  // Startup gate — branded entrance on every app launch.
-  // Always shows for 2.5s, re-triggers on sign-in transitions too.
   const [gateVisible, setGateVisible] = useState(true);
 
-  // Detect sign-in transition (false → true)
   const prevAuthRef = useRef(isAuthenticated);
   useEffect(() => {
-    if (!prevAuthRef.current && isAuthenticated) {
-      setGateVisible(true);
-    }
+    if (!prevAuthRef.current && isAuthenticated) setGateVisible(true);
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
-  // Hold gate visible for exactly 2.5s whenever it activates
   useEffect(() => {
     if (!gateVisible) return;
     const timer = setTimeout(() => setGateVisible(false), 2500);
     return () => clearTimeout(timer);
   }, [gateVisible]);
 
-  // Cross-window event listener: handle 'table' action from detached Sentinel Control
   const normalize = (p: string) => (p || "").replace(/\\/g, '/').toLowerCase().trim();
   useEffect(() => {
     const unlisten = listen<{ scriptPath: string; action: string }>('sentinel-table-action', async (event) => {
@@ -61,58 +52,40 @@ export const AppLayout: React.FC = () => {
         if (s) {
           await setSelectedScript(s, 'user');
           let execParams = userEditedScriptParameters[s.id] || s.parameters || [];
-
-          // Get snapshot params from watchdog
           const watchdog = watchdogs.find(w => normalize(w.script_path) === normalize(scriptPath));
           if (watchdog?.parameters_json) {
             try {
               const parsed = JSON.parse(watchdog.parameters_json);
               if (Array.isArray(parsed)) execParams = parsed;
               else if (typeof parsed === 'object' && parsed !== null) {
-                if (execParams.length > 0) {
-                  execParams = execParams.map((p: ScriptParameter) =>
-                    parsed[p.name] !== undefined ? { ...p, value: parsed[p.name] } : p
-                  );
-                }
+                if (execParams.length > 0) execParams = execParams.map((p: ScriptParameter) => parsed[p.name] !== undefined ? { ...p, value: parsed[p.name] } : p);
               }
-            } catch { /* ignore parse error */ }
+            } catch { }
           }
-
-          const paramAction: ScriptParameter = {
-            name: '__sentinel_action__', value: action, type: 'string',
-            defaultValue: action, required: true, options: []
-          };
+          const paramAction: ScriptParameter = { name: '__sentinel_action__', value: action, type: 'string', defaultValue: action, required: true, options: [] };
           runScript(s, [paramAction, ...execParams]);
         }
-      } catch (err) {
-        console.error("[AppLayout] Failed to handle sentinel-table-action:", err);
-      }
+      } catch (err) { console.error("[AppLayout] Failed to handle sentinel-table-action:", err); }
     });
     return () => { unlisten.then(f => f()); };
   }, [watchdogs, userEditedScriptParameters]);
 
-  const showGate = gateVisible;
-  const { addCustomScriptFolder } = useScripts();
-  const {
-    isSidebarOpen,
-    toggleSidebar,
+  const { 
+    isSidebarOpen, 
+    toggleSidebar, 
     isInspectorOpen,
     toggleInspector,
-    isSettingsModalOpen,
-    isTeamManagementModalOpen, // Access isTeamManagementModalOpen
-    closeTeamManagementModal, // Access closeTeamManagementModal
-
-    activeScriptSource, // Access activeScriptSource
-    isFloatingCodeViewerOpen,
-    closeFloatingCodeViewer,
-    activeMainView, // Access activeMainView
-    infoModalState, // Access global InfoModal state
-    closeInfoModal, // Access closeInfoModal function
-    isLayoutSwapped,
+    isFloatingCodeViewerOpen, 
+    closeFloatingCodeViewer, 
+    activeMainView, 
+    activeScriptSource,
+    infoModalState, 
+    closeInfoModal, 
+    isLayoutSwapped 
   } = useUI();
-
+  
   const isMobile = useBreakpoint();
-  const [activeTab, setActiveTab] = useState<'scripts' | 'summary'>('scripts'); // New state for active tab
+  const showGate = gateVisible;
 
   const [galleryWidth, setGalleryWidth] = useState(() => {
     const saved = localStorage.getItem('paracore_gallery_width');
@@ -124,38 +97,19 @@ export const AppLayout: React.FC = () => {
   });
   const [isResizing, setIsResizing] = useState(false);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsResizing(true);
-    e.preventDefault();
-  };
+  const handleMouseDown = (e: React.MouseEvent) => { setIsResizing(true); e.preventDefault(); };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing) return;
-
     const container = document.getElementById("main-content-area");
     if (!container) return;
-
     const containerRect = container.getBoundingClientRect();
-    let newInspectorWidth: number;
-    let newGalleryWidth: number;
-
-    if (isLayoutSwapped) {
-      newInspectorWidth = (e.clientX - containerRect.left) / containerRect.width;
-      newGalleryWidth = 1 - newInspectorWidth;
-    } else {
-      newInspectorWidth = (containerRect.right - e.clientX) / containerRect.width;
-      newGalleryWidth = 1 - newInspectorWidth;
-    }
-
-    const minGalleryWidth = 0.3;
-    const maxGalleryWidth = 0.75;
-    const minInspectorWidth = 0.25;
-    const maxInspectorWidth = 0.7;
-
-    if (newGalleryWidth >= minGalleryWidth && newGalleryWidth <= maxGalleryWidth &&
-      newInspectorWidth >= minInspectorWidth && newInspectorWidth <= maxInspectorWidth) {
-      setGalleryWidth(newGalleryWidth);
-      setInspectorWidth(newInspectorWidth);
+    let niw: number;
+    if (isLayoutSwapped) niw = (e.clientX - containerRect.left) / containerRect.width;
+    else niw = (containerRect.right - e.clientX) / containerRect.width;
+    if (niw >= 0.25 && niw <= 0.7) {
+      setInspectorWidth(niw);
+      setGalleryWidth(1 - niw);
     }
   }, [isResizing, isLayoutSwapped]);
 
@@ -167,23 +121,14 @@ export const AppLayout: React.FC = () => {
     }
   }, [isResizing, galleryWidth, inspectorWidth]);
 
-  React.useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    } else {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
+  useEffect(() => {
+    if (isResizing) { document.addEventListener('mousemove', handleMouseMove); document.addEventListener('mouseup', handleMouseUp); }
+    else { document.removeEventListener('mousemove', handleMouseMove); document.removeEventListener('mouseup', handleMouseUp); }
+    return () => { document.removeEventListener('mousemove', handleMouseMove); document.removeEventListener('mouseup', handleMouseUp); };
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 font-sans overflow-hidden">
-      {/* --- ARMING OVERLAY (Startup Gate) --- */}
       {showGate && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-[100px] transition-all duration-700">
           <div className="flex flex-col items-center space-y-8 p-12 rounded-[3rem] bg-white/20 dark:bg-gray-800/20 shadow-2xl max-w-sm text-center backdrop-blur-2xl">
@@ -193,18 +138,11 @@ export const AppLayout: React.FC = () => {
                 <FontAwesomeIcon icon={faShieldHeart} className="text-white text-3xl animate-pulse" />
               </div>
             </div>
-
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Deploying Sentinels</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                Initializing background monitoring systems. Manual script execution will be available in a few seconds.
-              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Initializing background monitoring systems. Manual script execution will be available in a few seconds.</p>
             </div>
-
-            <div className="flex items-center space-x-2 text-blue-500 font-medium text-sm justify-center">
-              <FontAwesomeIcon icon={faSpinner} spin />
-              <span>Scanning sources...</span>
-            </div>
+            <div className="flex items-center space-x-2 text-blue-500 font-medium text-sm justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Scanning sources...</span></div>
           </div>
         </div>
       )}
@@ -214,69 +152,24 @@ export const AppLayout: React.FC = () => {
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
       <FloatingActionButton />
 
-      {selectedScript && (
-        <FloatingCodeViewer
-          script={selectedScript}
-          isOpen={isFloatingCodeViewerOpen}
-          onClose={closeFloatingCodeViewer}
-        />
-      )}
+      {selectedScript && <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />}
 
       <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <TopBar />
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <div
-            className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} bg-gray-50/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg z-30 border-t border-gray-200 dark:border-gray-700`}
-          >
-            <Sidebar />
-          </div>
+          <div className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} bg-white dark:bg-gray-800 shadow-xl z-30 border-r border-slate-200 dark:border-gray-700`}><Sidebar /></div>
 
           {/* Main Content Area */}
-          <div
-            id="main-content-area"
-            className="flex flex-col flex-1 bg-gray-100 dark:bg-gray-900 isolate min-w-0"
-            onClick={() => {
-              if (isSidebarOpen) {
-                toggleSidebar();
-              }
-            }}
-          >
+          <div id="main-content-area" className="flex flex-col flex-1 bg-white dark:bg-gray-900 isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
             <div className="flex flex-1 overflow-hidden w-full max-w-full">
-              {/* Left/Right Panels based on layout swap */}
               {isLayoutSwapped ? (
                 <>
-                  {/* Inspector Panel (Swapped to Left) */}
                   {activeMainView !== 'playlists' && (
-                    <div 
-                      style={{ 
-                        width: `calc(${inspectorWidth * 100}% - 4px)`, 
-                        flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
-                        maxWidth: `calc(${inspectorWidth * 100}% - 4px)`
-                      }} 
-                      className="hidden lg:block p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-hidden min-w-0 border-r border-gray-200 dark:border-gray-700"
-                    >
-                      <ScriptInspector />
-                    </div>
+                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 bg-white dark:bg-gray-800 shadow-lg overflow-hidden min-w-0 border-r border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
                   )}
-
-                  {/* Resizer */}
-                  {activeMainView !== 'playlists' && (
-                    <div
-                      className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
-                      onMouseDown={handleMouseDown}
-                    ></div>
-                  )}
-
-                  {/* Main Content Area (Swapped to Right) */}
-                  <div 
-                    style={{ 
-                      width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, 
-                      flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`,
-                      maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`
-                    }} 
-                    className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''}`}
-                  >
+                  {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-100 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
+                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 bg-white dark:bg-gray-900 ${isMobile ? 'pt-4' : ''}`}>
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
@@ -284,62 +177,25 @@ export const AppLayout: React.FC = () => {
                 </>
               ) : (
                 <>
-                  {/* Main Content Area (Original Left) */}
-                  <div 
-                    style={{ 
-                      width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, 
-                      flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`,
-                      maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`
-                    }} 
-                    className={`overflow-y-auto p-4 lg:p-6 min-w-0 ${isMobile ? 'pt-4' : ''}`}
-                  >
+                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 bg-white dark:bg-gray-900 ${isMobile ? 'pt-4' : ''}`}>
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
                   </div>
-
-                  {/* Resizer */}
+                  {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-100 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
                   {activeMainView !== 'playlists' && (
-                    <div
-                      className="w-2 bg-gray-300 dark:bg-gray-700 cursor-ew-resize flex-shrink-0"
-                      onMouseDown={handleMouseDown}
-                    ></div>
-                  )}
-
-                  {/* Inspector Panel (Original Right) */}
-                  {activeMainView !== 'playlists' && (
-                    <div 
-                      style={{ 
-                        width: `calc(${inspectorWidth * 100}% - 4px)`, 
-                        flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
-                        maxWidth: `calc(${inspectorWidth * 100}% - 4px)`
-                      }} 
-                      className="hidden lg:block p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg overflow-hidden min-w-0"
-                    >
-                      <ScriptInspector />
-                    </div>
+                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 bg-white dark:bg-gray-800 shadow-lg overflow-hidden min-w-0 border-l border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
                   )}
                 </>
               )}
             </div>
-            {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />} {/* Render GitStatusPanel here */}
+            {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />}
           </div>
-          {/* Mobile Inspector */}
           {isMobile && selectedScript && (
-            <div
-              className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`}
-              style={{ height: '70vh' }}
-            >
+            <div className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ height: '70vh' }}>
               <div className="h-full flex flex-col relative">
-                {/* Close button positioned absolutely at top right */}
-                <button onClick={toggleInspector} className="absolute top-2 right-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white">
-                  <FontAwesomeIcon icon={faTimes} size="lg" />
-                </button>
-                <div className="flex-1 overflow-y-auto">
-                  <div className="p-4 pt-8">
-                    <ScriptInspector />
-                  </div>
-                </div>
+                <button onClick={toggleInspector} className="absolute top-2 right-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"><FontAwesomeIcon icon={faTimes} size="lg" /></button>
+                <div className="flex-1 overflow-y-auto"><div className="p-4 pt-8"><ScriptInspector /></div></div>
               </div>
             </div>
           )}

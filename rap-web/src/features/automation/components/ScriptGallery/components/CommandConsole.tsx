@@ -62,7 +62,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
         />
         <input
           type="text"
-          placeholder="Filter automation library..."
+          placeholder="Search gallery..."
           className="w-full pl-7 pr-4 py-2 bg-transparent text-[14px] font-bold text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-all border-b-2 border-transparent focus:border-blue-500/30"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}

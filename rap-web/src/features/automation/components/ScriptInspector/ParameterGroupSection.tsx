@@ -41,7 +41,7 @@ export const ParameterGroupSection: React.FC<ParameterGroupSectionProps> = ({
         <div ref={containerRef} className={`rounded-xl mb-4 w-full transition-all duration-300 border
             ${isExpanded
                 ? 'bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 shadow-xl'
-                : 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700'}`}>
+                : 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 shadow-sm dark:shadow-none'}`}>
             {/* Header */}
             <div
                 className={`px-5 py-3 cursor-pointer flex items-center justify-between select-none transition-all group/groupheader ${isExpanded ? 'border-b border-slate-100 dark:border-slate-800' : ''}`}
