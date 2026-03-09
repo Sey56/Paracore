@@ -107,7 +107,23 @@ namespace CoreScript.Engine.Core
                 if (aN.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0) p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
                 if (aN.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0) p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
                 if (aN.Contains("EnabledWhen")) { p.EnabledWhenParam = ExtractString(attr.ArgumentList.Arguments[0].Expression); p.EnabledWhenValue = attr.ArgumentList.Arguments[1].Expression.ToString().Trim('"', '\''); }
-                if (aN == "Select") p.SelectionType = (attr.ArgumentList.Arguments[0].Expression as MemberAccessExpressionSyntax)?.Name.Identifier.Text ?? "Element";
+                if (aN == "Select")
+                {
+                    if (attr.ArgumentList == null || attr.ArgumentList.Arguments.Count == 0)
+                    {
+                        p.SelectionType = "Element";
+                    }
+                    else
+                    {
+                        var arg = attr.ArgumentList.Arguments[0].Expression;
+                        if (arg is MemberAccessExpressionSyntax ma) p.SelectionType = ma.Name.Identifier.Text;
+                        else if (arg is LiteralExpressionSyntax lit)
+                        {
+                            p.SelectionType = "Element";
+                            p.RevitElementCategory = ExtractString(lit);
+                        }
+                    }
+                }
                 
                 // Handle [Confirm("TEXT")] by generating a strict regex pattern
                 if (aN.Contains("Confirm") && attr.ArgumentList?.Arguments.Count > 0)
@@ -166,6 +182,8 @@ namespace CoreScript.Engine.Core
             else if (baseT == "bool") { p.Type = "boolean"; p.DefaultValueJson = "false"; }
             else if (baseT.Contains("XYZ")) { p.Type = "xyz"; p.DefaultValueJson = JsonSerializer.Serialize("0,0,0"); p.SelectionType = "Point"; }
             else if (baseT.Contains("Reference")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Element"; }
+            else if (baseT.Contains("Face")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Face"; }
+            else if (baseT.Contains("Edge")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Edge"; }
             else if (baseT.StartsWith("List<") || baseT.Contains("[]"))
             {
                 p.Type = "string"; p.MultiSelect = true; p.DefaultValueJson = "[]";
@@ -180,6 +198,12 @@ namespace CoreScript.Engine.Core
                     else { p.IsRevitElement = true; p.RevitElementType = baseT; p.Type = "reference"; p.DefaultValueJson = "null"; }
                 }
                 else { p.Type = "enum"; p.DefaultValueJson = JsonSerializer.Serialize(""); }
+            }
+
+            // Auto-inference for Revit Selection Filters ("One Thing Flip")
+            if (!string.IsNullOrEmpty(p.SelectionType) && p.SelectionType == "Element" && !string.IsNullOrEmpty(p.RevitElementType) && string.IsNullOrEmpty(p.RevitElementCategory))
+            {
+                p.RevitElementCategory = p.RevitElementType;
             }
 
             var members = paramsClass.Members;

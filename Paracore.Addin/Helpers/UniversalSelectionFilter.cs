@@ -33,7 +33,11 @@ namespace Paracore.Addin.Helpers
 
         public bool AllowReference(Reference reference, XYZ position)
         {
-            return false;
+            // If selecting Face/Edge, we check if the element it belongs to is allowed
+            // Note: We need a Document to resolve the Element from the Reference.
+            // Since ISelectionFilter doesn't provide the Document, we rely on AllowElement
+            // for most cases. However, for some PickObject overloads, this is critical.
+            return true; 
         }
     }
 }

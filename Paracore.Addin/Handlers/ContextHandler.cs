@@ -228,11 +228,22 @@ namespace Paracore.Addin.Handlers
                             XYZ point = uidoc.Selection.PickPoint("Pick a point");
                             return $"{point.X},{point.Y},{point.Z}";
                         }
-                        else
-                        {
-                            var reference = uidoc.Selection.PickObject(Autodesk.Revit.UI.Selection.ObjectType.Element, $"Pick {request.SelectionType}");
+                        
+                        // Resolve Selection Type
+                        var objType = Autodesk.Revit.UI.Selection.ObjectType.Element;
+                        if (request.SelectionType.Equals("Face", StringComparison.OrdinalIgnoreCase)) objType = Autodesk.Revit.UI.Selection.ObjectType.Face;
+                        else if (request.SelectionType.Equals("Edge", StringComparison.OrdinalIgnoreCase)) objType = Autodesk.Revit.UI.Selection.ObjectType.Edge;
+
+                        // Resolve Filter
+                        var (categoryId, classType) = ResolveFilter(uidoc.Document, request.CategoryFilter);
+                        var filter = (categoryId != null || classType != null) ? new UniversalSelectionFilter(categoryId, classType) : null;
+
+                        var reference = uidoc.Selection.PickObject(objType, filter, $"Pick {request.SelectionType} {request.CategoryFilter}");
+                        
+                        if (objType == Autodesk.Revit.UI.Selection.ObjectType.Element)
                             return reference.ElementId.Value.ToString();
-                        }
+                        
+                        return reference.ConvertToStableRepresentation(uidoc.Document);
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return "CANCELLED"; }
                 });
@@ -242,6 +253,27 @@ namespace Paracore.Addin.Handlers
             }
             catch (Exception ex) { response.ErrorMessage = ex.Message; }
             return response;
+        }
+
+        private (ElementId? CategoryId, Type? ClassType) ResolveFilter(Document doc, string filter)
+        {
+            if (string.IsNullOrEmpty(filter)) return (null, null);
+
+            // 1. Try BuiltInCategory (Stable ID)
+            if (Enum.TryParse<BuiltInCategory>(filter, true, out var bic)) return (new ElementId(bic), null);
+            if (!filter.StartsWith("OST_") && Enum.TryParse<BuiltInCategory>("OST_" + filter, true, out bic)) return (new ElementId(bic), null);
+
+            // 2. Try Revit Class Type (e.g. Wall, Floor)
+            var revitType = typeof(Element).Assembly.GetType("Autodesk.Revit.DB." + filter);
+            if (revitType != null) return (null, revitType);
+
+            // 3. Fallback: Search categories by display name (Language dependent)
+            foreach (Category cat in doc.Settings.Categories)
+            {
+                if (cat.Name.Equals(filter, StringComparison.OrdinalIgnoreCase)) return (cat.Id, null);
+            }
+
+            return (null, null);
         }
 
         public async Task<GetCategoryParametersResponse> GetCategoryParameters(GetCategoryParametersRequest request)  

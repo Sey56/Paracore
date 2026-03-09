@@ -56,9 +56,22 @@ namespace CoreScript.Engine.Globals
     public class SelectAttribute : Attribute 
     {
         public SelectionType Type { get; }
-        public SelectAttribute(SelectionType type = SelectionType.Element) 
+        public string? Category { get; set; }
+
+        public SelectAttribute() 
+        { 
+            Type = SelectionType.Element; 
+        }
+
+        public SelectAttribute(SelectionType type) 
         { 
             Type = type; 
+        }
+
+        public SelectAttribute(string category)
+        {
+            Type = SelectionType.Element;
+            Category = category;
         }
     }
 
