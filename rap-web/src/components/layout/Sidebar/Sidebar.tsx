@@ -206,12 +206,25 @@ export const Sidebar = () => {
         try {
           showNotification("Scanning for script sources...", "info");
           const discoveredSources: string[] = await invoke('discover_script_sources', { path: selected });
+          
+          if (discoveredSources.length === 0) {
+            showNotification("This folder is not empty and is not a Paracore source. Select an empty folder or a valid source.", "error");
+            return;
+          }
+
+          // Successfully found existing sources OR it's an initialization candidate (the root itself)
           if (discoveredSources.length > 0) {
-            await addCustomScriptFolders(discoveredSources);
-            setActiveScriptSource({ type: 'local', path: discoveredSources[0] });
-          } else {
-            setFolderToInit(selected);
-            setIsInitModalOpen(true);
+            const isInitCandidate = discoveredSources.length === 1 && discoveredSources[0] === selected;
+            
+            if (isInitCandidate) {
+              setFolderToInit(selected);
+              setIsInitModalOpen(true);
+            } else {
+              // Successfully found existing sources
+              await addCustomScriptFolders(discoveredSources);
+              setActiveScriptSource({ type: 'local', path: discoveredSources[0] });
+              showNotification(`Loaded ${discoveredSources.length} script source(s).`, "success");
+            }
           }
         } catch (err) {
           console.error("Discovery failed:", err);
@@ -361,15 +374,6 @@ export const Sidebar = () => {
           setActiveScriptSource={setActiveScriptSource}
           customScriptFolders={customScriptFolders}
           onAddExisting={handleAddCustomFolder}
-          onInitNew={async () => {
-            if (window.__TAURI__) {
-              const selected = await open({ directory: true, multiple: false });
-              if (typeof selected === 'string') {
-                setFolderToInit(selected);
-                setIsInitModalOpen(true);
-              }
-            }
-          }}
           onClear={() => handleOpenClearConfirmModal('local-folders')}
           onUnload={handleOpenRemoveModal}
         />

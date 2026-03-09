@@ -98,12 +98,13 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <div className="h-16 bg-white/80 dark:bg-slate-800/60 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between px-4 z-30 relative">
+    <div className="h-16 bg-white/80 dark:bg-slate-800/60 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between px-4 z-40 relative tooltip-bottom">
       {/* 1. Logo & Sidebar Toggle Cluster */}
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300 active:scale-95"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300 active:scale-95 tooltip-right"
+          title="Toggle Sidebar"
         >
           <FontAwesomeIcon icon={faBars} className="text-lg" />
         </button>
@@ -122,7 +123,7 @@ export const TopBar: React.FC = () => {
             ${theme === 'light' ? 'text-amber-500 hover:bg-amber-50' :
               theme === 'midnight' ? 'text-blue-400 hover:bg-blue-900/20' :
                 'text-slate-400 hover:bg-slate-800'}`}
-          title={`Currently in ${theme.charAt(0).toUpperCase() + theme.slice(1)} Mode - Click to switch`}
+          title={theme.charAt(0).toUpperCase() + theme.slice(1)}
         >
           <FontAwesomeIcon
             icon={theme === 'light' ? faSun : theme === 'midnight' ? faMoon : faCircleHalfStroke}
@@ -207,6 +208,7 @@ export const TopBar: React.FC = () => {
             <button
               onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)}
               className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all"
+              title="Help & About"
             >
               <FontAwesomeIcon icon={faQuestionCircle} />
             </button>
@@ -222,7 +224,12 @@ export const TopBar: React.FC = () => {
             )}
           </div>
 
-          <button onClick={openSettingsModal} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
+          <button 
+            onClick={openSettingsModal} 
+            disabled={!isAuthenticated}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${!isAuthenticated ? 'text-slate-200 dark:text-slate-700 cursor-not-allowed' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            title={isAuthenticated ? "Settings" : "Settings (Sign in to access)"}
+          >
             <FontAwesomeIcon icon={faCog} />
           </button>
         </div>

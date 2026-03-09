@@ -25,15 +25,17 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
       iconColor="text-purple-400"
       defaultExpanded={false}
       actions={
-        <button
-          className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddCategory();
-          }}
-          title="Add Category">
-          <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
-        </button>
+        <div className="tooltip-left">
+          <button
+            className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddCategory();
+            }}
+            title="Add Category">
+            <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
+          </button>
+        </div>
       }
     >
       <ul className="grid grid-cols-1 gap-1 pr-2">
@@ -49,7 +51,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
           >
             <span className="text-sm font-bold truncate leading-none">{String(category)}</span>
             <button
-              className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+              className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg tooltip-left"
               onClick={(e) => {
                 e.stopPropagation();
                 removeCustomCategory(category);

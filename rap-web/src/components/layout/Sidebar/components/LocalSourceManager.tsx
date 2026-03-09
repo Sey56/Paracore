@@ -10,7 +10,6 @@ interface LocalSourceManagerProps {
   setActiveScriptSource: (source: ActiveScriptSource) => void;
   customScriptFolders: string[];
   onAddExisting: () => void;
-  onInitNew: () => void;
   onClear: () => void;
   onUnload: (source: { id: number; name: string; repo_url: string; path: string }) => void;
 }
@@ -20,7 +19,6 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
   setActiveScriptSource,
   customScriptFolders,
   onAddExisting,
-  onInitNew,
   onClear,
   onUnload
 }) => {
@@ -39,24 +37,15 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
       iconColor="text-amber-500"
       defaultExpanded={true}
       actions={
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-1 tooltip-left">
           <button
             className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               onAddExisting();
             }}
-            title="Load Existing Source">
+            title="Load or Initialize Source">
             <FontAwesomeIcon icon={faFolder} className="w-3 h-3" />
-          </button>
-          <button
-            className="text-gray-400 hover:text-emerald-500 p-1.5 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onInitNew();
-            }}
-            title="Initialize New Source">
-            <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
           </button>
           {customScriptFolders.length > (activeScriptSource?.type === 'local' && activeScriptSource.path && customScriptFolders.some(f => normalizePath(f) === normalizePath(activeScriptSource.path)) ? 1 : 0) && (
             <button
@@ -123,7 +112,7 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
                           path: activeScriptSource.path || ''
                         });
                       }}
-                      className="text-rose-400 hover:text-rose-600 transition-colors p-1.5"
+                      className="text-rose-400 hover:text-rose-600 transition-colors p-1.5 tooltip-left"
                       title="Unload active source"
                     >
                       <FontAwesomeIcon icon={faTrash} className="text-[10px]" />

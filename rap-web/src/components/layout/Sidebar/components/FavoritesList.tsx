@@ -27,16 +27,18 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
       defaultExpanded={true}
       actions={
         favoriteScripts.length > 0 && (
-          <button
-            className="text-gray-400 hover:text-red-500 p-1.5 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClear();
-            }}
-            title="Clear Favorites"
-          >
-            <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
-          </button>
+          <div className="tooltip-left">
+            <button
+              className="text-gray-400 hover:text-red-500 p-1.5 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClear();
+              }}
+              title="Clear Favorites"
+            >
+              <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
+            </button>
+          </div>
         )
       }
     >

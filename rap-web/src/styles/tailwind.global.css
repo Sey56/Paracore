@@ -36,7 +36,8 @@
   font-weight: 500;
   line-height: 1.5;
   white-space: nowrap;
-  max-width: 220px;
+  min-width: max-content;
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
@@ -47,6 +48,44 @@
   /* Light mode */
   background: white;
   color: #334155;
+}
+
+/* Tooltip on bottom */
+[data-tooltip].tooltip-bottom::after,
+.tooltip-bottom [data-tooltip]::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+  transform: translateX(-50%) translateY(-4px);
+}
+
+[data-tooltip].tooltip-bottom:hover::after,
+.tooltip-bottom [data-tooltip]:hover::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Tooltip Left-Aligned (anchored to right edge, expands to left) */
+[data-tooltip].tooltip-left::after,
+.tooltip-left [data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: translateX(0) translateY(4px);
+}
+
+[data-tooltip].tooltip-left:hover::after,
+.tooltip-left [data-tooltip]:hover::after {
+  transform: translateX(0) translateY(0);
+}
+
+/* Tooltip Right-Aligned (anchored to left edge, expands to right) */
+[data-tooltip].tooltip-right::after,
+.tooltip-right [data-tooltip]::after {
+  left: 0;
+  transform: translateX(0) translateY(4px);
+}
+
+[data-tooltip].tooltip-right:hover::after,
+.tooltip-right [data-tooltip]:hover::after {
+  transform: translateX(0) translateY(0);
 }
 
 .dark [data-tooltip]::after {

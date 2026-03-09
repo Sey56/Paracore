@@ -42,19 +42,21 @@ export const TeamSourceManager: React.FC<TeamSourceManagerProps> = ({
       defaultExpanded={true}
       actions={
         activeRole === Role.User && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (activeScriptSource?.type === 'team' && activeScriptSource.path) {
-                onUpdate(activeScriptSource.path);
-              }
-            }}
-            disabled={activeScriptSource?.type !== 'team'}
-            className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
-            title="Update Source"
-          >
-            <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
-          </button>
+          <div className="tooltip-left">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (activeScriptSource?.type === 'team' && activeScriptSource.path) {
+                  onUpdate(activeScriptSource.path);
+                }
+              }}
+              disabled={activeScriptSource?.type !== 'team'}
+              className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+              title="Update Source"
+            >
+              <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
+            </button>
+          </div>
         )
       }
     >
@@ -113,7 +115,7 @@ export const TeamSourceManager: React.FC<TeamSourceManagerProps> = ({
                         onUnload(sourceToRemove);
                       }
                     }}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1.5"
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1.5 tooltip-left"
                     title="Unload active source"
                   >
                     <FontAwesomeIcon icon={faTrash} className="text-[10px]" />

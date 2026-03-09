@@ -31,16 +31,18 @@ export const RecentScriptsList: React.FC<RecentScriptsListProps> = ({
       defaultExpanded={false}
       actions={
         scriptsToRender.length > 0 && (
-          <button
-            className="text-gray-400 hover:text-red-500 p-1.5 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClear();
-            }}
-            title="Clear Recents"
-          >
-            <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
-          </button>
+          <div className="tooltip-left">
+            <button
+              className="text-gray-400 hover:text-red-500 p-1.5 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClear();
+              }}
+              title="Clear Recents"
+            >
+              <FontAwesomeIcon icon={faBroom} className="w-3 h-3" />
+            </button>
+          </div>
         )
       }
     >

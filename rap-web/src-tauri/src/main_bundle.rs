@@ -4,7 +4,6 @@ use tauri::{
 use log::{error, info};
 use std::fs;
 use std::path::{Path};
-use walkdir::WalkDir;
 use std::sync::{Mutex};
 use std::time::Duration;
 use tokio::sync::oneshot;
@@ -40,38 +39,41 @@ fn discover_script_sources(path: String) -> Vec<String> {
     let mut sources = Vec::new();
     let root = Path::new(&path);
 
-    // If the root itself has a marker, we treat it as a source and stop
-    if root.join(".paracore").exists() || root.join(".scriptsource").exists() {
+    // 1. Is the root itself a script source?
+    if root.join(".paracore").exists() {
         sources.push(path);
         return sources;
     }
 
-    let walker = WalkDir::new(root).into_iter();
-    let mut it = walker.filter_entry(|e| {
-        // Skip hidden directories (like .git)
-        let file_name = e.file_name().to_string_lossy();
-        if file_name.starts_with('.') && file_name != ".paracore" && file_name != ".scriptsource" {
-            return false;
-        }
-        true
-    });
+    // 2. If not, scan immediate children to see if it's a container folder
+    if let Ok(entries) = fs::read_dir(root) {
+        let mut entry_count = 0;
 
-    while let Some(entry) = it.next() {
-        match entry {
-            Ok(e) => {
-                let path = e.path();
-                if path.is_dir() {
-                    if path.join(".paracore").exists() || path.join(".scriptsource").exists() {
-                        sources.push(path.to_string_lossy().to_string());
-                        // Important: Skip descending further into this folder once it's marked as a source
-                        it.skip_current_dir();
-                    }
+        for entry in entries.flatten() {
+            entry_count += 1;
+            let p = entry.path();
+            if p.is_dir() {
+                // Only load if it has the .paracore marker. 
+                // We do NOT offer to initialize children found during a container scan.
+                if p.join(".paracore").exists() {
+                    sources.push(p.to_string_lossy().to_string());
                 }
             }
-            Err(_) => continue,
+        }
+
+        // If we found script sources among the children, we return that list.
+        if !sources.is_empty() {
+            return sources;
+        }
+
+        // 3. Initialization Path: Only if the ORIGINALLY selected folder is perfectly empty.
+        if entry_count == 0 {
+            sources.push(path);
+            return sources;
         }
     }
 
+    // 4. Otherwise, it's not a source, a container, or an empty folder. Reject.
     sources
 }
 

@@ -28,16 +28,18 @@ export const TeamRegistryManager: React.FC<TeamRegistryManagerProps> = ({
       iconColor="text-slate-400"
       defaultExpanded={false}
       actions={
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRefresh();
-          }}
-          className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
-          title="Refresh Team Sources"
-        >
-          <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
-        </button>
+        <div className="tooltip-left">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRefresh();
+            }}
+            className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+            title="Refresh Team Sources"
+          >
+            <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
+          </button>
+        </div>
       }
     >
       <div className="space-y-2 pr-2">
