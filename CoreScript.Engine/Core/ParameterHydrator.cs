@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
+using CoreScript.Engine.Globals;
 
 namespace CoreScript.Engine.Core
 {
@@ -94,6 +95,59 @@ namespace CoreScript.Engine.Core
                 if (resolved != null) return (T)resolved;
             }
 
+            // Collection Hydration (Handles List<T> and T[])
+            bool isList = targetType.IsGenericType && (targetType.GetGenericTypeDefinition() == typeof(List<>) || targetType.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+            bool isArray = targetType.IsArray;
+
+            if (isList || isArray)
+            {
+                var itemType = isArray ? targetType.GetElementType() : targetType.GetGenericArguments()[0];
+                if (itemType == null) return default(T);
+
+                IEnumerable sourceItems = null;
+                if (val is IEnumerable ie && !(val is string))
+                {
+                    sourceItems = ie;
+                }
+                else if (val is string jsonStr && jsonStr.TrimStart().StartsWith("["))
+                {
+                    try { sourceItems = JsonSerializer.Deserialize<List<object>>(jsonStr); } catch { }
+                }
+
+                if (sourceItems != null)
+                {
+                    var tempList = new List<object>();
+                    foreach (var item in sourceItems)
+                    {
+                        try
+                        {
+                            // Recursively hydrate each item using its specific type
+                            var method = this.GetType().GetMethod("Hydrate").MakeGenericMethod(itemType);
+                            var hydrated = method.Invoke(this, new object[] { $"{key}_item", item });
+                            if (hydrated != null) tempList.Add(hydrated);
+                        }
+                        catch
+                        {
+                            try { tempList.Add(Convert.ChangeType(item, itemType, CultureInfo.InvariantCulture)); } catch { }
+                        }
+                    }
+
+                    if (isArray)
+                    {
+                        var array = Array.CreateInstance(itemType, tempList.Count);
+                        for (int i = 0; i < tempList.Count; i++) array.SetValue(tempList[i], i);
+                        return (T)(object)array;
+                    }
+                    else // List<T>
+                    {
+                        var listType = typeof(List<>).MakeGenericType(itemType);
+                        var resultList = (IList)Activator.CreateInstance(listType);
+                        foreach (var item in tempList) resultList.Add(item);
+                        return (T)resultList;
+                    }
+                }
+            }
+
             // Primitive conversions
             try
             {
@@ -101,23 +155,29 @@ namespace CoreScript.Engine.Core
                 {
                     return (T)Convert.ChangeType(val, targetType, CultureInfo.InvariantCulture);
                 }
+                if (targetType == typeof(string))
+                {
+                    return (T)(object)val?.ToString();
+                }
             }
             catch (Exception ex)
             {
-                 FileLogger.LogError($"[ParameterHydrator] Primitive conversion failed for '{key}' to {typeof(T).Name}: {ex.Message}");
+                FileLogger.LogError($"[ParameterHydrator] Primitive conversion failed for '{key}' to {targetType.Name}: {ex.Message}");
             }
 
             // Fallback to JSON pivot
             try
             {
-                var json = JsonSerializer.Serialize(val);
-                var deserialized = JsonSerializer.Deserialize<T>(json);
-                return deserialized;
+                string json;
+                if (val is JsonElement je) json = je.GetRawText();
+                else json = JsonSerializer.Serialize(val);
+
+                return JsonSerializer.Deserialize<T>(json, ExecutionGlobals.SerializerOptions);
             }
             catch (Exception ex)
             {
-                FileLogger.LogError($"[ParameterHydrator] JSON pivot failed for '{key}' to {typeof(T).Name}: {ex.Message}");
-                try { return (T)Convert.ChangeType(val, typeof(T), CultureInfo.InvariantCulture); }
+                FileLogger.LogError($"[ParameterHydrator] JSON pivot failed for '{key}' to {targetType.Name}: {ex.Message}");
+                try { return (T)Convert.ChangeType(val, targetType, CultureInfo.InvariantCulture); }
                 catch { return default(T); }
             }
         }
