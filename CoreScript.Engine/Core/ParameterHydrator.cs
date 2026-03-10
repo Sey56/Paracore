@@ -19,7 +19,7 @@ namespace CoreScript.Engine.Core
             _revitResolver = revitResolver;
         }
 
-        public T Hydrate<T>(string key, object val)
+        public T Hydrate<T>(string key, object val, IEnumerable<object>? candidatePool = null)
         {
             if (val == null) return default(T);
 
@@ -48,7 +48,7 @@ namespace CoreScript.Engine.Core
                 {
                     if (isElement)
                     {
-                        var resolved = _revitResolver.ResolveElement(val, targetType);
+                        var resolved = _revitResolver.ResolveElement(val, targetType, candidatePool);
                         if (resolved != null) return (T)resolved;
                     }
                     else // List<Element>
@@ -66,7 +66,7 @@ namespace CoreScript.Engine.Core
                         {
                             foreach (var item in sourceItems)
                             {
-                                var resolved = _revitResolver.ResolveElement(item, itemType);
+                                var resolved = _revitResolver.ResolveElement(item, itemType, candidatePool);
                                 if (resolved != null) resultList.Add(resolved);
                             }
                             return (T)resultList;
@@ -122,8 +122,11 @@ namespace CoreScript.Engine.Core
                         try
                         {
                             // Recursively hydrate each item using its specific type
+                            // NOTE: We don't necessarily pass candidatePool to recursive items unless the elements themselves are nested,
+                            // but for Revit selections, usually the pool is for the elements being selected.
                             var method = this.GetType().GetMethod("Hydrate").MakeGenericMethod(itemType);
-                            var hydrated = method.Invoke(this, new object[] { $"{key}_item", item });
+                            // Corrected to pass candidatePool as well to support nested element resolution if ever needed
+                            var hydrated = method.Invoke(this, new object[] { $"{key}_item", item, candidatePool });
                             if (hydrated != null) tempList.Add(hydrated);
                         }
                         catch

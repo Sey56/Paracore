@@ -17,9 +17,15 @@ namespace CoreScript.Engine.Core
 
         public List<string> ComputeOptions(string revitElementType, string? category = null)
         {
-            if (string.IsNullOrEmpty(revitElementType)) return new List<string>();
-            try { return GetGenericElements(revitElementType, category); }
-            catch (Exception ex) { Console.WriteLine($"Error computing options for {revitElementType}: {ex.Message}"); return new List<string>(); }
+            var elements = ComputeElementOptions(revitElementType, category);
+            return elements.Select(GetElementIdentity).Distinct().OrderBy(n => n).ToList();
+        }
+
+        public List<Element> ComputeElementOptions(string revitElementType, string? category = null)
+        {
+            if (string.IsNullOrEmpty(revitElementType)) return new List<Element>();
+            try { return GetGenericElements(revitElementType, category).ToList(); }
+            catch (Exception ex) { Console.WriteLine($"Error computing options for {revitElementType}: {ex.Message}"); return new List<Element>(); }
         }
 
         public static string GetElementIdentity(Element e)
@@ -82,7 +88,7 @@ namespace CoreScript.Engine.Core
             catch { return new FilteredElementCollector(doc).WhereElementIsNotElementType(); }
         }
 
-        private List<string> GetGenericElements(string targetName, string? categoryFilter = null)
+        private IEnumerable<Element> GetGenericElements(string targetName, string? categoryFilter = null)
         {
             try
             {
@@ -101,7 +107,7 @@ namespace CoreScript.Engine.Core
                             f.FamilyCategory?.BuiltInCategory.ToString().Contains(categoryFilter) == true);
                     }
 
-                    return families.Select(f => f.Name).Distinct().OrderBy(n => n).ToList();
+                    return families.Cast<Element>();
                 }
 
                 var isTypeRequested = cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
@@ -115,7 +121,9 @@ namespace CoreScript.Engine.Core
 
                 if (enumType != null)
                 {
-                    return Enum.GetNames(enumType).OrderBy(n => n).ToList();
+                    // Enums don't return elements, so we skip them here or handle them specifically if needed for filters.
+                    // For now, return empty as filters usually apply to Elements.
+                    return Enumerable.Empty<Element>();
                 }
 
                 // Pure Class-Based Discovery
@@ -142,7 +150,7 @@ namespace CoreScript.Engine.Core
                             e.Category?.BuiltInCategory.ToString().Contains(categoryFilter) == true);
                     }
 
-                    return elements.Select(GetElementIdentity).Distinct().OrderBy(n => n).ToList();
+                    return elements;
                 }
 
                 // FALLBACK: If it doesn't look like a class, try one last check against Built-in Categories
@@ -152,12 +160,12 @@ namespace CoreScript.Engine.Core
                 if (builtin != default)
                 {
                     var collector = new FilteredElementCollector(_doc).OfCategoryId(new ElementId(builtin));
-                    return collector.Cast<Element>().Select(GetElementIdentity).Distinct().OrderBy(n => n).ToList();
+                    return collector.Cast<Element>();
                 }
 
-                return new List<string>();
+                return Enumerable.Empty<Element>();
             }
-            catch (Exception ex) { Console.WriteLine($"[OptionsComputer] Error: {ex.Message}"); return new List<string>(); }
+            catch (Exception ex) { Console.WriteLine($"[OptionsComputer] Error: {ex.Message}"); return Enumerable.Empty<Element>(); }
         }
     }
 }

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using CoreScript.Engine.Globals;
 
 namespace CoreScript.Engine.Core
 {
@@ -75,23 +76,12 @@ namespace CoreScript.Engine.Core
                 {
                     try {
                         double d = Convert.ToDouble(val);
-                        ForgeTypeId unitTypeId = null;
-                        
-                        string u = p.Unit.ToLower().Trim();
-                        if (u == "mm" || u == "millimeter" || u == "millimeters") unitTypeId = UnitTypeId.Millimeters;
-                        else if (u == "cm" || u == "centimeter" || u == "centimeters") unitTypeId = UnitTypeId.Centimeters;
-                        else if (u == "m" || u == "meter" || u == "meters") unitTypeId = UnitTypeId.Meters;
-                        else if (u == "ft" || u == "foot" || u == "feet") unitTypeId = UnitTypeId.Feet;
-                        else if (u == "in" || u == "inch" || u == "inches") unitTypeId = UnitTypeId.Inches;
-                        else if (u == "m2" || u == "sqm" || u == "squaremeter" || u == "squaremeters") unitTypeId = UnitTypeId.SquareMeters;
-                        else if (u == "ft2" || u == "sqft" || u == "squarefoot" || u == "squarefeet") unitTypeId = UnitTypeId.SquareFeet;
-                        else if (u == "m3" || u == "cum" || u == "cubicmeter" || u == "cubicmeters") unitTypeId = UnitTypeId.CubicMeters;
-                        else if (u == "ft3" || u == "cuft" || u == "cubicfoot" || u == "cubicfeet") unitTypeId = UnitTypeId.CubicFeet;
+                        ForgeTypeId unitTypeId = UnitExtensions.GetUnitTypeId(p.Unit);
 
                         if (unitTypeId != null)
                         {
                             parameters[p.Name] = UnitUtils.ConvertToInternalUnits(d, unitTypeId);
-                            FileLogger.Log($"[ParameterService] Converted parameter '{p.Name}' from {d} {u} to Internal Units.");
+                            FileLogger.Log($"[ParameterService] Converted parameter '{p.Name}' from {d} {p.Unit} to Internal Units.");
                         }
                     } catch {}
                 }

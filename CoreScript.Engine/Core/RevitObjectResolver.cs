@@ -63,7 +63,7 @@ namespace CoreScript.Engine.Core
             return null;
         }
 
-        public object ResolveElement(object val, Type targetType)
+        public object ResolveElement(object val, Type targetType, IEnumerable<object>? candidatePool = null)
         {
             if (_doc == null || val == null) return null;
 
@@ -76,6 +76,33 @@ namespace CoreScript.Engine.Core
             string identifier = val.ToString();
             if (string.IsNullOrEmpty(identifier)) return null;
 
+            // --- TIER 1: CANDIDATE POOL RESOLUTION (MAGIC HYDRATION) ---
+            if (candidatePool != null)
+            {
+                foreach (var item in candidatePool)
+                {
+                    if (item == null) continue;
+                    if (item is Element el)
+                    {
+                        if (!targetType.IsAssignableFrom(el.GetType())) continue;
+                        
+                        // Match by ID, UniqueID, or Identity
+                        if (el.UniqueId == identifier || el.Id.Value.ToString() == identifier || el.Name == identifier || ParameterOptionsComputer.GetElementIdentity(el) == identifier)
+                        {
+                            return el;
+                        }
+                    }
+                    else if (item.ToString() == identifier)
+                    {
+                        return item;
+                    }
+                }
+                // If pool is provided but no match found, we stop here (Source of Truth)
+                return null;
+            }
+
+            // --- TIER 2: GLOBAL DISCOVERY (FALLBACK) ---
+            
             // 1. UniqueId
             try {
                 var el = _doc.GetElement(identifier);

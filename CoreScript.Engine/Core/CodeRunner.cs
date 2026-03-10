@@ -29,6 +29,7 @@ namespace CoreScript.Engine.Core
         private readonly IScriptExecutor _scriptExecutor;
         private readonly IScriptRewriter _scriptRewriter;
         private readonly IParameterExtractor _parameterExtractor;
+        private readonly IParameterOptionsExecutor _optionsExecutor;
 
         // V4: Assembly Cache for blazingly fast repeated runs
         private static readonly Dictionary<string, byte[]> _assemblyCache = new Dictionary<string, byte[]>();
@@ -44,6 +45,7 @@ namespace CoreScript.Engine.Core
             _scriptExecutor = new ScriptExecutor();
             _scriptRewriter = new ScriptRewriter();
             _parameterExtractor = new ParameterExtractor(logger);
+            _optionsExecutor = new ParameterOptionsExecutor(logger, _parameterService);
         }
 
         public ExecutionResult Execute(string scriptContent, string parametersJson, ICoreScriptContext context)
@@ -111,7 +113,30 @@ namespace CoreScript.Engine.Core
                 }
                 catch { }
 
-                ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters, rawParameters));
+                var executionGlobals = new ExecutionGlobals(context, parameters, rawParameters);
+
+                // --- V4 ELITE: MAGIC HYDRATION (Pre-calculate Resolution Pools) ---
+                foreach (var p in richParams)
+                {
+                    if (_optionsExecutor.HasOptionsFunction(scriptContent, p.Name))
+                    {
+                        try
+                        {
+                            var pool = _optionsExecutor.ExecuteElementOptionsFunction(scriptContent, p.Name, context, parametersJson, richParams).Result;
+                            if (pool != null && pool.Any())
+                            {
+                                executionGlobals.ResolutionPools[p.Name] = pool;
+                                FileLogger.Log($"[CodeRunner] 🪄 Magic Hydration: Pre-calculated pool for '{p.Name}' ({pool.Count} items)");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            FileLogger.LogError($"[CodeRunner] Failed to pre-calculate pool for '{p.Name}': {ex.Message}");
+                        }
+                    }
+                }
+
+                ExecutionGlobals.SetContext(executionGlobals);
 
                 // --- V4 ELITE: Assembly Caching Logic ---
                 string codeHash = _scriptCompiler.GetCodeHash(finalScriptCode);

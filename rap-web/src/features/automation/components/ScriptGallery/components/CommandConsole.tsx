@@ -53,10 +53,10 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
 
   return (
     <div className="w-full mb-8 relative z-20">
-      <div className={`w-full flex flex-col md:flex-row items-center justify-between gap-4 px-4 py-2.5 rounded-2xl bg-white/60 dark:bg-slate-800/40 backdrop-blur-md border border-slate-200/50 dark:border-slate-600/50 shadow-sm ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className={`w-full flex flex-wrap items-center justify-center lg:justify-between gap-4 px-4 py-3 rounded-2xl bg-white/60 dark:bg-slate-800/40 backdrop-blur-md border border-slate-200/50 dark:border-slate-600/50 shadow-sm ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
 
-        {/* 1. Minimalist Search */}
-        <div className="flex-grow relative group max-w-md w-full md:w-auto">
+        {/* Unit 1: Search (Flexible, hits floor at 170px) */}
+        <div className="flex-1 min-w-[170px] relative group max-w-2xl">
           <FontAwesomeIcon
             icon={faSearch}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors text-xs"
@@ -71,30 +71,29 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           />
         </div>
 
-        {/* 2. Action Rail */}
-        <div className="flex items-center justify-between md:justify-end gap-3 shrink-0 w-full md:w-auto">
+        {/* Unit 2: Type Filter (Wraps independently) */}
+        <div className="flex items-center gap-1 bg-white/40 dark:bg-slate-800/80 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-600/60 shadow-inner shrink-0">
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'scripts', label: 'Scripts' },
+            { id: 'guards', label: 'Sentinels' }
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTypeFilter(t.id as any)}
+              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+                ${typeFilter === t.id
+                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-400'
+                }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-          {/* Type Filter */}
-          <div className="flex items-center gap-1 bg-white/40 dark:bg-slate-800/80 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-600/60 shadow-inner">
-            {[
-              { id: 'all', label: 'All' },
-              { id: 'scripts', label: 'Scripts' },
-              { id: 'guards', label: 'Sentinels' }
-            ].map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTypeFilter(t.id as any)}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                  ${typeFilter === t.id
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
-                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-400'
-                  }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
+        {/* Unit 3: Sort + View Toggle (Wraps independently) */}
+        <div className="flex items-center gap-3 shrink-0">
           {/* Custom High-Contrast Sort Dropdown */}
           <div className="relative min-w-[170px]" ref={sortRef}>
             <div

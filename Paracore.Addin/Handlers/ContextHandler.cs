@@ -167,7 +167,7 @@ namespace Paracore.Addin.Handlers
                     var targetParam = parameters.FirstOrDefault(p => p.Name == request.ParameterName);
                     if (targetParam == null) return new List<string>();
 
-                    var optionsExecutor = new ParameterOptionsExecutor(_logger);
+                    var optionsExecutor = new ParameterOptionsExecutor(_logger, new ParameterService());
                     if (optionsExecutor.HasOptionsFunction(request.ScriptContent, request.ParameterName))
                     {
                         string parametersJson = request.ParametersJson != null ? request.ParametersJson.ToStringUtf8() : "";

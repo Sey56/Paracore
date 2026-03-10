@@ -200,6 +200,8 @@ namespace CoreScript.Engine.Globals
 
         public Dictionary<string, object> Parameters { get; }
         public Dictionary<string, object> RawParameters { get; }
+        public Dictionary<string, IEnumerable<object>> ResolutionPools { get; } = new Dictionary<string, IEnumerable<object>>();
+
         public Output Output { get; }
         public IParameterHydrator Hydrator { get; }
 
@@ -220,7 +222,10 @@ namespace CoreScript.Engine.Globals
                 return default(T);
             }
 
-            return Current.Value.Hydrator.Hydrate<T>(key, val);
+            IEnumerable<object>? pool = null;
+            if (Current.Value.ResolutionPools.TryGetValue(key, out var foundPool)) pool = foundPool;
+
+            return Current.Value.Hydrator.Hydrate<T>(key, val, pool);
         }
 
         public UIApplication? UIApp => _context.UIApp;

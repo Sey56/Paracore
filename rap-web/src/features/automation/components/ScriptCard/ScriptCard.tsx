@@ -91,13 +91,13 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     <div
       id={`script-card-${script.id}`}
       ref={cardRef}
-      style={{ 
+      style={{
         backgroundColor: isSelected ? 'var(--bg-card-focus)' : 'var(--bg-card)',
         borderColor: isSelected ? 'var(--accent)' : 'var(--border-main)',
         borderWidth: isSelected ? '2px' : '1px'
       }}
       className={`${styles.scriptCard} script-card group rounded-xl shadow-sm transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? styles.selectedCard : "border"
-        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${isGuard ? styles.guardCard : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
+        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${isGuard ? styles.guardCard : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""} ${showMenu ? styles.menuOpen : ""}`}
       onClick={handleSelect}
     >
       <DeleteScriptModal
