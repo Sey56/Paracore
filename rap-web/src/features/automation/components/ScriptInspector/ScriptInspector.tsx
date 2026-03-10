@@ -78,22 +78,13 @@ export const ScriptInspector: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full rounded-none shadow-none bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl overflow-hidden min-w-0">
-      {!script ? (
-        <div className="text-center py-10 text-slate-400 dark:text-slate-500">
-          <i className="fas fa-mouse-pointer text-4xl mb-3"></i>
-          <p>Select a script from the gallery to inspect and run it</p>
-        </div>
-      ) : (
-        <>
-          <InspectorTabs
-            script={script}
-            isRunning={isRunning}
-            onViewCodeClick={toggleFloatingCodeViewer}
-            isActionable={isActionable}
-            tooltipMessage={tooltipMessage}
-          />
-        </>
-      )}
+      <InspectorTabs
+        script={script}
+        isRunning={isRunning}
+        onViewCodeClick={toggleFloatingCodeViewer}
+        isActionable={isActionable}
+        tooltipMessage={tooltipMessage}
+      />
     </div>
   );
 };

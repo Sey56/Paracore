@@ -798,6 +798,33 @@ def clear_assembly_cache():
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:
             return {"is_success": False, "message": "Revit is closed or Paracore server is unavailable."}
+        logging.error(format_grpc_error(e))
+        return {"is_success": False, "message": f"gRPC Error: {e.details()}"}
+
+def execute_repl(code: str, session_id: str):
+    """
+    Calls the gRPC service to execute a REPL command in Revit.
+    """
+    try:
+        with get_corescript_runner_stub() as stub:
+            request = corescript_pb2.ExecuteReplRequest(
+                code=code,
+                session_id=session_id
+            )
+            response = stub.ExecuteRepl(request)
+            return {
+                "is_success": response.is_success,
+                "output": response.output,
+                "error_message": response.error_message
+            }
+    except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.UNAVAILABLE:
+            return {"is_success": False, "output": "", "error_message": "Revit is closed or Paracore server is unavailable."}
+        logging.error(format_grpc_error(e))
+        return {"is_success": False, "output": "", "error_message": f"gRPC Error: {e.details()}"}
+    except Exception as e:
+        logging.error(f"Error calling ExecuteRepl gRPC: {e}")
+        return {"is_success": False, "output": "", "error_message": str(e)}
         return {"is_success": False, "message": str(e)}
     except Exception as e:
         return {"is_success": False, "message": str(e)}

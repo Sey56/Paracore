@@ -44,12 +44,18 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Represents the currently active database level Document.
-        /// <para>
-        /// Contains methods for creating, deleting, and modifying elements. 
-        /// Most transactional operations should verify against this document.
-        /// </para>
         /// </summary>
         public static Document Doc => Globals.Doc;
+
+        /// <summary>
+        /// Represents the currently active view in Revit.
+        /// </summary>
+        public static View ActiveView => Doc.ActiveView;
+
+        /// <summary>
+        /// Gets the current selection in the Revit user interface.
+        /// </summary>
+        public static List<Element> Selection => UIDoc.Selection.GetElementIds().Select(id => Doc.GetElement(id)).ToList();
 
         /// <summary>
         /// A dictionary of parameters passed from the agent or UI context.
@@ -64,6 +70,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         /// <param name="message">The message string to print. Use <c>$""</c> for variables.</param>
         public static void Println(string message) => Globals.Println(message);
+        public static void Println(object message) => Globals.Println(message);
 
         /// <summary>
         /// Prints an empty line to the unified output console.
@@ -74,6 +81,7 @@ namespace CoreScript.Engine.Globals
         /// Alias for <see cref="Println(string)"/>. Prints a message to the console.
         /// </summary>
         public static void Print(string message) => Globals.Print(message);
+        public static void Print(object message) => Globals.Print(message);
 
         /// <summary>
         /// Internal use only. Sets data to be passed back to the host application.
@@ -294,21 +302,35 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Sets the execution timeout for the current script. Default is 10 seconds.
         /// Call this at the start of your script if you need more time for long-running operations.
-        /// </summary>
-        /// <param name="seconds">Maximum execution time in seconds</param>
         public static void SetExecutionTimeout(int seconds) => ExecutionGlobals.SetExecutionTimeout(seconds);
 
         /// <summary>
-        /// Finds the first element of type T with the specified name.
+        /// Finds the first element of type T with the specified name or magic identity.
         /// </summary>
-        public static T? GetElement<T>(string name) where T : Element
+        public static T? GetElement<T>(string identity) where T : Element
         {
             var collector = Core.ParameterOptionsComputer.CreateResilientCollector(Doc, typeof(T));
             return collector
                 .Cast<Element>()
                 .Where(e => e is T)
                 .Cast<T>()
-                .FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(x => 
+                    x.Name.Equals(identity, StringComparison.OrdinalIgnoreCase) || 
+                    Core.ParameterOptionsComputer.GetElementIdentity(x).Equals(identity, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Finds the first element matching the specified name or magic identity.
+        /// </summary>
+        public static Element? GetElement(string identity)
+        {
+            // Use a broad collector for generic discovery
+            var collector = new FilteredElementCollector(Doc).WhereElementIsNotElementType();
+            return collector
+                .Cast<Element>()
+                .FirstOrDefault(x => 
+                    x.Name.Equals(identity, StringComparison.OrdinalIgnoreCase) || 
+                    Core.ParameterOptionsComputer.GetElementIdentity(x).Equals(identity, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>
@@ -321,6 +343,60 @@ namespace CoreScript.Engine.Globals
                 .Cast<Element>()
                 .Where(e => e is T)
                 .Cast<T>()
+                .ToList();
+        }
+
+        /// <summary>
+        /// Finds all elements of type T belonging to a specific category.
+        /// <para>Example: <c>GetElements&lt;FamilyInstance&gt;("Doors")</c></para>
+        /// </summary>
+        public static List<T> GetElements<T>(string categoryName) where T : Element
+        {
+            var computer = new Core.ParameterOptionsComputer(Doc);
+            return computer.ComputeElementOptions(typeof(T).Name, categoryName)
+                .Cast<T>()
+                .ToList();
+        }
+
+        /// <summary>
+        /// Discovery helper for the REPL. Targets categories or classes automatically.
+        /// <para>If name ends with 'Type' or 'Types', returns Types. Otherwise returns instances.</para>
+        /// <para>Example: <c>GetElements("Doors")</c> or <c>GetElements("FurnitureTypes")</c></para>
+        /// </summary>
+        public static List<Element> GetElements(string categoryOrClass)
+        {
+            var computer = new Core.ParameterOptionsComputer(Doc);
+            return computer.ComputeElementOptions(categoryOrClass);
+        }
+
+        /// <summary>
+        /// Lists all potential "Magic" strings targetable by <see cref="GetElements(string)"/>.
+        /// Includes Categories, Class names, and Family names available in the document.
+        /// </summary>
+        public static List<string> GetMagicNames()
+        {
+            var docCategories = Doc.Settings.Categories.Cast<Category>().Select(c => c.Name);
+            var familyNames = new FilteredElementCollector(Doc).OfClass(typeof(Family)).Cast<Family>().Select(f => f.Name);
+            
+            // Standard Classes commonly used
+            var commonClasses = new[] { "Wall", "Floor", "Roof", "Window", "Door", "Room", "Level", "View", "Sheet" };
+
+            return docCategories
+                .Concat(familyNames)
+                .Concat(commonClasses)
+                .Distinct()
+                .OrderBy(s => s)
+                .ToList();
+        }
+
+        /// <summary>
+        /// Lists all Revit categories currently available in the document settings.
+        /// </summary>
+        public static List<string> GetCategories()
+        {
+            return Doc.Settings.Categories.Cast<Category>()
+                .Select(c => c.Name)
+                .OrderBy(s => s)
                 .ToList();
         }
     }

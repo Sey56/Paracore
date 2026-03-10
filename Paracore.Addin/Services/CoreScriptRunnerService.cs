@@ -13,17 +13,20 @@ namespace Paracore.Addin.Services
         private readonly MetadataHandler _metadataHandler;
         private readonly ContextHandler _contextHandler;
         private readonly FileSystemHandler _fileSystemHandler;
+        private readonly ReplHandler _replHandler;
 
         public CoreScriptRunnerService(
             ScriptExecutionHandler executionHandler, 
             MetadataHandler metadataHandler, 
             ContextHandler contextHandler,
-            FileSystemHandler fileSystemHandler)
+            FileSystemHandler fileSystemHandler,
+            ReplHandler replHandler)
         {
             _executionHandler = executionHandler;
             _metadataHandler = metadataHandler;
             _contextHandler = contextHandler;
             _fileSystemHandler = fileSystemHandler;
+            _replHandler = replHandler;
         }
 
         public override Task<BuildScriptResponse> BuildScript(BuildScriptRequest request, ServerCallContext context)
@@ -178,6 +181,10 @@ namespace Paracore.Addin.Services
                 IsSuccess = true,
                 Message = "Assembly cache cleared successfully."
             });
+        }
+        public override Task<ExecuteReplResponse> ExecuteRepl(ExecuteReplRequest request, ServerCallContext context)
+        {
+            return _replHandler.ExecuteRepl(request);
         }
     }
 }

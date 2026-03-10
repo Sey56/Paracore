@@ -18,7 +18,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 interface InspectorTabsProps {
-  script: Script;
+  script: Script | null;
   isRunning: boolean;
   onViewCodeClick: () => void;
   isActionable: boolean;
@@ -37,11 +37,20 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   const lastExecutionCountRef = useRef<number>(0);
   const currentExecutionCountRef = useRef<number>(0);
 
-  const allTabs = [
-    { id: "parameters", label: "Parameters", icon: faSlidersH },
+  const allTabs: { id: InspectorTab, label: string, icon: any, hidden?: boolean }[] = [
+    { id: "parameters", label: "Parameters", icon: faSlidersH, hidden: !script },
     { id: "console", label: "Console", icon: faTerminal },
     { id: "table", label: "Analytics", icon: faChartLine },
-  ] as const;
+  ];
+
+  const visibleTabs = allTabs.filter(t => !t.hidden);
+
+  // If no script is selected and we are on parameters tab, switch to console
+  useEffect(() => {
+    if (!script && activeInspectorTab === 'parameters') {
+      setActiveInspectorTab('console');
+    }
+  }, [script, activeInspectorTab, setActiveInspectorTab]);
 
   // Detect new execution with table data
   useEffect(() => {
@@ -68,13 +77,13 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   // Close metadata panel when switching scripts
   useEffect(() => {
     setIsMetadataOpen(false);
-  }, [script.id]);
+  }, [script?.id]);
 
   return (
     <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
       <div className="flex border-b border-slate-200/60 dark:border-slate-700/40 items-center px-5 bg-slate-50/50 dark:bg-slate-900/40">
         <div className="flex gap-1">
-          {allTabs.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               className={`tab-button px-4 py-4 flex items-center gap-3 transition-all duration-300 relative border-b-2 rounded-t-xl
@@ -99,21 +108,23 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
           ))}
         </div>
         <div className="ml-auto pl-2 flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={() => setIsMetadataOpen(!isMetadataOpen)}
-            className={`p-1.5 rounded transition-all duration-200 ${isMetadataOpen
-              ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
-              : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60"
-              }`}
-            title="Script Info"
-          >
-            <FontAwesomeIcon icon={faInfoCircle} />
-          </button>
+          {script && (
+            <button
+              onClick={() => setIsMetadataOpen(!isMetadataOpen)}
+              className={`p-1.5 rounded transition-all duration-200 ${isMetadataOpen
+                ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
+                : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60"
+                }`}
+              title="Script Info"
+            >
+              <FontAwesomeIcon icon={faInfoCircle} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Metadata Slide-Down Panel */}
-      {isMetadataOpen && script.metadata && (
+      {isMetadataOpen && script && script.metadata && (
         <div className="border-b border-slate-200/60 dark:border-slate-700/40 bg-slate-50/80 dark:bg-slate-900/60 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between px-5 pt-3 pb-1">
             <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Script Info</span>
@@ -132,26 +143,31 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
 
       {/* Tab Content Area */}
       <div className="flex-grow min-h-0 min-w-0 w-full overflow-hidden relative">
-        {activeInspectorTab === 'parameters' && (
+        {/* Parameters Tab is conditionally rendered (needs a script) */}
+        {activeInspectorTab === 'parameters' && script && (
           <div className="h-full overflow-y-auto custom-scrollbar">
-            <ParametersTab script={script} onViewCodeClick={onViewCodeClick} isActionable={isActionable} tooltipMessage={tooltipMessage} />
-          </div>
-        )}
-        {activeInspectorTab === 'console' && (
-          <div className="h-full w-full min-w-0">
-            <ConsoleTabContent
-              isRunning={isRunning}
-              executionResult={executionResult}
-              scriptName={script.name}
-              clearExecutionResult={clearExecutionResult}
+            <ParametersTab
+              script={script}
+              onViewCodeClick={onViewCodeClick}
+              isActionable={isActionable}
+              tooltipMessage={tooltipMessage}
             />
           </div>
         )}
-        {activeInspectorTab === 'table' && (
-          <div className="h-full w-full min-w-0 overflow-hidden">
-            <TableTabContent executionResult={executionResult} />
-          </div>
-        )}
+
+        {/* Console and Table Tabs are kept mounted to preserve history/scroll */}
+        <div className={`h-full w-full min-w-0 ${activeInspectorTab !== 'console' ? 'hidden' : ''}`}>
+          <ConsoleTabContent
+            isRunning={isRunning}
+            executionResult={executionResult}
+            scriptName={script?.name || "Global Console"}
+            clearExecutionResult={clearExecutionResult}
+          />
+        </div>
+
+        <div className={`h-full w-full min-w-0 overflow-hidden ${activeInspectorTab !== 'table' ? 'hidden' : ''}`}>
+          <TableTabContent executionResult={executionResult} />
+        </div>
       </div>
     </div>
   );

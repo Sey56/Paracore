@@ -154,13 +154,23 @@ namespace CoreScript.Engine.Core
                 }
 
                 // FALLBACK: If it doesn't look like a class, try one last check against Built-in Categories
+                var baseCategoryName = cleanName;
+                if (isTypeRequested)
+                {
+                    if (cleanName.EndsWith("Types", StringComparison.OrdinalIgnoreCase))
+                        baseCategoryName = cleanName.Substring(0, cleanName.Length - 5);
+                    else if (cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase))
+                        baseCategoryName = cleanName.Substring(0, cleanName.Length - 4);
+                }
+                
                 var builtin = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>().FirstOrDefault(c => 
-                    c.ToString().Equals($"OST_{cleanName}", StringComparison.OrdinalIgnoreCase));
+                    c.ToString().Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase));
 
                 if (builtin != default)
                 {
                     var collector = new FilteredElementCollector(_doc).OfCategoryId(new ElementId(builtin));
-                    return collector.Cast<Element>();
+                    if (isTypeRequested) return collector.WhereElementIsElementType().Cast<Element>();
+                    return collector.WhereElementIsNotElementType().Cast<Element>();
                 }
 
                 return Enumerable.Empty<Element>();

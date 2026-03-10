@@ -28,6 +28,7 @@ service CoreScriptRunner {
   // New V4 Data Grid Feature: Mass Single-Transaction Edit
   rpc BatchUpdateElementParameters(BatchUpdateElementParametersRequest) returns (BatchUpdateElementParametersResponse);
   rpc ClearAssemblyCache (ClearAssemblyCacheRequest) returns (ClearAssemblyCacheResponse);
+  rpc ExecuteRepl (ExecuteReplRequest) returns (ExecuteReplResponse);
 }
 
 message ClearAssemblyCacheRequest {}
@@ -406,4 +407,15 @@ message UpdateElementParameterRequest {
 message UpdateElementParameterResponse {
   bool is_success = 1;
   string error_message = 2;
+}
+
+message ExecuteReplRequest {
+  string code = 1;
+  string session_id = 2;
+}
+
+message ExecuteReplResponse {
+  bool is_success = 1;
+  string output = 2;
+  string error_message = 3;
 }

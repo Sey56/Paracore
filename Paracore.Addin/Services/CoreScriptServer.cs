@@ -58,6 +58,7 @@ namespace Paracore.Addin.Services
                         services.AddSingleton<MetadataHandler>();
                         services.AddSingleton<ContextHandler>();
                         services.AddSingleton<FileSystemHandler>();
+                        services.AddSingleton<ReplHandler>();
                     });
                     webBuilder.Configure(app =>
                     {

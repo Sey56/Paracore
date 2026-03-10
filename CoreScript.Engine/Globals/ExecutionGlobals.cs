@@ -196,13 +196,12 @@ namespace CoreScript.Engine.Globals
             }
         }
 
-        private readonly ICoreScriptContext _context;
-
+        private ICoreScriptContext _context;
         public Dictionary<string, object> Parameters { get; }
         public Dictionary<string, object> RawParameters { get; }
         public Dictionary<string, IEnumerable<object>> ResolutionPools { get; } = new Dictionary<string, IEnumerable<object>>();
 
-        public Output Output { get; }
+        public Output Output { get; private set; }
         public IParameterHydrator Hydrator { get; }
 
         public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters, Dictionary<string, object>? rawParameters = null)
@@ -213,6 +212,14 @@ namespace CoreScript.Engine.Globals
             Output = new Output(context);
             var revitResolver = new RevitObjectResolver(context.Doc);
             Hydrator = new ParameterHydrator(revitResolver);
+        }
+
+        public void UpdateContext(ICoreScriptContext context)
+        {
+            _context = context;
+            Output = new Output(context);
+            // Note: We don't update Hydrator/RevitResolver as they are tied to the Document, 
+            // which doesn't change during a REPL session.
         }
 
         public static T Get<T>(string key)
@@ -233,7 +240,9 @@ namespace CoreScript.Engine.Globals
         public Document? Doc => _context.Doc;
 
         public void Println(string message) => _context.Println(message);
+        public void Println(object message) => _context.Println(message?.ToString() ?? "");
         public void Print(string message) => _context.Print(message);
+        public void Print(object message) => _context.Print(message?.ToString() ?? "");
         public void LogError(string message) => _context.LogError(message);
         public void SetInternalData(string data) => _context.SetInternalData(data);
 

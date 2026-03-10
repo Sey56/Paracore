@@ -637,3 +637,21 @@ class UpdateElementParameterResponse(_message.Message):
     is_success: bool
     error_message: str
     def __init__(self, is_success: bool = ..., error_message: _Optional[str] = ...) -> None: ...
+
+class ExecuteReplRequest(_message.Message):
+    __slots__ = ("code", "session_id")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    session_id: str
+    def __init__(self, code: _Optional[str] = ..., session_id: _Optional[str] = ...) -> None: ...
+
+class ExecuteReplResponse(_message.Message):
+    __slots__ = ("is_success", "output", "error_message")
+    IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    is_success: bool
+    output: str
+    error_message: str
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...

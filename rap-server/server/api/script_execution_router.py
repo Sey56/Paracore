@@ -66,3 +66,12 @@ async def update_element_parameter_endpoint(request: UpdateElementParameterReque
 async def batch_update_element_parameters_endpoint(request: BatchUpdateElementParametersRequestModel):
     response = await execution_service.batch_update_element_parameters_logic(request.updates)
     return JSONResponse(content=response)
+
+class ReplRequestModel(BaseModel):
+    code: str
+    session_id: str
+
+@router.post("/api/repl", tags=["Script Execution"])
+async def execute_repl_endpoint(request: ReplRequestModel):
+    response = await execution_service.execute_repl_logic(request.code, request.session_id)
+    return JSONResponse(content=response)
