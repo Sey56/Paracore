@@ -184,10 +184,11 @@ namespace CoreScript.Engine.Core
             else if (baseT.Contains("Reference")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Element"; }
             else if (baseT.Contains("Face")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Face"; }
             else if (baseT.Contains("Edge")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Edge"; }
-            else if (baseT.StartsWith("List<") || baseT.Contains("[]"))
+            else if (baseT.Contains("<") || baseT.EndsWith("[]"))
             {
                 p.Type = "string"; p.MultiSelect = true; p.DefaultValueJson = "[]";
-                string inner = baseT.Contains("<") ? baseT.Split('<', '>')[1] : baseT.Replace("[]", "");
+                var match = Regex.Match(baseT, @"<([^>]+)>");
+                string inner = match.Success ? match.Groups[1].Value : baseT.Replace("[]", "");
                 if (IsRevitType(inner, out _)) { p.IsRevitElement = true; p.RevitElementType = inner; }
             }
             else if (char.IsUpper(baseT[0]))
@@ -250,6 +251,14 @@ namespace CoreScript.Engine.Core
             isEnum = false;
             try {
                 var revitAssembly = typeof(Autodesk.Revit.DB.Element).Assembly;
+                
+                // If the type name already contains a namespace, try getting it directly
+                if (typeName.Contains("."))
+                {
+                    var type = revitAssembly.GetType(typeName) ?? Type.GetType(typeName);
+                    if (type != null) { isEnum = type.IsEnum; return typeof(Autodesk.Revit.DB.Element).IsAssignableFrom(type) || isEnum; }
+                }
+
                 string[] namespaces = { "Autodesk.Revit.DB", "Autodesk.Revit.DB.Architecture", "Autodesk.Revit.DB.Structure", "Autodesk.Revit.DB.Mechanical", "Autodesk.Revit.DB.Plumbing", "Autodesk.Revit.DB.Electrical" };
                 foreach (var ns in namespaces) {
                     var type = revitAssembly.GetType($"{ns}.{typeName}");

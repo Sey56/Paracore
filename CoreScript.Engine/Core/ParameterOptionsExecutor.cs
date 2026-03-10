@@ -22,14 +22,15 @@ using System.Globalization;
 
 namespace CoreScript.Engine.Core
 {
-    public class ParameterOptionsExecutor
+    public class ParameterOptionsExecutor : IParameterOptionsExecutor
     {
         private readonly ILogger _logger;
-        private readonly IParameterService _parameterService = new ParameterService();
+        private readonly IParameterService _parameterService;
 
-        public ParameterOptionsExecutor(ILogger logger)
+        public ParameterOptionsExecutor(ILogger logger, IParameterService parameterService)
         {
             _logger = logger;
+            _parameterService = parameterService;
         }
 
         private ScriptOptions GetScriptOptions()
@@ -76,6 +77,40 @@ namespace CoreScript.Engine.Core
 
         public async Task<List<string>> ExecuteOptionsFunction(string scriptContent, string parameterName, ICoreScriptContext context, string parametersJson, List<ScriptParameter> schema)
         {
+            var rawResult = await ExecuteInternal(scriptContent, parameterName, context, parametersJson, schema);
+            if (rawResult == null) return new List<string>();
+
+            List<string> result = new List<string>();
+            if (rawResult is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var item in enumerable)
+                {
+                    if (item == null) continue;
+                    if (item is Element el) result.Add(ParameterOptionsComputer.GetElementIdentity(el));
+                    else result.Add(item.ToString() ?? "");
+                }
+            }
+            return result;
+        }
+
+        public async Task<List<object>> ExecuteElementOptionsFunction(string scriptContent, string parameterName, ICoreScriptContext context, string parametersJson, List<ScriptParameter> schema)
+        {
+            var rawResult = await ExecuteInternal(scriptContent, parameterName, context, parametersJson, schema);
+            if (rawResult == null) return new List<object>();
+
+            List<object> result = new List<object>();
+            if (rawResult is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var item in enumerable)
+                {
+                    if (item != null) result.Add(item);
+                }
+            }
+            return result;
+        }
+
+        private async Task<object> ExecuteInternal(string scriptContent, string parameterName, ICoreScriptContext context, string parametersJson, List<ScriptParameter> schema)
+        {
             try
             {
                 _logger.Log($"[ParameterOptionsExecutor] Executing options function for parameter: {parameterName}", LogLevel.Debug);
@@ -97,8 +132,9 @@ namespace CoreScript.Engine.Core
                     if (functionNode != null) functionName = filterName;
                 }
 
-                if (functionNode == null) return new List<string>();
+                if (functionNode == null) return null;
 
+                bool isFilter = functionName == filterName;
                 string membersSource;
                 if (paramsClass != null)
                 {
@@ -114,7 +150,7 @@ namespace CoreScript.Engine.Core
                 ExecutionGlobals.SetContext(executionGlobals);
 
                 var sb = new StringBuilder();
-                sb.AppendLine("using Autodesk.Revit.DB; using Autodesk.Revit.DB.Architecture; using Autodesk.Revit.UI; using System; using System.Collections.Generic; using System.Linq; using CoreScript.Engine.Globals; using static CoreScript.Engine.Globals.ScriptApi;");
+                sb.AppendLine("using Autodesk.Revit.DB; using Autodesk.Revit.DB.Architecture; using Autodesk.Revit.UI; using System; using System.Collections.Generic; using System.Linq; using CoreScript.Engine.Globals; using CoreScript.Engine.Core; using static CoreScript.Engine.Globals.ScriptApi;");
                 sb.AppendLine("using Microsoft.CSharp; using Autodesk.Revit.DB.Structure; using Autodesk.Revit.DB.Mechanical; using Autodesk.Revit.DB.Plumbing; using Autodesk.Revit.DB.Electrical;");
                 
                 sb.AppendLine("var wrapper = new ParamsWrapper();");
@@ -123,6 +159,27 @@ namespace CoreScript.Engine.Core
                     .OfType<PropertyDeclarationSyntax>()
                     .Where(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)))
                     .ToList() ?? new List<PropertyDeclarationSyntax>();
+
+                string targetItemType = "Element";
+                var targetProp = properties.FirstOrDefault(p => p.Identifier.Text == parameterName);
+                if (targetProp != null)
+                {
+                    targetItemType = targetProp.Type.ToString().Trim();
+                    
+                    // Handle Generics (e.g. List<Room> or System.Collections.Generic.List<Room>)
+                    var match = System.Text.RegularExpressions.Regex.Match(targetItemType, @"<([^>]+)>");
+                    if (match.Success)
+                    {
+                        targetItemType = match.Groups[1].Value;
+                    }
+                    // Handle Arrays (e.g. Room[])
+                    else if (targetItemType.EndsWith("[]"))
+                    {
+                        targetItemType = targetItemType.Substring(0, targetItemType.Length - 2);
+                    }
+                    
+                    targetItemType = targetItemType.TrimEnd('?');
+                }
 
                 foreach (var propSyntax in properties)
                 {
@@ -144,39 +201,25 @@ namespace CoreScript.Engine.Core
                     sb.AppendLine($"try {{ wrapper.{propName} = ExecutionGlobals.Get<{typeName}>(\"{propName}\"); }} catch {{ }}");
                 }
 
-                sb.AppendLine($"var result = wrapper.{(functionNode is PropertyDeclarationSyntax ? functionName : $"{functionName}()")};");
+                if (isFilter)
+                {
+                    sb.AppendLine($"var baseItems = new ParameterOptionsComputer(ExecutionGlobals.Current.Value.Doc).ComputeElementOptions(\"{targetItemType}\");");
+                    sb.AppendLine($"var result = baseItems.Cast<{targetItemType}>().Where(item => wrapper.{functionName}(item)).ToList();");
+                }
+                else
+                {
+                    sb.AppendLine($"var result = wrapper.{(functionNode is PropertyDeclarationSyntax ? functionName : $"{functionName}()")};");
+                }
+                
                 sb.AppendLine("return result;");
                 sb.AppendLine("public class ParamsWrapper { " + membersSource + " }");
 
-                try {
-                    string debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "OptionsDebug.cs");
-                    Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
-                    var debugContent = new StringBuilder();
-                    debugContent.AppendLine("// PARAMETERS STATE (HARDENED):");
-                    foreach (var kv in parameters) debugContent.AppendLine($"// {kv.Key}: {kv.Value} ({kv.Value?.GetType().Name})");
-                    debugContent.AppendLine("\n" + sb.ToString());
-                    File.WriteAllText(debugPath, debugContent.ToString());
-                } catch { }
-
-                var rawResult = await CSharpScript.EvaluateAsync<object>(sb.ToString(), scriptOptions);
-                if (rawResult == null) return new List<string>();
-
-                List<string> result = new List<string>();
-                if (rawResult is System.Collections.IEnumerable enumerable)
-                {
-                    foreach (var item in enumerable)
-                    {
-                        if (item == null) continue;
-                        if (item is Element el) result.Add(ParameterOptionsComputer.GetElementIdentity(el));
-                        else result.Add(item.ToString() ?? "");
-                    }
-                }
-                return result;
+                return await CSharpScript.EvaluateAsync<object>(sb.ToString(), scriptOptions);
             }
             catch (Exception ex)
             {
                 _logger.LogError($"[ParameterOptionsExecutor] Error: {ex.Message}");
-                throw new InvalidOperationException(ex.Message);
+                return null;
             }
         }
 

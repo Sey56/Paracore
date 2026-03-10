@@ -303,8 +303,10 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static T? GetElement<T>(string name) where T : Element
         {
-            return new FilteredElementCollector(Doc)
-                .OfClass(typeof(T))
+            var collector = Core.ParameterOptionsComputer.CreateResilientCollector(Doc, typeof(T));
+            return collector
+                .Cast<Element>()
+                .Where(e => e is T)
                 .Cast<T>()
                 .FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
@@ -314,14 +316,12 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static List<T> GetElements<T>() where T : Element
         {
-            return new FilteredElementCollector(Doc)
-                .OfClass(typeof(T))
+            var collector = Core.ParameterOptionsComputer.CreateResilientCollector(Doc, typeof(T));
+            return collector
+                .Cast<Element>()
+                .Where(e => e is T)
                 .Cast<T>()
                 .ToList();
         }
-
-            }
-
-        }
-
-        
+    }
+}
