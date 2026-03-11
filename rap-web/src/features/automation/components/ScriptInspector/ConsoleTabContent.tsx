@@ -25,7 +25,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   clearExecutionResult,
 }) => {
   const consoleEndRef = useRef<HTMLDivElement>(null);
-  const { selectedScript, runScript } = useScriptExecution();
+  const { selectedScript, runScript, setExecutionResult } = useScriptExecution();
   const { combinedScriptContent, reloadScript } = useScripts();
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
@@ -40,10 +40,10 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     error_message?: string
   } | null>(null);
   const [isApplyingFix, setIsApplyingFix] = useState(false);
-  const [replValue, setReplValue] = useState("");
+  const [replValue, setReplValue] = useState(() => localStorage.getItem('paracore_repl_value') || "");
   const [isReplLoading, setIsReplLoading] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [isMultiLine, setIsMultiLine] = useState(false);
+  const [isMultiLine, setIsMultiLine] = useState(() => localStorage.getItem('paracore_repl_multiline') === 'true');
 
   // Initialize from LocalStorage
   const [localHistory, setLocalHistory] = useState<{ type: 'input' | 'output' | 'error' | 'status', text: string, timestamp: Date, isRepl?: boolean }[]>(() => {
@@ -77,10 +77,20 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
       lastResultRef.current = executionResult;
 
       if (executionResult.output) {
-        setLocalHistory(prev => [...prev, { type: 'output' as const, text: String(executionResult.output), timestamp: new Date(), isRepl: false }].slice(-100));
+        setLocalHistory(prev => [...prev, { 
+          type: 'output' as const, 
+          text: String(executionResult.output), 
+          timestamp: new Date(), 
+          isRepl: executionResult.internal_data === 'REPL' // Marker for REPL results
+        }].slice(-100));
       }
       if (executionResult.error) {
-        setLocalHistory(prev => [...prev, { type: 'error' as const, text: String(executionResult.error), timestamp: new Date(), isRepl: false }].slice(-100));
+        setLocalHistory(prev => [...prev, { 
+          type: 'error' as const, 
+          text: String(executionResult.error), 
+          timestamp: new Date(), 
+          isRepl: executionResult.internal_data === 'REPL'
+        }].slice(-100));
       }
     }
   }, [executionResult]);
@@ -108,9 +118,8 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   useEffect(() => {
     setAiResult(null);
     setFixHistory([]);
-    setReplValue("");
     lastResultRef.current = null;
-    // Note: We no longer clear localHistory here to allow a unified, persistent stream
+    // Note: We no longer clear localHistory or replValue here to allow a unified, persistent stream
   }, [selectedScript?.absolutePath]);
 
   useEffect(() => {
@@ -127,6 +136,15 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   useEffect(() => {
     localStorage.setItem('paracore_command_history', JSON.stringify(commandHistory));
   }, [commandHistory]);
+
+  // Sync REPL State to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('paracore_repl_value', replValue);
+  }, [replValue]);
+
+  useEffect(() => {
+    localStorage.setItem('paracore_repl_multiline', String(isMultiLine));
+  }, [isMultiLine]);
 
   // Clear AI result when execution result is cleared or new one starts
   useEffect(() => {
@@ -258,6 +276,37 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     if (!replValue.trim() || isReplLoading) return;
 
     const command = replValue.trim();
+
+    // 0. Handle Help System locally
+    if (command.toLowerCase() === 'help' || command === '?') {
+      setLocalHistory(prev => [...prev,
+      { type: 'input' as const, text: 'Help', timestamp: new Date(), isRepl: true },
+      {
+        type: 'output' as const, text: `📖 Paracore REPL Quick Reference:
+--------------------------------------------------
+✨ Discovery: GetElements("Doors"), GetMagicNames(), GetCategories()
+🧠 Essentials: Doc, UIDoc, UIApp, ActiveView, Selection, Println(obj)
+📊 Analytics: Table(data), PieChart(data), BarChart(data), Select(els)
+🛠️ Modify: Transact("Label", () => { ... })
+🔍 Identity: GetElement("Name")
+📏 Units: 10.ToUnits("m2"), r.Area.FromUnits("m2")
+🧹 Utility: help, clear (or cls)
+💡 Tip: Last line of code is printed automatically!
+----------------------------------
+Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isRepl: true
+      }
+      ].slice(-100));
+      if (!isMultiLine) setReplValue("");
+      return;
+    }
+
+    if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') {
+      setLocalHistory([]);
+      localStorage.removeItem('paracore_console_history');
+      if (!isMultiLine) setReplValue("");
+      return;
+    }
+
     if (!isMultiLine) {
       setReplValue("");
     }
@@ -285,9 +334,25 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
       });
 
       if (response.data.is_success) {
-        setLocalHistory(prev => [...prev, { type: 'output' as const, text: String(response.data.output), timestamp: new Date(), isRepl: true }].slice(-100));
+        // Sync with global execution result - this will trigger the useEffect to add to local history
+        // We add a marker to internal_data so the useEffect knows it's a REPL result
+        setExecutionResult({ 
+          output: response.data.output || '',
+          isSuccess: true,
+          error: null,
+          structuredOutput: response.data.structured_output,
+          internal_data: 'REPL',
+          timestamp: Date.now()
+        } as any);
       } else {
-        setLocalHistory(prev => [...prev, { type: 'error' as const, text: response.data.error_message, timestamp: new Date(), isRepl: true }].slice(-100));
+        setExecutionResult({ 
+          output: response.data.output || '',
+          isSuccess: false,
+          error: response.data.error_message || 'Unknown error',
+          structuredOutput: [],
+          internal_data: 'REPL',
+          timestamp: Date.now()
+        } as any);
       }
     } catch (err: any) {
       setLocalHistory(prev => [...prev, { type: 'error' as const, text: `Error: ${err.message}`, timestamp: new Date(), isRepl: true }].slice(-100));

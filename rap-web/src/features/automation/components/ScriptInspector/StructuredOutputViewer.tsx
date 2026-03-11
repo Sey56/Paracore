@@ -313,8 +313,25 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   const handleUpdateParameter = useCallback(async (elementId: number, parameterName: string, newValue: string) => {
     try {
       const meta = paramMetadataMap.get(parameterName.toLowerCase()) || paramMetadataMap.get(parameterName.replace(/\s+/g, '').toLowerCase());
-      const realName = meta?.name || parameterName;
-      const response = await api.post('/api/update-element-parameter', { element_id: elementId, parameter_name: realName, new_value_string: newValue, unit: meta?.unit || "" });
+      let realName = meta?.name || parameterName;
+      let unit = meta?.unit || "";
+
+      // --- Magic Header Discovery (REPL support) ---
+      // If we see "Area [m2]", extract unit "m2" and search for "Area"
+      if (!unit) {
+        const match = parameterName.match(/^(.*?)?\s*\[(.*?)\]$/);
+        if (match) {
+          realName = match[1].trim();
+          unit = match[2].trim();
+        }
+      }
+
+      const response = await api.post('/api/update-element-parameter', { 
+        element_id: elementId, 
+        parameter_name: realName, 
+        new_value_string: newValue, 
+        unit 
+      });
       if (response.data?.is_success) { showNotification(`Updated ${realName}`, "success"); return true; }
       else { showNotification(`Update failed: ${response.data?.error_message || 'Unknown error'}`, "error"); return false; }
     } catch (error) { showNotification("Failed to update parameter in Revit.", "error"); return false; }
@@ -381,9 +398,20 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
             Object.keys(impRow).forEach(col => {
               if (['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(col.toLowerCase())) return;
               const meta = paramMetadataMap.get(col.toLowerCase()) || paramMetadataMap.get(col.replace(/\s+/g, '').toLowerCase());
-              const realName = meta?.name || col;
+              let realName = meta?.name || col;
+              let unit = meta?.unit || "";
+
+              // --- Magic Header Discovery (REPL CSV support) ---
+              if (!unit) {
+                const match = col.match(/^(.*?)?\s*\[(.*?)\]$/);
+                if (match) {
+                  realName = match[1].trim();
+                  unit = match[2].trim();
+                }
+              }
+
               if (String(impRow[col]) !== String(match[col])) {
-                updates.push({ element_id: impId, parameter_name: realName, new_value_string: String(impRow[col]), unit: meta?.unit || "" });
+                updates.push({ element_id: impId, parameter_name: realName, new_value_string: String(impRow[col]), unit });
               }
             });
           }

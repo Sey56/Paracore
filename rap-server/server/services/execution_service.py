@@ -150,12 +150,12 @@ async def select_elements_logic(element_ids: List[int]):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def update_element_parameter_logic(element_id: int, parameter_name: str, new_value_string: str):
+async def update_element_parameter_logic(element_id: int, parameter_name: str, new_value_string: str, unit: Optional[str] = None):
     """
     Service wrapper for updating a single element parameter via gRPC.
     """
     try:
-        return update_element_parameter(element_id, parameter_name, new_value_string)
+        return update_element_parameter(element_id, parameter_name, new_value_string, unit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

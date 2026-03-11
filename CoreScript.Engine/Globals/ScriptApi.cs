@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.DB.Mechanical;
@@ -366,7 +366,29 @@ namespace CoreScript.Engine.Globals
         public static List<Element> GetElements(string categoryOrClass)
         {
             var computer = new Core.ParameterOptionsComputer(Doc);
-            return computer.ComputeElementOptions(categoryOrClass);
+            var results = computer.ComputeElementOptions(categoryOrClass);
+
+            if (results.Count == 0)
+            {
+                // --- SUGGESTION ENGINE (User-Facing only) ---
+                var cleanName = categoryOrClass.Trim();
+                var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
+                var allValidTerms = GetMagicNames(); // Already includes Cats + Families + Common Classes
+                
+                var matches = allValidTerms.Where(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || 
+                                                       t.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
+                                                       t.StartsWith(cleanName, StringComparison.OrdinalIgnoreCase)).Take(3).ToList();
+
+                if (matches.Any())
+                {
+                    string suggestions = string.Join("' or '", matches);
+                    throw new ArgumentException($"'{cleanName}' is not a valid Class or Category. Did you mean '{suggestions}'? For a list of supported Hydrations run GetMagicNames().");
+                }
+
+                throw new ArgumentException($"'{cleanName}' is not a valid Class or Category. For a list of supported Hydrations run GetMagicNames().");
+            }
+
+            return results;
         }
 
         /// <summary>

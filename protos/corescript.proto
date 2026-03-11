@@ -386,6 +386,7 @@ message ParameterUpdateItem {
   int32 element_id = 1;
   string parameter_name = 2;
   string new_value_string = 3;
+  string unit = 4;
 }
 
 message BatchUpdateElementParametersRequest {
@@ -402,6 +403,7 @@ message UpdateElementParameterRequest {
   int64 element_id = 1;
   string parameter_name = 2;
   string new_value_string = 3;
+  string unit = 4;
 }
 
 message UpdateElementParameterResponse {
@@ -418,4 +420,5 @@ message ExecuteReplResponse {
   bool is_success = 1;
   string output = 2;
   string error_message = 3;
+  repeated StructuredOutputItem structured_output = 4;
 }

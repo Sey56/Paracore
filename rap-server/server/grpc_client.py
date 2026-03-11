@@ -548,17 +548,18 @@ def select_elements(element_ids: list[int]):
                 "error_message": f"Unexpected error: {str(e)}"
             }
 
-def update_element_parameter(element_id: int, parameter_name: str, new_value_string: str):
+def update_element_parameter(element_id: int, parameter_name: str, new_value_string: str, unit: Optional[str] = None):
     """
     Calls the gRPC service to update a parameter on a specific element.
     """
-    logging.info(f"Attempting to update parameter '{parameter_name}' on element {element_id} via gRPC.")
+    logging.info(f"Attempting to update parameter '{parameter_name}' on element {element_id} via gRPC (Unit: {unit}).")
     try:
         with get_corescript_runner_stub() as stub:
             request = corescript_pb2.UpdateElementParameterRequest(
                 element_id=element_id,
                 parameter_name=parameter_name,
-                new_value_string=new_value_string
+                new_value_string=new_value_string,
+                unit=unit or ""
             )
             response = stub.UpdateElementParameter(request)
             return {
@@ -590,7 +591,8 @@ def batch_update_element_parameters(updates: list):
                 corescript_pb2.ParameterUpdateItem(
                     element_id=int(u["element_id"]),
                     parameter_name=str(u["parameter_name"]),
-                    new_value_string=str(u["new_value_string"])
+                    new_value_string=str(u["new_value_string"]),
+                    unit=str(u.get("unit") or "")
                 ) for u in updates
             ]
             request = corescript_pb2.BatchUpdateElementParametersRequest(updates=proto_items)
@@ -812,10 +814,12 @@ def execute_repl(code: str, session_id: str):
                 session_id=session_id
             )
             response = stub.ExecuteRepl(request)
+            structured_output_data = [{"type": item.type, "data": item.data} for item in getattr(response, 'structured_output', [])]
             return {
                 "is_success": response.is_success,
                 "output": response.output,
-                "error_message": response.error_message
+                "error_message": response.error_message,
+                "structured_output": structured_output_data
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:

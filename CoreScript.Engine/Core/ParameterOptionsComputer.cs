@@ -164,7 +164,8 @@ namespace CoreScript.Engine.Core
                 }
                 
                 var builtin = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>().FirstOrDefault(c => 
-                    c.ToString().Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase));
+                    c.ToString().Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase) ||
+                    c.ToString().Equals($"OST_{baseCategoryName}s", StringComparison.OrdinalIgnoreCase)); // Auto-plural fallback (Silent benefit for all)
 
                 if (builtin != default)
                 {

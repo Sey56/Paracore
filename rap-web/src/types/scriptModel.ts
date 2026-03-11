@@ -65,6 +65,7 @@ export interface ScriptExecutionResult {
   isSuccess: boolean;
   structuredOutput?: StructuredOutput[];
   timestamp?: number;
+  internal_data?: string;
 }
 
 export interface GitInfo {

@@ -595,14 +595,16 @@ class BuildScriptResponse(_message.Message):
     def __init__(self, is_success: bool = ..., compiled_assembly: _Optional[bytes] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class ParameterUpdateItem(_message.Message):
-    __slots__ = ("element_id", "parameter_name", "new_value_string")
+    __slots__ = ("element_id", "parameter_name", "new_value_string", "unit")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     PARAMETER_NAME_FIELD_NUMBER: _ClassVar[int]
     NEW_VALUE_STRING_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
     element_id: int
     parameter_name: str
     new_value_string: str
-    def __init__(self, element_id: _Optional[int] = ..., parameter_name: _Optional[str] = ..., new_value_string: _Optional[str] = ...) -> None: ...
+    unit: str
+    def __init__(self, element_id: _Optional[int] = ..., parameter_name: _Optional[str] = ..., new_value_string: _Optional[str] = ..., unit: _Optional[str] = ...) -> None: ...
 
 class BatchUpdateElementParametersRequest(_message.Message):
     __slots__ = ("updates",)
@@ -621,14 +623,16 @@ class BatchUpdateElementParametersResponse(_message.Message):
     def __init__(self, is_success: bool = ..., error_message: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
 
 class UpdateElementParameterRequest(_message.Message):
-    __slots__ = ("element_id", "parameter_name", "new_value_string")
+    __slots__ = ("element_id", "parameter_name", "new_value_string", "unit")
     ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     PARAMETER_NAME_FIELD_NUMBER: _ClassVar[int]
     NEW_VALUE_STRING_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
     element_id: int
     parameter_name: str
     new_value_string: str
-    def __init__(self, element_id: _Optional[int] = ..., parameter_name: _Optional[str] = ..., new_value_string: _Optional[str] = ...) -> None: ...
+    unit: str
+    def __init__(self, element_id: _Optional[int] = ..., parameter_name: _Optional[str] = ..., new_value_string: _Optional[str] = ..., unit: _Optional[str] = ...) -> None: ...
 
 class UpdateElementParameterResponse(_message.Message):
     __slots__ = ("is_success", "error_message")
@@ -647,11 +651,13 @@ class ExecuteReplRequest(_message.Message):
     def __init__(self, code: _Optional[str] = ..., session_id: _Optional[str] = ...) -> None: ...
 
 class ExecuteReplResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message")
+    __slots__ = ("is_success", "output", "error_message", "structured_output")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    STRUCTURED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
+    structured_output: _containers.RepeatedCompositeFieldContainer[StructuredOutputItem]
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ...) -> None: ...

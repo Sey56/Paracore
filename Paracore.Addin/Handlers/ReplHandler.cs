@@ -30,14 +30,34 @@ namespace Paracore.Addin.Handlers
                 });
 
                 // Unwrap the nested task result
-                var (isSuccess, output, error) = await result;
+                var (isSuccess, output, error, structuredOutput) = await result;
 
-                return new ExecuteReplResponse
+                var response = new ExecuteReplResponse
                 {
                     IsSuccess = isSuccess,
                     Output = output,
                     ErrorMessage = error
                 };
+
+                foreach (var item in structuredOutput)
+                {
+                    try
+                    {
+                        var structuredItem = System.Text.Json.JsonSerializer.Deserialize<CoreScript.StructuredOutputItem>(item, 
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (structuredItem != null)
+                        {
+                            response.StructuredOutput.Add(structuredItem);
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback: If it's already a serialized string, we might just need to wrap it
+                        // but usually it's a JSON string of a StructuredOutputItem
+                    }
+                }
+
+                return response;
             }
             catch (Exception ex)
             {

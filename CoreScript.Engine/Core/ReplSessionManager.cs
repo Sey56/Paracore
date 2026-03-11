@@ -26,7 +26,7 @@ namespace CoreScript.Engine.Core
         private static readonly Dictionary<string, ReplSession> _sessions = new Dictionary<string, ReplSession>();
         private static readonly object _lock = new object();
 
-        public static async Task<(bool isSuccess, string output, string error)> ExecuteAsync(string code, string sessionId, ICoreScriptContext context)
+        public static async Task<(bool isSuccess, string output, string error, List<string> structuredOutput)> ExecuteAsync(string code, string sessionId, ICoreScriptContext context)
         {
             try
             {
@@ -118,21 +118,37 @@ namespace CoreScript.Engine.Core
                     _sessions[sessionId] = session;
                 }
 
+                // --- Structured Output Capture ---
+                var structuredOutput = new List<string>();
+                var contextType = context.GetType();
+                var logProp = contextType.GetProperty("StructuredOutputLog") ?? contextType.GetProperty("ShowOutputLog");
+                if (logProp != null)
+                {
+                    var log = logProp.GetValue(context) as System.Collections.IEnumerable;
+                    if (log != null)
+                    {
+                        foreach (var item in log)
+                        {
+                            structuredOutput.Add(item is string s ? s : JsonSerializer.Serialize(item, ExecutionGlobals.SerializerOptions));
+                        }
+                    }
+                }
+
                 // If the script printed anything (e.g. via Println), return that as the main output
                 var printLog = string.Join(Environment.NewLine, context.PrintLog);
                 if (!string.IsNullOrEmpty(printLog))
                 {
-                    return (true, printLog, string.Empty);
+                    return (true, printLog, string.Empty, structuredOutput);
                 }
 
                 // Otherwise, fall back to the return value of the expression
                 var output = session.State.ReturnValue?.ToString() ?? "Success (no return value)";
-                return (true, output, string.Empty);
+                return (true, output, string.Empty, structuredOutput);
             }
             catch (Exception ex)
             {
                 FileLogger.LogError($"[REPL] Error: {ex.Message}");
-                return (false, string.Empty, ex.Message);
+                return (false, string.Empty, ex.Message, new List<string>());
             }
         }
 

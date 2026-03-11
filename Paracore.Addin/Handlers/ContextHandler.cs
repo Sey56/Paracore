@@ -1,6 +1,7 @@
 using CoreScript;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Logging;
+using CoreScript.Engine.Globals;
 using Paracore.Addin.Context;
 using Paracore.Addin.Helpers;
 using System;
@@ -428,7 +429,11 @@ namespace Paracore.Addin.Handlers
                         else if (targetParam.StorageType == StorageType.Integer) targetParam.Set(int.Parse(request.NewValueString));
                         else if (targetParam.StorageType == StorageType.ElementId) targetParam.Set(new ElementId(long.Parse(request.NewValueString)));
                         else if (targetParam.StorageType == StorageType.Double) {
-                            targetParam.Set(double.Parse(request.NewValueString));
+                            double val = double.Parse(request.NewValueString);
+                            if (!string.IsNullOrEmpty(request.Unit)) {
+                                val = val.ToUnits(request.Unit);
+                            }
+                            targetParam.Set(val);
                         }
                         t.Commit();
                     }
@@ -473,7 +478,11 @@ namespace Paracore.Addin.Handlers
                                 else if (targetParam.StorageType == StorageType.Integer) targetParam.Set(int.Parse(update.NewValueString));
                                 else if (targetParam.StorageType == StorageType.ElementId) targetParam.Set(new ElementId(long.Parse(update.NewValueString)));
                                 else if (targetParam.StorageType == StorageType.Double) {
-                                    targetParam.Set(double.Parse(update.NewValueString));
+                                    double val = double.Parse(update.NewValueString);
+                                    if (!string.IsNullOrEmpty(update.Unit)) {
+                                        val = val.ToUnits(update.Unit);
+                                    }
+                                    targetParam.Set(val);
                                 }
                                 processedCount++;
                             }

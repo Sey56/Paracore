@@ -51,6 +51,7 @@ class UpdateElementParameterRequestModel(BaseModel):
     element_id: int
     parameter_name: str
     new_value_string: str
+    unit: Optional[str] = None
 
 class BatchUpdateElementParametersRequestModel(BaseModel):
     updates: list
@@ -58,7 +59,7 @@ class BatchUpdateElementParametersRequestModel(BaseModel):
 @router.post("/api/update-element-parameter", tags=["Script Execution"])
 async def update_element_parameter_endpoint(request: UpdateElementParameterRequestModel):
     response = await execution_service.update_element_parameter_logic(
-        request.element_id, request.parameter_name, request.new_value_string
+        request.element_id, request.parameter_name, request.new_value_string, request.unit
     )
     return JSONResponse(content=response)
 
