@@ -18,7 +18,11 @@ namespace CoreScript.Engine.Core
         public Script<object> CreateScript(string code, string scriptName)
         {
             var options = GetScriptOptions(scriptName);
-            return CSharpScript.Create(code, options);
+            // Inject ScriptApi parity and resolve Parameter ambiguity
+            string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+                              "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine + 
+                              code;
+            return CSharpScript.Create(fullCode, options);
         }
 
         public string GetCodeHash(string code)
@@ -89,7 +93,7 @@ namespace CoreScript.Engine.Core
                     "Autodesk.Revit.UI", 
                     "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime",
                     "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
-                    "RestSharp", "MiniExcelLibs", 
+                    "MiniExcelLibs", 
                     "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
                 )
                 .WithFilePath(scriptName);

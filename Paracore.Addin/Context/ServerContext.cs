@@ -11,6 +11,7 @@ namespace Paracore.Addin.Context
     {
         public string Type { get; set; }
         public string Data { get; set; }
+        public string? Title { get; set; }
     }
 
     public class ServerContext : ICoreScriptContext
@@ -89,9 +90,9 @@ namespace Paracore.Addin.Context
             _errorMessages.Add(message);
         }
 
-        public void AddStructuredOutput(string type, string jsonData)
+        public void AddStructuredOutput(string type, string jsonData, string? title = null)
         {
-            _structuredOutputItems.Add(new StructuredOutputItem { Type = type, Data = jsonData });
+            _structuredOutputItems.Add(new StructuredOutputItem { Type = type, Data = jsonData, Title = title });
         }
     }
 }

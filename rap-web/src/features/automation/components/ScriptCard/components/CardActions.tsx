@@ -95,6 +95,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
             }`}
           onClick={handleRunClickInternal}
           disabled={isRunButtonDisabled}
+          title={tooltipMessage}
         >
           <FontAwesomeIcon
             icon={isRunning ? faSpinner : faPlay}

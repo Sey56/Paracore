@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StructuredOutputViewer } from './StructuredOutputViewer';
 import type { ScriptExecutionResult } from "@/types/scriptModel";
+import { useUI } from "@/hooks/useUI";
 
 interface TableTabContentProps {
   executionResult: ScriptExecutionResult | null;
@@ -10,6 +11,13 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
   executionResult,
 }) => {
   const items = executionResult?.structuredOutput;
+  const { activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex } = useUI();
+
+  // Reset tab index when new execution results arrive
+  useEffect(() => {
+    setActiveAnalyticsSubTabIndex(0);
+  }, [executionResult?.timestamp, setActiveAnalyticsSubTabIndex]);
+
   const hasOutput = items && items.length > 0;
 
   if (!hasOutput || !items) {
@@ -24,32 +32,23 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
     );
   }
 
-  // Single-table, no charts — original rock-solid layout, completely untouched
-  const isSingleTable = items.length === 1 && items[0].type === 'table';
+  const isMultiView = items.length > 1;
 
-  if (isSingleTable) {
-    return (
-      <div className="tab-content py-2 h-full flex flex-col w-full min-w-0">
-        <div className="flex-grow flex flex-col w-full min-w-0 overflow-hidden px-2">
-          <StructuredOutputViewer item={items[0]} />
-        </div>
-      </div>
-    );
-  }
-
-  // Dashboard mode — scrollable container for charts + table
   return (
-    <div className="tab-content py-2 h-full flex flex-col w-full min-w-0 overflow-hidden">
-      <div className="flex-grow w-full min-w-0 overflow-y-auto px-2 custom-scrollbar">
-        <div className="space-y-6 pb-6">
-          {items.map((item, index) => (
-            <StructuredOutputViewer
-              key={`${executionResult.timestamp ?? 'last'}-${index}`}
-              item={item}
-              isDashboard
-            />
-          ))}
-        </div>
+    <div className="tab-content h-full flex flex-col w-full min-w-0 overflow-hidden">
+      {/* Main Content Area */}
+      <div className="flex-grow flex flex-col w-full min-w-0 overflow-hidden px-2 py-2">
+        {items[activeAnalyticsSubTabIndex] ? (
+          <StructuredOutputViewer 
+            item={items[activeAnalyticsSubTabIndex]} 
+            isDashboard={false} 
+          />
+        ) : (
+          <StructuredOutputViewer 
+            item={items[0]} 
+            isDashboard={false} 
+          />
+        )}
       </div>
     </div>
   );

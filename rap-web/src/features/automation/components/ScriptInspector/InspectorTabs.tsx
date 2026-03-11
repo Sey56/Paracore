@@ -9,6 +9,7 @@ import { ConsoleTabContent } from './ConsoleTabContent';
 import { TableTabContent } from './TableTabContent';
 import { MetadataTabContent } from './MetadataTabContent';
 
+import { useAuth } from "@/features/auth";
 import {
   faSlidersH,
   faTerminal,
@@ -27,10 +28,15 @@ interface InspectorTabsProps {
 
 export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab } = useUI();
+  const { isAuthenticated } = useAuth();
   const {
     executionResult,
     clearExecutionResult,
   } = useScriptExecution();
+  const { 
+    activeAnalyticsSubTabIndex, 
+    setActiveAnalyticsSubTabIndex 
+  } = useUI();
 
   const [hasUnviewedTableData, setHasUnviewedTableData] = useState(false);
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
@@ -80,31 +86,59 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   }, [script?.id]);
 
   return (
-    <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isActionable ? "opacity-50 cursor-not-allowed" : ""}`}>
+    <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}>
       <div className="flex border-b border-slate-200/60 dark:border-slate-700/40 items-center px-5 bg-slate-50/50 dark:bg-slate-900/40">
         <div className="flex gap-1">
           {visibleTabs.map((tab) => (
-            <button
-              key={tab.id}
-              className={`tab-button px-4 py-4 flex items-center gap-3 transition-all duration-300 relative border-b-2 rounded-t-xl
-                ${activeInspectorTab === tab.id
-                  ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white dark:bg-slate-800"
-                  : "text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-300"
-                }`}
-              onClick={() => setActiveInspectorTab(tab.id as InspectorTab)}
-            >
-              <FontAwesomeIcon icon={tab.icon} className={`text-[10px] ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-60'}`} />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
-                {tab.label}
-              </span>
-
-              {tab.id === 'table' && hasUnviewedTableData && (
-                <span className="absolute top-2 right-2 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            <React.Fragment key={tab.id}>
+              <button
+                className={`tab-button px-4 py-4 flex items-center gap-3 transition-all duration-300 relative border-b-2 rounded-t-xl
+                  ${activeInspectorTab === tab.id
+                    ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white dark:bg-slate-800"
+                    : "text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-300"
+                  }`}
+                onClick={() => setActiveInspectorTab(tab.id as InspectorTab)}
+              >
+                <FontAwesomeIcon icon={tab.icon} className={`text-[10px] ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-60'}`} />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+                  {tab.label}
                 </span>
+
+                {tab.id === 'table' && hasUnviewedTableData && (
+                  <span className="absolute top-2 right-2 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                  </span>
+                )}
+              </button>
+
+              {/* Compact Sub-tab pills for Analytics */}
+              {tab.id === 'table' && executionResult?.structuredOutput && executionResult.structuredOutput.length > 1 && (
+                <div className="flex items-center gap-1 ml-1 mr-3 h-full pb-1">
+                  <div className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-lg gap-1">
+                    {executionResult.structuredOutput.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setActiveAnalyticsSubTabIndex(idx);
+                          setActiveInspectorTab('table');
+                        }}
+                        className={`h-5 flex items-center justify-center rounded text-[9px] font-black transition-all ${
+                          item.title ? "px-2 min-w-[20px]" : "w-5"
+                        } ${
+                          activeAnalyticsSubTabIndex === idx
+                            ? "bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                        }`}
+                        title={item.title || `Table ${idx + 1}`}
+                      >
+                        {item.title || idx + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-            </button>
+            </React.Fragment>
           ))}
         </div>
         <div className="ml-auto pl-2 flex items-center gap-1 flex-shrink-0">

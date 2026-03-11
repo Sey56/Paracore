@@ -27,6 +27,10 @@ export interface UIContextProps {
   activeInspectorTab: InspectorTab;
   setActiveInspectorTab: (tab: InspectorTab) => void;
 
+  // Analytics Sub-tabs
+  activeAnalyticsSubTabIndex: number;
+  setActiveAnalyticsSubTabIndex: (index: number) => void;
+
   // Categories
   selectedCategory: string | null;
   setSelectedCategory: (category: string | null) => void;

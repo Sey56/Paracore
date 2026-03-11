@@ -121,7 +121,18 @@ namespace CoreScript.Engine.Globals
             if (value == null) { writer.WriteNullValue(); return; }
             writer.WriteStartObject();
             writer.WriteString("Name", value.Definition.Name);
+            
+            // Write formatted value for display
             writer.WriteString("Value", value.AsValueString() ?? "-");
+
+            // Meta
+            writer.WriteNumber("Id", (value.Definition as InternalDefinition)?.Id.Value ?? -1);
+            writer.WriteBoolean("IsReadOnly", value.IsReadOnly);
+            
+            // Enums naturally serialize to strings now thanks to JsonStringEnumConverter
+            writer.WritePropertyName("StorageType");
+            JsonSerializer.Serialize(writer, value.StorageType, options);
+
             writer.WriteEndObject();
         }
     }
@@ -135,16 +146,16 @@ namespace CoreScript.Engine.Globals
             _context = context;
         }
 
-        public void Show(string type, object data)
+        public void Show(string type, object data, string? title = null)
         {
             var json = JsonSerializer.Serialize(data, ExecutionGlobals.SerializerOptions);
-            _context.AddStructuredOutput(type, json);
+            _context.AddStructuredOutput(type, json, title);
         }
 
-        public void ChartBar(object data) => Show("chart-bar", data);
-        public void ChartPie(object data) => Show("chart-pie", data);
-        public void Table(object data) => Show("table", data);
-        public void ChartLine(object data) => Show("chart-line", data);
+        public void ChartBar(object data, string? title = null) => Show("chart-bar", data, title);
+        public void ChartPie(object data, string? title = null) => Show("chart-pie", data, title);
+        public void Table(object data, string? title = null) => Show("table", data, title);
+        public void ChartLine(object data, string? title = null) => Show("chart-line", data, title);
     }
 
     public class ExecutionGlobals
@@ -160,7 +171,8 @@ namespace CoreScript.Engine.Globals
                 new RevitElementConverterFactory(),
                 new DocumentConverter(),
                 new XYZConverter(), 
-                new ParameterConverter() 
+                new ParameterConverter(),
+                new JsonStringEnumConverter()
             }
         };
 
@@ -247,10 +259,10 @@ namespace CoreScript.Engine.Globals
         public void SetInternalData(string data) => _context.SetInternalData(data);
 
         // Visualization Globals
-        public void Table(object data) => Output.Table(data);
-        public void BarChart(object data) => Output.ChartBar(data);
-        public void PieChart(object data) => Output.ChartPie(data);
-        public void LineChart(object data) => Output.ChartLine(data);
+        public void Table(object data, string? title = null) => Output.Table(data, title);
+        public void BarChart(object data, string? title = null) => Output.ChartBar(data, title);
+        public void PieChart(object data, string? title = null) => Output.ChartPie(data, title);
+        public void LineChart(object data, string? title = null) => Output.ChartLine(data, title);
 
         public void Transact(string name, Action<Document> action)
         {

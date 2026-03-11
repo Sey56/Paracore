@@ -75,12 +75,14 @@ namespace CoreScript.Engine.Core
                         "Autodesk.Revit.UI.Selection",
                         "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime",
                         "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
-                        "RestSharp", "MiniExcelLibs", 
+                        "MiniExcelLibs", 
                         "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
                     );
 
-                // Inject ScriptApi
-                string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + code;
+                // Inject ScriptApi and resolve Parameter ambiguity
+                string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+                                  "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine + 
+                                  code;
 
                 if (session == null)
                 {
@@ -142,7 +144,7 @@ namespace CoreScript.Engine.Core
                 }
 
                 // Otherwise, fall back to the return value of the expression
-                var output = session.State.ReturnValue?.ToString() ?? "Success (no return value)";
+                var output = session.State.ReturnValue?.ToString() ?? string.Empty;
                 return (true, output, string.Empty, structuredOutput);
             }
             catch (Exception ex)

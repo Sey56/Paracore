@@ -2,6 +2,7 @@ using CoreScript;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Runtime;
 using Paracore.Addin.Context;
+using Paracore.Addin.Models;
 using System;
 using System.Threading.Tasks;
 using Autodesk.Revit.UI;
@@ -43,17 +44,20 @@ namespace Paracore.Addin.Handlers
                 {
                     try
                     {
-                        var structuredItem = System.Text.Json.JsonSerializer.Deserialize<CoreScript.StructuredOutputItem>(item, 
+                        var temp = System.Text.Json.JsonSerializer.Deserialize<StructuredOutputPoco>(item, 
                             new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        if (structuredItem != null)
+                            
+                        if (temp != null)
                         {
-                            response.StructuredOutput.Add(structuredItem);
+                            response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { 
+                                Type = temp.Type ?? "",
+                                Data = temp.Data ?? "",
+                                Title = temp.Title ?? ""
+                            });
                         }
                     }
                     catch
                     {
-                        // Fallback: If it's already a serialized string, we might just need to wrap it
-                        // but usually it's a JSON string of a StructuredOutputItem
                     }
                 }
 

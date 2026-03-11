@@ -14,10 +14,7 @@ import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
 import { Tooltip } from '@/components/common/Tooltip';
 
-export interface StructuredOutput {
-  type: string;
-  data: string;
-}
+import { StructuredOutput } from '@/types/scriptModel';
 
 interface StructuredOutputViewerProps {
   item: StructuredOutput;
@@ -460,25 +457,6 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   const parsedData = useMemo(() => { try { return JSON.parse(item.data); } catch { return undefined; } }, [item.data]);
   const tableData = useMemo(() => (parsedData === undefined || item.type !== 'table') ? null : (Array.isArray(parsedData) ? parsedData : [parsedData]), [parsedData, item.type]);
 
-  if (parsedData === undefined) return <pre className="p-3 text-xs text-red-600 bg-red-50 rounded-xl">Error: Invalid JSON.</pre>;
-
-  const TableToolbarActions = () => (
-    <div className="flex gap-1">
-      <button onClick={handleCopy} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-blue-600" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
-      <button onClick={handleDownloadCsv} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-green-500" title="Export CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-      <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-blue-500" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
-    </div>
-  );
-
-  if (item.type === 'table') {
-    return (
-      <div className={isDashboard ? 'w-full max-h-[500px]' : 'flex-1 w-full min-h-0'}>
-        <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
-        <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} actions={<TableToolbarActions />} />
-      </div>
-    );
-  }
-
   // --- V3 Proven Export Logic (DOM cloning + computed style transfer) ---
   const handleDownloadChartCsv = useCallback(async () => {
     try {
@@ -628,6 +606,18 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     } catch { showNotification("Failed to export chart image.", "error"); }
   }, [chartId, item.data, item.type, showNotification]);
 
+  if (parsedData === undefined) return <pre className="p-3 text-xs text-red-600 bg-red-50 rounded-xl">Error: Invalid JSON.</pre>;
+
+  const TableToolbarActions = () => (
+    <div className="flex gap-1">
+      <button onClick={handleCopy} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-blue-600" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
+      <button onClick={handleDownloadCsv} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-green-500" title="Export CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
+      <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-blue-500" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
+    </div>
+  );
+
+
+
   const ChartToolbar = () => (
     <div className="absolute top-2 right-2 z-10 flex gap-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-lg border border-slate-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity">
       <button onClick={handleDownloadChartCsv} className="p-1 px-2 text-slate-500 hover:text-green-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export Data to CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
@@ -636,10 +626,18 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   );
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 group relative">
+    <div className={`bg-white dark:bg-slate-900 ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800' : 'h-full flex flex-col'} group relative overflow-hidden flex flex-col`}>
       {(item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && <ChartToolbar />}
+      
+      {item.type === 'table' && (
+        <div className="flex-1 w-full min-h-0">
+          <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
+          <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} actions={<TableToolbarActions />} />
+        </div>
+      )}
+
       {item.type === 'chart-bar' && (
-        <div id={chartId} className="h-[300px] w-full relative px-2">
+        <div id={chartId} className="flex-1 w-full relative px-2 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
@@ -653,7 +651,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         </div>
       )}
       {item.type === 'chart-pie' && (
-        <div id={chartId} className="h-[350px] w-full relative px-2">
+        <div id={chartId} className="flex-1 w-full relative px-2 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
               <Pie data={parsedData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`} outerRadius={90} fill="#8884d8" dataKey="value">
@@ -666,7 +664,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         </div>
       )}
       {item.type === 'chart-line' && (
-        <div id={chartId} className="h-[300px] w-full relative px-2">
+        <div id={chartId} className="flex-1 w-full relative px-2 p-4">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />

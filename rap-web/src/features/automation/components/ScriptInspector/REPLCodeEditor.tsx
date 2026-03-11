@@ -96,77 +96,99 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         onKeyDown(e);
     };
 
-    // Ensure textarea dimensions match highlighter (simplified approach for this project)
-    const sharedStyles: React.CSSProperties = {
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    // Base font styles that MUST be identical across both layers
+    const fontStyles: React.CSSProperties = {
+        fontFamily: '"Consolas", "Monaco", monospace',
         fontSize: '13px',
-        lineHeight: '1.5',
-        padding: '12px 16px',
-        margin: 0,
-        border: '1px solid transparent',
-        width: '100%',
-        height: '100%',
-        boxSizing: 'border-box',
+        lineHeight: '20px',
+        letterSpacing: 'normal',
         tabSize: 4,
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+        textRendering: 'optimizeSpeed', // Disable kerning for absolute stability
     };
 
     return (
-        <div className="relative w-full h-[300px] rounded-lg border border-slate-200 bg-white dark:bg-slate-900 overflow-hidden shadow-inner group" style={{ borderColor: 'var(--border-divider)' }}>
-            {/* Underlying Syntax Highlighter Layer */}
-            <div
-                ref={highlighterRef}
-                className="absolute inset-0 pointer-events-none select-none scrollbar-hide overflow-hidden"
-                style={sharedStyles}
-            >
-                <SyntaxHighlighter
-                    language="csharp"
-                    style={syntaxStyle}
-                    customStyle={{
-                        margin: 0,
-                        padding: 0,
-                        background: 'transparent',
-                        fontSize: 'inherit',
-                        fontFamily: 'inherit',
-                        lineHeight: 'inherit',
-                        width: '100%',
-                        height: '100%',
-                        overflow: 'visible'
+        <div className="relative w-full h-[300px] rounded-lg border border-slate-200 bg-white dark:bg-slate-900 shadow-inner group overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
+            {/* 
+                GRID CONTAINER: This is the secret. 
+                By using a grid, both children occupy the EXACT same space.
+                Padding is applied HERE, not on the children, to ensure the content-box is identical down to the pixel.
+            */}
+            <div className="grid w-full h-full" style={{ padding: '12px 16px' }}>
+                {/* Underlying Syntax Highlighter Layer */}
+                <div
+                    ref={highlighterRef}
+                    className="col-start-1 row-start-1 pointer-events-none select-none overflow-hidden"
+                    style={{
+                        ...fontStyles,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                        scrollbarGutter: 'stable',
                     }}
-                    codeTagProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-all' } }}
                 >
-                    {/* Add a zero-width space to handled empty last line for scroll alignment */}
-                    {value + (value.endsWith('\n') ? ' ' : '')}
-                </SyntaxHighlighter>
-            </div>
+                    <SyntaxHighlighter
+                        language="csharp"
+                        style={syntaxStyle}
+                        customStyle={{
+                            margin: 0,
+                            padding: 0,
+                            background: 'transparent',
+                            fontSize: 'inherit',
+                            fontFamily: 'inherit',
+                            lineHeight: 'inherit',
+                            width: '100%',
+                            height: '100%',
+                            overflow: 'visible',
+                            letterSpacing: 'inherit',
+                        }}
+                        codeTagProps={{ 
+                            style: { 
+                                whiteSpace: 'pre-wrap', 
+                                wordBreak: 'break-all',
+                                fontFamily: 'inherit',
+                                lineHeight: 'inherit'
+                            } 
+                        }}
+                    >
+                        {/* Add a zero-width space to handled empty last line for scroll alignment */}
+                        {value + (value.endsWith('\n') ? ' ' : '')}
+                    </SyntaxHighlighter>
+                </div>
 
-            {/* Transparent Textarea Layer */}
-            <textarea
-                ref={ref}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onKeyDown={handleTextareaKeyDown}
-                onScroll={handleScroll}
-                disabled={disabled}
-                placeholder={placeholder}
-                spellCheck="false"
-                autoCorrect="off"
-                autoCapitalize="off"
-                style={{
-                    ...sharedStyles,
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    color: 'transparent',
-                    caretColor: '#60a5fa', // Bright blue caret for visibility
-                    background: 'transparent',
-                    resize: 'none',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-all',
-                    zIndex: 10,
-                    outline: 'none',
-                }}
-                className="custom-scrollbar focus:ring-2 focus:ring-blue-500/30 transition-shadow"
-            />
+                {/* Transparent Textarea Layer */}
+                <textarea
+                    ref={ref}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    onKeyDown={handleTextareaKeyDown}
+                    onScroll={handleScroll}
+                    disabled={disabled}
+                    placeholder={placeholder}
+                    spellCheck="false"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    style={{
+                        ...fontStyles,
+                        gridArea: '1/1',
+                        color: 'transparent',
+                        caretColor: '#60a5fa',
+                        background: 'transparent',
+                        resize: 'none',
+                        border: 'none',
+                        outline: 'none',
+                        padding: 0,
+                        margin: 0,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                        zIndex: 10,
+                        overflowX: 'hidden',
+                        overflowY: 'auto',
+                        scrollbarGutter: 'stable',
+                    }}
+                    className="custom-scrollbar focus:ring-0"
+                />
+            </div>
         </div>
     );
 });

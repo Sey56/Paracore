@@ -86,6 +86,9 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
           timestamp: new Date(), 
           isRepl: executionResult.internal_data === 'REPL' // Marker for REPL results
         }].slice(-100));
+      } else if (executionResult.internal_data === 'REPL') {
+        // For REPL, if output is empty (no return value), we don't add an output entry
+        // This keeps the console clean and professional.
       }
       if (executionResult.error) {
         setLocalHistory(prev => [...prev, { 
@@ -316,12 +319,18 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
     setHistoryIndex(-1);
     setIsReplLoading(true);
 
-    // Identify REPL Turn (/// Label or Default)
-    let identifier = "REPL output";
-    const lines = command.split('\n');
-    const firstLine = lines[0].trim();
-    if (firstLine.startsWith('///')) {
-      identifier = firstLine.substring(3).trim() || identifier;
+    // Identify REPL Turn (Command for single-line, /// Label or Default for multi-line)
+    let identifier = "";
+    if (!isMultiLine) {
+      identifier = command;
+    } else {
+      const lines = command.split('\n');
+      const firstLine = lines[0].trim();
+      if (firstLine.startsWith('///')) {
+        identifier = firstLine.substring(3).trim() || "Multi-Line Execution";
+      } else {
+        identifier = "Multi-Line Execution";
+      }
     }
 
     // Add input identifier to local history instead of full code

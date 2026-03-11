@@ -60,11 +60,11 @@ namespace CoreScript.Engine.Tests
             FileLogger.LogError(message);
         }
 
-        public void AddStructuredOutput(string type, string jsonData)
+        public void AddStructuredOutput(string type, string jsonData, string? title = null)
         {
-            _showOutputMessages.Add($"Type: {type}, Data: {jsonData}");
-            FileLogger.Log($"Structured Output - Type: {type}, Data: {jsonData}");
-            Console.WriteLine($"Structured Output - Type: {type}, Data: {jsonData}");
+            _showOutputMessages.Add($"Type: {type}, Data: {jsonData}, Title: {title ?? "None"}");
+            FileLogger.Log($"Structured Output - Type: {type}, Data: {jsonData}, Title: {title ?? "None"}");
+            Console.WriteLine($"Structured Output - Type: {type}, Data: {jsonData}, Title: {title ?? "None"}");
         }
 
         public void SetInternalData(string data)

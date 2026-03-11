@@ -170,6 +170,7 @@ message ExecuteScriptRequest {
 message StructuredOutputItem {
   string type = 1;
   string data = 2; 
+  string title = 3; 
 }
 
 message ExecuteScriptResponse {

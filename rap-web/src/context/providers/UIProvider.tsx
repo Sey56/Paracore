@@ -31,6 +31,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource | null>(null);
+  const [activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex] = useState(0);
 
   // Load activeScriptSource with user-aware key
   useEffect(() => {
@@ -253,6 +254,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     setFocusMode,
     isLayoutSwapped,
     toggleLayoutSwap,
+    activeAnalyticsSubTabIndex,
+    setActiveAnalyticsSubTabIndex,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -292,6 +295,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isFocusMode,
     isLayoutSwapped,
     toggleLayoutSwap,
+    activeAnalyticsSubTabIndex,
   ]);
 
   return (

@@ -5,6 +5,7 @@ using CoreScript.Engine.Models;
 using CoreScript.Engine.Runtime;
 using Grpc.Core;
 using Paracore.Addin.Context;
+using Paracore.Addin.Models;
 using Paracore.Addin.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -507,10 +508,14 @@ namespace Paracore.Addin.Handlers
                 {
                     try
                     {
-                        var item = JsonSerializer.Deserialize<CoreScript.StructuredOutputItem>(jsonStr, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        if (item != null && !response.StructuredOutput.Any(existing => existing.Type == item.Type && existing.Data == item.Data))
+                        var temp = JsonSerializer.Deserialize<StructuredOutputPoco>(jsonStr, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (temp != null && !response.StructuredOutput.Any(existing => existing.Type == temp.Type && existing.Data == temp.Data))
                         {
-                            response.StructuredOutput.Add(item);
+                            response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { 
+                                Type = temp.Type ?? "",
+                                Data = temp.Data ?? "",
+                                Title = temp.Title ?? ""
+                            });
                         }
                     }
                     catch { }

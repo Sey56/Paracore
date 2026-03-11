@@ -57,6 +57,7 @@ export interface RawScriptParameterData {
 export interface StructuredOutput {
   type: string;
   data: string;
+  title?: string;
 }
 
 export interface ScriptExecutionResult {

@@ -203,7 +203,7 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
             response = stub.ExecuteScript(request)
             # logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
-            structured_output_data = [{"type": item.type, "data": item.data} for item in response.structured_output]
+            structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in response.structured_output]
 
             return {
                 "is_success": response.is_success,
@@ -814,7 +814,7 @@ def execute_repl(code: str, session_id: str):
                 session_id=session_id
             )
             response = stub.ExecuteRepl(request)
-            structured_output_data = [{"type": item.type, "data": item.data} for item in getattr(response, 'structured_output', [])]
+            structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in getattr(response, 'structured_output', [])]
             return {
                 "is_success": response.is_success,
                 "output": response.output,
