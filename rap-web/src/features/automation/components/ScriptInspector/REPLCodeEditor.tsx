@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useTheme } from '@/context/ThemeContext';
 
 interface REPLCodeEditorProps {
     value: string;
@@ -19,6 +20,8 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     placeholder = "Write your code here...",
 }, ref) => {
     const highlighterRef = useRef<HTMLDivElement>(null);
+    const { theme } = useTheme();
+    const syntaxStyle = theme === 'light' ? vs : vscDarkPlus;
 
     // Sync scrolling between textarea and highlighter
     const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -117,7 +120,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
             >
                 <SyntaxHighlighter
                     language="csharp"
-                    style={vscDarkPlus}
+                    style={syntaxStyle}
                     customStyle={{
                         margin: 0,
                         padding: 0,

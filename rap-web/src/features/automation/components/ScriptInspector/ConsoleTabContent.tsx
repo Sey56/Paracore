@@ -8,7 +8,8 @@ import { useRevitStatus } from '@/hooks/useRevitStatus';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useTheme } from '@/context/ThemeContext';
 import { REPLCodeEditor } from './REPLCodeEditor';
 
 interface ConsoleTabContentProps {
@@ -29,6 +30,8 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const { combinedScriptContent, reloadScript } = useScripts();
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
+  const { theme } = useTheme();
+  const syntaxStyle = theme === 'light' ? vs : vscDarkPlus;
 
   const [isExplaining, setIsExplaining] = useState(false);
   const [aiResult, setAiResult] = useState<{
@@ -472,7 +475,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                       <div className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs w-full overflow-hidden">
                         <SyntaxHighlighter
                           language="csharp"
-                          style={vscDarkPlus}
+                          style={syntaxStyle}
                           customStyle={{ margin: 0, padding: '1rem', width: '100%', maxWidth: '100%', overflowX: 'auto' }}
                           codeTagProps={{ style: { whiteSpace: 'pre', wordBreak: 'normal' } }}
                         >
@@ -485,7 +488,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                   <div className="rounded-lg border border-gray-200 dark:border-gray-700 text-xs w-full overflow-hidden">
                     <SyntaxHighlighter
                       language="csharp"
-                      style={vscDarkPlus}
+                      style={syntaxStyle}
                       customStyle={{ margin: 0, padding: '1rem', width: '100%', maxWidth: '100%', overflowX: 'auto' }}
                       codeTagProps={{ style: { whiteSpace: 'pre', wordBreak: 'normal' } }}
                     >
@@ -548,7 +551,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                   <div className="flex-grow min-w-0">
                     <SyntaxHighlighter
                       language="csharp"
-                      style={vscDarkPlus}
+                      style={syntaxStyle}
                       customStyle={{
                         margin: 0,
                         padding: 0,
@@ -644,7 +647,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                   spellCheck="false"
                   autoCorrect="off"
                   autoCapitalize="off"
-                  className="w-full pl-7 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:text-white dark:placeholder-slate-600 transition-all font-mono"
+                  className="w-full pl-7 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white dark:placeholder-slate-600 transition-all font-mono"
                 />
               </div>
             )}
