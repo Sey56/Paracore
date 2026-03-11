@@ -10,6 +10,20 @@ The workshop editor provides a "mini-VSCode" experience:
 - **Multi-Line Persistence**: Your code stays in the editor after running for rapid iteration.
 - **Execution**: Press **`Ctrl + Enter`** to run.
 - **Identifying Labels**: Start your code with `/// My Label` to name your execution turn in the console logs.
+- **Session Persistence**: Variables defined in the REPL stay alive between runs within the same session.
+
+---
+
+## 📐 Magic Unit Filtering
+You can use units directly in your filter logic to avoid manual math.
+
+```csharp
+// Find rooms smaller than 10 square meters
+var smallRooms = GetElements<Room>().Where(r => r.Area < 10.ToUnits("m2"));
+
+// Find walls thicker than 300 millimeters
+var thickWalls = GetElements<Wall>().Where(w => w.Width > 300.ToUnits("mm"));
+```
 
 ---
 
@@ -66,6 +80,27 @@ Render rich, interactive data in the **Summary** tab.
 
 ---
 
+## 📐 Unit-Aware "Round Trip" Editing
+Paracore REPL is not just for viewing; it's a **Dynamic Inspector**. To edit Revit parameters with correct unit conversions directly in the grid, use a **Magic Header Suffix**.
+
+### The Magic Suffix
+Append `_unit`, `[unit]`, or `(unit)` to your property name in C#. Paracore will automatically:
+1. **Beautify the Header**: Strip the suffix for a clean display (e.g., `Area_m2` → `Area`).
+2. **Signal the Unit**: Use the designated unit (e.g., `m2`, `mm`, `ft`) when you edit a cell.
+3. **Revit Sync**: Convert your input back to Revit internal units (Feet) before saving.
+
+**Example Command:**
+```csharp
+Table(GetElements<Room>().Select(r => new { 
+    r.Id, 
+    r.Name, 
+    Area_m2 = r.Area.FromUnits("m2"),    // Editable in Square Meters
+    Perimeter_mm = r.Perimeter.FromUnits("mm") // Editable in Millimeters
+}))
+```
+
+---
+
 ## 🛠️ Model Modification (Transactions)
 To change Revit data, you **must** wrap your code in a [Transact](file:///C:/Users/seyou/Paracore/CoreScript.Engine/Globals/ExecutionGlobals.cs#267-278) block.
 
@@ -76,6 +111,16 @@ Transact("Pro Labeling", () => {
         d.LookupParameter("Comments")?.Set("Audit Verified");
     }
 });
+```
+
+---
+
+## ⏱️ Execution & Timeouts
+By default, scripts time out after **10 seconds** to prevent Revit from hanging. For long-running audits, you can increase this:
+
+```csharp
+SetExecutionTimeout(60); // Allow 60 seconds
+// ... complex logic here ...
 ```
 
 ---
@@ -94,13 +139,24 @@ Watchdog(() => {
 
 ---
 
+## 🏗️ Supported Unit Strings
+Use these strings in any `.ToUnits()`, `.FromUnits()`, or "Magic Header" (e.g., `_m2`, `[mm]`).
+
+- **Length**: `mm`, `cm`, `m`, `ft`, `in`
+- **Area**: `m2`, `sqm`, `ft2`, `sqft`
+- **Volume**: `m3`, `cum`, `ft3`, `cuft`
+
+---
+
 ## 📚 Quick C# Cheat Sheet for Revit
 Commonly used properties:
-- `element.Id` : The [ElementId](file:///C:/Users/seyou/Paracore/CoreScript.Engine/Core/ParameterOptionsComputer.cs#31-75) (prints as a number in Paracore).
+- `element.Id` : The [ElementId](file:///C:/Users/seyou/Paracore/CoreScript.Engine/Core/ParameterOptionsComputer.cs#31-75) (prints as a number).
 - `element.Name` : The name of the element.
 - `element.Category` : The Revit category object.
-- `element.LookupParameter("Name")` : Access ANY parameter.
-- [(element as Wall)?.Width](file:///C:/Users/seyou/Paracore/CoreScript.Engine/Globals/ExecutionGlobals.cs#225-237) : Access specific class properties.
+- `element.GetStr("Name")` : **Magic!** Get string parameter by name.
+- `element.GetNum("Area", "m2")` : **Magic!** Get numeric value + auto-conversion.
+- `element.GetVal("Comments")` : **Magic!** Get formatted value (as seen in UI).
+- `element.LookupParameter("Name")` : The standard Revit API way.
 
 ---
 

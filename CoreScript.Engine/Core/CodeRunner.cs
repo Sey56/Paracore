@@ -103,6 +103,7 @@ namespace CoreScript.Engine.Core
                 // V3.1: Start with #line hidden to ensure internal using doesn't count toward line numbers
                 finalScriptCode = "#line hidden" + Environment.NewLine + 
                                   "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+                                  "using CoreScript.Engine.Globals;" + Environment.NewLine + 
                                   modifiedUserCode;
 
                 try

@@ -155,7 +155,7 @@ namespace CoreScript.Engine.Core
                     FileLogger.LogError($"[RevitObjectResolver] Identity search error for {targetType.Name}: {ex.Message}");
                 }
             }
-            
+
             return null;
         }
     }

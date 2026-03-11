@@ -1,6 +1,9 @@
 # 🚀 Paracore REPL Commands Guide
 
-The Paracore REPL is a powerful, persistent C# scratchpad that gives you direct, real-time access to the Revit API and Paracore's high-level automation tools.
+The Paracore REPL is a powerful, persistent C# scratchpad that gives you direct, real-time access to the Revit API and Paracore's high-level automation tools. 
+
+> [!TIP]
+> **Session Persistence**: Variables defined in the REPL stay alive between runs within the same session. Break your complex tasks into small, iterative steps!
 
 ## 🧠 CoreScript API
 These properties and methods are globally available in every REPL turn.
@@ -32,14 +35,43 @@ Paracore's "Magic" engine automatically resolves strings into Revit elements, ca
 
 ---
 
-## 📊 Summary & Visualization
+## 📐 Magic Unit Filtering
+Use units directly in your logic to avoid manual math.
+
+| Command | Example |
+| :--- | :--- |
+| `.ToUnits("unit")` | `GetElements<Wall>().Where(w => w.Width > 300.ToUnits("mm"))` |
+| `.FromUnits("unit")` | `walls.Select(w => new { Name = w.Name, m2 = w.Area.FromUnits("m2") })` |
+
+---
+
+---
+
+## 🪄 Magic Parameter Accessors
+Quickly access Revit parameters without complex API calls.
+
+- **`GetStr("Name")`**: Get string value (e.g., `r.GetStr("Floor Finish")`).
+- **`GetNum("Name", "unit")`**: Get numeric value + unit conversion (e.g., `r.GetNum("Area", "m2")`).
+- **`GetInt("Name")`**: Get integer value.
+- **`GetVal("Name")`**: Get formatted value string exactly as seen in Revit UI.
+
+| `WatchdogReport(msg, lvl)` | `void` | Post a result to the background reporting UI. |
+| `SetExecutionTimeout(s)` | `int` | Increase script timeout (default 10s). |
+
+---
+
+## 🏗️ Supported Unit Strings
+Use these strings in any `ToUnits`, `FromUnits`, or "Magic Header" (`Area_m2`).
+
+- **Length**: `mm`, `cm`, `m`, `ft`, `in`
+- **Area**: `m2`, `sqm`, `ft2`, `sqft`
+- **Volume**: `m3`, `cum`, `ft3`, `cuft`
+
+---
 Commands to render rich data in the **Summary** tab.
 
-- **`Table(data)`**: Renders any list of objects or Revit elements as an interactive grid.
-- **`BarChart(data)` / `PieChart(data)`**: Renders data with `name` and `value` properties.
-- **`LineChart(data)`**: Renders a line graph in the summary tab.
-- **`Select(elements)`**: Highlight and zoom to a list of elements in Revit.
 - **`Zoom(elements)`**: Zoom the view to fit the specified elements.
+- **`Table(data)` + Suffixes**: Use `_m2`, `[mm]`, or `(ft)` in property names (e.g., `Perimeter_mm`) to enable unit-aware bi-directional editing with clean headers.
 
 ---
 

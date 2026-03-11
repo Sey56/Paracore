@@ -56,6 +56,20 @@ const CustomPieTooltip = ({ active, payload }: { active?: boolean; payload?: any
 
 // --- TableView: Viewport-Locked Scrolling Architecture ---
 
+const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
+
+const beautifyHeader = (header: string) => {
+  const match = header.match(/^(.*?)?\s*[\[\(_](.*?)[\]\)]?$/);
+  if (match) {
+    const possibleName = match[1].replace(/[_\(\[]$/, '').trim();
+    const possibleUnit = match[2].trim();
+    if (VALID_UNITS.includes(possibleUnit.toLowerCase())) {
+      return possibleName;
+    }
+  }
+  return header;
+};
+
 const TableView: React.FC<{
   data: Record<string, unknown>[];
   onSelect: (ids: number[]) => void;
@@ -194,7 +208,7 @@ const TableView: React.FC<{
                         if (sortConfig?.key === header && sortConfig.direction === 'asc') direction = 'desc';
                         setSortConfig({ key: header, direction });
                       }}>
-                        <span className="truncate block max-w-[200px]">{header}</span>
+                        <span className="truncate block max-w-[200px]">{beautifyHeader(header)}</span>
                         <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0">
                           {sortConfig?.key === header ? (
                             sortConfig.direction === 'asc' ? <FontAwesomeIcon icon={faSortUp} /> : <FontAwesomeIcon icon={faSortDown} />
@@ -317,12 +331,19 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       let unit = meta?.unit || "";
 
       // --- Magic Header Discovery (REPL support) ---
-      // If we see "Area [m2]", extract unit "m2" and search for "Area"
+      // Supports: Area [m2], Area (m2), Area_m2
       if (!unit) {
-        const match = parameterName.match(/^(.*?)?\s*\[(.*?)\]$/);
+        const match = parameterName.match(/^(.*?)?\s*[\[\(_](.*?)[\]\)]?$/);
         if (match) {
-          realName = match[1].trim();
-          unit = match[2].trim();
+          const possibleName = match[1].replace(/[_\(\[]$/, '').trim();
+          const possibleUnit = match[2].trim();
+          
+          // Only apply if the unit is one of our known Forge tokens
+          const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
+          if (VALID_UNITS.includes(possibleUnit.toLowerCase())) {
+            realName = possibleName;
+            unit = possibleUnit;
+          }
         }
       }
 
@@ -403,10 +424,15 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
               // --- Magic Header Discovery (REPL CSV support) ---
               if (!unit) {
-                const match = col.match(/^(.*?)?\s*\[(.*?)\]$/);
+                const match = col.match(/^(.*?)?\s*[\[\(_](.*?)[\]\)]?$/);
                 if (match) {
-                  realName = match[1].trim();
-                  unit = match[2].trim();
+                  const possibleName = match[1].replace(/[_\(\[]$/, '').trim();
+                  const possibleUnit = match[2].trim();
+                  const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
+                  if (VALID_UNITS.includes(possibleUnit.toLowerCase())) {
+                    realName = possibleName;
+                    unit = possibleUnit;
+                  }
                 }
               }
 

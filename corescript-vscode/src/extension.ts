@@ -413,8 +413,14 @@ public class SpiralCreator
 
           response = await executeScript(request);
         } catch (err: any) {
-          outputChannel.appendLine(`[ERROR] gRPC call failed: ${err.message}`);
-          vscode.window.showErrorMessage(`gRPC call failed: ${err.message}`);
+          if (err.code === 14) { // UNAVAILABLE / Connection Refused
+            const friendlyMsg = "Could not connect to Revit. Please ensure Revit is open and the Paracore Server is toggled ON.";
+            outputChannel.appendLine(`[ERROR] ${friendlyMsg} (${err.message})`);
+            vscode.window.showErrorMessage(friendlyMsg);
+          } else {
+            outputChannel.appendLine(`[ERROR] gRPC call failed: ${err.message}`);
+            vscode.window.showErrorMessage(`gRPC call failed: ${err.message}`);
+          }
           return;
         }
 
