@@ -364,7 +364,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             type="text"
             value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
             onChange={(e) => onChange(index, e.target.value)}
-            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-medium bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-medium bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
             disabled={disabled}
             placeholder={param.inputType === 'Folder' ? "Select source folder..." : "Select target path..."}
           />
@@ -441,7 +441,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
                 }
               }
             }}
-            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
             disabled={disabled}
             inputMode="decimal"
           />
@@ -467,7 +467,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           type="text"
           value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
           onChange={(e) => onChange(index, e.target.value)}
-          className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+          className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
           disabled={disabled}
         />
         {param.selectionType && param.selectionType !== "None" && onPickObject && (
@@ -486,7 +486,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   return (
     <div key={index} className="flex flex-col space-y-2 pb-4 border-b border-slate-50 dark:border-slate-800/30 last:border-0 last:pb-0">
       <div className="flex justify-between items-center min-w-0">
-        <label className="flex items-center text-[13px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 truncate">
+        <label className="flex items-center text-[13px] font-semibold tracking-wide text-slate-500 dark:text-slate-200 truncate">
           <div className="w-1 h-3 bg-slate-300 dark:bg-slate-600 rounded-full mr-2.5" />
           {param.name}
           {param.suffix && <span className="ml-1 text-slate-400 font-medium text-xs">({param.suffix})</span>}
@@ -494,7 +494,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
         </label>
         {param.description && (
           <div className="relative group/info cursor-help">
-            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 italic tracking-tight truncate max-w-[120px] block">
+            <span className="text-xs font-medium text-slate-400 dark:text-slate-300 italic tracking-tight truncate max-w-[120px] block">
               {param.description}
             </span>
             <div className="absolute z-50 right-0 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-xs font-medium leading-relaxed max-w-[200px] break-words opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-300 transform translate-y-1 group-hover/info:translate-y-0">

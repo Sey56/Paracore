@@ -15,6 +15,7 @@
   --text-main: #0f172a;
   --text-muted: #64748b;
   --accent: #3b82f6;
+  --border-divider: #cbd5e1; /* slate-300 */
 }
 
 /* Midnight Mode (The Beloved Bluish Dark) */
@@ -32,65 +33,62 @@
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --accent: #60a5fa;
+  --border-divider: #2d394d; /* Balanced for Midnight */
 }
 
 /* Eclipse Pro (Modern Neutral Matte) */
 .dark.eclipse {
   --bg-ground: #282c34;
-  --bg-panel: #21252b;
+  --bg-panel: #181a1f; 
   --bg-card: #21252b;
   /* SOLID Matte */
-  --bg-card-focus: #2c313a;
+  --bg-card-focus: #353b45;
   /* SOLID Matte */
   --bg-group: #21252b;
   /* SOLID Matte */
   --bg-group-focus: #2c313a;
   /* SOLID Matte */
-  --border-main: #181a1f;
-  --text-main: #abb2bf;
-  --text-muted: #5c6370;
+  --border-main: #121417;
+  --text-main: #e2e4e7;
+  --text-muted: #828997;
   --accent: #61afef;
+  --border-divider: #3e4451; /* slate-600 - Visible for Eclipse */
 
   /* Override Tailwind v4 slate palette for Eclipse to stop "Midnight" mixing */
-  --color-slate-900: #282c34;
-  --color-slate-800: #21252b;
+  --color-slate-900: #21252b;
+  --color-slate-800: #1b1e23;
   --color-slate-700: #2c313a;
   --color-slate-600: #3e4451;
-  --color-slate-500: #5c6370;
-  --color-slate-400: #7f848e;
-  --color-slate-300: #9da5b4;
-  --color-slate-200: #abb2bf;
-  --color-slate-100: #c8ccd4;
-  --color-slate-50: #d7dae0;
-
-  /* Override blue to match Atom One Dark */
-  --color-blue-600: #4b9ee6;
-  --color-blue-500: #61afef;
-  --color-blue-400: #7ebcf2;
+  --color-slate-500: #828997;
+  --color-slate-400: #9ba1ac;
+  --color-slate-300: #abb2bf;
+  --color-slate-200: #c8ccd4;
+  --color-slate-100: #d7dae0;
+  --color-slate-50: #f8f9fa;
 }
 
 /* ── APPLY GLOBAL SEMANTICS ── */
 html {
-  background-color: var(--bg-ground) !important;
-  color: var(--text-main) !important;
+  background-color: var(--bg-ground);
+  color: var(--text-main);
 }
 
 .semantic-bg-ground {
-  background-color: var(--bg-ground) !important;
+  background-color: var(--bg-ground);
 }
 
 .semantic-bg-panel {
-  background-color: var(--bg-panel) !important;
+  background-color: var(--bg-panel);
 }
 
 .semantic-border {
-  border-color: var(--border-main) !important;
+  border-color: var(--border-main);
 }
 
 .semantic-text {
-  color: var(--text-main) !important;
+  color: var(--text-main);
 }
 
 .semantic-text-muted {
-  color: var(--text-muted) !important;
+  color: var(--text-muted);
 }

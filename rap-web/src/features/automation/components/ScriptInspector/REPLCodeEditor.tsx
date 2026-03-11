@@ -111,7 +111,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     };
 
     return (
-        <div className="relative w-full h-[300px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-inner group">
+        <div className="relative w-full h-[300px] rounded-lg border border-slate-200 bg-white dark:bg-slate-900 overflow-hidden shadow-inner group" style={{ borderColor: 'var(--border-divider)' }}>
             {/* Underlying Syntax Highlighter Layer */}
             <div
                 ref={highlighterRef}

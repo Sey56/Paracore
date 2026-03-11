@@ -647,7 +647,8 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                   spellCheck="false"
                   autoCorrect="off"
                   autoCapitalize="off"
-                  className="w-full pl-7 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white dark:placeholder-slate-600 transition-all font-mono"
+                  className="w-full pl-7 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white dark:placeholder-slate-600 transition-all font-mono"
+                  style={{ borderColor: 'var(--border-divider)' }}
                 />
               </div>
             )}
@@ -693,7 +694,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
             <button
               title="Run REPL (Ctrl+Enter)"
               disabled={isReplLoading || isRunning || !replValue.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white py-1 px-4 rounded-md font-bold flex items-center shadow-lg transition-all active:scale-95 text-sm disabled:opacity-50 disabled:cursor-not-allowed ml-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white py-1 px-4 rounded-md font-bold flex items-center shadow-lg transition-all active:scale-95 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleReplSubmit}
             >
               <FontAwesomeIcon icon={faPlay} className="mr-2 h-3" />
