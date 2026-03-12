@@ -17,6 +17,7 @@ import {
   faBroom
 } from "@fortawesome/free-solid-svg-icons";
 import { Script } from "@/types/scriptModel";
+import { Tooltip } from '@/components/common/Tooltip';
 
 interface CardActionsProps {
   script: Script;
@@ -85,21 +86,22 @@ export const CardActions: React.FC<CardActionsProps> = ({
   return (
     <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 rounded-b-lg">
       <div className={`relative ${isSelected ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
-        <button
-          className={`text-sm px-3 py-1 flex items-center rounded transition-colors ${isRunButtonDisabled
-            ? 'text-gray-400 cursor-not-allowed opacity-50'
-            : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold'
-            }`}
-          onClick={handleRunClickInternal}
-          disabled={isRunButtonDisabled}
-          title={tooltipMessage}
-        >
-          <FontAwesomeIcon
-            icon={isRunning ? faSpinner : faPlay}
-            className={`mr-1 ${isRunning ? "animate-spin" : ""}`}
-          />
-          {isRunning ? "Running..." : "Run"}
-        </button>
+        <Tooltip text={tooltipMessage}>
+          <button
+            className={`text-sm px-3 py-1 flex items-center rounded transition-colors ${isRunButtonDisabled
+              ? 'text-gray-400 cursor-not-allowed opacity-50'
+              : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold'
+              }`}
+            onClick={handleRunClickInternal}
+            disabled={isRunButtonDisabled}
+          >
+            <FontAwesomeIcon
+              icon={isRunning ? faSpinner : faPlay}
+              className={`mr-1 ${isRunning ? "animate-spin" : ""}`}
+            />
+            {isRunning ? "Running..." : "Run"}
+          </button>
+        </Tooltip>
       </div>
 
       <div className="flex items-center relative" ref={menuRef}>

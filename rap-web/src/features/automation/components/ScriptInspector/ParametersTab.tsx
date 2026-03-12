@@ -17,6 +17,7 @@ import {
 import type { Script, ScriptParameter } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/features/automation";
+import { Tooltip } from '@/components/common/Tooltip';
 import { ScriptParametersForm } from "./ScriptParametersForm";
 import { NewPresetNameModal } from './NewPresetNameModal';
 import { ConfirmActionModal } from './ConfirmActionModal';
@@ -332,7 +333,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
           <div className="pt-8 mt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="relative group" title={finalTooltipMessage}>
+                <Tooltip text={finalTooltipMessage}>
                   <button
                     className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-2xl active:scale-95
                       ${isRunDisabled
@@ -345,18 +346,18 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} className={isRunning ? "animate-spin" : "group-hover:translate-x-0.5 transition-transform"} />
                     {isRunning ? "Running..." : "Run"}
                   </button>
+                </Tooltip>
 
-                  {showStatusIcon && (
-                    <button
-                      className={`absolute -right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all animate-in zoom-in duration-300 shadow-lg
-                        ${runSucceeded ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}
-                      onClick={handleStatusIconClick}
-                      title={activeInspectorTab === 'console' ? "Return to Parameters" : "View Console"}
-                    >
-                      <FontAwesomeIcon icon={runSucceeded ? faCheckCircle : faTimesCircle} className="text-lg" />
-                    </button>
-                  )}
-                </div>
+                {showStatusIcon && (
+                  <button
+                    className={`absolute -right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all animate-in zoom-in duration-300 shadow-lg
+                      ${runSucceeded ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}
+                    onClick={handleStatusIconClick}
+                    title={activeInspectorTab === 'console' ? "Return to Parameters" : "View Console"}
+                  >
+                    <FontAwesomeIcon icon={runSucceeded ? faCheckCircle : faTimesCircle} className="text-lg" />
+                  </button>
+                )}
               </div>
 
               {activeRole !== Role.User && !isProtectedTool && (
@@ -381,7 +382,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                   <div className="space-y-1">
                     {validationErrors.map((err, i) => (
                       <div key={i} className="text-xs font-bold text-rose-600 dark:text-rose-400 tracking-wider flex items-center gap-1.5">
-                         <span className="opacity-50">•</span> {err}
+                        <span className="opacity-50">•</span> {err}
                       </div>
                     ))}
                   </div>

@@ -17,7 +17,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ text, children, position = 'to
     return (
         <div className={`relative group/tooltip ${className}`}>
             {children}
-            <div className={`absolute z-50 left-1/2 -translate-x-1/2 ${positionClasses} px-3 py-2 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[11px] font-medium leading-relaxed max-w-[200px] whitespace-nowrap opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 transform translate-y-1 group-hover/tooltip:translate-y-0 pointer-events-none`}>
+            <div className={`absolute z-50 left-1/2 -translate-x-1/2 ${positionClasses} px-3 py-2 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[11px] font-medium leading-relaxed max-w-[250px] whitespace-pre-wrap opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 transform translate-y-1 group-hover/tooltip:translate-y-0 pointer-events-none`}>
                 {text}
             </div>
         </div>

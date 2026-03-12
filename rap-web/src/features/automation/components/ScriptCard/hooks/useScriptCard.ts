@@ -94,7 +94,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
           ? `Script requires '${requiredDocType}' but current is '${currentDocType}'`
           : validationErrors.length > 0
             ? `Issues:\n• ${validationErrors.join('\n• ')}`
-            : "Run this script";
+            : "";
 
   const getDisplayName = useCallback(() => {
     return script.metadata.displayName || script.name.replace(/\.(cs|ptool|wtool)$/i, "");
