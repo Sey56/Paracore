@@ -204,7 +204,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const isProtectedTool = !!(script.metadata && script.metadata.isProtected) || (script.name && script.name.toLowerCase().endsWith('.ptool'));
 
   const finalTooltipMessage = !isParamsValid
-    ? `Issues: ${validationErrors.join(', ')}`
+    ? `Issues:\n• ${validationErrors.join('\n• ')}`
     : tooltipMessage;
 
   return (
@@ -372,11 +372,20 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
             {/* Bottom Status Feed */}
             {!isParamsValid && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800 animate-in slide-in-from-bottom-2 duration-300">
-                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 tracking-widest leading-none">
-                  <span className="uppercase">Configuration Issues:</span> {validationErrors.join(', ')}
-                </span>
+              <div className="flex items-start gap-3 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800 animate-in slide-in-from-bottom-2 duration-300">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse mt-1.5 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 tracking-[0.2em] uppercase mb-1">
+                    Configuration Issues
+                  </span>
+                  <div className="space-y-1">
+                    {validationErrors.map((err, i) => (
+                      <div key={i} className="text-xs font-bold text-rose-600 dark:text-rose-400 tracking-wider flex items-center gap-1.5">
+                         <span className="opacity-50">•</span> {err}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
