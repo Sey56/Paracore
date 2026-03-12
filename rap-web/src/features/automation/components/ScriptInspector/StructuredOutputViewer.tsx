@@ -633,7 +633,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
             <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
               <BarChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
                 <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
                 <ChartTooltip content={<CustomChartTooltip />} />
                 <Legend iconType="circle" />
@@ -670,7 +670,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
             <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
               <LineChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
                 <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
                 <ChartTooltip content={<CustomChartTooltip />} />
                 <Legend iconType="circle" />
