@@ -341,8 +341,8 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
       }
     }
 
-    // Add input identifier to local history instead of full code
-    setLocalHistory(prev => [...prev, { type: 'input' as const, text: identifier, timestamp: new Date(), isRepl: true }].slice(-100));
+    // Add input identifier to local history as status (matches script header style)
+    setLocalHistory(prev => [...prev, { type: 'status' as const, text: `> ${identifier}`, timestamp: new Date(), isRepl: true }].slice(-100));
 
     // Add full code to command history for navigation (Capped at 50)
     setCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
@@ -423,7 +423,6 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
   };
 
   const handleClear = () => {
-    clearExecutionResult();
     setLocalHistory([]);
     setCommandHistory([]);
     setAiResult(null);
