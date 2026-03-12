@@ -265,12 +265,12 @@ namespace CoreScript.Engine.Globals
         public void LineChart(object data) => Output.ChartLine(data);
 
         // Unit Conversion Globals (Command Style)
-        public double ToInternal(double value, string unit) => value.ToInternal(unit);
-        public double ToExternal(double value, string unit, int decimals = 2) => value.ToExternal(unit, decimals);
-        public double ToInternal(int value, string unit) => ((double)value).ToInternal(unit);
-        public double ToExternal(int value, string unit, int decimals = 2) => ((double)value).ToExternal(unit, decimals);
-        public double ToInternal(decimal value, string unit) => ((double)value).ToInternal(unit);
-        public double ToExternal(decimal value, string unit, int decimals = 2) => ((double)value).ToExternal(unit, decimals);
+        public double Input(double value, string unit) => value.Input(unit);
+        public double Output(double value, string unit, int decimals = 2) => value.Output(unit, decimals);
+        public double Input(int value, string unit) => ((double)value).Input(unit);
+        public double Output(int value, string unit, int decimals = 2) => ((double)value).Output(unit, decimals);
+        public double Input(decimal value, string unit) => ((double)value).Input(unit);
+        public double Output(decimal value, string unit, int decimals = 2) => ((double)value).Output(unit, decimals);
 
         public void Transact(string name, Action<Document> action)
         {

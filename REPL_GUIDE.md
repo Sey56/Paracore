@@ -41,12 +41,12 @@ Paracore's "Magic" engine automatically resolves strings into Revit elements, ca
 You can use units directly in your logic to avoid manual math. Paracore supports two syntax styles for maximum flexibility.
 
 ### 1. Command Style (Procedural)
-- `ToInternal(value, "unit")` : `ToInternal(300, "mm")` -> Converts 300mm **TO** Revit internal units.
-- `ToExternal(value, "unit", decimals)` : `ToExternal(room.Area, "m2")` -> Converts internal area **TO** meters for display.
+- `Input(value, "unit")` : `Input(300, "mm")` -> Converts 300mm **TO** Revit internal units.
+- `Output(value, "unit", decimals)` : `Output(room.Area, "m2")` -> Converts internal area **TO** meters for display.
 
 ### 2. Fluent Style (Extension Methods)
-- `.ToInternal("unit")` : `300.ToInternal("mm")`
-- `.ToExternal("unit", decimals)` : `room.Area.ToExternal("m2")`
+- `.Input("unit")` : `300.Input("mm")`
+- `.Output("unit", decimals)` : `room.Area.Output("m2")`
 
 **Supported Units:**
 - **Length**: `mm`, `cm`, `m`, `ft`, `in`

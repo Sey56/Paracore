@@ -21,7 +21,7 @@ See which room types occupy the most project area.
 ```csharp
 var rooms = GetElements<Room>().Where(r => r.Area > 0);
 var areaStats = rooms.GroupBy(r => r.Name)
-    .Select(g => new { name = g.Key, value = g.Sum(r => r.Area.ToExternal("m2")) });
+    .Select(g => new { name = g.Key, value = g.Sum(r => r.Area.Output("m2")) });
 PieChart(areaStats);
 ```
 
@@ -29,7 +29,7 @@ PieChart(areaStats);
 Analyze variation in wall thicknesses across the project.
 ```csharp
 var widths = GetElements<Wall>()
-    .Select(w => new { name = w.Name, value = w.Width.ToExternal("mm") })
+    .Select(w => new { name = w.Name, value = w.Width.Output("mm") })
     .OrderBy(x => x.value);
 LineChart(widths);
 ```
@@ -50,7 +50,7 @@ Table(unplaced);
 ### 5. Selection Audit (Magic Tooltips)
 Quickly calculate the total area or length of what you have currently selected in Revit.
 ```csharp
-var totalM2 = Selection.OfType<Wall>().Sum(w => w.Area.ToExternal("m2"));
+var totalM2 = Selection.OfType<Wall>().Sum(w => w.Area.Output("m2"));
 Println($">>> Total Selection Area: {totalM2:F2} m2");
 ```
 
@@ -75,7 +75,7 @@ Table(GetElements<Room>().Select(r => new {
     r.Number,
     Level = r.Level.Name,
     Base_Finish = r.GetStr("Base Finish"), // Custom parameter
-    Area_m2 = r.Area.ToExternal("m2")       // Editable in Square Meters!
+    Area_m2 = r.Area.Output("m2")       // Editable in Square Meters!
 }));
 ```
 
@@ -85,7 +85,7 @@ Mass-edit comments or structural roles.
 Table(GetElements<Wall>().Select(w => new {
     w.Id,
     w.Name,
-    Width_mm = w.Width.ToExternal("mm"),
+    Width_mm = w.Width.Output("mm"),
     Comments = w.GetStr("Comments")
 }));
 ```
@@ -107,7 +107,7 @@ Transact("Standardize Sheets", () => {
 Move selected elements precisely using unit strings.
 ```csharp
 Transact("Nudge Up", () => {
-    var offset = new XYZ(0, 0, ToInternal(500, "mm"));
+    var offset = new XYZ(0, 0, Input(500, "mm"));
     foreach(var e in Selection) ElementTransformUtils.MoveElement(Doc, e.Id, offset);
 });
 ```
@@ -132,7 +132,7 @@ Watch the total area of your current selection update live in the status feed.
 ```csharp
 Watchdog(() => {
     if (Selection.Count > 0) {
-        var total = Selection.OfType<Wall>().Sum(w => w.Area.ToExternal("m2"));
+        var total = Selection.OfType<Wall>().Sum(w => w.Area.Output("m2"));
         if (total > 0) WatchdogReport($"Live Area Calc: {total:F2} m2", "info");
     }
 }, intervalSeconds: 2);
@@ -142,7 +142,7 @@ Watchdog(() => {
 Get an alert if you or anyone else creates a wall thinner than 100mm.
 ```csharp
 Watchdog(() => {
-    var thin = GetElements<Wall>().Where(w => w.Width < ToInternal(100, "mm"));
+    var thin = GetElements<Wall>().Where(w => w.Width < Input(100, "mm"));
     if (thin.Any()) {
         WatchdogReport($"Warning: {thin.Count()} walls are too thin!", "error", thin);
     }
@@ -163,7 +163,19 @@ Table(GetElements<Room>().Select(rm => new {
     rm.Name,
     Level = rm.GetStr("Level"), // Automatically returns "Level 1" instead of an ID
     Type = rm.GetStr("Type"),   // Automatically returns "Standard" instead of an ID
-    Area_m2 = rm.Area.ToExternal("m2")
+    Area_m2 = rm.Area.Output("m2")
+}));
+```
+
+### 15. The "WYSIWYG" (What You See Is What You Get) Table
+Use `GetVal` to pull the exact formatted string you see in the Revit Properties palette, including unit symbols.
+```csharp
+/// Precise Wall Audit
+Table(GetElements<Wall>().Select(w => new {
+    w.Id,
+    Name = w.Name,
+    Thickness = w.GetVal("Width"), // Returns "200.0 mm" (exactly like the UI)
+    Volume = w.GetVal("Volume")    // Returns "1.25 m³"
 }));
 ```
 
@@ -172,6 +184,6 @@ Table(GetElements<Room>().Select(rm => new {
 ## 💡 Quick Tips
 - **Implicit Printing**: Type any variable name on the last line (e.g. `Doc.Title`) to see its value automatically.
 - **Persistence**: Define a variable in one run (e.g. `var myWalls = GetElements<Wall>();`), and use it in the next run.
-- **Magic Unit Filtering**: Use `ToInternal(10, "m2")` (Input to Internal) or `val.ToExternal("mm")` (Internal to Display).
+- **Magic Unit Filtering**: Use `Input(10, "m2")` (Input to Internal) or `val.Output("mm")` (Internal to Output).
 - **Identification**: Execution markers prioritize Snippet Name or the default marker.
 - **Smart IDs**: `GetStr("AnyElementIdParam")` returns the Name of the referenced element.
