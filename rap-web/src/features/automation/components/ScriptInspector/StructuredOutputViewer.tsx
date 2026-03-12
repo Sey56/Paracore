@@ -716,7 +716,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           
           <div className="flex-1 flex justify-center">
             {item.type === 'table' && tableData && (
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-600 font-mono tracking-tighter opacity-80">
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono tracking-tight">
                 {tableData.length} rows x {Object.keys(tableData[0] || {}).length} columns
               </span>
             )}
