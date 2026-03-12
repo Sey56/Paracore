@@ -58,13 +58,12 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
     }
   }, [script, activeInspectorTab, setActiveInspectorTab]);
 
-  // Detect new execution with table data
+  // Detect new execution with any structured output (table or chart)
   useEffect(() => {
-    const hasTableData = executionResult?.structuredOutput &&
-      executionResult.structuredOutput.length > 0 &&
-      executionResult.structuredOutput.some(item => item.type === 'table');
+    const hasStructuredOutput = executionResult?.structuredOutput &&
+      executionResult.structuredOutput.length > 0;
 
-    if (hasTableData) {
+    if (hasStructuredOutput) {
       currentExecutionCountRef.current++;
       if (currentExecutionCountRef.current > lastExecutionCountRef.current) {
         setHasUnviewedTableData(true);
@@ -114,14 +113,14 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
                       ? 'opacity-100 scale-110' 
                       : 'opacity-60'
                   } ${
-                    tab.id === 'table' && executionResult?.structuredOutput && executionResult.structuredOutput.length > 1
-                      ? 'text-blue-500 dark:text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]'
+                    tab.id === 'table' && hasUnviewedTableData
+                      ? 'text-blue-500 dark:text-blue-400 drop-shadow-[0_0_12px_rgba(59,130,246,0.8)]'
                       : ''
                   }`} 
                 />
                 <span className={`text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all duration-1000 ${
                   tab.id === 'table' && hasUnviewedTableData 
-                    ? "text-blue-500 dark:text-blue-400 animate-pulse drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                    ? "text-blue-500 dark:text-blue-400 animate-pulse drop-shadow-[0_0_15px_rgba(59,130,246,0.9)]" 
                     : ""
                 }`}>
                   {tab.label}

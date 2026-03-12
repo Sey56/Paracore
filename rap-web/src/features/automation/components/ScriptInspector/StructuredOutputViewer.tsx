@@ -708,15 +708,15 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           <div className="flex-1 flex items-center gap-3">
             {executionResult?.scriptName && (
               <>
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 dark:text-slate-700 select-none">Origin</span>
-                <span className="text-[9px] font-medium italic text-slate-400 dark:text-slate-500 truncate">{executionResult.scriptName}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 select-none">Origin</span>
+                <span className="text-[11px] font-bold italic text-slate-500 dark:text-slate-400 truncate">{executionResult.scriptName}</span>
               </>
             )}
           </div>
           
           <div className="flex-1 flex justify-center">
             {item.type === 'table' && tableData && (
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono tracking-tight">
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 font-mono tracking-tight">
                 {tableData.length} rows x {Object.keys(tableData[0] || {}).length} columns
               </span>
             )}
