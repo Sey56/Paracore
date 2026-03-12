@@ -43,10 +43,15 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     error_message?: string
   } | null>(null);
   const [isApplyingFix, setIsApplyingFix] = useState(false);
-  const [replValue, setReplValue] = useState(() => localStorage.getItem('paracore_repl_value') || "");
+  const [singleLineValue, setSingleLineValue] = useState(() => localStorage.getItem('paracore_repl_single_value') || "");
+  const [multiLineValue, setMultiLineValue] = useState(() => localStorage.getItem('paracore_repl_multi_value') || "");
   const [isReplLoading, setIsReplLoading] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isMultiLine, setIsMultiLine] = useState(() => localStorage.getItem('paracore_repl_multiline') === 'true');
+
+  // Unified value based on current mode
+  const replValue = isMultiLine ? multiLineValue : singleLineValue;
+  const setReplValue = isMultiLine ? setMultiLineValue : setSingleLineValue;
 
   // Initialize from LocalStorage
   const [localHistory, setLocalHistory] = useState<{ type: 'input' | 'output' | 'error' | 'status', text: string, timestamp: Date, isRepl?: boolean }[]>(() => {
@@ -151,8 +156,12 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
 
   // Sync REPL State to LocalStorage
   useEffect(() => {
-    localStorage.setItem('paracore_repl_value', replValue);
-  }, [replValue]);
+    localStorage.setItem('paracore_repl_single_value', singleLineValue);
+  }, [singleLineValue]);
+
+  useEffect(() => {
+    localStorage.setItem('paracore_repl_multi_value', multiLineValue);
+  }, [multiLineValue]);
 
   useEffect(() => {
     localStorage.setItem('paracore_repl_multiline', String(isMultiLine));
