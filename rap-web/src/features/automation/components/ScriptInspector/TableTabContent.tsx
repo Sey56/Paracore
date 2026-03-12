@@ -39,7 +39,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
   return (
     <div className="tab-content h-full flex flex-col w-full min-w-0 overflow-hidden relative group">
       {/* Main Content Area */}
-      <div className="flex-grow flex flex-col w-full min-w-0 overflow-hidden px-2 py-2">
+      <div className="flex-grow flex flex-col w-full min-w-0 overflow-hidden">
         {items[activeAnalyticsSubTabIndex] ? (
           <StructuredOutputViewer 
             item={items[activeAnalyticsSubTabIndex]} 
