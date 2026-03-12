@@ -11,7 +11,6 @@ namespace Paracore.Addin.Context
     {
         public string Type { get; set; }
         public string Data { get; set; }
-        public string? Title { get; set; }
     }
 
     public class ServerContext : ICoreScriptContext

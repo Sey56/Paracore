@@ -47,7 +47,7 @@ namespace Paracore.Addin.Services
             FileLogger.LogError($"[Watchdog] {message}"); 
         }
 
-        public void AddStructuredOutput(string type, string jsonData, string? title = null) { }
+        public void AddStructuredOutput(string type, string jsonData) { }
         public void SetInternalData(string data) { }
     }
 }

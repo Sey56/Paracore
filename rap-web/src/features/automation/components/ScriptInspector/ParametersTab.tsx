@@ -205,7 +205,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const isProtectedTool = !!(script.metadata && script.metadata.isProtected) || (script.name && script.name.toLowerCase().endsWith('.ptool'));
 
   const finalTooltipMessage = !isParamsValid
-    ? `Issues:\n• ${validationErrors.join('\n• ')}`
+    ? validationErrors.join('\n')
     : tooltipMessage;
 
   return (

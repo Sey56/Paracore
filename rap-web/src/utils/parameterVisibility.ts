@@ -97,7 +97,7 @@ export const validateParameters = (params: ScriptParameter[]): string[] => {
         const valStr = p.value === undefined || p.value === null ? '' : String(p.value).trim();
 
         if ((p.required || p.pattern) && valStr === '') {
-            errors.push(`- '${p.name}' is required`);
+            errors.push(`${p.name} Required`);
         }
 
         if (p.pattern && valStr !== '') {
@@ -111,7 +111,7 @@ export const validateParameters = (params: ScriptParameter[]): string[] => {
                 const isValid = extensions.some(ext => valLower.endsWith(ext));
 
                 if (!isValid) {
-                    errors.push(`- '${p.name}' must match: ${p.pattern}`);
+                    errors.push(`${p.name} must match: ${p.pattern}`);
                 }
             } else {
                 // Standard Regex validation
@@ -121,9 +121,9 @@ export const validateParameters = (params: ScriptParameter[]): string[] => {
                         // extract the word and show a helpful hint.
                         const match = p.pattern.match(/^\^([a-zA-Z0-9_-]+)\$$/);
                         if (match) {
-                            errors.push(`- '${p.name}' must be exactly: ${match[1]}`);
+                            errors.push(`${p.name} must be exactly: ${match[1]}`);
                         } else {
-                            errors.push(`- '${p.name}' format is invalid`);
+                            errors.push(`${p.name} format is invalid`);
                         }
                     }
                 } catch (e) {

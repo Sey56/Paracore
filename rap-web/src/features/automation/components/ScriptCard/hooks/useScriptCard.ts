@@ -93,7 +93,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
         : !isCompatibleWithDocument
           ? `Script requires '${requiredDocType}' but current is '${currentDocType}'`
           : validationErrors.length > 0
-            ? `Issues:\n• ${validationErrors.join('\n• ')}`
+            ? validationErrors.join('\n')
             : "";
 
   const getDisplayName = useCallback(() => {
