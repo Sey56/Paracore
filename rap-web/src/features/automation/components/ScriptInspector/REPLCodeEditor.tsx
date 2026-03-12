@@ -23,7 +23,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     const { theme } = useTheme();
     const syntaxStyle = theme === 'light' ? vs : vscDarkPlus;
 
-    // Sync scrolling between textarea and highlighter
+    // Sync scrolling
     const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
         if (highlighterRef.current) {
             highlighterRef.current.scrollTop = e.currentTarget.scrollTop;
@@ -35,24 +35,16 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         const textarea = e.currentTarget;
         const { selectionStart, selectionEnd } = textarea;
 
-        // 1. Tab Support (4 spaces)
         if (e.key === 'Tab') {
             e.preventDefault();
             const newValue = value.substring(0, selectionStart) + "    " + value.substring(selectionEnd);
             onChange(newValue);
-
-            // Reset cursor position after React re-render
-            setTimeout(() => {
-                textarea.selectionStart = textarea.selectionEnd = selectionStart + 4;
-            }, 0);
+            setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = selectionStart + 4; }, 0);
             return;
         }
 
-        // 2. Smart Indentation on Enter
         if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
             e.preventDefault();
-
-            // Get the current line's text and its indentation
             const beforeCursor = value.substring(0, selectionStart);
             const afterCursor = value.substring(selectionEnd);
             const lines = beforeCursor.split('\n');
@@ -64,39 +56,25 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
             const lastChar = beforeCursor.trim().slice(-1);
             const nextChar = afterCursor.trim().slice(0, 1);
 
-            // Special case: Enter between { and }
             if (lastChar === '{' && nextChar === '}') {
                 const innerIndentation = indentation + "    ";
                 const insertion = "\n" + innerIndentation + "\n" + indentation;
                 const newValue = value.substring(0, selectionStart) + insertion + value.substring(selectionEnd);
                 onChange(newValue);
-
-                setTimeout(() => {
-                    textarea.selectionStart = textarea.selectionEnd = selectionStart + innerIndentation.length + 1;
-                }, 0);
+                setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = selectionStart + innerIndentation.length + 1; }, 0);
                 return;
             }
 
-            // Regular case: Enter after {
-            if (lastChar === '{') {
-                extraIndentation = "    ";
-            }
-
+            if (lastChar === '{') extraIndentation = "    ";
             const insertion = "\n" + indentation + extraIndentation;
             const newValue = value.substring(0, selectionStart) + insertion + value.substring(selectionEnd);
             onChange(newValue);
-
-            setTimeout(() => {
-                textarea.selectionStart = textarea.selectionEnd = selectionStart + insertion.length;
-            }, 0);
+            setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = selectionStart + insertion.length; }, 0);
             return;
         }
-
-        // Passthrough for Ctrl+Enter (Execution) and others
         onKeyDown(e);
     };
 
-    // Base font styles that MUST be identical across both layers
     const fontStyles: React.CSSProperties = {
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: '13px',
@@ -105,23 +83,19 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         tabSize: 4,
         WebkitFontSmoothing: 'antialiased',
         MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'optimizeSpeed', // Disable kerning for absolute stability
+        textRendering: 'optimizeSpeed',
     };
 
     return (
-        <div className="relative w-full h-[300px] bg-white/50 dark:bg-slate-900/50 border-t border-b border-slate-200 dark:border-slate-800 group overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
-            {/* 
-                GRID CONTAINER: This is the secret. 
-                By using a grid, both children occupy the EXACT same space.
-                Padding is applied HERE, not on the children, to ensure the content-box is identical down to the pixel.
-            */}
-            <div className="grid w-full h-full" style={{ padding: '12px 16px' }}>
-                {/* Underlying Syntax Highlighter Layer */}
+        <div className="relative w-full h-[300px] bg-slate-50/30 dark:bg-slate-900/30 border-t border-b border-slate-200 dark:border-slate-800 overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
+            <div className="grid w-full h-full p-0">
                 <div
                     ref={highlighterRef}
                     className="col-start-1 row-start-1 pointer-events-none select-none overflow-hidden"
                     style={{
                         ...fontStyles,
+                        padding: '12px 0px',
+                        boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
                         scrollbarGutter: 'stable',
@@ -139,31 +113,16 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                             fontFamily: 'inherit',
                             lineHeight: 'inherit',
                             width: '100%',
-                            height: '100%',
                             overflow: 'visible',
-                            letterSpacing: 'inherit',
                             border: 'none',
-                            boxShadow: 'none',
-                            WebkitFontSmoothing: 'inherit',
-                            MozOsxFontSmoothing: 'inherit',
+                            boxShadow: 'none'
                         }}
-                        codeTagProps={{ 
-                            style: { 
-                                whiteSpace: 'pre-wrap', 
-                                wordBreak: 'break-all',
-                                fontFamily: 'inherit',
-                                lineHeight: 'inherit',
-                                fontSize: 'inherit',
-                                letterSpacing: 'inherit'
-                            } 
-                        }}
+                        codeTagProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'inherit', lineHeight: 'inherit' } }}
                     >
-                        {/* Add a zero-width space to handled empty last line for scroll alignment */}
                         {value + (value.endsWith('\n') ? ' ' : '')}
                     </SyntaxHighlighter>
                 </div>
 
-                {/* Transparent Textarea Layer */}
                 <textarea
                     ref={ref}
                     value={value}
@@ -184,16 +143,15 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         resize: 'none',
                         border: 'none',
                         outline: 'none',
-                        padding: 0,
+                        padding: '12px 0px',
                         margin: 0,
+                        boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
                         zIndex: 10,
                         overflowX: 'hidden',
                         overflowY: 'auto',
                         scrollbarGutter: 'stable',
-                        WebkitFontSmoothing: 'antialiased',
-                        MozOsxFontSmoothing: 'grayscale',
                     }}
                     className="custom-scrollbar focus:ring-0"
                 />
