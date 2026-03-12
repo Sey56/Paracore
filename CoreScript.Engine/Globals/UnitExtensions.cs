@@ -5,8 +5,8 @@ namespace CoreScript.Engine.Globals
 {
     public static class UnitExtensions
     {
-        /// <summary> Converts a value FROM internal Revit units (feet/sqft) to the target unit for display/output. </summary>
-        public static double FromUnits(this double value, string unit, int decimals = 2)
+        /// <summary> Converts an internal Revit value (feet/sqft) TO the target unit for display. </summary>
+        public static double ToUnit(this double value, string unit, int decimals = 2)
         {
             var unitTypeId = GetUnitTypeId(unit);
             if (unitTypeId == null) return Math.Round(value, decimals);
@@ -14,23 +14,31 @@ namespace CoreScript.Engine.Globals
             return Math.Round(converted, decimals);
         }
 
-        public static double FromUnits(this int value, string unit, int decimals = 2) => ((double)value).FromUnits(unit, decimals);
-        public static double FromUnits(this decimal value, string unit, int decimals = 2) => ((double)value).FromUnits(unit, decimals);
+        public static double ToUnit(this int value, string unit, int decimals = 2) => ((double)value).ToUnit(unit, decimals);
+        public static double ToUnit(this decimal value, string unit, int decimals = 2) => ((double)value).ToUnit(unit, decimals);
 
-        /// <summary> Converts a value TO internal Revit units (feet/sqft) from the target unit for calculation/input. </summary>
-        public static double ToUnits(this double value, string unit)
+        /// <summary> Converts a value FROM the specified unit TO internal Revit units (feet/sqft). </summary>
+        public static double FromUnit(this double value, string unit)
         {
             var unitTypeId = GetUnitTypeId(unit);
             if (unitTypeId == null) return value;
             return UnitUtils.ConvertToInternalUnits(value, unitTypeId);
         }
 
-        public static double ToUnits(this int value, string unit) => ((double)value).ToUnits(unit);
-        public static double ToUnits(this decimal value, string unit) => ((double)value).ToUnits(unit);
+        public static double FromUnit(this int value, string unit) => ((double)value).FromUnit(unit);
+        public static double FromUnit(this decimal value, string unit) => ((double)value).FromUnit(unit);
+
+        // --- Aliases for backward compatibility ---
+        public static double FromUnits(this double v, string u, int d = 2) => v.ToUnit(u, d);
+        public static double ToUnits(this double v, string u) => v.FromUnit(u);
+        public static double FromUnits(this int v, string u, int d = 2) => ((double)v).ToUnit(u, d);
+        public static double ToUnits(this int v, string u) => ((double)v).FromUnit(u);
+        public static double FromUnits(this decimal v, string u, int d = 2) => ((double)v).ToUnit(u, d);
+        public static double ToUnits(this decimal v, string u) => ((double)v).FromUnit(u);
 
         public static string FormatUnit(this double value, string unit, int decimals = 2)
         {
-            double converted = value.FromUnits(unit);
+            double converted = value.ToUnit(unit);
             return $"{Math.Round(converted, decimals)} {unit}";
         }
 
