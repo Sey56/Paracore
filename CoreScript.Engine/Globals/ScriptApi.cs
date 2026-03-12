@@ -119,6 +119,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Table(IEnumerable<Element> elements) => Globals.Output.Show("table", elements);
 
+
         /// <summary>
         /// Selects the specified elements in the Revit user interface and zooms to them.
         /// </summary>
