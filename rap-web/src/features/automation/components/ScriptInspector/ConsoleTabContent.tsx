@@ -690,50 +690,51 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
       <div className="px-0 pb-3">
         <div className="flex flex-col space-y-2">
           {/* Header/Toggle Row */}
-          <div className="flex justify-between items-center px-3">
+          <div className="flex justify-between items-center px-3 h-8">
             <div className="flex items-center gap-2 overflow-hidden">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 shrink-0">
-                {isMultiLine ? "Multi-Line REPL" : "Single-Line REPL"}
-              </span>
-              {isMultiLine && activeSnippetName && (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 truncate min-w-0">
-                  <FontAwesomeIcon icon={faCode} className="text-[8px] text-blue-500" />
-                  <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 truncate italic">{activeSnippetName}</span>
+              {isMultiLine && activeSnippetName ? (
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <FontAwesomeIcon icon={faCode} className="text-[10px]" />
+                  <span className="text-[11px] font-black uppercase tracking-wider italic truncate">{activeSnippetName}</span>
                 </div>
+              ) : (
+                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 shrink-0">
+                  {isMultiLine ? "Multi-Line REPL" : "Single-Line REPL"}
+                </span>
               )}
             </div>
             
             <div className="flex items-center gap-4">
               {isMultiLine && (
-                <div className="flex items-center gap-4 pr-4 border-r border-slate-200 dark:border-slate-800">
+                <>
                   <button
                     onClick={handleLoadSnippet}
-                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
+                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-[11px] font-bold"
                   >
-                    <FontAwesomeIcon icon={faFolderOpen} className="mr-1" />
+                    <FontAwesomeIcon icon={faFolderOpen} className="mr-1.5 text-[10px]" />
                     Load
                   </button>
                   <button
                     onClick={() => handleSaveSnippet(false)}
-                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
+                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-[11px] font-bold"
                   >
-                    <FontAwesomeIcon icon={faSave} className="mr-1" />
+                    <FontAwesomeIcon icon={faSave} className="mr-1.5 text-[10px]" />
                     Save
                   </button>
                   <button
                     onClick={() => handleSaveSnippet(true)}
-                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
+                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-[11px] font-bold"
                   >
-                    <FontAwesomeIcon icon={faSave} className="mr-1 opacity-50" />
-                    Save As
+                    <FontAwesomeIcon icon={faSave} className="mr-1.5 text-[10px] opacity-50" />
+                    As...
                   </button>
-                </div>
+                </>
               )}
               <button
                 onClick={() => setIsMultiLine(!isMultiLine)}
-                className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
+                className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-[11px] font-bold"
               >
-                <FontAwesomeIcon icon={isMultiLine ? faCompress : faExpand} className="mr-1" />
+                <FontAwesomeIcon icon={isMultiLine ? faCompress : faExpand} className="mr-1.5 text-[10px]" />
                 {isMultiLine ? "Collapse" : "Expand"}
               </button>
             </div>
