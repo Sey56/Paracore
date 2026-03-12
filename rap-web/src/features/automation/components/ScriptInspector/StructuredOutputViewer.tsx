@@ -647,7 +647,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           <div id={chartId} className="flex-1 w-full min-h-[300px] relative px-2 py-2 overflow-hidden flex flex-col items-stretch">
             <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
               <BarChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.2} />
                 <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
                 <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
                 <ChartTooltip content={<CustomChartTooltip />} />
@@ -684,7 +684,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           <div id={chartId} className="flex-1 w-full min-h-[300px] relative px-2 py-2 overflow-hidden flex flex-col items-stretch">
             <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
               <LineChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.2} />
                 <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
                 <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
                 <ChartTooltip content={<CustomChartTooltip />} />
@@ -703,10 +703,26 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       </div>
 
       {/* Subtle Footer for Context */}
-      {executionResult?.scriptName && (
-        <div className="px-4 py-1 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/10 flex justify-between items-center shrink-0">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 dark:text-slate-700 select-none">Origin</span>
-          <span className="text-[9px] font-medium italic text-slate-400 dark:text-slate-500 truncate pl-4">{executionResult.scriptName}</span>
+      {(executionResult?.scriptName || (item.type === 'table' && tableData)) && (
+        <div className="px-4 py-1 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/10 flex items-center shrink-0">
+          <div className="flex-1 flex items-center gap-3">
+            {executionResult?.scriptName && (
+              <>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 dark:text-slate-700 select-none">Origin</span>
+                <span className="text-[9px] font-medium italic text-slate-400 dark:text-slate-500 truncate">{executionResult.scriptName}</span>
+              </>
+            )}
+          </div>
+          
+          <div className="flex-1 flex justify-center">
+            {item.type === 'table' && tableData && (
+              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-600 font-mono tracking-tighter opacity-80">
+                {tableData.length} rows x {Object.keys(tableData[0] || {}).length} columns
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1" />
         </div>
       )}
     </div>

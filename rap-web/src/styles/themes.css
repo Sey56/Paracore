@@ -40,9 +40,9 @@
 .dark.eclipse {
   --bg-ground: #282c34;
   --bg-panel: #181a1f; 
-  --bg-card: #21252b;
-  /* SOLID Matte */
-  --bg-card-focus: #353b45;
+  --bg-card: #313640;
+  /* Lighter GRAY Matte */
+  --bg-card-focus: #3e4451;
   /* SOLID Matte */
   --bg-group: #21252b;
   /* SOLID Matte */
