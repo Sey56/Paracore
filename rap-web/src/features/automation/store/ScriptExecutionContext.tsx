@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import { createContext, Dispatch, SetStateAction } from 'react';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
 import type { ExecutionResult, ParameterPreset } from '@/types/common';
 
@@ -23,7 +23,7 @@ export interface ScriptExecutionContextProps {
   setSelectedScript: (script: Script | null, source?: 'user' | 'agent' | 'agent_executed_full_output' | 'refresh' | 'hard_reset' | 'replace') => Promise<void>;
   runningScriptPath: string | null;
   executionResult: ExecutionResult | null;
-  setExecutionResult: (result: ExecutionResult | null) => void;
+  setExecutionResult: Dispatch<SetStateAction<ExecutionResult | null>>;
   runScript: (script: Script, parameters?: ScriptParameter[], shouldUpdateGlobalState?: boolean) => Promise<ExecutionResult | undefined>;
   clearExecutionResult: () => void;
   userEditedScriptParameters: Record<string, ScriptParameter[]>;

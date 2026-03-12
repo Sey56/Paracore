@@ -9,7 +9,8 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useScripts } from '../../hooks/useScripts';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronDown, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { useUI } from '@/hooks/useUI';
 import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
 import { Tooltip } from '@/components/common/Tooltip';
@@ -71,13 +72,13 @@ const TableView: React.FC<{
   data: Record<string, unknown>[];
   onSelect: (ids: number[]) => void;
   onUpdate?: (elementId: number, parameterName: string, newValue: string) => Promise<boolean>;
-  actions?: React.ReactNode;
-}> = ({ data: initialData, onSelect, onUpdate, actions }) => {
+  filterText: string;
+  setFilterText: (t: string) => void;
+}> = ({ data: initialData, onSelect, onUpdate, filterText, setFilterText }) => {
   const { showNotification } = useNotifications();
   const [data, setData] = useState(initialData);
   const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-  const [filterText, setFilterText] = useState('');
 
   // Column Resizing Logic
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -168,23 +169,7 @@ const TableView: React.FC<{
   }, [data, filterText, sortConfig]);
 
   return (
-    <div className="flex flex-col space-y-3 w-full h-full min-w-0">
-      <div className="flex items-center gap-2 shrink-0 px-1">
-        <div className="relative flex-grow min-w-0">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <FontAwesomeIcon icon={faSearch} className="text-slate-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Filter table..."
-            className="pl-10 block w-full text-sm border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 p-2 border transition-all"
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-          />
-        </div>
-        {actions && <div className="flex shrink-0 gap-1 items-center">{actions}</div>}
-      </div>
-
+    <div className="flex flex-col w-full h-full min-w-0">
       {/* VIEWPORT SCROLL HUB: Handles both axes internally */}
       <div className="flex-1 w-full min-h-0 overflow-auto border border-slate-200 dark:border-slate-700 rounded-xl shadow-inner bg-slate-50/20 dark:bg-black/10 custom-scrollbar max-h-[calc(100vh-140px)]">
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs border-collapse">
@@ -302,13 +287,55 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   const chartId = useId().replace(/:/g, '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  const { activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex } = useUI();
+  const { executionResult } = useScriptExecution();
 
-  // --- Build Metadata Map for Parameter Mapping ---
+  const handlePrev = useCallback(() => {
+    if (!executionResult?.structuredOutput) return;
+    const count = executionResult.structuredOutput.length;
+    const nextIdx = (activeAnalyticsSubTabIndex - 1 + count) % count;
+    setActiveAnalyticsSubTabIndex(nextIdx);
+  }, [executionResult, activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex]);
+
+  const handleNext = useCallback(() => {
+    if (!executionResult?.structuredOutput) return;
+    const count = executionResult.structuredOutput.length;
+    const nextIdx = (activeAnalyticsSubTabIndex + 1) % count;
+    setActiveAnalyticsSubTabIndex(nextIdx);
+  }, [executionResult, activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex]);
+
+  const Navigator = () => {
+    if (!executionResult?.structuredOutput || executionResult.structuredOutput.length <= 1) return null;
+    const count = executionResult.structuredOutput.length;
+    
+    return (
+      <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 mr-2 shadow-sm">
+        <button 
+          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+          className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
+          title="Previous"
+        >
+          <FontAwesomeIcon icon={faChevronLeft} className="text-[9px]" />
+        </button>
+        <span className="text-[9px] font-black font-mono text-slate-500 dark:text-slate-400 min-w-[24px] text-center tracking-tighter cursor-default">
+          {activeAnalyticsSubTabIndex + 1}/{count}
+        </span>
+        <button 
+          onClick={(e) => { e.stopPropagation(); handleNext(); }}
+          className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
+          title="Next"
+        >
+          <FontAwesomeIcon icon={faChevronRight} className="text-[9px]" />
+        </button>
+      </div>
+    );
+  };
+
   const paramMetadataMap = useMemo(() => {
     const map = new Map<string, { name: string; unit: string }>();
     if (!selectedScript?.parameters) return map;
     selectedScript.parameters.forEach(p => {
-      // Map clean C# property name (FloorFinish) back to real Revit name (Floor Finish)
       const cleanId = p.name.replace(/\s+/g, '').toLowerCase();
       map.set(cleanId, { name: p.name, unit: p.unit || "" });
       map.set(p.name.toLowerCase(), { name: p.name, unit: p.unit || "" });
@@ -326,16 +353,11 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       const meta = paramMetadataMap.get(parameterName.toLowerCase()) || paramMetadataMap.get(parameterName.replace(/\s+/g, '').toLowerCase());
       let realName = meta?.name || parameterName;
       let unit = meta?.unit || "";
-
-      // --- Magic Header Discovery (REPL support) ---
-      // Supports: Area [m2], Area (m2), Area_m2
       if (!unit) {
         const match = parameterName.match(/^(.*?)?\s*[\[\(_](.*?)[\]\)]?$/);
         if (match) {
           const possibleName = match[1].replace(/[_\(\[]$/, '').trim();
           const possibleUnit = match[2].trim();
-          
-          // Only apply if the unit is one of our known Forge tokens
           const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
           if (VALID_UNITS.includes(possibleUnit.toLowerCase())) {
             realName = possibleName;
@@ -343,13 +365,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           }
         }
       }
-
-      const response = await api.post('/api/update-element-parameter', { 
-        element_id: elementId, 
-        parameter_name: realName, 
-        new_value_string: newValue, 
-        unit 
-      });
+      const response = await api.post('/api/update-element-parameter', { element_id: elementId, parameter_name: realName, new_value_string: newValue, unit });
       if (response.data?.is_success) { showNotification(`Updated ${realName}`, "success"); return true; }
       else { showNotification(`Update failed: ${response.data?.error_message || 'Unknown error'}`, "error"); return false; }
     } catch (error) { showNotification("Failed to update parameter in Revit.", "error"); return false; }
@@ -375,7 +391,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `export_${new Date().toISOString().slice(0, 10)}.csv` });
       if (filePath) { await writeTextFile(filePath, csvContent); showNotification('CSV exported successfully!', 'success'); }
     } catch { showNotification("Failed to export CSV data.", "error"); }
-  }, [item.data, item.type, showNotification]);
+  }, [item.data, showNotification]);
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -418,21 +434,15 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
               const meta = paramMetadataMap.get(col.toLowerCase()) || paramMetadataMap.get(col.replace(/\s+/g, '').toLowerCase());
               let realName = meta?.name || col;
               let unit = meta?.unit || "";
-
-              // --- Magic Header Discovery (REPL CSV support) ---
               if (!unit) {
                 const match = col.match(/^(.*?)?\s*[\[\(_](.*?)[\]\)]?$/);
                 if (match) {
                   const possibleName = match[1].replace(/[_\(\[]$/, '').trim();
                   const possibleUnit = match[2].trim();
                   const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
-                  if (VALID_UNITS.includes(possibleUnit.toLowerCase())) {
-                    realName = possibleName;
-                    unit = possibleUnit;
-                  }
+                  if (VALID_UNITS.includes(possibleUnit.toLowerCase())) { realName = possibleName; unit = possibleUnit; }
                 }
               }
-
               if (String(impRow[col]) !== String(match[col])) {
                 updates.push({ element_id: impId, parameter_name: realName, new_value_string: String(impRow[col]), unit });
               }
@@ -457,7 +467,6 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   const parsedData = useMemo(() => { try { return JSON.parse(item.data); } catch { return undefined; } }, [item.data]);
   const tableData = useMemo(() => (parsedData === undefined || item.type !== 'table') ? null : (Array.isArray(parsedData) ? parsedData : [parsedData]), [parsedData, item.type]);
 
-  // --- V3 Proven Export Logic (DOM cloning + computed style transfer) ---
   const handleDownloadChartCsv = useCallback(async () => {
     try {
       const data = Array.isArray(parsedData) ? parsedData : [parsedData];
@@ -472,7 +481,6 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     const container = document.getElementById(chartId);
     if (!container) return;
     try {
-      // 1. Find the largest SVG in the container (the actual chart)
       const allSvgs = Array.from(container.querySelectorAll('svg')) as unknown as SVGSVGElement[];
       let originalSvg: SVGSVGElement | null = null;
       let maxArea = 0;
@@ -481,33 +489,21 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         const area = rect.width * rect.height;
         if (area > maxArea) { maxArea = area; originalSvg = svg; }
       }
-      if (!originalSvg || maxArea < 1000) {
-        showNotification("Could not find the chart image to export.", "warning");
-        return;
-      }
+      if (!originalSvg || maxArea < 1000) { showNotification("Could not find the chart image to export.", "warning"); return; }
       const rect = originalSvg.getBoundingClientRect();
       const width = rect.width || parseFloat(originalSvg.getAttribute("width") || "0");
       const height = rect.height || parseFloat(originalSvg.getAttribute("height") || "0");
-
-      if (!width || !height) {
-        showNotification("Chart has no dimensions to export.", "warning");
-        return;
-      }
-
-      // 2. Clone the SVG and copy all computed styles for standalone rendering
+      if (!width || !height) { showNotification("Chart has no dimensions to export.", "warning"); return; }
       const clonedSvg = originalSvg.cloneNode(true) as SVGSVGElement;
       clonedSvg.setAttribute("width", width.toString());
       clonedSvg.setAttribute("height", height.toString());
       clonedSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
       clonedSvg.style.overflow = "visible";
-
       const originalNodes = originalSvg.querySelectorAll('*');
       const clonedNodes = clonedSvg.querySelectorAll('*');
       const stylesToCopy = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'transform', 'transform-origin', 'visibility', 'display'];
-
       const rootComputed = window.getComputedStyle(originalSvg);
       stylesToCopy.forEach(s => { const v = rootComputed.getPropertyValue(s); if (v) clonedSvg.style.setProperty(s, v); });
-
       originalNodes.forEach((orig, idx) => {
         const clone = clonedNodes[idx];
         if (clone instanceof Element) {
@@ -520,87 +516,61 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           });
         }
       });
-
-      // 3. Coordinate-aware Legend Scraping
       const padding = 20;
       const legendWrapper = container.querySelector('.recharts-legend-wrapper');
       const legendItems = legendWrapper ? Array.from(legendWrapper.querySelectorAll('.recharts-legend-item')) : [];
       let legendG: SVGGElement | null = null;
       let extraHeight = 0;
-
       if (legendWrapper && legendItems.length > 0) {
         const containerRect = container.getBoundingClientRect();
         const lWrapperRect = legendWrapper.getBoundingClientRect();
-
-        // Calculate legend wrapper pos relative to the chart container
         const wrapperRelX = lWrapperRect.left - containerRect.left;
         const wrapperRelY = lWrapperRect.top - containerRect.top;
-
         legendG = document.createElementNS("http://www.w3.org/2000/svg", "g");
         legendG.setAttribute("transform", `translate(${wrapperRelX + padding}, ${wrapperRelY + padding})`);
-
         legendItems.forEach((itemEl, idx) => {
           const itemRect = itemEl.getBoundingClientRect();
           const itemRelX = itemRect.left - lWrapperRect.left;
           const itemRelY = itemRect.top - lWrapperRect.top;
-
           const textEl = itemEl.querySelector('.recharts-legend-item-text');
           const iconEl = itemEl.querySelector('.recharts-surface path') || itemEl.querySelector('.recharts-surface circle');
           const color = iconEl ? (window.getComputedStyle(iconEl).fill || COLORS[idx % COLORS.length]) : COLORS[idx % COLORS.length];
           const label = textEl ? textEl.textContent : `Item ${idx}`;
-
           const itemG = document.createElementNS("http://www.w3.org/2000/svg", "g");
           itemG.setAttribute("transform", `translate(${itemRelX}, ${itemRelY})`);
-
           const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
           r.setAttribute("width", "12"); r.setAttribute("height", "12");
           r.setAttribute("fill", color); r.setAttribute("rx", "2");
           itemG.appendChild(r);
-
           const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
           t.setAttribute("x", "18"); t.setAttribute("y", "10");
           t.setAttribute("font-family", "Inter, sans-serif"); t.setAttribute("font-size", "11");
           t.setAttribute("fill", "#64748b");
           t.textContent = label || '';
           itemG.appendChild(t);
-
           legendG!.appendChild(itemG);
         });
-
-        // Extend canvas if legend is outside chart area
-        if (wrapperRelY + lWrapperRect.height > height) {
-          extraHeight = (wrapperRelY + lWrapperRect.height) - height;
-        }
+        if (wrapperRelY + lWrapperRect.height > height) { extraHeight = (wrapperRelY + lWrapperRect.height) - height; }
       }
-
-      // 4. Wrap everything in a padded SVG with background color
       const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       const totalW = width + (padding * 2);
       const totalH = height + extraHeight + (padding * 2);
-
       wrapperSvg.setAttribute("width", totalW.toString());
       wrapperSvg.setAttribute("height", totalH.toString());
       wrapperSvg.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
       wrapperSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
       const bgColor = window.getComputedStyle(container).backgroundColor || '#ffffff';
       const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
       bgRect.setAttribute("width", "100%"); bgRect.setAttribute("height", "100%"); bgRect.setAttribute("fill", bgColor);
       wrapperSvg.appendChild(bgRect);
-
       const chartG = document.createElementNS("http://www.w3.org/2000/svg", "g");
       chartG.setAttribute("transform", `translate(${padding}, ${padding})`);
       chartG.appendChild(clonedSvg);
       wrapperSvg.appendChild(chartG);
-
       if (legendG) wrapperSvg.appendChild(legendG);
-
       const ser = new XMLSerializer();
       let src = ser.serializeToString(wrapperSvg);
-      if (!src.match(/^<svg[^>]+"http:\/\/www\.w3\.org\/1999\/xlink"/)) {
-        src = src.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
-      }
-
+      if (!src.match(/^<svg[^>]+"http:\/\/www\.w3\.org\/1999\/xlink"/)) { src = src.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"'); }
       const filePath = await save({ filters: [{ name: 'SVG', extensions: ['svg'] }], defaultPath: `chart_${item.type}_${new Date().toISOString().slice(0, 10)}.svg` });
       if (filePath) { await writeTextFile(filePath, src); showNotification('Chart exported as SVG.', 'success'); }
     } catch { showNotification("Failed to export chart image.", "error"); }
@@ -608,81 +578,118 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
   if (parsedData === undefined) return <pre className="p-3 text-xs text-red-600 bg-red-50 rounded-xl">Error: Invalid JSON.</pre>;
 
-  const TableToolbarActions = () => (
-    <div className="flex gap-1">
-      <button onClick={handleCopy} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-blue-600" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
-      <button onClick={handleDownloadCsv} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-green-500" title="Export CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-      <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-blue-500" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
-    </div>
-  );
-
-
-
-  const ChartToolbar = () => (
-    <div className="absolute top-2 right-2 z-10 flex gap-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-lg border border-slate-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity">
-      <button onClick={handleDownloadChartCsv} className="p-1 px-2 text-slate-500 hover:text-green-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export Data to CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-      <button onClick={handleDownloadSvg} className="p-1 px-2 text-slate-500 hover:text-blue-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800" title="Export as SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
-    </div>
-  );
-
   return (
-    <div className={`bg-white dark:bg-slate-900 ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800' : 'h-full flex flex-col'} group relative overflow-hidden flex flex-col`}>
-      {(item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && <ChartToolbar />}
+    <div className={`bg-white dark:bg-slate-900 ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm' : 'h-full flex flex-col'} group relative overflow-hidden flex flex-col`}>
+      {/* Viewer Header */}
+      <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]">
+        <div className="flex-grow min-w-0">
+          {item.type === 'table' ? (
+            <div className="relative max-w-md">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-[10px]" />
+              </div>
+              <input
+                type="text"
+                placeholder="Filter table..."
+                className="pl-9 block w-full text-[11px] h-8 border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 border transition-all"
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+              />
+            </div>
+          ) : (
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-2">
+              {item.type === 'chart-bar' && 'Bar Graph'}
+              {item.type === 'chart-pie' && 'Pie Graph'}
+              {item.type === 'chart-line' && 'Line Graph'}
+              {!['chart-bar', 'chart-pie', 'chart-line'].includes(item.type) && item.type.replace('chart-', '')}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {item.type === 'table' && (
+            <div className="flex gap-1">
+              <button onClick={handleCopy} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-blue-600 transition-colors" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
+              <button onClick={handleDownloadCsv} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-green-500 transition-colors" title="Export CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
+              <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-blue-500 transition-colors" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
+            </div>
+          )}
+          {(item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && (
+            <div className="flex gap-1">
+              <button onClick={handleDownloadChartCsv} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-green-500 transition-colors" title="Export Data to CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
+              <button onClick={handleDownloadSvg} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-blue-500 transition-colors" title="Export as SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
+            </div>
+          )}
+          <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />
+          <Navigator />
+        </div>
+      </div>
       
-      {item.type === 'table' && (
-        <div className="flex-1 w-full min-h-0">
-          <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
-          <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} actions={<TableToolbarActions />} />
-        </div>
-      )}
+      <div className="flex-1 overflow-hidden relative flex flex-col">
+        {item.type === 'table' && (
+          <div className="flex-1 h-full w-full p-2 overflow-hidden">
+            <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
+            <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} filterText={filterText} setFilterText={setFilterText} />
+          </div>
+        )}
 
-      {item.type === 'chart-bar' && (
-        <div id={chartId} className="flex-1 w-full relative px-2 p-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis dataKey="name" fontSize={10} />
-              <YAxis fontSize={10} />
-              <ChartTooltip content={<CustomChartTooltip />} />
-              <Legend />
-              <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-      {item.type === 'chart-pie' && (
-        <div id={chartId} className="flex-1 w-full relative px-2 p-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-              <Pie data={parsedData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`} outerRadius={90} fill="#8884d8" dataKey="value">
-                {parsedData.map((_: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-              </Pie>
-              <ChartTooltip content={<CustomPieTooltip />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-      {item.type === 'chart-line' && (
-        <div id={chartId} className="flex-1 w-full relative px-2 p-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-              <XAxis dataKey="name" fontSize={10} />
-              <YAxis fontSize={10} />
-              <ChartTooltip content={<CustomChartTooltip />} />
-              <Legend />
-              <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-      {item.type === 'message' && <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">{parsedData}</p>}
-      {item.type !== 'table' && item.type !== 'chart-bar' && item.type !== 'chart-pie' && item.type !== 'chart-line' && item.type !== 'message' && (
-        <pre className="p-3 font-mono text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-auto">
-          {JSON.stringify(parsedData, null, 2)}
-        </pre>
-      )}
+        {item.type === 'chart-bar' && (
+          <div id={chartId} className="flex-1 w-full min-h-[300px] relative px-2 py-2 overflow-hidden flex flex-col items-stretch">
+            <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
+              <BarChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                <ChartTooltip content={<CustomChartTooltip />} />
+                <Legend iconType="circle" />
+                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {item.type === 'chart-pie' && (
+          <div id={chartId} className="flex-1 w-full min-h-[300px] relative px-2 py-2 overflow-hidden flex flex-col items-stretch">
+            <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
+              <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                <Pie 
+                  data={parsedData} 
+                  cx="50%" 
+                  cy="50%" 
+                  labelLine={false} 
+                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`} 
+                  outerRadius="80%" 
+                  fill="#8884d8" 
+                  dataKey="value"
+                  isAnimationActive={!isDashboard}
+                >
+                  {parsedData.map((_: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                </Pie>
+                <ChartTooltip content={<CustomPieTooltip />} />
+                <Legend iconType="circle" />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {item.type === 'chart-line' && (
+          <div id={chartId} className="flex-1 w-full min-h-[300px] relative px-2 py-2 overflow-hidden flex flex-col items-stretch">
+            <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
+              <LineChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                <ChartTooltip content={<CustomChartTooltip />} />
+                <Legend iconType="circle" />
+                <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {item.type === 'message' && <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">{parsedData}</p>}
+        {item.type !== 'table' && item.type !== 'chart-bar' && item.type !== 'chart-pie' && item.type !== 'chart-line' && item.type !== 'message' && (
+          <pre className="p-3 font-mono text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-auto">
+            {JSON.stringify(parsedData, null, 2)}
+          </pre>
+        )}
+      </div>
     </div>
   );
 };

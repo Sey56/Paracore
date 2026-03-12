@@ -509,13 +509,23 @@ namespace Paracore.Addin.Handlers
                     try
                     {
                         var temp = JsonSerializer.Deserialize<StructuredOutputPoco>(jsonStr, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        if (temp != null && !response.StructuredOutput.Any(existing => existing.Type == temp.Type && existing.Data == temp.Data))
+                        if (temp != null)
                         {
-                            response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { 
-                                Type = temp.Type ?? "",
-                                Data = temp.Data ?? "",
-                                Title = temp.Title ?? ""
-                            });
+                            // If any item with same type exists, update it.
+                            var existing = response.StructuredOutput.FirstOrDefault(i => i.Type == temp.Type);
+
+                            if (existing != null)
+                            {
+                                existing.Data = temp.Data ?? "";
+                            }
+                            else
+                            {
+                                response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { 
+                                    Type = temp.Type ?? "",
+                                    Data = temp.Data ?? "",
+                                    Title = ""
+                                });
+                            }
                         }
                     }
                     catch { }

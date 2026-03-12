@@ -146,16 +146,16 @@ namespace CoreScript.Engine.Globals
             _context = context;
         }
 
-        public void Show(string type, object data, string? title = null)
+        public void Show(string type, object data)
         {
             var json = JsonSerializer.Serialize(data, ExecutionGlobals.SerializerOptions);
-            _context.AddStructuredOutput(type, json, title);
+            _context.AddStructuredOutput(type, json);
         }
 
-        public void ChartBar(object data, string? title = null) => Show("chart-bar", data, title);
-        public void ChartPie(object data, string? title = null) => Show("chart-pie", data, title);
-        public void Table(object data, string? title = null) => Show("table", data, title);
-        public void ChartLine(object data, string? title = null) => Show("chart-line", data, title);
+        public void ChartBar(object data) => Show("chart-bar", data);
+        public void ChartPie(object data) => Show("chart-pie", data);
+        public void Table(object data) => Show("table", data);
+        public void ChartLine(object data) => Show("chart-line", data);
     }
 
     public class ExecutionGlobals
@@ -259,10 +259,10 @@ namespace CoreScript.Engine.Globals
         public void SetInternalData(string data) => _context.SetInternalData(data);
 
         // Visualization Globals
-        public void Table(object data, string? title = null) => Output.Table(data, title);
-        public void BarChart(object data, string? title = null) => Output.ChartBar(data, title);
-        public void PieChart(object data, string? title = null) => Output.ChartPie(data, title);
-        public void LineChart(object data, string? title = null) => Output.ChartLine(data, title);
+        public void Table(object data) => Output.Table(data);
+        public void BarChart(object data) => Output.ChartBar(data);
+        public void PieChart(object data) => Output.ChartPie(data);
+        public void LineChart(object data) => Output.ChartLine(data);
 
         public void Transact(string name, Action<Document> action)
         {

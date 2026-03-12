@@ -109,15 +109,24 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
   const lastKnownModifiedRef = useRef<Record<string, number>>({});
   const isRenamingRef = useRef(false);
+  const loadingScriptPathRef = useRef<string | null>(null);
 
-  // Reset logic when source/team/user changes
+  // Reset logic when source/folder changes (Navigation)
+  useEffect(() => {
+    setSelectedScriptState(null);
+    setPersistedScriptId(null);
+    setCombinedScriptContent(null);
+    setAgentSelectedScriptPath(null);
+  }, [activeScriptSource, selectedFolder, setPersistedScriptId, setCombinedScriptContent, setSelectedScriptState, setAgentSelectedScriptPath]);
+
+  // Reset logic when user identity changes (Security)
   useEffect(() => {
     setSelectedScriptState(null);
     setPersistedScriptId(null);
     setCombinedScriptContent(null);
     setExecutionResult(null);
     setAgentSelectedScriptPath(null);
-  }, [activeScriptSource, user?.id, selectedFolder, setPersistedScriptId, setCombinedScriptContent, setExecutionResult, setSelectedScriptState, setAgentSelectedScriptPath]);
+  }, [user?.id, setPersistedScriptId, setCombinedScriptContent, setExecutionResult, setSelectedScriptState, setAgentSelectedScriptPath]);
 
   const lastTeamIdRef = useRef<number | null>(null);
   useEffect(() => {
@@ -142,6 +151,14 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setCombinedScriptContent(null);
       setPresets([]);
       setAgentSelectedScriptPath(null);
+      loadingScriptPathRef.current = null;
+      return;
+    }
+
+    const scriptPath = script.absolutePath || script.id;
+
+    // V6 ATOMIC LOCK: Prevent redundant overlapping selection requests for the same script.
+    if (loadingScriptPathRef.current === scriptPath) {
       return;
     }
 
@@ -175,6 +192,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setCombinedScriptContent("// Loading script context...");
       setPresets([]);
     }
+
+    loadingScriptPathRef.current = scriptPath;
 
     try {
       let paramsResult: any = { parameters: [] };
@@ -239,6 +258,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     } catch (err) {
       if (source !== 'refresh') {
         showNotification("Error loading script.", "error");
+      }
+    } finally {
+      if (loadingScriptPathRef.current === scriptPath) {
+        loadingScriptPathRef.current = null;
       }
     }
   }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setPresets, setAgentSelectedScriptPath, updateUserEditedParameters, clearParameterCache, setSelectedScriptState, showNotification]);
@@ -316,9 +339,15 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, [setExecutionResult]);
 
   const handleRunScript = useCallback(async (script: Script, parameters?: ScriptParameter[], shouldUpdateGlobalState: boolean = true) => {
+    // V6 ROBUST SELECTION SYNC: If running a script that isn't selected (e.g. from gallery Card),
+    // we MUST ensure selectedScript is synced first so Console markers work correctly.
+    if (selectedScriptRef.current?.id !== script.id) {
+      await setSelectedScript(script);
+    }
+    
     const finalParameters = parameters || userEditedParametersRef.current[script.id] || script.parameters || [];
     return runScript(script, finalParameters, shouldUpdateGlobalState);
-  }, [runScript]);
+  }, [runScript, setSelectedScript]);
 
   const handleRenameScript = useCallback(async (script: Script, newName: string) => {
     // 1. Lock the identity guard

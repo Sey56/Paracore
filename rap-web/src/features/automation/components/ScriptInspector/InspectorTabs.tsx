@@ -97,9 +97,28 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
                     ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 bg-white dark:bg-slate-800"
                     : "text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-600 dark:hover:text-slate-300"
                   }`}
-                onClick={() => setActiveInspectorTab(tab.id as InspectorTab)}
+                onClick={() => {
+                  if (tab.id === 'table' && activeInspectorTab === 'table' && executionResult?.structuredOutput && executionResult.structuredOutput.length > 1) {
+                    // Cycle through sub-tabs if clicking an already active Analytics tab
+                    const nextIdx = (activeAnalyticsSubTabIndex + 1) % executionResult.structuredOutput.length;
+                    setActiveAnalyticsSubTabIndex(nextIdx);
+                  } else {
+                    setActiveInspectorTab(tab.id as InspectorTab);
+                  }
+                }}
               >
-                <FontAwesomeIcon icon={tab.icon} className={`text-[10px] ${activeInspectorTab === tab.id ? 'opacity-100' : 'opacity-60'}`} />
+                <FontAwesomeIcon 
+                  icon={tab.icon} 
+                  className={`text-[10px] transition-all duration-500 ${
+                    activeInspectorTab === tab.id 
+                      ? 'opacity-100 scale-110' 
+                      : 'opacity-60'
+                  } ${
+                    tab.id === 'table' && executionResult?.structuredOutput && executionResult.structuredOutput.length > 1
+                      ? 'text-blue-500 dark:text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]'
+                      : ''
+                  }`} 
+                />
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
                   {tab.label}
                 </span>
@@ -111,33 +130,6 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
                   </span>
                 )}
               </button>
-
-              {/* Compact Sub-tab pills for Analytics */}
-              {tab.id === 'table' && executionResult?.structuredOutput && executionResult.structuredOutput.length > 1 && (
-                <div className="flex items-center gap-1 ml-1 mr-3 h-full pb-1">
-                  <div className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-lg gap-1">
-                    {executionResult.structuredOutput.map((item, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setActiveAnalyticsSubTabIndex(idx);
-                          setActiveInspectorTab('table');
-                        }}
-                        className={`h-5 flex items-center justify-center rounded text-[9px] font-black transition-all ${
-                          item.title ? "px-2 min-w-[20px]" : "w-5"
-                        } ${
-                          activeAnalyticsSubTabIndex === idx
-                            ? "bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm"
-                            : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                        }`}
-                        title={item.title || `Table ${idx + 1}`}
-                      >
-                        {item.title || idx + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </React.Fragment>
           ))}
         </div>
@@ -190,7 +182,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
         )}
 
         {/* Console and Table Tabs are kept mounted to preserve history/scroll */}
-        <div className={`h-full w-full min-w-0 ${activeInspectorTab !== 'console' ? 'hidden' : ''}`}>
+        <div className={`h-full w-full min-w-0 ${activeInspectorTab !== 'console' ? 'opacity-0 pointer-events-none absolute inset-0 overflow-hidden' : 'relative'}`}>
           <ConsoleTabContent
             isRunning={isRunning}
             executionResult={executionResult}
@@ -199,7 +191,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
           />
         </div>
 
-        <div className={`h-full w-full min-w-0 overflow-hidden ${activeInspectorTab !== 'table' ? 'hidden' : ''}`}>
+        <div className={`h-full w-full min-w-0 overflow-hidden ${activeInspectorTab !== 'table' ? 'opacity-0 pointer-events-none absolute inset-0' : 'relative'}`}>
           <TableTabContent executionResult={executionResult} />
         </div>
       </div>

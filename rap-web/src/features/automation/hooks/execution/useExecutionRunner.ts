@@ -27,7 +27,6 @@ export const useExecutionRunner = (
     updateScriptLastRunTime(script.id);
     setRunningScriptPath(script.id);
     
-    if (shouldUpdateGlobalState) setExecutionResult(null);
     showNotification(`Running script: ${script.name}...`, "info");
 
     try {
@@ -47,14 +46,29 @@ export const useExecutionRunner = (
         timestamp: Date.now()
       };
 
-      if (shouldUpdateGlobalState) setExecutionResult(frontendExecutionResult);
+      if (shouldUpdateGlobalState) {
+        setExecutionResult(prev => {
+          // If the new result has data, use it. 
+          // If not, keep the old structured output so graphs stay visible.
+          const hasNewData = result.structured_output && result.structured_output.length > 0;
+          return {
+            ...frontendExecutionResult,
+            structuredOutput: hasNewData ? result.structured_output : (prev?.structuredOutput || [])
+          };
+        });
+      }
       showNotification(result.is_success ? `Executed successfully.` : "Execution failed", result.is_success ? "success" : "error");
       return frontendExecutionResult;
     } catch (error: any) {
       const msg = error.response?.data?.detail || error.message;
       showNotification(`Failed to execute: ${msg}`, "error");
       const errRes: ExecutionResult = { output: "", isSuccess: false, error: msg };
-      if (shouldUpdateGlobalState) setExecutionResult(errRes);
+      if (shouldUpdateGlobalState) {
+        setExecutionResult(prev => ({
+          ...errRes,
+          structuredOutput: prev?.structuredOutput || [] // Keep graphs even on error
+        }));
+      }
       return errRes;
     } finally {
       setRunningScriptPath(null);

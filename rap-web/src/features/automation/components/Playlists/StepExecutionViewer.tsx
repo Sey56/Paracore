@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExecutionResult } from '@/types/common';
-import { StructuredOutput, StructuredOutputViewer } from '../ScriptInspector/StructuredOutputViewer';
+import { StructuredOutput } from '@/types/scriptModel';
+import { StructuredOutputViewer } from '../ScriptInspector/StructuredOutputViewer';
 
 interface StepExecutionViewerProps {
     result: ExecutionResult;

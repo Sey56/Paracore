@@ -72,6 +72,9 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const lastResultRef = useRef<ScriptExecutionResult | null>(null);
+  const lastHeaderScriptNameRef = useRef<string | null>(null);
+  const needsHeaderForCurrentRunRef = useRef(false);
+  const lastIsRunningRef = useRef(false);
 
   // Append executionResult to localHistory when it changes
   useEffect(() => {
@@ -103,36 +106,39 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
 
   // Track isRunning to show a start message in history
   useEffect(() => {
-    if (isRunning) {
-      setLocalHistory(prev => {
-        const lastItem = prev.length > 0 ? prev[prev.length - 1] : null;
+    const transitionedToRunning = isRunning && !lastIsRunningRef.current;
+    lastIsRunningRef.current = isRunning;
 
-        // Check if we switched from REPL or if the script name itself changed since last header
-        const wasRepl = lastItem?.isRepl;
-        const lastStatusItem = [...prev].reverse().find(item => item.type === 'status');
-        const isDifferentScript = lastStatusItem?.text !== `> ${scriptName}`;
-
-        if (!lastItem || wasRepl || isDifferentScript) {
-          return [...prev, { type: 'status' as const, text: `> ${scriptName}`, timestamp: new Date(), isRepl: false }].slice(-100);
-        }
-        return prev;
-      });
+    if (transitionedToRunning) {
+      needsHeaderForCurrentRunRef.current = true;
     }
-  }, [isRunning, scriptName]);
+
+    const currentName = selectedScript?.name || scriptName;
+
+    if (isRunning && needsHeaderForCurrentRunRef.current && currentName && currentName !== "Global Console") {
+      setLocalHistory(prev => [
+        ...prev, 
+        { type: 'status' as const, text: `> ${currentName}`, timestamp: new Date(), isRepl: false }
+      ].slice(-100));
+      needsHeaderForCurrentRunRef.current = false;
+    }
+  }, [isRunning, scriptName, selectedScript]); // Stable dependencies
+
+  // V7: Bridging the "Flicker Gap" - Render the active result if it hasn't been committed to history yet
+  const pendingResult = !isRunning && executionResult && executionResult !== lastResultRef.current ? executionResult : null;
 
   // Clear AI results and temporary state when selected script fundamentally changes
   useEffect(() => {
     setAiResult(null);
     setFixHistory([]);
     lastResultRef.current = null;
-    // Note: We no longer clear localHistory or replValue here to allow a unified, persistent stream
   }, [selectedScript?.absolutePath]);
 
   useEffect(() => {
     if (consoleEndRef.current) {
       consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [localHistory, isRunning, isReplLoading]);
+  }, [localHistory.length, isRunning, isReplLoading, !!pendingResult]); // Stable size and types
 
   // Sync Histories to LocalStorage
   useEffect(() => {
@@ -163,10 +169,11 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
       .join('\n');
 
     // Also include any "active" results that haven't been committed to history yet
-    if (executionResult) {
+    const activeResult = pendingResult || executionResult;
+    if (activeResult) {
       const activeLines: string[] = [];
-      if (executionResult.output) activeLines.push(String(executionResult.output));
-      if (executionResult.error) activeLines.push(String(executionResult.error));
+      if (activeResult.output) activeLines.push(String(activeResult.output));
+      if (activeResult.error) activeLines.push(String(activeResult.error));
 
       const activeText = activeLines.join('\n');
       const lastHistoryItem = localHistory.length > 0 ? localHistory[localHistory.length - 1] : null;
@@ -318,6 +325,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
     }
     setHistoryIndex(-1);
     setIsReplLoading(true);
+    lastHeaderScriptNameRef.current = null; // Reset header tracking on REPL submit
 
     // Identify REPL Turn (Command for single-line, /// Label or Default for multi-line)
     let identifier = "";
@@ -346,25 +354,26 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
       });
 
       if (response.data.is_success) {
-        // Sync with global execution result - this will trigger the useEffect to add to local history
-        // We add a marker to internal_data so the useEffect knows it's a REPL result
-        setExecutionResult({ 
-          output: response.data.output || '',
-          isSuccess: true,
-          error: null,
-          structuredOutput: response.data.structured_output,
-          internal_data: 'REPL',
-          timestamp: Date.now()
-        } as any);
+        setExecutionResult((prev: any) => {
+          const hasNewData = response.data.structured_output && response.data.structured_output.length > 0;
+          return { 
+            output: response.data.output || '',
+            isSuccess: true,
+            error: null,
+            structuredOutput: hasNewData ? response.data.structured_output : (prev?.structuredOutput || []),
+            internal_data: 'REPL',
+            timestamp: Date.now()
+          } as any;
+        });
       } else {
-        setExecutionResult({ 
+        setExecutionResult((prev: any) => ({ 
           output: response.data.output || '',
           isSuccess: false,
           error: response.data.error_message || 'Unknown error',
-          structuredOutput: [],
+          structuredOutput: prev?.structuredOutput || [],
           internal_data: 'REPL',
           timestamp: Date.now()
-        } as any);
+        } as any));
       }
     } catch (err: any) {
       setLocalHistory(prev => [...prev, { type: 'error' as const, text: `Error: ${err.message}`, timestamp: new Date(), isRepl: true }].slice(-100));
@@ -416,6 +425,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
     setLocalHistory([]);
     setCommandHistory([]);
     setAiResult(null);
+    lastHeaderScriptNameRef.current = null;
     localStorage.removeItem('paracore_console_history');
     localStorage.removeItem('paracore_command_history');
   };
@@ -581,6 +591,14 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
               )}
             </div>
           ))}
+
+          {/* V7: Active Result (Not yet committed to history) */}
+          {pendingResult && (
+            <div className="mb-1 break-words whitespace-pre-wrap text-gray-800 dark:text-gray-200">
+              {pendingResult.output && <div>{pendingResult.output}</div>}
+              {pendingResult.error && <div className="text-red-600 dark:text-red-400 font-bold">{pendingResult.error}</div>}
+            </div>
+          )}
 
           {/* Loading Indicator for Script Execution */}
           {isRunning && (

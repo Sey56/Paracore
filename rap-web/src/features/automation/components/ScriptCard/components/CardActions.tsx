@@ -79,9 +79,6 @@ export const CardActions: React.FC<CardActionsProps> = ({
     e.stopPropagation();
     if (isRunButtonDisabled) return;
 
-    // V5: Authoritative selection before execution
-    onSelect();
-
     handleRunClick(e);
   };
 

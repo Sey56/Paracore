@@ -100,12 +100,11 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     return script.metadata.displayName || script.name.replace(/\.(cs|ptool|wtool)$/i, "");
   }, [script]);
 
-  const handleRunClick = (e: React.MouseEvent) => {
+  const handleRunClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRunButtonDisabled) return;
-    setSelectedScript(script);
     setActiveInspectorTab('console');
-    runScript(script);
+    await runScript(script);
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {

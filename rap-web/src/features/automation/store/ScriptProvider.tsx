@@ -162,7 +162,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setScripts([]);
       return undefined;
     }
-  }, [showNotification]);
+  }, [showNotification, lastRunTimes, creationTimes, modificationTimes]);
 
   useEffect(() => {
     if (!isAuthenticated || !user || !activeTeam || !isSystemReady) return;
@@ -411,9 +411,11 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Object.keys(activeSyncSessions).some(key => key.replace(/\\/g, '/').toLowerCase() === normalized);
   }, [activeSyncSessions]);
 
+  const isValidatingRef = useRef(false);
+
   // 7. STALE SOURCE RECONCILIATION (Auto-Healing)
   const validateSources = useCallback(async () => {
-    if (!isSystemReady) return;
+    if (!isSystemReady || isValidatingRef.current) return;
 
     // Gather all local paths to validate
     const localPaths = new Set<string>();
@@ -423,8 +425,8 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (localPaths.size === 0) return;
 
+    isValidatingRef.current = true;
     try {
-      console.log(`[ScriptProvider] 🔍 Validating ${localPaths.size} script source paths...`);
       const resp = await api.post("/api/scripts/validate-sources", { paths: Array.from(localPaths) });
       const existenceMap: Record<string, boolean> = resp.data;
 
@@ -493,6 +495,8 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     } catch (err) {
       console.error("[ScriptProvider] Failed to validate sources:", err);
+    } finally {
+      isValidatingRef.current = false;
     }
   }, [isSystemReady, customScriptFolders, userSourcePaths, toolLibraryPath, activeScriptSource, setCustomScriptFolders, setUserSourcePaths, setToolLibraryPath, setActiveScriptSource]);
 

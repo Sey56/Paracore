@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { StructuredOutputViewer } from './StructuredOutputViewer';
 import type { ScriptExecutionResult } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 
 interface TableTabContentProps {
   executionResult: ScriptExecutionResult | null;
@@ -35,7 +37,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = ({
   const isMultiView = items.length > 1;
 
   return (
-    <div className="tab-content h-full flex flex-col w-full min-w-0 overflow-hidden">
+    <div className="tab-content h-full flex flex-col w-full min-w-0 overflow-hidden relative group">
       {/* Main Content Area */}
       <div className="flex-grow flex flex-col w-full min-w-0 overflow-hidden px-2 py-2">
         {items[activeAnalyticsSubTabIndex] ? (
