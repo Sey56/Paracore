@@ -695,7 +695,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
               {isMultiLine && activeSnippetName ? (
                 <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                   <FontAwesomeIcon icon={faCode} className="text-[10px]" />
-                  <span className="text-[11px] font-black uppercase tracking-wider italic truncate">{activeSnippetName}</span>
+                  <span className="text-[11px] font-bold tracking-wider italic truncate">{activeSnippetName}</span>
                 </div>
               ) : (
                 <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 shrink-0">
