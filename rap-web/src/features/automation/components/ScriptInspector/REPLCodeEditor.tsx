@@ -96,29 +96,32 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         onKeyDown(e);
     };
 
-    // Base font styles that MUST be identical across both layers for cursor alignment
+    // Base font styles that MUST be identical across both layers
     const fontStyles: React.CSSProperties = {
-        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+        fontFamily: "'JetBrains Mono', 'Consolas', 'Monaco', monospace",
         fontSize: '13px',
-        lineHeight: '1.5',
+        lineHeight: '20px',
         letterSpacing: 'normal',
         tabSize: 4,
         WebkitFontSmoothing: 'antialiased',
         MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'optimizeLegibility',
+        textRendering: 'optimizeSpeed', // Disable kerning for absolute stability
     };
 
     return (
         <div className="relative w-full h-[300px] bg-white/50 dark:bg-slate-900/50 border-t border-b border-slate-200 dark:border-slate-800 group overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
-            <div className="grid w-full h-full" style={{ padding: 0 }}>
+            {/* 
+                GRID CONTAINER: This is the secret. 
+                By using a grid, both children occupy the EXACT same space.
+                Padding is applied HERE, not on the children, to ensure the content-box is identical down to the pixel.
+            */}
+            <div className="grid w-full h-full" style={{ padding: '12px 16px' }}>
                 {/* Underlying Syntax Highlighter Layer */}
                 <div
                     ref={highlighterRef}
                     className="col-start-1 row-start-1 pointer-events-none select-none overflow-hidden"
                     style={{
                         ...fontStyles,
-                        padding: '12px 16px',
-                        boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
                         scrollbarGutter: 'stable',
@@ -155,7 +158,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                             } 
                         }}
                     >
-                        {/* Handle empty last line for scroll alignment */}
+                        {/* Add a zero-width space to handled empty last line for scroll alignment */}
                         {value + (value.endsWith('\n') ? ' ' : '')}
                     </SyntaxHighlighter>
                 </div>
@@ -181,9 +184,8 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         resize: 'none',
                         border: 'none',
                         outline: 'none',
-                        padding: '12px 16px',
+                        padding: 0,
                         margin: 0,
-                        boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
                         zIndex: 10,

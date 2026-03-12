@@ -559,16 +559,26 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
     );
   }
 
-  const handleSaveSnippet = async () => {
+  const handleSaveSnippet = async (forceSaveAs: boolean = false) => {
     if (!multiLineValue.trim()) return;
     try {
-      const filePath = await save({
-        filters: [{ name: 'C# Script', extensions: ['cs'] }],
-        defaultPath: 'MyReplSnippet.cs'
-      });
-      if (filePath) {
-        await writeTextFile(filePath, multiLineValue);
-        showNotification("Snippet saved successfully", "success");
+      let targetPath = activeSnippetPath;
+      
+      if (forceSaveAs || !targetPath) {
+        targetPath = await save({
+          filters: [{ name: 'C# Script', extensions: ['cs'] }],
+          defaultPath: activeSnippetName ? `${activeSnippetName}.cs` : 'MyReplSnippet.cs'
+        });
+      }
+
+      if (targetPath) {
+        await writeTextFile(targetPath, multiLineValue);
+        setActiveSnippetPath(targetPath);
+        
+        const filename = targetPath.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
+        setActiveSnippetName(filename);
+        
+        showNotification(forceSaveAs ? "Snippet saved as new file" : "Snippet saved", "success");
       }
     } catch (err: any) {
       showNotification(`Failed to save snippet: ${err.message}`, "error");
@@ -584,6 +594,11 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
       if (selected && typeof selected === 'string') {
         const content = await readTextFile(selected);
         setMultiLineValue(content);
+        setActiveSnippetPath(selected);
+        
+        const filename = selected.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
+        setActiveSnippetName(filename);
+        
         showNotification("Snippet loaded", "success");
       }
     } catch (err: any) {
