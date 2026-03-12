@@ -96,16 +96,16 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         onKeyDown(e);
     };
 
-    // Base font styles that MUST be identical across both layers
+    // Base font styles that MUST be identical across both layers for cursor alignment
     const fontStyles: React.CSSProperties = {
         fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
         fontSize: '13px',
-        lineHeight: '1.6',
+        lineHeight: '1.5',
         letterSpacing: 'normal',
         tabSize: 4,
         WebkitFontSmoothing: 'antialiased',
         MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'optimizeSpeed',
+        textRendering: 'optimizeLegibility',
     };
 
     return (
@@ -117,7 +117,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                     className="col-start-1 row-start-1 pointer-events-none select-none overflow-hidden"
                     style={{
                         ...fontStyles,
-                        padding: '12px',
+                        padding: '12px 16px',
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
@@ -140,7 +140,9 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                             overflow: 'visible',
                             letterSpacing: 'inherit',
                             border: 'none',
-                            boxShadow: 'none'
+                            boxShadow: 'none',
+                            WebkitFontSmoothing: 'inherit',
+                            MozOsxFontSmoothing: 'inherit',
                         }}
                         codeTagProps={{ 
                             style: { 
@@ -148,7 +150,8 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                                 wordBreak: 'break-all',
                                 fontFamily: 'inherit',
                                 lineHeight: 'inherit',
-                                fontSize: 'inherit'
+                                fontSize: 'inherit',
+                                letterSpacing: 'inherit'
                             } 
                         }}
                     >
@@ -178,7 +181,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         resize: 'none',
                         border: 'none',
                         outline: 'none',
-                        padding: '12px',
+                        padding: '12px 16px',
                         margin: 0,
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
@@ -187,6 +190,8 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         overflowX: 'hidden',
                         overflowY: 'auto',
                         scrollbarGutter: 'stable',
+                        WebkitFontSmoothing: 'antialiased',
+                        MozOsxFontSmoothing: 'grayscale',
                     }}
                     className="custom-scrollbar focus:ring-0"
                 />

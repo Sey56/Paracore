@@ -696,9 +696,9 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
               )}
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               {isMultiLine && (
-                <div className="flex items-center gap-2 pr-2 border-r border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-4 pr-4 border-r border-slate-200 dark:border-slate-800">
                   <button
                     onClick={handleLoadSnippet}
                     className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
