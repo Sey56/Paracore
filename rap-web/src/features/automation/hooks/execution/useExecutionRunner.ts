@@ -38,12 +38,12 @@ export const useExecutionRunner = (
 
       const result = response.data;
       const frontendExecutionResult: ExecutionResult = {
-        output: result.output || '',
+        output: result.output || "",
         isSuccess: result.is_success,
-        error: !result.is_success ? (result.error_message || null) : null,
-        structuredOutput: result.structured_output,
-        internalData: result.internal_data,
-        timestamp: Date.now()
+        error: result.error_message,
+        structuredOutput: result.structured_output || [],
+        timestamp: Date.now(),
+        scriptName: script.metadata?.displayName || script.name
       };
 
       if (shouldUpdateGlobalState) {

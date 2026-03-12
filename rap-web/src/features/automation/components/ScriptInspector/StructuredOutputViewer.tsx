@@ -184,22 +184,20 @@ const TableView: React.FC<{
                     style={{ width, minWidth: width, borderRightColor: 'var(--border-divider)' }}
                     className="relative px-3 py-2.5 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none group border-r last:border-r-0"
                   >
-                    <Tooltip text={header}>
-                      <div className="flex items-center space-x-1" onClick={() => {
-                        let direction: 'asc' | 'desc' = 'asc';
-                        if (sortConfig?.key === header && sortConfig.direction === 'asc') direction = 'desc';
-                        setSortConfig({ key: header, direction });
-                      }}>
-                        <span className="truncate block max-w-[200px]">{beautifyHeader(header)}</span>
-                        <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0">
-                          {sortConfig?.key === header ? (
-                            sortConfig.direction === 'asc' ? <FontAwesomeIcon icon={faSortUp} /> : <FontAwesomeIcon icon={faSortDown} />
-                          ) : (
-                            <FontAwesomeIcon icon={faSort} className="opacity-0 group-hover:opacity-50" />
-                          )}
-                        </span>
-                      </div>
-                    </Tooltip>
+                    <div className="flex items-center space-x-1" onClick={() => {
+                      let direction: 'asc' | 'desc' = 'asc';
+                      if (sortConfig?.key === header && sortConfig.direction === 'asc') direction = 'desc';
+                      setSortConfig({ key: header, direction });
+                    }}>
+                      <span className="truncate block">{beautifyHeader(header)}</span>
+                      <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0">
+                        {sortConfig?.key === header ? (
+                          sortConfig.direction === 'asc' ? <FontAwesomeIcon icon={faSortUp} /> : <FontAwesomeIcon icon={faSortDown} />
+                        ) : (
+                          <FontAwesomeIcon icon={faSort} className="opacity-0 group-hover:opacity-50" />
+                        )}
+                      </span>
+                    </div>
                     <div onMouseDown={(e) => handleMouseDown(e, header)} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-20" />
                   </th>
                 );
@@ -262,9 +260,7 @@ const TableView: React.FC<{
                             disabled={isUpdating}
                           />
                         ) : (
-                          <Tooltip text={cellValue}>
-                            <div className="truncate max-w-[300px]">{cellValue}</div>
-                          </Tooltip>
+                          <div className="break-words">{cellValue}</div>
                         )}
                       </td>
                     );
@@ -582,9 +578,9 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     <div className={`bg-white dark:bg-slate-900 ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm' : 'h-full flex flex-col'} group relative overflow-hidden flex flex-col`}>
       {/* Viewer Header */}
       <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]">
-        <div className="flex-grow min-w-0">
+        <div className="flex-grow min-w-0 flex items-center gap-3">
           {item.type === 'table' ? (
-            <div className="relative max-w-md">
+            <div className="relative w-full max-w-xl">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-[10px]" />
               </div>
@@ -597,7 +593,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
               />
             </div>
           ) : (
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-2 shrink-0">
               {item.type === 'chart-bar' && 'Bar Graph'}
               {item.type === 'chart-pie' && 'Pie Graph'}
               {item.type === 'chart-line' && 'Line Graph'}
@@ -690,6 +686,14 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           </pre>
         )}
       </div>
+
+      {/* Subtle Footer for Context */}
+      {executionResult?.scriptName && (
+        <div className="px-4 py-1 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/10 flex justify-between items-center shrink-0">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 dark:text-slate-700 select-none">Origin</span>
+          <span className="text-[9px] font-medium italic text-slate-400 dark:text-slate-500 truncate pl-4">{executionResult.scriptName}</span>
+        </div>
+      )}
     </div>
   );
 };
