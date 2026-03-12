@@ -208,22 +208,48 @@ export const Sidebar = () => {
           const discoveredSources: string[] = await invoke('discover_script_sources', { path: selected });
           
           if (discoveredSources.length === 0) {
-            showNotification("This folder is not empty and is not a Paracore source. Select an empty folder or a valid source.", "error");
+            showNotification("No script sources found in this folder. Select a Paracore source or an empty folder to initialize.", "error");
             return;
           }
 
-          // Successfully found existing sources OR it's an initialization candidate (the root itself)
-          if (discoveredSources.length > 0) {
-            const isInitCandidate = discoveredSources.length === 1 && discoveredSources[0] === selected;
+          // Case 1: Multiple sources found (Container Mode)
+          if (discoveredSources.length > 1) {
+            await addCustomScriptFolders(discoveredSources);
+            setActiveScriptSource({ type: 'local', path: discoveredSources[0] });
+            showNotification(`Loaded ${discoveredSources.length} script source(s).`, "success");
+            return;
+          }
+
+          // Case 2: Exactly one source returned
+          if (discoveredSources.length === 1) {
+            const discovered = discoveredSources[0];
             
-            if (isInitCandidate) {
-              setFolderToInit(selected);
-              setIsInitModalOpen(true);
+            // Check if it's the root itself
+            if (normalizePath(discovered) === normalizePath(selected)) {
+              // Now we check if it's ALREADY a source or an EMPTY candidate
+              // The rust backend returns the path itself in two scenarios:
+              // a) It has .paracore (Existing source)
+              // b) It is empty (Init candidate)
+              
+              // We can check if it's already a source by seeing if it's in our list or via a lightweight check
+              // But the most robust way is to ask the backend if it's initialized
+              const checkRes = await api.get(`/api/scripts/is-initialized?path=${encodeURIComponent(selected)}`);
+              
+              if (checkRes.data.initialized) {
+                // It's an existing source, just load it
+                await addCustomScriptFolder(selected);
+                setActiveScriptSource({ type: 'local', path: selected });
+                showNotification("Script source loaded.", "success");
+              } else {
+                // It's empty and needs initialization
+                setFolderToInit(selected);
+                setIsInitModalOpen(true);
+              }
             } else {
-              // Successfully found existing sources
-              await addCustomScriptFolders(discoveredSources);
-              setActiveScriptSource({ type: 'local', path: discoveredSources[0] });
-              showNotification(`Loaded ${discoveredSources.length} script source(s).`, "success");
+              // It's a single child source found inside
+              await addCustomScriptFolder(discovered);
+              setActiveScriptSource({ type: 'local', path: discovered });
+              showNotification("Script source loaded.", "success");
             }
           }
         } catch (err) {
