@@ -98,22 +98,18 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
 
     // Base font styles that MUST be identical across both layers
     const fontStyles: React.CSSProperties = {
-        fontFamily: '"Consolas", "Monaco", monospace',
+        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
         fontSize: '13px',
-        lineHeight: '20px',
+        lineHeight: '1.6',
         letterSpacing: 'normal',
         tabSize: 4,
         WebkitFontSmoothing: 'antialiased',
         MozOsxFontSmoothing: 'grayscale',
-        textRendering: 'optimizeSpeed', // Disable kerning for absolute stability
+        textRendering: 'optimizeSpeed',
     };
 
     return (
         <div className="relative w-full h-[300px] bg-white/50 dark:bg-slate-900/50 border-t border-b border-slate-200 dark:border-slate-800 group overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
-            {/* 
-                GRID CONTAINER: This is the secret. 
-                By using a grid, both children occupy the EXACT same space.
-            */}
             <div className="grid w-full h-full" style={{ padding: 0 }}>
                 {/* Underlying Syntax Highlighter Layer */}
                 <div
@@ -121,10 +117,11 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                     className="col-start-1 row-start-1 pointer-events-none select-none overflow-hidden"
                     style={{
                         ...fontStyles,
+                        padding: '12px',
+                        boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
                         scrollbarGutter: 'stable',
-                        padding: '12px',
                     }}
                 >
                     <SyntaxHighlighter
@@ -150,11 +147,12 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                                 whiteSpace: 'pre-wrap', 
                                 wordBreak: 'break-all',
                                 fontFamily: 'inherit',
-                                lineHeight: 'inherit'
+                                lineHeight: 'inherit',
+                                fontSize: 'inherit'
                             } 
                         }}
                     >
-                        {/* Add a zero-width space to handled empty last line for scroll alignment */}
+                        {/* Handle empty last line for scroll alignment */}
                         {value + (value.endsWith('\n') ? ' ' : '')}
                     </SyntaxHighlighter>
                 </div>
@@ -175,13 +173,14 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         ...fontStyles,
                         gridArea: '1/1',
                         color: 'transparent',
-                        caretColor: '#60a5fa',
+                        caretColor: theme === 'light' ? '#2563eb' : '#60a5fa',
                         background: 'transparent',
                         resize: 'none',
                         border: 'none',
                         outline: 'none',
                         padding: '12px',
                         margin: 0,
+                        boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
                         zIndex: 10,

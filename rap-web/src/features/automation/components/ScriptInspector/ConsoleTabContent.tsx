@@ -684,34 +684,47 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
         <div className="flex flex-col space-y-2">
           {/* Header/Toggle Row */}
           <div className="flex justify-between items-center px-3">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500">
-              {isMultiLine ? "Multi-Line REPL" : "Single-Line REPL"}
-            </span>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 shrink-0">
+                {isMultiLine ? "Multi-Line REPL" : "Single-Line REPL"}
+              </span>
+              {isMultiLine && activeSnippetName && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 truncate min-w-0">
+                  <FontAwesomeIcon icon={faCode} className="text-[8px] text-blue-500" />
+                  <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 truncate italic">{activeSnippetName}</span>
+                </div>
+              )}
+            </div>
+            
             <div className="flex items-center gap-3">
               {isMultiLine && (
                 <div className="flex items-center gap-2 pr-2 border-r border-slate-200 dark:border-slate-800">
                   <button
                     onClick={handleLoadSnippet}
                     className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
-                    title="Load Snippet (.cs)"
                   >
                     <FontAwesomeIcon icon={faFolderOpen} className="mr-1" />
                     Load
                   </button>
                   <button
-                    onClick={handleSaveSnippet}
+                    onClick={() => handleSaveSnippet(false)}
                     className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
-                    title="Save Snippet (.cs)"
                   >
                     <FontAwesomeIcon icon={faSave} className="mr-1" />
                     Save
+                  </button>
+                  <button
+                    onClick={() => handleSaveSnippet(true)}
+                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
+                  >
+                    <FontAwesomeIcon icon={faSave} className="mr-1 opacity-50" />
+                    Save As
                   </button>
                 </div>
               )}
               <button
                 onClick={() => setIsMultiLine(!isMultiLine)}
                 className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
-                title={isMultiLine ? "Switch to Single-Line" : "Switch to Multi-Line"}
               >
                 <FontAwesomeIcon icon={isMultiLine ? faCompress : faExpand} className="mr-1" />
                 {isMultiLine ? "Collapse" : "Expand"}
@@ -725,7 +738,14 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                 ref={textareaRef}
                 value={replValue}
                 onChange={setReplValue}
-                onKeyDown={handleKeyDown}
+                onKeyDown={(e) => {
+                  if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    handleSaveSnippet(false);
+                  } else {
+                    handleKeyDown(e);
+                  }
+                }}
                 disabled={isReplLoading || isRunning}
                 placeholder="Write your C# code here... (Ctrl+Enter to run)"
               />
