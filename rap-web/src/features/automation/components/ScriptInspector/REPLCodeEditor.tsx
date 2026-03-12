@@ -98,7 +98,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
 
     // Base font styles that MUST be identical across both layers
     const fontStyles: React.CSSProperties = {
-        fontFamily: "'JetBrains Mono', 'Consolas', 'Monaco', monospace",
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: '13px',
         lineHeight: '20px',
         letterSpacing: 'normal',
