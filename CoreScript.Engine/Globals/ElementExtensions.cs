@@ -91,6 +91,6 @@ namespace CoreScript.Engine.Globals
         /// Gets the parameter value as a double and converts it FROM internal units to target units.
         /// Example: e.GetNum("Area", "m2")
         /// </summary>
-        public static double GetNum(this Element e, string name, string unit) => e.GetNum(name).FromUnits(unit);
+        public static double GetNum(this Element e, string name, string unit) => e.GetNum(name).ToExternal(unit);
     }
 }
