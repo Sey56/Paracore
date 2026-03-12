@@ -47,6 +47,8 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const [isApplyingFix, setIsApplyingFix] = useState(false);
   const [singleLineValue, setSingleLineValue] = useState(() => localStorage.getItem('paracore_repl_single_value') || "");
   const [multiLineValue, setMultiLineValue] = useState(() => localStorage.getItem('paracore_repl_multi_value') || "");
+  const [activeSnippetPath, setActiveSnippetPath] = useState<string | null>(() => localStorage.getItem('paracore_repl_active_path'));
+  const [activeSnippetName, setActiveSnippetName] = useState<string | null>(() => localStorage.getItem('paracore_repl_active_name'));
   const [isReplLoading, setIsReplLoading] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isMultiLine, setIsMultiLine] = useState(() => localStorage.getItem('paracore_repl_multiline') === 'true');
