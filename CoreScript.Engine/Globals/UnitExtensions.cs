@@ -40,6 +40,16 @@ namespace CoreScript.Engine.Globals
         public static double ToInternal(this double v, string u) => v.InputUnit(u);
         public static double ToExternal(this double v, string u, int d = 2) => v.OutputUnit(u, d);
 
+        public static double ToUnits(this int v, string u) => ((double)v).InputUnit(u);
+        public static double FromUnits(this int v, string u, int d = 2) => ((double)v).OutputUnit(u, d);
+        public static double ToInternal(this int v, string u) => ((double)v).InputUnit(u);
+        public static double ToExternal(this int v, string u, int d = 2) => ((double)v).OutputUnit(u, d);
+
+        public static double ToUnits(this decimal v, string u) => ((double)v).InputUnit(u);
+        public static double FromUnits(this decimal v, string u, int d = 2) => ((double)v).OutputUnit(u, d);
+        public static double ToInternal(this decimal v, string u) => ((double)v).InputUnit(u);
+        public static double ToExternal(this decimal v, string u, int d = 2) => ((double)v).OutputUnit(u, d);
+
         public static string FormatUnit(this double value, string unit, int decimals = 2)
         {
             double converted = value.OutputUnit(unit);

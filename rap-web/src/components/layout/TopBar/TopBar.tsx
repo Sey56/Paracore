@@ -98,7 +98,13 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <div className="h-16 bg-white/80 dark:bg-slate-800/60 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between px-4 z-40 relative tooltip-bottom">
+    <div 
+      className="h-16 border-b border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between px-4 z-40 relative tooltip-bottom"
+      style={{ 
+        backgroundColor: theme === 'eclipse' ? 'var(--bg-card)' : undefined,
+        backdropFilter: theme === 'eclipse' ? 'none' : undefined
+      }}
+    >
       {/* 1. Logo & Sidebar Toggle Cluster */}
       <div className="flex items-center gap-4">
         <button
