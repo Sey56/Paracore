@@ -788,8 +788,8 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
       </div>
 
       {/* Footer Buttons for Console Tab */}
-      <div className="px-3 pt-3 pb-3 flex justify-between items-center bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm z-30">
-        <div className="flex-shrink-0">
+      <div className="px-0 pt-3 pb-3 flex justify-between items-center bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm z-30">
+        <div className="flex-shrink-0 px-3">
           {showAiButton && (
             <button
               title="Explain and Fix with AI"
@@ -802,7 +802,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
           )}
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 px-3">
           <button
             title="Clear Console"
             className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1 px-3 rounded-md font-bold flex items-center border border-blue-200 dark:border-blue-800 transition-all active:scale-95 text-sm"
