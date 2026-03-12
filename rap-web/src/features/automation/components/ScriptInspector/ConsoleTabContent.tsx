@@ -573,6 +573,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                     <SyntaxHighlighter
                       language="csharp"
                       style={syntaxStyle}
+                      PreTag="div"
                       customStyle={{
                         margin: 0,
                         padding: 0,
@@ -580,7 +581,9 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                         fontSize: 'inherit',
                         lineHeight: 'inherit',
                         width: '100%',
-                        overflow: 'visible'
+                        overflow: 'visible',
+                        border: 'none',
+                        boxShadow: 'none'
                       }}
                       codeTagProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-all' } }}
                     >
@@ -604,7 +607,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
 
           {/* Loading Indicator for Script Execution */}
           {isRunning && (
-            <div className={`mt-2 ${localHistory.length > 0 ? "pt-2 border-t border-slate-200/30 dark:border-slate-700/30" : ""} font-mono text-blue-500 animate-pulse flex items-center font-bold`}>
+            <div className={`mt-2 font-mono text-blue-500 animate-pulse flex items-center font-bold`}>
               <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
               Executing...
             </div>
@@ -633,10 +636,10 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
       </div>
 
       {/* REPL Input Bar */}
-      <div className="px-5 pb-3">
+      <div className="px-0 pb-3">
         <div className="flex flex-col space-y-2">
           {/* Header/Toggle Row */}
-          <div className="flex justify-between items-center px-1">
+          <div className="flex justify-between items-center px-3">
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500">
               {isMultiLine ? "Multi-Line REPL" : "Single-Line REPL"}
             </span>
@@ -661,8 +664,8 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
                 placeholder="Write your C# code here... (Ctrl+Enter to run)"
               />
             ) : (
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-bold opacity-50 pointer-events-none select-none text-sm leading-none">
+              <div className="relative px-3">
+                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-500 font-bold opacity-50 pointer-events-none select-none text-sm leading-none">
                   {'>'}
                 </span>
                 <input
@@ -686,7 +689,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
       </div>
 
       {/* Footer Buttons for Console Tab */}
-      <div className="px-5 pt-3 pb-3 border-t border-slate-200/60 dark:border-slate-700/40 flex justify-between items-center bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm z-30">
+      <div className="px-3 pt-3 pb-3 flex justify-between items-center bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm z-30">
         <div className="flex-shrink-0">
           {showAiButton && (
             <button

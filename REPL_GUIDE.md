@@ -1,22 +1,24 @@
-# 🚀 Paracore REPL Commands Guide
+# 🚀 Paracore REPL Workshop Master Guide
 
 The Paracore REPL is a powerful, persistent C# scratchpad that gives you direct, real-time access to the Revit API and Paracore's high-level automation tools. 
 
 > [!TIP]
 > **Session Persistence**: Variables defined in the REPL stay alive between runs within the same session. Break your complex tasks into small, iterative steps!
 
-## 🧠 CoreScript API
-These properties and methods are globally available in every REPL turn.
+---
 
-| Member | Type | Description |
+## 🧠 Core Global Objects
+These objects are globally injected and always available.
+
+| Object | Type | Description |
 | :--- | :--- | :--- |
 | `Doc` | `Document` | The active Revit database Document. |
-| `UIDoc` | `UIDocument` | The active Revit UI Document (for selection). |
-| `UIApp` | `UIApplication` | The Revit UI Application instance. |
+| `UIDoc` | `UIDocument` | The Revit UI Document (active window). |
+| `UIApp` | `UIApplication` | The top-level Revit UI Application. |
 | `ActiveView` | `View` | The currently active view in Revit. |
 | `Selection` | `List<Element>` | List of elements currently selected in Revit. |
-| `Println(msg)` | `void` | Prints a message or interpolated string to the console. |
 | `Parameters` | `Dict` | Access to any parameters passed to the session. |
+| `Println(msg)` | `void` | Prints a message or interpolated string to the console. |
 
 ---
 
@@ -35,54 +37,64 @@ Paracore's "Magic" engine automatically resolves strings into Revit elements, ca
 
 ---
 
-## 📐 Magic Unit Filtering
-Use units directly in your logic to avoid manual math.
+## 📐 Unit Conversions (Two Styles)
+You can use units directly in your logic to avoid manual math. Paracore supports two syntax styles for maximum flexibility.
 
-| Command | Example |
-| :--- | :--- |
-| `.ToUnits("unit")` | `GetElements<Wall>().Where(w => w.Width > 300.ToUnits("mm"))` |
-| `.FromUnits("unit")` | `walls.Select(w => new { Name = w.Name, m2 = w.Area.FromUnits("m2") })` |
+### 1. Command Style (Procedural)
+- `ToUnit(value, "unit")` : `ToUnit(300, "mm")`
+- `FromUnit(value, "unit", decimals)` : `FromUnit(room.Area, "m2", 4)`
 
----
+### 2. Fluent Style (Extension Methods)
+- `.ToUnits("unit")` : `300.ToUnits("mm")`
+- `.FromUnits("unit", decimals)` : `room.Area.FromUnits("m2")`
 
----
-
-## 🪄 Magic Parameter Accessors
-Quickly access Revit parameters without complex API calls.
-
-- **`GetStr("Name")`**: Get string value (e.g., `r.GetStr("Floor Finish")`).
-- **`GetNum("Name", "unit")`**: Get numeric value + unit conversion (e.g., `r.GetNum("Area", "m2")`).
-- **`GetInt("Name")`**: Get integer value.
-- **`GetVal("Name")`**: Get formatted value string exactly as seen in Revit UI.
-
-| `WatchdogReport(msg, lvl)` | `void` | Post a result to the background reporting UI. |
-| `SetExecutionTimeout(s)` | `int` | Increase script timeout (default 10s). |
-
----
-
-## 🏗️ Supported Unit Strings
-Use these strings in any `ToUnits`, `FromUnits`, or "Magic Header" (`Area_m2`).
-
+**Supported Units:**
 - **Length**: `mm`, `cm`, `m`, `ft`, `in`
 - **Area**: `m2`, `sqm`, `ft2`, `sqft`
 - **Volume**: `m3`, `cum`, `ft3`, `cuft`
 
 ---
-Commands to render rich data in the **Summary** tab.
 
-- **`Zoom(elements)`**: Zoom the view to fit the specified elements.
-- **`Table(data)` + Suffixes**: Use `_m2`, `[mm]`, or `(ft)` in property names (e.g., `Perimeter_mm`) to enable unit-aware bi-directional editing with clean headers.
+## 🪄 Magic Parameter Accessors (Extension Methods)
+Paracore adds "Magic" methods to every Revit `Element` to simplify data retrieval. They are **StorageType Aware**—meaning they handle IDs and Units automatically.
+
+- **`element.GetStr("Name")`**: Smart string getter. 
+    - If the parameter is an `ElementId` (like Level or Type), it returns the **Element Name**.
+    - Falls back to formatted value string for numbers.
+- **`element.GetVal("Name")`**: "What You See Is What You Get".
+    - Returns the formatted string exactly as seen in the Revit Properties palette.
+- **`element.GetNum("Name")`**: Returns raw numeric value (Double) in internal units.
+- **`element.GetNum("Name", "unit")`**: Returns numeric value converted to target units.
+- **`element.GetInt("Name")`**: Returns the integer value.
+- **`element.GetId("Name")`**: Returns the raw `ElementId`.
 
 ---
 
-## ⚙️ Advanced: Transactions & Watchdogs
+## 📊 Interactive Visualization
+Commands to render rich data in the **Summary** tab.
+
+| Command | Description |
+| :--- | :--- |
+| `Table(data)` | Renders any list of objects or elements as a searchable grid. |
+| `BarChart(data)` | Renders a bar chart (objects must have `name` and `value`). |
+| `PieChart(data)` | Renders a pie chart (objects must have `name` and `value`). |
+| `LineChart(data)` | Renders a line graph. |
+| `Select(elements)` | Select and zoom to elements in the Revit UI. |
+| `Zoom(elements)` | Zoom the active view to fit elements. |
+| `Isolate(elements)` | Temporarily isolate elements in the active view. |
+
+> [!NOTE]
+> **Magic Suffixes in Tables**: To enable unit-aware editing in tables, append the unit to the property name (e.g., `Area_m2`, `Width[mm]`).
+
+---
+
+## 🛠️ Model Modification & Background Tasks
 
 ### Transactions
-To modify the model, you must wrap your code in a transaction:
+To modify the model, you **must** wrap your code in a `Transact` block:
 ```csharp
-Transact("Change Room Names", () => {
-    var rooms = GetElements<Room>();
-    foreach(var r in rooms) r.Name = r.Name.ToUpper();
+Transact("Standardize Names", () => {
+    foreach(var r in GetElements<Room>()) r.Name = r.Name.ToUpper();
 });
 ```
 
@@ -90,56 +102,22 @@ Transact("Change Room Names", () => {
 Register a task that runs every few seconds when Revit is idle:
 ```csharp
 Watchdog(() => {
-    var errors = GetElements<Wall>().Where(w => w.Width < 0.1);
-    WatchdogReport($"Thin Walls: {errors.Count()}", "error", errors);
+    var thinWalls = GetElements<Wall>().Where(w => w.Width < ToUnit(100, "mm"));
+    if(thinWalls.Any()) WatchdogReport($"Found {thinWalls.Count()} thin walls", "warning", thinWalls);
 }, intervalSeconds: 10);
+```
+
+### Timeouts
+Increase script timeout for long-running operations (default is 10s):
+```csharp
+SetExecutionTimeout(60); // 60 seconds
 ```
 
 ---
 
-## 🚀 Experimentation Ideas
-- **Audit All Doors**: `Table(GetElements("Doors"))`
-- **Count by Types**: `GetElements("DoorTypes").Count`
-- **Visual Check**: `Select(GetElements<Wall>().Where(w => w.Width > 0.3))`
-- **Category Map**: `Table(GetMagicNames())`
-
-### 1. Data Analysis: Walls by Type
+## 💡 Implicit Output (The Shortcut)
+If your last line of code returns a value, the REPL automatically prints it.
 ```csharp
-var walls = GetElements<Wall>();
-var data = walls.GroupBy(w => w.WallType.Name)
-                .Select(g => new { name = g.Key, value = g.Count() });
-
-Println($"Analyzed {walls.Count} walls across {data.Count()} types.");
-PieChart(data);
-Table(data);
-```
-
-### 2. Space Audit: Room Areas
-```csharp
-var rooms = GetElements<Room>().Where(r => r.Area > 0);
-var data = rooms.Select(r => new { name = r.Name, value = Math.Round(r.Area, 2) })
-                .OrderByDescending(x => x.value);
-
-Println($"Found {rooms.Count()} placed rooms.");
-BarChart(data.Take(10)); // Top 10 largest rooms
-Table(rooms);
-```
-
-### 3. Quick Modification: Uppercase Sheet Names
-```csharp
-var sheets = GetElements<ViewSheet>();
-Transact("Batch Rename Sheets", () => {
-    foreach(var sheet in sheets) {
-        sheet.Name = sheet.Name.ToUpper();
-    }
-});
-Println($"Processed {sheets.Count} sheets.");
-```
-
-### 4. Selection Power
-```csharp
-// Find all Generic walls and zoom to them
-var genericWalls = GetElements<Wall>().Where(w => w.Name.Contains("Generic"));
-Select(genericWalls);
-Println($"Zoomed to {genericWalls.Count()} generic walls.");
+Doc.Title          // Prints project name
+Selection.Count    // Prints selection count
 ```

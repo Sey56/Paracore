@@ -109,13 +109,12 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     };
 
     return (
-        <div className="relative w-full h-[300px] rounded-lg border border-slate-200 bg-white dark:bg-slate-900 shadow-inner group overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
+        <div className="relative w-full h-[300px] bg-white/50 dark:bg-slate-900/50 border-t border-b border-slate-200 dark:border-slate-800 group overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
             {/* 
                 GRID CONTAINER: This is the secret. 
                 By using a grid, both children occupy the EXACT same space.
-                Padding is applied HERE, not on the children, to ensure the content-box is identical down to the pixel.
             */}
-            <div className="grid w-full h-full" style={{ padding: '12px 16px' }}>
+            <div className="grid w-full h-full" style={{ padding: 0 }}>
                 {/* Underlying Syntax Highlighter Layer */}
                 <div
                     ref={highlighterRef}
@@ -125,11 +124,13 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
                         scrollbarGutter: 'stable',
+                        padding: '12px',
                     }}
                 >
                     <SyntaxHighlighter
                         language="csharp"
                         style={syntaxStyle}
+                        PreTag="div"
                         customStyle={{
                             margin: 0,
                             padding: 0,
@@ -141,6 +142,8 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                             height: '100%',
                             overflow: 'visible',
                             letterSpacing: 'inherit',
+                            border: 'none',
+                            boxShadow: 'none'
                         }}
                         codeTagProps={{ 
                             style: { 
@@ -177,7 +180,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         resize: 'none',
                         border: 'none',
                         outline: 'none',
-                        padding: 0,
+                        padding: '12px',
                         margin: 0,
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',

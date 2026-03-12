@@ -264,6 +264,14 @@ namespace CoreScript.Engine.Globals
         public void PieChart(object data) => Output.ChartPie(data);
         public void LineChart(object data) => Output.ChartLine(data);
 
+        // Unit Conversion Globals (Command Style)
+        public double ToUnit(double value, string unit) => value.ToUnits(unit);
+        public double FromUnit(double value, string unit, int decimals = 2) => value.FromUnits(unit, decimals);
+        public double ToUnit(int value, string unit) => ((double)value).ToUnits(unit);
+        public double FromUnit(int value, string unit, int decimals = 2) => ((double)value).FromUnits(unit, decimals);
+        public double ToUnit(decimal value, string unit) => ((double)value).ToUnits(unit);
+        public double FromUnit(decimal value, string unit, int decimals = 2) => ((double)value).FromUnits(unit, decimals);
+
         public void Transact(string name, Action<Document> action)
         {
             if (_context.IsReadOnly)

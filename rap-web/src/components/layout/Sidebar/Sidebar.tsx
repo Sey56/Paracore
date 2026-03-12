@@ -297,7 +297,10 @@ export const Sidebar = () => {
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800/20 backdrop-blur-3xl flex flex-col h-full border-r border-gray-100 dark:border-gray-800/50 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div 
+      className={`flex flex-col h-full border-r border-gray-100 dark:border-gray-800/50 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}
+      style={{ backgroundColor: 'var(--bg-card)' }}
+    >
       <div className="p-4 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-2">
 
         {sourceToSetup && (

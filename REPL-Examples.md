@@ -151,8 +151,51 @@ Watchdog(() => {
 
 ---
 
+## 🪄 Super-Powered Parameter Accessors
+*The REPL now "thinks" like you do. These methods handle IDs, Units, and Fallbacks automatically.*
+
+### 14. Smart Level & Type Auditing
+In the raw Revit API, the "Level" parameter returns an ID. Paracore's `GetStr` automatically resolves this to the **Level Name**.
+```csharp
+/// Smart Room Audit
+Table(GetElements<Room>().Select(rm => new {
+    rm.Id,
+    rm.Name,
+    Level = rm.GetStr("Level"), // Automatically returns "Level 1" instead of an ID
+    Type = rm.GetStr("Type"),   // Automatically returns "Standard" instead of an ID
+    Area_m2 = rm.Area.FromUnits("m2")
+}));
+```
+
+### 15. The "WYSIWYG" (What You See Is What You Get) Table
+Use `GetVal` to pull the exact formatted string you see in the Revit Properties palette, including unit symbols.
+```csharp
+/// Precise Wall Audit
+Table(GetElements<Wall>().Select(w => new {
+    w.Id,
+    Name = w.Name,
+    Thickness = w.GetVal("Width"), // Returns "200.0 mm" (exactly like the UI)
+    Volume = w.GetVal("Volume")    // Returns "1.25 m³"
+}));
+```
+
+### 16. Automatic Built-In Fallbacks
+You don't need to know the exact parameter name if you know the Revit internal name. `GetStr` matches both.
+```csharp
+/// Built-in Parameter Check
+var wall = Selection.FirstOrDefault();
+if(wall != null) {
+    // Both work!
+    Println(wall.GetStr("Base Constraint")); 
+    Println(wall.GetStr("WALL_BASE_CONSTRAINT")); 
+}
+```
+
+---
+
 ## 💡 Quick Tips
 - **Implicit Printing**: Type any variable name on the last line (e.g. `Doc.Title`) to see its value automatically.
 - **Persistence**: Define a variable in one run (e.g. `var myWalls = GetElements<Wall>();`), and use it in the next run.
 - **Magic Unit Filtering**: Use `.ToUnits("mm")` or `.FromUnits("m2")` to skip manual conversion math.
 - **Identification**: Start your script with `/// My Audit` to label the turn in the console log.
+- **Smart IDs**: `GetStr("AnyElementIdParam")` returns the Name of the referenced element.

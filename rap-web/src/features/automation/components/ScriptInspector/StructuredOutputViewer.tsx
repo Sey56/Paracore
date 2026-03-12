@@ -171,7 +171,7 @@ const TableView: React.FC<{
   return (
     <div className="flex flex-col w-full h-full min-w-0">
       {/* VIEWPORT SCROLL HUB: Handles both axes internally */}
-      <div className="flex-1 w-full min-h-0 overflow-auto border border-slate-200 dark:border-slate-700 rounded-xl shadow-inner bg-slate-50/20 dark:bg-black/10 custom-scrollbar max-h-[calc(100vh-140px)]">
+      <div className="flex-1 w-full min-h-0 overflow-auto bg-slate-50/5 dark:bg-black/5 custom-scrollbar max-h-[calc(100vh-140px)]">
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs border-collapse">
           <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-30 shadow-sm">
             <tr>
@@ -637,7 +637,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       
       <div className="flex-1 overflow-hidden relative flex flex-col">
         {item.type === 'table' && (
-          <div className="flex-1 h-full w-full p-2 overflow-hidden">
+          <div className="flex-1 h-full w-full overflow-hidden">
             <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
             <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} filterText={filterText} setFilterText={setFilterText} />
           </div>
