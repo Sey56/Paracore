@@ -497,7 +497,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       clonedSvg.style.overflow = "visible";
       const originalNodes = originalSvg.querySelectorAll('*');
       const clonedNodes = clonedSvg.querySelectorAll('*');
-      const stylesToCopy = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'transform', 'transform-origin', 'visibility', 'display'];
+      const stylesToCopy = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-opacity', 'fill-opacity', 'opacity', 'font-family', 'font-size', 'font-weight', 'transform', 'transform-origin', 'visibility', 'display', 'stop-color', 'stop-opacity'];
       const rootComputed = window.getComputedStyle(originalSvg);
       stylesToCopy.forEach(s => { const v = rootComputed.getPropertyValue(s); if (v) clonedSvg.style.setProperty(s, v); });
       originalNodes.forEach((orig, idx) => {
@@ -505,7 +505,12 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         if (clone instanceof Element) {
           const comp = window.getComputedStyle(orig);
           stylesToCopy.forEach(s => {
-            const v = comp.getPropertyValue(s);
+            let v = comp.getPropertyValue(s);
+            // V8 Enhancement: Force resolve currentColor to absolute values for browser compatibility
+            if (v === 'currentColor') {
+              const resolved = comp.color;
+              if (resolved) v = resolved;
+            }
             if (v && (clone instanceof HTMLElement || clone instanceof SVGElement)) {
               (clone as HTMLElement | SVGElement).style.setProperty(s, v);
             }
@@ -530,7 +535,8 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           const itemRelY = itemRect.top - lWrapperRect.top;
           const textEl = itemEl.querySelector('.recharts-legend-item-text');
           const iconEl = itemEl.querySelector('.recharts-surface path') || itemEl.querySelector('.recharts-surface circle');
-          const color = iconEl ? (window.getComputedStyle(iconEl).fill || COLORS[idx % COLORS.length]) : COLORS[idx % COLORS.length];
+          const compIcon = iconEl ? window.getComputedStyle(iconEl) : null;
+          const color = compIcon ? (compIcon.fill !== 'none' ? compIcon.fill : compIcon.stroke) : COLORS[idx % COLORS.length];
           const label = textEl ? textEl.textContent : `Item ${idx}`;
           const itemG = document.createElementNS("http://www.w3.org/2000/svg", "g");
           itemG.setAttribute("transform", `translate(${itemRelX}, ${itemRelY})`);
@@ -540,8 +546,8 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           itemG.appendChild(r);
           const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
           t.setAttribute("x", "18"); t.setAttribute("y", "10");
-          t.setAttribute("font-family", "Inter, sans-serif"); t.setAttribute("font-size", "11");
-          t.setAttribute("fill", "#64748b");
+          t.setAttribute("font-family", "Inter, system-ui, sans-serif"); t.setAttribute("font-size", "11");
+          t.setAttribute("fill", document.documentElement.classList.contains('dark') ? "#94a3b8" : "#64748b");
           t.textContent = label || '';
           itemG.appendChild(t);
           legendG!.appendChild(itemG);
@@ -555,10 +561,19 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       wrapperSvg.setAttribute("height", totalH.toString());
       wrapperSvg.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
       wrapperSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      const bgColor = window.getComputedStyle(container).backgroundColor || '#ffffff';
+      
+      // V8 Robust Background: Don't trust container background if it's transparent
+      let bgColor = window.getComputedStyle(container).backgroundColor;
+      if (!bgColor || bgColor === 'rgba(0, 0, 0, 0)' || bgColor === 'transparent') {
+        bgColor = document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff';
+      }
+      
       const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      bgRect.setAttribute("width", "100%"); bgRect.setAttribute("height", "100%"); bgRect.setAttribute("fill", bgColor);
+      bgRect.setAttribute("x", "0"); bgRect.setAttribute("y", "0");
+      bgRect.setAttribute("width", totalW.toString()); bgRect.setAttribute("height", totalH.toString()); 
+      bgRect.setAttribute("fill", bgColor);
       wrapperSvg.appendChild(bgRect);
+      
       const chartG = document.createElementNS("http://www.w3.org/2000/svg", "g");
       chartG.setAttribute("transform", `translate(${padding}, ${padding})`);
       chartG.appendChild(clonedSvg);
