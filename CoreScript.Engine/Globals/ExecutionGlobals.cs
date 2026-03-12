@@ -137,11 +137,11 @@ namespace CoreScript.Engine.Globals
         }
     }
 
-    public class Output
+    public class StructuredOutput
     {
         private readonly ICoreScriptContext _context;
 
-        public Output(ICoreScriptContext context)
+        public StructuredOutput(ICoreScriptContext context)
         {
             _context = context;
         }
@@ -213,7 +213,7 @@ namespace CoreScript.Engine.Globals
         public Dictionary<string, object> RawParameters { get; }
         public Dictionary<string, IEnumerable<object>> ResolutionPools { get; } = new Dictionary<string, IEnumerable<object>>();
 
-        public Output Output { get; private set; }
+        public StructuredOutput StructuredOutput { get; private set; }
         public IParameterHydrator Hydrator { get; }
 
         public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters, Dictionary<string, object>? rawParameters = null)
@@ -221,7 +221,7 @@ namespace CoreScript.Engine.Globals
             _context = context;
             Parameters = parameters;
             RawParameters = rawParameters ?? parameters;
-            Output = new Output(context);
+            StructuredOutput = new StructuredOutput(context);
             var revitResolver = new RevitObjectResolver(context.Doc);
             Hydrator = new ParameterHydrator(revitResolver);
         }
@@ -229,7 +229,7 @@ namespace CoreScript.Engine.Globals
         public void UpdateContext(ICoreScriptContext context)
         {
             _context = context;
-            Output = new Output(context);
+            StructuredOutput = new StructuredOutput(context);
             // Note: We don't update Hydrator/RevitResolver as they are tied to the Document, 
             // which doesn't change during a REPL session.
         }
@@ -259,10 +259,10 @@ namespace CoreScript.Engine.Globals
         public void SetInternalData(string data) => _context.SetInternalData(data);
 
         // Visualization Globals
-        public void Table(object data) => Output.Table(data);
-        public void BarChart(object data) => Output.ChartBar(data);
-        public void PieChart(object data) => Output.ChartPie(data);
-        public void LineChart(object data) => Output.ChartLine(data);
+        public void Table(object data) => StructuredOutput.Table(data);
+        public void BarChart(object data) => StructuredOutput.ChartBar(data);
+        public void PieChart(object data) => StructuredOutput.ChartPie(data);
+        public void LineChart(object data) => StructuredOutput.ChartLine(data);
 
         // Unit Conversion Globals (Command Style)
         public double Input(double value, string unit) => value.Input(unit);
