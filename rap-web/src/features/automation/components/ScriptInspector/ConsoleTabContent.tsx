@@ -363,7 +363,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
             structuredOutput: hasNewData ? response.data.structured_output : (prev?.structuredOutput || []),
             internal_data: 'REPL',
             timestamp: Date.now(),
-            scriptName: "REPL"
+            scriptName: isMultiLine ? identifier : "REPL"
           } as any;
         });
       } else {
@@ -374,7 +374,7 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
           structuredOutput: prev?.structuredOutput || [],
           internal_data: 'REPL',
           timestamp: Date.now(),
-          scriptName: "REPL"
+          scriptName: isMultiLine ? identifier : "REPL"
         } as any));
       }
     } catch (err: any) {

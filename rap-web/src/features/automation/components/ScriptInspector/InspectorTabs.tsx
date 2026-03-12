@@ -119,16 +119,13 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
                       : ''
                   }`} 
                 />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+                <span className={`text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all duration-1000 ${
+                  tab.id === 'table' && hasUnviewedTableData 
+                    ? "text-blue-500 dark:text-blue-400 animate-pulse drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                    : ""
+                }`}>
                   {tab.label}
                 </span>
-
-                {tab.id === 'table' && hasUnviewedTableData && (
-                  <span className="absolute top-2 right-2 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                  </span>
-                )}
               </button>
             </React.Fragment>
           ))}
