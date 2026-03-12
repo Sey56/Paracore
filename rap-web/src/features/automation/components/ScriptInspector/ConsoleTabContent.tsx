@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import type { ScriptExecutionResult } from "@/types/scriptModel";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faTrash, faMagicWandSparkles, faSpinner, faCheck, faTimes, faCode, faExpand, faCompress, faPlay } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faTrash, faMagicWandSparkles, faSpinner, faCheck, faTimes, faCode, faExpand, faCompress, faPlay, faSave, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
 import { useScriptExecution } from '../../index';
 import { useScripts } from '../../index';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
@@ -11,6 +11,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '@/context/ThemeContext';
 import { REPLCodeEditor } from './REPLCodeEditor';
+import { save, open } from '@tauri-apps/api/dialog';
+import { writeTextFile, readTextFile } from '@tauri-apps/api/fs';
 
 interface ConsoleTabContentProps {
   isRunning: boolean;
@@ -555,6 +557,38 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
     );
   }
 
+  const handleSaveSnippet = async () => {
+    if (!multiLineValue.trim()) return;
+    try {
+      const filePath = await save({
+        filters: [{ name: 'C# Script', extensions: ['cs'] }],
+        defaultPath: 'MyReplSnippet.cs'
+      });
+      if (filePath) {
+        await writeTextFile(filePath, multiLineValue);
+        showNotification("Snippet saved successfully", "success");
+      }
+    } catch (err: any) {
+      showNotification(`Failed to save snippet: ${err.message}`, "error");
+    }
+  };
+
+  const handleLoadSnippet = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'C# Script', extensions: ['cs'] }]
+      });
+      if (selected && typeof selected === 'string') {
+        const content = await readTextFile(selected);
+        setMultiLineValue(content);
+        showNotification("Snippet loaded", "success");
+      }
+    } catch (err: any) {
+      showNotification(`Failed to load snippet: ${err.message}`, "error");
+    }
+  };
+
   return (
     <div className="tab-content pt-0 flex flex-col h-full relative overflow-hidden">
       <div className="flex-grow relative min-h-0 min-w-0 mb-2">
@@ -651,14 +685,36 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500">
               {isMultiLine ? "Multi-Line REPL" : "Single-Line REPL"}
             </span>
-            <button
-              onClick={() => setIsMultiLine(!isMultiLine)}
-              className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
-              title={isMultiLine ? "Switch to Single-Line" : "Switch to Multi-Line"}
-            >
-              <FontAwesomeIcon icon={isMultiLine ? faCompress : faExpand} className="mr-1" />
-              {isMultiLine ? "Collapse" : "Expand"}
-            </button>
+            <div className="flex items-center gap-3">
+              {isMultiLine && (
+                <div className="flex items-center gap-2 pr-2 border-r border-slate-200 dark:border-slate-800">
+                  <button
+                    onClick={handleLoadSnippet}
+                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
+                    title="Load Snippet (.cs)"
+                  >
+                    <FontAwesomeIcon icon={faFolderOpen} className="mr-1" />
+                    Load
+                  </button>
+                  <button
+                    onClick={handleSaveSnippet}
+                    className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
+                    title="Save Snippet (.cs)"
+                  >
+                    <FontAwesomeIcon icon={faSave} className="mr-1" />
+                    Save
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => setIsMultiLine(!isMultiLine)}
+                className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-xs"
+                title={isMultiLine ? "Switch to Single-Line" : "Switch to Multi-Line"}
+              >
+                <FontAwesomeIcon icon={isMultiLine ? faCompress : faExpand} className="mr-1" />
+                {isMultiLine ? "Collapse" : "Expand"}
+              </button>
+            </div>
           </div>
 
           <div className="relative w-full">
