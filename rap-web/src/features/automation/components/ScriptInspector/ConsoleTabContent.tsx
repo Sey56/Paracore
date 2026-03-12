@@ -74,6 +74,20 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Clear handler that is robust against re-mounts
+  const handleClear = useCallback(() => {
+    setLocalHistory([]);
+    setCommandHistory([]);
+    setAiResult(null);
+    lastHeaderScriptNameRef.current = null;
+    
+    // Explicitly clear from storage to ensure it doesn't return on refresh or re-mount
+    localStorage.removeItem('paracore_console_history');
+    localStorage.removeItem('paracore_command_history');
+    
+    showNotification("Console cleared", "info");
+  }, [showNotification]);
+
   // History of AI fixes in current session
   const [fixHistory, setFixHistory] = useState<{ script_code: string, explanation: string, error_message: string }[]>([]);
 
@@ -425,15 +439,6 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
         setReplValue("");
       }
     }
-  };
-
-  const handleClear = () => {
-    setLocalHistory([]);
-    setCommandHistory([]);
-    setAiResult(null);
-    lastHeaderScriptNameRef.current = null;
-    localStorage.removeItem('paracore_console_history');
-    localStorage.removeItem('paracore_command_history');
   };
 
   const lastHistoryItem = localHistory.length > 0 ? localHistory[localHistory.length - 1] : null;
