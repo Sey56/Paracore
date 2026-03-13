@@ -87,7 +87,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
   const tooltipMessage = !isAuthenticated
     ? "Please sign in to run scripts"
     : !ParacoreConnected
-      ? "Paracore is disconnected"
+      ? "Paracore server disconnected"
       : revitStatus?.document === null
         ? "No document opened in Revit"
         : !isCompatibleWithDocument

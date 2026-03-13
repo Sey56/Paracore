@@ -11,7 +11,7 @@ export const ScriptInspector: React.FC = () => {
   const { selectedScript, runningScriptPath, setSelectedScript } = useScriptExecution();
   const { scripts } = useScripts();
   const { toggleFloatingCodeViewer, agentSelectedScriptPath } = useUI();
-  const { revitStatus } = useRevitStatus(); // Get Revit status
+  const { revitStatus, ParacoreConnected } = useRevitStatus(); // Get Revit status and ParacoreConnected
   const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
@@ -51,15 +51,18 @@ export const ScriptInspector: React.FC = () => {
     return scriptDocType === revitDocType;
   }, [script, revitStatus.document, revitStatus.documentType]);
 
-  const isActionable = isCompatibleWithDocument && isAuthenticated;
+  const isActionable = ParacoreConnected && isCompatibleWithDocument && isAuthenticated;
 
   const getTooltipMessage = () => {
     if (!isAuthenticated) {
-      return "You must sign in to use RAP";
+      return "You must sign in to use Paracore";
+    }
+    if (!ParacoreConnected) {
+      return "Paracore server disconnected";
     }
     if (!isCompatibleWithDocument) {
       if (!script) return "";
-      const scriptDocType = script.metadata.documentType?.trim().toLowerCase();
+      const scriptDocType = script.metadata?.documentType?.trim().toLowerCase();
 
       if (revitStatus.document === null) {
         return "No document opened in Revit";
