@@ -54,10 +54,6 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isMultiLine, setIsMultiLine] = useState(() => localStorage.getItem('paracore_repl_multiline') === 'true');
 
-  const replValue = isMultiLine ? multiLineValue : singleLineValue;
-  const setReplValue = isMultiLine ? setMultiLineValue : setSingleLineValue;
-
-  // Initialize from LocalStorage
   const [localHistory, setLocalHistory] = useState<{ type: 'input' | 'output' | 'error' | 'status', text: string, timestamp: Date, isRepl?: boolean }[]>(() => {
     const saved = localStorage.getItem('paracore_console_history');
     if (saved) {
@@ -79,9 +75,6 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     return saved ? JSON.parse(saved) : [];
   });
 
-  const commandHistory = isMultiLine ? multiCommandHistory : singleCommandHistory;
-  const setCommandHistory = isMultiLine ? setMultiCommandHistory : setSingleCommandHistory;
-
   const handleClear = useCallback(() => {
     setLocalHistory([]);
     setSingleCommandHistory([]);
@@ -93,6 +86,85 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     localStorage.removeItem('paracore_repl_multi_history');
     showNotification("Console cleared", "info");
   }, [showNotification]);
+
+  // Sync state to LocalStorage
+  useEffect(() => { localStorage.setItem('paracore_console_history', JSON.stringify(localHistory)); }, [localHistory]);
+  useEffect(() => { localStorage.setItem('paracore_repl_single_history', JSON.stringify(singleCommandHistory)); }, [singleCommandHistory]);
+  useEffect(() => { localStorage.setItem('paracore_repl_multi_history', JSON.stringify(multiCommandHistory)); }, [multiCommandHistory]);
+  useEffect(() => { localStorage.setItem('paracore_repl_single_value', singleLineValue); }, [singleLineValue]);
+  useEffect(() => { localStorage.setItem('paracore_repl_multi_value', multiLineValue); }, [multiLineValue]);
+  useEffect(() => { localStorage.setItem('paracore_repl_multiline', String(isMultiLine)); }, [isMultiLine]);
+  useEffect(() => {
+    if (activeSnippetPath) localStorage.setItem('paracore_repl_active_path', activeSnippetPath);
+    else localStorage.removeItem('paracore_repl_active_path');
+  }, [activeSnippetPath]);
+  useEffect(() => {
+    if (activeSnippetName) localStorage.setItem('paracore_repl_active_name', activeSnippetName);
+    else localStorage.removeItem('paracore_repl_active_name');
+  }, [activeSnippetName]);
+
+  const handleReplSubmit = async () => {
+    const command = isMultiLine ? multiLineValue.trim() : singleLineValue.trim();
+    if (!command || isReplLoading) return;
+
+    if (command.toLowerCase() === 'help' || command === '?') {
+      setLocalHistory(prev => [...prev, { type: 'input' as const, text: 'Help', timestamp: new Date(), isRepl: true }, { type: 'output' as const, text: "📖 Help...", timestamp: new Date(), isRepl: true }].slice(-100));
+      if (!isMultiLine) setSingleLineValue(""); return;
+    }
+    if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') { handleClear(); return; }
+    
+    if (!isMultiLine) setSingleLineValue("");
+    setHistoryIndex(-1);
+    setIsReplLoading(true);
+    let identifier = activeSnippetName || "Multi-Line REPL";
+    if (!isMultiLine) identifier = command;
+    setLocalHistory(prev => [...prev, { type: 'status' as const, text: `> ${identifier}`, timestamp: new Date(), isRepl: true }].slice(-100));
+    
+    if (isMultiLine) setMultiCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
+    else setSingleCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
+
+    try {
+      const response = await api.post("/api/repl", { code: command, session_id: selectedScript?.absolutePath || "global" });
+      if (response.data.is_success) {
+        setExecutionResult((prev: any) => ({ output: response.data.output || '', isSuccess: true, error: null, structuredOutput: response.data.structured_output?.length > 0 ? response.data.structured_output : (prev?.structuredOutput || []), internal_data: 'REPL', timestamp: Date.now(), scriptName: isMultiLine ? identifier : "REPL" }));
+      } else {
+        setExecutionResult((prev: any) => ({ output: response.data.output || '', isSuccess: false, error: response.data.error_message || 'Error', structuredOutput: prev?.structuredOutput || [], internal_data: 'REPL', timestamp: Date.now(), scriptName: isMultiLine ? identifier : "REPL" }));
+      }
+    } catch (err: any) {
+      setLocalHistory(prev => [...prev, { type: 'error' as const, text: `Error: ${err.message}`, timestamp: new Date(), isRepl: true }].slice(-100));
+    } finally {
+      setIsReplLoading(false);
+      setTimeout(() => { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); }, 0);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isMultiLine) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleReplSubmit(); }
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReplSubmit(); }
+    else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const history = isMultiLine ? multiCommandHistory : singleCommandHistory;
+      if (historyIndex < history.length - 1) {
+        const idx = historyIndex + 1;
+        setHistoryIndex(idx);
+        if (!isMultiLine) setSingleLineValue(history[idx]);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const history = isMultiLine ? multiCommandHistory : singleCommandHistory;
+      if (historyIndex > 0) {
+        const idx = historyIndex - 1;
+        setHistoryIndex(idx);
+        if (!isMultiLine) setSingleLineValue(history[idx]);
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        if (!isMultiLine) setSingleLineValue("");
+      }
+    }
+  };
 
   // History of AI fixes in current session
   const [fixHistory, setFixHistory] = useState<{ script_code: string, explanation: string, error_message: string }[]>([]);
@@ -328,9 +400,8 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   }, [selectedScript, aiResult, showNotification, reloadScript, combinedScriptContent, executionResult]);
 
   const handleReplSubmit = async () => {
-    if (!replValue.trim() || isReplLoading) return;
-
-    const command = replValue.trim();
+    const command = isMultiLine ? multiLineValue.trim() : singleLineValue.trim();
+    if (!command || isReplLoading) return;
 
     // 0. Handle Help System locally
     if (command.toLowerCase() === 'help' || command === '?') {
@@ -351,19 +422,17 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
 Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isRepl: true
       }
       ].slice(-100));
-      if (!isMultiLine) setReplValue("");
+      if (!isMultiLine) setSingleLineValue("");
       return;
     }
 
     if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') {
-      setLocalHistory([]);
-      localStorage.removeItem('paracore_console_history');
-      if (!isMultiLine) setReplValue("");
+      handleClear();
       return;
     }
 
     if (!isMultiLine) {
-      setReplValue("");
+      setSingleLineValue("");
     }
     setHistoryIndex(-1);
     setIsReplLoading(true);
@@ -378,8 +447,12 @@ Try: GetMagicNames().Where(n => n.Contains("Wall"))`, timestamp: new Date(), isR
     // Add input identifier to local history as status (matches script header style)
     setLocalHistory(prev => [...prev, { type: 'status' as const, text: `> ${identifier}`, timestamp: new Date(), isRepl: true }].slice(-100));
 
-    // Add full code to command history for navigation (Capped at 50)
-    setCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
+    // Add full code to appropriate history
+    if (isMultiLine) {
+      setMultiCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
+    } else {
+      setSingleCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
+    }
 
     try {
       const response = await api.post("/api/repl", {
