@@ -301,7 +301,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
           className="h-full w-full overflow-y-auto custom-scrollbar rounded bg-slate-50/50 dark:bg-slate-900/40 p-3 pl-5 pr-0 font-mono text-sm select-text cursor-text"
           style={{ scrollbarGutter: 'stable' }}>
           <div 
-            className="min-h-full pb-24"
+            className="min-h-full pb-12"
             onClick={() => { if (!window.getSelection()?.toString()) { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); } }}
           >
             {localHistory.map((item, i) => (
