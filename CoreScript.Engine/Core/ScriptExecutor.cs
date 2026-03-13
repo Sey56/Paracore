@@ -36,7 +36,7 @@ namespace CoreScript.Engine.Core
                         resultTask?.GetAwaiter().GetResult();
                     }
 
-                    var execResult = ExecutionResult.Success("✅ Success", null);
+                    var execResult = ExecutionResult.Success("Success", null);
                     execResult.PrintLog = context.PrintLog.ToList();
                     return execResult;
                 }

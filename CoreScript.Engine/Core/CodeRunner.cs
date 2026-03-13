@@ -163,7 +163,7 @@ namespace CoreScript.Engine.Core
                     var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
                     var state = _scriptExecutor.ExecuteAsync(script).Result;
                     
-                    result = ExecutionResult.Success("✅ Code executed successfully", state.ReturnValue);
+                    result = ExecutionResult.Success("Success", state.ReturnValue);
                     
                     // Add to cache for next time
                     try
@@ -178,7 +178,6 @@ namespace CoreScript.Engine.Core
                     }
                 }
 
-                context.Println("✅ Code executed successfully | " + timestamp);
                 result.PrintLog = context.PrintLog.ToList();
                 result.ScriptName = topLevelScriptName;
 
