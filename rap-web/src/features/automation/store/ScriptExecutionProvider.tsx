@@ -1,5 +1,12 @@
 import { useEffect, useCallback, useRef, useMemo } from 'react';
-import { ScriptExecutionContext, ScriptExecutionContextProps } from './ScriptExecutionContext';
+import { 
+  ScriptExecutionContext, 
+  ScriptExecutionContextProps,
+  ScriptSelectionContext,
+  ScriptExecutionStateContext,
+  ScriptDataContext,
+  ScriptOperationsContext
+} from './ScriptExecutionContext';
 export { ScriptExecutionContext };
 export type { ScriptExecutionContextProps };
 import type { Script, ScriptParameter, RawScriptParameterData } from '@/types/scriptModel';
@@ -32,8 +39,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     updateScriptModificationTime,
     selectedFolder,
     loadScriptsForFolder: loadScriptsFromPath,
-    activeSyncSessions,
-    editScript: editScriptFromContext
+    editScript: editScriptFromContext,
+    activeSyncSessions
   } = useScripts();
   const { isAuthenticated, activeTeam, user, cloudToken } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, setActiveInspectorTab, threadId } = useUI();
@@ -111,7 +118,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const isRenamingRef = useRef(false);
   const loadingScriptPathRef = useRef<string | null>(null);
 
-  // Reset logic when source/folder changes (Navigation)
+  // Navigation Resets
   useEffect(() => {
     setSelectedScriptState(null);
     setPersistedScriptId(null);
@@ -119,7 +126,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setAgentSelectedScriptPath(null);
   }, [activeScriptSource, selectedFolder, setPersistedScriptId, setCombinedScriptContent, setSelectedScriptState, setAgentSelectedScriptPath]);
 
-  // Reset logic when user identity changes (Security)
+  // Security Resets
   useEffect(() => {
     setSelectedScriptState(null);
     setPersistedScriptId(null);
@@ -156,15 +163,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
 
     const scriptPath = script.absolutePath || script.id;
-
-    // V6 ATOMIC LOCK: Prevent redundant overlapping selection requests for the same script.
-    if (loadingScriptPathRef.current === scriptPath) {
-      return;
-    }
+    if (loadingScriptPathRef.current === scriptPath) return;
 
     const currentSelected = selectedScriptRef.current;
-
-    // V5 ROBUST COMPARISON: Check both ID and Path normalization
     const isSameScript = (s1: Script, s2: Script) => {
       if (!s1 || !s2) return false;
       if (s1.id === s2.id) return true;
@@ -209,13 +210,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         freshParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
           let value: any = p.defaultValueJson;
           try {
-            // V5 PRECISION FIX: Preserve trailing zeros for double/number
             const isDouble = p.type === 'number' || p.numericType === 'double';
-            if (isDouble && p.defaultValueJson.includes('.')) {
-              value = p.defaultValueJson.replace(/"/g, '');
-            } else {
-              value = JSON.parse(p.defaultValueJson);
-            }
+            if (isDouble && p.defaultValueJson.includes('.')) value = p.defaultValueJson.replace(/"/g, '');
+            else value = JSON.parse(p.defaultValueJson);
           } catch { }
           if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
           return { ...p, type: p.type as ScriptParameter['type'], value, defaultValue: value };
@@ -232,13 +229,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             const isFollowingDefault = cached.value === cached.defaultValue;
             const valueToUse = isFollowingDefault ? fresh.defaultValue : cached.value;
             const resolvedOptions = (fresh.options && fresh.options.length > 0) ? fresh.options : (cached.options || []);
-            return {
-              ...fresh,
-              value: valueToUse,
-              defaultValue: fresh.defaultValue,
-              options: resolvedOptions,
-              computedInDocument: cached.computedInDocument
-            };
+            return { ...fresh, value: valueToUse, defaultValue: fresh.defaultValue, options: resolvedOptions, computedInDocument: cached.computedInDocument };
           }
           return fresh;
         });
@@ -249,32 +240,21 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setSelectedScriptState({ ...script, parameters: finalParameters });
 
       if (source !== 'refresh') {
-        if (finalParameters.length > 0) {
-          showNotification(`Loaded ${finalParameters.length} parameters.`, "success");
-        } else {
-          showNotification("Script loaded (no parameters).", "info");
-        }
+        if (finalParameters.length > 0) showNotification(`Loaded ${finalParameters.length} parameters.`, "success");
+        else showNotification("Script loaded (no parameters).", "info");
       }
     } catch (err) {
-      if (source !== 'refresh') {
-        showNotification("Error loading script.", "error");
-      }
+      if (source !== 'refresh') showNotification("Error loading script.", "error");
     } finally {
-      if (loadingScriptPathRef.current === scriptPath) {
-        loadingScriptPathRef.current = null;
-      }
+      if (loadingScriptPathRef.current === scriptPath) loadingScriptPathRef.current = null;
     }
   }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setPresets, setAgentSelectedScriptPath, updateUserEditedParameters, clearParameterCache, setSelectedScriptState, showNotification]);
 
-  // Sync session changes (Automated refresh when editing in IDE)
+  // Auto-Sync
   useEffect(() => {
     if (!selectedScript?.absolutePath || !activeSyncSessions) return;
-
     const normalizedSelected = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
-    const sessionEntry = Object.entries(activeSyncSessions).find(([path]) =>
-      path.replace(/\\/g, '/').toLowerCase() === normalizedSelected
-    );
-
+    const sessionEntry = Object.entries(activeSyncSessions).find(([path]) => path.replace(/\\/g, '/').toLowerCase() === normalizedSelected);
     if (sessionEntry) {
       const [_, data] = sessionEntry;
       const lastModified = data.last_modified;
@@ -282,7 +262,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         const lastSeen = lastKnownModifiedRef.current[normalizedSelected] || 0;
         if (lastModified > lastSeen) {
           lastKnownModifiedRef.current[normalizedSelected] = lastModified;
-
           reloadScript(selectedScript).then(() => {
             setSelectedScript(selectedScript, 'refresh');
           }).catch((err: any) => console.error("[Sync] Refresh failed:", err));
@@ -291,12 +270,10 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [activeSyncSessions, selectedScript, reloadScript, setSelectedScript]);
 
-  // V5: SMART EXISTENCE GUARD
+  // Existence Guard
   useEffect(() => {
     if (selectedScript) {
-      // V5 FIX: If we are currently renaming, ignore existence checks to avoid premature deselection
       if (isRenamingRef.current) return;
-
       const isSameScript = (s1: Script, s2: Script) => {
         if (!s1 || !s2) return false;
         if (s1.id === s2.id) return true;
@@ -304,19 +281,15 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         const p2 = (s2.absolutePath || s2.id).replace(/\\/g, '/').toLowerCase();
         return p1 === p2;
       };
-
       const globalScript = scripts.find(s => isSameScript(s, selectedScript));
-
       if (!globalScript && scripts.length > 0) {
         const scriptPath = (selectedScript.absolutePath || "").replace(/\\/g, '/').toLowerCase();
         const galleryPath = (selectedFolder || "").replace(/\\/g, '/').toLowerCase();
-
         if (galleryPath && scriptPath.startsWith(galleryPath)) {
           setSelectedScriptState(null);
           return;
         }
       }
-
       if (globalScript && (
         globalScript.metadata.lastRun !== selectedScript.metadata.lastRun ||
         globalScript.metadata.dateModified !== selectedScript.metadata.dateModified ||
@@ -327,62 +300,68 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
   }, [scripts, selectedScript, selectedFolder, setSelectedScriptState]);
 
-  const resetScriptParameters = useCallback(async (scriptId: string) => {
+  const resetScriptParametersWrapper = useCallback(async (scriptId: string) => {
     clearParameterCache(scriptId);
     showNotification("Parameters reset to defaults.", "info");
     const scriptToReset = selectedScriptRef.current;
     if (scriptToReset && scriptToReset.id === scriptId) await setSelectedScript(scriptToReset, 'hard_reset');
   }, [clearParameterCache, setSelectedScript, showNotification]);
 
-  const clearExecutionResult = useCallback(() => {
+  const clearExecutionResultWrapper = useCallback(() => {
     setExecutionResult(null);
   }, [setExecutionResult]);
 
   const handleRunScript = useCallback(async (script: Script, parameters?: ScriptParameter[], shouldUpdateGlobalState: boolean = true) => {
-    // V6 ROBUST SELECTION SYNC: If running a script that isn't selected (e.g. from gallery Card),
-    // we MUST ensure selectedScript is synced first so Console markers work correctly.
     if (selectedScriptRef.current?.id !== script.id) {
       await setSelectedScript(script);
     }
-    
     const finalParameters = parameters || userEditedParametersRef.current[script.id] || script.parameters || [];
     return runScript(script, finalParameters, shouldUpdateGlobalState);
   }, [runScript, setSelectedScript]);
 
   const handleRenameScript = useCallback(async (script: Script, newName: string) => {
-    // 1. Lock the identity guard
     isRenamingRef.current = true;
-
     try {
       const result = await renameScript(script, newName);
       if (result.success && result.newPath && selectedFolder) {
-        // 2. Refresh the global list immediately
         const reloadedScripts = await loadScriptsFromPath(selectedFolder, true);
-
-        // 3. Find and re-select the new identity in the fresh list
         if (reloadedScripts) {
           const normalizedNewPath = result.newPath.replace(/\\/g, '/').toLowerCase();
-          const newScript = reloadedScripts.find(s =>
-            (s.absolutePath || '').replace(/\\/g, '/').toLowerCase() === normalizedNewPath
-          ) || reloadedScripts.find(s =>
-            (s.metadata?.displayName || s.name || '').toLowerCase() === newName.toLowerCase()
-          );
-          if (newScript) {
-            await setSelectedScript(newScript, 'replace');
-          }
+          const newScript = reloadedScripts.find(s => (s.absolutePath || '').replace(/\\/g, '/').toLowerCase() === normalizedNewPath) || reloadedScripts.find(s => (s.metadata?.displayName || s.name || '').toLowerCase() === newName.toLowerCase());
+          if (newScript) await setSelectedScript(newScript, 'replace');
         }
         return result;
       }
       return result;
     } finally {
-      // 4. Unlock after all state updates have settled
       isRenamingRef.current = false;
     }
   }, [renameScript, setSelectedScript, selectedFolder, loadScriptsFromPath]);
 
-  const contextValue = useMemo(() => ({
-    selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, runScript: handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, renameScript: handleRenameScript, resetScriptParameters, buildTool,
-  }), [selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, handleRenameScript, resetScriptParameters, buildTool]);
+  // Optimized Context Values
+  const selectionValue = useMemo(() => ({ selectedScript, setSelectedScript }), [selectedScript, setSelectedScript]);
+  const stateValue = useMemo(() => ({ runningScriptPath, executionResult, setExecutionResult, isComputingOptions }), [runningScriptPath, executionResult, setExecutionResult, isComputingOptions]);
+  const dataValue = useMemo(() => ({ userEditedScriptParameters, defaultDraftParameters, activePresets, presets, combinedScriptContent }), [userEditedScriptParameters, defaultDraftParameters, activePresets, presets, combinedScriptContent]);
+  const operationsValue = useMemo(() => ({ 
+    runScript: handleRunScript, clearExecutionResult: clearExecutionResultWrapper, updateUserEditedParameters, setActivePreset, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, editScript, renameScript: handleRenameScript, resetScriptParameters: resetScriptParametersWrapper, buildTool 
+  }), [handleRunScript, clearExecutionResultWrapper, updateUserEditedParameters, setActivePreset, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, editScript, handleRenameScript, resetScriptParametersWrapper, buildTool]);
 
-  return <ScriptExecutionContext.Provider value={contextValue}>{children}</ScriptExecutionContext.Provider>;
+  // Legacy Context Value
+  const legacyValue = useMemo(() => ({
+    ...selectionValue, ...stateValue, ...dataValue, ...operationsValue
+  }), [selectionValue, stateValue, dataValue, operationsValue]);
+
+  return (
+    <ScriptOperationsContext.Provider value={operationsValue}>
+      <ScriptDataContext.Provider value={dataValue}>
+        <ScriptExecutionStateContext.Provider value={stateValue}>
+          <ScriptSelectionContext.Provider value={selectionValue}>
+            <ScriptExecutionContext.Provider value={legacyValue}>
+              {children}
+            </ScriptExecutionContext.Provider>
+          </ScriptSelectionContext.Provider>
+        </ScriptExecutionStateContext.Provider>
+      </ScriptDataContext.Provider>
+    </ScriptOperationsContext.Provider>
+  );
 };

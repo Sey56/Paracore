@@ -1,8 +1,18 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShieldHeart } from '@fortawesome/free-solid-svg-icons';
 import { Script } from '@/types/scriptModel';
 import { ScriptCard } from '../../ScriptCard/ScriptCard';
+import { 
+  useExecutionState, 
+  useScriptSelection, 
+  useScriptData 
+} from '../../../hooks/useScriptExecution';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
+import { useAuth } from '@/features/auth';
+import { useWatchdog } from '@/context/providers/WatchdogProvider';
+import { useScripts } from '../../../hooks/useScripts';
+import { filterVisibleParameters, validateParameters } from '@/utils/parameterVisibility';
 
 interface ScriptGridProps {
   favoriteScripts: Script[];
@@ -16,7 +26,7 @@ interface ScriptGridProps {
   searchTerm: string;
 }
 
-export const ScriptGrid: React.FC<ScriptGridProps> = ({
+const ScriptGridComponent = ({
   favoriteScripts,
   otherScripts,
   handleScriptSelect,
@@ -26,7 +36,68 @@ export const ScriptGrid: React.FC<ScriptGridProps> = ({
   handleReplaceScript,
   isAuthenticated,
   searchTerm
-}) => {
+}: ScriptGridProps) => {
+  // 1. Pull all volatile context once at the grid level
+  const { runningScriptPath } = useExecutionState();
+  const { selectedScript } = useScriptSelection();
+  const { userEditedScriptParameters } = useScriptData();
+  const { ParacoreConnected, revitStatus } = useRevitStatus();
+  const { watchdogs } = useWatchdog();
+  const { isSyncActive } = useScripts();
+
+  // 2. Helper to calculate props for a script (Dumb Card Pattern)
+  const getScriptProps = (script: Script) => {
+    const isSelected = selectedScript?.id?.toLowerCase().replace(/\\/g, '/') === script.id?.toLowerCase().replace(/\\/g, '/');
+    const isRunning = runningScriptPath === script.id;
+    
+    const path = (script.absolutePath || script.id || script.name || "").toLowerCase().replace(/\\/g, '/');
+    const isWTool = path.endsWith('.wtool') || path.includes('.wtool/');
+    const isPTool = path.endsWith('.ptool') || path.includes('.ptool/');
+    
+    const isGuard = script.metadata?.isWatchdog === true ||
+      script.metadata?.is_watchdog === true ||
+      (script.metadata as any)?.IsWatchdog === true ||
+      path.endsWith('.wtool') ||
+      path.includes('.wtool');
+
+    const isProtectedTool = script.metadata?.isProtected === true || script.metadata?.isCompiled === true || isPTool || isWTool;
+
+    const isArmed = isGuard && watchdogs.some(w => w.script_path.toLowerCase().replace(/\\/g, '/') === path);
+    const isActiveInIDE = isSyncActive(script.absolutePath);
+
+    const requiredDocType = script.metadata.documentType || 'Any';
+    const currentDocType = revitStatus?.documentType || 'Any';
+
+    const isCompatibleWithDocument = !ParacoreConnected || revitStatus?.document === null || requiredDocType === 'Any' || currentDocType === 'Any' || requiredDocType.toLowerCase() === currentDocType.toLowerCase();
+
+    const currentParams = userEditedScriptParameters[script.id] || script.parameters || [];
+    const visibleParameters = filterVisibleParameters(currentParams);
+    const validationErrors = validateParameters(visibleParameters);
+
+    const isRunButtonDisabled = !ParacoreConnected || !isCompatibleWithDocument || isRunning || validationErrors.length > 0 || !isAuthenticated;
+
+    const tooltipMessage = !isAuthenticated
+      ? "Please sign in to run scripts"
+      : !ParacoreConnected
+        ? "Paracore is disconnected"
+        : revitStatus?.document === null
+          ? "No document opened in Revit"
+          : !isCompatibleWithDocument
+            ? `Script requires '${requiredDocType}' but current is '${currentDocType}'`
+            : validationErrors.length > 0
+              ? validationErrors.join('\n')
+              : "";
+
+    return {
+      isRunning,
+      isSelected,
+      isArmed,
+      isActiveInIDE,
+      isRunButtonDisabled,
+      tooltipMessage
+    };
+  };
+
   return (
     <div className="relative flex flex-col">
       {/* Favorites Section */}
@@ -43,17 +114,21 @@ export const ScriptGrid: React.FC<ScriptGridProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {favoriteScripts.map((script) => (
-              <ScriptCard
-                key={script.id}
-                script={script}
-                onSelect={() => handleScriptSelect(script)}
-                isFromActiveSource={isFromActiveSource(script)}
-                isCompact={true}
-                onFocus={handleEnterFocusMode}
-                onReplace={handleReplaceScript}
-              />
-            ))}
+            {favoriteScripts.map((script) => {
+              const statusProps = getScriptProps(script);
+              return (
+                <ScriptCard
+                  key={script.id}
+                  script={script}
+                  {...statusProps}
+                  onSelect={() => handleScriptSelect(script)}
+                  isFromActiveSource={isFromActiveSource(script)}
+                  isCompact={true}
+                  onFocus={handleEnterFocusMode}
+                  onReplace={handleReplaceScript}
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -75,17 +150,21 @@ export const ScriptGrid: React.FC<ScriptGridProps> = ({
       {otherScripts.length > 0 && (
         <div className="w-full order-3">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {otherScripts.map((script) => (
-              <ScriptCard
-                key={script.id}
-                script={script}
-                onSelect={() => handleScriptSelect(script)}
-                isFromActiveSource={isFromActiveSource(script)}
-                isCompact={isCompactView}
-                onFocus={handleEnterFocusMode}
-                onReplace={handleReplaceScript}
-              />
-            ))}
+            {otherScripts.map((script) => {
+              const statusProps = getScriptProps(script);
+              return (
+                <ScriptCard
+                  key={script.id}
+                  script={script}
+                  {...statusProps}
+                  onSelect={() => handleScriptSelect(script)}
+                  isFromActiveSource={isFromActiveSource(script)}
+                  isCompact={isCompactView}
+                  onFocus={handleEnterFocusMode}
+                  onReplace={handleReplaceScript}
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -99,3 +178,6 @@ export const ScriptGrid: React.FC<ScriptGridProps> = ({
     </div>
   );
 };
+
+export const ScriptGrid = memo(ScriptGridComponent);
+ScriptGrid.displayName = 'ScriptGrid';

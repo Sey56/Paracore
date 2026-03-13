@@ -181,16 +181,13 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const handleRunScript = async () => {
     if (script) {
       await setSelectedScript(script);
-      runScript(script, editedParameters);
+      // Run with preventTabSwitch (boolean) to stay in the Laboratory view
+      runScript(script, editedParameters, true);
     }
   };
 
   const handleStatusIconClick = () => {
-    if (activeInspectorTab === 'console') {
-      setActiveInspectorTab('parameters');
-    } else {
-      setActiveInspectorTab('console');
-    }
+    setActiveInspectorTab('console');
   };
 
   const isDefaultPreset = selectedPreset === "<Default Parameters>";
@@ -350,10 +347,10 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
                 {showStatusIcon && (
                   <button
-                    className={`absolute -right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all animate-in zoom-in duration-300 shadow-lg
-                      ${runSucceeded ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all animate-in zoom-in duration-300 shadow-lg shrink-0
+                      ${runSucceeded ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-rose-500 text-white shadow-rose-500/20'}`}
                     onClick={handleStatusIconClick}
-                    title={activeInspectorTab === 'console' ? "Return to Parameters" : "View Console"}
+                    title="View Console"
                   >
                     <FontAwesomeIcon icon={runSucceeded ? faCheckCircle : faTimesCircle} className="text-lg" />
                   </button>

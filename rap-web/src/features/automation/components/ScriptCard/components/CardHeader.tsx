@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar as fasStar,
@@ -27,7 +27,7 @@ interface CardHeaderProps {
   handleFavoriteClick: (e: React.MouseEvent) => void;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({
+const CardHeaderComponent = ({
   script,
   isRenaming,
   renameValue,
@@ -42,7 +42,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   isCompact,
   getDisplayName,
   handleFavoriteClick
-}) => {
+}: CardHeaderProps) => {
   return (
     <div className="flex justify-between items-start mb-2">
       {isRenaming ? (
@@ -102,3 +102,6 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
     </div>
   );
 };
+
+export const CardHeader = memo(CardHeaderComponent);
+CardHeader.displayName = 'CardHeader';

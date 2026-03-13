@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Script } from "@/types/scriptModel";
 import styles from '../ScriptCard.module.css';
 
@@ -6,7 +6,7 @@ interface CardBodyProps {
   script: Script;
 }
 
-export const CardBody: React.FC<CardBodyProps> = ({ script }) => {
+const CardBodyComponent = ({ script }: CardBodyProps) => {
   return (
     <>
       <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 truncate">
@@ -22,3 +22,6 @@ export const CardBody: React.FC<CardBodyProps> = ({ script }) => {
     </>
   );
 };
+
+export const CardBody = memo(CardBodyComponent);
+CardBody.displayName = 'CardBody';

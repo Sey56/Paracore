@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Script } from "@/types/scriptModel";
 import { useAuth } from '@/features/auth';
 import { useRevitStatus } from "@/hooks/useRevitStatus";
@@ -18,6 +18,13 @@ export interface ScriptCardProps {
   script: Script;
   onSelect: () => void;
   isFromActiveSource: boolean;
+  // V12: All functional status flags passed as props to prevent internal context subscription
+  isRunning: boolean;
+  isSelected: boolean;
+  isArmed: boolean;
+  isActiveInIDE: boolean;
+  isRunButtonDisabled: boolean;
+  tooltipMessage: string;
   isCompact?: boolean;
   showExitFocus?: boolean;
   onExitFocus?: () => void;
@@ -26,30 +33,29 @@ export interface ScriptCardProps {
   onReplace?: (script: Script) => void;
 }
 
-export const ScriptCard: React.FC<ScriptCardProps> = ({
+const ScriptCardComponent = ({
   script,
   onSelect,
   isFromActiveSource,
+  isRunning,
+  isSelected,
+  isArmed,
+  isActiveInIDE,
+  isRunButtonDisabled,
+  tooltipMessage,
   isCompact = false,
   showExitFocus = false,
   onExitFocus,
   onFocus,
   isHidden = false,
   onReplace
-}) => {
-  const cardRef = React.useRef<HTMLDivElement>(null);
+}: ScriptCardProps) => {
   const { ParacoreConnected } = useRevitStatus();
   const { user } = useAuth();
 
   const {
-    isSelected,
-    isRunning,
     isGuard,
     isProtectedTool,
-    isArmed,
-    isActiveInIDE,
-    isRunButtonDisabled,
-    tooltipMessage,
     showMenu,
     setShowMenu,
     isRenaming,
@@ -76,7 +82,16 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     showMetadataModal,
     setShowMetadataModal,
     reloadScript
-  } = useScriptCard(script, onSelect);
+  } = useScriptCard(
+    script, 
+    onSelect, 
+    isRunning, 
+    isSelected, 
+    isArmed, 
+    isActiveInIDE, 
+    isRunButtonDisabled, 
+    tooltipMessage
+  );
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
 
@@ -86,6 +101,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     if (script.metadata.isProtected) return "Source code for this tool is protected and cannot be edited.";
     return "Edit Script";
   };
+
+  const cardRef = React.useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -118,7 +135,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
           onClose={() => setShowMetadataModal(false)}
           script={script}
           onSaved={() => {
-            console.log(`[ScriptCard] Metadata saved for ${script.name}. Reloading...`);
             reloadScript(script);
           }}
         />
@@ -176,3 +192,29 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
     </div>
   );
 };
+
+// V12: Strict primitive comparison ensures zero UI thrashing
+const areEqual = (prev: ScriptCardProps, next: ScriptCardProps) => {
+  return (
+    prev.isRunning === next.isRunning &&
+    prev.isSelected === next.isSelected &&
+    prev.isArmed === next.isArmed &&
+    prev.isActiveInIDE === next.isActiveInIDE &&
+    prev.isRunButtonDisabled === next.isRunButtonDisabled &&
+    prev.tooltipMessage === next.tooltipMessage &&
+    prev.isCompact === next.isCompact &&
+    prev.isHidden === next.isHidden &&
+    prev.isFromActiveSource === next.isFromActiveSource &&
+    prev.script.id === next.script.id &&
+    prev.script.isFavorite === next.script.isFavorite &&
+    // Shallow check visually relevant metadata
+    prev.script.metadata.displayName === next.script.metadata.displayName &&
+    prev.script.metadata.description === next.script.metadata.description &&
+    prev.script.metadata.author === next.script.metadata.author &&
+    prev.script.metadata.documentType === next.script.metadata.documentType &&
+    JSON.stringify(prev.script.metadata.categories) === JSON.stringify(next.script.metadata.categories)
+  );
+};
+
+export const ScriptCard = memo(ScriptCardComponent, areEqual);
+ScriptCard.displayName = 'ScriptCard';
