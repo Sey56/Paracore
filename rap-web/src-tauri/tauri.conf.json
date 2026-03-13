@@ -71,6 +71,7 @@
       "fs": {
         "all": true,
         "scope": [
+          "**",
           "$APPDATA/*",
           "$APPDATA/com.tauri.dev/*"
         ]
