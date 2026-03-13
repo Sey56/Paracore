@@ -248,6 +248,11 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       if (contentResult) setCombinedScriptContent(contentResult);
       setSelectedScriptState({ ...script, parameters: finalParameters });
 
+      // Ensure Parameters tab is active on manual selection
+      if (source === 'user') {
+        setActiveInspectorTab('parameters');
+      }
+
       if (source !== 'refresh') {
         if (finalParameters.length > 0) {
           showNotification(`Loaded ${finalParameters.length} parameters.`, "success");
