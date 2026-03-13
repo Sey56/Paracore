@@ -56,7 +56,7 @@ export const CommitModal: React.FC<CommitModalProps> = ({
         <div>
           <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Changed Files:</h3>
           {changedFiles.length > 0 ? (
-            <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-700 p-3 rounded-md">
+            <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 max-h-40 overflow-y-auto custom-scrollbar border border-gray-200 dark:border-gray-700 p-3 rounded-md">
               {changedFiles.map((file, index) => (
                 <li key={index}>{file.replace(/^\?\s*/, '')}</li>
               ))}

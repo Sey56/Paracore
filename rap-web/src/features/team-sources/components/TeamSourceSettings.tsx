@@ -138,7 +138,7 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
   }, [isReadOnly]);
 
   return (
-    <div className="overflow-y-auto">
+    <div className="overflow-y-auto custom-scrollbar">
       <RegisterSourceModal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}

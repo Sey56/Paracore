@@ -696,7 +696,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         )}
         {item.type === 'message' && <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">{parsedData}</p>}
         {item.type !== 'table' && item.type !== 'chart-bar' && item.type !== 'chart-pie' && item.type !== 'chart-line' && item.type !== 'message' && (
-          <pre className="p-3 font-mono text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-auto">
+          <pre className="p-3 font-mono text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-auto custom-scrollbar">
             {JSON.stringify(parsedData, null, 2)}
           </pre>
         )}

@@ -126,7 +126,7 @@ export const PlaylistsTab: React.FC = () => {
             />
 
             {/* Playlists Grid */}
-            <div className="flex-1 overflow-y-auto p-2">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                 {playlists.length === 0 ? (
                     <div className="text-center text-gray-500 mt-10">
                         No playlists found. Create one to get started!

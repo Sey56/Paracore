@@ -80,7 +80,7 @@ export const LocalSourceManager: React.FC<LocalSourceManagerProps> = ({
 
               {localDropdownOpen && (
                 <div className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white dark:bg-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="max-h-60 overflow-y-auto py-1.5">
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar py-1.5">
                     {customScriptFolders.map((folder) => (
                       <div
                         key={folder}

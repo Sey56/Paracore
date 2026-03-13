@@ -82,7 +82,7 @@ const SettingsModal: React.FC = () => {
   return (
     <Modal isOpen={isSettingsModalOpen} onClose={closeSettingsModal} title="Settings" size="2xl">
       <div className="flex overflow-hidden max-h-[80vh] animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 dark:bg-slate-900">
-        <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/60 p-6 flex-shrink-0 overflow-y-auto bg-white/50 dark:bg-slate-950/40 backdrop-blur-sm">
+        <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/60 p-6 flex-shrink-0 overflow-y-auto custom-scrollbar bg-white/50 dark:bg-slate-950/40 backdrop-blur-sm">
           <nav className="flex flex-col space-y-2">
             {/* Core Features Grouping */}
             <h3 className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500 mt-4 mb-4 tracking-[0.2em] px-4">
@@ -107,7 +107,7 @@ const SettingsModal: React.FC = () => {
           </nav>
         </div>
 
-        <div className="flex-1 p-10 overflow-y-auto bg-white/20 dark:bg-slate-950/10">
+        <div className="flex-1 p-10 overflow-y-auto custom-scrollbar bg-white/20 dark:bg-slate-950/10">
           {ActiveComponent && (
             <>
               {isOffline && activeTab !== 'LLM Settings' && activeTab !== 'Sentinels' && activeTab !== 'Automation' ? (

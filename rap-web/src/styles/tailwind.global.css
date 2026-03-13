@@ -105,3 +105,30 @@
   text-decoration: none !important;
   font-style: normal !important;
 }
+
+/* Hidden-until-hover scrollbars */
+/* Default: ALL scrollbar thumbs are transparent */
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+/* Reveal: near-invisible on container hover (must be >0 so thumb stays hoverable) */
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 140, 0.04);
+}
+/* Visible when hovering the scrollbar thumb directly */
+.custom-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 140, 0.3);
+}
+
+/* Firefox */
+* {
+  scrollbar-color: transparent transparent;
+}
+.custom-scrollbar:hover {
+  scrollbar-color: rgba(140, 140, 140, 0.04) transparent;
+}

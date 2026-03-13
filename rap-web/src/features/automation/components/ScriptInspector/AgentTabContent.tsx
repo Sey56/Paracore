@@ -46,7 +46,7 @@ export const AgentTabContent: React.FC = () => {
       {pendingToolCall && (
         <AgentApprovalModal toolCall={pendingToolCall} onApprove={approveToolCall} onDeny={denyToolCall} />
       )}
-      <div className="flex-grow overflow-y-auto pr-4">
+      <div className="flex-grow overflow-y-auto custom-scrollbar pr-4">
         <div className="space-y-4">
           {messages.map((msg: AgentMessage) => (
             <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>

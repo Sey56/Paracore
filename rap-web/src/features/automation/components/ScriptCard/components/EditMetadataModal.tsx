@@ -190,7 +190,7 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
             title={`Edit ${isGuard ? 'Sentinel' : 'Script'} Metadata`}
             size="md"
         >
-            <div className="max-h-[50vh] overflow-y-auto space-y-5 pr-1">
+            <div className="max-h-[50vh] overflow-y-auto custom-scrollbar space-y-5 pr-1">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
                         <FontAwesomeIcon icon={faSpinner} spin className="text-2xl text-blue-500" />

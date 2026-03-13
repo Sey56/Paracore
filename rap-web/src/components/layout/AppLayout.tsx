@@ -170,7 +170,7 @@ export const AppLayout: React.FC = () => {
                     <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 semantic-bg-panel shadow-lg overflow-hidden min-w-0 border-r border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
                   )}
                   {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-200/50 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
-                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
+                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto custom-scrollbar p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
@@ -178,7 +178,7 @@ export const AppLayout: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
+                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto custom-scrollbar p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
@@ -196,7 +196,7 @@ export const AppLayout: React.FC = () => {
             <div className={`fixed bottom-0 left-0 right-0 semantic-bg-panel border-t border-slate-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ height: '70vh' }}>
               <div className="h-full flex flex-col relative">
                 <button onClick={toggleInspector} className="absolute top-2 right-2 semantic-text-muted hover:text-blue-500"><FontAwesomeIcon icon={faTimes} size="lg" /></button>
-                <div className="flex-1 overflow-y-auto"><div className="p-4 pt-8"><ScriptInspector /></div></div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar"><div className="p-4 pt-8"><ScriptInspector /></div></div>
               </div>
             </div>
           )}

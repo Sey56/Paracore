@@ -434,7 +434,7 @@ export const AgentView: React.FC = () => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-8 space-y-6">
         {messages.filter(m => m.type !== 'tool').map((msg) => (
           <div key={msg.id} className={`flex ${msg.type === 'human' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex max-w-[85%] space-x-3 ${msg.type === 'human' ? 'flex-row-reverse space-x-reverse' : ''}`}>

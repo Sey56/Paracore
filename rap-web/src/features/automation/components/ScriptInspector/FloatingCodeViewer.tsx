@@ -77,7 +77,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
           <FontAwesomeIcon icon={faTimes} />
         </button>
       </div>
-      <div className="absolute top-10 bottom-16 left-0 right-0 overflow-auto">
+      <div className="absolute top-10 bottom-16 left-0 right-0 overflow-auto custom-scrollbar">
         <Suspense fallback={<div>Loading...</div>}>
           <CodeViewer script={script} />
         </Suspense>

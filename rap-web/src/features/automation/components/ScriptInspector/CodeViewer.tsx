@@ -48,7 +48,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
   }
 
   return (
-    <div className="overflow-auto w-full min-w-0 h-full bg-slate-100 dark:bg-slate-900 code-viewer-override">
+    <div className="overflow-auto custom-scrollbar w-full min-w-0 h-full bg-slate-100 dark:bg-slate-900 code-viewer-override">
       <SyntaxHighlighter
         key={theme}
         language="csharp"

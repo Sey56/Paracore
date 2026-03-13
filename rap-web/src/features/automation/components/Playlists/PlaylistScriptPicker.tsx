@@ -37,7 +37,7 @@ export const PlaylistScriptPicker: React.FC<ScriptPickerModalProps> = ({ isOpen,
                     />
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
                     {filteredScripts.length === 0 ? (
                         <div className="text-center text-gray-500 mt-10">No scripts found matching your search.</div>
                     ) : (
