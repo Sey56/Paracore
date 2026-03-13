@@ -302,7 +302,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
           style={{ scrollbarGutter: 'stable' }}
           onClick={() => { if (!window.getSelection()?.toString()) { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); } }}>
           {localHistory.map((item, i) => (
-            <div key={i} className={`mb-1 break-words whitespace-pre-wrap ${item.type === 'input' ? 'text-blue-600 dark:text-blue-400 font-bold' : item.type === 'error' ? 'text-red-600 dark:text-red-400 font-bold' : item.type === 'status' ? 'text-blue-500/70 italic text-xs mt-2' : 'text-gray-800 dark:text-gray-200'}`}>
+            <div key={i} className={`mb-1 px-3 break-words whitespace-pre-wrap ${item.type === 'input' ? 'text-blue-600 dark:text-blue-400 font-bold' : item.type === 'error' ? 'text-red-600 dark:text-red-400 font-bold' : item.type === 'status' ? 'text-blue-500/70 italic text-xs mt-2' : 'text-gray-800 dark:text-gray-200'}`}>
               {item.type === 'input' ? (
                 <div className="flex items-start">
                   <span className="mr-2 opacity-50 text-gray-400 shrink-0 mt-1">{'>'}</span>
