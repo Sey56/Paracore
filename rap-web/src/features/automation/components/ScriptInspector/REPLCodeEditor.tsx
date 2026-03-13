@@ -94,7 +94,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                     className="col-start-1 row-start-1 pointer-events-none select-none overflow-hidden"
                     style={{
                         ...fontStyles,
-                        padding: '12px 0px',
+                        padding: '12px 16px',
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
@@ -143,7 +143,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         resize: 'none',
                         border: 'none',
                         outline: 'none',
-                        padding: '12px 0px',
+                        padding: '12px 16px',
                         margin: 0,
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
