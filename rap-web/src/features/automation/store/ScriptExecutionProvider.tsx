@@ -346,8 +346,9 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     }
     
     const finalParameters = parameters || userEditedParametersRef.current[script.id] || script.parameters || [];
+    setActiveInspectorTab('console');
     return runScript(script, finalParameters, shouldUpdateGlobalState);
-  }, [runScript, setSelectedScript]);
+  }, [runScript, setSelectedScript, setActiveInspectorTab]);
 
   const handleRenameScript = useCallback(async (script: Script, newName: string) => {
     // 1. Lock the identity guard

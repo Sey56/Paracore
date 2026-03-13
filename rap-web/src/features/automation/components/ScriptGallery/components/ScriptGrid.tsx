@@ -16,7 +16,7 @@ interface ScriptGridProps {
   searchTerm: string;
 }
 
-export const ScriptGrid: React.FC<ScriptGridProps> = ({
+export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
   favoriteScripts,
   otherScripts,
   handleScriptSelect,
@@ -98,4 +98,4 @@ export const ScriptGrid: React.FC<ScriptGridProps> = ({
       )}
     </div>
   );
-};
+});

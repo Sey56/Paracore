@@ -111,6 +111,15 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [creationTimes, setCreationTimes] = useLocalStorage<Record<string, string>>(`rap_creationTimes_${stableUserId}`, {});
   const [modificationTimes, setModificationTimes] = useLocalStorage<Record<string, string>>(`rap_modificationTimes_${stableUserId}`, {});
 
+  // V5: Stable Metadata Refs to prevent dependency loops in loadScriptsFromPath
+  const lastRunTimesRef = useRef(lastRunTimes);
+  const creationTimesRef = useRef(creationTimes);
+  const modificationTimesRef = useRef(modificationTimes);
+
+  useEffect(() => { lastRunTimesRef.current = lastRunTimes; }, [lastRunTimes]);
+  useEffect(() => { creationTimesRef.current = creationTimes; }, [creationTimes]);
+  useEffect(() => { modificationTimesRef.current = modificationTimes; }, [modificationTimes]);
+
   const toggleFavoriteScript = useCallback((scriptId: string) => {
     setFavoriteScripts(prev => {
       const isFavorite = prev.includes(scriptId);
@@ -149,9 +158,9 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ...s,
         metadata: {
           ...s.metadata,
-          lastRun: lastRunTimes[s.id] || s.metadata.lastRun,
-          dateCreated: creationTimes[s.id] || s.metadata.dateCreated,
-          dateModified: modificationTimes[s.id] || s.metadata.dateModified
+          lastRun: lastRunTimesRef.current[s.id] || s.metadata.lastRun,
+          dateCreated: creationTimesRef.current[s.id] || s.metadata.dateCreated,
+          dateModified: modificationTimesRef.current[s.id] || s.metadata.dateModified
         }
       }));
       setScripts(loadedScripts);
@@ -162,7 +171,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setScripts([]);
       return undefined;
     }
-  }, [showNotification, lastRunTimes, creationTimes, modificationTimes]);
+  }, [showNotification]);
 
   useEffect(() => {
     if (!isAuthenticated || !user || !activeTeam || !isSystemReady) return;
@@ -219,7 +228,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       showNotification(error.response?.data?.detail || "Failed to create script", "error");
       return undefined;
     }
-  }, [selectedFolder, loadScriptsFromPath, showNotification]);
+  }, [selectedFolder, loadScriptsFromPath, showNotification, setLastRunTimes, setModificationTimes, setCreationTimes]);
 
   const editScript = useCallback(async (script: Script, forceScaffold: boolean = false) => {
     if (!script || !isAuthenticated) return false;
@@ -337,14 +346,14 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const mergedMetadata = {
         ...script.metadata,
         ...backendMetadata,
-        lastRun: lastRunTimes[scriptId] || backendMetadata.lastRun,
-        dateCreated: creationTimes[scriptId] || backendMetadata.dateCreated,
-        dateModified: modificationTimes[scriptId] || backendMetadata.dateModified
+        lastRun: lastRunTimesRef.current[scriptId] || backendMetadata.lastRun,
+        dateCreated: creationTimesRef.current[scriptId] || backendMetadata.dateCreated,
+        dateModified: modificationTimesRef.current[scriptId] || backendMetadata.dateModified
       };
 
       setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: mergedMetadata } : s));
     } catch (err) { }
-  }, [creationTimes, lastRunTimes, modificationTimes, setScripts]);
+  }, [setScripts]);
 
   const updateScriptModificationTime = useCallback((scriptId: string) => {
     const now = new Date().toISOString();
@@ -362,14 +371,14 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const mergedMetadata = {
         ...script.metadata,
         ...backendMetadata,
-        lastRun: lastRunTimes[script.id] || backendMetadata.lastRun,
-        dateCreated: creationTimes[script.id] || backendMetadata.dateCreated,
-        dateModified: modificationTimes[script.id] || backendMetadata.dateModified
+        lastRun: lastRunTimesRef.current[script.id] || backendMetadata.lastRun,
+        dateCreated: creationTimesRef.current[script.id] || backendMetadata.dateCreated,
+        dateModified: modificationTimesRef.current[script.id] || backendMetadata.dateModified
       };
 
       setScripts(prev => prev.map(s => s.id === script.id ? { ...s, parameters: paramsRes.data.parameters, metadata: mergedMetadata } : s));
     } catch (err) { }
-  }, [creationTimes, lastRunTimes, modificationTimes, setScripts]);
+  }, [setScripts]);
 
   // 6. SYNC SESSION TRACKING
   const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, any>>({});

@@ -26,7 +26,7 @@ export interface ScriptCardProps {
   onReplace?: (script: Script) => void;
 }
 
-export const ScriptCard: React.FC<ScriptCardProps> = ({
+export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
   script,
   onSelect,
   isFromActiveSource,
@@ -175,4 +175,4 @@ export const ScriptCard: React.FC<ScriptCardProps> = ({
       />
     </div>
   );
-};
+});
