@@ -332,7 +332,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         {activeMainView === 'scripts' && (
           <div className="pt-8 mt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col space-y-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 relative">
                 <Tooltip text={finalTooltipMessage}>
                   <button
                     className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-2xl active:scale-95
