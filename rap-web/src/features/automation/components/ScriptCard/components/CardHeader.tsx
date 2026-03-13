@@ -9,6 +9,7 @@ import {
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import styles from '../ScriptCard.module.css';
 import { Script } from "@/types/scriptModel";
+import { Tooltip } from '@/components/common/Tooltip';
 
 interface CardHeaderProps {
   script: Script;
@@ -44,7 +45,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   handleFavoriteClick
 }) => {
   return (
-    <div className="flex justify-between items-start mb-2">
+    <div className="flex items-start gap-2 mb-2 w-full overflow-visible">
       {isRenaming ? (
         <input
           type="text"
@@ -53,33 +54,37 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
           onKeyDown={handleRenameKeyDown}
           onBlur={handleRenameSubmit}
           onClick={(e) => e.stopPropagation()}
-          className={`${styles.renameInput} text-gray-800 dark:text-gray-100`}
+          className={`${styles.renameInput} text-gray-800 dark:text-gray-100 flex-1`}
           autoFocus
         />
       ) : (
-        <div className="flex items-center gap-2 w-full">
-          {isGuard ? (
-            <FontAwesomeIcon
-              icon={faShieldHeart}
-              className={`shrink-0 ${isArmed ? styles.sentinelPulse : styles.guardIcon}`}
-              style={{ fontSize: '0.9rem' }}
-            />
-          ) : (
-            isProtectedTool && (
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            {isGuard ? (
               <FontAwesomeIcon
-                icon={faTools}
-                className="shrink-0 text-slate-400 dark:text-slate-500"
+                icon={faShieldHeart}
+                className={`shrink-0 ${isArmed ? styles.sentinelPulse : styles.guardIcon}`}
                 style={{ fontSize: '0.9rem' }}
               />
-            )
-          )}
+            ) : (
+              isProtectedTool && (
+                <FontAwesomeIcon
+                  icon={faTools}
+                  className="shrink-0 text-slate-400 dark:text-slate-500"
+                  style={{ fontSize: '0.9rem' }}
+                />
+              )
+            )}
 
-          <div className="flex-1 min-w-0 flex items-center gap-2" title={getDisplayName()}>
-            <h3
-              className={`font-medium truncate ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"}`}
-            >
-              {getDisplayName()}
-            </h3>
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <Tooltip text={getDisplayName()}>
+                <h3
+                  className={`font-medium truncate ${(isSelected || showExitFocus) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'} group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors duration-200 ${isCompact ? "text-base" : "text-lg"}`}
+                >
+                  {getDisplayName()}
+                </h3>
+              </Tooltip>
+            </div>
 
             {isProtectedTool && (
               <span className={`${styles.multiFileBadge} !bg-slate-100 !text-slate-600 dark:!bg-slate-900/40 dark:!text-slate-400 border border-slate-200 dark:border-slate-800 whitespace-nowrap shrink-0`}>
@@ -92,9 +97,9 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
       )}
       <button
         onClick={handleFavoriteClick}
-        className={`${script.isFavorite
-          ? "text-yellow-400 hover:text-yellow-500 ml-2"
-          : `text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300 ml-2 ${(isSelected || showExitFocus) ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`
+        className={`shrink-0 ${script.isFavorite
+          ? "text-yellow-400 hover:text-yellow-500"
+          : `text-gray-400 dark:text-gray-500 hover:text-yellow-400 dark:hover:text-yellow-300 ${(isSelected || showExitFocus) ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`
           }`}
       >
         {script.isFavorite ? <FontAwesomeIcon icon={fasStar} /> : <FontAwesomeIcon icon={farStar} />}

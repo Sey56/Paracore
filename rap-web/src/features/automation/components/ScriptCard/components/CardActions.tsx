@@ -18,6 +18,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Script } from "@/types/scriptModel";
 import { Tooltip } from '@/components/common/Tooltip';
+import styles from '../ScriptCard.module.css';
 
 interface CardActionsProps {
   script: Script;
@@ -84,8 +85,9 @@ export const CardActions: React.FC<CardActionsProps> = ({
   };
 
   return (
-    <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 rounded-b-lg">
-      <div className={`relative ${isSelected ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+    <div className="card-actions border-t border-gray-200 dark:border-gray-700 p-2 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50 rounded-b-lg overflow-visible gap-1">
+      {/* Left: Run Button (Always Visible) */}
+      <div className={`relative flex-shrink-0 ${isSelected ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
         <Tooltip text={tooltipMessage}>
           <button
             className={`text-sm px-3 py-1 flex items-center rounded transition-colors ${isRunButtonDisabled
@@ -97,50 +99,56 @@ export const CardActions: React.FC<CardActionsProps> = ({
           >
             <FontAwesomeIcon
               icon={isRunning ? faSpinner : faPlay}
-              className={`mr-1 ${isRunning ? "animate-spin" : ""}`}
+              className={`shrink-0 mr-1 ${isRunning ? "animate-spin" : ""}`}
             />
-            {isRunning ? "Running..." : "Run"}
+            <span>{isRunning ? "Running..." : "Run"}</span>
           </button>
         </Tooltip>
       </div>
 
-      <div className="flex items-center relative" ref={menuRef}>
+      {/* Right: Actions Group - Adapts to size */}
+      <div className={`flex items-center relative shrink-0 ml-auto gap-1`} ref={menuRef}>
         {((onFocus && !showExitFocus) || (onExitFocus && showExitFocus)) && (
-          <button
-            className={showExitFocus
-              ? "text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-full w-8 h-8 flex items-center justify-center mr-2 transition-all shadow-sm"
-              : "text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 p-1 mr-1"}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (showExitFocus && onExitFocus) {
-                onExitFocus();
-              } else if (onFocus && cardRef.current) {
-                onSelect();
-                const el = cardRef.current;
-                requestAnimationFrame(() => {
-                  onFocus(el.getBoundingClientRect());
-                });
-              }
-            }}
-            title={showExitFocus ? "Exit Focus Mode" : "Focus View"}
-          >
-            <FontAwesomeIcon icon={showExitFocus ? faCompressAlt : faBullseye} />
-          </button>
+          <div className={styles.focusAction}>
+            <button
+              className={showExitFocus
+                ? "text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-full w-8 h-8 flex items-center justify-center mr-1 transition-all shadow-sm shrink-0"
+                : "text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 p-1 shrink-0"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (showExitFocus && onExitFocus) {
+                  onExitFocus();
+                } else if (onFocus && cardRef.current) {
+                  onSelect();
+                  const el = cardRef.current;
+                  requestAnimationFrame(() => {
+                    onFocus(el.getBoundingClientRect());
+                  });
+                }
+              }}
+            >
+              <FontAwesomeIcon icon={showExitFocus ? faCompressAlt : faBullseye} />
+            </button>
+          </div>
         )}
+
         {isProtectedTool && (
-          <div className="mr-2 text-slate-400 dark:text-slate-500" title="This is a sealed binary tool">
+          <div className={`px-1 text-slate-400 dark:text-slate-500 shrink-0 ${styles.ellipsesAction}`} title="This is a sealed binary tool">
             <FontAwesomeIcon icon={isGuard ? faShieldHeart : faTools} />
           </div>
         )}
-        <button
-          className={`text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 ${isSelected ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowMenu(!showMenu);
-          }}
-        >
-          <FontAwesomeIcon icon={faEllipsisH} />
-        </button>
+
+        <div className={styles.ellipsesAction}>
+          <button
+            className={`text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 shrink-0 ${isSelected ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+          >
+            <FontAwesomeIcon icon={faEllipsisH} />
+          </button>
+        </div>
 
         {showMenu && (
           <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-50 overflow-hidden">
