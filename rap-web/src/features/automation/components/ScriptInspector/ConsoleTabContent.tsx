@@ -299,29 +299,33 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
       <div className="flex-grow relative min-h-0 min-w-0 mb-4 px-0">
         <div 
           className="h-full w-full overflow-y-auto custom-scrollbar rounded bg-slate-50/50 dark:bg-slate-900/40 p-3 pl-5 pr-0 font-mono text-sm select-text cursor-text"
-          style={{ scrollbarGutter: 'stable' }}
-          onClick={() => { if (!window.getSelection()?.toString()) { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); } }}>
-          {localHistory.map((item, i) => (
-            <div key={i} className={`mb-1 px-3 break-words whitespace-pre-wrap ${item.type === 'input' ? 'text-blue-600 dark:text-blue-400 font-bold' : item.type === 'error' ? 'text-red-600 dark:text-red-400 font-bold' : item.type === 'status' ? 'text-blue-500/70 italic text-xs mt-2' : 'text-gray-800 dark:text-gray-200'}`}>
-              {item.type === 'input' ? (
-                <div className="flex items-start">
-                  <span className="mr-2 opacity-50 text-gray-400 shrink-0 mt-1">{'>'}</span>
-                  <div className="flex-grow min-w-0">
-                    <SyntaxHighlighter language="csharp" style={syntaxStyle} PreTag="div" customStyle={{ margin: 0, padding: 0, background: 'transparent', fontSize: 'inherit', fontFamily: 'inherit', lineHeight: 'inherit', width: '100%', overflow: 'visible', border: 'none', boxShadow: 'none' }} codeTagProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-all' } }}>{item.text}</SyntaxHighlighter>
+          style={{ scrollbarGutter: 'stable' }}>
+          <div 
+            className="min-h-full pb-24"
+            onClick={() => { if (!window.getSelection()?.toString()) { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); } }}
+          >
+            {localHistory.map((item, i) => (
+              <div key={i} className={`mb-1 px-3 break-words whitespace-pre-wrap ${item.type === 'input' ? 'text-blue-600 dark:text-blue-400 font-bold' : item.type === 'error' ? 'text-red-600 dark:text-red-400 font-bold' : item.type === 'status' ? 'text-blue-500/70 italic text-xs mt-2' : 'text-gray-800 dark:text-gray-200'}`}>
+                {item.type === 'input' ? (
+                  <div className="flex items-start">
+                    <span className="mr-2 opacity-50 text-gray-400 shrink-0 mt-1">{'>'}</span>
+                    <div className="flex-grow min-w-0">
+                      <SyntaxHighlighter language="csharp" style={syntaxStyle} PreTag="div" customStyle={{ margin: 0, padding: 0, background: 'transparent', fontSize: 'inherit', fontFamily: 'inherit', lineHeight: 'inherit', width: '100%', overflow: 'visible', border: 'none', boxShadow: 'none' }} codeTagProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-all' } }}>{item.text}</SyntaxHighlighter>
+                    </div>
                   </div>
-                </div>
-              ) : (<>{item.text}</>)}
-            </div>
-          ))}
-          {pendingResult && (
-            <div className="mb-1 px-3 break-words whitespace-pre-wrap text-gray-800 dark:text-gray-200">
-              {pendingResult.output && <div>{pendingResult.output}</div>}
-              {pendingResult.error && <div className="text-red-600 dark:text-red-400 font-bold">{pendingResult.error}</div>}
-            </div>
-          )}
-          {isRunning && <div className="mt-2 font-mono text-blue-500 animate-pulse flex items-center font-bold px-3"><FontAwesomeIcon icon={faSpinner} spin className="mr-2" />Executing...</div>}
-          {isReplLoading && <div className="text-blue-400 flex items-center mt-2 px-3"><span className="mr-2 opacity-50 text-gray-400">{'>'}</span><FontAwesomeIcon icon={faSpinner} spin className="mr-2 h-3 w-3" /><span className="animate-pulse">Processing...</span></div>}
-          <div ref={consoleEndRef} />
+                ) : (<>{item.text}</>)}
+              </div>
+            ))}
+            {pendingResult && (
+              <div className="mb-1 px-3 break-words whitespace-pre-wrap text-gray-800 dark:text-gray-200">
+                {pendingResult.output && <div>{pendingResult.output}</div>}
+                {pendingResult.error && <div className="text-red-600 dark:text-red-400 font-bold">{pendingResult.error}</div>}
+              </div>
+            )}
+            {isRunning && <div className="mt-2 font-mono text-blue-500 animate-pulse flex items-center font-bold px-3"><FontAwesomeIcon icon={faSpinner} spin className="mr-2" />Executing...</div>}
+            {isReplLoading && <div className="text-blue-400 flex items-center mt-2 px-3"><span className="mr-2 opacity-50 text-gray-400">{'>'}</span><FontAwesomeIcon icon={faSpinner} spin className="mr-2 h-3 w-3" /><span className="animate-pulse">Processing...</span></div>}
+            <div ref={consoleEndRef} />
+          </div>
         </div>
         {isExplaining && <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-40 rounded-lg"><FontAwesomeIcon icon={faSpinner} spin className="text-blue-500 text-4xl mb-4" /><p className="text-lg font-semibold text-gray-700 dark:text-gray-300 animate-pulse">AI is analyzing...</p></div>}
       </div>
