@@ -98,7 +98,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-all',
-                        scrollbarGutter: 'stable',
+                        width: '100%',
                     }}
                 >
                     <SyntaxHighlighter
@@ -151,7 +151,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         zIndex: 10,
                         overflowX: 'hidden',
                         overflowY: 'auto',
-                        scrollbarGutter: 'stable',
+                        width: '100%',
                     }}
                     className="custom-scrollbar focus:ring-0"
                 />

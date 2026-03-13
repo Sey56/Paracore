@@ -295,9 +295,11 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   }
 
   return (
-    <div className="tab-content pt-0 flex flex-col h-full relative overflow-hidden px-4">
-      <div className="flex-grow relative min-h-0 min-w-0 mb-4">
-        <div className="h-full w-full overflow-y-auto custom-scrollbar rounded bg-slate-50/50 dark:bg-slate-900/40 p-3 font-mono text-sm select-text cursor-text"
+    <div className="tab-content pt-0 flex flex-col h-full relative overflow-hidden">
+      <div className="flex-grow relative min-h-0 min-w-0 mb-4 px-0">
+        <div 
+          className="h-full w-full overflow-y-auto custom-scrollbar rounded bg-slate-50/50 dark:bg-slate-900/40 p-3 pl-5 pr-0 font-mono text-sm select-text cursor-text"
+          style={{ scrollbarGutter: 'stable' }}
           onClick={() => { if (!window.getSelection()?.toString()) { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); } }}>
           {localHistory.map((item, i) => (
             <div key={i} className={`mb-1 break-words whitespace-pre-wrap ${item.type === 'input' ? 'text-blue-600 dark:text-blue-400 font-bold' : item.type === 'error' ? 'text-red-600 dark:text-red-400 font-bold' : item.type === 'status' ? 'text-blue-500/70 italic text-xs mt-2' : 'text-gray-800 dark:text-gray-200'}`}>
@@ -324,8 +326,8 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
         {isExplaining && <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-40 rounded-lg"><FontAwesomeIcon icon={faSpinner} spin className="text-blue-500 text-4xl mb-4" /><p className="text-lg font-semibold text-gray-700 dark:text-gray-300 animate-pulse">AI is analyzing...</p></div>}
       </div>
 
-      <div className="pb-3 flex flex-col space-y-3 px-4">
-        <div className="flex justify-between items-center px-1 h-8">
+      <div className="pb-3 flex flex-col space-y-3 pl-5 pr-0">
+        <div className="flex justify-between items-center pr-5 h-8">
           <div className="flex items-center gap-2 overflow-hidden">
             {isMultiLine && activeSnippetName ? (
               <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
@@ -352,7 +354,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
           {isMultiLine ? (
             <REPLCodeEditor ref={textareaRef} value={multiLineValue} onChange={setMultiLineValue} onKeyDown={(e) => { if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSaveSnippet(false); } else handleKeyDown(e); }} disabled={isReplLoading || isRunning} placeholder="Code... (Ctrl+Enter)" />
           ) : (
-            <div className="relative">
+            <div className="relative pr-5">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-bold opacity-50 pointer-events-none select-none text-sm">{'>'}</span>
               <input ref={inputRef} type="text" value={singleLineValue} onChange={(e) => setSingleLineValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="Command..." disabled={isReplLoading || isRunning} className="w-full pl-7 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white transition-all font-mono" style={{ borderColor: 'var(--border-divider)' }} />
             </div>
@@ -360,7 +362,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
         </div>
       </div>
 
-      <div className="pt-3 pb-4 flex justify-between items-center bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm z-30 px-4">
+      <div className="pt-3 pb-4 flex justify-between items-center bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm z-30 px-5">
         <div className="flex-shrink-0">
           {showAiButton && <button className="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 py-1 px-3 rounded-md font-bold flex items-center border border-red-200 dark:border-red-800 transition-all active:scale-95 text-sm shadow-sm" onClick={handleExplainError}><FontAwesomeIcon icon={faMagicWandSparkles} className="mr-2" />Explain & Fix</button>}
         </div>

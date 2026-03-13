@@ -167,7 +167,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
       <div className="flex-grow min-h-0 min-w-0 w-full overflow-hidden relative">
         {/* Parameters Tab is conditionally rendered (needs a script) */}
         {activeInspectorTab === 'parameters' && script && (
-          <div className="h-full overflow-y-auto custom-scrollbar">
+          <div className="h-full">
             <ParametersTab
               script={script}
               onViewCodeClick={onViewCodeClick}
