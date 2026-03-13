@@ -210,8 +210,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   return (
     <div className={`tab-content h-full overflow-hidden bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm`}>
-      <div className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar pb-60 py-6 pl-5 pr-2" style={{ scrollbarGutter: 'stable' }}>
-        <div className="space-y-8">
+      <div className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar py-6 pl-5 pr-8" style={{ scrollbarGutter: 'stable' }}>
+        <div className="space-y-8 pb-40">
         {/* 1. Configuration Presets */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="flex flex-col space-y-4">
