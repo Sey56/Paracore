@@ -14,7 +14,7 @@ import { REPLCodeEditor } from './REPLCodeEditor';
 import { save, open } from '@tauri-apps/api/dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/api/fs';
 
-// V10: Definitive Decoupled REPL Laboratory
+// V11: Decoupled REPL Laboratory with Deep/Selective Clear
 interface ConsoleTabContentProps {
   isRunning: boolean;
   executionResult: ScriptExecutionResult | null;
@@ -74,11 +74,12 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     setSingleCommandHistory([]);
     setMultiCommandHistory([]);
     setAiResult(null);
+    clearExecutionResult(); // Deep Clear: Includes Analytics Tab
     localStorage.removeItem('paracore_console_history');
     localStorage.removeItem('paracore_repl_single_history');
     localStorage.removeItem('paracore_repl_multi_history');
-    showNotification("Console cleared", "info");
-  }, [showNotification]);
+    showNotification("Console and Analytics cleared", "info");
+  }, [showNotification, clearExecutionResult]);
 
   useEffect(() => { localStorage.setItem('paracore_console_history', JSON.stringify(localHistory)); }, [localHistory]);
   useEffect(() => { localStorage.setItem('paracore_repl_single_history', JSON.stringify(singleCommandHistory)); }, [singleCommandHistory]);
@@ -100,10 +101,22 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     if (!command || isReplLoading) return;
 
     if (command.toLowerCase() === 'help' || command === '?') {
-      setLocalHistory(prev => [...prev, { type: 'input' as const, text: 'Help', timestamp: new Date(), isRepl: true }, { type: 'output' as const, text: "📖 Help...", timestamp: new Date(), isRepl: true }].slice(-100));
-      if (!isMultiLine) setSingleLineValue(""); return;
+      setLocalHistory(prev => [...prev,
+      { type: 'input' as const, text: 'Help', timestamp: new Date(), isRepl: true },
+      { type: 'output' as const, text: "📖 Paracore REPL Quick Reference: ✨ Discovery, 🧠 Essentials, 📊 Analytics, 🛠️ Modify, 📏 Units, 🧹 help/clear", timestamp: new Date(), isRepl: true }
+      ].slice(-100));
+      if (!isMultiLine) setSingleLineValue(""); 
+      return;
     }
-    if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') { handleClear(); return; }
+
+    if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') {
+      // Selective Clear: Console History Only
+      setLocalHistory([]);
+      localStorage.removeItem('paracore_console_history');
+      if (!isMultiLine) setSingleLineValue("");
+      showNotification("Console history cleared", "info");
+      return;
+    }
     
     if (!isMultiLine) setSingleLineValue("");
     setHistoryIndex(-1);
