@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSpinner,
@@ -48,7 +48,7 @@ interface CardActionsProps {
   isSelected: boolean;
 }
 
-const CardActionsComponent = ({
+export const CardActions: React.FC<CardActionsProps> = ({
   script,
   isRunning,
   isRunButtonDisabled,
@@ -75,7 +75,7 @@ const CardActionsComponent = ({
   toggleFloatingCodeViewer,
   setShowMetadataModal,
   isSelected
-}: CardActionsProps) => {
+}) => {
   const handleRunClickInternal = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRunButtonDisabled) return;
@@ -270,6 +270,3 @@ const CardActionsComponent = ({
     </div>
   );
 };
-
-export const CardActions = memo(CardActionsComponent);
-CardActions.displayName = 'CardActions';

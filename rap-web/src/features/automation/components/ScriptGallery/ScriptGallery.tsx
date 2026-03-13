@@ -1,10 +1,7 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { useScripts } from '../../hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
-import { 
-  useScriptSelection, 
-  useScriptExecution 
-} from '../../hooks/useScriptExecution';
+import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useAuth } from '@/features/auth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
@@ -41,10 +38,7 @@ export const ScriptGallery: React.FC = () => {
     selectedCategory,
     setActiveInspectorTab
   } = useUI();
-  
-  // Refactored to use focused hook - avoids re-renders on execution state changes
-  const { selectedScript, setSelectedScript } = useScriptSelection();
-  
+  const { setSelectedScript, selectedScript } = useScriptExecution();
   const { isAuthenticated, activeRole } = useAuth();
   const isMobile = useBreakpoint();
 
@@ -66,31 +60,37 @@ export const ScriptGallery: React.FC = () => {
   const savedScrollTop = useRef(0);
   const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
 
+  // Ref to always hold latest scripts for closure-safe access in timers
   const scriptsRef = useRef(scripts);
   useEffect(() => { scriptsRef.current = scripts; }, [scripts]);
 
-  const handleReplaceScript = useCallback((script: Script) => {
+  const handleReplaceScript = (script: Script) => {
     setScriptToReplace(script);
     if (script.metadata.isWatchdog) {
       openNewSentinelModal();
     } else {
       openNewScriptModal();
     }
-  }, [openNewSentinelModal, openNewScriptModal]);
+  };
 
-  const handleCloseModal = useCallback((resultScript?: Script) => {
+  const handleCloseModal = (resultScript?: Script) => {
     setScriptToReplace(null);
     closeNewScriptModal();
     closeNewSentinelModal();
 
     if (!resultScript) return;
 
+    // The backend may return {success, path} (new script) or a Script object (replace).
+    // Extract the path from whichever shape we got.
     const resultPath = (resultScript as any).path || resultScript.absolutePath || resultScript.id || '';
     if (!resultPath) return;
 
+    // Store the path — createNewScript already triggered a gallery reload.
+    // We poll the scripts list until the new script appears, then select + scroll.
     const normalizedTarget = resultPath.replace(/\\/g, '/').toLowerCase();
 
     const trySelectAndScroll = (attempt: number) => {
+      // Search through the current scripts list for a path match
       const found = scriptsRef.current.find(s => {
         const sPath = (s.absolutePath || s.id || '').replace(/\\/g, '/').toLowerCase();
         return sPath === normalizedTarget || sPath.includes(normalizedTarget) || normalizedTarget.includes(sPath);
@@ -100,11 +100,13 @@ export const ScriptGallery: React.FC = () => {
         setSelectedScript(found);
         setActiveInspectorTab('parameters');
 
+        // Scroll to the card
         setTimeout(() => {
           const cardElement = document.getElementById(`script-card-${found.id}`);
           if (cardElement) {
             cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           } else {
+            // Fallback: search all cards by normalized path
             const normalizedId = found.id.toLowerCase().replace(/\\/g, '/');
             const allCards = document.querySelectorAll('.script-card');
             const foundCard = Array.from(allCards).find(el =>
@@ -116,25 +118,27 @@ export const ScriptGallery: React.FC = () => {
           }
         }, 200);
       } else if (attempt < 6) {
+        // Scripts list may not have updated yet — retry up to 3 seconds
         setTimeout(() => trySelectAndScroll(attempt + 1), 500);
       }
     };
 
+    // Start trying after a short delay for the state to propagate
     setTimeout(() => trySelectAndScroll(0), 400);
-  }, [closeNewScriptModal, closeNewSentinelModal, setSelectedScript, setActiveInspectorTab]);
+  };
 
-  const handleEnterFocusMode = useCallback((rect: DOMRect) => {
+  const handleEnterFocusMode = (rect: DOMRect) => {
     if (galleryRef.current && galleryRef.current.parentElement) {
       savedScrollTop.current = galleryRef.current.parentElement.scrollTop;
     }
     setSourceRect(rect);
     setFocusMode(true);
-  }, [setFocusMode]);
+  };
 
-  const handleExitFocusMode = useCallback(() => {
+  const handleExitFocusMode = () => {
     setFocusMode(false);
     setSourceRect(null);
-  }, [setFocusMode]);
+  };
 
   useLayoutEffect(() => {
     const parent = galleryRef.current?.parentElement;
@@ -151,20 +155,14 @@ export const ScriptGallery: React.FC = () => {
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
 
-  const isFromActiveSource = useCallback((script: Script) => {
+  const isFromActiveSource = (script: Script) => {
     if (!script || !script.absolutePath) return false;
     const sourcePath = (activeScriptSource && 'path' in activeScriptSource) ? activeScriptSource.path : null;
     if (sourcePath) {
       return script.absolutePath.toLowerCase().startsWith(sourcePath.toLowerCase());
     }
     return false;
-  }, [activeScriptSource]);
-
-  const handleScriptSelect = useCallback((script: Script) => {
-    setSelectedScript(script);
-    setActiveInspectorTab('parameters');
-    if (isMobile) setInspectorOpen(true);
-  }, [setSelectedScript, setActiveInspectorTab, isMobile, setInspectorOpen]);
+  };
 
   return (
     <div ref={galleryRef} className={`relative min-h-full min-w-0 ${isFocusMode || isArmingWatchdogs ? 'overflow-hidden' : ''}`}>
@@ -210,7 +208,11 @@ export const ScriptGallery: React.FC = () => {
             <ScriptGrid
               favoriteScripts={favoriteScripts}
               otherScripts={otherScripts}
-              handleScriptSelect={handleScriptSelect}
+              handleScriptSelect={(script) => {
+                setSelectedScript(script);
+                setActiveInspectorTab('parameters');
+                if (isMobile) setInspectorOpen(true);
+              }}
               isFromActiveSource={isFromActiveSource}
               isCompactView={isCompactView}
               handleEnterFocusMode={handleEnterFocusMode}
