@@ -14,6 +14,7 @@ import { REPLCodeEditor } from './REPLCodeEditor';
 import { save, open } from '@tauri-apps/api/dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/api/fs';
 
+// V9: Final Decoupled REPL Laboratory
 interface ConsoleTabContentProps {
   isRunning: boolean;
   executionResult: ScriptExecutionResult | null;
