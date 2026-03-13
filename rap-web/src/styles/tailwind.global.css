@@ -99,42 +99,6 @@
   transform: translateX(-50%) translateY(0);
 }
 
-/* ── Custom Scrollbar System ── */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-  transition: background-color 0.3s ease;
-}
-
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.4);
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.6);
-}
-
-/* Firefox Support */
-.custom-scrollbar {
-  scrollbar-width: none;
-}
-
-.custom-scrollbar:hover {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
-}
-
 /* Override react-syntax-highlighter (atomDark specific) inline styles */
 .code-viewer-override span {
   font-family: inherit !important;
