@@ -34,7 +34,7 @@ class ExplainErrorResponse(BaseModel):
     explanation: str = Field(description="Clear explanation of the error and the fix.", default="")
     fixed_code: Optional[str] = Field(description="Legacy field for fixed code.", default=None)
     filename: Optional[str] = Field(description="The relative filename being fixed (e.g. 'Main.cs').", default=None)
-    files: Optional[Dict[str, str]] = Field(description="A dictionary of filenames to their FULL fixed code contents. Use relative paths as keys.", default=None)
+    files: Dict[str, str] = Field(description="A dictionary of filenames to their FULL fixed code contents. Use relative paths as keys.", default_factory=dict)
     error_message: Optional[str] = Field(description="Internal error message if the AI processing failed.", default=None)
 
 # Define the Pydantic-ai Agent

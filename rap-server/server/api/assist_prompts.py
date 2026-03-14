@@ -46,13 +46,13 @@ All user-configurable values MUST go in `public class Params` at the bottom of t
 - **KEYS**: Only use: `mm`, `cm`, `m`, `in`, `m2`, `sqm`, `m3`, `cum`.
 
 ## Coding Rules
-1. **FULL FILE INTEGRITY**: Always return the ENTIRE file content.
+1. **FULL FILE INTEGRITY**: Always return the ENTIRE file content for any file you modify.
 2. **SENTINELS**: For background monitoring, wrap logic in `Watchdog(() => { ... });`. Use `WatchdogReport(msg, status)` for feedback ("success", "warning", "error").
-3. **FILES DICTIONARY**: You MUST return the corrected code for EACH modified file in the `files` dictionary. The keys must be the EXACT filenames (e.g. `MyScript.cs`).
-3. **TARGET EXISTING FILES**: Write code in the existing .cs files provided. You MUST override your bias for generic names and use the exact filenames provided.
-4. **NO ASYNC**: Never use `await` or `async`.
-5. **ELEMENTID**: Use `ElementId.Value` (long) for Revit 2025+.
-6. **SAFETY LOCKS**: For destructive operations, MUST use `[Confirm("DELETE")]`.
+3. **RETURN FORMAT**: You MUST return your fixes in the `files` dictionary. The keys MUST be the exact filenames provided in the `[CURRENT SCRIPT CODE]` sections (e.g., `HelloWall.cs` or `Utils.cs`). 
+4. **TARGET EXISTING FILES**: Write code in the existing .cs files provided. You MUST override your bias for generic names and use the exact filenames provided. Do not use `fixed_code`.
+5. **NO ASYNC**: Never use `await` or `async`.
+6. **ELEMENTID**: Use `ElementId.Value` (long) for Revit 2025+.
+7. **SAFETY LOCKS**: For destructive operations, MUST use `[Confirm("DELETE")]`.
 
 ## Suffix Conventions (Data Providers)
 - `_Options`: Custom dropdown items (e.g. `public List<Wall> Target_Options => ...`).
@@ -70,6 +70,7 @@ public class Params { public BuiltInCategory Cat { get; set; } = BuiltInCategory
 ```
 
 **OUTPUT FORMAT**:
-- Populate the `files` dictionary. The keys must be the EXACT filenames provided in the input (e.g., `HelloWall.cs`, `Params.cs`).
-- Do NOT use `fixed_code` field.
+- ALWAYS populate the `files` dictionary. 
+- Use the exact filename from the `### FILE: <filename>` markers as the dictionary key.
+- Provide the FULL, complete, corrected C# code as the dictionary value.
 """

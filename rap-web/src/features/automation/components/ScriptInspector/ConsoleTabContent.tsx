@@ -1,14 +1,14 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import type { ScriptExecutionResult } from "@/types/scriptModel";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faTrash, faMagicWandSparkles, faSpinner, faCheck, faTimes, faCode, faExpand, faCompress, faPlay, faSave, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faTrash, faMagicWandSparkles, faSpinner, faCheck, faTimes, faCode, faExpand, faCompress, faPlay, faSave, faFolderOpen, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { useScriptExecution } from '../../index';
 import { useScripts } from '../../index';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, vs, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '@/context/ThemeContext';
 import { REPLCodeEditor } from './REPLCodeEditor';
 import { save, open } from '@tauri-apps/api/dialog';
@@ -34,7 +34,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
   const { theme } = useTheme();
-  const syntaxStyle = theme === 'light' ? vs : vscDarkPlus;
+  const syntaxStyle = theme === 'eclipse' ? atomDark : (theme === 'light' ? vs : vscDarkPlus);
 
   const [isExplaining, setIsExplaining] = useState(false);
   const [aiResult, setAiResult] = useState<{ is_success: boolean, explanation: string, fixed_code?: string, filename?: string, files?: Record<string, string>, error_message?: string } | null>(null);
@@ -216,17 +216,25 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   };
 
   const handleExplainError = useCallback(async () => {
-    if (!selectedScript || !executionResult?.error) return;
+    // Read the very last error from the local console history to be completely
+    // precise about what the user is looking at.
+    const lastErrorItem = [...localHistory].reverse().find(item => item.type === 'error');
+    if (!selectedScript || !lastErrorItem?.text) return;
+    
     setIsExplaining(true);
     try {
       const resp = await api.post("/generation/explain_error", { 
-        script_code: combinedScriptContent || "", script_path: selectedScript.absolutePath, error_message: executionResult.error,
-        llm_provider: localStorage.getItem('llmProvider'), llm_model: localStorage.getItem('llmModel'), llm_api_key_value: localStorage.getItem('llmApiKeyValue'),
+        script_code: combinedScriptContent || "", 
+        script_path: selectedScript.absolutePath, 
+        error_message: lastErrorItem.text,
+        llm_provider: localStorage.getItem('llmProvider'), 
+        llm_model: localStorage.getItem('llmModel'), 
+        llm_api_key_value: localStorage.getItem('llmApiKeyValue'),
         history: fixHistory
       });
       setAiResult(resp.data);
     } catch (err: any) { showNotification(err.message, "error"); } finally { setIsExplaining(false); }
-  }, [selectedScript, executionResult, combinedScriptContent, fixHistory, showNotification]);
+  }, [selectedScript, localHistory, combinedScriptContent, fixHistory, showNotification]);
 
   const handleApplyFix = useCallback(async () => {
     if (!selectedScript || (!aiResult?.fixed_code && !aiResult?.files)) return;
@@ -280,11 +288,66 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
             <button onClick={() => setAiResult(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-2"><FontAwesomeIcon icon={faTimes} /></button>
           </div>
           <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar w-full min-w-0 text-gray-700 dark:text-gray-300">
-            {aiResult.explanation.split('\n').map((line, i) => line.startsWith('###') ? <h4 key={i} className="text-blue-600 dark:text-blue-400 mt-4 mb-2">{line.replace('###', '').trim()}</h4> : <p key={i} className="mb-2">{line}</p>)}
+            {/* Explanation section */}
+            <div className="mb-4">
+              {aiResult.explanation.split('\n').map((line, i) => line.startsWith('###') ? <h4 key={i} className="text-blue-600 dark:text-blue-400 mt-4 mb-2">{line.replace('###', '').trim()}</h4> : <p key={i} className="mb-2">{line}</p>)}
+            </div>
+            
+            {/* Code review section */}
+            {(aiResult.fixed_code || (aiResult.files && Object.keys(aiResult.files).length > 0)) && (
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faCheckCircle} className="text-green-500" />
+                  Proposed Fix
+                </h4>
+                
+                {aiResult.fixed_code && (
+                  <div className="mb-4 flex flex-col min-w-0">
+                    <div className="text-xs bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1.5 rounded-t-lg border border-slate-300 dark:border-slate-700 font-mono flex items-center w-max max-w-full">
+                      <span className="truncate">{aiResult.filename || 'Script.cs'}</span>
+                    </div>
+                    <div className="overflow-auto custom-scrollbar w-full min-w-0 bg-slate-100 dark:bg-slate-900 border-x border-b border-slate-300 dark:border-slate-700 rounded-b-lg code-viewer-override">
+                      <SyntaxHighlighter
+                        language="csharp"
+                        style={syntaxStyle}
+                        customStyle={{ margin: 0, padding: '0.75rem', fontSize: '0.75rem', backgroundColor: 'transparent', wordBreak: 'break-word', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}
+                        codeTagProps={{ style: { fontFamily: 'inherit' } }}
+                        wrapLines={true}
+                      >
+                        {aiResult.fixed_code}
+                      </SyntaxHighlighter>
+                    </div>
+                  </div>
+                )}
+
+                {aiResult.files && Object.entries(aiResult.files).map(([filename, content], idx) => (
+                  <div key={idx} className="mb-4 flex flex-col min-w-0">
+                    <div className="text-xs bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1.5 rounded-t-lg border border-slate-300 dark:border-slate-700 font-mono flex items-center w-max max-w-full">
+                      <span className="truncate">{filename}</span>
+                    </div>
+                    <div className="overflow-auto custom-scrollbar w-full min-w-0 bg-slate-100 dark:bg-slate-900 border-x border-b border-slate-300 dark:border-slate-700 rounded-b-lg code-viewer-override">
+                      <SyntaxHighlighter
+                        language="csharp"
+                        style={syntaxStyle}
+                        customStyle={{ margin: 0, padding: '0.75rem', fontSize: '0.75rem', backgroundColor: 'transparent', wordBreak: 'break-word', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}
+                        codeTagProps={{ style: { fontFamily: 'inherit' } }}
+                        wrapLines={true}
+                      >
+                        {content}
+                      </SyntaxHighlighter>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800 flex justify-end space-x-3 shrink-0">
-            <button className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg" onClick={() => setAiResult(null)}>Cancel</button>
-            {(aiResult.fixed_code || aiResult.files) && <button disabled={isApplyingFix} className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 py-1 px-3 rounded-md font-bold border border-blue-200 active:scale-95 text-sm shadow-sm disabled:opacity-50" onClick={handleApplyFix}>{isApplyingFix ? "Applying..." : "Apply Fix"}</button>}
+            <button className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" onClick={() => setAiResult(null)}>Cancel</button>
+            {(aiResult.fixed_code || (aiResult.files && Object.keys(aiResult.files).length > 0)) && (
+              <button disabled={isApplyingFix} className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-5 rounded-lg font-bold shadow-md shadow-blue-500/20 active:scale-95 text-sm disabled:opacity-50 transition-all flex items-center gap-2" onClick={handleApplyFix}>
+                {isApplyingFix ? <><FontAwesomeIcon icon={faSpinner} spin /> Applying...</> : "Apply Fix"}
+              </button>
+            )}
           </div>
         </div>
       </div>
