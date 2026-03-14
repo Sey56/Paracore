@@ -71,13 +71,10 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
 
   const handleClear = useCallback(() => {
     setLocalHistory([]);
-    setSingleCommandHistory([]);
-    setMultiCommandHistory([]);
     setAiResult(null);
     clearExecutionResult(); // Deep Clear: Includes Analytics Tab
     localStorage.removeItem('paracore_console_history');
-    localStorage.removeItem('paracore_repl_single_history');
-    localStorage.removeItem('paracore_repl_multi_history');
+    // Command histories (single-line & multi-line) are intentionally preserved
     showNotification("Console and Analytics cleared", "info");
   }, [showNotification, clearExecutionResult]);
 
@@ -128,7 +125,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     else setSingleCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
 
     try {
-      const response = await api.post("/api/repl", { code: command, session_id: selectedScript?.absolutePath || "global" });
+      const response = await api.post("/api/repl", { code: command, session_id: "global" });
       if (response.data.is_success) {
         setExecutionResult((prev: any) => ({ output: response.data.output || '', isSuccess: true, error: null, structuredOutput: response.data.structured_output?.length > 0 ? response.data.structured_output : (prev?.structuredOutput || []), internal_data: 'REPL', timestamp: Date.now(), scriptName: isMultiLine ? identifier : "REPL" }));
       } else {
