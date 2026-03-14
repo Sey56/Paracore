@@ -94,8 +94,8 @@ Append `_unit`, `[unit]`, or `(unit)` to your property name in C#. Paracore will
 Table(GetElements<Room>().Select(r => new { 
     r.Id, 
     r.Name, 
-    Area_m2 = r.Area.FromUnits("m2"),    // Editable in Square Meters
-    Perimeter_mm = r.Perimeter.FromUnits("mm") // Editable in Millimeters
+    Area_m2 = r.Area.OutputUnit("m2"),    // the _m2 postfix makes it Editable in Square Meters
+    Perimeter_mm = r.Perimeter.OutputUnit("mm") // the _mm postfix makes it Editable in Millimeters
 }))
 ```
 

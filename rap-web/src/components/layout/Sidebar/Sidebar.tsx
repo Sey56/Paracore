@@ -208,7 +208,7 @@ export const Sidebar = () => {
           const discoveredSources: string[] = await invoke('discover_script_sources', { path: selected });
           
           if (discoveredSources.length === 0) {
-            showNotification("No script sources found in this folder. Select a Paracore source or an empty folder to initialize.", "error");
+            showNotification("No script sources found. Select a Paracore source or an empty folder to initialize.", "info");
             return;
           }
 
@@ -226,16 +226,15 @@ export const Sidebar = () => {
             
             // Check if it's the root itself
             if (normalizePath(discovered) === normalizePath(selected)) {
-              // Now we check if it's ALREADY a source or an EMPTY candidate
-              // The rust backend returns the path itself in two scenarios:
-              // a) It has .paracore (Existing source)
-              // b) It is empty (Init candidate)
+              // The Rust backend returns this path in two cases:
+              // a) It has .paracore (existing source)
+              // b) It is empty (init candidate)
+              // Check locally if .paracore exists to distinguish
+              const { exists } = await import('@tauri-apps/api/fs');
+              const sep = selected.includes('/') ? '/' : '\\';
+              const isInitialized = await exists(`${selected}${sep}.paracore`);
               
-              // We can check if it's already a source by seeing if it's in our list or via a lightweight check
-              // But the most robust way is to ask the backend if it's initialized
-              const checkRes = await api.get(`/api/scripts/is-initialized?path=${encodeURIComponent(selected)}`);
-              
-              if (checkRes.data.initialized) {
+              if (isInitialized) {
                 // It's an existing source, just load it
                 await addCustomScriptFolder(selected);
                 setActiveScriptSource({ type: 'local', path: selected });
@@ -252,9 +251,9 @@ export const Sidebar = () => {
               showNotification("Script source loaded.", "success");
             }
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error("Discovery failed:", err);
-          showNotification("Failed to scan folder. Make sure the app has permissions.", "error");
+          showNotification(`Failed to scan folder: ${err?.message || err}`, "error");
         }
       }
     } else {
