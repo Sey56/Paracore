@@ -45,7 +45,7 @@ Params p = new();
 string userName = Doc.Application.Username;
 
 Println($"{p.Greeting} {userName}");
-Println($"Selected WallType name is: {p.CurrentWallTypes?.Name}");
+Println($"Selected WallType name is: {p.CurrentWallType?.Name}");
 
 public class Params
 {
@@ -58,7 +58,7 @@ public class Params
     /// Click the compute button and select 
     /// a wall type from the dropdown
     /// </summary>
-    public WallType? CurrentWallTypes { get; set; }
+    public WallType? CurrentWallType { get; set; }
 
     #endregion
 }

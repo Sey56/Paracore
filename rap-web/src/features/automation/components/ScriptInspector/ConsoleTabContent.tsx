@@ -97,6 +97,9 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     const command = isMultiLine ? multiLineValue.trim() : singleLineValue.trim();
     if (!command || isReplLoading) return;
 
+    // Clear any open AI explanation overlay so the console is visible
+    setAiResult(null);
+
     if (command.toLowerCase() === 'help' || command === '?') {
       setLocalHistory(prev => [...prev,
       { type: 'input' as const, text: 'Help', timestamp: new Date(), isRepl: true },
@@ -356,7 +359,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
 
   return (
     <div className="tab-content pt-0 flex flex-col h-full relative overflow-hidden">
-      <div className="flex-grow relative min-h-0 min-w-0 mb-4 px-0">
+      <div className="flex-grow flex-shrink min-h-[100px] relative min-w-0 mb-4 px-0">
         <div 
           className="h-full w-full overflow-y-auto custom-scrollbar rounded bg-slate-50/50 dark:bg-slate-900/40 p-3 pl-5 pr-0 font-mono text-sm select-text cursor-text"
           style={{ scrollbarGutter: 'stable' }}>
@@ -365,7 +368,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
             onClick={() => { if (!window.getSelection()?.toString()) { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); } }}
           >
             {localHistory.map((item, i) => (
-              <div key={i} className={`mb-1 px-3 break-words whitespace-pre-wrap ${item.type === 'input' ? 'text-blue-600 dark:text-blue-400 font-bold' : item.type === 'error' ? 'text-red-600 dark:text-red-400 font-bold' : item.type === 'status' ? 'text-blue-500/70 italic text-xs mt-2' : 'text-gray-800 dark:text-gray-200'}`}>
+              <div key={i} className={`mb-1 px-3 break-words whitespace-pre-wrap ${item.type === 'input' ? 'text-blue-600 dark:text-blue-400 font-bold' : item.type === 'error' ? 'text-red-600 dark:text-red-400 font-bold' : item.type === 'status' ? 'text-indigo-600 dark:text-indigo-400 font-semibold italic text-xs mt-2' : 'text-gray-800 dark:text-gray-200'}`}>
                 {item.type === 'input' ? (
                   <div className="flex items-start">
                     <span className="mr-2 opacity-50 text-gray-400 shrink-0 mt-1">{'>'}</span>
