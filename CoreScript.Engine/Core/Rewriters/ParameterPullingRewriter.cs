@@ -21,7 +21,7 @@ namespace CoreScript.Engine.Core.Rewriters
             string name = node.Identifier.Text;
 
             // Skip providers and logic-based helpers to avoid circular logic
-            if (name.EndsWith("_Options") || name.EndsWith("_Filter") || name.EndsWith("_Range") || 
+            if (name.EndsWith("_Options") || name.EndsWith("_Filter") || name.EndsWith("_Range") ||
                 name.EndsWith("_Visible") || name.EndsWith("_Enabled") || name.EndsWith("_Unit"))
             {
                 return base.VisitPropertyDeclaration(node);

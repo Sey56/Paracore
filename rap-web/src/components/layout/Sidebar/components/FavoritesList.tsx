@@ -46,7 +46,7 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
         {favoriteScripts.map((script: Script) => (
           <li
             key={script.id}
-            className="group flex items-center py-1.5 px-3 rounded-xl hover:bg-blue-50/50 dark:hover:bg-blue-900/10 cursor-pointer text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-blue-100/50 dark:hover:border-blue-900/30 active:scale-[0.98]"
+            className="group flex items-center py-1.5 px-3 rounded-xl hover:bg-blue-50/50 dark:hover:bg-white/5 cursor-pointer text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-blue-100/50 dark:hover:border-white/10 active:scale-[0.98]"
             onClick={() => { setSelectedScript(script); setActiveInspectorTab('parameters'); }}
           >
             <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-3 shrink-0 group-hover:scale-125 transition-transform" />

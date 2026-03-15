@@ -27,7 +27,10 @@ namespace CoreScript.Engine.Core
                 {
                     var assembly = alc.LoadFromStream(ms);
                     var entryType = assembly.GetTypes().FirstOrDefault(t => t.Name.Contains("Submission#0")) ?? assembly.GetTypes().FirstOrDefault();
-                    if (entryType == null) return ExecutionResult.Failure("Entry type not found.");
+                    if (entryType == null)
+                    {
+                        return ExecutionResult.Failure("Entry type not found.");
+                    }
 
                     var factoryMethod = entryType.GetMethod("<Factory>", BindingFlags.Public | BindingFlags.Static);
                     if (factoryMethod != null)
@@ -61,8 +64,7 @@ namespace CoreScript.Engine.Core
             var loadedAssembly = AssemblyLoadContext.Default.Assemblies
                 .FirstOrDefault(a => a.GetName().Name == assemblyName.Name);
 
-            if (loadedAssembly != null) return loadedAssembly;
-            return null;
+            return loadedAssembly != null ? loadedAssembly : null;
         }
     }
 }

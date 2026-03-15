@@ -63,11 +63,14 @@ namespace CoreScript.Engine.Core
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
-                
+
                 if (parameters.ContainsKey("__script_name__"))
                 {
                     var forcedName = parameters["__script_name__"]?.ToString();
-                    if (!string.IsNullOrWhiteSpace(forcedName)) topLevelScriptName = forcedName;
+                    if (!string.IsNullOrWhiteSpace(forcedName))
+                    {
+                        topLevelScriptName = forcedName;
+                    }
                 }
 
                 if (parameters.TryGetValue("__absolute_path__", out var pathObj) && pathObj != null)
@@ -81,8 +84,8 @@ namespace CoreScript.Engine.Core
                     var scriptJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                     scriptFiles = JsonSerializer.Deserialize<List<ScriptFile>>(scriptContent, scriptJsonOptions) ?? new List<ScriptFile>();
                 }
-                catch 
-                { 
+                catch
+                {
                     scriptFiles.Add(new ScriptFile { FileName = topLevelScriptName + ".cs", Content = scriptContent });
                 }
 
@@ -95,15 +98,18 @@ namespace CoreScript.Engine.Core
                     richParams = _parameterExtractor.ExtractParameters(combinedUserCode);
                 }
 
-                if (richParams.Count > 0) _parameterService.HardenParameters(parameters, richParams);
+                if (richParams.Count > 0)
+                {
+                    _parameterService.HardenParameters(parameters, richParams);
+                }
                 // -------------------------------------
 
                 string modifiedUserCode = _scriptRewriter.Rewrite(combinedUserCode, parameters);
-                
+
                 // V3.1: Start with #line hidden to ensure internal using doesn't count toward line numbers
-                finalScriptCode = "#line hidden" + Environment.NewLine + 
-                                  "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
-                                  "using CoreScript.Engine.Globals;" + Environment.NewLine + 
+                finalScriptCode = "#line hidden" + Environment.NewLine +
+                                  "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
+                                  "using CoreScript.Engine.Globals;" + Environment.NewLine +
                                   modifiedUserCode;
 
                 try
@@ -162,9 +168,9 @@ namespace CoreScript.Engine.Core
                     FileLogger.Log($"[CodeRunner] 🐢 CACHE MISS: Compiling {topLevelScriptName}...");
                     var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
                     var state = _scriptExecutor.ExecuteAsync(script).Result;
-                    
+
                     result = ExecutionResult.Success("Success", state.ReturnValue);
-                    
+
                     // Add to cache for next time
                     try
                     {
@@ -201,7 +207,7 @@ namespace CoreScript.Engine.Core
             catch (Exception ex)
             {
                 FileLogger.LogError("🛑 CodeRunner Exception: " + ex.ToString());
-                
+
                 string summaryMessage;
                 List<string> details = new List<string>();
 
@@ -211,12 +217,12 @@ namespace CoreScript.Engine.Core
                 if (actualEx is CompilationErrorException cex)
                 {
                     summaryMessage = "Compilation Failed";
-                    
+
                     // Use DiagnosticMapper to get correct file/line mappings
                     var mappedErrors = DiagnosticMapper.MapAndDeduplicate(
                         cex.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
                         finalScriptCode);
-                    
+
                     details = mappedErrors.Select(e => e.ToString()).ToList();
                 }
                 else
@@ -231,14 +237,14 @@ namespace CoreScript.Engine.Core
                     failureResult.ErrorMessage = $"❌ {summaryMessage}:{Environment.NewLine}{string.Join(Environment.NewLine, details)}";
                     failureResult.ErrorDetails = details.ToArray();
                 }
-                
+
                 failureResult.ScriptName = topLevelScriptName;
                 return failureResult;
             }
             finally
             {
                 ExecutionGlobals.ClearContext();
-                
+
                 // V3.1 ELITE: Only unload if NO watchdog is registered for this path
                 if (!string.IsNullOrEmpty(scriptPath) && WatchdogRegistry.GetActiveWatchdogs().Any(w => w.ScriptPath == scriptPath))
                 {
@@ -264,7 +270,7 @@ namespace CoreScript.Engine.Core
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
-                
+
                 // DEBUG: Log all parameters
                 FileLogger.Log($"[CodeRunner] Final Parameters Dictionary Keys: {string.Join(", ", parameters.Keys)}");
                 foreach (var kvp in parameters)
@@ -275,16 +281,22 @@ namespace CoreScript.Engine.Core
                 if (parameters.ContainsKey("__script_name__"))
                 {
                     var forcedName = parameters["__script_name__"]?.ToString();
-                    if (!string.IsNullOrWhiteSpace(forcedName)) topLevelScriptName = forcedName;
+                    if (!string.IsNullOrWhiteSpace(forcedName))
+                    {
+                        topLevelScriptName = forcedName;
+                    }
                     // Do NOT remove — ScriptApi.Watchdog() needs it at runtime
                 }
 
-                if (richParams.Count > 0) _parameterService.HardenParameters(parameters, richParams);
-                
+                if (richParams.Count > 0)
+                {
+                    _parameterService.HardenParameters(parameters, richParams);
+                }
+
                 ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters, rawParameters));
 
                 var result = _scriptExecutor.ExecuteBinary(assemblyBytes, context);
-                
+
                 // Enrich result
                 result.ScriptName = topLevelScriptName;
                 result.PrintLog = context.PrintLog.ToList();
@@ -294,7 +306,13 @@ namespace CoreScript.Engine.Core
                 if (structuredOutputLogProperty != null)
                 {
                     var log = structuredOutputLogProperty.GetValue(context) as System.Collections.IEnumerable;
-                    if (log != null) foreach (var item in log) result.StructuredOutput.Add(item is string s ? s : JsonSerializer.Serialize(item, ExecutionGlobals.SerializerOptions));
+                    if (log != null)
+                    {
+                        foreach (var item in log)
+                        {
+                            result.StructuredOutput.Add(item is string s ? s : JsonSerializer.Serialize(item, ExecutionGlobals.SerializerOptions));
+                        }
+                    }
                 }
 
                 return result;
@@ -330,9 +348,9 @@ namespace CoreScript.Engine.Core
 
             // Rewrite with empty parameters for build-time (parameters injected at runtime)
             string modifiedUserCode = _scriptRewriter.Rewrite(combinedCode, new Dictionary<string, object>());
-            
-            string finalScriptCode = "#line hidden" + Environment.NewLine + 
-                                  "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
+
+            string finalScriptCode = "#line hidden" + Environment.NewLine +
+                                  "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
                                   modifiedUserCode;
 
             try
@@ -356,5 +374,16 @@ namespace CoreScript.Engine.Core
         }
     }
 
-    internal class RunnerLogger : ILogger { public void Log(string m, LogLevel l) => FileLogger.Log(m, l); public void LogError(string m) => FileLogger.LogError(m); }
+    internal class RunnerLogger : ILogger
+    {
+        public void Log(string m, LogLevel l)
+        {
+            FileLogger.Log(m, l);
+        }
+
+        public void LogError(string m)
+        {
+            FileLogger.LogError(m);
+        }
+    }
 }

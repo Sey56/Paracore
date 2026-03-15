@@ -81,15 +81,18 @@ namespace CoreScript.Engine.Globals
                     {
                         // Group elements by category
                         var elementsByCategory = new Dictionary<string, List<long>>();
-                        
+
                         // Use a HashSet to avoid duplicates if an element was both added and modified
                         var uniqueIds = new HashSet<ElementId>(changedElementIds);
 
                         foreach (var id in uniqueIds)
                         {
-                            if (id == ElementId.InvalidElementId) continue;
+                            if (id == ElementId.InvalidElementId)
+                            {
+                                continue;
+                            }
 
-                            try 
+                            try
                             {
                                 var element = doc.GetElement(id);
                                 if (element != null && element.Category != null)
@@ -103,9 +106,9 @@ namespace CoreScript.Engine.Globals
                                 }
                                 else if (element != null)
                                 {
-                                     // Handle elements without category if needed, or skip
-                                     string categoryName = "Unknown";
-                                     if (!elementsByCategory.ContainsKey(categoryName))
+                                    // Handle elements without category if needed, or skip
+                                    string categoryName = "Unknown";
+                                    if (!elementsByCategory.ContainsKey(categoryName))
                                     {
                                         elementsByCategory[categoryName] = new List<long>();
                                     }
@@ -132,16 +135,16 @@ namespace CoreScript.Engine.Globals
                             payloads.Add(payload);
                         }
                     }
-                    
+
                     if (deletedElementIds.Any())
                     {
-                         // Handle deletions
-                         var uniqueDeletedIds = new HashSet<long>(deletedElementIds.Select(id => id.Value));
-                         var idsCsv = string.Join(",", uniqueDeletedIds);
-                         
-                         // We send operation: "remove" and "element_ids": [...]
-                         string payload = $"{{ \"paracore_output_type\": \"working_set_elements\", \"operation\": \"remove\", \"element_ids\": [{idsCsv}] }}";
-                         payloads.Add(payload);
+                        // Handle deletions
+                        var uniqueDeletedIds = new HashSet<long>(deletedElementIds.Select(id => id.Value));
+                        var idsCsv = string.Join(",", uniqueDeletedIds);
+
+                        // We send operation: "remove" and "element_ids": [...]
+                        string payload = $"{{ \"paracore_output_type\": \"working_set_elements\", \"operation\": \"remove\", \"element_ids\": [{idsCsv}] }}";
+                        payloads.Add(payload);
                     }
 
                     if (payloads.Any())

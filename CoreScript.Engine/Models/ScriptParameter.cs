@@ -29,7 +29,7 @@ namespace CoreScript.Engine.Models
 
         [JsonPropertyName("value")]
         public JsonElement Value { get; set; }
-        
+
         [JsonPropertyName("numericType")]
         public string? NumericType { get; set; }
 
@@ -41,7 +41,7 @@ namespace CoreScript.Engine.Models
 
         [JsonPropertyName("step")]
         public double? Step { get; set; }
-        
+
         [JsonPropertyName("isRevitElement")]
         public bool IsRevitElement { get; set; } = false;
 

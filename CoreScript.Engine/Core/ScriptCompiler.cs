@@ -19,15 +19,19 @@ namespace CoreScript.Engine.Core
         {
             var options = GetScriptOptions(scriptName);
             // Inject ScriptApi parity and resolve Parameter ambiguity
-            string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
-                              "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine + 
+            string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
+                              "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine +
                               code;
             return CSharpScript.Create(fullCode, options);
         }
 
         public string GetCodeHash(string code)
         {
-            if (string.IsNullOrEmpty(code)) return string.Empty;
+            if (string.IsNullOrEmpty(code))
+            {
+                return string.Empty;
+            }
+
             using (var sha = SHA256.Create())
             {
                 var bytes = Encoding.UTF8.GetBytes(code);
@@ -61,8 +65,8 @@ namespace CoreScript.Engine.Core
             var revitDllPaths = Directory.GetFiles(revitInstallPath, "RevitAPI*.dll");
             var revitRefs = revitDllPaths.Where(IsManagedAssembly).Select(path => MetadataReference.CreateFromFile(path)).ToList();
 
-            var coreTypes = new[] { 
-                typeof(object), typeof(Enumerable), typeof(Assembly), typeof(List<>), 
+            var coreTypes = new[] {
+                typeof(object), typeof(Enumerable), typeof(Assembly), typeof(List<>),
                 typeof(Math), typeof(ScriptCompiler), typeof(JsonSerializer),
                 typeof(Microsoft.CSharp.RuntimeBinder.Binder),
                 typeof(System.Runtime.CompilerServices.DynamicAttribute),
@@ -76,24 +80,27 @@ namespace CoreScript.Engine.Core
             foreach (var dllName in extraDlls)
             {
                 string dllPath = Path.Combine(engineDir, dllName);
-                if (File.Exists(dllPath)) coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
+                if (File.Exists(dllPath))
+                {
+                    coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
+                }
             }
 
             return ScriptOptions.Default
                 .WithReferences(coreRefs.Concat(revitRefs))
                 .WithImports(
-                    "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", 
+                    "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json",
                     "Microsoft.CSharp",
-                    "Autodesk.Revit.DB", 
-                    "Autodesk.Revit.DB.Architecture", 
-                    "Autodesk.Revit.DB.Structure", 
+                    "Autodesk.Revit.DB",
+                    "Autodesk.Revit.DB.Architecture",
+                    "Autodesk.Revit.DB.Structure",
                     "Autodesk.Revit.DB.Mechanical",
                     "Autodesk.Revit.DB.Plumbing",
                     "Autodesk.Revit.DB.Electrical",
-                    "Autodesk.Revit.UI", 
+                    "Autodesk.Revit.UI",
                     "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime",
                     "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
-                    "MiniExcelLibs", 
+                    "MiniExcelLibs",
                     "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
                 )
                 .WithFilePath(scriptName);

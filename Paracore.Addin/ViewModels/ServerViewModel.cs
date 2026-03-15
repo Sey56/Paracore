@@ -128,7 +128,7 @@ namespace Paracore.Addin.ViewModels
                 }
                 FileLogger.Log($"[ServerViewModel] TotalExecutions: {TotalExecutions}, LastExecutionStatus: {LastExecutionStatus}");
 
-                
+
             };
         }
 

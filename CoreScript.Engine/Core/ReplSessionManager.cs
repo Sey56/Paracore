@@ -41,8 +41,8 @@ namespace CoreScript.Engine.Core
                 var revitDllPaths = Directory.GetFiles(revitInstallPath, "RevitAPI*.dll");
                 var revitRefs = revitDllPaths.Where(IsManagedAssembly).Select(path => MetadataReference.CreateFromFile(path)).ToList();
 
-                var coreTypes = new[] { 
-                    typeof(object), typeof(Enumerable), typeof(Assembly), typeof(List<>), 
+                var coreTypes = new[] {
+                    typeof(object), typeof(Enumerable), typeof(Assembly), typeof(List<>),
                     typeof(Math), typeof(ReplSessionManager), typeof(JsonSerializer),
                     typeof(Microsoft.CSharp.RuntimeBinder.Binder),
                     typeof(System.Runtime.CompilerServices.DynamicAttribute),
@@ -56,36 +56,46 @@ namespace CoreScript.Engine.Core
                 foreach (var dllName in extraDlls)
                 {
                     string dllPath = Path.Combine(engineDir, dllName);
-                    if (File.Exists(dllPath)) coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
+                    if (File.Exists(dllPath))
+                    {
+                        coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
+                    }
                 }
 
                 // Prepare script options
                 var options = ScriptOptions.Default
                     .WithReferences(coreRefs.Concat(revitRefs))
                     .WithImports(
-                        "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", 
+                        "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json",
                         "Microsoft.CSharp",
-                        "Autodesk.Revit.DB", 
-                        "Autodesk.Revit.DB.Architecture", 
-                        "Autodesk.Revit.DB.Structure", 
+                        "Autodesk.Revit.DB",
+                        "Autodesk.Revit.DB.Architecture",
+                        "Autodesk.Revit.DB.Structure",
                         "Autodesk.Revit.DB.Mechanical",
                         "Autodesk.Revit.DB.Plumbing",
                         "Autodesk.Revit.DB.Electrical",
-                        "Autodesk.Revit.UI", 
+                        "Autodesk.Revit.UI",
                         "Autodesk.Revit.UI.Selection",
                         "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime",
                         "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
-                        "MiniExcelLibs", 
+                        "MiniExcelLibs",
                         "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
                     );
 
                 // Inject ScriptApi and resolve Parameter ambiguity
-                string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine + 
-                                  "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine + 
+                string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
+                                  "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine +
                                   code;
 
                 if (session == null)
                 {
+                    // Intercept "vars" or "list" commands when no session exists
+                    var lowerCode = code.Trim().ToLowerInvariant();
+                    if (lowerCode == "vars" || lowerCode == "list" || lowerCode == "list vars")
+                    {
+                        return (true, "No active variables. (Session is empty)", string.Empty, new List<string>());
+                    }
+
                     // Start new session
                     var globals = new ExecutionGlobals(context, new Dictionary<string, object>(), new Dictionary<string, object>());
                     ExecutionGlobals.SetContext(globals);
@@ -101,10 +111,67 @@ namespace CoreScript.Engine.Core
                 }
                 else
                 {
+                    // Intercept "vars" or "list" commands for an active session
+                    var lowerCode = code.Trim().ToLowerInvariant();
+
+                    if (lowerCode == "clear vars" || lowerCode == "reset" || lowerCode == "reset vars")
+                    {
+                        ResetSession(sessionId);
+                        return (true, "REPL session reset. All variables cleared.", string.Empty, new List<string>());
+                    }
+
+                    if (lowerCode.StartsWith("inspect "))
+                    {
+                        var varName = code.Trim().Substring(8).Trim();
+                        var vars = session.State.Variables;
+                        var targetVar = vars.LastOrDefault(v => v.Name == varName);
+                        if (targetVar == null)
+                        {
+                            return (false, string.Empty, $"Variable '{varName}' not found in active session.", new List<string>());
+                        }
+
+                        try
+                        {
+                            var json = JsonSerializer.Serialize(targetVar.Value, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = ExecutionGlobals.SerializerOptions.PropertyNamingPolicy, Converters = { new RevitElementConverterFactory(), new ElementIdConverter(), new DocumentConverter(), new XYZConverter(), new ParameterConverter() } });
+                            return (true, json, string.Empty, new List<string>());
+                        }
+                        catch (Exception ex)
+                        {
+                            return (false, string.Empty, $"Failed to inspect '{varName}': {ex.Message}", new List<string>());
+                        }
+                    }
+
+                    if (lowerCode == "vars" || lowerCode == "list" || lowerCode == "list vars")
+                    {
+                        var vars = session.State.Variables;
+                        if (!vars.Any())
+                        {
+                            return (true, "No active variables found in this session.", string.Empty, new List<string>());
+                        }
+
+                        // Roslyn ScriptState keeps shadowed variables (var x = 5; var x = 12 creates two 'x' vars).
+                        // We GroupBy name and take the Last() to only show the most recently defined value for each variable name.
+                        var uniqueVars = vars.GroupBy(v => v.Name).Select(g => g.Last()).ToList();
+
+                        var sb = new System.Text.StringBuilder();
+                        sb.AppendLine("=== Active REPL Variables ===");
+                        foreach (var v in uniqueVars)
+                        {
+                            string typeName = v.Type.Name;
+                            string valStr = v.Value?.ToString() ?? "null";
+
+                            // Truncate extremely long string values to avoid blowing up the console
+                            if (valStr.Length > 200) valStr = valStr.Substring(0, 200) + "... [truncated]";
+
+                            sb.AppendLine($"[{typeName}] {v.Name} = {valStr}");
+                        }
+                        return (true, sb.ToString().TrimEnd(), string.Empty, new List<string>());
+                    }
+
                     // Continue existing session
                     session.Globals.UpdateContext(context);
                     ExecutionGlobals.SetContext(session.Globals);
-                    
+
                     try
                     {
                         session.State = await session.State.ContinueWithAsync(fullCode, options);

@@ -132,10 +132,14 @@ namespace CoreScript.Engine.Globals
                 foreach (var key in keysToRemove)
                 {
                     _callbacks.Remove(key);
-                    if (_failedRegistrations.ContainsKey(key)) _failedRegistrations.Remove(key);
+                    if (_failedRegistrations.ContainsKey(key))
+                    {
+                        _failedRegistrations.Remove(key);
+                    }
+
                     count++;
                 }
-                
+
                 // Also remove failed keys directly if they weren't in callbacks but match prefix
                 var failedKeysToRemove = new List<string>();
                 foreach (var key in _failedRegistrations.Keys)
@@ -145,10 +149,14 @@ namespace CoreScript.Engine.Globals
                         failedKeysToRemove.Add(key);
                     }
                 }
-                foreach(var key in failedKeysToRemove)
+                foreach (var key in failedKeysToRemove)
                 {
-                     if (!_callbacks.ContainsKey(key)) count++; // Count unique removals
-                     _failedRegistrations.Remove(key);
+                    if (!_callbacks.ContainsKey(key))
+                    {
+                        count++; // Count unique removals
+                    }
+
+                    _failedRegistrations.Remove(key);
                 }
             }
             if (count > 0)

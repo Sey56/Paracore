@@ -18,7 +18,11 @@ namespace CoreScript.Engine.Core
 
         public object ResolveXYZ(string xyzString)
         {
-            if (string.IsNullOrEmpty(xyzString)) return null;
+            if (string.IsNullOrEmpty(xyzString))
+            {
+                return null;
+            }
+
             try
             {
                 var parts = xyzString.Split(',');
@@ -39,20 +43,29 @@ namespace CoreScript.Engine.Core
 
         public object ResolveReference(string refString, Type targetType)
         {
-            if (string.IsNullOrEmpty(refString)) return null;
+            if (string.IsNullOrEmpty(refString))
+            {
+                return null;
+            }
+
             try
             {
                 var refObj = Reference.ParseFromStableRepresentation(_doc, refString);
                 if (refObj != null)
                 {
-                    if (targetType == typeof(Reference)) return refObj;
+                    if (targetType == typeof(Reference))
+                    {
+                        return refObj;
+                    }
 
                     if (typeof(GeometryObject).IsAssignableFrom(targetType))
                     {
                         var el = _doc.GetElement(refObj);
                         var geom = el?.GetGeometryObjectFromReference(refObj);
                         if (geom != null && targetType.IsAssignableFrom(geom.GetType()))
+                        {
                             return geom;
+                        }
                     }
                 }
             }
@@ -65,27 +78,43 @@ namespace CoreScript.Engine.Core
 
         public object ResolveElement(object val, Type targetType, IEnumerable<object>? candidatePool = null)
         {
-            if (_doc == null || val == null) return null;
+            if (_doc == null || val == null)
+            {
+                return null;
+            }
 
             if (val is Reference reference)
             {
                 var el = _doc.GetElement(reference);
-                if (el != null && targetType.IsAssignableFrom(el.GetType())) return el;
+                if (el != null && targetType.IsAssignableFrom(el.GetType()))
+                {
+                    return el;
+                }
             }
 
             string identifier = val.ToString();
-            if (string.IsNullOrEmpty(identifier)) return null;
+            if (string.IsNullOrEmpty(identifier))
+            {
+                return null;
+            }
 
             // --- TIER 1: CANDIDATE POOL RESOLUTION (MAGIC HYDRATION) ---
             if (candidatePool != null)
             {
                 foreach (var item in candidatePool)
                 {
-                    if (item == null) continue;
+                    if (item == null)
+                    {
+                        continue;
+                    }
+
                     if (item is Element el)
                     {
-                        if (!targetType.IsAssignableFrom(el.GetType())) continue;
-                        
+                        if (!targetType.IsAssignableFrom(el.GetType()))
+                        {
+                            continue;
+                        }
+
                         // Match by ID, UniqueID, or Identity
                         if (el.UniqueId == identifier || el.Id.Value.ToString() == identifier || el.Name == identifier || ParameterOptionsComputer.GetElementIdentity(el) == identifier)
                         {
@@ -102,26 +131,36 @@ namespace CoreScript.Engine.Core
             }
 
             // --- TIER 2: GLOBAL DISCOVERY (FALLBACK) ---
-            
+
             // 1. UniqueId
-            try {
+            try
+            {
                 var el = _doc.GetElement(identifier);
-                if (el != null && targetType.IsAssignableFrom(el.GetType())) return el;
-            } catch {}
+                if (el != null && targetType.IsAssignableFrom(el.GetType()))
+                {
+                    return el;
+                }
+            }
+            catch { }
 
             // 2. ElementId
             if (long.TryParse(identifier, out long idLong))
             {
-                try {
+                try
+                {
                     var elId = _doc.GetElement(new ElementId(idLong));
-                    if (elId != null && targetType.IsAssignableFrom(elId.GetType())) return elId;
-                } catch {}
+                    if (elId != null && targetType.IsAssignableFrom(elId.GetType()))
+                    {
+                        return elId;
+                    }
+                }
+                catch { }
             }
 
             // 3. Identity (Name or custom identity)
             if (targetType.IsClass)
             {
-                try 
+                try
                 {
                     IEnumerable<Element> candidates;
 
@@ -140,7 +179,7 @@ namespace CoreScript.Engine.Core
                             candidates = new FilteredElementCollector(_doc).OfClass(targetType).WhereElementIsElementType().Cast<Element>();
                         }
                     }
-                    
+
                     foreach (var e in candidates)
                     {
                         string elementIdentity = ParameterOptionsComputer.GetElementIdentity(e);

@@ -32,7 +32,11 @@ namespace CoreScript.Engine.Logging
             try
             {
                 var dir = Path.GetDirectoryName(logFile);
-                if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                if (dir != null && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
                 File.AppendAllText(logFile, $"[{DateTime.Now}] [{level.ToString().ToUpper()}] {message}{Environment.NewLine}");
             }
             catch (Exception ex)

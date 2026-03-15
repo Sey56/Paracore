@@ -86,7 +86,7 @@ export const TeamSourceManager: React.FC<TeamSourceManagerProps> = ({
                         if (localPath) setActiveScriptSource({ type: 'team', id: String(source.id), path: localPath });
                         setTeamDropdownOpen(false);
                       }}
-                      className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-600 dark:hover:text-blue-300 cursor-pointer transition-colors flex items-center justify-between"
+                      className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-white/5 hover:text-blue-600 dark:hover:text-blue-300 cursor-pointer transition-colors flex items-center justify-between"
                     >
                       <span>{source.name}</span>
                       {source.isOrphaned && <span className="text-[10px]">⚠️</span>}

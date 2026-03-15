@@ -135,7 +135,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
       setLocalHistory(prev => [...prev, { type: 'error' as const, text: `Error: ${err.message}`, timestamp: new Date(), isRepl: true }].slice(-100));
     } finally {
       setIsReplLoading(false);
-      setTimeout(() => { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); }, 0);
+      setTimeout(() => { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); }, 50);
     }
   };
 

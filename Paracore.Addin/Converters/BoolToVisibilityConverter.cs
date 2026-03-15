@@ -11,11 +11,9 @@ namespace Paracore.Addin.Converters
         {
             if (value is bool boolValue)
             {
-                if (parameter != null && parameter.ToString().Equals("Inverse", StringComparison.OrdinalIgnoreCase))
-                {
-                    return boolValue ? Visibility.Collapsed : Visibility.Visible;
-                }
-                return boolValue ? Visibility.Visible : Visibility.Collapsed;
+                return parameter != null && parameter.ToString().Equals("Inverse", StringComparison.OrdinalIgnoreCase)
+                    ? boolValue ? Visibility.Collapsed : Visibility.Visible
+                    : boolValue ? Visibility.Visible : Visibility.Collapsed;
             }
             return Visibility.Collapsed;
         }
@@ -24,11 +22,9 @@ namespace Paracore.Addin.Converters
         {
             if (value is Visibility visibility)
             {
-                if (parameter != null && parameter.ToString().Equals("Inverse", StringComparison.OrdinalIgnoreCase))
-                {
-                    return visibility == Visibility.Collapsed;
-                }
-                return visibility == Visibility.Visible;
+                return parameter != null && parameter.ToString().Equals("Inverse", StringComparison.OrdinalIgnoreCase)
+                    ? visibility == Visibility.Collapsed
+                    : visibility == Visibility.Visible;
             }
             return false;
         }

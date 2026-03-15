@@ -52,9 +52,9 @@ namespace Paracore.Addin.Handlers
 
                 string parentDir = Path.GetDirectoryName(oldPath) ?? "";
                 string extension = Path.GetExtension(oldPath);
-                
+
                 // Construct new path preserving extension if it's a file
-                string newPath = isDirectory 
+                string newPath = isDirectory
                     ? Path.Combine(parentDir, newName)
                     : Path.Combine(parentDir, newName + extension);
 
@@ -83,7 +83,7 @@ namespace Paracore.Addin.Handlers
                             string fileName = Path.GetFileName(file);
                             string ext = Path.GetExtension(file).ToLower();
 
-                            if ((ext == ".csproj" || ext == ".sln") && 
+                            if ((ext == ".csproj" || ext == ".sln") &&
                                 Path.GetFileNameWithoutExtension(fileName).Equals(oldNameOnly, StringComparison.OrdinalIgnoreCase))
                             {
                                 string newFileName = Path.Combine(newProjectDir, newName + ext);
@@ -100,10 +100,10 @@ namespace Paracore.Addin.Handlers
                                             string slnContent = File.ReadAllText(newFileName);
                                             string oldProjectRef = $"\"{oldNameOnly}.csproj\"";
                                             string newProjectRef = $"\"{newName}.csproj\"";
-                                            
+
                                             // Simple case-insensitive replacement for the project reference
                                             string updatedContent = slnContent.Replace(oldProjectRef, newProjectRef);
-                                            
+
                                             // Also replace the project name label in the solution
                                             string oldProjectLabel = $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"{oldNameOnly}\"";
                                             string newProjectLabel = $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"{newName}\"";
@@ -145,7 +145,7 @@ namespace Paracore.Addin.Handlers
                                             string content = File.ReadAllText(newCsFile);
                                             string pattern = $@"DisplayName\s*:\s*{System.Text.RegularExpressions.Regex.Escape(oldNameOnly)}";
                                             string replacement = $"DisplayName: {newName}";
-                                            
+
                                             if (System.Text.RegularExpressions.Regex.IsMatch(content, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                                             {
                                                 string updatedContent = System.Text.RegularExpressions.Regex.Replace(content, pattern, replacement, System.Text.RegularExpressions.RegexOptions.IgnoreCase);

@@ -24,8 +24,7 @@ namespace CoreScript.Engine.Globals
     {
         public override ElementId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            if (reader.TokenType == JsonTokenType.Number) return new ElementId(reader.GetInt64());
-            return ElementId.InvalidElementId;
+            return reader.TokenType == JsonTokenType.Number ? new ElementId(reader.GetInt64()) : ElementId.InvalidElementId;
         }
 
         public override void Write(Utf8JsonWriter writer, ElementId value, JsonSerializerOptions options)
@@ -40,7 +39,10 @@ namespace CoreScript.Engine.Globals
     /// </summary>
     public class RevitElementConverterFactory : JsonConverterFactory
     {
-        public override bool CanConvert(Type typeToConvert) => typeof(Element).IsAssignableFrom(typeToConvert);
+        public override bool CanConvert(Type typeToConvert)
+        {
+            return typeof(Element).IsAssignableFrom(typeToConvert);
+        }
 
         public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
         {
@@ -49,7 +51,10 @@ namespace CoreScript.Engine.Globals
 
         private class ElementConverter : JsonConverter<Element>
         {
-            public override Element Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+            public override Element Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                throw new NotImplementedException();
+            }
 
             public override void Write(Utf8JsonWriter writer, Element value, JsonSerializerOptions options)
             {
@@ -68,7 +73,7 @@ namespace CoreScript.Engine.Globals
                 catch { }
 
                 // Explicitly NOT serializing Document or WorksetId to avoid "workset-enabled" errors
-                
+
                 writer.WriteEndObject();
             }
         }
@@ -79,7 +84,10 @@ namespace CoreScript.Engine.Globals
     /// </summary>
     public class DocumentConverter : JsonConverter<Document>
     {
-        public override Document Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+        public override Document Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
 
         public override void Write(Utf8JsonWriter writer, Document value, JsonSerializerOptions options)
         {
@@ -96,7 +104,10 @@ namespace CoreScript.Engine.Globals
     /// </summary>
     public class XYZConverter : JsonConverter<XYZ>
     {
-        public override XYZ Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+        public override XYZ Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
 
         public override void Write(Utf8JsonWriter writer, XYZ value, JsonSerializerOptions options)
         {
@@ -114,21 +125,24 @@ namespace CoreScript.Engine.Globals
     /// </summary>
     public class ParameterConverter : JsonConverter<Parameter>
     {
-        public override Parameter Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+        public override Parameter Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
 
         public override void Write(Utf8JsonWriter writer, Parameter value, JsonSerializerOptions options)
         {
             if (value == null) { writer.WriteNullValue(); return; }
             writer.WriteStartObject();
             writer.WriteString("Name", value.Definition.Name);
-            
+
             // Write formatted value for display
             writer.WriteString("Value", value.AsValueString() ?? "-");
 
             // Meta
             writer.WriteNumber("Id", (value.Definition as InternalDefinition)?.Id.Value ?? -1);
             writer.WriteBoolean("IsReadOnly", value.IsReadOnly);
-            
+
             // Enums naturally serialize to strings now thanks to JsonStringEnumConverter
             writer.WritePropertyName("StorageType");
             JsonSerializer.Serialize(writer, value.StorageType, options);
@@ -148,14 +162,81 @@ namespace CoreScript.Engine.Globals
 
         public void Show(string type, object data)
         {
-            var json = JsonSerializer.Serialize(data, ExecutionGlobals.SerializerOptions);
+            var toSerialize = MaterializeForSerialization(data);
+            var json = JsonSerializer.Serialize(toSerialize, ExecutionGlobals.SerializerOptions);
             _context.AddStructuredOutput(type, json);
         }
 
-        public void ChartBar(object data) => Show("chart-bar", data);
-        public void ChartPie(object data) => Show("chart-pie", data);
-        public void Table(object data) => Show("table", data);
-        public void ChartLine(object data) => Show("chart-line", data);
+        /// <summary>
+        /// Materializes lazy IEnumerables and converts anonymous types (from Roslyn scripting)
+        /// to dictionaries so System.Text.Json can serialize them reliably.
+        /// Without this, lazy projections like .Select(x => new { ... }) from the REPL
+        /// fail to serialize because the anonymous type is internal to a dynamic assembly.
+        /// </summary>
+        private static object MaterializeForSerialization(object data)
+        {
+            if (data == null || data is string || data is byte[])
+            {
+                return data;
+            }
+
+            if (data is System.Collections.IEnumerable enumerable)
+            {
+                var list = new List<object>();
+                bool hasAnonymous = false;
+
+                foreach (var item in enumerable)
+                {
+                    if (item == null) { list.Add(null); continue; }
+
+                    var itemType = item.GetType();
+                    bool isAnonymous = itemType.Name.StartsWith("<>") &&
+                                       itemType.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false);
+
+                    if (isAnonymous)
+                    {
+                        hasAnonymous = true;
+                        var dict = new Dictionary<string, object>();
+                        foreach (var prop in itemType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                        {
+                            dict[prop.Name] = prop.GetValue(item);
+                        }
+                        list.Add(dict);
+                    }
+                    else
+                    {
+                        list.Add(item);
+                    }
+                }
+
+                if (hasAnonymous)
+                {
+                    return list;
+                }
+            }
+
+            return data;
+        }
+
+        public void ChartBar(object data)
+        {
+            Show("chart-bar", data);
+        }
+
+        public void ChartPie(object data)
+        {
+            Show("chart-pie", data);
+        }
+
+        public void Table(object data)
+        {
+            Show("table", data);
+        }
+
+        public void ChartLine(object data)
+        {
+            Show("chart-line", data);
+        }
     }
 
     public class ExecutionGlobals
@@ -166,11 +247,11 @@ namespace CoreScript.Engine.Globals
         {
             WriteIndented = true,
             ReferenceHandler = ReferenceHandler.IgnoreCycles,
-            Converters = { 
-                new ElementIdConverter(), 
+            Converters = {
+                new ElementIdConverter(),
                 new RevitElementConverterFactory(),
                 new DocumentConverter(),
-                new XYZConverter(), 
+                new XYZConverter(),
                 new ParameterConverter(),
                 new JsonStringEnumConverter()
             }
@@ -242,7 +323,10 @@ namespace CoreScript.Engine.Globals
             }
 
             IEnumerable<object>? pool = null;
-            if (Current.Value.ResolutionPools.TryGetValue(key, out var foundPool)) pool = foundPool;
+            if (Current.Value.ResolutionPools.TryGetValue(key, out var foundPool))
+            {
+                pool = foundPool;
+            }
 
             return Current.Value.Hydrator.Hydrate<T>(key, val, pool);
         }
@@ -251,26 +335,87 @@ namespace CoreScript.Engine.Globals
         public UIDocument? UIDoc => _context.UIDoc;
         public Document? Doc => _context.Doc;
 
-        public void Println(string message) => _context.Println(message);
-        public void Println(object message) => _context.Println(message?.ToString() ?? "");
-        public void Print(string message) => _context.Print(message);
-        public void Print(object message) => _context.Print(message?.ToString() ?? "");
-        public void LogError(string message) => _context.LogError(message);
-        public void SetInternalData(string data) => _context.SetInternalData(data);
+        public void Println(string message)
+        {
+            _context.Println(message);
+        }
+
+        public void Println(object message)
+        {
+            _context.Println(message?.ToString() ?? "");
+        }
+
+        public void Print(string message)
+        {
+            _context.Print(message);
+        }
+
+        public void Print(object message)
+        {
+            _context.Print(message?.ToString() ?? "");
+        }
+
+        public void LogError(string message)
+        {
+            _context.LogError(message);
+        }
+
+        public void SetInternalData(string data)
+        {
+            _context.SetInternalData(data);
+        }
 
         // Visualization Globals
-        public void Table(object data) => Output.Table(data);
-        public void BarChart(object data) => Output.ChartBar(data);
-        public void PieChart(object data) => Output.ChartPie(data);
-        public void LineChart(object data) => Output.ChartLine(data);
+        public void Table(object data)
+        {
+            Output.Table(data);
+        }
+
+        public void BarChart(object data)
+        {
+            Output.ChartBar(data);
+        }
+
+        public void PieChart(object data)
+        {
+            Output.ChartPie(data);
+        }
+
+        public void LineChart(object data)
+        {
+            Output.ChartLine(data);
+        }
 
         // Unit Conversion Globals (Command Style)
-        public double InputUnit(double value, string unit) => value.InputUnit(unit);
-        public double OutputUnit(double value, string unit, int decimals = 2) => value.OutputUnit(unit, decimals);
-        public double InputUnit(int value, string unit) => ((double)value).InputUnit(unit);
-        public double OutputUnit(int value, string unit, int decimals = 2) => ((double)value).OutputUnit(unit, decimals);
-        public double InputUnit(decimal value, string unit) => ((double)value).InputUnit(unit);
-        public double OutputUnit(decimal value, string unit, int decimals = 2) => ((double)value).OutputUnit(unit, decimals);
+        public double InputUnit(double value, string unit)
+        {
+            return value.InputUnit(unit);
+        }
+
+        public double OutputUnit(double value, string unit, int decimals = 2)
+        {
+            return value.OutputUnit(unit, decimals);
+        }
+
+        public double InputUnit(int value, string unit)
+        {
+            return ((double)value).InputUnit(unit);
+        }
+
+        public double OutputUnit(int value, string unit, int decimals = 2)
+        {
+            return ((double)value).OutputUnit(unit, decimals);
+        }
+
+        public double InputUnit(decimal value, string unit)
+        {
+            return ((double)value).InputUnit(unit);
+        }
+
+        public double OutputUnit(decimal value, string unit, int decimals = 2)
+        {
+            return ((double)value).OutputUnit(unit, decimals);
+        }
 
         public void Transact(string name, Action<Document> action)
         {
@@ -281,7 +426,9 @@ namespace CoreScript.Engine.Globals
             }
 
             if (Doc != null)
+            {
                 Tx.Transact(Doc, name, action);
+            }
         }
 
         public void Transact(string name, Action action)
@@ -293,7 +440,9 @@ namespace CoreScript.Engine.Globals
             }
 
             if (Doc != null)
+            {
                 Tx.Transact(Doc, name, action);
+            }
         }
     }
 }

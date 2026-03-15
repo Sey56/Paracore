@@ -20,6 +20,9 @@ namespace Paracore.Addin.Commands
             _viewModel.ExecuteCodeInRevit(null);
         }
 
-        public string GetName() => "CoreScript Code Executor";
+        public string GetName()
+        {
+            return "CoreScript Code Executor";
+        }
     }
 }

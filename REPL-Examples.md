@@ -1,61 +1,69 @@
 # 🧪 Paracore REPL Example Library
 
-This file contains a collection of curated C# snippets designed for the Paracore REPL. You can copy and paste these directly into the **Workshop** tab to automate your Revit workflows in real-time.
+Copy and paste these directly into the **Workshop** tab to automate your Revit workflows in real-time.
 
 ---
 
 ## 📊 Data Visualization & Dashboarding
-*Instantly render interactive charts in the **Summary** tab.*
+*Render interactive charts in the **Summary** tab.*
 
-### 1. Elements by Level (Bar Chart)
-Visualize the distribution of walls across project levels.
+### 1. Walls by Level (Bar Chart)
 ```csharp
 var data = GetElements<Wall>()
-    .GroupBy(w => w.GetVal("Base Constraint") ?? "No Level")
+    .GroupBy(w => w.GetStr("Base Constraint"))
     .Select(g => new { name = g.Key, value = g.Count() });
 BarChart(data);
 ```
 
 ### 2. Room Function Distribution (Pie Chart)
-See which room types occupy the most project area.
 ```csharp
-var rooms = GetElements<Room>().Where(r => r.Area > 0);
-var areaStats = rooms.GroupBy(r => r.Name)
-    .Select(g => new { name = g.Key, value = g.Sum(r => r.Area.Output("m2")) });
-PieChart(areaStats);
+var rooms = GetElements<Room>().Where(r => r.GetNum("Area") > 0);
+var stats = rooms.GroupBy(r => r.Name)
+    .Select(g => new { name = g.Key, value = g.Sum(r => r.GetNum("Area", "m2")) });
+PieChart(stats);
 ```
 
-### 3. Wall Width Profile (Line Chart)
-Analyze variation in wall thicknesses across the project.
+### 3. Wall Length Profile (Line Chart)
 ```csharp
-var widths = GetElements<Wall>()
-    .Select(w => new { name = w.Name, value = w.Width.Output("mm") })
+var lengths = GetElements<Wall>()
+    .Select(w => new { name = w.Name, value = w.GetNum("Length", "mm") })
     .OrderBy(x => x.value);
-LineChart(widths);
+LineChart(lengths);
 ```
 
 ---
 
 ## 🔍 Auditing & Quality Control
-*Identify project errors and ghost elements.*
 
 ### 4. Find Unplaced "Ghost" Rooms
-List all rooms that exist in the schedule but haven't been placed in the model.
 ```csharp
 var unplaced = GetElements<Room>().Where(r => r.Location == null);
 Println($"Found {unplaced.Count()} unplaced rooms.");
 Table(unplaced);
 ```
 
-### 5. Selection Audit (Magic Tooltips)
-Quickly calculate the total area or length of what you have currently selected in Revit.
+### 5. Selection Area Audit
+Calculate the total area of your current selection.
 ```csharp
-var totalM2 = Selection.OfType<Wall>().Sum(w => w.Area.Output("m2"));
-Println($">>> Total Selection Area: {totalM2:F2} m2");
+var totalM2 = Selection.Sum(e => e.GetNum("Area", "m2"));
+Println($">>> Total Selection Area: {totalM2:F2} m²");
 ```
 
-### 6. Search for Nested Families
-Find all instances of a specific family type across the entire project.
+### 6. Find Short Walls
+Lazy `.Select()` projections pass directly to `Table()` — no `.ToList()` needed:
+```csharp
+var shortWalls = GetElements<Wall>().Where(w => w.GetNum("Length", "mm") < 2000);
+Println($"Found {shortWalls.Count()} walls shorter than 2m.");
+Table(shortWalls.Select(w => new {
+    w.Id,
+    w.Name,
+    Length_mm = w.GetNum("Length", "mm"),
+    Level = w.GetStr("Base Constraint")
+}));
+```
+
+### 7. Search for Magic Names
+Discover all available category & family names that contain a keyword.
 ```csharp
 var results = GetMagicNames().Where(n => n.Contains("Structure"));
 Table(results);
@@ -63,29 +71,30 @@ Table(results);
 
 ---
 
-## 🪄 Magic "Round-Trip" Editing
-*Use **Magic Suffixes** to create editable tables with automatic unit conversion.*
+## 🪄 Unit-Aware "Round-Trip" Editing Tables
+*Use **Magic Header Suffixes** to create editable tables with automatic unit conversion.*
 
-### 7. Editable Room Inventory
+### 8. Editable Room Inventory
 Edit names, numbers, and finishes directly in the grid.
 ```csharp
 Table(GetElements<Room>().Select(r => new {
     r.Id,
     r.Name,
     r.Number,
-    Level = r.Level.Name,
-    Base_Finish = r.GetStr("Base Finish"), // Custom parameter
-    Area_m2 = r.Area.Output("m2")       // Editable in Square Meters!
+    Level = r.GetStr("Level"),
+    Base_Finish = r.GetStr("Base Finish"),
+    Area_m2 = r.GetNum("Area", "m2")
 }));
 ```
 
-### 8. Wall Instance Parameter Manager
-Mass-edit comments or structural roles.
+### 9. Wall Instance Parameter Manager
+Mass-edit comments or review thicknesses.
 ```csharp
 Table(GetElements<Wall>().Select(w => new {
     w.Id,
     w.Name,
-    Width_mm = w.Width.Output("mm"),
+    Width_mm = w.GetNum("Width", "mm"),
+    Length_mm = w.GetNum("Length", "mm"),
     Comments = w.GetStr("Comments")
 }));
 ```
@@ -93,31 +102,38 @@ Table(GetElements<Wall>().Select(w => new {
 ---
 
 ## 🛠️ Batch Operations (Transactions)
-*Modify hundreds of elements safely using the `Transact` block.*
 
-### 9. Uppercase Sheet Names
-Ensure project-wide naming standards for all sheets.
+### 10. Uppercase Sheet Names
 ```csharp
 Transact("Standardize Sheets", () => {
     foreach(var s in GetElements<ViewSheet>()) s.Name = s.Name.ToUpper();
 });
 ```
 
-### 10. Nudge Selection (Unit-Aware)
+### 11. Nudge Selection (Unit-Aware)
 Move selected elements precisely using unit strings.
 ```csharp
 Transact("Nudge Up", () => {
-    var offset = new XYZ(0, 0, Input(500, "mm"));
+    var offset = new XYZ(0, 0, 500.InputUnit("mm"));
     foreach(var e in Selection) ElementTransformUtils.MoveElement(Doc, e.Id, offset);
 });
 ```
 
-### 11. Rename Room by Level
-Prefix all room names with their level number.
+### 12. Rename Rooms by Level
+Prefix all room names with their level name.
 ```csharp
 Transact("Smart Room Renaming", () => {
     foreach(var r in GetElements<Room>()) {
-        r.Name = $"{r.Level.Name} - {r.Name}";
+        r.Name = $"{r.GetStr("Level")} - {r.Name}";
+    }
+});
+```
+
+### 13. Set Comments on All Doors
+```csharp
+Transact("Tag Doors", () => {
+    foreach (var d in GetElements("Doors")) {
+        d.LookupParameter("Comments")?.Set("Audit Verified");
     }
 });
 ```
@@ -125,65 +141,114 @@ Transact("Smart Room Renaming", () => {
 ---
 
 ## 🔬 Background BIM Watchdogs
-*Register tasks that run silently while you work.*
 
-### 12. Total Area Monitor
-Watch the total area of your current selection update live in the status feed.
+### 14. Live Area Monitor
+Watch the total area of your selection update in real-time.
 ```csharp
 Watchdog(() => {
     if (Selection.Count > 0) {
-        var total = Selection.OfType<Wall>().Sum(w => w.Area.Output("m2"));
-        if (total > 0) WatchdogReport($"Live Area Calc: {total:F2} m2", "info");
+        var total = Selection.Sum(e => e.GetNum("Area", "m2"));
+        if (total > 0) WatchdogReport($"Live Area: {total:F2} m²", "info");
     }
 }, intervalSeconds: 2);
 ```
 
-### 13. Thin Wall Warning
-Get an alert if you or anyone else creates a wall thinner than 100mm.
+### 15. Short Wall Warning
+Get an alert if any wall is shorter than 1 meter.
 ```csharp
 Watchdog(() => {
-    var thin = GetElements<Wall>().Where(w => w.Width < Input(100, "mm"));
-    if (thin.Any()) {
-        WatchdogReport($"Warning: {thin.Count()} walls are too thin!", "error", thin);
+    var shortWalls = GetElements<Wall>().Where(w => w.GetNum("Length") < 1000.InputUnit("mm"));
+    if (shortWalls.Any()) {
+        WatchdogReport($"Warning: {shortWalls.Count()} walls are too short!", "error", shortWalls);
     }
 }, intervalSeconds: 10);
 ```
 
 ---
 
-## 🪄 Super-Powered Parameter Accessors
-*The REPL now "thinks" like you do. These methods handle IDs, Units, and Fallbacks automatically.*
+## 🪄 Parameter Accessor Patterns
+*The right way to access parameters — these methods handle IDs, units, and fallbacks automatically.*
 
-### 14. Smart Level & Type Auditing
-In the raw Revit API, the "Level" parameter returns an ID. Paracore's `GetStr` automatically resolves this to the **Level Name**.
+### 16. Smart Level & Type Auditing
+In the raw Revit API, the "Level" parameter returns an ElementId. `GetStr` automatically resolves this to the Level Name.
 ```csharp
-/// Smart Room Audit
 Table(GetElements<Room>().Select(rm => new {
     rm.Id,
     rm.Name,
-    Level = rm.GetStr("Level"), // Automatically returns "Level 1" instead of an ID
-    Type = rm.GetStr("Type"),   // Automatically returns "Standard" instead of an ID
-    Area_m2 = rm.Area.Output("m2")
+    Level = rm.GetStr("Level"),       // Returns "Level 1" (not an ID)
+    Type = rm.GetStr("Type"),         // Returns the Type Name
+    Area_m2 = rm.GetNum("Area", "m2")
 }));
 ```
 
-### 15. The "WYSIWYG" (What You See Is What You Get) Table
-Use `GetVal` to pull the exact formatted string you see in the Revit Properties palette, including unit symbols.
+### 17. The WYSIWYG Table
+Use `GetVal` to get the exact formatted string you see in the Revit Properties palette, including unit symbols.
 ```csharp
-/// Precise Wall Audit
 Table(GetElements<Wall>().Select(w => new {
     w.Id,
-    Name = w.Name,
-    Thickness = w.GetVal("Width"), // Returns "200.0 mm" (exactly like the UI)
-    Volume = w.GetVal("Volume")    // Returns "1.25 m³"
+    w.Name,
+    Width = w.GetVal("Width"),     // Returns "200.0 mm" (as in Properties palette)
+    Volume = w.GetVal("Volume"),   // Returns "1.25 m³"
+    Length = w.GetVal("Length")     // Returns "5000 mm"
 }));
+```
+
+### 18. Numeric vs. String Accessors Compared
+```csharp
+var wall = GetElements<Wall>().First();
+
+// GetNum → raw double (internal units: feet)
+Println($"Length (internal): {wall.GetNum("Length")}");
+
+// GetNum with unit → converted double
+Println($"Length (mm): {wall.GetNum("Length", "mm")}");
+
+// GetStr → smart formatted string
+Println($"Base Constraint: {wall.GetStr("Base Constraint")}");
+
+// GetVal → WYSIWYG (as in Revit UI)
+Println($"Length (formatted): {wall.GetVal("Length")}");
+
+// GetInt → integer parameter
+Println($"Structural: {wall.GetInt("Structural")}");
+```
+
+---
+
+## ⚙️ Unit Conversion Patterns
+
+### 19. Filtering with Unit Conversion
+```csharp
+// Find rooms smaller than 10 m²
+var smallRooms = GetElements<Room>().Where(r => r.GetNum("Area") < 10.InputUnit("m2"));
+
+// Find walls shorter than 2 meters
+var shortWalls = GetElements<Wall>().Where(w => w.GetNum("Length") < 2000.InputUnit("mm"));
+```
+
+### 20. Output Formatting
+```csharp
+var wall = GetElements<Wall>().First();
+
+// Convert internal value to display units
+var lengthMm = wall.GetNum("Length").OutputUnit("mm");
+Println($"Wall length: {lengthMm} mm");
+
+// Or use the shorthand (GetNum with unit does the same thing)
+Println($"Wall length: {wall.GetNum("Length", "mm")} mm");
+
+// FormatUnit returns a string with units
+var formatted = wall.GetNum("Length").FormatUnit("mm");
+Println($"Wall length: {formatted}");  // "5000.0 mm"
 ```
 
 ---
 
 ## 💡 Quick Tips
-- **Implicit Printing**: Type any variable name on the last line (e.g. `Doc.Title`) to see its value automatically.
-- **Persistence**: Define a variable in one run (e.g. `var myWalls = GetElements<Wall>();`), and use it in the next run.
-- **Magic Unit Filtering**: Use `Input(10, "m2")` (Input to Internal) or `val.Output("mm")` (Internal to Output).
-- **Identification**: Execution markers prioritize Snippet Name or the default marker.
-- **Smart IDs**: `GetStr("AnyElementIdParam")` returns the Name of the referenced element.
+- **Implicit Printing**: Type any expression on the last line (e.g. `Doc.Title`) to see its value.
+- **Persistence**: Define a variable in one run, use it in the next run within the same session.
+- **No Direct Properties**: `Wall` has no `.Length`, `.Width`, `.Area`. Use `GetNum("Length")` etc.
+- **Lazy Projections**: `.Select()` results pass directly to `Table()`, `BarChart()`, etc. — no `.ToList()` needed.
+- **Labels**: `/// My Label` at the top of your code names the execution turn in the console.
+- **Magic Suffixes**: `Area_m2`, `Width[mm]` in Table projections enable unit-aware editing.
+- **Smart IDs**: `GetStr("Level")` returns `"Level 1"` instead of an ElementId number.

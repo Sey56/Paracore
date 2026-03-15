@@ -45,7 +45,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
             className={`group flex items-center justify-between py-1.5 px-3 rounded-xl cursor-pointer transition-all border
               ${selectedCategory === category
                 ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 border-purple-100 dark:border-purple-900/50 shadow-sm"
-                : "hover:bg-gray-50 dark:hover:bg-gray-800/40 text-gray-600 dark:text-gray-300 border-transparent active:scale-[0.98]"}
+                : "hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300 border-transparent active:scale-[0.98]"}
             `}
             onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
           >

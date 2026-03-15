@@ -74,14 +74,14 @@ namespace Paracore.Addin.Handlers
                         using (JsonDocument doc = JsonDocument.Parse(json))
                         {
                             var root = doc.RootElement;
-                            if (root.TryGetProperty("assembly", out var assemblyElem) && 
+                            if (root.TryGetProperty("assembly", out var assemblyElem) &&
                                 root.TryGetProperty("parameters", out var paramsElem))
                             {
                                 byte[] assemblyBytes = Convert.FromBase64String(assemblyElem.GetString());
-                                
+
                                 // V4.2 FIX: Using JsonNode to safely preserve rich metadata without disposal issues
                                 var wtoolParams = JsonNode.Parse(paramsElem.GetRawText())?.AsArray() ?? new JsonArray();
-                                
+
                                 // NEW: Override with UI snapshot parameters if provided
                                 string incomingParamsJson = request.ParametersJson.ToStringUtf8();
                                 if (!string.IsNullOrWhiteSpace(incomingParamsJson) && incomingParamsJson != "null")
@@ -119,28 +119,28 @@ namespace Paracore.Addin.Handlers
                                     }
                                 }
 
-                                 // DISK-AWARE NAMING: Retrieve actual casing from the file system
-                                 string actualFileName = GetActualPathCasing(wtoolPath);
-                                 
-                                 wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
-                                 wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = actualFileName, ["type"] = "string" });
-                                 wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
+                                // DISK-AWARE NAMING: Retrieve actual casing from the file system
+                                string actualFileName = GetActualPathCasing(wtoolPath);
 
-                                 string paramsJson = wtoolParams.ToJsonString();
+                                wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
+                                wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = actualFileName, ["type"] = "string" });
+                                wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
 
-                                 if (_uiApp != null)
-                                 {
-                                     var serverContext = new ServerContext(_uiApp);
-                                     CoreScriptExecutionDispatcher.Instance.QueueBinaryScriptFromServer(
-                                         assemblyBytes,
-                                         paramsJson,
-                                         serverContext,
-                                         isSilent: true,
-                                         priority: ExecutionPriority.Normal);
+                                string paramsJson = wtoolParams.ToJsonString();
 
-                                     count++;
-                                     details.Add($"Loaded Binary Sentinel: '{actualFileName}'");
-                                 }
+                                if (_uiApp != null)
+                                {
+                                    var serverContext = new ServerContext(_uiApp);
+                                    CoreScriptExecutionDispatcher.Instance.QueueBinaryScriptFromServer(
+                                        assemblyBytes,
+                                        paramsJson,
+                                        serverContext,
+                                        isSilent: true,
+                                        priority: ExecutionPriority.Normal);
+
+                                    count++;
+                                    details.Add($"Loaded Binary Sentinel: '{actualFileName}'");
+                                }
                             }
                         }
                     }
@@ -156,11 +156,11 @@ namespace Paracore.Addin.Handlers
                     // DISK-AWARE NAMING: Retrieve actual casing from the file system
                     string folderName = GetActualPathCasing(projectPath);
                     string scriptsPath = System.IO.Path.Combine(projectPath, "Scripts");
-                    
+
                     if (!System.IO.Directory.Exists(scriptsPath))
                     {
-                         details.Add($"Skipped: '{folderName}' (No 'Scripts' folder found)");
-                         continue;
+                        details.Add($"Skipped: '{folderName}' (No 'Scripts' folder found)");
+                        continue;
                     }
 
                     var csFiles = System.IO.Directory.GetFiles(scriptsPath, "*.cs");
@@ -179,20 +179,20 @@ namespace Paracore.Addin.Handlers
                         }).ToList();
 
                         string combined = _scriptCombiner.Combine(scriptFiles);
-                        
+
                         // Queue silently if it has Watchdog
                         // Relaxed verification to support both direct Registry calls and ScriptApi helper 'Watchdog()'
-                        if ((combined.Contains("WatchdogRegistry.Register") || combined.Contains("Watchdog(")) 
+                        if ((combined.Contains("WatchdogRegistry.Register") || combined.Contains("Watchdog("))
                             && combined.Contains("WatchdogReport"))
                         {
                             if (_uiApp != null)
                             {
                                 var serverContext = new ServerContext(_uiApp);
                                 // We must include the absolute path in parameters so ScriptApi.Watchdog() works
-                                
+
                                 string incomingParamsJson = request.ParametersJson.ToStringUtf8();
                                 JsonArray uiParams = new JsonArray();
-                                
+
                                 if (!string.IsNullOrWhiteSpace(incomingParamsJson) && incomingParamsJson != "null")
                                 {
                                     try
@@ -201,31 +201,31 @@ namespace Paracore.Addin.Handlers
                                     }
                                     catch { }
                                 }
-                                
+
                                 uiParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = projectPath.Replace('\\', '/'), ["type"] = "string" });
                                 uiParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = folderName, ["type"] = "string" });
                                 uiParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
-                                
+
                                 string paramsJson = uiParams.ToJsonString();
 
                                 // V4: NON-BLOCKING Registration with Normal Priority
                                 // PriorityQueue in Dispatcher ensures manual scripts (High) jump to the front.
                                 CoreScriptExecutionDispatcher.Instance.QueueScriptFromServer(
-                                    combined, 
-                                    paramsJson, 
-                                    serverContext, 
-                                    isSilent: true, 
+                                    combined,
+                                    paramsJson,
+                                    serverContext,
+                                    isSilent: true,
                                     priority: ExecutionPriority.Normal);
-                                
+
                                 count++;
                                 details.Add($"Loaded: '{folderName}'");
                             }
                         }
                         else
                         {
-                             details.Add($"Skipped: '{folderName}' (No Watchdog() or WatchdogReport found)");
-                             // Also register as failure so user knows WHY it's not active
-                             CoreScript.Engine.Globals.WatchdogRegistry.RegisterFailure(projectPath, folderName, "No Watchdog() or WatchdogReport found in code.");
+                            details.Add($"Skipped: '{folderName}' (No Watchdog() or WatchdogReport found)");
+                            // Also register as failure so user knows WHY it's not active
+                            CoreScript.Engine.Globals.WatchdogRegistry.RegisterFailure(projectPath, folderName, "No Watchdog() or WatchdogReport found in code.");
                         }
                     }
                     catch (Exception ex)
@@ -433,7 +433,7 @@ namespace Paracore.Addin.Handlers
 
                     ServerViewModel.Instance.OnExecutionComplete += handler;
                     ServerViewModel.Instance.LastClientSource = request.Source;
-                    
+
                     if (hasCompiledAssembly)
                     {
                         targetExecutionId = ServerViewModel.Instance.DispatchBinaryScript(compiledAssembly, parametersJsonStr, serverContext);
@@ -478,7 +478,7 @@ namespace Paracore.Addin.Handlers
 
             var outputMessages = serverContext?.PrintLog ?? new List<string>();
             var errorMessages = serverContext?.ErrorLog ?? new List<string>();
-            
+
             var combinedOutput = string.Join("\n", outputMessages);
 
             var response = new ExecuteScriptResponse
@@ -520,7 +520,8 @@ namespace Paracore.Addin.Handlers
                             }
                             else
                             {
-                                response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { 
+                                response.StructuredOutput.Add(new CoreScript.StructuredOutputItem
+                                {
                                     Type = temp.Type ?? "",
                                     Data = temp.Data ?? "",
                                     Title = ""
@@ -549,7 +550,7 @@ namespace Paracore.Addin.Handlers
                 {
                     var parentPath = System.IO.Path.GetDirectoryName(path);
                     if (string.IsNullOrEmpty(parentPath)) return System.IO.Path.GetFileName(path); // Drive root
-                    
+
                     var parentDir = new System.IO.DirectoryInfo(parentPath);
                     var searchName = System.IO.Path.GetFileName(path);
                     var actualDir = parentDir.GetDirectories(searchName).FirstOrDefault();
@@ -559,13 +560,13 @@ namespace Paracore.Addin.Handlers
                 {
                     var parentPath = System.IO.Path.GetDirectoryName(path);
                     if (string.IsNullOrEmpty(parentPath)) return System.IO.Path.GetFileName(path); // Drive root
-                    
+
                     var parentDir = new System.IO.DirectoryInfo(parentPath);
                     var searchName = System.IO.Path.GetFileName(path);
                     var actualFile = parentDir.GetFiles(searchName).FirstOrDefault();
                     return actualFile != null ? actualFile.Name : searchName;
                 }
-                
+
                 return System.IO.Path.GetFileName(path);
             }
             catch (Exception)

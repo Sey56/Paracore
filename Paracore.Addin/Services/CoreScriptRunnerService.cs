@@ -16,8 +16,8 @@ namespace Paracore.Addin.Services
         private readonly ReplHandler _replHandler;
 
         public CoreScriptRunnerService(
-            ScriptExecutionHandler executionHandler, 
-            MetadataHandler metadataHandler, 
+            ScriptExecutionHandler executionHandler,
+            MetadataHandler metadataHandler,
             ContextHandler contextHandler,
             FileSystemHandler fileSystemHandler,
             ReplHandler replHandler)

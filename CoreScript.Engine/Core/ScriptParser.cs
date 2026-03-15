@@ -55,7 +55,9 @@ namespace CoreScript.Engine.Core
         public string CombineScriptFiles(List<ScriptFile> scriptFiles)
         {
             if (scriptFiles is not { Count: > 0 })
+            {
                 throw new InvalidDataException("No valid script files to combine.");
+            }
 
             var topLevelScriptFile = IdentifyTopLevelScript(scriptFiles);
             var resultParts = new List<string>();
@@ -71,7 +73,7 @@ namespace CoreScript.Engine.Core
                 {
                     var lineSpan = root.SyntaxTree.GetLineSpan(usings.First().FullSpan);
                     int line = lineSpan.StartLinePosition.Line + 1;
-                    
+
                     resultParts.Add($"#line {line} \"{file.FileName}\"");
                     foreach (var u in usings)
                     {
@@ -108,7 +110,7 @@ namespace CoreScript.Engine.Core
                 // V3 Guard: Ensure #line is absolutely on a fresh line
                 resultParts.Add($"#line 1 \"{file.FileName}\"");
                 resultParts.Add(editableText.TrimEnd());
-                resultParts.Add(""); 
+                resultParts.Add("");
             }
 
             // Using explicit Environment.NewLine for the join

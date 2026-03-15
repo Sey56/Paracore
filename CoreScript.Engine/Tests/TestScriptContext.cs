@@ -65,7 +65,7 @@ namespace CoreScript.Engine.Tests
             var prefixStr = $"Type: {type}";
             _showOutputMessages.RemoveAll(m => m.StartsWith(prefixStr));
             _showOutputMessages.Add($"Type: {type}, Data: {jsonData}");
-            
+
             FileLogger.Log($"Structured Output - Type: {type}, Data: {jsonData}");
             Console.WriteLine($"Structured Output - Type: {type}, Data: {jsonData}");
         }

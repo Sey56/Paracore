@@ -19,7 +19,7 @@ namespace CoreScript.Engine.Globals
         public string? VisibleWhen { get; set; }
         public string? Group { get; set; }
         public string? Description { get; set; } // Deprecated in V3 if XML comments are used, but kept for back-compat
-        public double Min { get; set; } 
+        public double Min { get; set; }
         public double Max { get; set; }
         public double Step { get; set; }
         public string? Suffix { get; set; }
@@ -45,7 +45,7 @@ namespace CoreScript.Engine.Globals
         public bool Computable { get; set; } = false;
         public string? Description { get; set; }
         public SelectionType Select { get; set; } = SelectionType.None; // Allow selection override here too
-        
+
         // Constructor signatures for convenience
         public RevitElementsAttribute() { }
         public RevitElementsAttribute(string? TargetType = null) { this.TargetType = TargetType; }
@@ -53,19 +53,19 @@ namespace CoreScript.Engine.Globals
 
     // Standard Validation Attributes for V3 Professional Syntax
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class SelectAttribute : Attribute 
+    public class SelectAttribute : Attribute
     {
         public SelectionType Type { get; }
         public string? Category { get; set; }
 
-        public SelectAttribute() 
-        { 
-            Type = SelectionType.Element; 
+        public SelectAttribute()
+        {
+            Type = SelectionType.Element;
         }
 
-        public SelectAttribute(SelectionType type) 
-        { 
-            Type = type; 
+        public SelectAttribute(SelectionType type)
+        {
+            Type = type;
         }
 
         public SelectAttribute(string category)
@@ -82,34 +82,37 @@ namespace CoreScript.Engine.Globals
     public class MandatoryAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class ConfirmAttribute : Attribute {
+    public class ConfirmAttribute : Attribute
+    {
         public string Value { get; }
         public ConfirmAttribute(string value) { Value = value; }
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class MinAttribute : Attribute { 
+    public class MinAttribute : Attribute
+    {
         public double Value { get; }
         public MinAttribute(double value) { Value = value; }
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class MaxAttribute : Attribute { 
+    public class MaxAttribute : Attribute
+    {
         public double Value { get; }
         public MaxAttribute(double value) { Value = value; }
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class RangeAttribute : Attribute 
+    public class RangeAttribute : Attribute
     {
         public double Min { get; }
         public double Max { get; }
         public double Step { get; }
-        public RangeAttribute(double min, double max, double step = 1.0) 
-        { 
-            Min = min; 
-            Max = max; 
-            Step = step; 
+        public RangeAttribute(double min, double max, double step = 1.0)
+        {
+            Min = min;
+            Max = max;
+            Step = step;
         }
     }
 
@@ -121,22 +124,26 @@ namespace CoreScript.Engine.Globals
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class PatternAttribute : Attribute {
+    public class PatternAttribute : Attribute
+    {
         public string Regex { get; }
         public PatternAttribute(string regex) { Regex = regex; }
     }
-    
+
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class SuffixAttribute : Attribute {
+    public class SuffixAttribute : Attribute
+    {
         public string Value { get; }
         public SuffixAttribute(string value) { Value = value; }
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class EnabledWhenAttribute : Attribute {
+    public class EnabledWhenAttribute : Attribute
+    {
         public string ParameterName { get; }
         public object Value { get; }
-        public EnabledWhenAttribute(string parameterName, object value) {
+        public EnabledWhenAttribute(string parameterName, object value)
+        {
             ParameterName = parameterName;
             Value = value;
         }
@@ -151,7 +158,8 @@ namespace CoreScript.Engine.Globals
 
     // --- File System Attributes (Unified V3) ---
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class InputFileAttribute : Attribute { 
+    public class InputFileAttribute : Attribute
+    {
         public string? Filter { get; set; } // Optional: e.g. "csv,txt"
         public InputFileAttribute(string? filter = null) { Filter = filter; }
     }
@@ -160,13 +168,14 @@ namespace CoreScript.Engine.Globals
     public class FolderPathAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class OutputFileAttribute : Attribute { 
+    public class OutputFileAttribute : Attribute
+    {
         public string? Filter { get; set; }
         public OutputFileAttribute(string? filter = null) { Filter = filter; }
     }
 
     // --- High-End UI Controls (Day 05 Enhancements) ---
-    
+
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class ColorAttribute : Attribute { }
 

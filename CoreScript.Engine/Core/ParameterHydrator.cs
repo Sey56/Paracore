@@ -21,9 +21,15 @@ namespace CoreScript.Engine.Core
 
         public T Hydrate<T>(string key, object val, IEnumerable<object>? candidatePool = null)
         {
-            if (val == null) return default(T);
+            if (val == null)
+            {
+                return default(T);
+            }
 
-            if (val is T typedVal) return typedVal;
+            if (val is T typedVal)
+            {
+                return typedVal;
+            }
 
             var targetType = typeof(T);
 
@@ -38,8 +44,8 @@ namespace CoreScript.Engine.Core
 
             // Revit Element Hydration
             bool isElement = typeof(Element).IsAssignableFrom(targetType);
-            bool isElementList = targetType.IsGenericType && 
-                               targetType.GetGenericTypeDefinition() == typeof(List<>) && 
+            bool isElementList = targetType.IsGenericType &&
+                               targetType.GetGenericTypeDefinition() == typeof(List<>) &&
                                typeof(Element).IsAssignableFrom(targetType.GetGenericArguments()[0]);
 
             if (isElement || isElementList)
@@ -49,25 +55,35 @@ namespace CoreScript.Engine.Core
                     if (isElement)
                     {
                         var resolved = _revitResolver.ResolveElement(val, targetType, candidatePool);
-                        if (resolved != null) return (T)resolved;
+                        if (resolved != null)
+                        {
+                            return (T)resolved;
+                        }
                     }
                     else // List<Element>
                     {
                         var itemType = targetType.GetGenericArguments()[0];
                         var resultList = (IList)Activator.CreateInstance(targetType);
-                        
+
                         IEnumerable<object> sourceItems = null;
                         if (val is string json && json.TrimStart().StartsWith("["))
+                        {
                             sourceItems = JsonSerializer.Deserialize<List<object>>(json);
+                        }
                         else if (val is IEnumerable<object> ie)
+                        {
                             sourceItems = ie;
-                        
+                        }
+
                         if (sourceItems != null)
                         {
                             foreach (var item in sourceItems)
                             {
                                 var resolved = _revitResolver.ResolveElement(item, itemType, candidatePool);
-                                if (resolved != null) resultList.Add(resolved);
+                                if (resolved != null)
+                                {
+                                    resultList.Add(resolved);
+                                }
                             }
                             return (T)resultList;
                         }
@@ -77,7 +93,7 @@ namespace CoreScript.Engine.Core
                 {
                     FileLogger.LogError($"[ParameterHydrator] Revit Hydration failed for '{key}' ({targetType.Name}): {ex.Message}");
                 }
-                
+
                 return default(T);
             }
 
@@ -85,14 +101,20 @@ namespace CoreScript.Engine.Core
             if (targetType == typeof(XYZ) && val is string xyzString)
             {
                 var resolved = _revitResolver.ResolveXYZ(xyzString);
-                if (resolved != null) return (T)resolved;
+                if (resolved != null)
+                {
+                    return (T)resolved;
+                }
             }
-            
+
             // Reference/Face/Edge Hydration
             if ((targetType == typeof(Reference) || typeof(GeometryObject).IsAssignableFrom(targetType)) && val is string refString)
             {
                 var resolved = _revitResolver.ResolveReference(refString, targetType);
-                if (resolved != null) return (T)resolved;
+                if (resolved != null)
+                {
+                    return (T)resolved;
+                }
             }
 
             // Collection Hydration (Handles List<T> and T[])
@@ -102,7 +124,10 @@ namespace CoreScript.Engine.Core
             if (isList || isArray)
             {
                 var itemType = isArray ? targetType.GetElementType() : targetType.GetGenericArguments()[0];
-                if (itemType == null) return default(T);
+                if (itemType == null)
+                {
+                    return default(T);
+                }
 
                 IEnumerable sourceItems = null;
                 if (val is IEnumerable ie && !(val is string))
@@ -127,7 +152,10 @@ namespace CoreScript.Engine.Core
                             var method = this.GetType().GetMethod("Hydrate").MakeGenericMethod(itemType);
                             // Corrected to pass candidatePool as well to support nested element resolution if ever needed
                             var hydrated = method.Invoke(this, new object[] { $"{key}_item", item, candidatePool });
-                            if (hydrated != null) tempList.Add(hydrated);
+                            if (hydrated != null)
+                            {
+                                tempList.Add(hydrated);
+                            }
                         }
                         catch
                         {
@@ -138,14 +166,22 @@ namespace CoreScript.Engine.Core
                     if (isArray)
                     {
                         var array = Array.CreateInstance(itemType, tempList.Count);
-                        for (int i = 0; i < tempList.Count; i++) array.SetValue(tempList[i], i);
+                        for (int i = 0; i < tempList.Count; i++)
+                        {
+                            array.SetValue(tempList[i], i);
+                        }
+
                         return (T)(object)array;
                     }
                     else // List<T>
                     {
                         var listType = typeof(List<>).MakeGenericType(itemType);
                         var resultList = (IList)Activator.CreateInstance(listType);
-                        foreach (var item in tempList) resultList.Add(item);
+                        foreach (var item in tempList)
+                        {
+                            resultList.Add(item);
+                        }
+
                         return (T)resultList;
                     }
                 }
@@ -172,8 +208,14 @@ namespace CoreScript.Engine.Core
             try
             {
                 string json;
-                if (val is JsonElement je) json = je.GetRawText();
-                else json = JsonSerializer.Serialize(val);
+                if (val is JsonElement je)
+                {
+                    json = je.GetRawText();
+                }
+                else
+                {
+                    json = JsonSerializer.Serialize(val);
+                }
 
                 return JsonSerializer.Deserialize<T>(json, ExecutionGlobals.SerializerOptions);
             }

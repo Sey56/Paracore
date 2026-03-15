@@ -41,13 +41,11 @@ namespace CoreScript.Engine.Core
 
             public override bool Equals(object? obj)
             {
-                if (obj is MappedDiagnostic other)
-                {
-                    return FileName == other.FileName && 
-                           Line == other.Line && 
-                           ErrorId == other.ErrorId;
-                }
-                return false;
+                return obj is MappedDiagnostic other
+                    ? FileName == other.FileName &&
+                           Line == other.Line &&
+                           ErrorId == other.ErrorId
+                    : false;
             }
         }
 
@@ -55,14 +53,14 @@ namespace CoreScript.Engine.Core
         /// Maps diagnostics to source files using Roslyn's native mapping and deduplicates them.
         /// </summary>
         public static List<MappedDiagnostic> MapAndDeduplicate(
-            IEnumerable<Diagnostic> diagnostics, 
+            IEnumerable<Diagnostic> diagnostics,
             string combinedCode)
         {
             var mapped = diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error || d.Severity == DiagnosticSeverity.Warning)
                 .Select(MapNative)
                 .ToList();
-            
+
             // Deduplicate based on (FileName, Line, ErrorId, Message)
             return mapped
                 .GroupBy(m => new { m.FileName, m.Line, m.ErrorId, m.Message })
@@ -76,7 +74,7 @@ namespace CoreScript.Engine.Core
         {
             var mappedSpan = diagnostic.Location.GetMappedLineSpan();
             var lineSpan = diagnostic.Location.GetLineSpan();
-            
+
             // If Roslyn found a #line mapping, use it. Otherwise fall back to unmapped.
             bool isMapped = mappedSpan.HasMappedPath;
             var pos = isMapped ? mappedSpan.StartLinePosition : lineSpan.StartLinePosition;

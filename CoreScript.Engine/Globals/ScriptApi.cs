@@ -69,55 +69,90 @@ namespace CoreScript.Engine.Globals
         /// </para>
         /// </summary>
         /// <param name="message">The message string to print. Use <c>$""</c> for variables.</param>
-        public static void Println(string message) => Globals.Println(message);
-        public static void Println(object message) => Globals.Println(message);
+        public static void Println(string message)
+        {
+            Globals.Println(message);
+        }
+
+        public static void Println(object message)
+        {
+            Globals.Println(message);
+        }
 
         /// <summary>
         /// Prints an empty line to the unified output console.
         /// </summary>
-        public static void Println() => Globals.Println(""); // Restored for backward compatibility
+        public static void Println()
+        {
+            Globals.Println(""); // Restored for backward compatibility
+        }
 
         /// <summary>
         /// Alias for <see cref="Println(string)"/>. Prints a message to the console.
         /// </summary>
-        public static void Print(string message) => Globals.Print(message);
-        public static void Print(object message) => Globals.Print(message);
+        public static void Print(string message)
+        {
+            Globals.Print(message);
+        }
+
+        public static void Print(object message)
+        {
+            Globals.Print(message);
+        }
 
         /// <summary>
         /// Internal use only. Sets data to be passed back to the host application.
         /// </summary>
-        public static void SetInternalData(string data) => Globals.SetInternalData(data);
-        
+        public static void SetInternalData(string data)
+        {
+            Globals.SetInternalData(data);
+        }
+
         /// <summary>
         /// Starts a new Revit transaction with the specified name.
         /// </summary>
         /// <param name="name">The name of the transaction (appears in Undo menu).</param>
         /// <param name="action">The action to execute within the transaction scope. The current <see cref="Document"/> is passed as an argument.</param>
-        public static void Transact(string name, Action<Document> action) => Globals.Transact(name, action);
+        public static void Transact(string name, Action<Document> action)
+        {
+            Globals.Transact(name, action);
+        }
 
         /// <summary>
         /// Starts a new Revit transaction with the specified name.
         /// </summary>
         /// <param name="name">The name of the transaction (appears in Undo menu).</param>
         /// <param name="action">The parameterless action to execute within the transaction scope.</param>
-        public static void Transact(string name, Action action) => Globals.Transact(name, action);
+        public static void Transact(string name, Action action)
+        {
+            Globals.Transact(name, action);
+        }
 
         /// <summary>
         /// Renders data provided as a specific type in the UI.
         /// </summary>
         /// <param name="type">The type of display (e.g., "table", "chart-bar").</param>
         /// <param name="data">The structured data object to display.</param>
-        public static void Show(string type, object data) => Globals.Output.Show(type, data);
+        public static void Show(string type, object data)
+        {
+            Globals.Output.Show(type, data);
+        }
 
         /// <summary>
         /// Renders a list of objects as an interactive table in the Summary tab.
         /// </summary>
-        public static void Table(object data) => Globals.Output.Show("table", data);
+        public static void Table(object data)
+        {
+            Globals.Output.Show("table", data);
+        }
 
         /// <summary>
         /// Renders a list of Revit elements as an interactive table in the Summary tab.
         /// </summary>
-        public static void Table(IEnumerable<Element> elements) => Globals.Output.Show("table", elements);
+        public static void Table(IEnumerable<Element> elements)
+        {
+            Globals.Output.Show("table", elements);
+        }
 
 
         /// <summary>
@@ -125,7 +160,11 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Select(IEnumerable<Element> elements)
         {
-            if (UIDoc == null) return;
+            if (UIDoc == null)
+            {
+                return;
+            }
+
             var ids = elements.Select(e => e.Id).ToList();
             UIDoc.Selection.SetElementIds(ids);
             Zoom(elements);
@@ -136,7 +175,11 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Isolate(IEnumerable<Element> elements)
         {
-            if (Doc == null || Doc.ActiveView == null) return;
+            if (Doc == null || Doc.ActiveView == null)
+            {
+                return;
+            }
+
             var ids = elements.Select(e => e.Id).ToList();
             Doc.ActiveView.IsolateElementsTemporary(ids);
             Zoom(elements);
@@ -147,16 +190,27 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Zoom(IEnumerable<Element> elements)
         {
-            if (UIDoc == null) return;
+            if (UIDoc == null)
+            {
+                return;
+            }
+
             var elementList = elements.ToList();
-            if (elementList.Count == 0) return;
+            if (elementList.Count == 0)
+            {
+                return;
+            }
 
             // Compute a union bounding box of all elements
             BoundingBoxXYZ unionBox = null;
             foreach (var el in elementList)
             {
                 var bb = el.get_BoundingBox(Doc.ActiveView);
-                if (bb == null) continue;
+                if (bb == null)
+                {
+                    continue;
+                }
+
                 if (unionBox == null)
                 {
                     unionBox = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max };
@@ -173,44 +227,68 @@ namespace CoreScript.Engine.Globals
                         Math.Max(unionBox.Max.Z, bb.Max.Z));
                 }
             }
-            if (unionBox == null) return;
+            if (unionBox == null)
+            {
+                return;
+            }
 
             var uiViews = UIDoc.GetOpenUIViews();
             var activeView = Doc.ActiveView;
             var currentUIView = uiViews.FirstOrDefault(v => v.ViewId == activeView.Id);
-            
+
             if (currentUIView != null)
             {
                 currentUIView.ZoomAndCenterRectangle(unionBox.Min, unionBox.Max);
             }
         }
-        
+
         /// <summary>
         /// Renders a bar chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void ChartBar(object data) => Globals.Output.ChartBar(data);
+        public static void ChartBar(object data)
+        {
+            Globals.Output.ChartBar(data);
+        }
 
         /// <summary>
         /// Renders a pie chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void ChartPie(object data) => Globals.Output.ChartPie(data);
+        public static void ChartPie(object data)
+        {
+            Globals.Output.ChartPie(data);
+        }
 
         /// <summary>
         /// Renders a line chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void ChartLine(object data) => Globals.Output.ChartLine(data);
+        public static void ChartLine(object data)
+        {
+            Globals.Output.ChartLine(data);
+        }
 
         /// <summary> Alias for ChartBar. </summary>
-        public static void BarChart(object data) => Globals.Output.ChartBar(data);
+        public static void BarChart(object data)
+        {
+            Globals.Output.ChartBar(data);
+        }
 
         /// <summary> Alias for ChartPie. </summary>
-        public static void PieChart(object data) => Globals.Output.ChartPie(data);
+        public static void PieChart(object data)
+        {
+            Globals.Output.ChartPie(data);
+        }
 
         /// <summary> Alias for ChartLine. </summary>
-        public static void LineChart(object data) => Globals.Output.ChartLine(data);
+        public static void LineChart(object data)
+        {
+            Globals.Output.ChartLine(data);
+        }
 
         /// <summary> Alias for ChartLine. </summary>
-        public static void LineGraph(object data) => Globals.Output.ChartLine(data);
+        public static void LineGraph(object data)
+        {
+            Globals.Output.ChartLine(data);
+        }
 
         /// <summary>
         /// Registers a background watchdog that runs when Revit is idle.
@@ -303,7 +381,10 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Sets the execution timeout for the current script. Default is 10 seconds.
         /// Call this at the start of your script if you need more time for long-running operations.
-        public static void SetExecutionTimeout(int seconds) => ExecutionGlobals.SetExecutionTimeout(seconds);
+        public static void SetExecutionTimeout(int seconds)
+        {
+            ExecutionGlobals.SetExecutionTimeout(seconds);
+        }
 
         /// <summary>
         /// Finds the first element of type T with the specified name or magic identity.
@@ -315,8 +396,8 @@ namespace CoreScript.Engine.Globals
                 .Cast<Element>()
                 .Where(e => e is T)
                 .Cast<T>()
-                .FirstOrDefault(x => 
-                    x.Name.Equals(identity, StringComparison.OrdinalIgnoreCase) || 
+                .FirstOrDefault(x =>
+                    x.Name.Equals(identity, StringComparison.OrdinalIgnoreCase) ||
                     Core.ParameterOptionsComputer.GetElementIdentity(x).Equals(identity, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -329,8 +410,8 @@ namespace CoreScript.Engine.Globals
             var collector = new FilteredElementCollector(Doc).WhereElementIsNotElementType();
             return collector
                 .Cast<Element>()
-                .FirstOrDefault(x => 
-                    x.Name.Equals(identity, StringComparison.OrdinalIgnoreCase) || 
+                .FirstOrDefault(x =>
+                    x.Name.Equals(identity, StringComparison.OrdinalIgnoreCase) ||
                     Core.ParameterOptionsComputer.GetElementIdentity(x).Equals(identity, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -375,8 +456,8 @@ namespace CoreScript.Engine.Globals
                 var cleanName = categoryOrClass.Trim();
                 var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
                 var allValidTerms = GetMagicNames(); // Already includes Cats + Families + Common Classes
-                
-                var matches = allValidTerms.Where(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase) || 
+
+                var matches = allValidTerms.Where(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase) ||
                                                        t.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
                                                        t.StartsWith(cleanName, StringComparison.OrdinalIgnoreCase)).Take(3).ToList();
 
@@ -400,7 +481,7 @@ namespace CoreScript.Engine.Globals
         {
             var docCategories = Doc.Settings.Categories.Cast<Category>().Select(c => c.Name);
             var familyNames = new FilteredElementCollector(Doc).OfClass(typeof(Family)).Cast<Family>().Select(f => f.Name);
-            
+
             // Standard Classes commonly used
             var commonClasses = new[] { "Wall", "Floor", "Roof", "Window", "Door", "Room", "Level", "View", "Sheet" };
 

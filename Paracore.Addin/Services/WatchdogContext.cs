@@ -30,21 +30,21 @@ namespace Paracore.Addin.Services
 
         public Dictionary<string, object> Parameters { get; }
 
-        public void Println(string message) 
-        { 
-            _printLog.Add(message); 
+        public void Println(string message)
+        {
+            _printLog.Add(message);
             // Optional: dont flood file logs
         }
 
-        public void Print(string message) 
-        { 
-            _printLog.Add(message); 
+        public void Print(string message)
+        {
+            _printLog.Add(message);
         }
 
-        public void LogError(string message) 
-        { 
-            _printLog.Add("ERROR: " + message); 
-            FileLogger.LogError($"[Watchdog] {message}"); 
+        public void LogError(string message)
+        {
+            _printLog.Add("ERROR: " + message);
+            FileLogger.LogError($"[Watchdog] {message}");
         }
 
         public void AddStructuredOutput(string type, string jsonData) { }

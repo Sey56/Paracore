@@ -23,12 +23,7 @@ namespace Paracore.Addin.Helpers
             }
 
             // Priority 2: Check Category ID
-            if (_categoryId != null)
-            {
-                return elem.Category != null && elem.Category.Id.Value == _categoryId.Value;
-            }
-
-            return true;
+            return _categoryId != null ? elem.Category != null && elem.Category.Id.Value == _categoryId.Value : true;
         }
 
         public bool AllowReference(Reference reference, XYZ position)
@@ -37,7 +32,7 @@ namespace Paracore.Addin.Helpers
             // Note: We need a Document to resolve the Element from the Reference.
             // Since ISelectionFilter doesn't provide the Document, we rely on AllowElement
             // for most cases. However, for some PickObject overloads, this is critical.
-            return true; 
+            return true;
         }
     }
 }

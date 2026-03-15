@@ -24,7 +24,10 @@ namespace CoreScript.Engine.Core
         public List<ScriptParameter> ExtractParameters(string scriptContent)
         {
             var parameters = new List<ScriptParameter>();
-            if (string.IsNullOrWhiteSpace(scriptContent)) return parameters;
+            if (string.IsNullOrWhiteSpace(scriptContent))
+            {
+                return parameters;
+            }
 
             if (scriptContent.Trim().StartsWith("{") && scriptContent.Trim().EndsWith("}"))
             {
@@ -47,8 +50,11 @@ namespace CoreScript.Engine.Core
             {
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(scriptContent);
                 var root = tree.GetRoot() as CompilationUnitSyntax;
-                if (root == null) return parameters;
-                
+                if (root == null)
+                {
+                    return parameters;
+                }
+
                 ExtractFromClasses(root, parameters);
             }
             catch (Exception ex) { _logger.LogError($"[ParameterExtractor] Error: {ex.Message}"); }
@@ -58,7 +64,7 @@ namespace CoreScript.Engine.Core
         private void ExtractFromClasses(CompilationUnitSyntax root, List<ScriptParameter> parameters)
         {
             var paramsClasses = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(c => c.Identifier.Text == "Params");
-            
+
             foreach (var paramsClass in paramsClasses)
             {
                 var regionMap = BuildRegionMap(paramsClass);
@@ -67,13 +73,22 @@ namespace CoreScript.Engine.Core
                 foreach (var prop in properties)
                 {
                     string propName = prop.Identifier.Text;
-                    if (propName.EndsWith("_Options") || propName.EndsWith("_Range") || propName.EndsWith("_Visible") || propName.EndsWith("_Enabled") || propName.EndsWith("_Filter") || propName.EndsWith("_Unit")) continue;
+                    if (propName.EndsWith("_Options") || propName.EndsWith("_Range") || propName.EndsWith("_Visible") || propName.EndsWith("_Enabled") || propName.EndsWith("_Filter") || propName.EndsWith("_Unit"))
+                    {
+                        continue;
+                    }
 
                     bool hasSetter = prop.AccessorList?.Accessors.Any(a => a.IsKind(SyntaxKind.SetAccessorDeclaration) || a.IsKind(SyntaxKind.InitAccessorDeclaration)) ?? false;
-                    if (!hasSetter && prop.Initializer == null) continue;
+                    if (!hasSetter && prop.Initializer == null)
+                    {
+                        continue;
+                    }
 
                     var param = ParsePropertyV3(prop, paramsClass, regionMap);
-                    if (param != null) parameters.Add(param);
+                    if (param != null)
+                    {
+                        parameters.Add(param);
+                    }
                 }
             }
         }
@@ -86,26 +101,57 @@ namespace CoreScript.Engine.Core
             var triviaList = prop.GetLeadingTrivia();
             var initializer = prop.Initializer?.Value;
 
-            var p = new ScriptParameter { 
-                Name = name, 
-                Description = ExtractXmlDescription(triviaList), 
-                Type = "string", 
-                DefaultValueJson = JsonSerializer.Serialize("") 
+            var p = new ScriptParameter
+            {
+                Name = name,
+                Description = ExtractXmlDescription(triviaList),
+                Type = "string",
+                DefaultValueJson = JsonSerializer.Serialize("")
             };
 
             foreach (var attr in attributes)
             {
                 string aN = attr.Name.ToString();
-                if (aN.Contains("Segmented")) p.InputType = "Segmented";
-                else if (aN.Contains("Color")) p.InputType = "Color";
-                else if (aN.Contains("Stepper")) p.InputType = "Stepper";
-                else if (aN.Contains("InputFile")) p.InputType = "File";
-                else if (aN.Contains("OutputFile")) p.InputType = "SaveFile";
-                else if (aN.Contains("FolderPath")) p.InputType = "Folder";
+                if (aN.Contains("Segmented"))
+                {
+                    p.InputType = "Segmented";
+                }
+                else if (aN.Contains("Color"))
+                {
+                    p.InputType = "Color";
+                }
+                else if (aN.Contains("Stepper"))
+                {
+                    p.InputType = "Stepper";
+                }
+                else if (aN.Contains("InputFile"))
+                {
+                    p.InputType = "File";
+                }
+                else if (aN.Contains("OutputFile"))
+                {
+                    p.InputType = "SaveFile";
+                }
+                else if (aN.Contains("FolderPath"))
+                {
+                    p.InputType = "Folder";
+                }
 
-                if (aN.Contains("Required") || aN.Contains("Mandatory")) p.Required = true;
-                if (aN.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0) p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
-                if (aN.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0) p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                if (aN.Contains("Required") || aN.Contains("Mandatory"))
+                {
+                    p.Required = true;
+                }
+
+                if (aN.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0)
+                {
+                    p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                }
+
+                if (aN.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0)
+                {
+                    p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                }
+
                 if (aN.Contains("EnabledWhen")) { p.EnabledWhenParam = ExtractString(attr.ArgumentList.Arguments[0].Expression); p.EnabledWhenValue = attr.ArgumentList.Arguments[1].Expression.ToString().Trim('"', '\''); }
                 if (aN == "Select")
                 {
@@ -116,7 +162,10 @@ namespace CoreScript.Engine.Core
                     else
                     {
                         var arg = attr.ArgumentList.Arguments[0].Expression;
-                        if (arg is MemberAccessExpressionSyntax ma) p.SelectionType = ma.Name.Identifier.Text;
+                        if (arg is MemberAccessExpressionSyntax ma)
+                        {
+                            p.SelectionType = ma.Name.Identifier.Text;
+                        }
                         else if (arg is LiteralExpressionSyntax lit)
                         {
                             p.SelectionType = "Element";
@@ -124,7 +173,7 @@ namespace CoreScript.Engine.Core
                         }
                     }
                 }
-                
+
                 // Handle [Confirm("TEXT")] by generating a strict regex pattern
                 if (aN.Contains("Confirm") && attr.ArgumentList?.Arguments.Count > 0)
                 {
@@ -142,12 +191,12 @@ namespace CoreScript.Engine.Core
                     // Assuming Range(min, max, step) or Range(min, max)
                     // Arguments are expressions, need to extract values.
                     // This is crude but strict extraction: Expecting literals or simple types.
-                    
+
                     var args = attr.ArgumentList.Arguments;
-                    
+
                     p.Min = ExtractDouble(args[0].Expression);
                     p.Max = ExtractDouble(args[1].Expression);
-                    
+
                     if (args.Count > 2)
                     {
                         p.Step = ExtractDouble(args[2].Expression);
@@ -161,7 +210,10 @@ namespace CoreScript.Engine.Core
                         foreach (var arg in attr.ArgumentList.Arguments)
                         {
                             string argN = arg.NameEquals?.Name.Identifier.Text ?? arg.NameColon?.Name.Identifier.Text ?? "";
-                            if (argN == "Category") p.RevitElementCategory = ExtractString(arg.Expression);
+                            if (argN == "Category")
+                            {
+                                p.RevitElementCategory = ExtractString(arg.Expression);
+                            }
                         }
                     }
                 }
@@ -170,11 +222,26 @@ namespace CoreScript.Engine.Core
             // Name-based unit detection (e.g. Length_mm)
             if (string.IsNullOrEmpty(p.Unit))
             {
-                if (name.EndsWith("_mm")) p.Unit = "mm";
-                else if (name.EndsWith("_cm")) p.Unit = "cm";
-                else if (name.EndsWith("_m")) p.Unit = "m";
-                else if (name.EndsWith("_ft")) p.Unit = "ft";
-                else if (name.EndsWith("_in")) p.Unit = "in";
+                if (name.EndsWith("_mm"))
+                {
+                    p.Unit = "mm";
+                }
+                else if (name.EndsWith("_cm"))
+                {
+                    p.Unit = "cm";
+                }
+                else if (name.EndsWith("_m"))
+                {
+                    p.Unit = "m";
+                }
+                else if (name.EndsWith("_ft"))
+                {
+                    p.Unit = "ft";
+                }
+                else if (name.EndsWith("_in"))
+                {
+                    p.Unit = "in";
+                }
             }
 
             string baseT = csharpType.TrimEnd('?');
@@ -195,7 +262,7 @@ namespace CoreScript.Engine.Core
             {
                 if (IsRevitType(baseT, out bool isEnum))
                 {
-                if (isEnum) { p.Type = "enum"; p.IsRevitElement = true; p.RevitElementType = baseT; p.DefaultValueJson = JsonSerializer.Serialize(""); }
+                    if (isEnum) { p.Type = "enum"; p.IsRevitElement = true; p.RevitElementType = baseT; p.DefaultValueJson = JsonSerializer.Serialize(""); }
                     else { p.IsRevitElement = true; p.RevitElementType = baseT; p.Type = "reference"; p.DefaultValueJson = "null"; }
                 }
                 else { p.Type = "enum"; p.DefaultValueJson = JsonSerializer.Serialize(""); }
@@ -212,19 +279,34 @@ namespace CoreScript.Engine.Core
             if (optProv != null)
             {
                 var expr = GetInitialExpression(optProv);
-                if (expr != null) p.Options = ExtractStringsFromInitializer(expr);
-                if (IsLogicBased(optProv) && (p.Options == null || p.Options.Count == 0)) p.RequiresCompute = true;
+                if (expr != null)
+                {
+                    p.Options = ExtractStringsFromInitializer(expr);
+                }
+
+                if (IsLogicBased(optProv) && (p.Options == null || p.Options.Count == 0))
+                {
+                    p.RequiresCompute = true;
+                }
             }
 
             var visProv = members.FirstOrDefault(m => GetMemberName(m) == $"{name}_Visible");
-            if (visProv != null) p.VisibleWhen = ParseVisibilityExpression(GetInitialExpression(visProv));
+            if (visProv != null)
+            {
+                p.VisibleWhen = ParseVisibilityExpression(GetInitialExpression(visProv));
+            }
 
-            if (!string.IsNullOrEmpty(p.Unit)) p.Suffix = p.Unit;
+            if (!string.IsNullOrEmpty(p.Unit))
+            {
+                p.Suffix = p.Unit;
+            }
 
             p.Group = GetRegionForLine(prop.GetLocation().GetLineSpan().StartLinePosition.Line, regionMap);
 
-            if (p.IsRevitElement && (p.Options == null || p.Options.Count == 0) && string.IsNullOrEmpty(p.SelectionType)) 
+            if (p.IsRevitElement && (p.Options == null || p.Options.Count == 0) && string.IsNullOrEmpty(p.SelectionType))
+            {
                 p.RequiresCompute = true;
+            }
 
             if (initializer != null)
             {
@@ -240,7 +322,10 @@ namespace CoreScript.Engine.Core
                         p.DefaultValueJson = JsonSerializer.Serialize(lit.Token.Value);
                     }
                 }
-                else if (IsSimpleStatic(initializer)) p.DefaultValueJson = JsonSerializer.Serialize(ExtractStringsFromInitializer(initializer));
+                else if (IsSimpleStatic(initializer))
+                {
+                    p.DefaultValueJson = JsonSerializer.Serialize(ExtractStringsFromInitializer(initializer));
+                }
             }
 
             return p;
@@ -249,9 +334,10 @@ namespace CoreScript.Engine.Core
         private bool IsRevitType(string typeName, out bool isEnum)
         {
             isEnum = false;
-            try {
+            try
+            {
                 var revitAssembly = typeof(Autodesk.Revit.DB.Element).Assembly;
-                
+
                 // If the type name already contains a namespace, try getting it directly
                 if (typeName.Contains("."))
                 {
@@ -260,23 +346,30 @@ namespace CoreScript.Engine.Core
                 }
 
                 string[] namespaces = { "Autodesk.Revit.DB", "Autodesk.Revit.DB.Architecture", "Autodesk.Revit.DB.Structure", "Autodesk.Revit.DB.Mechanical", "Autodesk.Revit.DB.Plumbing", "Autodesk.Revit.DB.Electrical" };
-                foreach (var ns in namespaces) {
+                foreach (var ns in namespaces)
+                {
                     var type = revitAssembly.GetType($"{ns}.{typeName}");
                     if (type != null) { isEnum = type.IsEnum; return typeof(Autodesk.Revit.DB.Element).IsAssignableFrom(type) || isEnum; }
                 }
-            } catch { }
+            }
+            catch { }
             return false;
         }
 
-        private string ExtractXmlDescription(SyntaxTriviaList trivia) {
+        private string ExtractXmlDescription(SyntaxTriviaList trivia)
+        {
             var lines = trivia.Select(t => t.ToFullString().Trim()).Where(s => s.StartsWith("///")).ToList();
-            if (!lines.Any()) return "";
+            if (!lines.Any())
+            {
+                return "";
+            }
 
             string combined = string.Join("\n", lines);
-            
+
             // 1. Try XML Match
             var xmlMatch = Regex.Match(combined, @"<summary>(.*?)</summary>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
-            if (xmlMatch.Success) {
+            if (xmlMatch.Success)
+            {
                 return string.Join(" ", xmlMatch.Groups[1].Value.Split('\n')
                     .Select(l => l.Trim().TrimStart('/').Trim())
                     .Select(l => Regex.Replace(l, @"</?(?:para|summary|remarks)>", "", RegexOptions.IgnoreCase).Trim())
@@ -288,14 +381,30 @@ namespace CoreScript.Engine.Core
             return string.Join(" ", cleanLines).Trim();
         }
 
-        private string GetMemberName(MemberDeclarationSyntax m) => m is PropertyDeclarationSyntax p ? p.Identifier.Text : (m is MethodDeclarationSyntax met ? met.Identifier.Text : "");
-        private ExpressionSyntax GetInitialExpression(MemberDeclarationSyntax m) => m is PropertyDeclarationSyntax p ? (p.Initializer?.Value ?? p.ExpressionBody?.Expression ?? p.AccessorList?.Accessors.FirstOrDefault(a => a.IsKind(SyntaxKind.GetAccessorDeclaration))?.ExpressionBody?.Expression) : null;
+        private string GetMemberName(MemberDeclarationSyntax m)
+        {
+            return m is PropertyDeclarationSyntax p ? p.Identifier.Text : (m is MethodDeclarationSyntax met ? met.Identifier.Text : "");
+        }
+
+        private ExpressionSyntax GetInitialExpression(MemberDeclarationSyntax m)
+        {
+            return m is PropertyDeclarationSyntax p ? (p.Initializer?.Value ?? p.ExpressionBody?.Expression ?? p.AccessorList?.Accessors.FirstOrDefault(a => a.IsKind(SyntaxKind.GetAccessorDeclaration))?.ExpressionBody?.Expression) : null;
+        }
+
         private bool IsLogicBased(MemberDeclarationSyntax m)
         {
-            if (m is MethodDeclarationSyntax) return true;
+            if (m is MethodDeclarationSyntax)
+            {
+                return true;
+            }
+
             if (m is PropertyDeclarationSyntax p)
             {
-                if (p.AccessorList?.Accessors.Any(a => a.Body != null) == true) return true;
+                if (p.AccessorList?.Accessors.Any(a => a.Body != null) == true)
+                {
+                    return true;
+                }
+
                 var expr = GetInitialExpression(p);
                 return expr != null && !IsSimpleStatic(expr);
             }
@@ -303,54 +412,107 @@ namespace CoreScript.Engine.Core
         }
         private bool IsSimpleStatic(ExpressionSyntax e)
         {
-            if (e == null || e is LiteralExpressionSyntax) return true;
-            if (e is CollectionExpressionSyntax col)
+            if (e == null || e is LiteralExpressionSyntax)
             {
-                return col.Elements.All(el => el is ExpressionElementSyntax exp && exp.Expression is LiteralExpressionSyntax);
+                return true;
             }
-            return false;
+
+            return e is CollectionExpressionSyntax col
+                ? col.Elements.All(el => el is ExpressionElementSyntax exp && exp.Expression is LiteralExpressionSyntax)
+                : false;
         }
-        
-        private string ExtractString(ExpressionSyntax e) 
+
+        private string ExtractString(ExpressionSyntax e)
         {
-            if (e == null) return "";
-            if (e is LiteralExpressionSyntax l) return l.Token.ValueText;
-            if (e is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof" && inv.ArgumentList.Arguments.Count > 0)
-                return inv.ArgumentList.Arguments[0].Expression.ToString();
-            return ""; 
+            if (e == null)
+            {
+                return "";
+            }
+
+            if (e is LiteralExpressionSyntax l)
+            {
+                return l.Token.ValueText;
+            }
+
+            return e is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof" && inv.ArgumentList.Arguments.Count > 0
+                ? inv.ArgumentList.Arguments[0].Expression.ToString()
+                : "";
         }
 
         private double? ExtractDouble(ExpressionSyntax e)
         {
-            if (e == null) return null;
+            if (e == null)
+            {
+                return null;
+            }
+
             if (e is LiteralExpressionSyntax l && l.Token.Value != null)
             {
-                if (double.TryParse(l.Token.Value.ToString(), out double d)) return d;
-                if (int.TryParse(l.Token.Value.ToString(), out int i)) return i;
+                if (double.TryParse(l.Token.Value.ToString(), out double d))
+                {
+                    return d;
+                }
+
+                if (int.TryParse(l.Token.Value.ToString(), out int i))
+                {
+                    return i;
+                }
             }
             // Simple prefix unary expression for negative numbers like -5
             if (e is PrefixUnaryExpressionSyntax pre && pre.OperatorToken.IsKind(SyntaxKind.MinusToken) && pre.Operand is LiteralExpressionSyntax lit)
             {
-                if (double.TryParse(lit.Token.Value?.ToString(), out double d)) return -d;
-                if (int.TryParse(lit.Token.Value?.ToString(), out int i)) return -i;
+                if (double.TryParse(lit.Token.Value?.ToString(), out double d))
+                {
+                    return -d;
+                }
+
+                if (int.TryParse(lit.Token.Value?.ToString(), out int i))
+                {
+                    return -i;
+                }
             }
             return null;
         }
 
-        private List<string> ExtractStringsFromInitializer(ExpressionSyntax e) {
-            if (e is CollectionExpressionSyntax col) return col.Elements.OfType<ExpressionElementSyntax>().Select(el => ExtractString(el.Expression)).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            if (e is ImplicitArrayCreationExpressionSyntax imp) return imp.Initializer.Expressions.Select(ExtractString).Where(s => !string.IsNullOrEmpty(s)).ToList();
+        private List<string> ExtractStringsFromInitializer(ExpressionSyntax e)
+        {
+            if (e is CollectionExpressionSyntax col)
+            {
+                return col.Elements.OfType<ExpressionElementSyntax>().Select(el => ExtractString(el.Expression)).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            }
+
+            if (e is ImplicitArrayCreationExpressionSyntax imp)
+            {
+                return imp.Initializer.Expressions.Select(ExtractString).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            }
+
             string s = ExtractString(e); return string.IsNullOrEmpty(s) ? new List<string>() : (s.Contains(",") ? s.Split(',').Select(x => x.Trim()).ToList() : new List<string> { s });
         }
-        private string ParseVisibilityExpression(ExpressionSyntax e) => e?.ToString() ?? "";
-        private Dictionary<int, string> BuildRegionMap(ClassDeclarationSyntax c) {
+        private string ParseVisibilityExpression(ExpressionSyntax e)
+        {
+            return e?.ToString() ?? "";
+        }
+
+        private Dictionary<int, string> BuildRegionMap(ClassDeclarationSyntax c)
+        {
             var map = new Dictionary<int, string>();
-            foreach (var t in c.DescendantTrivia()) {
-                if (t.IsKind(SyntaxKind.RegionDirectiveTrivia)) map[t.GetLocation().GetLineSpan().StartLinePosition.Line] = t.ToString().Replace("#region", "").Trim();
-                if (t.IsKind(SyntaxKind.EndRegionDirectiveTrivia)) map[t.GetLocation().GetLineSpan().StartLinePosition.Line] = "";
+            foreach (var t in c.DescendantTrivia())
+            {
+                if (t.IsKind(SyntaxKind.RegionDirectiveTrivia))
+                {
+                    map[t.GetLocation().GetLineSpan().StartLinePosition.Line] = t.ToString().Replace("#region", "").Trim();
+                }
+
+                if (t.IsKind(SyntaxKind.EndRegionDirectiveTrivia))
+                {
+                    map[t.GetLocation().GetLineSpan().StartLinePosition.Line] = "";
+                }
             }
             return map;
         }
-        private string GetRegionForLine(int line, Dictionary<int, string> map) => map.Where(kv => kv.Key <= line).OrderByDescending(kv => kv.Key).FirstOrDefault().Value ?? "";
+        private string GetRegionForLine(int line, Dictionary<int, string> map)
+        {
+            return map.Where(kv => kv.Key <= line).OrderByDescending(kv => kv.Key).FirstOrDefault().Value ?? "";
+        }
     }
 }

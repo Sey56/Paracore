@@ -14,7 +14,7 @@ class ExplainErrorRequest(BaseModel):
     script_code: str
     script_path: str
     error_message: str
-    context: Dict[str, str]
+    context: Optional[Dict[str, str]] = {}
     llm_provider: str
     llm_model: str
     llm_api_key_value: str

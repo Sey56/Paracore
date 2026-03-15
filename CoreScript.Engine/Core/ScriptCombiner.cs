@@ -43,7 +43,7 @@ namespace CoreScript.Engine.Core
             }
 
             var syntaxTrees = validScriptFiles.ToDictionary(
-                sf => sf.FileName, 
+                sf => sf.FileName,
                 sf => CSharpSyntaxTree.ParseText(sf.Content, path: sf.FileName),
                 StringComparer.OrdinalIgnoreCase);
 
@@ -63,9 +63,9 @@ namespace CoreScript.Engine.Core
             // Always include 'Params.cs' if it exists, even if not referenced.
             // This ensures parameters are visible to the engine even if 'new Params()' isn't called yet.
             // We specifically look for "Params.cs" per the project convention.
-            var paramsFileKey = syntaxTrees.Keys.FirstOrDefault(k => 
+            var paramsFileKey = syntaxTrees.Keys.FirstOrDefault(k =>
                 Path.GetFileName(k).Equals("Params.cs", StringComparison.OrdinalIgnoreCase));
-            
+
             if (paramsFileKey != null && !referencedFiles.Contains(paramsFileKey))
             {
                 referencedFiles.Add(paramsFileKey);

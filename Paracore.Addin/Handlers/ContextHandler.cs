@@ -72,22 +72,25 @@ namespace Paracore.Addin.Handlers
 
             try
             {
-                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>       
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
                 {
                     var doc = _uiApp.ActiveUIDocument.Document;
                     var bics = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>();
                     var categories = bics
                         .Where(bic => bic.ToString().StartsWith("OST_"))
-                        .Select(bic => {
-                            try {
+                        .Select(bic =>
+                        {
+                            try
+                            {
                                 var cat = doc.Settings.Categories.get_Item(bic);
                                 if (cat == null || string.IsNullOrEmpty(cat.Name)) return null;
                                 return new { Id = bic.ToString(), Label = cat.Name };
-                            } catch { return null; }
+                            }
+                            catch { return null; }
                         })
                         .Where(x => x != null).GroupBy(x => x!.Label).Select(g => g.First()).OrderBy(x => x!.Label).ToList();
 
-                    foreach (var c in categories) response.Categories.Add(new CoreScript.CategoryInfo { Id = c!.Id, Label = c!.Label });        
+                    foreach (var c in categories) response.Categories.Add(new CoreScript.CategoryInfo { Id = c!.Id, Label = c!.Label });
                     return true;
                 });
             }
@@ -175,11 +178,9 @@ namespace Paracore.Addin.Handlers
                         return optionsExecutor.ExecuteOptionsFunction(request.ScriptContent, request.ParameterName, serverContext, parametersJson, parameters).GetAwaiter().GetResult() ?? new List<string>();
                     }
 
-                    if (targetParam.IsRevitElement && !string.IsNullOrEmpty(targetParam.RevitElementType))
-                    {
-                        return new ParameterOptionsComputer(_uiApp.ActiveUIDocument.Document).ComputeOptions(targetParam.RevitElementType, targetParam.RevitElementCategory);
-                    }
-                    return new List<string>();
+                    return targetParam.IsRevitElement && !string.IsNullOrEmpty(targetParam.RevitElementType)
+                        ? new ParameterOptionsComputer(_uiApp.ActiveUIDocument.Document).ComputeOptions(targetParam.RevitElementType, targetParam.RevitElementCategory)
+                        : new List<string>();
                 });
 
                 if (result != null) { response.Options.AddRange(result); response.IsSuccess = true; }
@@ -195,7 +196,7 @@ namespace Paracore.Addin.Handlers
 
             try
             {
-                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>       
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
                 {
                     var uidoc = _uiApp.ActiveUIDocument;
                     if (uidoc == null) throw new Exception("No active document.");
@@ -229,7 +230,7 @@ namespace Paracore.Addin.Handlers
                             XYZ point = uidoc.Selection.PickPoint("Pick a point");
                             return $"{point.X},{point.Y},{point.Z}";
                         }
-                        
+
                         // Resolve Selection Type
                         var objType = Autodesk.Revit.UI.Selection.ObjectType.Element;
                         if (request.SelectionType.Equals("Face", StringComparison.OrdinalIgnoreCase)) objType = Autodesk.Revit.UI.Selection.ObjectType.Face;
@@ -240,11 +241,10 @@ namespace Paracore.Addin.Handlers
                         var filter = (categoryId != null || classType != null) ? new UniversalSelectionFilter(categoryId, classType) : null;
 
                         var reference = uidoc.Selection.PickObject(objType, filter, $"Pick {request.SelectionType} {request.CategoryFilter}");
-                        
-                        if (objType == Autodesk.Revit.UI.Selection.ObjectType.Element)
-                            return reference.ElementId.Value.ToString();
-                        
-                        return reference.ConvertToStableRepresentation(uidoc.Document);
+
+                        return objType == Autodesk.Revit.UI.Selection.ObjectType.Element
+                            ? reference.ElementId.Value.ToString()
+                            : reference.ConvertToStableRepresentation(uidoc.Document);
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return "CANCELLED"; }
                 });
@@ -277,7 +277,7 @@ namespace Paracore.Addin.Handlers
             return (null, null);
         }
 
-        public async Task<GetCategoryParametersResponse> GetCategoryParameters(GetCategoryParametersRequest request)  
+        public async Task<GetCategoryParametersResponse> GetCategoryParameters(GetCategoryParametersRequest request)
         {
             _logger.Log($"[ContextHandler] Entering GetCategoryParameters for: {request.CategoryName}", LogLevel.Debug);
             var response = new GetCategoryParametersResponse();
@@ -285,10 +285,11 @@ namespace Paracore.Addin.Handlers
 
             try
             {
-                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>       
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
                 {
                     var doc = _uiApp.ActiveUIDocument.Document;
-                    if (!Enum.TryParse<BuiltInCategory>(request.CategoryName, out var bic)) {
+                    if (!Enum.TryParse<BuiltInCategory>(request.CategoryName, out var bic))
+                    {
                         if (!request.CategoryName.StartsWith("OST_") && Enum.TryParse<BuiltInCategory>("OST_" + request.CategoryName, out bic)) { }
                         else { response.ErrorMessage = "Invalid Category"; return false; }
                     }
@@ -296,14 +297,18 @@ namespace Paracore.Addin.Handlers
                     var sample = new FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType().FirstOrDefault();
                     var parametersWithSource = new List<(Parameter Param, bool IsType)>();
 
-                    if (sample != null) {
+                    if (sample != null)
+                    {
                         foreach (Parameter p in sample.Parameters) parametersWithSource.Add((p, false));
                         var typeId = sample.GetTypeId();
-                        if (typeId != ElementId.InvalidElementId) {
+                        if (typeId != ElementId.InvalidElementId)
+                        {
                             var typeElement = doc.GetElement(typeId);
                             if (typeElement != null) foreach (Parameter p in typeElement.Parameters) parametersWithSource.Add((p, true));
                         }
-                    } else {
+                    }
+                    else
+                    {
                         var sampleType = new FilteredElementCollector(doc).OfCategory(bic).WhereElementIsElementType().FirstOrDefault();
                         if (sampleType != null) foreach (Parameter p in sampleType.Parameters) parametersWithSource.Add((p, true));
                     }
@@ -312,11 +317,14 @@ namespace Paracore.Addin.Handlers
                     var nameGroups = allParams.GroupBy(x => x.Param.Definition.Name).ToList();
                     var disambiguatedNames = new Dictionary<ElementId, string>();
 
-                    foreach (var group in nameGroups) {
+                    foreach (var group in nameGroups)
+                    {
                         var list = group.ToList();
                         if (list.Count == 1) disambiguatedNames[list[0].Param.Id] = list[0].Param.Definition.Name;
-                        else {
-                            foreach (var item in list) {
+                        else
+                        {
+                            foreach (var item in list)
+                            {
                                 string suffix = item.Param.StorageType == StorageType.ElementId ? "Reference" : item.Param.StorageType.ToString();
                                 disambiguatedNames[item.Param.Id] = $"{item.Param.Definition.Name} [{suffix}]";
                             }
@@ -324,20 +332,25 @@ namespace Paracore.Addin.Handlers
                     }
 
                     bool isLoadable = false;
-                    if (sample != null) {
+                    if (sample != null)
+                    {
                         var typeId = sample.GetTypeId();
-                        if (typeId != ElementId.InvalidElementId) {
+                        if (typeId != ElementId.InvalidElementId)
+                        {
                             var typeElement = doc.GetElement(typeId);
                             if (typeElement is FamilySymbol) isLoadable = true;
                         }
-                    } else {
+                    }
+                    else
+                    {
                         var sampleType = new FilteredElementCollector(doc).OfCategory(bic).WhereElementIsElementType().FirstOrDefault();
                         if (sampleType is FamilySymbol) isLoadable = true;
                     }
 
-                    foreach (var item in allParams.OrderBy(x => disambiguatedNames[x.Param.Id])) {
+                    foreach (var item in allParams.OrderBy(x => disambiguatedNames[x.Param.Id]))
+                    {
                         var p = item.Param;
-                        
+
                         // CRITICAL UX FIX: Filter out redundant Category/Family parameters from VQB list
                         string lowName = p.Definition.Name.ToLower();
                         if (lowName == "category" || lowName == "element category") continue;
@@ -348,19 +361,25 @@ namespace Paracore.Addin.Handlers
                         if (p.Id.Value == (long)BuiltInParameter.ELEM_FAMILY_PARAM && !isLoadable) continue;
 
                         string specId = ""; try { specId = p.Definition.GetDataType().TypeId; } catch { }
-                        var def = new ParameterDefinition {
-                            Name = disambiguatedNames[p.Id], StorageType = p.StorageType.ToString(),
-                            IsBuiltin = p.IsShared == false && p.Id.Value < 0, BuiltinId = (int)p.Id.Value,
-                            SpecTypeId = specId, IsType = item.IsType
+                        var def = new ParameterDefinition
+                        {
+                            Name = disambiguatedNames[p.Id],
+                            StorageType = p.StorageType.ToString(),
+                            IsBuiltin = p.IsShared == false && p.Id.Value < 0,
+                            BuiltinId = (int)p.Id.Value,
+                            SpecTypeId = specId,
+                            IsType = item.IsType
                         };
                         if (def.IsBuiltin) def.BuiltinName = ((BuiltInParameter)def.BuiltinId).ToString();
 
-                        if (p.StorageType == StorageType.ElementId) {
+                        if (p.StorageType == StorageType.ElementId)
+                        {
                             string typeName = "Element";
                             string name = p.Definition.Name.ToLower();
-                            
+
                             // If this is the Family parameter and it's loadable, we want the Family collector
-                            if (p.Id.Value == (long)BuiltInParameter.ELEM_FAMILY_PARAM && isLoadable) {
+                            if (p.Id.Value == (long)BuiltInParameter.ELEM_FAMILY_PARAM && isLoadable)
+                            {
                                 typeName = "Family";
                             }
                             else if (name.Contains("category")) typeName = "Category";
@@ -369,7 +388,7 @@ namespace Paracore.Addin.Handlers
                             else if (name.Contains("type")) typeName = "ElementType";
                             else if (name.Contains("phase")) typeName = "Phase";
                             else if (name.Contains("view")) typeName = "View";
-                            
+
                             def.RevitElementType = typeName;
                         }
                         response.Parameters.Add(def);
@@ -388,30 +407,37 @@ namespace Paracore.Addin.Handlers
 
             try
             {
-                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>       
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
                 {
                     var doc = _uiApp.ActiveUIDocument.Document;
                     var element = doc.GetElement(new ElementId(request.ElementId));
-                    if (element == null) throw new Exception($"Element {request.ElementId} not found.");      
+                    if (element == null) throw new Exception($"Element {request.ElementId} not found.");
 
                     // --- PRECISION FUZZY RESOLVER ---
                     string searchName = request.ParameterName.Replace(" ", "").ToLowerInvariant();
                     Parameter? targetParam = element.LookupParameter(request.ParameterName);
-                    
-                    if (targetParam == null) {
-                        foreach (Parameter p in element.Parameters) {
+
+                    if (targetParam == null)
+                    {
+                        foreach (Parameter p in element.Parameters)
+                        {
                             if (p.Definition.Name.Replace(" ", "").ToLowerInvariant() == searchName) { targetParam = p; break; }
                         }
                     }
 
-                    if (targetParam == null) {
+                    if (targetParam == null)
+                    {
                         var typeId = element.GetTypeId();
-                        if (typeId != ElementId.InvalidElementId) {
+                        if (typeId != ElementId.InvalidElementId)
+                        {
                             var typeElement = doc.GetElement(typeId);
-                            if (typeElement != null) {
+                            if (typeElement != null)
+                            {
                                 targetParam = typeElement.LookupParameter(request.ParameterName);
-                                if (targetParam == null) {
-                                    foreach (Parameter p in typeElement.Parameters) {
+                                if (targetParam == null)
+                                {
+                                    foreach (Parameter p in typeElement.Parameters)
+                                    {
                                         if (p.Definition.Name.Replace(" ", "").ToLowerInvariant() == searchName) { targetParam = p; break; }
                                     }
                                 }
@@ -428,9 +454,11 @@ namespace Paracore.Addin.Handlers
                         if (targetParam.StorageType == StorageType.String) targetParam.Set(request.NewValueString ?? "");
                         else if (targetParam.StorageType == StorageType.Integer) targetParam.Set(int.Parse(request.NewValueString));
                         else if (targetParam.StorageType == StorageType.ElementId) targetParam.Set(new ElementId(long.Parse(request.NewValueString)));
-                        else if (targetParam.StorageType == StorageType.Double) {
+                        else if (targetParam.StorageType == StorageType.Double)
+                        {
                             double val = double.Parse(request.NewValueString);
-                            if (!string.IsNullOrEmpty(request.Unit)) {
+                            if (!string.IsNullOrEmpty(request.Unit))
+                            {
                                 val = val.ToUnits(request.Unit);
                             }
                             targetParam.Set(val);
@@ -452,7 +480,7 @@ namespace Paracore.Addin.Handlers
 
             try
             {
-                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>       
+                await CoreScript.Engine.Runtime.CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(() =>
                 {
                     var doc = _uiApp.ActiveUIDocument.Document;
                     using (Transaction t = new Transaction(doc, "Paracore: Batch Update"))
@@ -466,20 +494,25 @@ namespace Paracore.Addin.Handlers
 
                             string searchName = update.ParameterName.Replace(" ", "").ToLowerInvariant();
                             Parameter? targetParam = element.LookupParameter(update.ParameterName);
-                            
-                            if (targetParam == null) {
-                                foreach (Parameter p in element.Parameters) {
+
+                            if (targetParam == null)
+                            {
+                                foreach (Parameter p in element.Parameters)
+                                {
                                     if (p.Definition.Name.Replace(" ", "").ToLowerInvariant() == searchName) { targetParam = p; break; }
                                 }
                             }
 
-                            if (targetParam != null && !targetParam.IsReadOnly) {
+                            if (targetParam != null && !targetParam.IsReadOnly)
+                            {
                                 if (targetParam.StorageType == StorageType.String) targetParam.Set(update.NewValueString ?? "");
                                 else if (targetParam.StorageType == StorageType.Integer) targetParam.Set(int.Parse(update.NewValueString));
                                 else if (targetParam.StorageType == StorageType.ElementId) targetParam.Set(new ElementId(long.Parse(update.NewValueString)));
-                                else if (targetParam.StorageType == StorageType.Double) {
+                                else if (targetParam.StorageType == StorageType.Double)
+                                {
                                     double val = double.Parse(update.NewValueString);
-                                    if (!string.IsNullOrEmpty(update.Unit)) {
+                                    if (!string.IsNullOrEmpty(update.Unit))
+                                    {
                                         val = val.ToUnits(update.Unit);
                                     }
                                     targetParam.Set(val);

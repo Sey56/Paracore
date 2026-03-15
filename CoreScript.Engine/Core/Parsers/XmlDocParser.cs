@@ -10,7 +10,10 @@ namespace CoreScript.Engine.Core.Parsers
         public static string ExtractDescription(SyntaxTriviaList trivia)
         {
             var lines = trivia.Select(t => t.ToFullString().Trim()).Where(s => s.StartsWith("///")).ToList();
-            if (!lines.Any()) return "";
+            if (!lines.Any())
+            {
+                return "";
+            }
 
             var xml = string.Join("\n", lines);
             var match = Regex.Match(xml, @"<summary>(.*?)</summary>", RegexOptions.Singleline | RegexOptions.IgnoreCase);

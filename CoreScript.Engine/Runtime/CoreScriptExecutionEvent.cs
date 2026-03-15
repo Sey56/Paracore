@@ -19,7 +19,9 @@ namespace CoreScript.Engine.Runtime
         public void Raise()
         {
             if (ExternalEvent?.IsPending != true)
+            {
                 ExternalEvent?.Raise();
+            }
         }
     }
 }

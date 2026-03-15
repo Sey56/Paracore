@@ -26,7 +26,7 @@ export const SidebarSection: React.FC<SidebarSectionProps> = ({
   return (
     <div className={`mb-2 ${className}`}>
       <div
-        className="flex items-center group/section px-2 py-1.5 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-all duration-300 select-none border border-transparent hover:border-gray-100 dark:hover:border-gray-800/50 shadow-none hover:shadow-sm"
+        className="flex items-center group/section px-2 py-1.5 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-300 select-none border border-transparent hover:border-gray-100 dark:hover:border-white/10 shadow-none hover:shadow-sm"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2.5 overflow-hidden shrink-0">

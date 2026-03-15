@@ -209,9 +209,9 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     : tooltipMessage;
 
   return (
-    <div className={`tab-content h-full overflow-hidden bg-white/40 dark:bg-slate-700/25 backdrop-blur-sm`}>
-      <div className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar py-6 px-5">
-        <div className="space-y-8 pb-40">
+    <div className={`tab-content absolute inset-0 bg-white/40 dark:bg-slate-700/25 backdrop-blur-sm`}>
+      <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar py-6 pl-5 pr-3">
+        <div className="space-y-8 pb-6 pr-2">
         {/* 1. Configuration Presets */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="flex flex-col space-y-4">
@@ -364,7 +364,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
               {activeRole !== Role.User && !isProtectedTool && (
                 <button
                   title="View Source Code"
-                  className="w-12 h-12 rounded-xl text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center shadow-sm group"
+                  className="w-12 h-12 rounded-xl text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center shadow-sm group tooltip-left"
                   onClick={onViewCodeClick}
                 >
                   <FontAwesomeIcon icon={faExternalLinkAlt} className="text-sm group-hover:scale-110 transition-transform" />

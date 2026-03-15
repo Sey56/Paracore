@@ -23,7 +23,7 @@ namespace Paracore.Addin.Handlers
             try
             {
                 var context = new ServerContext(_uiApp);
-                
+
                 // Use the dispatcher to run the REPL command on the Revit UI thread
                 var result = await CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(async () =>
                 {
@@ -44,12 +44,13 @@ namespace Paracore.Addin.Handlers
                 {
                     try
                     {
-                        var temp = System.Text.Json.JsonSerializer.Deserialize<StructuredOutputPoco>(item, 
+                        var temp = System.Text.Json.JsonSerializer.Deserialize<StructuredOutputPoco>(item,
                             new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                            
+
                         if (temp != null)
                         {
-                            response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { 
+                            response.StructuredOutput.Add(new CoreScript.StructuredOutputItem
+                            {
                                 Type = temp.Type ?? "",
                                 Data = temp.Data ?? "",
                                 Title = temp.Title ?? ""

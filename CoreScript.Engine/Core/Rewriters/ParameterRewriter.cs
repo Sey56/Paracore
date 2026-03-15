@@ -17,7 +17,10 @@ namespace CoreScript.Engine.Core.Rewriters
             bool isInsideParams = false;
             while (parent != null) { if (parent is ClassDeclarationSyntax c && c.Identifier.Text == "Params") { isInsideParams = true; break; } parent = parent.Parent; }
 
-            if (!isInsideParams || !node.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword))) return base.VisitPropertyDeclaration(node);
+            if (!isInsideParams || !node.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)))
+            {
+                return base.VisitPropertyDeclaration(node);
+            }
 
             var paramName = node.Identifier.Text;
             if (_parameters.TryGetValue(paramName, out _))
@@ -27,10 +30,10 @@ namespace CoreScript.Engine.Core.Rewriters
                 var cleanAccessorList = node.AccessorList?.WithTrailingTrivia(SyntaxFactory.Space);
 
                 var pullExpression = SyntaxFactory.ParseExpression($"CoreScript.Engine.Globals.ExecutionGlobals.Get<{node.Type}>(\"{paramName}\")");
-                
+
                 var initializer = SyntaxFactory.EqualsValueClause(pullExpression)
                     .WithLeadingTrivia(SyntaxFactory.Space);
-                
+
                 // Get the original trailing trivia (which usually contains the newline)
                 var originalTrailingTrivia = node.GetTrailingTrivia();
 
@@ -39,10 +42,10 @@ namespace CoreScript.Engine.Core.Rewriters
                     .WithInitializer(initializer)
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)
                         .WithTrailingTrivia(originalTrailingTrivia));
-                
+
                 return updatedNode;
             }
-            
+
             return base.VisitPropertyDeclaration(node);
         }
     }

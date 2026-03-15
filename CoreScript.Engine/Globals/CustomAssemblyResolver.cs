@@ -12,16 +12,25 @@ namespace CoreScript.Engine.Globals
             AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
             {
                 var name = new AssemblyName(args.Name).Name;
-                if (string.IsNullOrEmpty(name)) return null;
+                if (string.IsNullOrEmpty(name))
+                {
+                    return null;
+                }
 
                 // Only attempt to resolve Roslyn-related assemblies that are known to conflict
-                if (!name.StartsWith("Microsoft.CodeAnalysis")) return null;
+                if (!name.StartsWith("Microsoft.CodeAnalysis"))
+                {
+                    return null;
+                }
 
                 try
                 {
                     // Attempt to find the DLL in the engine's base directory
                     var baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                    if (string.IsNullOrEmpty(baseDir)) return null;
+                    if (string.IsNullOrEmpty(baseDir))
+                    {
+                        return null;
+                    }
 
                     var path = Path.Combine(baseDir, name + ".dll");
                     if (File.Exists(path))
@@ -42,7 +51,11 @@ namespace CoreScript.Engine.Globals
             try
             {
                 var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
-                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                if (!Directory.Exists(logDir))
+                {
+                    Directory.CreateDirectory(logDir);
+                }
+
                 File.AppendAllText(Path.Combine(logDir, "Loader.log"), $"[{DateTime.Now}] {message}{Environment.NewLine}");
             }
             catch { /* Silent fail */ }

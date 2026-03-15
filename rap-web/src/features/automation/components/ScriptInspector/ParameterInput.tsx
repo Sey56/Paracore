@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSync, faSpinner, faFolderOpen, faMousePointer, faCrosshairs, faSearch, faCheck, faExclamationTriangle } from "@fortawesome/free-solid-svg-icons";
 import { open, save } from "@tauri-apps/api/dialog";
@@ -28,6 +29,46 @@ interface MultiSelectInputProps {
   isComputing?: boolean;
   disabled?: boolean;
 }
+
+const useDropdownPosition = (isOpen: boolean, triggerRef: React.RefObject<HTMLElement | null>) => {
+  const [coords, setCoords] = useState({ left: 0, top: 0 as number | 'auto', bottom: 0 as number | 'auto', width: 0, isUp: false, maxHeight: 300 });
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) return;
+    
+    let isActive = true;
+
+    const updatePosition = () => {
+      if (!isActive || !triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      const isUp = spaceBelow < 250 && spaceAbove > spaceBelow;
+      
+      setCoords({
+        left: rect.left,
+        width: rect.width,
+        isUp,
+        top: isUp ? 'auto' : rect.bottom + 6,
+        bottom: isUp ? window.innerHeight - rect.top + 6 : 'auto',
+        maxHeight: isUp ? spaceAbove - 24 : spaceBelow - 24,
+      });
+    };
+    
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    
+    return () => {
+      isActive = false;
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen, triggerRef]);
+
+  return coords;
+};
 
 const ToggleSwitch = ({ checked, onChange, disabled }: { checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) => (
   <button
@@ -90,7 +131,7 @@ const VirtualList: React.FC<{
                   : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
               style={{ top, height: rowHeight }}
             >
-              <div className="min-w-0" title={item}>
+              <div className="min-w-0">
                 <div className="truncate w-full block tracking-wide">{item}</div>
               </div>
 
@@ -120,6 +161,8 @@ const VirtualList: React.FC<{
 const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onChange, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const coords = useDropdownPosition(isOpen, buttonRef);
 
   const value = param.value as string;
 
@@ -133,9 +176,13 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
     setSearchTerm("");
   };
 
+  const dropdownMaxHeight = Math.max(150, Math.min(coords.maxHeight, 350));
+  const targetListHeight = Math.min(filteredOptions.length * 32, dropdownMaxHeight - 55);
+
   return (
     <div className={`relative w-full ${isOpen ? 'z-50' : ''}`}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
@@ -149,11 +196,20 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
         </svg>
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 origin-top backdrop-blur-xl">
-            <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+          <div className="fixed inset-0 z-[100]" onClick={() => setIsOpen(false)} />
+          <div 
+            className={`fixed z-[100] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 backdrop-blur-xl ${coords.isUp ? 'origin-bottom' : 'origin-top'}`}
+            style={{ 
+              left: coords.left, 
+              width: coords.width, 
+              top: coords.top !== 'auto' ? coords.top : undefined,
+              bottom: coords.bottom !== 'auto' ? coords.bottom : undefined,
+              maxHeight: dropdownMaxHeight
+            }}
+          >
+            <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 shrink-0">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-xs" />
@@ -175,7 +231,7 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
                   selectedValues={value ? [value] : []}
                   onChange={(opt) => handleSelect(opt)}
                   rowHeight={32}
-                  height={Math.min(filteredOptions.length * 32, 300)}
+                  height={targetListHeight}
                   type="single"
                 />
               ) : (
@@ -185,7 +241,8 @@ const SingleSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCh
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

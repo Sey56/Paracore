@@ -11,9 +11,9 @@ namespace CoreScript.Engine.Core.Parsers
     public static class ExtractionUtils
     {
         private static readonly Assembly RevitAssembly = typeof(Autodesk.Revit.DB.Element).Assembly;
-        private static readonly string[] RevitNamespaces = { 
-            "Autodesk.Revit.DB", 
-            "Autodesk.Revit.DB.Architecture", 
+        private static readonly string[] RevitNamespaces = {
+            "Autodesk.Revit.DB",
+            "Autodesk.Revit.DB.Architecture",
             "Autodesk.Revit.DB.Structure",
             "Autodesk.Revit.DB.Mechanical",
             "Autodesk.Revit.DB.Plumbing",
@@ -22,15 +22,26 @@ namespace CoreScript.Engine.Core.Parsers
 
         public static string ExtractString(ExpressionSyntax expr)
         {
-            if (expr == null) return "";
-            if (expr is LiteralExpressionSyntax l) return l.Token.ValueText;
+            if (expr == null)
+            {
+                return "";
+            }
+
+            if (expr is LiteralExpressionSyntax l)
+            {
+                return l.Token.ValueText;
+            }
+
             if (expr is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof" && inv.ArgumentList.Arguments.Count > 0)
             {
                 return inv.ArgumentList.Arguments[0].Expression.ToString();
             }
-            if (expr is IdentifierNameSyntax id) return id.Identifier.Text;
-            if (expr is MemberAccessExpressionSyntax mem) return mem.Name.Identifier.Text;
-            return expr.ToString().Trim('"', '\'');
+            if (expr is IdentifierNameSyntax id)
+            {
+                return id.Identifier.Text;
+            }
+
+            return expr is MemberAccessExpressionSyntax mem ? mem.Name.Identifier.Text : expr.ToString().Trim('"', '\'');
         }
 
         public static double? ExtractDouble(ExpressionSyntax expr)
@@ -51,7 +62,11 @@ namespace CoreScript.Engine.Core.Parsers
 
         public static bool ExtractBool(ExpressionSyntax expr)
         {
-            if (expr is LiteralExpressionSyntax l && l.Token.Value is bool b) return b;
+            if (expr is LiteralExpressionSyntax l && l.Token.Value is bool b)
+            {
+                return b;
+            }
+
             string txt = expr.ToString().ToLower();
             return txt == "true" || txt == "1";
         }
@@ -70,11 +85,18 @@ namespace CoreScript.Engine.Core.Parsers
 
         private static Type ResolveRevitType(string typeName)
         {
-            if (string.IsNullOrEmpty(typeName)) return null;
+            if (string.IsNullOrEmpty(typeName))
+            {
+                return null;
+            }
+
             foreach (var ns in RevitNamespaces)
             {
                 var type = RevitAssembly.GetType($"{ns}.{typeName}");
-                if (type != null) return type;
+                if (type != null)
+                {
+                    return type;
+                }
             }
             return null;
         }
@@ -114,42 +136,78 @@ namespace CoreScript.Engine.Core.Parsers
                 string left = binary.Left.ToString();
                 string right = binary.Right.ToString().Trim('"', '\'');
                 string op = binary.OperatorToken.ValueText;
-                if (op == "==" || op == "!=") return $"{left} {op} '{right}'";
+                if (op == "==" || op == "!=")
+                {
+                    return $"{left} {op} '{right}'";
+                }
             }
-            else if (expr is IdentifierNameSyntax id) return $"{id.Identifier.Text} == 'true'";
-            else if (expr is PrefixUnaryExpressionSyntax pre && pre.OperatorToken.IsKind(SyntaxKind.ExclamationToken)) return $"{pre.Operand.ToString()} != 'true'";
+            else if (expr is IdentifierNameSyntax id)
+            {
+                return $"{id.Identifier.Text} == 'true'";
+            }
+            else if (expr is PrefixUnaryExpressionSyntax pre && pre.OperatorToken.IsKind(SyntaxKind.ExclamationToken))
+            {
+                return $"{pre.Operand.ToString()} != 'true'";
+            }
+
             return expr.ToString();
         }
 
         public static List<string> ExtractStringsFromInitializer(ExpressionSyntax expr)
         {
-            if (expr == null) return new List<string>();
+            if (expr == null)
+            {
+                return new List<string>();
+            }
+
             if (expr is LiteralExpressionSyntax lit && lit.Token.Value is string val)
             {
-                if (val.Contains(",")) return val.Split(',').Select(o => o.Trim()).Where(o => !string.IsNullOrEmpty(o)).ToList();
-                return new List<string> { val };
+                return val.Contains(",")
+                    ? val.Split(',').Select(o => o.Trim()).Where(o => !string.IsNullOrEmpty(o)).ToList()
+                    : new List<string> { val };
             }
             if (expr is CollectionExpressionSyntax col)
             {
                 return col.Elements.OfType<ExpressionElementSyntax>().Select(e => ExtractString(e.Expression)).Where(v => !string.IsNullOrEmpty(v)).ToList();
             }
-            if (expr is ImplicitArrayCreationExpressionSyntax imp && imp.Initializer != null)
-            {
-                return imp.Initializer.Expressions.Select(ExtractString).Where(v => !string.IsNullOrEmpty(v)).ToList();
-            }
-            return new List<string>();
+            return expr is ImplicitArrayCreationExpressionSyntax imp && imp.Initializer != null
+                ? imp.Initializer.Expressions.Select(ExtractString).Where(v => !string.IsNullOrEmpty(v)).ToList()
+                : new List<string>();
         }
 
         public static bool IsSimpleStaticExpression(ExpressionSyntax expr)
         {
-            if (expr == null) return true;
-            if (expr is LiteralExpressionSyntax) return true;
-            if (expr is TupleExpressionSyntax tuple) return tuple.Arguments.All(a => IsSimpleStaticExpression(a.Expression));
-            if (expr is CollectionExpressionSyntax col) return col.Elements.OfType<ExpressionElementSyntax>().All(e => IsSimpleStaticExpression(e.Expression));
-            if (expr is ImplicitArrayCreationExpressionSyntax imp && imp.Initializer != null) return imp.Initializer.Expressions.All(IsSimpleStaticExpression);
-            if (expr is ArrayCreationExpressionSyntax arr) return arr.Initializer == null || arr.Initializer.Expressions.All(IsSimpleStaticExpression);
-            if (expr is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof") return true;
-            return false;
+            if (expr == null)
+            {
+                return true;
+            }
+
+            if (expr is LiteralExpressionSyntax)
+            {
+                return true;
+            }
+
+            if (expr is TupleExpressionSyntax tuple)
+            {
+                return tuple.Arguments.All(a => IsSimpleStaticExpression(a.Expression));
+            }
+
+            if (expr is CollectionExpressionSyntax col)
+            {
+                return col.Elements.OfType<ExpressionElementSyntax>().All(e => IsSimpleStaticExpression(e.Expression));
+            }
+
+            if (expr is ImplicitArrayCreationExpressionSyntax imp && imp.Initializer != null)
+            {
+                return imp.Initializer.Expressions.All(IsSimpleStaticExpression);
+            }
+
+            if (expr is ArrayCreationExpressionSyntax arr)
+            {
+                return arr.Initializer == null || arr.Initializer.Expressions.All(IsSimpleStaticExpression);
+            }
+
+            return expr is InvocationExpressionSyntax inv && inv.Expression.ToString() == "nameof";
         }
     }
 }

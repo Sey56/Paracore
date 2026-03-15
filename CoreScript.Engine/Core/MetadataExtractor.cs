@@ -41,7 +41,7 @@ namespace CoreScript.Engine.Core
                         {
                             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                             metadata = JsonSerializer.Deserialize<ScriptMetadata>(metaElem.GetRawText(), options) ?? metadata;
-                            
+
                             // V4: Ensure IsWatchdog is preserved/assigned from JSON
                             if (metaElem.TryGetProperty("is_watchdog", out var isW) || metaElem.TryGetProperty("isWatchdog", out isW))
                             {
@@ -60,7 +60,7 @@ namespace CoreScript.Engine.Core
                 }
             }
             // ---------------------
-            
+
             metadata.DocumentType = "Any"; // Default value
             metadata.IsWatchdog = Regex.IsMatch(scriptContent, @"Watchdog\s*\(");
 
@@ -115,7 +115,7 @@ namespace CoreScript.Engine.Core
             var lines = cleanComment.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             string? currentKey = null;
             var currentValue = new List<string>();
-            
+
             // V3.1: More permissive key regex (allows spaces like 'Usage Examples')
             var keyRegex = new Regex(@"^([a-zA-Z_\s]+):\s*(.*)");
 
@@ -153,7 +153,10 @@ namespace CoreScript.Engine.Core
 
         private void ProcessMetadataValue(ScriptMetadata metadata, string key, string value)
         {
-            if (string.IsNullOrEmpty(value)) return;
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
 
             switch (key)
             {
@@ -221,8 +224,7 @@ namespace CoreScript.Engine.Core
 
         private static string GetElementContent(XmlElementSyntax element)
         {
-            if (element == null) return "";
-            return string.Concat(element.Content.Select(node => node.ToString())).Trim();
+            return element == null ? "" : string.Concat(element.Content.Select(node => node.ToString())).Trim();
         }
     }
 }

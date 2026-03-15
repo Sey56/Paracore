@@ -15,8 +15,11 @@ namespace CoreScript.Engine.Core
         {
             var dict = new Dictionary<string, object>();
             richParameters = new List<ScriptParameter>();
-            if (string.IsNullOrWhiteSpace(json)) return dict;
-            
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return dict;
+            }
+
             try
             {
                 using (JsonDocument doc = JsonDocument.Parse(json))
@@ -24,9 +27,9 @@ namespace CoreScript.Engine.Core
                     if (doc.RootElement.ValueKind == JsonValueKind.Array)
                     {
                         richParameters = JsonSerializer.Deserialize<List<ScriptParameter>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? richParameters;
-                        foreach (var p in richParameters) 
+                        foreach (var p in richParameters)
                         {
-                            if (!string.IsNullOrEmpty(p.Name)) 
+                            if (!string.IsNullOrEmpty(p.Name))
                             {
                                 dict[p.Name] = ConvertJsonElement(p.Value);
                             }
@@ -35,9 +38,9 @@ namespace CoreScript.Engine.Core
                     else
                     {
                         var raw = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
-                        foreach (var kv in raw) 
+                        foreach (var kv in raw)
                         {
-                            if (!string.IsNullOrEmpty(kv.Key)) 
+                            if (!string.IsNullOrEmpty(kv.Key))
                             {
                                 dict[kv.Key] = kv.Value is JsonElement e ? ConvertJsonElement(e) : kv.Value;
                             }
@@ -55,26 +58,43 @@ namespace CoreScript.Engine.Core
 
         public void HardenParameters(Dictionary<string, object> parameters, List<ScriptParameter> scriptParams)
         {
-            if (scriptParams == null) return;
+            if (scriptParams == null)
+            {
+                return;
+            }
+
             foreach (var p in scriptParams)
             {
                 if (!parameters.ContainsKey(p.Name) || parameters[p.Name] == null || (parameters[p.Name] is string s && string.IsNullOrEmpty(s)))
                 {
                     if (!string.IsNullOrEmpty(p.DefaultValueJson))
                     {
-                        try {
-                            if (p.Type == "number") parameters[p.Name] = double.Parse(p.DefaultValueJson);
-                            else if (p.Type == "boolean") parameters[p.Name] = p.DefaultValueJson.ToLower() == "true";
-                            else parameters[p.Name] = p.DefaultValueJson.Trim('"');
+                        try
+                        {
+                            if (p.Type == "number")
+                            {
+                                parameters[p.Name] = double.Parse(p.DefaultValueJson);
+                            }
+                            else if (p.Type == "boolean")
+                            {
+                                parameters[p.Name] = p.DefaultValueJson.ToLower() == "true";
+                            }
+                            else
+                            {
+                                parameters[p.Name] = p.DefaultValueJson.Trim('"');
+                            }
+
                             FileLogger.Log($"[ParameterService] Applied default value for '{p.Name}': {parameters[p.Name]}");
-                        } catch {}
+                        }
+                        catch { }
                     }
                 }
 
                 // Apply Unit Conversion
                 if (parameters.TryGetValue(p.Name, out var val) && val != null && !string.IsNullOrEmpty(p.Unit))
                 {
-                    try {
+                    try
+                    {
                         double d = Convert.ToDouble(val);
                         ForgeTypeId unitTypeId = UnitExtensions.GetUnitTypeId(p.Unit);
 
@@ -83,14 +103,16 @@ namespace CoreScript.Engine.Core
                             parameters[p.Name] = UnitUtils.ConvertToInternalUnits(d, unitTypeId);
                             FileLogger.Log($"[ParameterService] Converted parameter '{p.Name}' from {d} {p.Unit} to Internal Units.");
                         }
-                    } catch {}
+                    }
+                    catch { }
                 }
             }
         }
 
         private object ConvertJsonElement(JsonElement element)
         {
-            switch (element.ValueKind) {
+            switch (element.ValueKind)
+            {
                 case JsonValueKind.String: return element.GetString();
                 case JsonValueKind.Number: return element.TryGetInt32(out int i) ? i : element.GetDouble();
                 case JsonValueKind.True: return true;

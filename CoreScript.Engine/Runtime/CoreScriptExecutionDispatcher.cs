@@ -77,7 +77,7 @@ namespace CoreScript.Engine.Runtime
         public Guid QueueScriptFromServer(string scriptContent, string parametersJson, ICoreScriptContext context, bool isSilent = false, ExecutionPriority priority = ExecutionPriority.High)
         {
             FileLogger.Log($"[CoreScriptExecutionDispatcher] Queueing script (Priority: {priority}, Silent: {isSilent}).");
-            
+
             var request = new ExecutionRequest
             {
                 ScriptContent = scriptContent,
@@ -92,14 +92,18 @@ namespace CoreScript.Engine.Runtime
                 _executionQueue.Enqueue(request, (int)request.Priority);
             }
 
-            if (_codeExecutionEvent != null) _codeExecutionEvent.Raise();
+            if (_codeExecutionEvent != null)
+            {
+                _codeExecutionEvent.Raise();
+            }
+
             return request.ExecutionId;
         }
 
         public Guid QueueBinaryScriptFromServer(byte[] compiledAssembly, string parametersJson, ICoreScriptContext context, bool isSilent = false, ExecutionPriority priority = ExecutionPriority.High)
         {
             FileLogger.Log($"[CoreScriptExecutionDispatcher] Queueing BINARY tool (Priority: {priority}, Silent: {isSilent}).");
-            
+
             var request = new ExecutionRequest
             {
                 CompiledAssembly = compiledAssembly,
@@ -114,7 +118,11 @@ namespace CoreScript.Engine.Runtime
                 _executionQueue.Enqueue(request, (int)request.Priority);
             }
 
-            if (_codeExecutionEvent != null) _codeExecutionEvent.Raise();
+            if (_codeExecutionEvent != null)
+            {
+                _codeExecutionEvent.Raise();
+            }
+
             return request.ExecutionId;
         }
 
@@ -179,22 +187,24 @@ namespace CoreScript.Engine.Runtime
                 }
 
                 if (!scriptResult.IsSuccess)
+                {
                     LogErrorToFile(scriptResult.ErrorMessage ?? "Unknown error.");
-                
+                }
+
                 scriptResult.ExecutionId = request.ExecutionId;
             }
             catch (Exception ex)
             {
                 string msg = ex.Message ?? "";
                 bool isConflict = msg.Contains("Microsoft.CodeAnalysis") || msg.Contains("Roslyn") || ex is FileLoadException;
-                
-                var error = isConflict 
+
+                var error = isConflict
                     ? "⚠️ Add-in Conflict: Paracore is unable to start its scripting engine because another Revit Add-in (like pyRevit) has locked a required library."
                     : $"Dispatcher error: {ex.Message}";
 
                 LogErrorToFile($"{error} | Details: {ex.Message}");
                 FileLogger.LogError($"[CoreScriptExecutionDispatcher] Exception: {ex.Message}");
-                
+
                 if (request.Context != null)
                 {
                     if (isConflict)
@@ -212,10 +222,13 @@ namespace CoreScript.Engine.Runtime
             finally
             {
                 // Attach the silent flag to the result so the UI knows whether to record it
-                if (request != null) scriptResult.IsSilent = request.IsSilent;
+                if (request != null)
+                {
+                    scriptResult.IsSilent = request.IsSilent;
+                }
 
                 OnExecutionComplete?.Invoke(scriptResult);
-                
+
                 // If there are more items in the queue, raise the event again
                 lock (_queueLock)
                 {
@@ -244,7 +257,11 @@ namespace CoreScript.Engine.Runtime
             var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
             try
             {
-                if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                if (!Directory.Exists(logDir))
+                {
+                    Directory.CreateDirectory(logDir);
+                }
+
                 var logPath = Path.Combine(logDir, "CoreScriptError.txt");
                 File.AppendAllText(logPath, $"{DateTime.Now}: {errorMessage}\n");
             }

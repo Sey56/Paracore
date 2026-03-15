@@ -63,7 +63,7 @@ namespace Paracore.Addin.Handlers
                     DocumentType = extractedMetadata.DocumentType,
                     UsageExamples = { extractedMetadata.UsageExamples },
                     IsWatchdog = extractedMetadata.IsWatchdog,
-                    DateCreated = "", 
+                    DateCreated = "",
                     DateModified = ""
                 };
             }
@@ -90,7 +90,7 @@ namespace Paracore.Addin.Handlers
                     FileName = f.FileName,
                     Content = f.Content
                 }).ToList();
-                
+
                 string combinedScript = _scriptCombiner.Combine(scriptFiles);
                 var extractedParams = _parameterExtractor.ExtractParameters(combinedScript);
 
@@ -119,12 +119,12 @@ namespace Paracore.Addin.Handlers
                         Unit = p.Unit ?? "",
                         SelectionType = p.SelectionType ?? ""
                     };
-                    
+
                     protoParam.Options.AddRange(p.Options);
                     if (p.Min.HasValue) protoParam.Min = p.Min.Value;
                     if (p.Max.HasValue) protoParam.Max = p.Max.Value;
                     if (p.Step.HasValue) protoParam.Step = p.Step.Value;
-                    
+
                     response.Parameters.Add(protoParam);
                 }
             }
@@ -276,7 +276,7 @@ namespace Paracore.Addin.Handlers
                 }
 
                 var scriptList = new List<object>();
-                
+
                 // Scan for project folders
                 var projectDirs = Directory.GetDirectories(rootPath);
                 foreach (var projectDir in projectDirs)
@@ -299,7 +299,7 @@ namespace Paracore.Addin.Handlers
                         }).ToList();
 
                         string combined = _scriptCombiner.Combine(scriptFiles);
-                        
+
                         // V3.1 optimization: Extract metadata from the entry file specifically
                         var topLevelFile = _scriptParser.IdentifyTopLevelScript(scriptFiles);
                         var metadata = _metadataExtractor.ExtractMetadata(topLevelFile?.Content ?? combined);
@@ -325,7 +325,8 @@ namespace Paracore.Addin.Handlers
                                 dateCreated = GetScriptsFolderCreated(projectDir),
                                 dateModified = GetScriptsFolderModified(projectDir)
                             },
-                            parameters = parameters.Select(p => new {
+                            parameters = parameters.Select(p => new
+                            {
                                 name = p.Name,
                                 type = p.Type,
                                 defaultValue = p.DefaultValueJson,

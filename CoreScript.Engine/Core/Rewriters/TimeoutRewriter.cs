@@ -10,7 +10,7 @@ namespace CoreScript.Engine.Core.Rewriters
     /// </summary>
     public class TimeoutRewriter : CSharpSyntaxRewriter
     {
-        private static readonly StatementSyntax TimeoutCheckStatement = 
+        private static readonly StatementSyntax TimeoutCheckStatement =
             SyntaxFactory.ParseStatement("CoreScript.Engine.Globals.ExecutionGlobals.CheckTimeout();");
 
         public override SyntaxNode VisitForStatement(ForStatementSyntax node)

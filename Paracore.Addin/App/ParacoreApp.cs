@@ -97,7 +97,7 @@ namespace Paracore.Addin.App
             // V3.1: Watchdogs run even if server is toggled off in ribbon
             UIApplication uiApp = sender is UIApplication app ? app : new UIApplication(sender as Autodesk.Revit.ApplicationServices.Application);
             if (uiApp == null) return;
-            
+
             var doc = uiApp.ActiveUIDocument?.Document;
             if (doc == null) return;
 
@@ -109,7 +109,7 @@ namespace Paracore.Addin.App
                 try
                 {
                     WatchdogRegistry.CurrentWatchdogPath = watchdog.ScriptPath;
-                    
+
                     // Initialize Global Context for ScriptApi access
                     var ctx = new WatchdogContext(uiApp, doc, watchdog.Parameters);
                     var execContext = new ExecutionGlobals(ctx, watchdog.Parameters);
@@ -197,7 +197,10 @@ namespace Paracore.Addin.App
         }
 
         public static CoreScriptServer? Server => _server;
-        public static void SetServer(CoreScriptServer? server) => _server = server;
+        public static void SetServer(CoreScriptServer? server)
+        {
+            _server = server;
+        }
 
         public static IServiceProvider ServiceProvider => _serviceProvider ?? throw new InvalidOperationException("Service Provider has not been initialized.");
 

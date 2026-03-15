@@ -29,21 +29,27 @@ namespace CoreScript.Engine.Core
         /// <summary>
         /// Factory for failed execution result.
         /// </summary>
-        public static ExecutionResult Failure(string message, params string[] details) => new()
+        public static ExecutionResult Failure(string message, params string[] details)
         {
-            IsSuccess = false,
-            ErrorMessage = message,
-            ErrorDetails = details
-        };
+            return new()
+            {
+                IsSuccess = false,
+                ErrorMessage = message,
+                ErrorDetails = details
+            };
+        }
 
         /// <summary>
         /// Factory for success.
         /// </summary>
-        public static ExecutionResult Success(string result, object? returnVal = null) => new()
+        public static ExecutionResult Success(string result, object? returnVal = null)
         {
-            IsSuccess = true,
-            ResultMessage = result,
-            ReturnValue = returnVal
-        };
+            return new()
+            {
+                IsSuccess = true,
+                ResultMessage = result,
+                ReturnValue = returnVal
+            };
+        }
     }
 }

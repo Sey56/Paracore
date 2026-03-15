@@ -30,7 +30,10 @@ namespace Paracore.Addin.Services
             _logger.Log($"Server initialized: {DateTime.Now}", LogLevel.Debug);
         }
 
-        public ILogger GetLogger() => _logger;
+        public ILogger GetLogger()
+        {
+            return _logger;
+        }
 
         public void Start()
         {
@@ -38,7 +41,7 @@ namespace Paracore.Addin.Services
 
             var builder = Host.CreateDefaultBuilder()
                 .ConfigureWebHostDefaults(webBuilder =>
-                { 
+                {
                     webBuilder.ConfigureKestrel(options =>
                     {
                         options.ListenLocalhost(50051, o => o.Protocols = HttpProtocols.Http2);
@@ -46,13 +49,13 @@ namespace Paracore.Addin.Services
                         options.Limits.MaxRequestBodySize = 50 * 1024 * 1024; // 50 MB
                         options.Limits.MaxResponseBufferSize = 50 * 1024 * 1024; // 50 MB
                     });
-                    
+
                     webBuilder.ConfigureServices(services =>
                     {
                         services.AddGrpc();
                         services.AddSingleton(_uiApp); // Register UIApplication as a singleton
                         services.AddCoreScriptEngineServices(); // Add CoreScript.Engine services
-                        
+
                         // Register Handlers
                         services.AddSingleton<ScriptExecutionHandler>();
                         services.AddSingleton<MetadataHandler>();
@@ -95,6 +98,9 @@ namespace Paracore.Addin.Services
             Task.Run(() => StopAsync());
         }
 
-        public bool IsRunning() => _running;
+        public bool IsRunning()
+        {
+            return _running;
+        }
     }
 }

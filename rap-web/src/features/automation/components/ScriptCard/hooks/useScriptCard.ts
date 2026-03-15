@@ -82,19 +82,21 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
   const visibleParameters = filterVisibleParameters(currentParams);
   const validationErrors = validateParameters(visibleParameters);
 
-  const isRunButtonDisabled = !ParacoreConnected || !isCompatibleWithDocument || isRunning || validationErrors.length > 0 || !isAuthenticated;
+  const isRunButtonDisabled = !isSelected || !ParacoreConnected || !isCompatibleWithDocument || isRunning || validationErrors.length > 0 || !isAuthenticated;
 
   const tooltipMessage = !isAuthenticated
     ? "Please sign in to run scripts"
     : !ParacoreConnected
       ? "Paracore server disconnected"
-      : revitStatus?.document === null
-        ? "No document opened in Revit"
-        : !isCompatibleWithDocument
-          ? `Script requires '${requiredDocType}' but current is '${currentDocType}'`
-          : validationErrors.length > 0
-            ? validationErrors.join('\n')
-            : "";
+      : !isSelected
+        ? "Select to Run"
+        : revitStatus?.document === null
+          ? "No document opened in Revit"
+          : !isCompatibleWithDocument
+            ? `Script requires '${requiredDocType}' but current is '${currentDocType}'`
+            : validationErrors.length > 0
+              ? validationErrors.join('\n')
+              : "";
 
   const getDisplayName = useCallback(() => {
     return script.metadata.displayName || script.name.replace(/\.(cs|ptool|wtool)$/i, "");
@@ -103,6 +105,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
   const handleRunClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRunButtonDisabled) return;
+    setActiveInspectorTab('console');
     await runScript(script);
   };
 
