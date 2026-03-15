@@ -36,6 +36,16 @@ A concise reference of every function, method, and shortcut available in the Par
 
 ---
 
+## 🧠 Session Management (Memory)
+
+| Command | Description |
+| :--- | :--- |
+| `list` or `vars` | Lists all active variables currently stored in the REPL memory |
+| `clear vars` or `reset`| Wipes the session memory state (start fresh without restarting) |
+| `inspect <varName>` | Prints a beautifully formatted JSON tree of a variable's properties |
+
+---
+
 ## ✨ Element Discovery
 
 ```csharp

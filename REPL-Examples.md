@@ -245,6 +245,7 @@ Println($"Wall length: {formatted}");  // "5000.0 mm"
 ---
 
 ## 💡 Quick Tips
+- **Session Memory**: Variables stay alive between runs. Use `list` to see them, `inspect <name>` to view their JSON properties, and `clear vars` to wipe the slate clean.
 - **Implicit Printing**: Type any expression on the last line (e.g. `Doc.Title`) to see its value.
 - **Persistence**: Define a variable in one run, use it in the next run within the same session.
 - **No Direct Properties**: `Wall` has no `.Length`, `.Width`, `.Area`. Use `GetNum("Length")` etc.

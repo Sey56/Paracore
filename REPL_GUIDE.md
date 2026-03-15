@@ -23,6 +23,20 @@ These objects are globally injected and always available.
 
 ---
 
+## 💾 Memory & Session Management
+Because the REPL runs continuously, variables you define (`var x = 5;`) stay alive between execution turns. Paracore provides built-in commands to manage this active memory state.
+
+> [!TIP]
+> These commands are intercepted by the engine directly. You do not need semicolons for them.
+
+| Command | Description | Example |
+| :--- | :--- | :--- |
+| `list` or `vars` | Enumerates all variables currently stored in the active REPL memory. Shadows are automatically filtered to show only the latest value. | `list` |
+| `clear vars` or `reset` | Wipes the entire memory state. Use this to start a totally fresh session without having to restart Revit. | `clear vars` |
+| `inspect <name>` | Returns a formatted JSON tree of a specific variable, safely serializing Revit elements to prevent circular reference crashes. | `inspect myWall` |
+
+---
+
 ## ✨ Magic Discovery & Filtering
 Paracore's "Magic" engine resolves strings into Revit elements, categories, or families.
 
