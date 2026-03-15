@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import type { Script } from "@/types/scriptModel";
+import type { Script, StructuredOutput } from "@/types/scriptModel";
 import type { InspectorTab } from "@/context/providers/UIContext";
 import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/features/automation";
