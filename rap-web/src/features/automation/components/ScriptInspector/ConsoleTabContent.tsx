@@ -130,9 +130,25 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     try {
       const response = await api.post("/api/repl", { code: command, session_id: "global" });
       if (response.data.is_success) {
-        setExecutionResult((prev: any) => ({ output: response.data.output || '', isSuccess: true, error: null, structuredOutput: response.data.structured_output?.length > 0 ? response.data.structured_output : (prev?.structuredOutput || []), internal_data: 'REPL', timestamp: Date.now(), scriptName: isMultiLine ? identifier : "REPL" }));
+        setExecutionResult({ 
+          output: response.data.output || '', 
+          isSuccess: true, 
+          error: null, 
+          structuredOutput: response.data.structured_output || [], 
+          internalData: 'REPL', 
+          timestamp: Date.now(), 
+          scriptName: isMultiLine ? identifier : "REPL" 
+        });
       } else {
-        setExecutionResult((prev: any) => ({ output: response.data.output || '', isSuccess: false, error: response.data.error_message || 'Error', structuredOutput: prev?.structuredOutput || [], internal_data: 'REPL', timestamp: Date.now(), scriptName: isMultiLine ? identifier : "REPL" }));
+        setExecutionResult({ 
+          output: response.data.output || '', 
+          isSuccess: false, 
+          error: response.data.error_message || 'Error', 
+          structuredOutput: [], 
+          internalData: 'REPL', 
+          timestamp: Date.now(), 
+          scriptName: isMultiLine ? identifier : "REPL" 
+        });
       }
     } catch (err: any) {
       setLocalHistory(prev => [...prev, { type: 'error' as const, text: `Error: ${err.message}`, timestamp: new Date(), isRepl: true }].slice(-100));
