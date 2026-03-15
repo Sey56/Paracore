@@ -4,6 +4,39 @@ Copy and paste these directly into the **Workshop** tab to automate your Revit w
 
 ---
 
+## 🔍 Element Discovery & Predicate Filtering
+*Discover elements by class, category, and advanced LINQ conditions.*
+
+### 1. Loadable Components (Family Instances & Symbols)
+To get all instances or types of a specific loadable family category, pass the category name to `GetElements<>`:
+```csharp
+// Get all Door instances in the project
+var doorInstances = GetElements<FamilyInstance>("Doors");
+Println($"There are {doorInstances.Count} doors placed in the model.");
+
+// Get all Door Types (Symbols) loaded in the project
+var doorSymbols = GetElements<FamilySymbol>("Doors");
+Println($"There are {doorSymbols.Count} door types loaded.");
+```
+
+### 2. Selection Filters via Predicates (LINQ .Where)
+Instead of building complex Revit FilteredElementCollectors, use standard C# LINQ `.Where()` with Paracore accessors to filter elements instantly.
+```csharp
+// Find all walls on Level 1 that are thicker than 200mm
+var heavyWalls = GetElements<Wall>().Where(w => 
+    w.GetStr("Base Constraint") == "Level 1" && 
+    w.GetNum("Width", "mm") > 200
+);
+
+// Find all placed rooms with high ceilings
+var highRooms = GetElements<Room>().Where(r => 
+    r.Location != null && 
+    r.GetNum("Unbounded Height", "m") > 3.0
+);
+```
+
+---
+
 ## 📊 Data Visualization & Dashboarding
 *Render interactive charts in the **Summary** tab.*
 

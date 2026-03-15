@@ -163,6 +163,10 @@ namespace CoreScript.Engine.Globals
         public void Show(string type, object data)
         {
             var toSerialize = MaterializeForSerialization(data);
+            if (toSerialize == null)
+            {
+                return; // Suppress empty data structures entirely
+            }
             var json = JsonSerializer.Serialize(toSerialize, ExecutionGlobals.SerializerOptions);
             _context.AddStructuredOutput(type, json);
         }
@@ -209,10 +213,12 @@ namespace CoreScript.Engine.Globals
                     }
                 }
 
-                if (hasAnonymous)
+                if (list.Count == 0)
                 {
-                    return list;
+                    return null; // Signals to the caller that the collection is empty
                 }
+
+                return list;
             }
 
             return data;
