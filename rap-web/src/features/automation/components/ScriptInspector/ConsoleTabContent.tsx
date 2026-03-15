@@ -393,7 +393,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
         {isExplaining && <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-40 rounded-lg"><FontAwesomeIcon icon={faSpinner} spin className="text-blue-500 text-4xl mb-4" /><p className="text-lg font-semibold text-gray-700 dark:text-gray-300 animate-pulse">AI is analyzing...</p></div>}
       </div>
 
-      <div className="pb-2 flex flex-col space-y-2 pl-5 pr-0">
+      <div className="pb-2 flex flex-col space-y-2 pl-5 pr-0 flex-shrink-0 z-20">
         <div className="flex justify-between items-center pr-5 h-6">
           <div className="flex items-center gap-2 overflow-hidden">
             {isMultiLine && activeSnippetName ? (

@@ -91,18 +91,7 @@ namespace Paracore.Addin.Context
 
         public void AddStructuredOutput(string type, string jsonData)
         {
-            // If any item with same type exists, overwrite it.
-            // This ensures multiple Table() calls overwrite each other, same for Pie() etc.
-            var existing = _structuredOutputItems.Find(i => i.Type == type);
-
-            if (existing != null)
-            {
-                existing.Data = jsonData;
-            }
-            else
-            {
-                _structuredOutputItems.Add(new StructuredOutputItem { Type = type, Data = jsonData });
-            }
+            _structuredOutputItems.Add(new StructuredOutputItem { Type = type, Data = jsonData });
         }
     }
 }

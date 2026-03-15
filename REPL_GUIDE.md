@@ -57,7 +57,14 @@ Paracore's "Magic" engine resolves strings into Revit elements, categories, or f
 Paracore extends every Revit `Element` with smart, **StorageType-aware** parameter accessors. These handle BuiltInParameters, ElementId resolution, and unit conversion automatically.
 
 > [!IMPORTANT]
-> Revit elements like `Wall`, `Room`, `Floor` etc. do NOT have direct C# properties like `.Width`, `.Length`, or `.Area`. You **must** use these accessors to read parameter values.
+> Revit elements like `Wall`, `Room`, `Floor` etc. do NOT have direct C# properties like `.Width`, `.Length`, or `.Level`. You **must** use these accessors to read most parameter values.
+
+### The Rule of Thumb (Native Properties vs Extension Methods)
+Because Revit API is quirky, some common attributes are hardcoded as **native C# properties** on specific element classes, while the vast majority exist purely as dynamic `Parameters`.
+1. **If IntelliSense suggests it natively**: Properties like `.Name`, `.Area`, `.Volume`, and `.Location` are often hardcoded natively on classes like `Room` or `Wall`. You can use them directly!
+    - Example: `room.Area` or `wall.Volume`
+2. **If it's a standard Revit property without IntelliSense**: Things like `Level`, `Base Constraint`, `Mark`, or `Comments` live exclusively in the `Parameters` dictionary. You **must** use Paracore's extension methods to read them.
+    - Example: `room.GetStr("Level")` or `wall.GetNum("Length")`
 
 ### `element.GetStr("paramName")`
 **Smart String Getter.** Returns a human-readable string.
