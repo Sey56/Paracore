@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import type { ScriptExecutionResult } from "@/types/scriptModel";
+import type { ExecutionResult } from "@/types/common";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCopy, faTrash, faMagicWandSparkles, faSpinner, faCheck, faTimes, faCode, faExpand, faCompress, faPlay, faSave, faFolderOpen, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { useScriptExecution } from '../../index';
@@ -17,7 +17,7 @@ import { writeTextFile, readTextFile } from '@tauri-apps/api/fs';
 // V11: Decoupled REPL Laboratory with Deep/Selective Clear
 interface ConsoleTabContentProps {
   isRunning: boolean;
-  executionResult: ScriptExecutionResult | null;
+  executionResult: ExecutionResult | null;
   scriptName: string;
   clearExecutionResult: () => void;
 }
@@ -58,12 +58,12 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [localHistory, setLocalHistory] = useState<{ type: 'input' | 'output' | 'error' | 'status', text: string, timestamp: Date, isRepl?: boolean }[]>(() => {
+  const [localHistory, setLocalHistory] = useState<{ type: 'input' | 'output' | 'error' | 'status', text: string, timestamp: Date, replType?: 'single' | 'multi' }[]>(() => {
     const saved = localStorage.getItem('paracore_console_history');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return parsed.map((item: any) => ({ ...item, timestamp: new Date(item.timestamp) }));
+        return parsed.map((item: { type: 'input' | 'output' | 'error' | 'status', text: string, timestamp: string | number | Date, replType?: 'single' | 'multi' }) => ({ ...item, timestamp: new Date(item.timestamp) }));
       } catch { return []; }
     }
     return [];
@@ -100,10 +100,18 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     // Clear any open AI explanation overlay so the console is visible
     setAiResult(null);
 
+    const currentReplType = (isMultiLine ? 'multi' : 'single') as 'multi' | 'single';
+
     if (command.toLowerCase() === 'help' || command === '?') {
       setLocalHistory(prev => [...prev,
-      { type: 'input' as const, text: 'Help', timestamp: new Date(), isRepl: true },
-      { type: 'output' as const, text: "📖 Paracore REPL Quick Reference: ✨ Discovery, 🧠 Essentials, 📊 Analytics, 🛠️ Modify, 📏 Units, 🧹 help/clear", timestamp: new Date(), isRepl: true }
+      { type: 'input' as const, text: 'Help', timestamp: new Date(), replType: currentReplType },
+      { type: 'output' as const, text: "🚀 PARCORE REPL QUICK START:\n" + 
+                                       "✨ Discovery: GetElements(\"Walls\"), ListParams(wall), ListBIPs(wall)\n" +
+                                       "🧠 Essentials: Selection[0], Println(x), vars, reset\n" +
+                                       "📊 Analytics: Table(elements), BarChart(data), ListProperties(el)\n" +
+                                       "🛠️ Modify: Transact(\"Name\", () => { ... }), Delete(elements)\n" +
+                                       "📏 Units: 10.InputUnit(\"m2\"), area.OutputUnit(\"sqm\")\n" +
+                                       "🧹 System: help, clear, cls", timestamp: new Date(), replType: currentReplType }
       ].slice(-100));
       if (!isMultiLine) setSingleLineValue(""); 
       return;
@@ -121,8 +129,8 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     if (!isMultiLine) setSingleLineValue("");
     setHistoryIndex(-1);
     setIsReplLoading(true);
-    let identifier = isMultiLine ? (activeSnippetName || "Multi-Line REPL") : command;
-    setLocalHistory(prev => [...prev, { type: 'status' as const, text: `> ${identifier}`, timestamp: new Date(), isRepl: true }].slice(-100));
+    const identifier = isMultiLine ? (activeSnippetName || "Multi-Line REPL") : command;
+    setLocalHistory(prev => [...prev, { type: 'status' as const, text: `> ${identifier}`, timestamp: new Date(), replType: currentReplType }].slice(-100));
     
     if (isMultiLine) setMultiCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
     else setSingleCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
@@ -135,7 +143,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
           isSuccess: true, 
           error: null, 
           structuredOutput: response.data.structured_output || [], 
-          internalData: 'REPL', 
+          internalData: `REPL_${currentReplType.toUpperCase()}`, 
           timestamp: Date.now(), 
           scriptName: isMultiLine ? identifier : "REPL" 
         });
@@ -145,13 +153,13 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
           isSuccess: false, 
           error: response.data.error_message || 'Error', 
           structuredOutput: [], 
-          internalData: 'REPL', 
+          internalData: `REPL_${currentReplType.toUpperCase()}`, 
           timestamp: Date.now(), 
           scriptName: isMultiLine ? identifier : "REPL" 
         });
       }
-    } catch (err: any) {
-      setLocalHistory(prev => [...prev, { type: 'error' as const, text: `Error: ${err.message}`, timestamp: new Date(), isRepl: true }].slice(-100));
+    } catch (err: unknown) {
+      setLocalHistory(prev => [...prev, { type: 'error' as const, text: `Error: ${(err as Error).message}`, timestamp: new Date(), replType: currentReplType }].slice(-100));
     } finally {
       setIsReplLoading(false);
       setTimeout(() => { if (isMultiLine) textareaRef.current?.focus(); else inputRef.current?.focus(); }, 50);
@@ -189,7 +197,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const [fixHistory, setFixHistory] = useState<{ script_code: string, explanation: string, error_message: string }[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const lastResultRef = useRef<ScriptExecutionResult | null>(null);
+  const lastResultRef = useRef<ExecutionResult | null>(null);
   const lastHeaderScriptNameRef = useRef<string | null>(null);
   const needsHeaderForCurrentRunRef = useRef(false);
   const lastIsRunningRef = useRef(false);
@@ -197,11 +205,16 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   useEffect(() => {
     if (executionResult && executionResult !== lastResultRef.current) {
       lastResultRef.current = executionResult;
+      
+      const internalData = executionResult.internalData || "";
+      const isRepl = internalData.startsWith('REPL');
+      const replType: 'single' | 'multi' | undefined = isRepl ? (internalData.includes('MULTI') ? 'multi' : 'single') : undefined;
+
       if (executionResult.output) {
-        setLocalHistory(prev => [...prev, { type: 'output' as const, text: String(executionResult.output), timestamp: new Date(), isRepl: executionResult.internal_data === 'REPL' }].slice(-100));
+        setLocalHistory(prev => [...prev, { type: 'output' as const, text: String(executionResult.output), timestamp: new Date(), replType }].slice(-100));
       }
       if (executionResult.error) {
-        setLocalHistory(prev => [...prev, { type: 'error' as const, text: String(executionResult.error), timestamp: new Date(), isRepl: executionResult.internal_data === 'REPL' }].slice(-100));
+        setLocalHistory(prev => [...prev, { type: 'error' as const, text: String(executionResult.error), timestamp: new Date(), replType }].slice(-100));
       }
     }
   }, [executionResult]);
@@ -212,7 +225,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     if (transitionedToRunning) needsHeaderForCurrentRunRef.current = true;
     const currentName = selectedScript?.name || scriptName;
     if (isRunning && needsHeaderForCurrentRunRef.current && currentName && currentName !== "Global Console") {
-      setLocalHistory(prev => [...prev, { type: 'status' as const, text: `> ${currentName}`, timestamp: new Date(), isRepl: false }].slice(-100));
+      setLocalHistory(prev => [...prev, { type: 'status' as const, text: `> ${currentName}`, timestamp: new Date() }].slice(-100));
       needsHeaderForCurrentRunRef.current = false;
     }
   }, [isRunning, scriptName, selectedScript]);
@@ -220,7 +233,8 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const pendingResult = !isRunning && executionResult && executionResult !== lastResultRef.current ? executionResult : null;
 
   useEffect(() => { setAiResult(null); setFixHistory([]); lastResultRef.current = null; }, [selectedScript?.absolutePath]);
-  useEffect(() => { if (consoleEndRef.current) consoleEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [localHistory.length, isRunning, isReplLoading, !!pendingResult]);
+  const hasPendingResult = !!pendingResult;
+  useEffect(() => { if (consoleEndRef.current) consoleEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [localHistory.length, isRunning, isReplLoading, hasPendingResult]);
   useEffect(() => { setAiResult(null); }, [executionResult, isRunning]);
 
   const handleCopy = () => {
@@ -238,13 +252,20 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     // Read the very last error from the local console history to be completely
     // precise about what the user is looking at.
     const lastErrorItem = [...localHistory].reverse().find(item => item.type === 'error');
-    if (!selectedScript || !lastErrorItem?.text) return;
+    if (!lastErrorItem?.text) return;
     
+    // Determine the source code to explain: 
+    // Either the selected script, or if it's a REPL error, the multi-line editor content
+    const path = selectedScript?.absolutePath || activeSnippetPath;
+    const code = selectedScript ? combinedScriptContent : multiLineValue;
+
+    if (!path || !code) return;
+
     setIsExplaining(true);
     try {
       const resp = await api.post("/generation/explain_error", { 
-        script_code: combinedScriptContent || "", 
-        script_path: selectedScript.absolutePath, 
+        script_code: code, 
+        script_path: path, 
         error_message: lastErrorItem.text,
         llm_provider: localStorage.getItem('llmProvider'), 
         llm_model: localStorage.getItem('llmModel'), 
@@ -252,19 +273,31 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
         history: fixHistory
       });
       setAiResult(resp.data);
-    } catch (err: any) { showNotification(err.message, "error"); } finally { setIsExplaining(false); }
-  }, [selectedScript, localHistory, combinedScriptContent, fixHistory, showNotification]);
+    } catch (err: unknown) { showNotification((err as Error).message, "error"); } finally { setIsExplaining(false); }
+  }, [selectedScript, localHistory, combinedScriptContent, multiLineValue, activeSnippetPath, fixHistory, showNotification]);
 
   const handleApplyFix = useCallback(async () => {
-    if (!selectedScript || (!aiResult?.fixed_code && !aiResult?.files)) return;
+    const path = selectedScript?.absolutePath || activeSnippetPath;
+    if (!path || (!aiResult?.fixed_code && !aiResult?.files)) return;
+    
     setIsApplyingFix(true);
     try {
-      const payload: any = { script_path: selectedScript.absolutePath };
+      const payload: Record<string, unknown> = { script_path: path };
       if (aiResult.files) payload.files = aiResult.files; else { payload.content = aiResult.fixed_code; payload.filename = aiResult.filename; }
       const res = await api.post("/api/save-script", payload);
-      if (res.data.success) { showNotification("Applied", "success"); setAiResult(null); await reloadScript(selectedScript); }
-    } catch (err: any) { showNotification(err.message, "error"); } finally { setIsApplyingFix(false); }
-  }, [selectedScript, aiResult, showNotification, reloadScript]);
+      if (res.data.success) { 
+        showNotification("Applied", "success"); 
+        setAiResult(null); 
+        
+        if (selectedScript) {
+          await reloadScript(selectedScript); 
+        } else if (aiResult.fixed_code) {
+          // If it was a REPL snippet, update the editor directly
+          setMultiLineValue(aiResult.fixed_code);
+        }
+      }
+    } catch (err: unknown) { showNotification((err as Error).message, "error"); } finally { setIsApplyingFix(false); }
+  }, [selectedScript, aiResult, activeSnippetPath, showNotification, reloadScript]);
 
   const handleSaveSnippet = async (forceSaveAs: boolean = false) => {
     if (!multiLineValue.trim()) return;
@@ -278,7 +311,7 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
         setActiveSnippetName(filename);
         showNotification(forceSaveAs ? "Saved As" : "Saved", "success");
       }
-    } catch (err: any) { showNotification(err.message, "error"); }
+    } catch (err: unknown) { showNotification((err as Error).message, "error"); }
   };
 
   const handleLoadSnippet = async () => {
@@ -292,11 +325,19 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
         setActiveSnippetName(filename);
         showNotification("Loaded", "success");
       }
-    } catch (err: any) { showNotification(err.message, "error"); }
+    } catch (err: unknown) { showNotification((err as Error).message, "error"); }
   };
 
   const lastHistoryItem = localHistory.length > 0 ? localHistory[localHistory.length - 1] : null;
-  const showAiButton = !isRunning && !isExplaining && !aiResult && lastHistoryItem?.type === 'error' && !lastHistoryItem?.isRepl;
+  
+  // Logic for showing the AI button:
+  // 1. Must be an error.
+  // 2. Must NOT be any kind of REPL error (replType is undefined for standard scripts).
+  // 3. Must have a selected script to apply the fix to.
+  const showAiButton = !isRunning && !isExplaining && !aiResult && 
+                       lastHistoryItem?.type === 'error' && 
+                       !lastHistoryItem?.replType && 
+                       !!selectedScript;
 
   if (aiResult) {
     return (

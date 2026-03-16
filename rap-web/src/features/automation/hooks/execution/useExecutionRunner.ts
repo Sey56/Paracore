@@ -42,6 +42,7 @@ export const useExecutionRunner = (
         isSuccess: result.is_success,
         error: result.error_message,
         structuredOutput: result.structured_output || [],
+        internalData: result.internal_data,
         timestamp: Date.now(),
         scriptName: script.metadata?.displayName || script.name
       };
@@ -51,8 +52,9 @@ export const useExecutionRunner = (
       }
       showNotification(result.is_success ? `Executed successfully.` : "Execution failed", result.is_success ? "success" : "error");
       return frontendExecutionResult;
-    } catch (error: any) {
-      const msg = error.response?.data?.detail || error.message;
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }, message: string };
+      const msg = err.response?.data?.detail || err.message;
       showNotification(`Failed to execute: ${msg}`, "error");
       const errRes: ExecutionResult = { 
         output: "", 

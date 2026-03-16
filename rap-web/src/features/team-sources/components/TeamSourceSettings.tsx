@@ -195,7 +195,7 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
               </div>
             ) : (
               <ul className="space-y-2">
-                {teamSourcesWithLocalPaths.map((ws: any) => (
+                {teamSourcesWithLocalPaths.map((ws: TeamScriptSource & { localPath?: { path: string } }) => (
                   <li
                     key={ws.id}
                     className={`flex items-center justify-between p-3 rounded-lg border ${activeScriptSource?.type === 'team' && Number(activeScriptSource.id) === ws.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}

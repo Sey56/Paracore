@@ -54,7 +54,7 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
 
   const isGuard = script.metadata?.isWatchdog === true ||
     script.metadata?.is_watchdog === true ||
-    (script.metadata as any)?.IsWatchdog === true ||
+    (script.metadata as unknown as Record<string, unknown>)?.IsWatchdog === true ||
     path.endsWith('.wtool') ||
     path.includes('.wtool');
 

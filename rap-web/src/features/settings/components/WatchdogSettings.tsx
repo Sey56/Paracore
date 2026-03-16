@@ -95,7 +95,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
     const allScripts = Object.values(rootScripts)
       .flatMap(r => r.data)
       .filter(s => {
-        const isSentinel = s.metadata?.isWatchdog === true || (s.metadata as any)?.is_watchdog === true;
+        const isSentinel = s.metadata?.isWatchdog === true || (s.metadata as unknown as Record<string, unknown>)?.is_watchdog === true;
         const isBinarySentinel = s.absolutePath?.endsWith('.wtool');
         return isSentinel || isBinarySentinel;
       })
@@ -161,7 +161,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
             const scriptsState = rootScripts[folder];
             const allScripts = scriptsState?.data || [];
             const scripts = allScripts.filter(s => {
-              const isSentinel = s.metadata?.isWatchdog === true || (s.metadata as any)?.is_watchdog === true;
+              const isSentinel = s.metadata?.isWatchdog === true || (s.metadata as unknown as Record<string, unknown>)?.is_watchdog === true;
               const isBinarySentinel = s.absolutePath?.endsWith('.wtool');
               return isSentinel || isBinarySentinel;
             });

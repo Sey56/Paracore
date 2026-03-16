@@ -159,7 +159,7 @@ export const EditMetadataModal: React.FC<EditMetadataModalProps> = ({
         }
     };
 
-    const updateField = (key: keyof MetadataFields, value: any) => {
+    const updateField = (key: keyof MetadataFields, value: string | string[]) => {
         setFields(prev => ({ ...prev, [key]: value }));
     };
 

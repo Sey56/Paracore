@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { useScripts } from '../../hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
@@ -41,6 +41,12 @@ export const ScriptGallery: React.FC = () => {
   const { setSelectedScript, selectedScript } = useScriptExecution();
   const { isAuthenticated, activeRole } = useAuth();
   const isMobile = useBreakpoint();
+  
+  const handleScriptSelect = useCallback((script: Script) => {
+    setSelectedScript(script);
+    setActiveInspectorTab('parameters');
+    if (isMobile) setInspectorOpen(true);
+  }, [setSelectedScript, setActiveInspectorTab, isMobile, setInspectorOpen]);
 
   // 1. Filtering Logic
   const {
@@ -82,7 +88,7 @@ export const ScriptGallery: React.FC = () => {
 
     // The backend may return {success, path} (new script) or a Script object (replace).
     // Extract the path from whichever shape we got.
-    const resultPath = (resultScript as any).path || resultScript.absolutePath || resultScript.id || '';
+    const resultPath = ('path' in resultScript ? (resultScript as unknown as { path: string }).path : undefined) || resultScript.absolutePath || resultScript.id || '';
     if (!resultPath) return;
 
     // Store the path — createNewScript already triggered a gallery reload.
@@ -135,10 +141,10 @@ export const ScriptGallery: React.FC = () => {
     setFocusMode(true);
   };
 
-  const handleExitFocusMode = () => {
+  const handleExitFocusMode = useCallback(() => {
     setFocusMode(false);
     setSourceRect(null);
-  };
+  }, [setFocusMode]);
 
   useLayoutEffect(() => {
     const parent = galleryRef.current?.parentElement;
@@ -155,14 +161,14 @@ export const ScriptGallery: React.FC = () => {
 
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
 
-  const isFromActiveSource = (script: Script) => {
+  const isFromActiveSource = useCallback((script: Script) => {
     if (!script || !script.absolutePath) return false;
     const sourcePath = (activeScriptSource && 'path' in activeScriptSource) ? activeScriptSource.path : null;
     if (sourcePath) {
       return script.absolutePath.toLowerCase().startsWith(sourcePath.toLowerCase());
     }
     return false;
-  };
+  }, [activeScriptSource]);
 
   return (
     <div ref={galleryRef} className={`relative min-h-full min-w-0 ${isFocusMode || isArmingWatchdogs ? 'overflow-hidden' : ''}`}>
@@ -208,11 +214,7 @@ export const ScriptGallery: React.FC = () => {
             <ScriptGrid
               favoriteScripts={favoriteScripts}
               otherScripts={otherScripts}
-              handleScriptSelect={(script) => {
-                setSelectedScript(script);
-                setActiveInspectorTab('parameters');
-                if (isMobile) setInspectorOpen(true);
-              }}
+              handleScriptSelect={handleScriptSelect}
               isFromActiveSource={isFromActiveSource}
               isCompactView={isCompactView}
               handleEnterFocusMode={handleEnterFocusMode}

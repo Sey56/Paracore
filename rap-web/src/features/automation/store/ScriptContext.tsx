@@ -15,7 +15,13 @@ export interface ScriptContextProps {
   // Scaffolding & Content
   combinedScriptContent: string | null;
   setCombinedScriptContent: (content: string | null) => void;
-  createNewScript: (details: any) => Promise<Script | undefined>;
+  createNewScript: (details: { 
+    script_name: string; 
+    template_id?: string; 
+    generated_logic?: string; 
+    generated_params?: string; 
+    parent_folder?: string | null; 
+  }) => Promise<Script | undefined>;
   editScript: (script: Script) => Promise<boolean>;
   deleteScript: (script: Script, scaffoldingOnly?: boolean) => Promise<boolean>;
 
@@ -32,7 +38,7 @@ export interface ScriptContextProps {
 
   // Sync & Active State
   isSyncActive: (scriptPath: string) => boolean;
-  activeSyncSessions: Record<string, any>;
+  activeSyncSessions: Record<string, { last_modified: number }>;
 
   // Custom Folders
   customScriptFolders: string[];

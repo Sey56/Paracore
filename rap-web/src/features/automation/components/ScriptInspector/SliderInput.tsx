@@ -30,7 +30,7 @@ export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value,
                 setLocalValue(incoming);
             }
         }
-    }, [value, isDragging, isDecimal]);
+    }, [value, isDragging, isDecimal, localValue]);
 
     // Cleanup on unmount
     useEffect(() => {

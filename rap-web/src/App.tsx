@@ -6,7 +6,6 @@ import { resolveResource } from '@tauri-apps/api/path';
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SentinelControlList } from "@/features/automation/components/SentinelControlList";
 import NotificationDisplay from "@/components/common/NotificationDisplay";
-import { AppProvider } from "@/context/AppProvider"; // Import the main AppProvider
 import { useWatchdog } from "@/context/providers/WatchdogProvider";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShieldHeart, faSpinner } from '@fortawesome/free-solid-svg-icons';
@@ -99,7 +98,7 @@ function AppContent() {
     return () => {
       unlisten.then(f => f()); // Unlisten the close request
     };
-  }, [decommissionAll, watchdogs, failedWatchdogs, watchdogSources, deployedDocumentMap]);
+  }, [decommissionAll, watchdogs, failedWatchdogs, watchdogSources, deployedDocumentMap, isSentinelControl]);
 
   return (
     <React.Fragment>
@@ -146,11 +145,9 @@ function AppContent() {
 
 function App() {
   return (
-    <AppProvider>
-      <ErrorBoundary>
-        <AppContent />
-      </ErrorBoundary>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }
 

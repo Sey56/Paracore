@@ -27,9 +27,9 @@ export const useScriptOperations = (
         const newPath = response.data.new_path || response.data.newPath;
         return { success: true, message: "Script renamed successfully.", newPath };
       } else throw new Error(response.data.error_message);
-    } catch (error: any) {
-      showNotification(error.message || "Failed to rename script.", "error");
-      return { success: false, message: error.message };
+    } catch (error: unknown) {
+      showNotification((error as Error).message || "Failed to rename script.", "error");
+      return { success: false, message: (error as Error).message };
     }
   }, [isAuthenticated, showNotification]);
 
@@ -44,9 +44,9 @@ export const useScriptOperations = (
         if (updateScriptModificationTime) updateScriptModificationTime(script.id);
         return { success: true, message: response.data.message };
       } else throw new Error(response.data.detail);
-    } catch (error: any) {
-      showNotification(error.message || "Failed to compile script.", "error");
-      return { success: false, message: error.message };
+    } catch (error: unknown) {
+      showNotification((error as Error).message || "Failed to compile script.", "error");
+      return { success: false, message: (error as Error).message };
     }
   }, [showNotification, selectedFolder, loadScriptsFromPath, updateScriptModificationTime]);
 
@@ -61,9 +61,10 @@ export const useScriptOperations = (
       // Fallback (should not be reached if context is used correctly)
       await api.post("/api/edit-script", { scriptPath: script.absolutePath });
       showNotification(`Opening project in VS Code...`, "success");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[EditScript] Error:", error);
-      showNotification(error.response?.data?.detail || "Failed to open script in VSCode.", "error");
+      const err = error as { response?: { data?: { detail?: string } }, message: string };
+      showNotification(err.response?.data?.detail || err.message || "Failed to open script in VSCode.", "error");
     }
   }, [isAuthenticated, editScriptFromContext, showNotification]);
 

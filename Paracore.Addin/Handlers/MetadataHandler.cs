@@ -333,7 +333,24 @@ namespace Paracore.Addin.Handlers
                                 description = p.Description,
                                 inputType = p.InputType,
                                 group = p.Group,
-                                options = p.Options
+                                options = p.Options,
+                                multiSelect = p.MultiSelect,
+                                visibleWhen = p.VisibleWhen,
+                                numericType = p.NumericType,
+                                min = p.Min,
+                                max = p.Max,
+                                step = p.Step,
+                                isRevitElement = p.IsRevitElement,
+                                revitElementType = p.RevitElementType,
+                                revitElementCategory = p.RevitElementCategory,
+                                requiresCompute = p.RequiresCompute,
+                                required = p.Required,
+                                suffix = p.Suffix,
+                                pattern = p.Pattern,
+                                enabledWhenParam = p.EnabledWhenParam,
+                                enabledWhenValue = p.EnabledWhenValue,
+                                unit = p.Unit,
+                                selectionType = p.SelectionType
                             }).ToList()
                         };
 

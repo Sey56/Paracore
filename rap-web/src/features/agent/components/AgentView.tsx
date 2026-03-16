@@ -83,7 +83,7 @@ export const AgentView: React.FC = () => {
             acc[param.name] = param.value ?? '';
           }
           return acc;
-        }, {} as Record<string, string | number | boolean>) : undefined;
+        }, {} as Record<string, string | number | boolean | string[] | number[]>) : undefined;
 
       const effectiveUrl = rapServerUrl ? `${rapServerUrl}/agent/chat` : "/agent/chat";
       const response = await api.post(effectiveUrl, {
@@ -190,7 +190,7 @@ export const AgentView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [threadId, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, setSelectedScript, clearExecutionResult, setActiveInspectorTab, rapServerUrl, scripts, messages]);
+  }, [threadId, toolLibraryPath, cloudToken, setMessages, setThreadId, showNotification, selectedScript, userEditedScriptParameters, setSelectedScript, setActiveInspectorTab, rapServerUrl, scripts, messages]);
 
   const executePlanStep = useCallback((plan: OrchestrationPlan, stepIndex: number) => {
     let steps = plan.steps;

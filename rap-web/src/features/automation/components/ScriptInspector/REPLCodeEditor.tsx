@@ -35,11 +35,15 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         const textarea = e.currentTarget;
         const { selectionStart, selectionEnd } = textarea;
 
+        // Explicitly allow Undo/Redo to pass through to native handler
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'y' || (e.key === 'Z' && e.shiftKey))) {
+            return;
+        }
+
         if (e.key === 'Tab') {
             e.preventDefault();
-            const newValue = value.substring(0, selectionStart) + "    " + value.substring(selectionEnd);
-            onChange(newValue);
-            setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = selectionStart + 4; }, 0);
+            // Use execCommand to preserve undo stack
+            document.execCommand('insertText', false, "    ");
             return;
         }
 
@@ -58,18 +62,19 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
 
             if (lastChar === '{' && nextChar === '}') {
                 const innerIndentation = indentation + "    ";
-                const insertion = "\n" + innerIndentation + "\n" + indentation;
-                const newValue = value.substring(0, selectionStart) + insertion + value.substring(selectionEnd);
-                onChange(newValue);
-                setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = selectionStart + innerIndentation.length + 1; }, 0);
+                // For the special { | } case, we insert the first newline and indentation,
+                // then manually handle the second one to keep the cursor in the middle
+                document.execCommand('insertText', false, "\n" + innerIndentation + "\n" + indentation);
+                
+                // Adjust cursor to be on the middle line
+                const newPos = selectionStart + innerIndentation.length + 1;
+                textarea.selectionStart = textarea.selectionEnd = newPos;
                 return;
             }
 
             if (lastChar === '{') extraIndentation = "    ";
             const insertion = "\n" + indentation + extraIndentation;
-            const newValue = value.substring(0, selectionStart) + insertion + value.substring(selectionEnd);
-            onChange(newValue);
-            setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = selectionStart + insertion.length; }, 0);
+            document.execCommand('insertText', false, insertion);
             return;
         }
         onKeyDown(e);

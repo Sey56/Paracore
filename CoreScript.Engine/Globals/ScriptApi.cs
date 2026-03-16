@@ -7,6 +7,7 @@ using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
@@ -56,6 +57,11 @@ namespace CoreScript.Engine.Globals
         /// Gets the current selection in the Revit user interface.
         /// </summary>
         public static List<Element> Selection => UIDoc.Selection.GetElementIds().Select(id => Doc.GetElement(id)).ToList();
+
+        /// <summary>
+        /// Prompts the user to pick a single element in the Revit UI.
+        /// </summary>
+        public static Element Pick() => Doc.GetElement(UIDoc.Selection.PickObject(Autodesk.Revit.UI.Selection.ObjectType.Element));
 
         /// <summary>
         /// A dictionary of parameters passed from the agent or UI context.
@@ -143,7 +149,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Table(object data)
         {
-            Globals.Output.Show("table", data);
+            Globals.Output.Table(data);
         }
 
         /// <summary>
@@ -151,9 +157,35 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Table(IEnumerable<Element> elements)
         {
-            Globals.Output.Show("table", elements);
+            Globals.Output.Table(elements);
         }
 
+        /// <summary>
+        /// Discovery helper for the REPL. Lists all parameters of one or more elements in a table.
+        /// usage: ListParams(myWall) or ListParams(id) or ListParams(listOfWalls)
+        /// </summary>
+        public static void ListParams(object input) => Globals.ListParams(input);
+
+        /// <summary>
+        /// Discovery helper for the REPL. Lists key Revit API properties (Level, Location, etc.)
+        /// </summary>
+        public static void ListProperties(object input) => Globals.ListProperties(input);
+
+        /// <summary>
+        /// Discovery helper for the REPL. Lists geometry summary (Solids, Volumes, Area).
+        /// </summary>
+        public static void ListGeometry(object input) => Globals.ListGeometry(input);
+
+        /// <summary>
+        /// Quick delete helper with automatic transaction.
+        /// </summary>
+        public static void Delete(object input) => Globals.Delete(input);
+
+        /// <summary>
+        /// Discovery helper for the REPL. Lists all BuiltInParameter identifiers for an element.
+        /// usage: ListBIPs(myWall)
+        /// </summary>
+        public static void ListBIPs(object input) => Globals.ListBIPs(input);
 
         /// <summary>
         /// Selects the specified elements in the Revit user interface and zooms to them.

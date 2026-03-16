@@ -251,9 +251,9 @@ export const Sidebar = () => {
               showNotification("Script source loaded.", "success");
             }
           }
-        } catch (err: any) {
+        } catch (err) {
           console.error("Discovery failed:", err);
-          showNotification(`Failed to scan folder: ${err?.message || err}`, "error");
+          showNotification(`Failed to scan folder: ${(err as Error)?.message || err}`, "error");
         }
       }
     } else {
@@ -271,9 +271,9 @@ export const Sidebar = () => {
         setActiveScriptSource({ type: 'local', path: folderToInit });
         showNotification(res.data.message || "Source initialized!", res.data.already_initialized ? "info" : "success");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("[Sidebar] Failed to initialize source:", err);
-      const msg = err.response?.data?.detail || "Failed to initialize folder.";
+      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Failed to initialize folder.";
       showNotification(msg, "error");
     } finally {
       setIsInitModalOpen(false);

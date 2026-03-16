@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import { StructuredOutputViewer } from './StructuredOutputViewer';
-import type { ScriptExecutionResult } from "@/types/scriptModel";
+import type { ExecutionResult } from "@/types/common";
 import { useUI } from "@/hooks/useUI";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 
 interface TableTabContentProps {
-  executionResult: ScriptExecutionResult | null;
+  executionResult: ExecutionResult | null;
 }
 
 export const TableTabContent: React.FC<TableTabContentProps> = ({

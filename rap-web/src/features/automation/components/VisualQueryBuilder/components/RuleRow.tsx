@@ -7,7 +7,7 @@ interface RuleRowProps {
   child: QueryRule;
   childPath: number[];
   availableParams: ParameterDefinition[];
-  updateRootGroupRecursive: (path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => void;
+  updateRootGroupRecursive: (path: number[], updates: Partial<QueryRule>, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => void;
 }
 
 interface CustomMiniSelectProps {

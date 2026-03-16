@@ -71,6 +71,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setCustomScriptFolders(prev => Array.from(new Set([...prev, path])));
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSystemReady]); // Dependency array intentionally minimal to run only on mount/ready
 
   const setUserSourcePath = useCallback((sourceId: number, path: string, name: string) => {
@@ -165,7 +166,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }));
       setScripts(loadedScripts);
       return loadedScripts;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to load scripts:", error);
       showNotification(`Failed to fetch scripts`, "error");
       setScripts([]);
@@ -198,7 +199,13 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [activeScriptSource, loadScriptsFromPath, setActiveScriptSource, userSourcePaths, canUseLocalFolders, isAuthenticated, user, activeTeam, isSystemReady]);
 
-  const createNewScript = useCallback(async (details: any) => {
+  const createNewScript = useCallback(async (details: { 
+    script_name: string; 
+    template_id?: string; 
+    generated_logic?: string; 
+    generated_params?: string; 
+    parent_folder?: string | null; 
+  }) => {
     try {
       const response = await api.post("/api/scripts/new", details);
 
@@ -224,8 +231,9 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
       return response.data; // Return the created script object
-    } catch (error: any) {
-      showNotification(error.response?.data?.detail || "Failed to create script", "error");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      showNotification(err.response?.data?.detail || "Failed to create script", "error");
       return undefined;
     }
   }, [selectedFolder, loadScriptsFromPath, showNotification, setLastRunTimes, setModificationTimes, setCreationTimes]);
@@ -239,9 +247,10 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       showNotification(forceScaffold ? "Scaffolding regenerated. Opening..." : "Opening project in VS Code...", "success");
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[EditScript] Error:", error);
-      showNotification(error.response?.data?.detail || "Failed to open script in VSCode.", "error");
+      const err = error as { response?: { data?: { detail?: string } } };
+      showNotification(err.response?.data?.detail || "Failed to open script in VSCode.", "error");
       return false;
     }
   }, [isAuthenticated, showNotification]);
@@ -255,8 +264,9 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (selectedFolder) await loadScriptsFromPath(selectedFolder, true);
       showNotification(scaffoldingOnly ? "Scaffolding cleared" : "Script deleted", "success");
       return true;
-    } catch (error: any) {
-      const msg = error.response?.data?.detail || (scaffoldingOnly ? "Failed to clear scaffolding" : "Failed to delete script");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      const msg = err.response?.data?.detail || (scaffoldingOnly ? "Failed to clear scaffolding" : "Failed to delete script");
       showNotification(msg, "error");
       return false;
     }
@@ -352,7 +362,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
 
       setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: mergedMetadata } : s));
-    } catch (err) { }
+    } catch (err) { /* ignore individual metadata fetch errors */ }
   }, [setScripts]);
 
   const updateScriptModificationTime = useCallback((scriptId: string) => {
@@ -377,11 +387,11 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
 
       setScripts(prev => prev.map(s => s.id === script.id ? { ...s, parameters: paramsRes.data.parameters, metadata: mergedMetadata } : s));
-    } catch (err) { }
+    } catch (err) { /* ignore reload errors */ }
   }, [setScripts]);
 
   // 6. SYNC SESSION TRACKING
-  const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, any>>({});
+  const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, { last_modified: number }>>({});
   const [pollingInterval, setPollingInterval] = useState(2000); 
 
   const fetchActiveSyncSessions = useCallback(async () => {
@@ -397,7 +407,8 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         );
         setPollingInterval(hasActiveSelected ? 500 : 2000);
       }
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { status: number } };
       if (err.response?.status !== 401) {
         console.error("Failed to fetch active sessions:", err);
       }
@@ -507,7 +518,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       isValidatingRef.current = false;
     }
-  }, [isSystemReady, customScriptFolders, userSourcePaths, toolLibraryPath, activeScriptSource, setCustomScriptFolders, setUserSourcePaths, setToolLibraryPath, setActiveScriptSource]);
+  }, [isSystemReady, customScriptFolders, userSourcePaths, toolLibraryPath, activeScriptSource, setCustomScriptFolders, setUserSourcePaths, setToolLibraryPath, setActiveScriptSource, loadScriptsFromPath]);
 
   // Trigger Validation: Mount, Focus, and Interval
   useEffect(() => {
@@ -524,7 +535,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
-  }, [isSystemReady, validateSources]);
+  }, [isSystemReady, validateSources, loadScriptsFromPath]);
 
   const contextValue = useMemo(() => ({
     scripts, setScripts, activeScriptSource, setActiveScriptSource,

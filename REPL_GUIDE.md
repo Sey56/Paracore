@@ -91,10 +91,36 @@ Because Revit API is quirky, some common attributes are hardcoded as **native C#
 **Integer Getter.** Returns the integer value of the parameter.
 - Returns `0` if the parameter is not found.
 
+### `element.AllParams()`
+**The Parameter Snoop.** Returns a list of objects containing `Name`, `Storage (Type)`, and `Value` for every non-empty parameter on the element.
+- Best used with `Table()`: `Table(myWall.AllParams())`
+- Shortcut: `ListParams(myWall)`
+
+### `element.TypeParams()`
+**The Type Snoop.** Same as `AllParams` but for the element's `ElementType`.
+- Shortcut: `ListParams(myWall.GetTypeId())`
+
+### `element.AllProperties()`
+**The API Snoop.** Returns a table of standard Revit API properties not found in the parameters dictionary (Category, Level, Workset, Design Option, Location Point/Curve, Owner, etc.).
+- Best used with `Table()`: `Table(myWall.AllProperties())`
+- Shortcut: `ListProperties(myWall)`
+
+### `element.AllGeometry()`
+**The Geometry Snoop.** Returns a summary table of solid count, total volume, and total surface area.
+- Best used with `Table()`: `Table(myWall.AllGeometry())`
+- Shortcut: `ListGeometry(myWall)`
+
+### The "Cabinet & Drawer" Analogy
+To understand these methods, think of a Revit Element as a filing cabinet:
+*   **The Parameter Name** (e.g., `"Length"`) is the **Label** on the outside of the drawer.
+*   **The Method** (e.g., `GetNum`) is the **Action** of opening that drawer.
+*   **The Return Value** (e.g., `1500.0`) is the **Content** of the paper inside.
+
 ### Parameter Name Resolution
-All accessors support **both** standard Revit parameter names and BuiltInParameter names:
-- `wall.GetNum("Length")` → looks up by name, then tries `BuiltInParameter.LENGTH`
-- `wall.GetNum("Base Constraint")` → resolves "Base Constraint" or `BASE_CONSTRAINT`
+All accessors support **three** ways to target a "drawer":
+1.  **Standard Name:** `wall.GetNum("Length")` (Simple, but language-dependent).
+2.  **BIP String:** `wall.GetNum("CURVE_ELEM_LENGTH")` (Language-independent).
+3.  **BIP Enum:** `wall.GetNum(BuiltInParameter.CURVE_ELEM_LENGTH)` (Pro: Full IntelliSense in VSCode).
 
 ---
 
@@ -133,7 +159,12 @@ Commands to render rich data in the **Summary** tab.
 
 | Command | Aliases | Description |
 | :--- | :--- | :--- |
-| `Table(data)` | — | Renders any list, projection, or elements as a searchable grid. |
+| `Table(data)` | — | Renders any list, projection, or elements as a searchable grid. **Note:** For Revit elements, numeric values are automatically formatted to your Project Units and Precision. |
+| `ListParams(input)` | — | Fast property-palette style list of ALL parameters for one or more elements. |
+| `ListBIPs(input)` | — | The "X-Ray" view. Lists the unique BuiltInParameter names for surgical code access. |
+| `ListProperties(input)` | — | Table summary of Revit API properties (Category, Level, Location, etc.). |
+| `ListGeometry(input)` | — | Summary of solids, total volume, and surface area for an element. |
+| `Delete(input)` | — | Safely deletes one or more elements (includes automatic transaction). |
 | `BarChart(data)` | `ChartBar(data)` | Renders a bar chart (objects need `name` and `value`). |
 | `PieChart(data)` | `ChartPie(data)` | Renders a pie chart (objects need `name` and `value`). |
 | `LineChart(data)` | `ChartLine(data)`, `LineGraph(data)` | Renders a line graph. |

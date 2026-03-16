@@ -106,6 +106,7 @@ export const TeamSourceManager: React.FC<TeamSourceManagerProps> = ({
                       e.stopPropagation();
                       if (activeScriptSource?.type === 'team') {
                         const path = activeScriptSource.path;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const sourceToRemove: any = {
                           id: Number(activeScriptSource.id) || 0,
                           name: getFolderNameFromPath(path),

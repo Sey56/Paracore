@@ -7,7 +7,7 @@ import { UIProvider } from './providers/UIProvider';
 import { AuthProvider } from '@/features/auth/store/AuthProvider';
 import { TeamSourceProvider } from '@/features/team-sources/store/TeamSourceProvider';
 import { PlaylistProvider } from '@/features/automation/store/PlaylistProvider';
-import { WatchdogProvider } from './providers/WatchdogProvider';
+import { WatchdogProvider } from '@/context/providers/WatchdogProvider';
 
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   return (

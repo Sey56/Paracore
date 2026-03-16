@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { Script, StructuredOutput } from "@/types/scriptModel";
+import type { ExecutionResult } from "@/types/common";
 import type { InspectorTab } from "@/context/providers/UIContext";
 import { useUI } from "@/hooks/useUI";
 import { useScriptExecution } from "@/features/automation";
@@ -46,7 +47,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   // Track the last processed execution to avoid duplicate processing or processing intermediate states
   const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
 
-  const allTabs: { id: InspectorTab, label: string, icon: any, hidden?: boolean }[] = [
+  const allTabs: { id: InspectorTab, label: string, icon: import("@fortawesome/fontawesome-svg-core").IconProp, hidden?: boolean }[] = [
     { id: "parameters", label: "Parameters", icon: faSlidersH, hidden: !script },
     { id: "console", label: "Console", icon: faTerminal },
     { id: "table", label: "Analytics", icon: faChartLine },
@@ -128,14 +129,17 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   }, [script?.id]);
 
   // Create a virtual execution result that includes the persistent output
-  const virtualExecutionResult = React.useMemo(() => {
+  const virtualExecutionResult = React.useMemo((): ExecutionResult | null => {
     if (persistentStructuredOutput) {
       return {
         ...executionResult,
+        output: executionResult?.output || "",
+        isSuccess: executionResult?.isSuccess ?? true,
+        error: executionResult?.error ?? null,
         structuredOutput: persistentStructuredOutput,
         timestamp: persistentExecutionTimestamp,
         scriptName: executionResult?.scriptName || script?.name
-      } as any;
+      };
     }
     return executionResult;
   }, [executionResult, persistentStructuredOutput, persistentExecutionTimestamp, script?.name]);

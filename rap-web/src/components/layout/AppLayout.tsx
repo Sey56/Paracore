@@ -60,7 +60,9 @@ export const AppLayout: React.FC = () => {
               else if (typeof parsed === 'object' && parsed !== null) {
                 if (execParams.length > 0) execParams = execParams.map((p: ScriptParameter) => parsed[p.name] !== undefined ? { ...p, value: parsed[p.name] } : p);
               }
-            } catch { }
+            } catch {
+              // ignore parse errors
+            }
           }
           const paramAction: ScriptParameter = { name: '__sentinel_action__', value: action, type: 'string', defaultValue: action, required: true, options: [] };
           runScript(s, [paramAction, ...execParams]);
@@ -68,7 +70,7 @@ export const AppLayout: React.FC = () => {
       } catch (err) { console.error("[AppLayout] Failed to handle sentinel-table-action:", err); }
     });
     return () => { unlisten.then(f => f()); };
-  }, [watchdogs, userEditedScriptParameters]);
+  }, [watchdogs, userEditedScriptParameters, runScript, setSelectedScript]);
 
   const {
     isSidebarOpen,
@@ -155,7 +157,7 @@ export const AppLayout: React.FC = () => {
 
       {selectedScript && <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />}
 
-      <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'}`}>
         <TopBar />
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}

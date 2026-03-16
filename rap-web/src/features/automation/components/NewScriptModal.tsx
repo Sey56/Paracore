@@ -32,8 +32,8 @@ interface NewScriptModalProps {
 }
 
 const QueryTemplateSelector: React.FC<{
-    templates: any[],
-    onSelect: (data: any, name: string | null) => void,
+    templates: { id: string | number, name: string, data: unknown }[],
+    onSelect: (data: unknown, name: string | null) => void,
     selectedTemplateName: string | null,
     mode: 'script' | 'sentinel'
 }> = ({ templates, onSelect, selectedTemplateName, mode }) => {
@@ -112,11 +112,11 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
     const [generatedLogic, setGeneratedLogic] = useState('');
     const [generatedParams, setGeneratedParams] = useState('');
     const [isCompiled, setIsCompiled] = useState(false);
-    const [initialQueryState, setInitialQueryState] = useState<any>(undefined);
+    const [initialQueryState, setInitialQueryState] = useState<any>(undefined); // eslint-disable-line @typescript-eslint/no-explicit-any
     const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(null);
     const [showConfirmReplace, setShowConfirmReplace] = useState(false);
 
-    const [sentinelConfig, setSentinelConfig] = useState<any>(null);
+    const [sentinelConfig, setSentinelConfig] = useState<Record<string, any> | null>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     // V5 FIX: Prevent re-initialization if already active
     const isInitializedRef = React.useRef(false);
@@ -139,7 +139,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
         else setIsCompiled(!!generatedLogic);
     };
 
-    const handleConfigChange = React.useCallback((config: any) => {
+    const handleConfigChange = React.useCallback((config: Record<string, any>) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         setSentinelConfig(config);
     }, []);
 
@@ -149,7 +149,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
         setIsCompiled(compiled);
     }, []);
 
-    const handleTemplateSelect = (templateData: any, name: string | null) => {
+    const handleTemplateSelect = (templateData: unknown, name: string | null) => {
         setInitialQueryState(null); // Force unmount
         setSelectedTemplateName(name);
         
@@ -193,7 +193,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                         setActiveTab('query');
                         setIsCompiled(true);
                     }
-                } catch (err) {}
+                } catch (err) { /* ignore */ }
             };
             fetchExisting();
         } else {
@@ -235,7 +235,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                     setShowConfirmReplace(false);
                     onClose(response.data as Script);
                 }
-            } catch (err) {} finally { setIsSubmitting(false); }
+            } catch (err) { /* ignore */ } finally { setIsSubmitting(false); }
         } else {
             if (!scriptName) { setIsSubmitting(false); return; }
             try {
@@ -251,7 +251,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                     result = await createNewScript({ script_name: scriptName, template_id: finalTemplate, generated_logic: finalLogic, generated_params: finalParams, parent_folder: selectedFolder });
                 }
                 if (result) { setShowConfirmReplace(false); onClose(result); }
-            } catch (err) {} finally { setIsSubmitting(false); }
+            } catch (err) { /* ignore */ } finally { setIsSubmitting(false); }
         }
     };
 
@@ -326,7 +326,7 @@ export const NewScriptModal = ({ isOpen, onClose, replaceTarget, selectedFolder,
                                 ].map((tab) => (
                                     <button
                                         key={tab.id}
-                                        onClick={() => handleTabChange(tab.id as any)}
+                                        onClick={() => handleTabChange(tab.id as 'query' | 'blank')}
                                         className={`px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800/50 ${activeTab === tab.id
                                             ? 'text-slate-900 dark:text-white'
                                             : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'

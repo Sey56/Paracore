@@ -38,8 +38,8 @@ interface WatchdogContextType {
     // Actions
     addConfiguredWatchdogRoot: (path: string) => void;
     removeConfiguredWatchdogRoot: (path: string) => void;
-    toggleScriptArm: (scriptPath: string, parameters?: any[]) => Promise<void>;
-    armAllInList: (scripts: { path: string, parameters?: any[] }[]) => Promise<void>;
+    toggleScriptArm: (scriptPath: string, parameters?: unknown[]) => Promise<void>;
+    armAllInList: (scripts: { path: string, parameters?: unknown[] }[]) => Promise<void>;
     decommissionAll: () => Promise<void>;
 }
 
@@ -106,7 +106,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             await new Promise(r => setTimeout(r, 1200));
 
             for (const path of watchdogSources) {
-                try { await api.post("/api/watchdogs/register-source", { path: normalize(path) }); } catch (e) { }
+                try { await api.post("/api/watchdogs/register-source", { path: normalize(path) }); } catch (e) { /* ignore */ }
                 await new Promise(r => setTimeout(r, 200));
             }
 
@@ -117,7 +117,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         };
 
         armOnStartup();
-    }, [isAuthenticated, stableUserId]);
+    }, [isAuthenticated, stableUserId, watchdogSources]);
 
     // PHASE 2: Status Heartbeat (Backend -> Memory UI only)
     useEffect(() => {
@@ -141,7 +141,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
                     setFailedWatchdogs(Array.isArray(res.data.failed_watchdogs) ? res.data.failed_watchdogs : []);
                 }
-            } catch (err) { }
+            } catch (err) { /* ignore */ }
             finally { setIsWatchdogInitialized(true); }
         };
 
@@ -166,22 +166,22 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setConfiguredWatchdogRoots(prev => prev.filter(p => normalize(p) !== norm));
     }, [setConfiguredWatchdogRoots]);
 
-    const toggleScriptArm = async (scriptPath: string, parameters?: any[]) => {
+    const toggleScriptArm = async (scriptPath: string, parameters?: unknown[]) => {
         const path = normalize(scriptPath);
         const isArmed = watchdogSources.some(s => normalize(s) === path);
 
         if (isArmed) {
             setWatchdogSources(prev => prev.filter(s => normalize(s) !== path));
             setDeployedDocumentMap(prev => { const next = { ...prev }; delete next[path]; return next; });
-            try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { }
+            try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { /* ignore */ }
         } else {
             setWatchdogSources(prev => Array.from(new Set([...prev, path])));
             setDeployedDocumentMap(prev => ({ ...prev, [path]: currentDocTitle || 'Unknown' }));
-            try { await api.post("/api/watchdogs/register-source", { path: scriptPath, parameters }); } catch (e) { }
+            try { await api.post("/api/watchdogs/register-source", { path: scriptPath, parameters }); } catch (e) { /* ignore */ }
         }
     };
 
-    const armAllInList = async (scripts: { path: string, parameters?: any[] }[]) => {
+    const armAllInList = async (scripts: { path: string, parameters?: unknown[] }[]) => {
         showNotification(`Deploying ${scripts.length} Sentinels...`, "info");
 
         // Use a local copy to calculate what needs arming
@@ -202,7 +202,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
 
         for (const script of toArm) {
-            try { await api.post("/api/watchdogs/register-source", { path: script.path, parameters: script.parameters }); } catch (e) { }
+            try { await api.post("/api/watchdogs/register-source", { path: script.path, parameters: script.parameters }); } catch (e) { /* ignore */ }
             await new Promise(r => setTimeout(r, 300));
         }
         showNotification("Sentinel deployment complete.", "success");
@@ -217,7 +217,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             ...watchdogSources.map(normalize)
         ]);
         for (const path of allPaths) {
-            try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { }
+            try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { /* ignore */ }
         }
         setWatchdogSources([]);
         setDeployedDocumentMap({});
@@ -237,6 +237,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useWatchdog = () => {
     const context = useContext(WatchdogContext);
     if (!context) throw new Error("useWatchdog must be used within a WatchdogProvider");

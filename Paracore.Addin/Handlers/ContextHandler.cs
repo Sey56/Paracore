@@ -233,18 +233,51 @@ namespace Paracore.Addin.Handlers
 
                         // Resolve Selection Type
                         var objType = Autodesk.Revit.UI.Selection.ObjectType.Element;
-                        if (request.SelectionType.Equals("Face", StringComparison.OrdinalIgnoreCase)) objType = Autodesk.Revit.UI.Selection.ObjectType.Face;
-                        else if (request.SelectionType.Equals("Edge", StringComparison.OrdinalIgnoreCase)) objType = Autodesk.Revit.UI.Selection.ObjectType.Edge;
+                        
+                        // Reference is a base type for Face and Edge, but the user might just want to pick a Reference.
+                        // Face and Edge have specific picking modes.
+                        if (request.SelectionType.Equals("Face", StringComparison.OrdinalIgnoreCase))
+                        {
+                            objType = Autodesk.Revit.UI.Selection.ObjectType.Face;
+                        }
+                        else if (request.SelectionType.Equals("Edge", StringComparison.OrdinalIgnoreCase))
+                        {
+                            objType = Autodesk.Revit.UI.Selection.ObjectType.Edge;
+                        }
+                        else if (request.SelectionType.Equals("Reference", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // A generic Reference without [Select(SelectionType.Face)] attribute
+                            // defaults to picking an Element, but keeping the returned object as a geometric Reference
+                            objType = Autodesk.Revit.UI.Selection.ObjectType.Element;
+                        }
 
                         // Resolve Filter
                         var (categoryId, classType) = ResolveFilter(uidoc.Document, request.CategoryFilter);
                         var filter = (categoryId != null || classType != null) ? new UniversalSelectionFilter(categoryId, classType) : null;
 
-                        var reference = uidoc.Selection.PickObject(objType, filter, $"Pick {request.SelectionType} {request.CategoryFilter}");
+                        string prompt = $"Pick {request.SelectionType} {request.CategoryFilter}".Trim();
+                        Autodesk.Revit.DB.Reference reference;
+                        
+                        if (filter != null)
+                        {
+                            reference = uidoc.Selection.PickObject(objType, filter, prompt);
+                        }
+                        else
+                        {
+                            reference = uidoc.Selection.PickObject(objType, prompt);
+                        }
 
-                        return objType == Autodesk.Revit.UI.Selection.ObjectType.Element
-                            ? reference.ElementId.Value.ToString()
-                            : reference.ConvertToStableRepresentation(uidoc.Document);
+                        // Format output based on what was picked
+                        // A Face or Edge or PointOnElement returns a Reference that has a valid ElementId AND also specific geometry info.
+                        // We must serialize it back as a StableRepresentation so the engine can reconstitute it as a native `Reference`.
+                        if (objType == Autodesk.Revit.UI.Selection.ObjectType.Element)
+                        {
+                            return reference.ElementId.Value.ToString();
+                        }
+                        else
+                        {
+                            return reference.ConvertToStableRepresentation(uidoc.Document);
+                        }
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return "CANCELLED"; }
                 });

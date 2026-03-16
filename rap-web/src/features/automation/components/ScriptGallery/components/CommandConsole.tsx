@@ -80,7 +80,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           ].map(t => (
             <button
               key={t.id}
-              onClick={() => setTypeFilter(t.id as any)}
+              onClick={() => setTypeFilter(t.id as 'all' | 'scripts' | 'guards')}
               className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
                 ${typeFilter === t.id
                   ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'

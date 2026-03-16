@@ -112,7 +112,7 @@
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: transparent;
+  background: rgba(140, 140, 140, 0.01);
   border-radius: 3px;
 }
 

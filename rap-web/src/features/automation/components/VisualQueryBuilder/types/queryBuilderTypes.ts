@@ -16,7 +16,7 @@ export interface QueryRule {
   displayName?: string;
   storage_type: string;
   operator: string;
-  value: any;
+  value: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   unit?: string;
   is_builtin: boolean;
   builtin_id: number;

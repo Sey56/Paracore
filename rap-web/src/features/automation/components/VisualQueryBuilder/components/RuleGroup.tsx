@@ -1,14 +1,14 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
-import { ParameterDefinition, QueryGroup } from '../types/queryBuilderTypes';
+import { ParameterDefinition, QueryGroup, QueryRule } from '../types/queryBuilderTypes';
 import { RuleRow } from './RuleRow';
 
 interface RuleGroupProps {
   group: QueryGroup;
   path?: number[];
   availableParams: ParameterDefinition[];
-  updateRootGroupRecursive: (path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => void;
+  updateRootGroupRecursive: (path: number[], updates: Partial<QueryRule>, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => void;
   setGroupCombinator: (path: number[], combinator: 'AND' | 'OR') => void;
 }
 

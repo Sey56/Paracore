@@ -3,12 +3,13 @@ import { SidebarSection } from '../SidebarSection';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClock, faBroom } from "@fortawesome/free-solid-svg-icons";
 import { Script } from '@/types/index';
+import { InspectorTab } from '@/context/providers/UIContext';
 
 interface RecentScriptsListProps {
   recentScripts: string[];
   scripts: Script[];
   setSelectedScript: (script: Script | null) => void;
-  setActiveInspectorTab: (tab: any) => void;
+  setActiveInspectorTab: (tab: InspectorTab) => void;
   onClear: () => void;
 }
 

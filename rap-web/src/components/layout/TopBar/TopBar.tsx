@@ -154,7 +154,7 @@ export const TopBar: React.FC = () => {
               onClick={() => {
                 if (!isLocked) {
                   if (nav.id === 'agent') handleAgentModeClick();
-                  else setActiveMainView(nav.id as any);
+                  else setActiveMainView(nav.id as 'scripts' | 'agent' | 'playlists');
                 }
               }}
               disabled={isLocked}

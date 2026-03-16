@@ -24,7 +24,7 @@ interface StructuredOutputViewerProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-const CustomChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) => {
+const CustomChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string, value: string | number }[]; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
@@ -40,7 +40,7 @@ const CustomChartTooltip = ({ active, payload, label }: { active?: boolean; payl
   return null;
 };
 
-const CustomPieTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
+const CustomPieTooltip = ({ active, payload }: { active?: boolean; payload?: { name: string, value: string | number }[] }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
@@ -57,9 +57,9 @@ const CustomPieTooltip = ({ active, payload }: { active?: boolean; payload?: any
 const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
 
 const beautifyHeader = (header: string) => {
-  const match = header.match(/^(.*?)?\s*[\[\(_](.*?)[\]\)]?$/);
+  const match = header.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
   if (match) {
-    const possibleName = match[1].replace(/[_\(\[]$/, '').trim();
+    const possibleName = match[1].replace(/[_([]$/, '').trim();
     const possibleUnit = match[2].trim();
     if (VALID_UNITS.includes(possibleUnit.toLowerCase())) {
       return possibleName;
@@ -115,7 +115,7 @@ const TableView: React.FC<{
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [handleMouseMove]);
+  }, [handleMouseMove, handleMouseUp]);
 
   // Cell editing state
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; colKey: string } | null>(null);
@@ -126,11 +126,12 @@ const TableView: React.FC<{
 
   // V5: FUNCTIONAL RESTORATION - Listen for batch updates from CSV import
   useEffect(() => {
-    const handleBatchUpdate = (e: any) => {
-      const { updates, idKey } = e.detail;
+    const handleBatchUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ updates: { element_id: number; parameter_name: string; new_value_string: string }[]; idKey: string }>;
+      const { updates, idKey } = customEvent.detail;
       setData(prevData => {
         const updatedData = [...prevData];
-        updates.forEach((upd: any) => {
+        updates.forEach(upd => {
           const idx = updatedData.findIndex(r => {
             const rId = typeof r[idKey] === 'string' ? parseInt(r[idKey], 10) : Number(r[idKey]);
             return rId === upd.element_id;
@@ -143,8 +144,8 @@ const TableView: React.FC<{
       });
     };
 
-    window.addEventListener('paracore-table-updated' as any, handleBatchUpdate);
-    return () => window.removeEventListener('paracore-table-updated' as any, handleBatchUpdate);
+    window.addEventListener('paracore-table-updated', handleBatchUpdate as EventListener);
+    return () => window.removeEventListener('paracore-table-updated', handleBatchUpdate as EventListener);
   }, []);
 
   const headers = useMemo(() => (data.length > 0 ? Object.keys(data[0]) : []), [data]);
@@ -204,7 +205,7 @@ const TableView: React.FC<{
               })}
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-slate-900 divide-y" style={{ borderTopColor: 'var(--border-divider)', borderBottomColor: 'var(--border-divider)' } as any}>
+          <tbody className="bg-white dark:bg-slate-900 divide-y" style={{ borderTopColor: 'var(--border-divider)', borderBottomColor: 'var(--border-divider)' } as React.CSSProperties}>
             {filteredData.map((row: Record<string, unknown>, rowIndex: number) => {
               const idColKey = Object.keys(row).find(k => ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase()));
               const hasId = !!idColKey;
@@ -350,9 +351,9 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       let realName = meta?.name || parameterName;
       let unit = meta?.unit || "";
       if (!unit) {
-        const match = parameterName.match(/^(.*?)?\s*[\[\(_](.*?)[\]\)]?$/);
+        const match = parameterName.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
         if (match) {
-          const possibleName = match[1].replace(/[_\(\[]$/, '').trim();
+          const possibleName = match[1].replace(/[_([]$/, '').trim();
           const possibleUnit = match[2].trim();
           const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
           if (VALID_UNITS.includes(possibleUnit.toLowerCase())) {
@@ -372,7 +373,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       const parsed = JSON.parse(item.data);
       const data = Array.isArray(parsed) ? parsed : [parsed];
       if (data.length === 0) return;
-      const textToCopy = [Object.keys(data[0]).join('\t'), ...data.map((row: any) => Object.values(row).map(v => String(v ?? '')).join('\t'))].join('\n');
+      const textToCopy = [Object.keys(data[0]).join('\t'), ...data.map((row: Record<string, unknown>) => Object.values(row).map(v => String(v ?? '')).join('\t'))].join('\n');
       navigator.clipboard.writeText(textToCopy);
       showNotification('Table data copied to clipboard.', 'success');
     } catch { showNotification('Failed to copy table data.', 'error'); }
@@ -383,7 +384,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       const parsed = JSON.parse(item.data);
       const data = Array.isArray(parsed) ? parsed : [parsed];
       if (data.length === 0) return;
-      const csvContent = [Object.keys(data[0]).join(','), ...data.map((row: any) => Object.values(row).map((val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+      const csvContent = [Object.keys(data[0]).join(','), ...data.map((row: Record<string, unknown>) => Object.values(row).map((val: unknown) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
       const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `export_${new Date().toISOString().slice(0, 10)}.csv` });
       if (filePath) { await writeTextFile(filePath, csvContent); showNotification('CSV exported successfully!', 'success'); }
     } catch { showNotification("Failed to export CSV data.", "error"); }
@@ -410,7 +411,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           };
           const headers = parseLine(lines[0]);
           return lines.slice(1).map(line => {
-            const values = parseLine(line); const obj: any = {};
+            const values = parseLine(line); const obj: Record<string, unknown> = {};
             headers.forEach((h, i) => { if (h) obj[h] = values[i] !== undefined ? values[i] : ""; });
             return obj;
           });
@@ -420,7 +421,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
         const tableData = Array.isArray(currentData) ? currentData : [currentData];
         if (tableData.length === 0) return;
         const idKey = Object.keys(tableData[0]).find(k => ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase())) || 'Id';
-        const updates: any[] = [];
+        const updates: { element_id: number; parameter_name: string; new_value_string: string; unit: string }[] = [];
         importedData.forEach(impRow => {
           const impId = parseInt(String(impRow[idKey] || '').replace(/,/g, ''), 10);
           const match = tableData.find(r => Number(r[idKey]) === impId);
@@ -431,9 +432,9 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
               let realName = meta?.name || col;
               let unit = meta?.unit || "";
               if (!unit) {
-                const match = col.match(/^(.*?)?\s*[\[\(_](.*?)[\]\)]?$/);
+                const match = col.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
                 if (match) {
-                  const possibleName = match[1].replace(/[_\(\[]$/, '').trim();
+                  const possibleName = match[1].replace(/[_([]$/, '').trim();
                   const possibleUnit = match[2].trim();
                   const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
                   if (VALID_UNITS.includes(possibleUnit.toLowerCase())) { realName = possibleName; unit = possibleUnit; }
@@ -467,7 +468,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     try {
       const data = Array.isArray(parsedData) ? parsedData : [parsedData];
       if (data.length === 0) return;
-      const csvContent = [Object.keys(data[0]).join(','), ...data.map((row: any) => Object.values(row).map((val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+      const csvContent = [Object.keys(data[0]).join(','), ...data.map((row: Record<string, unknown>) => Object.values(row).map((val: unknown) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
       const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `chart_data_${new Date().toISOString().slice(0, 10)}.csv` });
       if (filePath) { await writeTextFile(filePath, csvContent); showNotification('Chart data exported as CSV.', 'success'); }
     } catch { showNotification("Failed to export CSV data.", "error"); }
@@ -585,7 +586,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
       const filePath = await save({ filters: [{ name: 'SVG', extensions: ['svg'] }], defaultPath: `chart_${item.type}_${new Date().toISOString().slice(0, 10)}.svg` });
       if (filePath) { await writeTextFile(filePath, src); showNotification('Chart exported as SVG.', 'success'); }
     } catch { showNotification("Failed to export chart image.", "error"); }
-  }, [chartId, item.data, item.type, showNotification]);
+  }, [chartId, item.type, showNotification]);
 
   if (parsedData === undefined) return <pre className="p-3 text-xs text-red-600 bg-red-50 rounded-xl">Error: Invalid JSON.</pre>;
 
@@ -672,7 +673,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
                   dataKey="value"
                   isAnimationActive={!isDashboard}
                 >
-                  {parsedData.map((_: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  {parsedData.map((_: unknown, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
                 <ChartTooltip content={<CustomPieTooltip />} />
                 <Legend iconType="circle" />

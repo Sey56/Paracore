@@ -88,7 +88,7 @@ export const useQueryBuilderLogic = (
     const validBuiltins = new Set(availableParams.filter(p => p.builtin_name).map(p => p.builtin_name));
     const validIds = new Set(availableParams.filter(p => p.builtin_id).map(p => String(p.builtin_id)));
 
-    const isParamValid = (item: any) => {
+    const isParamValid = (item: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
       // Identity check: prioritize builtin match, fallback to name+type
       if (item.is_builtin) {
         return (item.builtin_name && validBuiltins.has(item.builtin_name)) || 
@@ -125,7 +125,7 @@ export const useQueryBuilderLogic = (
 
   }, [category, availableParams]);
 
-  const updateRootGroupRecursive = useCallback((path: number[], updates: any, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => {
+  const updateRootGroupRecursive = useCallback((path: number[], updates: Partial<QueryRule>, action: 'update' | 'remove' | 'add_rule' | 'add_group' | 'move_up' | 'move_down') => {
     setLastGeneratedTimestamp(null);
     onQueryGenerated('', '', false);
     const newRoot = JSON.parse(JSON.stringify(rootGroup));

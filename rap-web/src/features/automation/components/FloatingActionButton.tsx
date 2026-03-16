@@ -61,7 +61,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
       if (win) {
         return await win.isVisible();
       }
-    } catch { }
+    } catch { /* ignore */ }
     return false;
   }, []);
 

@@ -1,8 +1,8 @@
 export interface ScriptParameter {
   name: string;
   type: 'string' | 'number' | 'boolean' | 'enum';
-  value?: string | number | boolean;
-  defaultValue?: string | number | boolean;
+  value?: string | number | boolean | string[] | number[];
+  defaultValue?: string | number | boolean | string[] | number[];
   options?: string[];
   multiSelect?: boolean;
   description?: string;
@@ -127,7 +127,7 @@ export interface RawScriptFromApi {
   metadata: RawScriptMetadataFromApi;
   isFavorite?: boolean;
   metadataError?: boolean;
-  queryData?: any;
+  queryData?: unknown;
 }
 
 export interface Script {
@@ -140,5 +140,5 @@ export interface Script {
   isFavorite?: boolean;
   metadataError?: boolean;
   sourceType?: 'local' | 'team';
-  queryData?: any;
+  queryData?: unknown;
 }

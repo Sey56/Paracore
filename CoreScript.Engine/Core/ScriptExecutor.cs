@@ -46,7 +46,20 @@ namespace CoreScript.Engine.Core
             }
             catch (Exception ex)
             {
-                return ExecutionResult.Failure($"❌ Binary error: {ex.Message}", context.PrintLog.ToArray());
+                var targetEx = ex;
+                if (ex is TargetInvocationException tie && tie.InnerException != null)
+                {
+                    targetEx = tie.InnerException;
+                }
+                
+                string errorMsg = $"❌ Binary error: {targetEx.Message}";
+                // Include partial stack trace for better debugging of cached errors
+                if (targetEx.StackTrace != null)
+                {
+                    errorMsg += $"\n{targetEx.StackTrace.Split('\n').FirstOrDefault()}";
+                }
+                
+                return ExecutionResult.Failure(errorMsg, context.PrintLog.ToArray());
             }
             finally
             {

@@ -180,7 +180,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
 
   const handleRunScript = async () => {
     if (script) {
-      await setSelectedScript(script);
       runScript(script, editedParameters);
     }
   };
@@ -209,7 +208,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     : tooltipMessage;
 
   return (
-    <div className={`tab-content absolute inset-0 bg-white/40 dark:bg-slate-700/25 backdrop-blur-sm`}>
+    <div className={`tab-content absolute inset-0 bg-white/40 dark:bg-slate-700/25`}>
       <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar py-6 pl-5 pr-3">
         <div className="space-y-8 pb-6 pr-2">
         {/* 1. Configuration Presets */}

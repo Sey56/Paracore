@@ -364,7 +364,23 @@ def get_bulk_metadata(projects_data: list):
                 "options": list(p.options),
                 "multiSelect": p.multi_select,
                 "inputType": p.input_type,
-                "group": p.group
+                "group": p.group,
+                "visibleWhen": p.visible_when,
+                "numericType": p.numeric_type,
+                "min": p.min if p.HasField('min') else None,
+                "max": p.max if p.HasField('max') else None,
+                "step": p.step if p.HasField('step') else None,
+                "isRevitElement": p.is_revit_element,
+                "revitElementType": p.revit_element_type,
+                "revitElementCategory": p.revit_element_category,
+                "requiresCompute": p.requires_compute,
+                "required": p.required,
+                "suffix": p.suffix,
+                "pattern": p.pattern,
+                "enabledWhenParam": p.enabled_when_param,
+                "enabledWhenValue": p.enabled_when_value,
+                "unit": p.unit,
+                "selectionType": p.selection_type
             })
 
         results.append({

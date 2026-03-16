@@ -30,10 +30,72 @@ namespace CoreScript.Engine.Core
         {
             try
             {
+                var lowerCode = code.Trim().ToLowerInvariant();
+
+                // 1. Intercept Meta-Commands BEFORE any wrapping or session logic
+                if (lowerCode == "reset" || lowerCode == "clear vars" || lowerCode == "reset vars")
+                {
+                    ResetSession(sessionId);
+                    return (true, "REPL session reset. All variables cleared.", string.Empty, new List<string>());
+                }
+
                 ReplSession session;
                 lock (_lock)
                 {
                     _sessions.TryGetValue(sessionId, out session);
+                }
+
+                if (lowerCode == "vars" || lowerCode == "list" || lowerCode == "list vars")
+                {
+                    if (session == null)
+                    {
+                        return (true, "No active variables. (Session is empty)", string.Empty, new List<string>());
+                    }
+
+                    var vars = session.State.Variables;
+                    if (!vars.Any())
+                    {
+                        return (true, "No active variables found in this session.", string.Empty, new List<string>());
+                    }
+
+                    // Roslyn ScriptState keeps shadowed variables (var x = 5; var x = 12 creates two 'x' vars).
+                    // We GroupBy name and take the Last() to only show the most recently defined value for each variable name.
+                    var uniqueVars = vars.GroupBy(v => v.Name).Select(g => g.Last()).ToList();
+
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine("=== Active REPL Variables ===");
+                    foreach (var v in uniqueVars)
+                    {
+                        string typeName = v.Type.Name;
+                        string valStr = v.Value?.ToString() ?? "null";
+
+                        // Truncate extremely long string values to avoid blowing up the console
+                        if (valStr.Length > 200) valStr = valStr.Substring(0, 200) + "... [truncated]";
+
+                        sb.AppendLine($"[{typeName}] {v.Name} = {valStr}");
+                    }
+                    return (true, sb.ToString().TrimEnd(), string.Empty, new List<string>());
+                }
+
+                if (lowerCode.StartsWith("inspect ") && session != null)
+                {
+                    var varName = code.Trim().Substring(8).Trim();
+                    var vars = session.State.Variables;
+                    var targetVar = vars.LastOrDefault(v => v.Name == varName);
+                    if (targetVar == null)
+                    {
+                        return (false, string.Empty, $"Variable '{varName}' not found in active session.", new List<string>());
+                    }
+
+                    try
+                    {
+                        var json = JsonSerializer.Serialize(targetVar.Value, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = ExecutionGlobals.SerializerOptions.PropertyNamingPolicy, Converters = { new RevitElementConverterFactory(), new ElementIdConverter(), new DocumentConverter(), new XYZConverter(), new ParameterConverter() } });
+                        return (true, json, string.Empty, new List<string>());
+                    }
+                    catch (Exception ex)
+                    {
+                        return (false, string.Empty, $"Failed to inspect '{varName}': {ex.Message}", new List<string>());
+                    }
                 }
 
                 // --- Path-based Reference Gathering (Matches ScriptCompiler.cs) ---
@@ -90,7 +152,6 @@ namespace CoreScript.Engine.Core
                 if (session == null)
                 {
                     // Intercept "vars" or "list" commands when no session exists
-                    var lowerCode = code.Trim().ToLowerInvariant();
                     if (lowerCode == "vars" || lowerCode == "list" || lowerCode == "list vars")
                     {
                         return (true, "No active variables. (Session is empty)", string.Empty, new List<string>());
@@ -112,7 +173,6 @@ namespace CoreScript.Engine.Core
                 else
                 {
                     // Intercept "vars" or "list" commands for an active session
-                    var lowerCode = code.Trim().ToLowerInvariant();
 
                     if (lowerCode == "clear vars" || lowerCode == "reset" || lowerCode == "reset vars")
                     {

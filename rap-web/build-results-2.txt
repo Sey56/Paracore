@@ -1,0 +1,7 @@
+
+> rap@4.2.0 build
+> tsc -b && vite build
+
+src/features/automation/components/NewScriptModal.tsx(251,136): error TS2322: Type 'string' is not assignable to type 'any[]'.
+src/features/automation/components/NewScriptModal.tsx(251,167): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.

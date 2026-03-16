@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Script } from '@/types/scriptModel';
+import { Script, ScriptParameter } from '@/types/scriptModel';
 import { ParameterPreset } from '@/types/common';
 import { areParametersEqual } from '../../utils/parameterUtils';
 
@@ -42,7 +42,7 @@ export const usePresetManagement = (selectedScript: Script | null, isAuthenticat
         const initializedPresets = data.map((preset: ParameterPreset) => ({
           ...preset,
           parameters: Array.isArray(preset.parameters) ? preset.parameters.map(p => {
-            let processedValue: any = (p.value ?? p.defaultValue) ?? "";
+            let processedValue: ScriptParameter['value'] = (p.value ?? p.defaultValue) ?? "";
             if (p.type === 'number' && typeof processedValue === 'string') {
               processedValue = parseFloat(processedValue);
               if (isNaN(processedValue)) processedValue = 0;

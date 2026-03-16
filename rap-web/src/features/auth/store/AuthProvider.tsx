@@ -21,7 +21,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   
   // --- EMERGENCY ERROR LOGGING ---
   useEffect(() => {
-    const handleGlobalError = (msg: any, url: any, line: any, col: any, error: any) => {
+    const handleGlobalError = (msg: string | Event, url?: string, line?: number, col?: number, error?: Error) => {
       const errInfo = { msg, url, line, col, error: error?.message, stack: error?.stack, time: new Date().toISOString() };
       const logs = JSON.parse(localStorage.getItem('rap_emergency_logs') || '[]');
       logs.push(errInfo);
@@ -156,7 +156,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, [pendingUser]);
 
 
-  const login = async () => {
+  const login = useCallback(async () => {
     try {
       const [authorizationCode, redirectUri]: [string, string] = await invoke('google_oauth_login');
 
@@ -238,11 +238,10 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
     } catch (error) {
       console.error('Authentication failed:', error);
-      logout();
     }
-  };
+  }, [logout]);
 
-  const loginLocal = async () => {
+  const loginLocal = useCallback(async () => {
     console.log("Starting Local Login...");
     const localToken = "rap-local-token"; // Special token recognized by backend for bypass
 
@@ -299,7 +298,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     } catch (syncError) {
       console.error("Failed to sync local user profile to local rap-server:", syncError);
     }
-  };
+  }, []);
 
   const handleTeamSelectionCancel = useCallback(() => {
     setShowTeamSelectionModal(false);

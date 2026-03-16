@@ -124,22 +124,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setSelectedScriptState(null);
     setPersistedScriptId(null);
     setCombinedScriptContent(null);
-    setExecutionResult(null);
     setAgentSelectedScriptPath(null);
-  }, [user?.id, setPersistedScriptId, setCombinedScriptContent, setExecutionResult, setSelectedScriptState, setAgentSelectedScriptPath]);
-
-  const lastTeamIdRef = useRef<number | null>(null);
-  useEffect(() => {
-    const currentTeamId = activeTeam?.team_id || null;
-    if (lastTeamIdRef.current !== null && lastTeamIdRef.current !== currentTeamId) {
-      setSelectedScriptState(null);
-      setPersistedScriptId(null);
-      setCombinedScriptContent(null);
-      setExecutionResult(null);
-      setAgentSelectedScriptPath(null);
-    }
-    lastTeamIdRef.current = currentTeamId;
-  }, [activeTeam?.team_id, setCombinedScriptContent, setAgentSelectedScriptPath, setPersistedScriptId, setSelectedScriptState, setExecutionResult]);
+  }, [user?.id, setPersistedScriptId, setCombinedScriptContent, setSelectedScriptState, setAgentSelectedScriptPath]);
 
   const setActivePreset = useCallback((scriptId: string, presetName: string) => {
     setActivePresets(prev => ({ ...prev, [scriptId]: presetName }));
@@ -196,7 +182,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     loadingScriptPathRef.current = scriptPath;
 
     try {
-      let paramsResult: any = { parameters: [] };
+      let paramsResult: { parameters: RawScriptParameterData[], error?: string } = { parameters: [] };
       if (script.absolutePath) {
         paramsResult = await api.post("/api/get-script-parameters", { scriptPath: script.absolutePath }).then(r => r.data).catch(e => ({ error: e.message }));
       }
@@ -207,7 +193,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       let freshParameters: ScriptParameter[] = [];
       if (paramsResult.parameters) {
         freshParameters = paramsResult.parameters.map((p: RawScriptParameterData) => {
-          let value: any = p.defaultValueJson;
+          let value: ScriptParameter['value'] = p.defaultValueJson;
           try {
             // V5 PRECISION FIX: Preserve trailing zeros for double/number
             const isDouble = p.type === 'number' || p.numericType === 'double';
@@ -216,7 +202,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
             } else {
               value = JSON.parse(p.defaultValueJson);
             }
-          } catch { }
+          } catch { /* ignore parse errors for non-JSON strings */ }
           if (p.type === 'boolean' && typeof value === 'string') value = value.toLowerCase() === 'true';
           return { ...p, type: p.type as ScriptParameter['type'], value, defaultValue: value };
         });
@@ -269,7 +255,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         loadingScriptPathRef.current = null;
       }
     }
-  }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setPresets, setAgentSelectedScriptPath, updateUserEditedParameters, clearParameterCache, setSelectedScriptState, showNotification]);
+  }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setPresets, setAgentSelectedScriptPath, updateUserEditedParameters, clearParameterCache, setSelectedScriptState, showNotification, selectedScriptRef, setActiveInspectorTab, updateScriptModificationTime, userEditedParametersRef]);
 
   // Sync session changes (Automated refresh when editing in IDE)
   useEffect(() => {
@@ -290,7 +276,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
           reloadScript(selectedScript).then(() => {
             setSelectedScript(selectedScript, 'refresh');
-          }).catch((err: any) => console.error("[Sync] Refresh failed:", err));
+          }).catch((err: unknown) => console.error("[Sync] Refresh failed:", err));
         }
       }
     }
@@ -327,7 +313,15 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         globalScript.metadata.dateModified !== selectedScript.metadata.dateModified ||
         globalScript.metadata.dateCreated !== selectedScript.metadata.dateCreated
       )) {
-        setSelectedScriptState(globalScript);
+        setSelectedScriptState(prev => prev ? {
+          ...prev,
+          metadata: {
+            ...prev.metadata,
+            lastRun: globalScript.metadata.lastRun,
+            dateModified: globalScript.metadata.dateModified,
+            dateCreated: globalScript.metadata.dateCreated
+          }
+        } : globalScript);
       }
     }
   }, [scripts, selectedScript, selectedFolder, setSelectedScriptState]);
@@ -337,7 +331,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     showNotification("Parameters reset to defaults.", "info");
     const scriptToReset = selectedScriptRef.current;
     if (scriptToReset && scriptToReset.id === scriptId) await setSelectedScript(scriptToReset, 'hard_reset');
-  }, [clearParameterCache, setSelectedScript, showNotification]);
+  }, [clearParameterCache, setSelectedScript, showNotification, selectedScriptRef]);
 
   const clearExecutionResult = useCallback(() => {
     setExecutionResult(null);
@@ -352,7 +346,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     
     const finalParameters = parameters || userEditedParametersRef.current[script.id] || script.parameters || [];
     return runScript(script, finalParameters, shouldUpdateGlobalState);
-  }, [runScript, setSelectedScript]);
+  }, [runScript, setSelectedScript, selectedScriptRef, userEditedParametersRef]);
 
   const handleRenameScript = useCallback(async (script: Script, newName: string) => {
     // 1. Lock the identity guard

@@ -257,10 +257,10 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
 
   const getMultiSelectValues = (): string[] => {
     try {
-      if (Array.isArray(param.value)) return param.value;
+      if (Array.isArray(param.value)) return (param.value as unknown[]).map((v: unknown) => String(v));
       if (typeof param.value === 'string') {
         const parsed = JSON.parse(param.value);
-        return Array.isArray(parsed) ? parsed : [];
+        return Array.isArray(parsed) ? (parsed as unknown[]).map((v: unknown) => String(v)) : [];
       }
       return [];
     } catch { return []; }
@@ -388,7 +388,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       }
       setLocalValue(incomingValue);
     }
-  }, [param.value]);
+  }, [param.value, localValue]);
 
   const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() : null;
   const isContextMismatch = param.computedInDocument && currentDocTitle && param.computedInDocument !== currentDocTitle;

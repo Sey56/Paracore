@@ -1,0 +1,10 @@
+
+> rap@4.2.0 build
+> tsc -b && vite build
+
+src/features/agent/components/AgentView.tsx(83,13): error TS2322: Type 'string | number | boolean | string[] | number[]' is not assignable to type 'string | number | boolean'.
+  Type 'string[]' is not assignable to type 'string | number | boolean'.
+src/features/automation/components/NewScriptModal.tsx(251,54): error TS2353: Object literal may only specify known properties, and 'script_name' does not exist in type '{ name: string; path: string; template?: string | undefined; }'.
+src/features/automation/components/ScriptInspector/ParameterInput.tsx(260,39): error TS2322: Type 'string[] | number[]' is not assignable to type 'string[]'.
+  Type 'number[]' is not assignable to type 'string[]'.
+    Type 'number' is not assignable to type 'string'.

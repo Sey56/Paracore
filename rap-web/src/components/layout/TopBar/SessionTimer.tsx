@@ -37,7 +37,7 @@ export const SessionTimer: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [sessionStartTime, logout]);
+  }, [sessionStartTime, logout, localToken]);
 
   if (remainingTime === null) {
     return null;

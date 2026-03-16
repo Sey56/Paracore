@@ -4,6 +4,17 @@ Copy and paste these directly into the **Workshop** tab to automate your Revit w
 
 ---
 
+## 💡 Core Concepts
+*Understanding how to "talk" to Revit elements.*
+
+### The "Cabinet & Drawer" Analogy
+Think of a Revit Element as a filing cabinet:
+*   **The Parameter Name** (e.g., `"Length"`) is the **Label** on the outside of the drawer.
+*   **The Method** (e.g., `GetNum`) is the **Action** of opening that drawer.
+*   **The Return Value** (e.g., `1500.0`) is the **Content** of the paper inside.
+
+---
+
 ## 🔍 Element Discovery & Predicate Filtering
 *Discover elements by class, category, and advanced LINQ conditions.*
 
@@ -19,20 +30,102 @@ var doorSymbols = GetElements<FamilySymbol>("Doors");
 Println($"There are {doorSymbols.Count} door types loaded.");
 ```
 
-### 2. Selection Filters via Predicates (LINQ .Where)
-Instead of building complex Revit FilteredElementCollectors, use standard C# LINQ `.Where()` with Paracore accessors to filter elements instantly.
-```csharp
-// Find all walls on Level 1 that are thicker than 200mm
-var heavyWalls = GetElements<Wall>().Where(w => 
-    w.GetStr("Base Constraint") == "Level 1" && 
-    w.GetNum("Width", "mm") > 200
-);
+---
 
-// Find all placed rooms with high ceilings
-var highRooms = GetElements<Room>().Where(r => 
-    r.Location != null && 
-    r.GetNum("Unbounded Height", "m") > 3.0
-);
+## 🧐 API Snooping & Quick Inspection
+*Deep-dive into element parameters, API properties, and geometry without writing complex queries.*
+
+### 2. Snoop All Parameters (Properties Palette Style)
+Quickly see every non-empty parameter of the first selected element.
+```csharp
+ListParams(Selection[0]);
+```
+*Tip: Also works with ElementIds: `ListParams(new ElementId(123456))`*
+
+### 3. Snoop Standard API Properties
+See Category, Level, Workset, Location, Owner, and other high-level API attributes in a table.
+```csharp
+ListProperties(Selection[0]);
+```
+
+### 4. Snoop Geometry Summary
+Get a quick audit of an element's solids, total volume, and surface area.
+```csharp
+ListGeometry(Selection[0]);
+```
+
+### 5. Snoop Element Type Parameters
+Navigate to the ElementType and list its parameters in one go.
+```csharp
+Table(Selection[0].TypeParams());
+```
+
+---
+
+## 🚀 Advanced Real-World Recipes
+*More complex scripts for BIM Management, Auditing, and Data Sync.*
+
+### 6. Select "All Instances" of Same Type
+Select one or more elements, and run this to find every other instance of that type in the model.
+```csharp
+var typeIds = Selection.Select(e => e.GetTypeId()).Distinct();
+var similarElements = GetElements().Where(e => typeIds.Contains(e.GetTypeId()));
+Select(similarElements);
+Println($"Selected {similarElements.Count()} elements sharing the same types.");
+```
+
+### 7. Find "Lost" Elements (Far from Origin)
+Identify elements placed more than 1000m from the Project Base Point (often caused by bad CAD imports).
+```csharp
+var limit = 1000.InputUnit("m");
+var lostElements = GetElements().Where(e => {
+    var pt = (e.Location as LocationPoint)?.Point;
+    return pt != null && (Math.Abs(pt.X) > limit || Math.Abs(pt.Y) > limit);
+});
+Table(lostElements.Select(e => new { e.Id, e.Name, Category = e.Category?.Name }));
+```
+
+### 8. Efficiency Audit: Perimeter-to-Area Ratio
+High ratios usually indicate complex, non-rectangular rooms which are more expensive to build/finish.
+```csharp
+var audit = GetElements<Room>().Where(r => r.Area > 0)
+    .Select(r => new { 
+        r.Id, 
+        r.Name, 
+        Ratio = r.Perimeter / r.Area, // (Internal Units)
+        Area_m2 = r.GetNum("Area", "m2") 
+    })
+    .OrderByDescending(x => x.Ratio);
+Table(audit);
+```
+
+### 9. Sync Data from Host (Room → Doors)
+Copy the "Room Name" parameter to the "Comments" of every door hosted by that room.
+```csharp
+Transact("Sync Room to Door Comments", () => {
+    var count = 0;
+    foreach (var door in GetElements<FamilyInstance>("Doors")) {
+        // Try to get the room the door is 'In'
+        var room = door.Room ?? door.FromRoom ?? door.ToRoom;
+        if (room != null) {
+            door.LookupParameter("Comments")?.Set($"In Room: {room.Name}");
+            count++;
+        }
+    }
+    Println($"Updated {count} doors with room information.");
+});
+```
+
+### 10. Bulk Isolate by Parameter Value
+Quickly isolate all elements in the active view that have "Audit" in their Comments.
+```csharp
+var targetElements = GetElements().Where(e => e.GetStr("Comments").Contains("Audit"));
+if (targetElements.Any()) {
+    Isolate(targetElements);
+    Zoom(targetElements);
+} else {
+    Println("No matching elements found.");
+}
 ```
 
 ---
@@ -40,7 +133,7 @@ var highRooms = GetElements<Room>().Where(r =>
 ## 📊 Data Visualization & Dashboarding
 *Render interactive charts in the **Summary** tab.*
 
-### 1. Walls by Level (Bar Chart)
+### 11. Walls by Level (Bar Chart)
 ```csharp
 var data = GetElements<Wall>()
     .GroupBy(w => w.GetStr("Base Constraint"))
@@ -48,7 +141,7 @@ var data = GetElements<Wall>()
 BarChart(data);
 ```
 
-### 2. Room Function Distribution (Pie Chart)
+### 12. Room Function Distribution (Pie Chart)
 ```csharp
 var rooms = GetElements<Room>().Where(r => r.GetNum("Area") > 0);
 var stats = rooms.GroupBy(r => r.Name)
@@ -56,50 +149,22 @@ var stats = rooms.GroupBy(r => r.Name)
 PieChart(stats);
 ```
 
-### 3. Wall Length Profile (Line Chart)
-```csharp
-var lengths = GetElements<Wall>()
-    .Select(w => new { name = w.Name, value = w.GetNum("Length", "mm") })
-    .OrderBy(x => x.value);
-LineChart(lengths);
-```
-
 ---
 
 ## 🔍 Auditing & Quality Control
 
-### 4. Find Unplaced "Ghost" Rooms
+### 13. Find Unplaced "Ghost" Rooms
 ```csharp
 var unplaced = GetElements<Room>().Where(r => r.Location == null);
 Println($"Found {unplaced.Count()} unplaced rooms.");
 Table(unplaced);
 ```
 
-### 5. Selection Area Audit
+### 14. Selection Area Audit
 Calculate the total area of your current selection.
 ```csharp
 var totalM2 = Selection.Sum(e => e.GetNum("Area", "m2"));
 Println($">>> Total Selection Area: {totalM2:F2} m²");
-```
-
-### 6. Find Short Walls
-Lazy `.Select()` projections pass directly to `Table()` — no `.ToList()` needed:
-```csharp
-var shortWalls = GetElements<Wall>().Where(w => w.GetNum("Length", "mm") < 2000);
-Println($"Found {shortWalls.Count()} walls shorter than 2m.");
-Table(shortWalls.Select(w => new {
-    w.Id,
-    w.Name,
-    Length_mm = w.GetNum("Length", "mm"),
-    Level = w.GetStr("Base Constraint")
-}));
-```
-
-### 7. Search for Magic Names
-Discover all available category & family names that contain a keyword.
-```csharp
-var results = GetMagicNames().Where(n => n.Contains("Structure"));
-Table(results);
 ```
 
 ---
@@ -107,7 +172,7 @@ Table(results);
 ## 🪄 Unit-Aware "Round-Trip" Editing Tables
 *Use **Magic Header Suffixes** to create editable tables with automatic unit conversion.*
 
-### 8. Editable Room Inventory
+### 15. Editable Room Inventory
 Edit names, numbers, and finishes directly in the grid.
 ```csharp
 Table(GetElements<Room>().Select(r => new {
@@ -120,7 +185,7 @@ Table(GetElements<Room>().Select(r => new {
 }));
 ```
 
-### 9. Wall Instance Parameter Manager
+### 16. Wall Instance Parameter Manager
 Mass-edit comments or review thicknesses.
 ```csharp
 Table(GetElements<Wall>().Select(w => new {
@@ -136,14 +201,14 @@ Table(GetElements<Wall>().Select(w => new {
 
 ## 🛠️ Batch Operations (Transactions)
 
-### 10. Uppercase Sheet Names
+### 17. Uppercase Sheet Names
 ```csharp
 Transact("Standardize Sheets", () => {
     foreach(var s in GetElements<ViewSheet>()) s.Name = s.Name.ToUpper();
 });
 ```
 
-### 11. Nudge Selection (Unit-Aware)
+### 18. Nudge Selection (Unit-Aware)
 Move selected elements precisely using unit strings.
 ```csharp
 Transact("Nudge Up", () => {
@@ -152,30 +217,11 @@ Transact("Nudge Up", () => {
 });
 ```
 
-### 12. Rename Rooms by Level
-Prefix all room names with their level name.
-```csharp
-Transact("Smart Room Renaming", () => {
-    foreach(var r in GetElements<Room>()) {
-        r.Name = $"{r.GetStr("Level")} - {r.Name}";
-    }
-});
-```
-
-### 13. Set Comments on All Doors
-```csharp
-Transact("Tag Doors", () => {
-    foreach (var d in GetElements("Doors")) {
-        d.LookupParameter("Comments")?.Set("Audit Verified");
-    }
-});
-```
-
 ---
 
 ## 🔬 Background BIM Watchdogs
 
-### 14. Live Area Monitor
+### 19. Live Area Monitor
 Watch the total area of your selection update in real-time.
 ```csharp
 Watchdog(() => {
@@ -186,7 +232,7 @@ Watchdog(() => {
 }, intervalSeconds: 2);
 ```
 
-### 15. Short Wall Warning
+### 20. Short Wall Warning
 Get an alert if any wall is shorter than 1 meter.
 ```csharp
 Watchdog(() => {
@@ -199,90 +245,9 @@ Watchdog(() => {
 
 ---
 
-## 🪄 Parameter Accessor Patterns
-*The right way to access parameters — these methods handle IDs, units, and fallbacks automatically.*
-
-### 16. Smart Level & Type Auditing
-In the raw Revit API, the "Level" parameter returns an ElementId. `GetStr` automatically resolves this to the Level Name.
-```csharp
-Table(GetElements<Room>().Select(rm => new {
-    rm.Id,
-    rm.Name,
-    Level = rm.GetStr("Level"),       // Returns "Level 1" (not an ID)
-    Type = rm.GetStr("Type"),         // Returns the Type Name
-    Area_m2 = rm.GetNum("Area", "m2")
-}));
-```
-
-### 17. The WYSIWYG Table
-Use `GetVal` to get the exact formatted string you see in the Revit Properties palette, including unit symbols.
-```csharp
-Table(GetElements<Wall>().Select(w => new {
-    w.Id,
-    w.Name,
-    Width = w.GetVal("Width"),     // Returns "200.0 mm" (as in Properties palette)
-    Volume = w.GetVal("Volume"),   // Returns "1.25 m³"
-    Length = w.GetVal("Length")     // Returns "5000 mm"
-}));
-```
-
-### 18. Numeric vs. String Accessors Compared
-```csharp
-var wall = GetElements<Wall>().First();
-
-// GetNum → raw double (internal units: feet)
-Println($"Length (internal): {wall.GetNum("Length")}");
-
-// GetNum with unit → converted double
-Println($"Length (mm): {wall.GetNum("Length", "mm")}");
-
-// GetStr → smart formatted string
-Println($"Base Constraint: {wall.GetStr("Base Constraint")}");
-
-// GetVal → WYSIWYG (as in Revit UI)
-Println($"Length (formatted): {wall.GetVal("Length")}");
-
-// GetInt → integer parameter
-Println($"Structural: {wall.GetInt("Structural")}");
-```
-
----
-
-## ⚙️ Unit Conversion Patterns
-
-### 19. Filtering with Unit Conversion
-```csharp
-// Find rooms smaller than 10 m²
-var smallRooms = GetElements<Room>().Where(r => r.GetNum("Area") < 10.InputUnit("m2"));
-
-// Find walls shorter than 2 meters
-var shortWalls = GetElements<Wall>().Where(w => w.GetNum("Length") < 2000.InputUnit("mm"));
-```
-
-### 20. Output Formatting
-```csharp
-var wall = GetElements<Wall>().First();
-
-// Convert internal value to display units
-var lengthMm = wall.GetNum("Length").OutputUnit("mm");
-Println($"Wall length: {lengthMm} mm");
-
-// Or use the shorthand (GetNum with unit does the same thing)
-Println($"Wall length: {wall.GetNum("Length", "mm")} mm");
-
-// FormatUnit returns a string with units
-var formatted = wall.GetNum("Length").FormatUnit("mm");
-Println($"Wall length: {formatted}");  // "5000.0 mm"
-```
-
----
-
 ## 💡 Quick Tips
-- **Session Memory**: Variables stay alive between runs. Use `list` to see them, `inspect <name>` to view their JSON properties, and `clear vars` to wipe the slate clean.
 - **Implicit Printing**: Type any expression on the last line (e.g. `Doc.Title`) to see its value.
-- **Persistence**: Define a variable in one run, use it in the next run within the same session.
-- **No Direct Properties**: `Wall` has no `.Length`, `.Width`, `.Area`. Use `GetNum("Length")` etc.
-- **Lazy Projections**: `.Select()` results pass directly to `Table()`, `BarChart()`, etc. — no `.ToList()` needed.
-- **Labels**: `/// My Label` at the top of your code names the execution turn in the console.
+- **Persistence**: Variables stay alive between runs. Use `list` to see them.
+- **No Direct Properties**: `Wall` has no `.Length`. Use `GetNum("Length")`.
 - **Magic Suffixes**: `Area_m2`, `Width[mm]` in Table projections enable unit-aware editing.
 - **Smart IDs**: `GetStr("Level")` returns `"Level 1"` instead of an ElementId number.

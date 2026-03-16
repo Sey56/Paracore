@@ -54,7 +54,7 @@ export const useParameterCache = (
       if (s.id !== scriptId) return s;
       return { ...s, parameters };
     }));
-  }, [setUserEditedScriptParameters, setActivePresets, setDefaultDraftParameters, activePresets, setScripts, setSelectedScriptState]);
+  }, [setUserEditedScriptParameters, setDefaultDraftParameters, activePresets, setScripts, setSelectedScriptState]);
 
   const clearParameterCache = useCallback((scriptId: string) => {
     delete userEditedParametersRef.current[scriptId];

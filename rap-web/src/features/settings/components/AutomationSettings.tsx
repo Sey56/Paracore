@@ -17,7 +17,7 @@ export const AutomationSettings: React.FC = () => {
       } else {
         showNotification(response.data.message || "Failed to clear cache.", "error");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[AutomationSettings] Error clearing cache:", err);
       showNotification("Failed to communicate with Paracore engine.", "error");
     } finally {

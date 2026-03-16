@@ -162,7 +162,8 @@ namespace CoreScript.Engine.Globals
 
         public void Show(string type, object data)
         {
-            var toSerialize = MaterializeForSerialization(data);
+            // Only expand elements if we are rendering a table
+            var toSerialize = MaterializeForSerialization(data, type == "table");
             if (toSerialize == null)
             {
                 return; // Suppress empty data structures entirely
@@ -172,12 +173,34 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// Provides a registry of high-priority parameters for common Revit categories.
+        /// Captures the "Essence" of each category for the Smart Table.
+        /// </summary>
+        private static readonly Dictionary<string, string[]> SmartSchemaRegistry = new Dictionary<string, string[]>
+        {
+            ["Rooms"] = new[] { "Number", "Level", "Area", "Perimeter", "Unbounded Height", "Volume", "Comments" },
+            ["Walls"] = new[] { "Mark", "Base Constraint", "Top Constraint", "Length", "Width", "Area", "Volume", "Comments" },
+            ["Doors"] = new[] { "Mark", "Level", "Type Name", "Comments" },
+            ["Windows"] = new[] { "Mark", "Level", "Type Name", "Comments" },
+            ["Floors"] = new[] { "Level", "Thickness", "Area", "Volume", "Comments" },
+            ["Roofs"] = new[] { "Base Level", "Thickness", "Area", "Volume", "Comments" },
+            ["Ceilings"] = new[] { "Level", "Height Offset From Level", "Area", "Volume" },
+            ["Sheets"] = new[] { "Sheet Number", "Sheet Name", "Drawn By", "Checked By", "Current Revision" },
+            ["Views"] = new[] { "View Name", "View Classification", "Detail Level", "Scale Value 1:", "Title on Sheet" },
+            ["Levels"] = new[] { "Elevation" },
+            ["Pipes"] = new[] { "System Type", "Size", "Length", "Comments" },
+            ["Ducts"] = new[] { "System Type", "Size", "Length", "Comments" },
+            ["Structural Columns"] = new[] { "Mark", "Base Level", "Top Level", "Comments" },
+            ["Structural Framing"] = new[] { "Mark", "Reference Level", "Length", "Comments" },
+        };
+
+        /// <summary>
         /// Materializes lazy IEnumerables and converts anonymous types (from Roslyn scripting)
         /// to dictionaries so System.Text.Json can serialize them reliably.
-        /// Without this, lazy projections like .Select(x => new { ... }) from the REPL
-        /// fail to serialize because the anonymous type is internal to a dynamic assembly.
+        /// If expandElements is true, it also detects homogeneous Revit element collections
+        /// and automatically extracts relevant parameters as columns.
         /// </summary>
-        private static object MaterializeForSerialization(object data)
+        private static object MaterializeForSerialization(object data, bool expandElements = false)
         {
             if (data == null || data is string || data is byte[])
             {
@@ -186,20 +209,103 @@ namespace CoreScript.Engine.Globals
 
             if (data is System.Collections.IEnumerable enumerable)
             {
-                var list = new List<object>();
-                bool hasAnonymous = false;
-
+                // 1. Materialize to a list immediately to avoid double-iteration issues
+                var items = new List<object>();
                 foreach (var item in enumerable)
                 {
-                    if (item == null) { list.Add(null); continue; }
+                    if (item != null) items.Add(item);
+                }
 
+                if (items.Count == 0) return null;
+
+                // 2. Try Smart Expansion for Revit Elements
+                if (expandElements)
+                {
+                    var elements = items.OfType<Element>().ToList();
+                    // Only expand if the WHOLE collection is Revit elements
+                    if (elements.Count > 0 && elements.Count == items.Count)
+                    {
+                        var first = elements[0];
+                        string catName = first.Category?.Name ?? "General";
+                        var firstCatId = first.Category?.Id?.Value;
+                        
+                        // Check homogeneity on a small sample for performance
+                        bool isHomogeneous = elements.Take(5).All(e => e.Category?.Id?.Value == firstCatId);
+
+                        if (isHomogeneous)
+                        {
+                            // A. GET SCHEMA: Try registry first, then dynamic discovery
+                            List<string> schema;
+                            if (SmartSchemaRegistry.TryGetValue(catName, out var registered))
+                            {
+                                schema = registered.ToList();
+                            }
+                            else
+                            {
+                                // Dynamic discovery: Numeric parameters + key context
+                                var keyParams = new[] { "Mark", "Level", "Base Constraint", "Reference Level", "Comments" };
+                                var discovered = first.Parameters.Cast<Parameter>()
+                                    .Where(p => p.HasValue && (p.StorageType == StorageType.Double || p.StorageType == StorageType.Integer))
+                                    .Select(p => p.Definition.Name)
+                                    .Take(10);
+                                
+                                schema = keyParams.Where(k => first.LookupParameter(k) != null)
+                                    .Concat(discovered)
+                                    .Distinct()
+                                    .ToList();
+                            }
+
+                            // B. CAPTURE DATA
+                            var resultList = new List<object>();
+                            foreach (var el in elements)
+                            {
+                                var row = new Dictionary<string, object>
+                                {
+                                    ["Id"] = el.Id.Value,
+                                    ["Name"] = el.Name,
+                                };
+
+                                var elType = el.GetType();
+                                foreach (var key in schema)
+                                {
+                                    try
+                                    {
+                                        // 1. Preferred: Formatted Revit Value (respects project units/names)
+                                        var val = el.GetVal(key);
+                                        if (val != "-") { row[key] = val; continue; }
+
+                                        // 2. Reflection: Capture C# properties not in Parameters
+                                        var prop = elType.GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                                        if (prop != null)
+                                        {
+                                            var pVal = prop.GetValue(el);
+                                            if (pVal != null)
+                                            {
+                                                if (pVal is Element revitEl) row[key] = revitEl.Name;
+                                                else row[key] = el.GetStr(key); // Use smart GetStr for automatic unit formatting
+                                                continue;
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                }
+                                resultList.Add(row);
+                            }
+                            return resultList;
+                        }
+                    }
+                }
+
+                // 3. Fallback: Standard Materialization (handles anonymous types)
+                var list = new List<object>();
+                foreach (var item in items)
+                {
                     var itemType = item.GetType();
                     bool isAnonymous = itemType.Name.StartsWith("<>") &&
                                        itemType.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false);
 
                     if (isAnonymous)
                     {
-                        hasAnonymous = true;
                         var dict = new Dictionary<string, object>();
                         foreach (var prop in itemType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
                         {
@@ -213,12 +319,7 @@ namespace CoreScript.Engine.Globals
                     }
                 }
 
-                if (list.Count == 0)
-                {
-                    return null; // Signals to the caller that the collection is empty
-                }
-
-                return list;
+                return list.Count == 0 ? null : list;
             }
 
             return data;
@@ -392,35 +493,111 @@ namespace CoreScript.Engine.Globals
             Output.ChartLine(data);
         }
 
-        // Unit Conversion Globals (Command Style)
-        public double InputUnit(double value, string unit)
+        /// <summary>
+        /// Discovery helper for the REPL. Lists all parameters of one or more elements in a table.
+        /// usage: ListParams(myWall) or ListParams(id) or ListParams(listOfWalls)
+        /// </summary>
+        public void ListParams(object input)
         {
-            return value.InputUnit(unit);
+            if (input == null) return;
+
+            // 1. Single Element
+            if (input is Element e)
+            {
+                Table(e.AllParams());
+                return;
+            }
+
+            // 2. ElementId
+            if (input is ElementId id && Doc != null)
+            {
+                ListParams(Doc.GetElement(id));
+                return;
+            }
+
+            // 3. Collection
+            if (input is System.Collections.IEnumerable enumerable)
+            {
+                var list = new List<object>();
+                foreach (var item in enumerable)
+                {
+                    if (item is Element el)
+                    {
+                        var p = el.AllParams();
+                        var row = new Dictionary<string, object> { ["Name"] = el.Name, ["Id"] = el.Id.Value };
+                        // Note: If showing a collection, we keep it simple (Name, Id + Params)
+                        foreach (dynamic pInfo in p) row[pInfo.Name] = pInfo.Value;
+                        list.Add(row);
+                    }
+                }
+                if (list.Count > 0) Table(list);
+            }
         }
 
-        public double OutputUnit(double value, string unit, int decimals = 2)
+        /// <summary>
+        /// Discovery helper for the REPL. Lists key Revit API properties (Level, Location, etc.)
+        /// </summary>
+        public void ListProperties(object input)
         {
-            return value.OutputUnit(unit, decimals);
+            if (input is Element e) Table(e.AllProperties());
+            else if (input is ElementId id && Doc != null) ListProperties(Doc.GetElement(id));
+            else if (input is System.Collections.IEnumerable enumerable)
+            {
+                var list = new List<object>();
+                foreach (var item in enumerable) if (item is Element el) list.Add(el.AllProperties());
+                if (list.Count > 0) Table(list);
+            }
         }
 
-        public double InputUnit(int value, string unit)
+        /// <summary>
+        /// Discovery helper for the REPL. Lists geometry summary (Solids, Volumes, Area).
+        /// </summary>
+        public void ListGeometry(object input)
         {
-            return ((double)value).InputUnit(unit);
+            if (input is Element e) Table(e.AllGeometry());
+            else if (input is ElementId id && Doc != null) ListGeometry(Doc.GetElement(id));
+            else if (input is System.Collections.IEnumerable enumerable)
+            {
+                var list = new List<object>();
+                foreach (var item in enumerable) if (item is Element el) list.Add(el.AllGeometry());
+                if (list.Count > 0) Table(list);
+            }
         }
 
-        public double OutputUnit(int value, string unit, int decimals = 2)
+        /// <summary>
+        /// Discovery helper for the REPL. Lists all BuiltInParameter identifiers for an element.
+        /// usage: ListBIPs(myWall)
+        /// </summary>
+        public void ListBIPs(object input)
         {
-            return ((double)value).OutputUnit(unit, decimals);
+            if (input is Element e) Table(e.AllBuiltInParams());
+            else if (input is ElementId id && Doc != null) ListBIPs(Doc.GetElement(id));
+            else if (input is System.Collections.IEnumerable enumerable)
+            {
+                var list = new List<object>();
+                foreach (var item in enumerable) if (item is Element el) list.Add(el.AllBuiltInParams());
+                if (list.Count > 0) Table(list);
+            }
         }
 
-        public double InputUnit(decimal value, string unit)
+        /// <summary>
+        /// Quick delete helper with automatic transaction.
+        /// </summary>
+        public void Delete(object input)
         {
-            return ((double)value).InputUnit(unit);
-        }
-
-        public double OutputUnit(decimal value, string unit, int decimals = 2)
-        {
-            return ((double)value).OutputUnit(unit, decimals);
+            if (Doc == null || input == null) return;
+            Transact("Delete Elements", () => {
+                if (input is Element e) Doc.Delete(e.Id);
+                else if (input is ElementId id) Doc.Delete(id);
+                else if (input is System.Collections.IEnumerable enumerable)
+                {
+                    foreach (var item in enumerable)
+                    {
+                        if (item is Element el) Doc.Delete(el.Id);
+                        else if (item is ElementId i) Doc.Delete(i);
+                    }
+                }
+            });
         }
 
         public void Transact(string name, Action<Document> action)

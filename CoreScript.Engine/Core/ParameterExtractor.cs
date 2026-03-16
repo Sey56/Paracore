@@ -109,55 +109,64 @@ namespace CoreScript.Engine.Core
                 DefaultValueJson = JsonSerializer.Serialize("")
             };
 
+            // 1. TYPE-BASED INFERENCE (Default properties based on Property Type)
+            string baseT = csharpType.TrimEnd('?');
+            if (new[] { "int", "long", "double", "float", "decimal" }.Contains(baseT)) { p.Type = "number"; p.NumericType = baseT.Contains("int") ? "int" : "double"; p.DefaultValueJson = "0"; }
+            else if (baseT == "bool") { p.Type = "boolean"; p.DefaultValueJson = "false"; }
+            else if (baseT.Contains("XYZ")) { p.Type = "xyz"; p.DefaultValueJson = JsonSerializer.Serialize("0,0,0"); p.SelectionType = "Point"; }
+            else if (baseT.Contains("Reference")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Element"; p.IsRevitElement = true; }
+            else if (baseT.Contains("Face")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Face"; p.IsRevitElement = true; }
+            else if (baseT.Contains("Edge")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Edge"; p.IsRevitElement = true; }
+            else if (baseT.Contains("<") || baseT.EndsWith("[]"))
+            {
+                p.Type = "string"; p.MultiSelect = true; p.DefaultValueJson = "[]";
+                var match = Regex.Match(baseT, @"<([^>]+)>");
+                string inner = match.Success ? match.Groups[1].Value : baseT.Replace("[]", "");
+                if (IsRevitType(inner, out _)) { p.IsRevitElement = true; p.RevitElementType = inner; }
+            }
+            else if (char.IsUpper(baseT[0]) && (p.Type == "string" || p.Type == "enum"))
+            {
+                if (IsRevitType(baseT, out bool isEnum))
+                {
+                    if (isEnum) { p.Type = "enum"; p.IsRevitElement = true; p.RevitElementType = baseT; p.DefaultValueJson = JsonSerializer.Serialize(""); }
+                    else { p.IsRevitElement = true; p.RevitElementType = baseT; p.Type = "reference"; p.DefaultValueJson = "null"; }
+                }
+                else { p.Type = "enum"; p.DefaultValueJson = JsonSerializer.Serialize(""); }
+            }
+
+            // Name-based unit detection (e.g. Length_mm)
+            if (string.IsNullOrEmpty(p.Unit))
+            {
+                if (name.EndsWith("_mm")) p.Unit = "mm";
+                else if (name.EndsWith("_cm")) p.Unit = "cm";
+                else if (name.EndsWith("_m")) p.Unit = "m";
+                else if (name.EndsWith("_ft")) p.Unit = "ft";
+                else if (name.EndsWith("_in")) p.Unit = "in";
+            }
+
+            // 2. ATTRIBUTE-BASED OVERRIDES
             foreach (var attr in attributes)
             {
                 string aN = attr.Name.ToString();
-                if (aN.Contains("Segmented"))
-                {
-                    p.InputType = "Segmented";
-                }
-                else if (aN.Contains("Color"))
-                {
-                    p.InputType = "Color";
-                }
-                else if (aN.Contains("Stepper"))
-                {
-                    p.InputType = "Stepper";
-                }
-                else if (aN.Contains("InputFile"))
-                {
-                    p.InputType = "File";
-                }
-                else if (aN.Contains("OutputFile"))
-                {
-                    p.InputType = "SaveFile";
-                }
-                else if (aN.Contains("FolderPath"))
-                {
-                    p.InputType = "Folder";
-                }
+                if (aN.Contains("Segmented")) p.InputType = "Segmented";
+                else if (aN.Contains("Color")) p.InputType = "Color";
+                else if (aN.Contains("Stepper")) p.InputType = "Stepper";
+                else if (aN.Contains("InputFile")) p.InputType = "File";
+                else if (aN.Contains("OutputFile")) p.InputType = "SaveFile";
+                else if (aN.Contains("FolderPath")) p.InputType = "Folder";
 
-                if (aN.Contains("Required") || aN.Contains("Mandatory"))
-                {
-                    p.Required = true;
-                }
+                if (aN.Contains("Required") || aN.Contains("Mandatory")) p.Required = true;
 
-                if (aN.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0)
-                {
-                    p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
-                }
-
-                if (aN.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0)
-                {
-                    p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
-                }
+                if (aN.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0) p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                if (aN.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0) p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
 
                 if (aN.Contains("EnabledWhen")) { p.EnabledWhenParam = ExtractString(attr.ArgumentList.Arguments[0].Expression); p.EnabledWhenValue = attr.ArgumentList.Arguments[1].Expression.ToString().Trim('"', '\''); }
-                if (aN == "Select")
+                
+                if (aN.Contains("Select"))
                 {
                     if (attr.ArgumentList == null || attr.ArgumentList.Arguments.Count == 0)
                     {
-                        p.SelectionType = "Element";
+                        if (string.IsNullOrEmpty(p.SelectionType) || p.SelectionType == "None") p.SelectionType = "Element";
                     }
                     else
                     {
@@ -165,10 +174,12 @@ namespace CoreScript.Engine.Core
                         if (arg is MemberAccessExpressionSyntax ma)
                         {
                             p.SelectionType = ma.Name.Identifier.Text;
+                            // Ensure generic references with specific attribute overrides act as standard Elements when no better category is found locally
+                            // The [Select(SelectionType.Face)] attribute ensures the SelectionType gets forced to Face correctly here.
                         }
                         else if (arg is LiteralExpressionSyntax lit)
                         {
-                            p.SelectionType = "Element";
+                            if (string.IsNullOrEmpty(p.SelectionType) || p.SelectionType == "None") p.SelectionType = "Element";
                             p.RevitElementCategory = ExtractString(lit);
                         }
                     }
@@ -178,94 +189,26 @@ namespace CoreScript.Engine.Core
                 if (aN.Contains("Confirm") && attr.ArgumentList?.Arguments.Count > 0)
                 {
                     string confirmText = ExtractString(attr.ArgumentList.Arguments[0].Expression);
-                    if (!string.IsNullOrEmpty(confirmText))
-                    {
-                        // Generate anchored regex for exact match
-                        p.Pattern = $"^{Regex.Escape(confirmText)}$";
-                    }
+                    if (!string.IsNullOrEmpty(confirmText)) p.Pattern = $"^{Regex.Escape(confirmText)}$";
                 }
 
                 // Handle [Range(min, max, step)] attribute
                 if (aN.Contains("Range") && attr.ArgumentList != null && attr.ArgumentList.Arguments.Count >= 2)
                 {
-                    // Assuming Range(min, max, step) or Range(min, max)
-                    // Arguments are expressions, need to extract values.
-                    // This is crude but strict extraction: Expecting literals or simple types.
-
                     var args = attr.ArgumentList.Arguments;
-
                     p.Min = ExtractDouble(args[0].Expression);
                     p.Max = ExtractDouble(args[1].Expression);
+                    if (args.Count > 2) p.Step = ExtractDouble(args[2].Expression);
+                }
 
-                    if (args.Count > 2)
+                if (aN.Contains("RevitElements") && attr.ArgumentList != null)
+                {
+                    foreach (var arg in attr.ArgumentList.Arguments)
                     {
-                        p.Step = ExtractDouble(args[2].Expression);
+                        string argN = arg.NameEquals?.Name.Identifier.Text ?? arg.NameColon?.Name.Identifier.Text ?? "";
+                        if (argN == "Category") p.RevitElementCategory = ExtractString(arg.Expression);
                     }
                 }
-
-                if (aN.Contains("RevitElements"))
-                {
-                    if (attr.ArgumentList != null)
-                    {
-                        foreach (var arg in attr.ArgumentList.Arguments)
-                        {
-                            string argN = arg.NameEquals?.Name.Identifier.Text ?? arg.NameColon?.Name.Identifier.Text ?? "";
-                            if (argN == "Category")
-                            {
-                                p.RevitElementCategory = ExtractString(arg.Expression);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Name-based unit detection (e.g. Length_mm)
-            if (string.IsNullOrEmpty(p.Unit))
-            {
-                if (name.EndsWith("_mm"))
-                {
-                    p.Unit = "mm";
-                }
-                else if (name.EndsWith("_cm"))
-                {
-                    p.Unit = "cm";
-                }
-                else if (name.EndsWith("_m"))
-                {
-                    p.Unit = "m";
-                }
-                else if (name.EndsWith("_ft"))
-                {
-                    p.Unit = "ft";
-                }
-                else if (name.EndsWith("_in"))
-                {
-                    p.Unit = "in";
-                }
-            }
-
-            string baseT = csharpType.TrimEnd('?');
-            if (new[] { "int", "long", "double", "float", "decimal" }.Contains(baseT)) { p.Type = "number"; p.NumericType = baseT.Contains("int") ? "int" : "double"; p.DefaultValueJson = "0"; }
-            else if (baseT == "bool") { p.Type = "boolean"; p.DefaultValueJson = "false"; }
-            else if (baseT.Contains("XYZ")) { p.Type = "xyz"; p.DefaultValueJson = JsonSerializer.Serialize("0,0,0"); p.SelectionType = "Point"; }
-            else if (baseT.Contains("Reference")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Element"; }
-            else if (baseT.Contains("Face")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Face"; }
-            else if (baseT.Contains("Edge")) { p.Type = "reference"; p.DefaultValueJson = JsonSerializer.Serialize(""); p.SelectionType = "Edge"; }
-            else if (baseT.Contains("<") || baseT.EndsWith("[]"))
-            {
-                p.Type = "string"; p.MultiSelect = true; p.DefaultValueJson = "[]";
-                var match = Regex.Match(baseT, @"<([^>]+)>");
-                string inner = match.Success ? match.Groups[1].Value : baseT.Replace("[]", "");
-                if (IsRevitType(inner, out _)) { p.IsRevitElement = true; p.RevitElementType = inner; }
-            }
-            else if (char.IsUpper(baseT[0]))
-            {
-                if (IsRevitType(baseT, out bool isEnum))
-                {
-                    if (isEnum) { p.Type = "enum"; p.IsRevitElement = true; p.RevitElementType = baseT; p.DefaultValueJson = JsonSerializer.Serialize(""); }
-                    else { p.IsRevitElement = true; p.RevitElementType = baseT; p.Type = "reference"; p.DefaultValueJson = "null"; }
-                }
-                else { p.Type = "enum"; p.DefaultValueJson = JsonSerializer.Serialize(""); }
             }
 
             // Auto-inference for Revit Selection Filters ("One Thing Flip")
@@ -336,6 +279,9 @@ namespace CoreScript.Engine.Core
             isEnum = false;
             try
             {
+                // Explicitly recognize non-Element Revit types to prevent them being categorized as Generic Enums
+                if (new[] { "XYZ", "Reference", "Face", "Edge" }.Contains(typeName)) return true;
+
                 var revitAssembly = typeof(Autodesk.Revit.DB.Element).Assembly;
 
                 // If the type name already contains a namespace, try getting it directly
