@@ -294,7 +294,31 @@ if (projectSolids.Any()) {
 }
 ```
 
-### 26. The Universal Geometry Unpacker
+### 26. The Diagnostic Snoop
+Use `Snoop()` to solve the "Why is my filter not working?" mystery by seeing exactly what the engine sees.
+
+```csharp
+// Select a wall first
+Snoop(Selection[0]); 
+
+// Or snoop multiple things
+Snoop(GetElements<Wall>().Take(5));
+```
+
+### 27. Direct Parameter Injection (SetNum)
+Move elements or update data using human units without caring about transactions.
+
+```csharp
+var walls = GetElements<Wall>();
+Transact("Bulk Offset", () => {
+    foreach(var w in walls) {
+        w.SetNum("Base Offset", 500, "mm");
+    }
+});
+```
+*(Note: SetNum automatically identifies BuiltInParameters too!)*
+
+### 28. The Universal Geometry Unpacker
 A robust pattern to extract **all** geometry objects (Solids, Lines, PolyLines, etc.) from any element, no matter how deeply nested.
 ```csharp
 void Unpack(GeometryObject obj, List<GeometryObject> results) {

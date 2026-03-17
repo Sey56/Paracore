@@ -51,81 +51,15 @@ namespace CoreScript.Engine.Globals
             return ((double)value).OutputUnit(unit, decimals);
         }
 
-        // --- Backward Compatibility Aliases ---
-        public static double ToUnits(this double v, string u)
-        {
-            return v.InputUnit(u);
-        }
-
-        public static double FromUnits(this double v, string u, int d = 2)
-        {
-            return v.OutputUnit(u, d);
-        }
-
-        public static double ToInternal(this double v, string u)
-        {
-            return v.InputUnit(u);
-        }
-
-        public static double ToExternal(this double v, string u, int d = 2)
-        {
-            return v.OutputUnit(u, d);
-        }
-
-        public static double ToUnits(this int v, string u)
-        {
-            return ((double)v).InputUnit(u);
-        }
-
-        public static double FromUnits(this int v, string u, int d = 2)
-        {
-            return ((double)v).OutputUnit(u, d);
-        }
-
-        public static double ToInternal(this int v, string u)
-        {
-            return ((double)v).InputUnit(u);
-        }
-
-        public static double ToExternal(this int v, string u, int d = 2)
-        {
-            return ((double)v).OutputUnit(u, d);
-        }
-
-        public static double ToUnits(this decimal v, string u)
-        {
-            return ((double)v).InputUnit(u);
-        }
-
-        public static double FromUnits(this decimal v, string u, int d = 2)
-        {
-            return ((double)v).OutputUnit(u, d);
-        }
-
-        public static double ToInternal(this decimal v, string u)
-        {
-            return ((double)v).InputUnit(u);
-        }
-
-        public static double ToExternal(this decimal v, string u, int d = 2)
-        {
-            return ((double)v).OutputUnit(u, d);
-        }
 
         // --- Precision-Aware Comparisons (Floating Point Tolerance) ---
         // These methods use a standard Revit tolerance (1e-9 ft) to handle floating-point noise
         // while maintaining the precision needed for geometry.
 
-        /// <summary> Returns true if two numbers are within the specified tolerance. Defaults to 1e-9. </summary>
-        public static bool AlmostEqual(this double value, double other, double tolerance = 1e-9)
-        {
-            return Math.Abs(value - other) < tolerance;
-        }
-
-        /// <summary> Alias for AlmostEqual. </summary>
+        /// <summary> Returns true if two numbers are within the specified tolerance (fuzzy equality). Defaults to 1e-9 ft. </summary>
         public static bool IsAlmostEqualTo(this double value, double other, double tolerance = 1e-9)
         {
-            return value.AlmostEqual(other, tolerance);
+            return Math.Abs(value - other) < tolerance;
         }
 
         /// <summary> Returns true if the value is essentially zero within the specified tolerance. </summary>
@@ -137,27 +71,27 @@ namespace CoreScript.Engine.Globals
         /// <summary> Returns true if the value is strictly less than the limit, outside the tolerance range. </summary>
         public static bool IsLess(this double value, double limit, double tolerance = 1e-9)
         {
-            if (value.AlmostEqual(limit, tolerance)) return false;
+            if (value.IsAlmostEqualTo(limit, tolerance)) return false;
             return value < limit;
         }
 
         /// <summary> Returns true if the value is strictly greater than the limit, outside the tolerance range. </summary>
         public static bool IsGreater(this double value, double limit, double tolerance = 1e-9)
         {
-            if (value.AlmostEqual(limit, tolerance)) return false;
+            if (value.IsAlmostEqualTo(limit, tolerance)) return false;
             return value > limit;
         }
 
         /// <summary> Returns true if the value is less than or approximately equal to the limit. </summary>
         public static bool IsLessOrEqual(this double value, double limit, double tolerance = 1e-9)
         {
-            return value < limit || value.AlmostEqual(limit, tolerance);
+            return value < limit || value.IsAlmostEqualTo(limit, tolerance);
         }
 
         /// <summary> Returns true if the value is greater than or approximately equal to the limit. </summary>
         public static bool IsGreaterOrEqual(this double value, double limit, double tolerance = 1e-9)
         {
-            return value > limit || value.AlmostEqual(limit, tolerance);
+            return value > limit || value.IsAlmostEqualTo(limit, tolerance);
         }
 
         /// <summary> Returns true if the value is positive and outside the zero-tolerance range. </summary>

@@ -565,6 +565,37 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// The ULTIMATE diagnostic tool for REPL. 
+        /// Lists every parameter and shows exactly how the engine resolves it:
+        /// Name | Storage | GetStr() | GetNum() | GetVal() (UI Formatting)
+        /// </summary>
+        public void Snoop(object input)
+        {
+            if (input == null) return;
+            if (input is Element e)
+            {
+                var snoopData = e.Parameters.Cast<Parameter>()
+                    .OrderBy(p => p.Definition.Name)
+                    .Select(p => new
+                    {
+                        Parameter = p.Definition.Name,
+                        Storage = p.StorageType.ToString(),
+                        StringValue = e.GetStr(p.Definition.Name),
+                        NumericValue = p.StorageType == StorageType.Double ? e.GetNum(p.Definition.Name).ToString("F4") : p.StorageType == StorageType.Integer ? e.GetInt(p.Definition.Name).ToString() : "-",
+                        UIValue = p.AsValueString() ?? "-"
+                    });
+                
+                Table(snoopData);
+                return;
+            }
+            if (input is ElementId id && Doc != null) { Snoop(Doc.GetElement(id)); return; }
+            if (input is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var item in enumerable) if (item is Element el) Snoop(el);
+            }
+        }
+
+        /// <summary>
         /// Discovery helper for the REPL. Lists all BuiltInParameter identifiers for an element.
         /// usage: ListBIPs(myWall)
         /// </summary>

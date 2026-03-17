@@ -86,6 +86,13 @@ namespace CoreScript.Engine.Globals
                 case StorageType.Integer:
                     var valStr = p.AsValueString();
                     if (!string.IsNullOrEmpty(valStr)) return valStr;
+
+                    // WYSIWYG 2.0: Handle Boolean parameters stored as integers (0/1)
+                    if (p.StorageType == StorageType.Integer && p.Definition is InternalDefinition intDef && intDef.GetDataType() == SpecTypeId.Boolean.YesNo)
+                    {
+                        return p.AsInteger() == 1 ? "True" : "False";
+                    }
+
                     return p.StorageType == StorageType.Double ? p.AsDouble().ToString() : p.AsInteger().ToString();
                 default:
                     return "";
@@ -325,6 +332,38 @@ namespace CoreScript.Engine.Globals
         public static double GetNum(this Element e, string name, string unit)
         {
             return e.GetNum(name).OutputUnit(unit);
+        }
+
+        /// <summary>
+        /// Sets a numeric parameter value, automatically converting FROM the specified unit.
+        /// Wraps in a transaction named "Update Parameter" if one isn't already active.
+        /// </summary>
+        public static void SetNum(this Element e, string name, double value, string unit)
+        {
+            if (e == null) return;
+
+            void Action()
+            {
+                var p = e.LookupParameter(name);
+                if (p == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
+                {
+                    p = e.get_Parameter(bip);
+                }
+
+                if (p != null && p.StorageType == StorageType.Double)
+                {
+                    p.Set(value.InputUnit(unit));
+                }
+            }
+
+            if (e.Document.IsModifiable)
+            {
+                Action();
+            }
+            else
+            {
+                Tx.Transact(e.Document, $"Set {name}", Action);
+            }
         }
     }
 }

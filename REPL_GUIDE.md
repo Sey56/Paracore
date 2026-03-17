@@ -139,21 +139,17 @@ All accessors support **three** ways to target a "drawer":
 
 ## 📐 Unit Conversions
 
-### Extension Methods (Fluent Style) — **Primary API**
-| Method | Description | Example |
-| :--- | :--- | :--- |
-| `.InputUnit("unit")` | Convert value **TO** Revit internal units | `2000.InputUnit("mm")` |
-| `.OutputUnit("unit")` | Convert value **FROM** internal units to display | `wall.GetNum("Length").OutputUnit("mm")` |
-| `.OutputUnit("unit", decimals)` | Same with rounding control | `room.GetNum("Area").OutputUnit("m2", 4)` |
+The REPL is unit-aware. Use `.InputUnit("unit")` to convert *to* Revit internal units (for filtering/logic) and `.OutputUnit("unit")` to convert *from* internal units (for display).
 
-### Backward Compatibility Aliases
-These older names still work but `InputUnit`/`OutputUnit` are the canonical forms:
-| Alias | Maps To |
-| :--- | :--- |
-| `.ToUnits("unit")` | `.InputUnit("unit")` |
-| `.FromUnits("unit")` | `.OutputUnit("unit")` |
-| `.ToInternal("unit")` | `.InputUnit("unit")` |
-| `.ToExternal("unit")` | `.OutputUnit("unit")` |
+```csharp
+// Filtering (Target 2.0 meters)
+var walls = GetElements<Wall>().Where(w => w.GetNum("Length") > 2.0.InputUnit("m"));
+
+// Display (Convert internal feet to mm)
+var length = wall.GetNum("Length").OutputUnit("mm");
+```
+> [!NOTE]
+> All backward-compatibility aliases (like `ToUnits`) have been removed in favor of this consolidated API.
 
 ### Formatting Helper
 | Method | Description | Example |
@@ -168,8 +164,28 @@ These older names still work but `InputUnit`/`OutputUnit` are the canonical form
 ---
 
 ## ⚖️ Precision-Aware Comparisons
-Revit internal math often results in "floating-point noise" (e.g., `1.9999999999` instead of `2.0`). Use these methods to ensure your logic matches human expectations.
 
+Always use fuzzy comparison methods when working with Revit geometry to avoid floating-point inaccuracies.
+
+- `IsAlmostEqualTo(other, tolerance)`: Standard fuzzy equality.
+- `AlmostZero()`: Check if a value is effectively zero.
+- `IsLess()`, `IsGreater()`, `IsPositive()`, `IsNegative()`: Safety-wrapped comparisons.
+
+### Interactive Diagnostics (Snoop)
+
+Use the `Snoop(element)` command to see exactly how the engine resolves every parameter on an object. This is your "Source of Truth" when a filter is behaving unexpectedly.
+
+```csharp
+Snoop(Selection[0]); // Lists Name, Storage, GetStr, GetNum, and UI Value side-by-side
+```
+
+### Writing Data (SetNum)
+
+Use `SetNum(name, value, unit)` to write numeric data back to elements. It handles the unit conversion and transaction logic automatically.
+
+```csharp
+Selection[0].SetNum("Base Offset", 100, "mm");
+```
 | Method | Description | Example |
 | :--- | :--- | :--- |
 | `.IsLess(limit)` | Strictly less than (ignores noise). | `val.IsLess(10.InputUnit("m"))` |

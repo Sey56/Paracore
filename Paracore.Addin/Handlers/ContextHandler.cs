@@ -492,7 +492,7 @@ namespace Paracore.Addin.Handlers
                             double val = double.Parse(request.NewValueString);
                             if (!string.IsNullOrEmpty(request.Unit))
                             {
-                                val = val.ToUnits(request.Unit);
+                                val = val.InputUnit(request.Unit);
                             }
                             targetParam.Set(val);
                         }
@@ -546,7 +546,7 @@ namespace Paracore.Addin.Handlers
                                     double val = double.Parse(update.NewValueString);
                                     if (!string.IsNullOrEmpty(update.Unit))
                                     {
-                                        val = val.ToUnits(update.Unit);
+                                        val = val.InputUnit(update.Unit);
                                     }
                                     targetParam.Set(val);
                                 }

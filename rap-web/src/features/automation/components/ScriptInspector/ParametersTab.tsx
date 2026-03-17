@@ -47,7 +47,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
       window.dispatchEvent(new Event('resize'));
       const scrollContainer = document.querySelector('.custom-scrollbar');
       if (scrollContainer) {
-        // Reading offsetHeight forces a synchronous layout calculation for the scroll container
         const _ = (scrollContainer as HTMLElement).offsetHeight;
       }
     }, 100);
