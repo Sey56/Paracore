@@ -69,7 +69,11 @@ namespace CoreScript.Engine.Globals
                     return p.AsString() ?? "";
                 case StorageType.ElementId:
                     var id = p.AsElementId();
-                    if (id == null || id == ElementId.InvalidElementId) return "";
+                    if (id == null || id == ElementId.InvalidElementId)
+                    {
+                        var vs = p.AsValueString();
+                        return !string.IsNullOrEmpty(vs) ? vs : "";
+                    }
                     var refEl = e.Document.GetElement(id);
                     if (refEl == null)
                     {

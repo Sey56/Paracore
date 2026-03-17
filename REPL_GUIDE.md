@@ -110,6 +110,19 @@ Because Revit API is quirky, some common attributes are hardcoded as **native C#
 - Best used with `Table()`: `Table(myWall.AllGeometry())`
 - Shortcut: `ListGeometry(myWall)`
 
+---
+
+## 📐 Geometry Instances & Coordinate Spaces
+When working with **CAD Imports** or **Nested Families**, Revit provides geometry through a `GeometryInstance`. You must choose which "space" you want to work in.
+
+| Method | Space | Description |
+| :--- | :--- | :--- |
+| `.GetInstanceGeometry()` | **Project** | Returns coordinates relative to your Revit project. **Result is a COPY.** |
+| `.GetSymbolGeometry()` | **Local** | Returns raw coordinates from the origin of the Family/CAD file. **Result is a REFERENCE.** |
+
+> [!TIP]
+> Use `.GetSymbolGeometry()` if you need to create Revit elements (like dimensions or face-based parts) that reference the original geometry. Use `.GetInstanceGeometry()` for calculations like volume or center-points.
+
 ### The "Cabinet & Drawer" Analogy
 To understand these methods, think of a Revit Element as a filing cabinet:
 *   **The Parameter Name** (e.g., `"Length"`) is the **Label** on the outside of the drawer.

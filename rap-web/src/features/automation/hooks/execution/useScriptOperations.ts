@@ -11,7 +11,7 @@ export const useScriptOperations = (
   setCombinedScriptContent: (content: string | null) => void,
   setSelectedScriptState: (script: Script | null) => void,
   updateScriptModificationTime?: (scriptId: string) => void,
-  editScriptFromContext?: (script: Script) => Promise<boolean>
+  editScriptFromContext?: (script: Script, force?: boolean) => Promise<boolean>
 ) => {
   const { showNotification } = useNotifications();
 

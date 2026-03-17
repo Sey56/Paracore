@@ -219,6 +219,109 @@ Transact("Nudge Up", () => {
 
 ---
 
+## ⚖️ Precision & Comparison
+*Handling floating-point noise and unit-aware math.*
+
+### 21. Find Precise Lengths (Fuzzy Equality)
+Filter elements by a specific dimension while ignoring Revit's "floating-point noise" (e.g. `1.99999999`).
+```csharp
+var target = 1500.InputUnit("mm");
+var walls = GetElements<Wall>().Where(w => w.GetNum("Length").IsAlmostEqualTo(target));
+Println($"Found {walls.Count()} walls that are almost exactly 1500mm long.");
+```
+
+### 22. Rounding Internal Units
+Snap an internal Revit value (feet) to match the precision of a specific human unit.
+```csharp
+var wall = Selection[0];
+var raw = wall.GetNum("Length");
+var rounded = raw.RoundTo("mm"); // Result is internal value snapped to closest mm point
+Println($"Raw: {raw} | Rounded to MM: {rounded}");
+```
+
+### 23. Identify "Ghost" Geometry
+Identify elements with nearly zero volume or area that might cause model errors.
+```csharp
+var limit = 0.001.InputUnit("mm3"); // Practically zero
+var ghostWalls = GetElements<Wall>().Where(w => w.GetNum("Volume").IsLess(limit) && w.GetNum("Volume").IsPositive());
+Table(ghostWalls.Select(w => new { w.Id, w.Name, Volume = w.GetNum("Volume") }));
+```
+
+### 24. Nested Geometry Explorer (Recursive)
+Extract solids from FamilyInstances, including any nested families (e.g., furniture parts).
+```csharp
+void GetAllSolids(GeometryElement geo, List<Solid> results) {
+    if (geo == null) return;
+    foreach (var obj in geo) {
+        if (obj is Solid s && s.Volume > 0.001) results.Add(s);
+        else if (obj is GeometryInstance inst) GetAllSolids(inst.GetInstanceGeometry(), results);
+    }
+}
+
+var solids = new List<Solid>();
+var opt = new Options { DetailLevel = ViewDetailLevel.Fine };
+GetAllSolids(Selection[0].get_Geometry(opt), solids);
+
+Table(solids.Select((s, i) => new { 
+    Part = $"Part {i+1}", 
+    Volume_m3 = s.Volume.OutputUnit("m3"), 
+    FaceCount = s.Faces.Size 
+}));
+```
+
+### 25. CAD / ImportInstance Data Extraction
+Explore the difference between **Symbol** (Local) and **Instance** (Project) geometry in CAD links.
+```csharp
+var cad = GetElements<ImportInstance>().FirstOrDefault();
+if (cad == null) return;
+
+var opt = new Options { DetailLevel = ViewDetailLevel.Fine };
+var geo = cad.get_Geometry(opt).First() as GeometryInstance;
+
+// Symbol: Raw data as defined in the CAD file (Local)
+var localSolids = new List<Solid>();
+foreach(var obj in geo.GetSymbolGeometry()) if(obj is Solid s) localSolids.Add(s);
+
+// Instance: Data as it appears in Revit (Project Transformed)
+var projectSolids = new List<Solid>();
+foreach(var obj in geo.GetInstanceGeometry()) if(obj is Solid s) projectSolids.Add(s);
+
+Println($"Symbol Solid Count: {localSolids.Count}");
+Println($"Instance Solid Count: {projectSolids.Count}");
+if (projectSolids.Any()) {
+    var p0 = projectSolids[0].ComputeCentroid();
+    Println($"First Part is located at (Project): {p0.X:F2}, {p0.Y:F2}, {p0.Z:F2}");
+}
+```
+
+### 26. The Universal Geometry Unpacker
+A robust pattern to extract **all** geometry objects (Solids, Lines, PolyLines, etc.) from any element, no matter how deeply nested.
+```csharp
+void Unpack(GeometryObject obj, List<GeometryObject> results) {
+    if (obj is Solid s && s.Volume > 0.001) results.Add(s);
+    else if (obj is Curve curve) results.Add(curve);
+    else if (obj is PolyLine p) results.Add(p);
+    else if (obj is GeometryInstance inst) {
+        foreach (var subObj in inst.GetInstanceGeometry()) Unpack(subObj, results);
+    }
+}
+
+var allParts = new List<GeometryObject>();
+var opt = new Options { DetailLevel = ViewDetailLevel.Fine };
+var rootGeo = Selection[0].get_Geometry(opt);
+
+foreach (var obj in rootGeo) Unpack(obj, allParts);
+
+Table(allParts.Select(p => new { 
+    Type = p.GetType().Name,
+    Description = p is Solid s ? $"Volume: {s.Volume.OutputUnit("m3"):F3} m³" : 
+                  p is Curve c ? $"Length: {c.Length.OutputUnit("mm"):F1} mm" : 
+                  "Other"
+}));
+```
+
+---
+
 ## 🔬 Background BIM Watchdogs
 
 ### 19. Live Area Monitor
