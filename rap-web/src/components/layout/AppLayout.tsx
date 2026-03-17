@@ -89,6 +89,18 @@ export const AppLayout: React.FC = () => {
   const isMobile = useBreakpoint();
   const showGate = gateVisible;
 
+  // Global Reflow Trigger: 
+  // Helps resolve a known Webview2/Tauri issue where scrollbars don't 
+  // initialize dragging correctly if the window starts with specific overlays.
+  useEffect(() => {
+    if (!showGate) {
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 750); // Fire shortly after transition starts/ends
+      return () => clearTimeout(timer);
+    }
+  }, [showGate]);
+
   const [galleryWidth, setGalleryWidth] = useState(() => {
     const saved = localStorage.getItem('paracore_gallery_width');
     return saved ? parseFloat(saved) : 0.595;
@@ -157,7 +169,7 @@ export const AppLayout: React.FC = () => {
 
       {selectedScript && <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />}
 
-      <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'}`}>
+      <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0' : 'opacity-100'}`}>
         <TopBar />
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}

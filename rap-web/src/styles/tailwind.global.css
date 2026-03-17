@@ -28,10 +28,10 @@
 
 /* 
    REVEAL LOGIC: 
-   Only show thumb when the user is hovering the SCROLLBAR itself.
-   This avoids them popping up when just moving the mouse over content.
+   Only show thumb when the user is hovering the container.
+   This is the standard way to handle hover reveals in CSS.
 */
-::-webkit-scrollbar:hover ::-webkit-scrollbar-thumb {
+*:hover::-webkit-scrollbar-thumb {
   background-color: rgba(148, 163, 184, 0.4) !important; /* Nice Slate/Gray 400 */
 }
 
@@ -54,7 +54,7 @@
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: transparent !important;
 }
-.custom-scrollbar::-webkit-scrollbar:hover ::-webkit-scrollbar-thumb {
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
   background-color: rgba(148, 163, 184, 0.4) !important;
 }
 
