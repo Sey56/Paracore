@@ -169,9 +169,22 @@ export const AppLayout: React.FC = () => {
               {isLayoutSwapped ? (
                 <>
                   {activeMainView !== 'playlists' && (
-                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 semantic-bg-panel shadow-lg overflow-hidden min-w-0 border-r border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
+                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block bg-transparent shadow-lg overflow-hidden min-w-0 border-r border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
                   )}
-                  {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-200/50 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
+                  {activeMainView !== 'playlists' && (
+                    <div 
+                      className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
+                        ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`} 
+                      onMouseDown={handleMouseDown}
+                    >
+                      {/* The Prominent Grip Handle */}
+                      <div className={`w-1 rounded-full transition-all duration-500 
+                        ${isResizing 
+                          ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]' 
+                          : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`} 
+                      />
+                    </div>
+                  )}
                   <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto custom-scrollbar p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
                     {activeMainView === 'scripts' && <ScriptGallery />}
                     {activeMainView === 'agent' && <AgentView />}
@@ -185,9 +198,22 @@ export const AppLayout: React.FC = () => {
                     {activeMainView === 'agent' && <AgentView />}
                     {activeMainView === 'playlists' && <PlaylistsTab />}
                   </div>
-                  {activeMainView !== 'playlists' && <div className="w-1.5 bg-slate-200/50 dark:bg-gray-700 hover:bg-blue-500/30 transition-colors cursor-ew-resize flex-shrink-0" onMouseDown={handleMouseDown}></div>}
                   {activeMainView !== 'playlists' && (
-                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block p-4 semantic-bg-panel shadow-lg overflow-hidden min-w-0 border-l border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
+                    <div 
+                      className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
+                        ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`} 
+                      onMouseDown={handleMouseDown}
+                    >
+                      {/* The Prominent Grip Handle */}
+                      <div className={`w-1 rounded-full transition-all duration-500 
+                        ${isResizing 
+                          ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]' 
+                          : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`} 
+                      />
+                    </div>
+                  )}
+                  {activeMainView !== 'playlists' && (
+                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block bg-transparent shadow-lg overflow-hidden min-w-0 border-l border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
                   )}
                 </>
               )}

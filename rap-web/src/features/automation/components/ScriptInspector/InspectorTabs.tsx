@@ -146,7 +146,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
 
   return (
     <div className={`tabs flex flex-col h-full min-h-0 w-full overflow-hidden ${!isAuthenticated ? "opacity-50 cursor-not-allowed" : ""}`}>
-      <div className="flex border-b border-slate-200/60 dark:border-slate-700/40 items-center px-5 bg-slate-50/50 dark:bg-slate-900/40">
+      <div className="flex border-b border-slate-200/60 dark:border-slate-700/40 items-center px-5 bg-transparent">
         <div className="flex gap-1">
           {visibleTabs.map((tab) => (
             <React.Fragment key={tab.id}>

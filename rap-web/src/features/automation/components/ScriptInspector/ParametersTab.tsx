@@ -40,6 +40,21 @@ const initializeParameters = (params: ScriptParameter[]): ScriptParameter[] => {
 
 export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab, activeMainView } = useUI();
+  
+  // FORCE DEEP REFLOW on mount specifically for the Parameters tab content
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+      const scrollContainer = document.querySelector('.custom-scrollbar');
+      if (scrollContainer) {
+        // Reading offsetHeight forces a synchronous layout calculation for the scroll container
+        const _ = (scrollContainer as HTMLElement).offsetHeight;
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const [activeTab, setActiveTab] = useState(0);
   const { activeRole } = useAuth();
   const {
     runScript,
@@ -208,8 +223,8 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     : tooltipMessage;
 
   return (
-    <div className={`tab-content absolute inset-0 bg-white/40 dark:bg-slate-700/25`}>
-      <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar py-6 pl-5 pr-3">
+    <div className={`tab-content flex flex-col h-full overflow-hidden`}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-6 pl-5 pr-3">
         <div className="space-y-8 pb-6 pr-2">
         {/* 1. Configuration Presets */}
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (

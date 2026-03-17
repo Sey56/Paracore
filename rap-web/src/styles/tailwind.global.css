@@ -1,6 +1,78 @@
 @import "tailwindcss";
 @import "./themes.css";
 
+/* ── SCROLLBAR CUSTOMIZATION ── */
+/*
+   - Always Hidden: Thumb is transparent by default.
+   - Reveal: ONLY when specifically hovering over the scrollbar/gutter area.
+   - Uniform Look: Nice gray color for all themes.
+*/
+
+/* Webkit (Chrome, Safari, Edge, Tauri) */
+::-webkit-scrollbar {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: transparent !important;
+  border-radius: 14px !important;
+  /* Use a transparent border to keep the thumb "clickable" but invisible */
+  border: 3px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
+/* 
+   REVEAL LOGIC: 
+   Only show thumb when the user is hovering the SCROLLBAR itself.
+   This avoids them popping up when just moving the mouse over content.
+*/
+::-webkit-scrollbar:hover ::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4) !important; /* Nice Slate/Gray 400 */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.8) !important; /* Darker on direct thumb hover */
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: rgba(148, 163, 184, 1) !important; /* Full intensity on drag */
+}
+
+/* 
+   LEGACY OVERRIDE: 
+   Ensure any element with .custom-scrollbar follows the same logic.
+*/
+.custom-scrollbar::-webkit-scrollbar {
+  width: 14px !important;
+  height: 14px !important;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent !important;
+}
+.custom-scrollbar::-webkit-scrollbar:hover ::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4) !important;
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+
+/* 
+   Note: Firefox doesn't support :hover on the scrollbar gutter specifically.
+   It only supports hovering the element itself. 
+*/
+*:hover {
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 .sidebar-overlay {
@@ -105,30 +177,4 @@
   text-decoration: none !important;
   font-style: normal !important;
 }
-
-/* Hidden-until-hover scrollbars */
-/* Default: ALL scrollbar thumbs are transparent */
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  background: rgba(140, 140, 140, 0.01);
-  border-radius: 3px;
-}
-
-/* Reveal: near-invisible on container hover (must be >0 so thumb stays hoverable) */
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background: rgba(140, 140, 140, 0.15);
-}
-/* Visible when hovering the scrollbar thumb directly */
-.custom-scrollbar:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(140, 140, 140, 0.4);
-}
-
-/* Firefox */
-* {
-  scrollbar-color: transparent transparent;
-}
-.custom-scrollbar:hover {
-  scrollbar-color: rgba(140, 140, 140, 0.15) transparent;
-}
+

@@ -155,6 +155,12 @@ export const RuleRow: React.FC<RuleRowProps> = ({
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{p.storage_type}</span>
                       <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
                       <span className={`text-[10px] font-black uppercase tracking-tighter ${p.is_type ? 'text-amber-500/70' : 'text-indigo-500/70'}`}>{p.is_type ? 'Type' : 'Instance'}</span>
+                      {p.builtin_name && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+                          <span className="text-[10px] font-bold text-slate-400/60 font-mono tracking-tight">{p.builtin_name}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))

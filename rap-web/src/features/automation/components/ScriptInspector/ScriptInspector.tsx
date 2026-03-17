@@ -80,7 +80,7 @@ export const ScriptInspector: React.FC = () => {
 
 
   return (
-    <div className="flex flex-col h-full rounded-none shadow-none bg-white/80 dark:bg-slate-900/60 overflow-hidden min-w-0">
+    <div className="flex flex-col h-full rounded-none shadow-none bg-slate-50/50 dark:bg-slate-900/40 overflow-hidden min-w-0">
       <InspectorTabs
         script={script}
         isRunning={isRunning}
