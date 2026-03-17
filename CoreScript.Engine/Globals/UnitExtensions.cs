@@ -112,6 +112,80 @@ namespace CoreScript.Engine.Globals
             return ((double)v).OutputUnit(u, d);
         }
 
+        // --- Precision-Aware Comparisons (Floating Point Tolerance) ---
+        // These methods use a standard Revit tolerance (1e-9 ft) to handle floating-point noise
+        // while maintaining the precision needed for geometry.
+
+        /// <summary> Returns true if two numbers are within the specified tolerance. Defaults to 1e-9. </summary>
+        public static bool AlmostEqual(this double value, double other, double tolerance = 1e-9)
+        {
+            return Math.Abs(value - other) < tolerance;
+        }
+
+        /// <summary> Alias for AlmostEqual. </summary>
+        public static bool IsAlmostEqualTo(this double value, double other, double tolerance = 1e-9)
+        {
+            return value.AlmostEqual(other, tolerance);
+        }
+
+        /// <summary> Returns true if the value is essentially zero within the specified tolerance. </summary>
+        public static bool AlmostZero(this double value, double tolerance = 1e-9)
+        {
+            return Math.Abs(value) < tolerance;
+        }
+
+        /// <summary> Returns true if the value is strictly less than the limit, outside the tolerance range. </summary>
+        public static bool IsLess(this double value, double limit, double tolerance = 1e-9)
+        {
+            if (value.AlmostEqual(limit, tolerance)) return false;
+            return value < limit;
+        }
+
+        /// <summary> Returns true if the value is strictly greater than the limit, outside the tolerance range. </summary>
+        public static bool IsGreater(this double value, double limit, double tolerance = 1e-9)
+        {
+            if (value.AlmostEqual(limit, tolerance)) return false;
+            return value > limit;
+        }
+
+        /// <summary> Returns true if the value is less than or approximately equal to the limit. </summary>
+        public static bool IsLessOrEqual(this double value, double limit, double tolerance = 1e-9)
+        {
+            return value < limit || value.AlmostEqual(limit, tolerance);
+        }
+
+        /// <summary> Returns true if the value is greater than or approximately equal to the limit. </summary>
+        public static bool IsGreaterOrEqual(this double value, double limit, double tolerance = 1e-9)
+        {
+            return value > limit || value.AlmostEqual(limit, tolerance);
+        }
+
+        /// <summary> Returns true if the value is positive and outside the zero-tolerance range. </summary>
+        public static bool IsPositive(this double value, double tolerance = 1e-9)
+        {
+            return value > tolerance;
+        }
+
+        /// <summary> Returns true if the value is negative and outside the zero-tolerance range. </summary>
+        public static bool IsNegative(this double value, double tolerance = 1e-9)
+        {
+            return value < -tolerance;
+        }
+
+        /// <summary> 
+        /// Rounds the raw internal value to match the precision of a specific human unit.
+        /// Example: wallLength.RoundTo("mm") snaps 6.561679... to the exact internal value for 2000.00mm.
+        /// </summary>
+        public static double RoundTo(this double value, string unit, int decimals = 2)
+        {
+            var unitTypeId = GetUnitTypeId(unit);
+            if (unitTypeId == null) return Math.Round(value, decimals);
+
+            double external = UnitUtils.ConvertFromInternalUnits(value, unitTypeId);
+            double rounded = Math.Round(external, decimals);
+            return UnitUtils.ConvertToInternalUnits(rounded, unitTypeId);
+        }
+
         public static string FormatUnit(this double value, string unit, int decimals = 2)
         {
             double converted = value.OutputUnit(unit);

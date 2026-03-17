@@ -154,6 +154,23 @@ These older names still work but `InputUnit`/`OutputUnit` are the canonical form
 
 ---
 
+## ⚖️ Precision-Aware Comparisons
+Revit internal math often results in "floating-point noise" (e.g., `1.9999999999` instead of `2.0`). Use these methods to ensure your logic matches human expectations.
+
+| Method | Description | Example |
+| :--- | :--- | :--- |
+| `.IsLess(limit)` | Strictly less than (ignores noise). | `val.IsLess(10.InputUnit("m"))` |
+| `.IsGreater(limit)` | Strictly greater than (ignores noise). | `val.IsGreater(0)` |
+| `.IsLessOrEqual(limit)` | Less than or essentially equal. | `val.IsLessOrEqual(limit)` |
+| `.IsGreaterOrEqual(limit)` | Greater than or essentially equal. | `val.IsGreaterOrEqual(limit)` |
+| `.IsAlmostEqualTo(other)` | Fuzzy equality check (1e-9 tolerance). | `val.IsAlmostEqualTo(other)` |
+| `.AlmostZero()` | Returns true if value is essentially 0. | `val.AlmostZero()` |
+| `.IsPositive()` | Strictly positive (> tolerance). | `val.IsPositive()` |
+| `.IsNegative()` | Strictly negative (< -tolerance). | `val.IsNegative()` |
+| `.RoundTo("unit")` | Snaps internal value to unit precision. | `val.RoundTo("mm")` |
+
+---
+
 ## 📊 Interactive Visualization
 Commands to render rich data in the **Summary** tab.
 

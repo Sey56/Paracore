@@ -393,6 +393,11 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() : null;
   const isContextMismatch = param.computedInDocument && currentDocTitle && param.computedInDocument !== currentDocTitle;
 
+  // Revit Selection Protection:
+  // We prevent manual editing for parameters that represent Revit objects (Elements, Faces, Edges, Points, etc.)
+  // because these IDs/Reference strings are sensitive and should only be populated via the selection tool.
+  const isRevitSelection = param.selectionType && param.selectionType !== "None";
+
   const handleFileBrowse = async () => {
     try {
       let selection: string | string[] | null = null;
@@ -417,14 +422,20 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
     if (param.inputType === 'File' || param.inputType === 'Folder' || param.inputType === 'SaveFile') {
       return (
         <div className="flex gap-2 w-full">
-          <input
-            type="text"
-            value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
-            onChange={(e) => onChange(index, e.target.value)}
-            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-medium bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
-            disabled={disabled}
-            placeholder={param.inputType === 'Folder' ? "Select source folder..." : "Select target path..."}
-          />
+          {isRevitSelection ? (
+            <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center shadow-inner cursor-default truncate min-w-0 tracking-wider">
+              {param.value !== null && param.value !== undefined ? String(param.value) : <span className="text-slate-400 dark:text-slate-600 font-normal italic">None selected</span>}
+            </div>
+          ) : (
+            <input
+              type="text"
+              value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
+              onChange={(e) => onChange(index, e.target.value)}
+              className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-medium bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+              disabled={disabled}
+              placeholder={param.inputType === 'Folder' ? "Select source folder..." : "Select target path..."}
+            />
+          )}
           <button
             onClick={handleFileBrowse}
             disabled={disabled}
@@ -467,50 +478,72 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       }
       return (
         <div className="flex gap-2 w-full items-center">
-          <input
-            type="text"
-            value={localValue}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
-                setLocalValue(val);
-                // V5 FIX: Only propagate to global state if it's a "settled" number
-                // This allows typing "6." or "6.0" without losing state
-                if (val !== "" && !val.endsWith(".") && !val.endsWith(".0")) {
-                  const parsed = parseFloat(val);
-                  if (!isNaN(parsed)) onChange(index, parsed);
-                } else if (val === "") {
-                  onChange(index, 0);
-                }
-              }
-            }}
-            onBlur={() => {
-              // V5 PRECISION FORMATTER: If it's a double and doesn't have a decimal, add .0
-              if (param.numericType === 'double' && localValue !== "") {
-                const parsed = parseFloat(localValue);
-                if (!isNaN(parsed)) {
-                  let formatted = String(parsed);
-                  if (!formatted.includes(".")) {
-                    formatted = parsed.toFixed(1);
+          {isRevitSelection ? (
+            <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center shadow-inner cursor-default truncate min-w-0 tracking-wider">
+              {param.value !== null && param.value !== undefined ? String(param.value) : <span className="text-slate-400 dark:text-slate-600 font-normal italic">None selected</span>}
+            </div>
+          ) : (
+            <input
+              type="text"
+              value={localValue}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
+                  setLocalValue(val);
+                  if (val !== "" && !val.endsWith(".") && !val.endsWith(".0")) {
+                    const parsed = parseFloat(val);
+                    if (!isNaN(parsed)) onChange(index, parsed);
+                  } else if (val === "") {
+                    onChange(index, 0);
                   }
-                  setLocalValue(formatted);
-                  onChange(index, parsed);
                 }
-              }
-            }}
-            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
-            disabled={disabled}
-            inputMode="decimal"
-          />
-          {param.selectionType && param.selectionType !== "None" && onPickObject && (
-            <button
-              onClick={() => onPickObject(param.selectionType!, index)}
-              disabled={disabled || isComputing}
-              className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
-            >
-              <FontAwesomeIcon icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)} className={isContextMismatch ? 'text-amber-500' : ''} />
-            </button>
+              }}
+              onBlur={() => {
+                if (param.numericType === 'double' && localValue !== "") {
+                  const parsed = parseFloat(localValue);
+                  if (!isNaN(parsed)) {
+                    let formatted = String(parsed);
+                    if (!formatted.includes(".")) {
+                      formatted = parsed.toFixed(1);
+                    }
+                    setLocalValue(formatted);
+                    onChange(index, parsed);
+                  }
+                }
+              }}
+              className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+              disabled={disabled}
+              inputMode="decimal"
+            />
           )}
+          {param.selectionType && param.selectionType !== "None" && onPickObject && (
+            <div className="relative group/pick flex-shrink-0">
+              <button
+                onClick={() => onPickObject(param.selectionType!, index)}
+                disabled={disabled || isComputing}
+                className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
+              >
+                <FontAwesomeIcon icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)} className={isContextMismatch ? 'text-amber-500' : ''} />
+              </button>
+
+              {!isComputing && (
+                <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/pick:opacity-100 group-hover/pick:visible transition-all duration-300 transform translate-y-2 group-hover/pick:translate-y-0 pointer-events-none backdrop-blur-xl">
+                  <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[9px]">
+                    <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} className="text-[10px]" /> {param.selectionType} Selection
+                  </div>
+                  <div className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-normal">
+                    Click to pick a {param.selectionType?.toLowerCase()} directly in Revit.
+                  </div>
+                  {isContextMismatch && (
+                    <div className="mt-2.5 pt-2 border-t border-amber-500/20 dark:border-amber-500/10 flex items-center gap-2 text-amber-500 font-black uppercase text-[9px] animate-pulse">
+                      <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       );
     }
@@ -520,22 +553,47 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
 
     return (
       <div className="flex gap-2 w-full items-center">
-        <input
-          type="text"
-          value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
-          onChange={(e) => onChange(index, e.target.value)}
-          className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
-          disabled={disabled}
-        />
-        {param.selectionType && param.selectionType !== "None" && onPickObject && (
-          <button
-            onClick={() => onPickObject(param.selectionType!, index)}
-            disabled={disabled || isComputing}
-            className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
-          >
-            <FontAwesomeIcon icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)} className={isContextMismatch ? 'text-amber-500' : ''} />
-          </button>
+        {isRevitSelection ? (
+          <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center shadow-inner cursor-default truncate min-w-0 tracking-wider">
+            {param.value !== null && param.value !== undefined ? String(param.value) : <span className="text-slate-400 dark:text-slate-600 font-normal italic">None selected</span>}
+          </div>
+        ) : (
+          <input
+            type="text"
+            value={param.value !== null && param.value !== undefined ? String(param.value) : ''}
+            onChange={(e) => onChange(index, e.target.value)}
+            className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
+            disabled={disabled}
+          />
         )}
+        {param.selectionType && param.selectionType !== "None" && onPickObject && (
+          <div className="relative group/pick flex-shrink-0">
+            <button
+              onClick={() => onPickObject(param.selectionType!, index)}
+              disabled={disabled || isComputing}
+              className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
+            >
+              <FontAwesomeIcon icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)} className={isContextMismatch ? 'text-amber-500' : ''} />
+            </button>
+
+            {!isComputing && (
+              <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/pick:opacity-100 group-hover/pick:visible transition-all duration-300 transform translate-y-2 group-hover/pick:translate-y-0 pointer-events-none backdrop-blur-xl">
+                <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[9px]">
+                  <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} className="text-[10px]" /> {param.selectionType} Selection
+                </div>
+                <div className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-normal">
+                  Click to pick a {param.selectionType?.toLowerCase()} directly in Revit.
+                </div>
+                {isContextMismatch && (
+                  <div className="mt-2.5 pt-2 border-t border-amber-500/20 dark:border-amber-500/10 flex items-center gap-2 text-amber-500 font-black uppercase text-[9px] animate-pulse">
+                    <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     );
   };

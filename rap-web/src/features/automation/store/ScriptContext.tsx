@@ -22,7 +22,7 @@ export interface ScriptContextProps {
     generated_params?: string; 
     parent_folder?: string | null; 
   }) => Promise<Script | undefined>;
-  editScript: (script: Script) => Promise<boolean>;
+  editScript: (script: Script, forceScaffold?: boolean) => Promise<boolean>;
   deleteScript: (script: Script, scaffoldingOnly?: boolean) => Promise<boolean>;
 
   // Favorites & Recents

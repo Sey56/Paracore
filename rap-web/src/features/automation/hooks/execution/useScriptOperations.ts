@@ -50,17 +50,17 @@ export const useScriptOperations = (
     }
   }, [showNotification, selectedFolder, loadScriptsFromPath, updateScriptModificationTime]);
 
-  const editScript = useCallback(async (script: Script) => {
+  const editScript = useCallback(async (script: Script, force: boolean = false) => {
     if (!script || !isAuthenticated) return;
     try {
       // Use the centralized implementation if available
       if (editScriptFromContext) {
-        return await editScriptFromContext(script);
+        return await editScriptFromContext(script, force);
       }
       
       // Fallback (should not be reached if context is used correctly)
-      await api.post("/api/edit-script", { scriptPath: script.absolutePath });
-      showNotification(`Opening project in VS Code...`, "success");
+      await api.post("/api/edit-script", { scriptPath: script.absolutePath, force_scaffold: force });
+      showNotification(force ? "Scaffolding regenerated. Opening..." : "Opening project in VS Code...", "success");
     } catch (error: unknown) {
       console.error("[EditScript] Error:", error);
       const err = error as { response?: { data?: { detail?: string } }, message: string };

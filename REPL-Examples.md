@@ -236,7 +236,7 @@ Watchdog(() => {
 Get an alert if any wall is shorter than 1 meter.
 ```csharp
 Watchdog(() => {
-    var shortWalls = GetElements<Wall>().Where(w => w.GetNum("Length") < 1000.InputUnit("mm"));
+    var shortWalls = GetElements<Wall>().Where(w => w.GetNum("Length", "mm") < 1000);
     if (shortWalls.Any()) {
         WatchdogReport($"Warning: {shortWalls.Count()} walls are too short!", "error", shortWalls);
     }
