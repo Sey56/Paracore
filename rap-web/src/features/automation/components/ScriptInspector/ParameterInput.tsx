@@ -284,8 +284,8 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
   };
 
   return (
-    <div className="flex flex-col border border-slate-200 dark:border-slate-700/50 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20 shadow-inner overflow-hidden w-full min-w-0">
-      <div className="flex items-center px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50">
+    <div className="flex flex-col border border-slate-200 dark:border-slate-700/50 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20 shadow-inner w-full min-w-0">
+      <div className="flex items-center px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 rounded-t-2xl">
         <div className="relative flex-grow min-w-0">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-xs" />
@@ -356,13 +356,13 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
         )}
       </div>
 
-      <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-xs font-black uppercase tracking-widest">
+      <div className="flex justify-between items-center px-4 py-3 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-xs font-black uppercase tracking-widest rounded-b-2xl">
         <span className="text-blue-600 dark:text-blue-400 tabular-nums">
           {selectedValues.length} Selected
         </span>
         <div className="flex gap-4">
           <button onClick={() => handleAllNone(true)} disabled={disabled} className="text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50">All</button>
-          <button onClick={() => handleAllNone(false)} disabled={disabled} className="text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50">None</button>
+          <button onClick={() => handleAllNone(false)} disabled={disabled} className="text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-50">Clear</button>
         </div>
       </div>
     </div>
