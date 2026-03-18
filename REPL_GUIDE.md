@@ -92,21 +92,21 @@ Because Revit API is quirky, some common attributes are hardcoded as **native C#
 - Returns `0` if the parameter is not found.
 
 ### `element.AllParams()`
-**The Parameter Snoop.** Returns a list of objects containing `Name`, `Storage (Type)`, and `Value` for every non-empty parameter on the element.
+**The Parameter Peek.** Returns a list of objects containing `Name`, `Storage (Type)`, and `Value` for every non-empty parameter on the element.
 - Best used with `Table()`: `Table(myWall.AllParams())`
 - Shortcut: `ListParams(myWall)`
 
 ### `element.TypeParams()`
-**The Type Snoop.** Same as `AllParams` but for the element's `ElementType`.
+**The Type Peek.** Same as `AllParams` but for the element's `ElementType`.
 - Shortcut: `ListParams(myWall.GetTypeId())`
 
 ### `element.AllProperties()`
-**The API Snoop.** Returns a table of standard Revit API properties not found in the parameters dictionary (Category, Level, Workset, Design Option, Location Point/Curve, Owner, etc.).
+**The API Peek.** Returns a table of standard Revit API properties not found in the parameters dictionary (Category, Level, Workset, Design Option, Location Point/Curve, Owner, etc.).
 - Best used with `Table()`: `Table(myWall.AllProperties())`
 - Shortcut: `ListProperties(myWall)`
 
 ### `element.AllGeometry()`
-**The Geometry Snoop.** Returns a summary table of solid count, total volume, and total surface area.
+**The Geometry Peek.** Returns a summary table of solid count, total volume, and total surface area.
 - Best used with `Table()`: `Table(myWall.AllGeometry())`
 - Shortcut: `ListGeometry(myWall)`
 
@@ -171,12 +171,12 @@ Always use fuzzy comparison methods when working with Revit geometry to avoid fl
 - `AlmostZero()`: Check if a value is effectively zero.
 - `IsLess()`, `IsGreater()`, `IsPositive()`, `IsNegative()`: Safety-wrapped comparisons.
 
-### Interactive Diagnostics (Snoop)
+### Interactive Diagnostics (Peek)
 
-Use the `Snoop(element)` command to see exactly how the engine resolves every parameter on an object. This is your "Source of Truth" when a filter is behaving unexpectedly.
+Use the `Peek(element)` command to see exactly how the engine resolves every parameter on an object. This is your "Source of Truth" when a filter is behaving unexpectedly.
 
 ```csharp
-Snoop(Selection[0]); // Lists Name, Storage, GetStr, GetNum, and UI Value side-by-side
+Peek(Selection[0]); // Lists Name, Storage, GetStr, GetNum, and UI Value side-by-side
 ```
 
 ### Writing Data (SetNum)
@@ -280,6 +280,25 @@ Doc.Title          // Prints the project name
 Selection.Count    // Prints the number of selected elements
 5 + 5              // Prints 10
 ```
+
+---
+
+## 🧭 REPL Decision Matrix: What to Use When?
+
+| I want to... | Use this... | Why? |
+| :--- | :--- | :--- |
+| **Read a Level, Type, or Workset** | `.GetStr("Level")` | Handles ElementId-to-Name resolution automatically. |
+| **Get raw feet/sqft for calculation** | `.GetNum("Area")` | Direct access to internal double value (no units). |
+| **Get mm/meters for calculation** | `.GetNum("Length", "mm")` | Built-in conversion + precision handling. |
+| **Find a parameter's internal name** | `ListBIPs(Selection[0])` | Shows the `BuiltInParameter` string for stable, language-independent code. |
+| **Debug a filter that "should" work** | `Peek(Selection[0])` | Shows you exactly how the engine resolves that parameter vs. the Revit UI. |
+| **Write a numeric value** | `.SetNum("Offset", 100, "mm")` | Handles conversion, "double" formatting, and validation in one go. |
+| **Compare two Revit lengths** | `.IsAlmostEqualTo(target)` | Crucial for ignoring the `0.000000003` noise in Revit geometry. |
+
+### 🚫 What NOT to do:
+- **DON'T** use `==` for doubles. Use `.IsAlmostEqualTo()`.
+- **DON'T** use `Selection[0].LookupParameter(...)`. It's verbose and slow. Use `GetNum/GetStr` instead.
+- **DON'T** hardcode unit math (like `* 304.8`). Use `.InputUnit("mm")` or `.OutputUnit("mm")`.
 
 ---
 

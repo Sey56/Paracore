@@ -569,7 +569,7 @@ namespace CoreScript.Engine.Globals
         /// Lists every parameter and shows exactly how the engine resolves it:
         /// Name | Storage | GetStr() | GetNum() | GetVal() (UI Formatting)
         /// </summary>
-        public void Snoop(object input)
+        public void Peek(object input)
         {
             if (input == null) return;
             if (input is Element e)
@@ -588,10 +588,10 @@ namespace CoreScript.Engine.Globals
                 Table(snoopData);
                 return;
             }
-            if (input is ElementId id && Doc != null) { Snoop(Doc.GetElement(id)); return; }
+            if (input is ElementId id && Doc != null) { Peek(Doc.GetElement(id)); return; }
             if (input is System.Collections.IEnumerable enumerable)
             {
-                foreach (var item in enumerable) if (item is Element el) Snoop(el);
+                foreach (var item in enumerable) if (item is Element el) Peek(el);
             }
         }
 

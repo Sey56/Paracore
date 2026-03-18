@@ -32,29 +32,29 @@ Println($"There are {doorSymbols.Count} door types loaded.");
 
 ---
 
-## 🧐 API Snooping & Quick Inspection
+## 🧐 API Peeking & Quick Inspection
 *Deep-dive into element parameters, API properties, and geometry without writing complex queries.*
 
-### 2. Snoop All Parameters (Properties Palette Style)
+### 2. Peek All Parameters (Properties Palette Style)
 Quickly see every non-empty parameter of the first selected element.
 ```csharp
 ListParams(Selection[0]);
 ```
 *Tip: Also works with ElementIds: `ListParams(new ElementId(123456))`*
 
-### 3. Snoop Standard API Properties
+### 3. Peek Standard API Properties
 See Category, Level, Workset, Location, Owner, and other high-level API attributes in a table.
 ```csharp
 ListProperties(Selection[0]);
 ```
 
-### 4. Snoop Geometry Summary
+### 4. Peek Geometry Summary
 Get a quick audit of an element's solids, total volume, and surface area.
 ```csharp
 ListGeometry(Selection[0]);
 ```
 
-### 5. Snoop Element Type Parameters
+### 5. Peek Element Type Parameters
 Navigate to the ElementType and list its parameters in one go.
 ```csharp
 Table(Selection[0].TypeParams());
@@ -294,15 +294,15 @@ if (projectSolids.Any()) {
 }
 ```
 
-### 26. The Diagnostic Snoop
-Use `Snoop()` to solve the "Why is my filter not working?" mystery by seeing exactly what the engine sees.
+### 26. The Diagnostic Peek
+Use `Peek()` to solve the "Why is my filter not working?" mystery by seeing exactly what the engine sees.
 
 ```csharp
 // Select a wall first
-Snoop(Selection[0]); 
+Peek(Selection[0]); 
 
 // Or snoop multiple things
-Snoop(GetElements<Wall>().Take(5));
+Peek(GetElements<Wall>().Take(5));
 ```
 
 ### 27. Direct Parameter Injection (SetNum)
@@ -378,3 +378,42 @@ Watchdog(() => {
 - **No Direct Properties**: `Wall` has no `.Length`. Use `GetNum("Length")`.
 - **Magic Suffixes**: `Area_m2`, `Width[mm]` in Table projections enable unit-aware editing.
 - **Smart IDs**: `GetStr("Level")` returns `"Level 1"` instead of an ElementId number.
+ 
+---
+ 
+## 🎯 REPL Mastery: Unit-Aware Logic
+*How to write professional-grade Revit automation using the latest helpers.*
+ 
+### 29. The "Golden Filter" Pattern
+Don't use `==` for wall lengths. Use `.IsAlmostEqualTo()` with internal units.
+```csharp
+// WRONG (Fragile):
+// var bad = GetElements<Wall>().Where(w => w.GetNum("Length") == 1500.InputUnit("mm")); 
+ 
+// RIGHT (Robust):
+var target = 1500.InputUnit("mm");
+var walls = GetElements<Wall>().Where(w => w.GetNum("Length").IsAlmostEqualTo(target));
+```
+ 
+### 30. Unit Transitioning (Read → Logic → Display)
+```csharp
+var wall = Selection[0];
+ 
+// 1. Read to internal (for Revit math)
+var internalLen = wall.GetNum("Length"); 
+ 
+// 2. Log in human units (for easy debugging)
+Println($"Debug: Length is {internalLen.OutputUnit("mm"):F0} mm");
+ 
+// 3. Write back with automatic conversion
+Transact("Update", () => wall.SetNum("Base Offset", 200, "mm"));
+```
+ 
+### 31. Peek vs Table (The Diagnostic Choice)
+- Use `Peek(e)` when you want to **find the right "drawer name"** (BuiltInParameter vs. Display Name).
+- Use `Table(e.AllParams())` when you want to **share/export a report** of the current state.
+ 
+---
+ 
+> [!TIP]
+> **IntelliSense in VSCode**: If you open your scripts in VSCode via the "Edit" button, you can see all available extension methods and `BuiltInParameter` enums with full documentation!

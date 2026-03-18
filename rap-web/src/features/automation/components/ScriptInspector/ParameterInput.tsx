@@ -272,8 +272,25 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
   );
 
   const handleAllNone = (selectAll: boolean) => {
-    const newValues = selectAll ? [...(param.options || [])] : [];
-    onChange(index, JSON.stringify(newValues));
+    if (selectAll) {
+      if (searchTerm) {
+        // Incrementally add filtered items to total selection
+        const newValues = Array.from(new Set([...selectedValues, ...filteredOptions]));
+        onChange(index, JSON.stringify(newValues));
+      } else {
+        // Standard Behavior: Select everything
+        onChange(index, JSON.stringify([...(param.options || [])]));
+      }
+    } else {
+      if (searchTerm) {
+        // Incrementally remove filtered items from total selection
+        const newValues = selectedValues.filter(v => !filteredOptions.includes(v));
+        onChange(index, JSON.stringify(newValues));
+      } else {
+        // Standard Behavior: Clear everything
+        onChange(index, JSON.stringify([]));
+      }
+    }
   };
 
   const handleItemChange = (option: string, checked: boolean) => {
