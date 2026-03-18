@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -99,6 +100,13 @@ namespace CoreScript.Engine.Globals
             }
         }
 
+        /// <summary> Gets the parameter value converted to a specific unit as a string (no suffix). </summary>
+        public static string GetStr(this Element e, string name, string unit)
+        {
+            if (e == null) return "";
+            return e.GetNum(name).FormatValueOnly(unit);
+        }
+
         /// <summary> Gets the parameter value as a double (Internal Units). Falls back to C# Property. </summary>
         public static double GetNum(this Element e, string name)
         {
@@ -186,6 +194,13 @@ namespace CoreScript.Engine.Globals
             // Fallback to Smart GetStr (handles Reflection and ElementId names)
             var fallback = e.GetStr(name);
             return string.IsNullOrEmpty(fallback) ? "-" : fallback;
+        }
+
+        /// <summary> Gets the formatted value string in a specific unit (with suffix). </summary>
+        public static string GetVal(this Element e, string name, string unit)
+        {
+            if (e == null) return "-";
+            return e.GetNum(name).FormatUnit(unit);
         }
 
         /// <summary>
@@ -364,6 +379,170 @@ namespace CoreScript.Engine.Globals
             {
                 Tx.Transact(e.Document, $"Set {name}", Action);
             }
+        }
+
+        /// <summary>
+        /// THE SMART SETTER. Automatically handles:
+        /// 1. Double/Int -> SetNum/Set
+        /// 2. String with units (e.g. "500 mm") -> SetValueString
+        /// 3. String Name -> Tries to resolve to ElementId (for Levels/Types)
+        /// 4. String -> Standard String set
+        /// </summary>
+        public static void SetVal(this Element e, string name, object value)
+        {
+            if (e == null || value == null) return;
+
+            void Action()
+            {
+                var p = e.LookupParameter(name);
+                if (p == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
+                {
+                    p = e.get_Parameter(bip);
+                }
+
+                if (p == null) return;
+
+                // 1. Double/Numeric
+                if (value is double d) { p.Set(d); return; }
+                if (value is int i) { p.Set(i); return; }
+
+                // 2. String
+                if (value is string s)
+                {
+                    // A. Tries SetValueString (handles "500 mm")
+                    if (p.StorageType == StorageType.Double || p.StorageType == StorageType.Integer)
+                    {
+                        if (p.SetValueString(s)) return;
+                    }
+
+                    // B. Storage is ElementId: Try resolving name
+                    if (p.StorageType == StorageType.ElementId)
+                    {
+                        var found = new FilteredElementCollector(e.Document)
+                            .WhereElementIsNotElementType()
+                            .FirstOrDefault(el => el.Name.Equals(s, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (found == null) // Try Types
+                        {
+                            found = new FilteredElementCollector(e.Document)
+                                .WhereElementIsElementType()
+                                .FirstOrDefault(el => el.Name.Equals(s, StringComparison.OrdinalIgnoreCase));
+                        }
+
+                        if (found != null) { p.Set(found.Id); return; }
+                        
+                        // Try ElementId parsing
+                        if (long.TryParse(s, out var idVal)) { p.Set(new ElementId(idVal)); return; }
+                    }
+
+                    // C. Fallback: Standard String Set
+                    p.Set(s);
+                }
+            }
+
+            if (e.Document.IsModifiable) Action();
+            else Tx.Transact(e.Document, $"Set {name}", Action);
+        }
+
+        // --- Fluent View Commands ---
+
+        public static Element Select(this Element e)
+        {
+            if (e == null) return e;
+            var uidoc = new UIApplication(e.Document.Application).ActiveUIDocument;
+            if (uidoc != null) uidoc.Selection.SetElementIds(new List<ElementId> { e.Id });
+            return e;
+        }
+
+        public static Element Zoom(this Element e)
+        {
+            if (e == null) return e;
+            var uidoc = new UIApplication(e.Document.Application).ActiveUIDocument;
+            if (uidoc != null) uidoc.ShowElements(e);
+            return e;
+        }
+
+        public static Element Isolate(this Element e)
+        {
+            if (e == null) return e;
+            var view = e.Document.ActiveView;
+            if (view != null && view.CanEnableTemporaryViewPropertiesMode())
+            {
+                Tx.Transact(e.Document, "Isolate Element", () => {
+                    view.IsolateElementTemporary(e.Id);
+                });
+            }
+            return e;
+        }
+
+        public static void Delete(this Element e)
+        {
+            if (e == null) return;
+            Tx.Transact(e.Document, "Delete Element", () => e.Document.Delete(e.Id));
+        }
+
+        public static Element Hide(this Element e)
+        {
+            var view = e.Document.ActiveView;
+            if (view != null && e.CanBeHidden(view))
+            {
+                Tx.Transact(e.Document, "Hide Element", () => view.HideElements(new List<ElementId> { e.Id }));
+            }
+            return e;
+        }
+
+        public static Element Unhide(this Element e)
+        {
+            var view = e.Document.ActiveView;
+            if (view != null)
+            {
+                Tx.Transact(e.Document, "Unhide Element", () => view.UnhideElements(new List<ElementId> { e.Id }));
+            }
+            return e;
+        }
+    }
+
+    public static class IdentityExtensions
+    {
+        public static Element ToElement(this long id, Document doc) => doc.GetElement(new ElementId(id));
+        public static Element ToElement(this int id, Document doc) => doc.GetElement(new ElementId(id));
+        public static Element ToElement(this ElementId id, Document doc) => doc.GetElement(id);
+    }
+
+    public static class CollectionExtensions
+    {
+        public static IEnumerable<Element> WhereParam(this IEnumerable<Element> elements, string name, string value)
+        {
+            return elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static double SumParam(this IEnumerable<Element> elements, string name, string unit)
+        {
+            return elements.Sum(e => e.GetNum(name, unit));
+        }
+
+        public static IEnumerable<Element> Select(this IEnumerable<Element> elements)
+        {
+            var list = elements.ToList();
+            if (list.Any())
+            {
+                var doc = list.First().Document;
+                var uidoc = new UIApplication(doc.Application).ActiveUIDocument;
+                if (uidoc != null) uidoc.Selection.SetElementIds(list.Select(e => e.Id).ToList());
+            }
+            return list;
+        }
+
+        public static IEnumerable<Element> Zoom(this IEnumerable<Element> elements)
+        {
+            var list = elements.ToList();
+            if (list.Any())
+            {
+                var doc = list.First().Document;
+                var uidoc = new UIApplication(doc.Application).ActiveUIDocument;
+                if (uidoc != null) uidoc.ShowElements(list.Select(e => e.Id).ToList());
+            }
+            return list;
         }
     }
 }

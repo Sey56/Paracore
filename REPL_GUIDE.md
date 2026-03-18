@@ -179,10 +179,15 @@ Use the `Peek(element)` command to see exactly how the engine resolves every par
 Peek(Selection[0]); // Lists Name, Storage, GetStr, GetNum, and UI Value side-by-side
 ```
 
-### Writing Data (SetNum)
+### Writing Data (SetVal & SetNum)
 
-Use `SetNum(name, value, unit)` to write numeric data back to elements. It handles the unit conversion and transaction logic automatically.
+**`element.SetVal(name, value)`**: The Smart Setter. It handles almost anything you throw at it:
+- **`wall.SetVal("Base Offset", "500 mm")`**: High-speed unit parsing.
+- **`wall.SetVal("Level", "Level 1")`**: Finds the Level by name.
+- **`wall.SetVal("Comments", "Updated")`**: Standard string set.
+- **`wall.SetVal("Mark", 101)`**: Standard numeric set.
 
+**`element.SetNum(name, value, unit)`**: Explicit unit-aware numeric setter.
 ```csharp
 Selection[0].SetNum("Base Offset", 100, "mm");
 ```
@@ -203,6 +208,27 @@ Selection[0].SetNum("Base Offset", 100, "mm");
 ## 📊 Interactive Visualization
 Commands to render rich data in the **Summary** tab.
 
+### Fluent Visualization & Navigation
+Every collection and element can now be visualized or manipulated using chained methods.
+ 
+| Chained Method | Description | Example |
+| :--- | :--- | :--- |
+| `.Table()` | Renders the collection or element as a table. | `Selection.Table()` |
+| `.ChartBar()` | Renders data as a bar chart. | `data.ChartBar()` |
+| `.ChartPie()` | Renders data as a pie chart. | `data.ChartPie()` |
+| `.Select()` | Selects the element(s) in Revit. | `GetElements<Wall>().Select()` |
+| `.Zoom()` | Zooms to the element(s) in Revit. | `Selection.Zoom()` |
+| `.Isolate()` | Isolates the element(s) in the view. | `rooms.Isolate()` |
+| `.Hide() / .Unhide()` | Toggles visibility in the active view. | `Selection.Hide()` |
+| `.Delete()` | Deletes the element(s). | `Selection.Delete()` |
+ 
+### 🪄 Quick Access & Filtering
+| Helper | Description | Example |
+| :--- | :--- | :--- |
+| `id.ToElement()` | Resolves a numeric ID to a Revit Element. | `123456.ToElement(Doc)` |
+| `.WhereParam(name, val)` | Fast filtering by string value. | `walls.WhereParam("Mark", "A1")` |
+| `.SumParam(name, unit)` | Quickly sum a numeric parameter. | `rooms.SumParam("Area", "m2")` |
+ 
 | Command | Aliases | Description |
 | :--- | :--- | :--- |
 | `Table(data)` | — | Renders any list, projection, or elements as a searchable grid. **Note:** For Revit elements, numeric values are automatically formatted to your Project Units and Precision. |

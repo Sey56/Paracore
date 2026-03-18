@@ -122,8 +122,15 @@ namespace CoreScript.Engine.Globals
 
         public static string FormatUnit(this double value, string unit, int decimals = 2)
         {
-            double converted = value.OutputUnit(unit);
-            return $"{Math.Round(converted, decimals)} {unit}";
+            double converted = value.OutputUnit(unit, decimals);
+            return $"{converted} {unit}";
+        }
+
+        /// <summary> Returns only the numeric value converted to the unit as a string, without suffix. </summary>
+        public static string FormatValueOnly(this double value, string unit, int decimals = 2)
+        {
+            double converted = value.OutputUnit(unit, decimals);
+            return converted.ToString();
         }
 
         public static ForgeTypeId? GetUnitTypeId(string unit)

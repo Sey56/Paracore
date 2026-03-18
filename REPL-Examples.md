@@ -415,5 +415,54 @@ Transact("Update", () => wall.SetNum("Base Offset", 200, "mm"));
  
 ---
  
+## 🧙‍♂️ Magical High-Speed Automation
+*The fastest ways to work in Paracore using the latest engine extensions.*
+ 
+### 32. Fluent Project Inventory
+List every wall in a table, then select them all in Revit with one chain.
+```csharp
+GetElements<Wall>().Table().Select();
+```
+ 
+### 33. The "Where Match" Filter
+Filter rooms by a specific parameter value and zoom to them instantly.
+```csharp
+GetElements<Room>().WhereParam("Comments", "Audit").Table().Zoom();
+```
+ 
+### 34. Rapid Unit Sum (The SumParam)
+Quickly calculate the total area or length of a collection in any unit.
+```csharp
+var totalM2 = GetElements<Room>().SumParam("Area", "m2");
+Println($"Total Project Room Area: {totalM2:F2} m²");
+```
+ 
+### 35. High-Speed ID Resolution
+Found an ID in a log or warning? Grab it and select it without typing `new ElementId()`.
+```csharp
+// Just type the number and .ToElement()
+1234567.ToElement(Doc).Select().Zoom();
+```
+ 
+### 36. Smart Parameter Injection (SetVal)
+Update different parameter types (Number, ID, String) without thinking about `Get/Set` specifics.
+```csharp
+Transact("Smart Update", () => {
+    foreach(var wall in Selection) {
+        wall.SetVal("Base Offset", "500 mm"); // Unit aware string
+        wall.SetVal("Level", "Level 2");     // Resolved by name
+        wall.SetVal("Comments", "Magical!");  // Standard string
+    }
+});
+```
+ 
+### 37. Fluent Batch Delete
+Cleanup "Ghost" elements or temporary markers in one go.
+```csharp
+GetElements().WhereParam("Comments", "Temporary").Delete();
+```
+ 
+---
+ 
 > [!TIP]
 > **IntelliSense in VSCode**: If you open your scripts in VSCode via the "Edit" button, you can see all available extension methods and `BuiltInParameter` enums with full documentation!

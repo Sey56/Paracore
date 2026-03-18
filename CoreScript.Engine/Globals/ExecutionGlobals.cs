@@ -659,4 +659,31 @@ namespace CoreScript.Engine.Globals
             }
         }
     }
+
+    public static class VisualizationExtensions
+    {
+        public static IEnumerable<T> Table<T>(this IEnumerable<T> data)
+        {
+            ExecutionGlobals.Current.Value?.Table(data);
+            return data;
+        }
+
+        public static IEnumerable<T> ChartBar<T>(this IEnumerable<T> data)
+        {
+            ExecutionGlobals.Current.Value?.BarChart(data);
+            return data;
+        }
+
+        public static IEnumerable<T> ChartPie<T>(this IEnumerable<T> data)
+        {
+            ExecutionGlobals.Current.Value?.PieChart(data);
+            return data;
+        }
+
+        public static IEnumerable<T> ChartLine<T>(this IEnumerable<T> data)
+        {
+            ExecutionGlobals.Current.Value?.LineChart(data);
+            return data;
+        }
+    }
 }
