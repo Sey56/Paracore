@@ -22,12 +22,12 @@ interface StructuredOutputViewerProps {
   isDashboard?: boolean;
 }
 
-const COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', 
-  '#06b6d4', '#f97316', '#6366f1', '#14b8a6', '#d946ef', '#84cc16', 
-  '#0ea5e9', '#f43f5e', '#a855f7', '#115e59', '#7c3aed', '#1e40af', 
-  '#9a3412', '#4d7c0f'
-];
+const getChartColor = (index: number, total: number) => {
+  if (total <= 1) return '#3b82f6';
+  // Sequential span: Start at Blue (210) and wrap through the spectrum
+  const hue = (210 + (index * (300 / (total - 1)))) % 360;
+  return `hsl(${hue}, 65%, 55%)`;
+};
 
 const CustomChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string, value: string | number }[]; label?: string }) => {
   if (active && payload && payload.length) {
@@ -542,7 +542,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           const textEl = itemEl.querySelector('.recharts-legend-item-text');
           const iconEl = itemEl.querySelector('.recharts-surface path') || itemEl.querySelector('.recharts-surface circle');
           const compIcon = iconEl ? window.getComputedStyle(iconEl) : null;
-          const color = compIcon ? (compIcon.fill !== 'none' ? compIcon.fill : compIcon.stroke) : COLORS[idx % COLORS.length];
+          const color = compIcon ? (compIcon.fill !== 'none' ? compIcon.fill : compIcon.stroke) : getChartColor(idx, legendItems.length);
           const label = textEl ? textEl.textContent : `Item ${idx}`;
           const itemG = document.createElementNS("http://www.w3.org/2000/svg", "g");
           itemG.setAttribute("transform", `translate(${itemRelX}, ${itemRelY})`);
@@ -658,7 +658,11 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
                 <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
                 <ChartTooltip content={<CustomChartTooltip />} />
                 <Legend iconType="circle" />
-                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard} />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard}>
+                  {parsedData.map((_: unknown, index: number) => (
+                    <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -678,7 +682,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
                   dataKey="value"
                   isAnimationActive={!isDashboard}
                 >
-                  {parsedData.map((_: unknown, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  {parsedData.map((_: unknown, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}
                 </Pie>
                 <ChartTooltip content={<CustomPieTooltip />} />
                 <Legend iconType="circle" />
