@@ -165,10 +165,26 @@ const TableView: React.FC<{
       result.sort((a, b) => {
         const aVal = a[sortConfig.key];
         const bVal = b[sortConfig.key];
-        if (typeof aVal === 'number' && typeof bVal === 'number') return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
-        const aStr = String(aVal || '');
-        const bStr = String(bVal || '');
-        return sortConfig.direction === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+        
+        // Improved numeric sorting logic: attempt to parse numbers even if strings
+        // We check if values are effectively numeric before comparing them numerically
+        const aStr = String(aVal ?? '').trim();
+        const bStr = String(bVal ?? '').trim();
+        
+        const aNum = parseFloat(aStr);
+        const bNum = parseFloat(bStr);
+        
+        const isANum = !isNaN(aNum) && isFinite(aNum);
+        const isBNum = !isNaN(bNum) && isFinite(bNum);
+
+        if (isANum && isBNum) {
+          return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+        }
+
+        // Fallback to string comparison
+        return sortConfig.direction === 'asc' 
+          ? aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' }) 
+          : bStr.localeCompare(aStr, undefined, { numeric: true, sensitivity: 'base' });
       });
     }
     return result;
@@ -292,6 +308,24 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   const [filterText, setFilterText] = useState('');
   const { activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex } = useUI();
   const { executionResult } = useScriptExecution();
+  
+  const parsedData = useMemo(() => { 
+    try { return JSON.parse(item.data); } catch { return undefined; } 
+  }, [item.data]);
+
+  const { tableData, filteredDataCount } = useMemo(() => {
+    const parsed = (item.type === 'table') ? (parsedData === undefined ? [] : (Array.isArray(parsedData) ? parsedData : [parsedData])) : null;
+    if (!parsed) return { tableData: null, filteredDataCount: 0 };
+    
+    if (!filterText) return { tableData: parsed, filteredDataCount: parsed.length };
+    
+    const lowerFilter = filterText.toLowerCase();
+    const count = parsed.filter((row: Record<string, unknown>) => 
+      Object.values(row).some(val => String(val ?? '').toLowerCase().includes(lowerFilter))
+    ).length;
+    
+    return { tableData: parsed, filteredDataCount: count };
+  }, [parsedData, item.type, filterText]);
 
   const handlePrev = useCallback(() => {
     if (!executionResult?.structuredOutput) return;
@@ -466,8 +500,8 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     e.target.value = "";
   };
 
-  const parsedData = useMemo(() => { try { return JSON.parse(item.data); } catch { return undefined; } }, [item.data]);
-  const tableData = useMemo(() => (parsedData === undefined || item.type !== 'table') ? null : (Array.isArray(parsedData) ? parsedData : [parsedData]), [parsedData, item.type]);
+
+  // tableData, filteredDataCount and parsedData are now defined at the top of the component
 
   const handleDownloadChartCsv = useCallback(async () => {
     try {
@@ -608,10 +642,17 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
               <input
                 type="text"
                 placeholder="Filter table..."
-                className="pl-9 block w-full text-[11px] h-8 border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 border transition-all"
+                className="pl-9 pr-20 block w-full text-[11px] h-8 border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 border transition-all"
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
               />
+              {filterText && tableData && (
+                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800/50 shadow-sm transition-all duration-200 animate-in fade-in zoom-in-95">
+                    {filteredDataCount} {filteredDataCount === 1 ? 'row' : 'rows'}
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-2 shrink-0">
@@ -727,7 +768,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           <div className="flex-1 flex justify-center">
             {item.type === 'table' && tableData && (
               <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 font-mono tracking-tight">
-                {tableData.length} rows x {Object.keys(tableData[0] || {}).length} columns
+                {filterText ? `${filteredDataCount} of ` : ''}{tableData.length} rows x {Object.keys(tableData[0] || {}).length} columns
               </span>
             )}
           </div>
