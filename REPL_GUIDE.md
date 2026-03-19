@@ -169,7 +169,7 @@ Always use fuzzy comparison methods when working with Revit geometry to avoid fl
 
 - `IsAlmostEqualTo(other, tolerance)`: Standard fuzzy equality.
 - `AlmostZero()`: Check if a value is effectively zero.
-- `IsLess()`, `IsGreater()`, `IsPositive()`, `IsNegative()`: Safety-wrapped comparisons.
+- `IsLessThan()`, `IsGreaterThan()`, `IsPositive()`, `IsNegative()`: Safety-wrapped comparisons.
 
 ### Interactive Diagnostics (Peek)
 
@@ -193,14 +193,15 @@ Selection[0].SetNum("Base Offset", 100, "mm");
 ```
 | Method | Description | Example |
 | :--- | :--- | :--- |
-| `.IsLess(limit)` | Strictly less than (ignores noise). | `val.IsLess(10.InputUnit("m"))` |
-| `.IsGreater(limit)` | Strictly greater than (ignores noise). | `val.IsGreater(0)` |
-| `.IsLessOrEqual(limit)` | Less than or essentially equal. | `val.IsLessOrEqual(limit)` |
-| `.IsGreaterOrEqual(limit)` | Greater than or essentially equal. | `val.IsGreaterOrEqual(limit)` |
+| `.IsLessThan(limit)` | Strictly less than (ignores noise). | `val.IsLessThan(10.InputUnit("m"))` |
+| `.IsGreaterThan(limit)` | Strictly greater than (ignores noise). | `val.IsGreaterThan(0)` |
+| `.IsLessThanOrEqual(limit)` | Less than or essentially equal. | `val.IsLessThanOrEqual(limit)` |
+| `.IsGreaterThanOrEqual(limit)` | Greater than or essentially equal. | `val.IsGreaterThanOrEqual(limit)` |
 | `.IsAlmostEqualTo(other)` | Fuzzy equality check (1e-9 tolerance). | `val.IsAlmostEqualTo(other)` |
 | `.AlmostZero()` | Returns true if value is essentially 0. | `val.AlmostZero()` |
 | `.IsPositive()` | Strictly positive (> tolerance). | `val.IsPositive()` |
 | `.IsNegative()` | Strictly negative (< -tolerance). | `val.IsNegative()` |
+| `.Round(decimals)` | Rounds to decimal places. | `val.Round(2)` |
 | `.RoundTo("unit")` | Snaps internal value to unit precision. | `val.RoundTo("mm")` |
 
 ---
@@ -237,9 +238,9 @@ Every collection and element can now be visualized or manipulated using chained 
 | `ListProperties(input)` | — | Table summary of Revit API properties (Category, Level, Location, etc.). |
 | `ListGeometry(input)` | — | Summary of solids, total volume, and surface area for an element. |
 | `Delete(input)` | — | Safely deletes one or more elements (includes automatic transaction). |
-| `BarChart(data)` | `ChartBar(data)` | Renders a bar chart (objects need `name` and `value`). |
-| `PieChart(data)` | `ChartPie(data)` | Renders a pie chart (objects need `name` and `value`). |
-| `LineChart(data)` | `ChartLine(data)`, `LineGraph(data)` | Renders a line graph. |
+| `BarChart(data)` | `BarGraph(data)` | Renders a bar chart (objects need `name` and `value`). |
+| `PieChart(data)` | `PieGraph(data)` | Renders a pie chart (objects need `name` and `value`). |
+| `LineChart(data)` | `LineGraph(data)` | Renders a line graph. |
 | `Select(elements)` | — | Selects and zooms to elements in Revit. |
 | `Zoom(elements)` | — | Zooms the active view to fit elements. |
 | `Isolate(elements)` | — | Temporarily isolates elements in the active view. |

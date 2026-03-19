@@ -69,27 +69,27 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary> Returns true if the value is strictly less than the limit, outside the tolerance range. </summary>
-        public static bool IsLess(this double value, double limit, double tolerance = 1e-9)
+        public static bool IsLessThan(this double value, double limit, double tolerance = 1e-9)
         {
             if (value.IsAlmostEqualTo(limit, tolerance)) return false;
             return value < limit;
         }
 
         /// <summary> Returns true if the value is strictly greater than the limit, outside the tolerance range. </summary>
-        public static bool IsGreater(this double value, double limit, double tolerance = 1e-9)
+        public static bool IsGreaterThan(this double value, double limit, double tolerance = 1e-9)
         {
             if (value.IsAlmostEqualTo(limit, tolerance)) return false;
             return value > limit;
         }
 
         /// <summary> Returns true if the value is less than or approximately equal to the limit. </summary>
-        public static bool IsLessOrEqual(this double value, double limit, double tolerance = 1e-9)
+        public static bool IsLessThanOrEqual(this double value, double limit, double tolerance = 1e-9)
         {
             return value < limit || value.IsAlmostEqualTo(limit, tolerance);
         }
 
         /// <summary> Returns true if the value is greater than or approximately equal to the limit. </summary>
-        public static bool IsGreaterOrEqual(this double value, double limit, double tolerance = 1e-9)
+        public static bool IsGreaterThanOrEqual(this double value, double limit, double tolerance = 1e-9)
         {
             return value > limit || value.IsAlmostEqualTo(limit, tolerance);
         }
@@ -104,6 +104,12 @@ namespace CoreScript.Engine.Globals
         public static bool IsNegative(this double value, double tolerance = 1e-9)
         {
             return value < -tolerance;
+        }
+
+        /// <summary> Rounds a double value to the specified number of decimal places. </summary>
+        public static double Round(this double value, int decimals = 2)
+        {
+            return Math.Round(value, decimals);
         }
 
         /// <summary> 

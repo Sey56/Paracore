@@ -243,7 +243,7 @@ Println($"Raw: {raw} | Rounded to MM: {rounded}");
 Identify elements with nearly zero volume or area that might cause model errors.
 ```csharp
 var limit = 0.001.InputUnit("mm3"); // Practically zero
-var ghostWalls = GetElements<Wall>().Where(w => w.GetNum("Volume").IsLess(limit) && w.GetNum("Volume").IsPositive());
+var ghostWalls = GetElements<Wall>().Where(w => w.GetNum("Volume").IsLessThan(limit) && w.GetNum("Volume").IsPositive());
 Table(ghostWalls.Select(w => new { w.Id, w.Name, Volume = w.GetNum("Volume") }));
 ```
 
@@ -433,8 +433,8 @@ GetElements<Room>().WhereParam("Comments", "Audit").Table().Zoom();
 ### 34. Rapid Unit Sum (The SumParam)
 Quickly calculate the total area or length of a collection in any unit.
 ```csharp
-var totalM2 = GetElements<Room>().SumParam("Area", "m2");
-Println($"Total Project Room Area: {totalM2:F2} m²");
+var totalM2 = GetElements<Room>().SumParam("Area", "m2").Round(2);
+Println($"Total Project Room Area: {totalM2} m²");
 ```
  
 ### 35. High-Speed ID Resolution

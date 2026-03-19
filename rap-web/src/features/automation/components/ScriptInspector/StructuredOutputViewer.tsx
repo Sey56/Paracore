@@ -22,7 +22,12 @@ interface StructuredOutputViewerProps {
   isDashboard?: boolean;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+const COLORS = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', 
+  '#06b6d4', '#f97316', '#6366f1', '#14b8a6', '#d946ef', '#84cc16', 
+  '#0ea5e9', '#f43f5e', '#a855f7', '#115e59', '#7c3aed', '#1e40af', 
+  '#9a3412', '#4d7c0f'
+];
 
 const CustomChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string, value: string | number }[]; label?: string }) => {
   if (active && payload && payload.length) {

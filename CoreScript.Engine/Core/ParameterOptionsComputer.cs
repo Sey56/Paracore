@@ -195,30 +195,58 @@ namespace CoreScript.Engine.Core
                     return elements;
                 }
 
-                // FALLBACK: If it doesn't look like a class, try one last check against Built-in Categories
+                // --- ROBUST CATEGORY DISCOVERY (V4.2.0) ---
                 var baseCategoryName = cleanName;
                 if (isTypeRequested)
                 {
                     if (cleanName.EndsWith("Types", StringComparison.OrdinalIgnoreCase))
-                    {
                         baseCategoryName = cleanName.Substring(0, cleanName.Length - 5);
-                    }
                     else if (cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase))
-                    {
                         baseCategoryName = cleanName.Substring(0, cleanName.Length - 4);
+                }
+
+                Category? matchedCategory = null;
+                foreach (Category cat in _doc.Settings.Categories)
+                {
+                    if (cat.Name.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) || 
+                        cat.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matchedCategory = cat;
+                        break;
                     }
                 }
 
-                var builtin = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>().FirstOrDefault(c =>
-                    c.ToString().Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase) ||
-                    c.ToString().Equals($"OST_{baseCategoryName}s", StringComparison.OrdinalIgnoreCase)); // Auto-plural fallback (Silent benefit for all)
+                ElementId? categoryId = matchedCategory?.Id;
 
-                if (builtin != default)
+                // Fallback to Built-in Enum mapping (covers OST_ prefix and standard Enum names)
+                if (categoryId == null)
                 {
-                    var collector = new FilteredElementCollector(_doc).OfCategoryId(new ElementId(builtin));
-                    return isTypeRequested
-                        ? collector.WhereElementIsElementType().Cast<Element>()
-                        : collector.WhereElementIsNotElementType().Cast<Element>();
+                    var builtin = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>()
+                        .FirstOrDefault(c =>
+                            c.ToString().Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) ||
+                            c.ToString().Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase) ||
+                            c.ToString().Equals($"OST_{baseCategoryName}s", StringComparison.OrdinalIgnoreCase));
+
+                    if (builtin != default) categoryId = new ElementId(builtin);
+                }
+
+                if (categoryId != null)
+                {
+                    var collector = new FilteredElementCollector(_doc).OfCategoryId(categoryId);
+                    var results = isTypeRequested 
+                        ? collector.WhereElementIsElementType().Cast<Element>().ToList()
+                        : collector.WhereElementIsNotElementType().Cast<Element>().ToList();
+
+                    // --- AUTOMATIC TYPE FALLBACK ---
+                    // If instances are requested but the category only contains Types (e.g., Grid Heads, Arrowheads),
+                    // return the types anyway as they are what the user is looking for.
+                    if (results.Count == 0 && !isTypeRequested && !cleanName.Equals("Wall", StringComparison.OrdinalIgnoreCase))
+                    {
+                         results = new FilteredElementCollector(_doc).OfCategoryId(categoryId)
+                                    .WhereElementIsElementType().Cast<Element>().ToList();
+                    }
+
+                    return results;
                 }
 
                 return Enumerable.Empty<Element>();

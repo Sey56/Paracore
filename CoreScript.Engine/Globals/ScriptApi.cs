@@ -277,49 +277,43 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Renders a bar chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void ChartBar(object data)
+        public static void BarChart(object data)
         {
-            Globals.Output.ChartBar(data);
+            Globals.Output.BarChart(data);
+        }
+
+        /// <summary> Alias for BarChart. </summary>
+        public static void BarGraph(object data)
+        {
+            Globals.Output.BarChart(data);
         }
 
         /// <summary>
         /// Renders a pie chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void ChartPie(object data)
+        public static void PieChart(object data)
         {
-            Globals.Output.ChartPie(data);
+            Globals.Output.PieChart(data);
+        }
+
+        /// <summary> Alias for PieChart. </summary>
+        public static void PieGraph(object data)
+        {
+            Globals.Output.PieChart(data);
         }
 
         /// <summary>
         /// Renders a line chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void ChartLine(object data)
-        {
-            Globals.Output.ChartLine(data);
-        }
-
-        /// <summary> Alias for ChartBar. </summary>
-        public static void BarChart(object data)
-        {
-            Globals.Output.ChartBar(data);
-        }
-
-        /// <summary> Alias for ChartPie. </summary>
-        public static void PieChart(object data)
-        {
-            Globals.Output.ChartPie(data);
-        }
-
-        /// <summary> Alias for ChartLine. </summary>
         public static void LineChart(object data)
         {
-            Globals.Output.ChartLine(data);
+            Globals.Output.LineChart(data);
         }
 
-        /// <summary> Alias for ChartLine. </summary>
+        /// <summary> Alias for LineChart. </summary>
         public static void LineGraph(object data)
         {
-            Globals.Output.ChartLine(data);
+            Globals.Output.LineChart(data);
         }
 
         /// <summary>
@@ -482,7 +476,19 @@ namespace CoreScript.Engine.Globals
             var computer = new Core.ParameterOptionsComputer(Doc);
             var results = computer.ComputeElementOptions(categoryOrClass);
 
-            if (results.Count == 0)
+            if (results.Count > 0)
+            {
+                // TRANSPARENCY: Inform the user if we had to fall back to Types (e.g. for Grid Heads)
+                var isTypeRequested = categoryOrClass.EndsWith("Type", StringComparison.OrdinalIgnoreCase) || 
+                                       categoryOrClass.EndsWith("Types", StringComparison.OrdinalIgnoreCase);
+                
+                // If the user didn't ask for Types, but we only found ElementTypes, it's a fallback.
+                if (!isTypeRequested && results.All(e => e is ElementType))
+                {
+                    Println($"[INFO] {categoryOrClass}: Fallback to Types (0 Instances found).");
+                }
+            }
+            else
             {
                 // --- SUGGESTION ENGINE (User-Facing only) ---
                 var cleanName = categoryOrClass.Trim();

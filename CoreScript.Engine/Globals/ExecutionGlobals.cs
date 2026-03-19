@@ -185,7 +185,7 @@ namespace CoreScript.Engine.Globals
             ["Floors"] = new[] { "Level", "Thickness", "Area", "Volume", "Comments" },
             ["Roofs"] = new[] { "Base Level", "Thickness", "Area", "Volume", "Comments" },
             ["Ceilings"] = new[] { "Level", "Height Offset From Level", "Area", "Volume" },
-            ["Sheets"] = new[] { "Sheet Number", "Sheet Name", "Drawn By", "Checked By", "Current Revision" },
+            ["Sheets"] = new[] { "Sheet Number", "Sheet Name", "Designed By", "Approved By", "Sheet Issue Date", "Drawn By", "Checked By", "Current Revision" },
             ["Views"] = new[] { "View Name", "View Classification", "Detail Level", "Scale Value 1:", "Title on Sheet" },
             ["Levels"] = new[] { "Elevation" },
             ["Pipes"] = new[] { "System Type", "Size", "Length", "Comments" },
@@ -325,12 +325,12 @@ namespace CoreScript.Engine.Globals
             return data;
         }
 
-        public void ChartBar(object data)
+        public void BarChart(object data)
         {
             Show("chart-bar", data);
         }
 
-        public void ChartPie(object data)
+        public void PieChart(object data)
         {
             Show("chart-pie", data);
         }
@@ -340,7 +340,7 @@ namespace CoreScript.Engine.Globals
             Show("table", data);
         }
 
-        public void ChartLine(object data)
+        public void LineChart(object data)
         {
             Show("chart-line", data);
         }
@@ -480,17 +480,32 @@ namespace CoreScript.Engine.Globals
 
         public void BarChart(object data)
         {
-            Output.ChartBar(data);
+            Output.BarChart(data);
+        }
+
+        public void BarGraph(object data)
+        {
+            Output.BarChart(data);
         }
 
         public void PieChart(object data)
         {
-            Output.ChartPie(data);
+            Output.PieChart(data);
+        }
+
+        public void PieGraph(object data)
+        {
+            Output.PieChart(data);
         }
 
         public void LineChart(object data)
         {
-            Output.ChartLine(data);
+            Output.LineChart(data);
+        }
+
+        public void LineGraph(object data)
+        {
+            Output.LineChart(data);
         }
 
         /// <summary>
@@ -668,22 +683,28 @@ namespace CoreScript.Engine.Globals
             return data;
         }
 
-        public static IEnumerable<T> ChartBar<T>(this IEnumerable<T> data)
+        public static IEnumerable<T> BarChart<T>(this IEnumerable<T> data)
         {
             ExecutionGlobals.Current.Value?.BarChart(data);
             return data;
         }
 
-        public static IEnumerable<T> ChartPie<T>(this IEnumerable<T> data)
+        public static IEnumerable<T> BarGraph<T>(this IEnumerable<T> data) => BarChart(data);
+
+        public static IEnumerable<T> PieChart<T>(this IEnumerable<T> data)
         {
             ExecutionGlobals.Current.Value?.PieChart(data);
             return data;
         }
 
-        public static IEnumerable<T> ChartLine<T>(this IEnumerable<T> data)
+        public static IEnumerable<T> PieGraph<T>(this IEnumerable<T> data) => PieChart(data);
+
+        public static IEnumerable<T> LineChart<T>(this IEnumerable<T> data)
         {
             ExecutionGlobals.Current.Value?.LineChart(data);
             return data;
         }
+
+        public static IEnumerable<T> LineGraph<T>(this IEnumerable<T> data) => LineChart(data);
     }
 }

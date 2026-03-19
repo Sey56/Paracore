@@ -311,33 +311,96 @@ namespace CoreScript.Engine.Globals
 
             if (geo == null) return results;
 
-            int solidCount = 0;
-            double totalVolume = 0;
-            double totalArea = 0;
-
-            void Process(GeometryElement g)
+            void Process(GeometryElement g, string source = "Direct")
             {
                 foreach (var obj in g)
                 {
+                    if (obj.Visibility == Visibility.Invisible) continue;
+
+                    string matName = "Default";
+                    var matId = ElementId.InvalidElementId;
+
+                    // Try to finding material from GraphicsStyle FIRST if the object has one
+                    if (obj.GraphicsStyleId != ElementId.InvalidElementId)
+                    {
+                        var gs = e.Document.GetElement(obj.GraphicsStyleId) as GraphicsStyle;
+                        matId = gs?.GraphicsStyleCategory?.Material?.Id ?? ElementId.InvalidElementId;
+                    }
+
                     if (obj is Solid s && s.Volume > 0.00001)
                     {
-                        solidCount++;
-                        totalVolume += s.Volume;
-                        totalArea += s.SurfaceArea;
+                        // Fallback to searching Faces if GS failed
+                        if (matId == ElementId.InvalidElementId)
+                        {
+                            matId = s.Faces.Cast<Face>().FirstOrDefault(f => f.MaterialElementId != ElementId.InvalidElementId)?.MaterialElementId ?? ElementId.InvalidElementId;
+                        }
+                        
+                        matName = matId != ElementId.InvalidElementId ? e.Document.GetElement(matId)?.Name : "By Category";
+
+                        results.Add(new
+                        {
+                            Type = "Solid",
+                            Source = source,
+                            Material = matName,
+                            Volume = Math.Round(s.Volume, 4).ToString() + " CF",
+                            Area = Math.Round(s.SurfaceArea, 4).ToString() + " SF",
+                            Faces = s.Faces.Size,
+                            Edges = s.Edges.Size
+                        });
                     }
                     else if (obj is GeometryInstance inst)
                     {
-                        Process(inst.GetInstanceGeometry());
+                        // Recursively process instance geometry (Symbol geometry) - Revit 2025 Pattern
+                        var symbolId = inst.GetSymbolGeometryId().SymbolId;
+                        var symbol = e.Document.GetElement(symbolId);
+                        var symbolName = symbol?.Name ?? "Nested Instance";
+                        Process(inst.GetInstanceGeometry(), $"Symbol: {symbolName}");
+                    }
+                    else if (obj is Mesh m)
+                    {
+                        matName = matId != ElementId.InvalidElementId ? e.Document.GetElement(matId)?.Name : "Mesh (Generic)";
+                        results.Add(new
+                        {
+                            Type = "Mesh",
+                            Source = source,
+                            Material = matName,
+                            Volume = "-",
+                            Area = "-",
+                            Faces = m.NumTriangles,
+                            Vertices = m.Vertices.Count
+                        });
+                    }
+                    else if (obj is Curve c)
+                    {
+                        matName = matId != ElementId.InvalidElementId ? e.Document.GetElement(matId)?.Name : "Curve (Line)";
+                        results.Add(new
+                        {
+                            Type = c.GetType().Name,
+                            Source = source,
+                            Material = matName,
+                            Volume = "-",
+                            Area = "-",
+                            Faces = "-",
+                            Details = $"Length: {Math.Round(c.Length, 4)} ft"
+                        });
+                    }
+                    else if (obj is PolyLine pl)
+                    {
+                        results.Add(new
+                        {
+                            Type = "PolyLine",
+                            Source = source,
+                            Material = "N/A (PolyLine)",
+                            Volume = "-",
+                            Area = "-",
+                            Faces = "-",
+                            Details = $"{pl.NumberOfCoordinates} Points"
+                        });
                     }
                 }
             }
 
             Process(geo);
-
-            results.Add(new { Metric = "Solid Count", Value = solidCount.ToString() });
-            results.Add(new { Metric = "Total Volume", Value = Math.Round(totalVolume, 4).ToString() + " CF" });
-            results.Add(new { Metric = "Total Area", Value = Math.Round(totalArea, 4).ToString() + " SF" });
-
             return results;
         }
 
