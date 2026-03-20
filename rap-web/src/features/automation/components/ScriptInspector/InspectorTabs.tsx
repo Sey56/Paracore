@@ -30,6 +30,12 @@ interface InspectorTabsProps {
 
 export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning, onViewCodeClick, isActionable, tooltipMessage }) => {
   const { activeInspectorTab, setActiveInspectorTab } = useUI();
+  const activeInspectorTabRef = useRef(activeInspectorTab);
+  
+  useEffect(() => {
+    activeInspectorTabRef.current = activeInspectorTab;
+  }, [activeInspectorTab]);
+
   const { isAuthenticated } = useAuth();
   const {
     executionResult,
@@ -127,7 +133,7 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
       setPersistentExecutionTimestamp(executionResult.timestamp);
       
       // Only pulse if we are not already looking at the table
-      if (activeInspectorTab !== 'table') {
+      if (activeInspectorTabRef.current !== 'table') {
         setHasUnviewedTableData(true);
       }
       // V13: Clear captured title so it can be re-captured for this specific execution
