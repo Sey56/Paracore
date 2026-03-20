@@ -7,26 +7,28 @@ Production-ready snippets you can paste directly into the **Workshop** tab. Ever
 ## 🔍 Model Auditing & Quality Control
 
 ### 1. Full Project Element Census
-Get an instant count of every category in the model — the first thing a BIM Manager runs on a new file.
+Get an instant count of every major category in the model — the first thing a BIM Manager runs on a new file.
 ```csharp
-var census = GetElements()
-    .GroupBy(e => e.Category.Name)
-    .Select(g => new { name = g.Key, value = g.Count() })
+var categories = new[] { "Walls", "Doors", "Windows", "Floors", "Roofs", "Ceilings",
+    "Rooms", "Structural Columns", "Structural Framing", "Furniture", "Generic Models",
+    "Pipes", "Ducts", "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures" };
+var census = categories
+    .Select(cat => new { name = cat, value = GetElements(cat).Count })
+    .Where(x => x.value > 0)
     .OrderByDescending(x => x.value);
 Table(census);
-BarChart(census.Take(20));
+BarChart(census);
 ```
 
-### 2. Find All Elements with Empty "Mark" Parameter
-Missing Marks are a top-10 BIM coordination issue. Find them all, grouped by category.
+### 2. Find Walls with Empty "Mark" Parameter
+Missing Marks are a top-10 BIM coordination issue. Scan key categories and find them.
 ```csharp
-var unmarked = GetElements()
+var categories = new[] { "Walls", "Doors", "Windows", "Floors", "Structural Columns" };
+var unmarked = categories.SelectMany(cat => GetElements(cat)
     .Where(e => string.IsNullOrWhiteSpace(e.GetStr("Mark")))
-    .GroupBy(e => e.Category.Name)
-    .Select(g => new { Category = g.Key, Count = g.Count() })
-    .OrderByDescending(x => x.Count);
+    .Select(e => new { Category = cat, e.Id, e.Name }));
 Table(unmarked);
-Println($">>> Total unmarked elements: {unmarked.Sum(x => x.Count)}");
+Println($">>> Total unmarked elements: {unmarked.Count()}");
 ```
 
 ### 3. Detect Duplicate Room Numbers
@@ -50,20 +52,17 @@ if (dupes.Any()) {
 }
 ```
 
-### 4. Find "Lost" Elements Far From Origin
-Bad CAD imports often scatter elements thousands of meters from the origin. This finds them.
+### 4. Find "Lost" Walls Far From Origin
+Bad CAD imports often scatter elements thousands of meters from the origin. This checks walls.
 ```csharp
 var limit = 500.InputUnit("m");
-var lost = GetElements().Where(e => {
-    var pt = (e.Location as LocationPoint)?.Point;
-    if (pt == null) {
-        var crv = (e.Location as LocationCurve)?.Curve;
-        pt = crv?.GetEndPoint(0);
-    }
+var lost = GetElements<Wall>().Where(w => {
+    var crv = (w.Location as LocationCurve)?.Curve;
+    var pt = crv?.GetEndPoint(0);
     return pt != null && (Math.Abs(pt.X) > limit || Math.Abs(pt.Y) > limit);
 });
-Println($"⚠ Found {lost.Count()} elements more than 500m from origin.");
-Table(lost.Select(e => new { e.Id, e.Name, Category = e.Category?.Name }));
+Println($"⚠ Found {lost.Count()} walls more than 500m from origin.");
+Table(lost.Select(w => new { w.Id, w.Name, Length_m = w.GetNum("Length", "m") }));
 ```
 
 ### 5. Ghost Element Detector (Zero Volume/Area)
@@ -268,11 +267,12 @@ Transact($"Stamp Mark: {prefix}", () => {
 ### 17. Category Distribution (Pie Chart)
 See what your model is made of at a glance — useful for file size audits.
 ```csharp
-var distribution = GetElements()
-    .GroupBy(e => e.Category.Name)
-    .Select(g => new { name = g.Key, value = g.Count() })
-    .OrderByDescending(x => x.value)
-    .Take(15);
+var categories = new[] { "Walls", "Doors", "Windows", "Floors", "Roofs", "Ceilings",
+    "Rooms", "Structural Columns", "Structural Framing", "Furniture", "Generic Models" };
+var distribution = categories
+    .Select(cat => new { name = cat, value = GetElements(cat).Count })
+    .Where(x => x.value > 0)
+    .OrderByDescending(x => x.value);
 PieChart(distribution);
 ```
 
@@ -313,15 +313,15 @@ Println($"Total pipe length: {GetElements("Pipes").SumParam("Length", "m").Round
 ### 20. Select All Instances of Same Type
 Select one element, run this to find and select every other instance of that same type in the model.
 ```csharp
-var typeIds = Selection.Select(e => e.GetTypeId()).Distinct().ToList();
-var allSame = GetElements().Where(e => typeIds.Contains(e.GetTypeId())).ToList();
+var typeId = Selection[0].GetTypeId();
+var catName = Selection[0].Category?.Name;
+var allSame = GetElements(catName).Where(e => e.GetTypeId() == typeId).ToList();
 Table(allSame.Select(e => new {
     e.Id, e.Name,
-    Category = e.Category?.Name,
     Level = e.GetStr("Level")
 }));
 allSame.Select();
-Println($"✓ Found and selected {allSame.Count} elements of the same type(s).");
+Println($"✓ Found and selected {allSame.Count} instances of '{Selection[0].Name}'.");
 ```
 
 ---
