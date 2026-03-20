@@ -3,7 +3,7 @@ import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import csharp from 'react-syntax-highlighter/dist/esm/languages/prism/csharp';
 import { vscDarkPlus, atomDark, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Script } from '@/types/scriptModel';
-import { useScriptExecution } from '../../hooks/useScriptExecution';
+import { useScriptExecution } from '@/features/automation';
 import { useTheme } from '@/context/ThemeContext';
 
 SyntaxHighlighter.registerLanguage('csharp', csharp);

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { useScripts } from '../../hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
-import { useScriptExecution } from '../../hooks/useScriptExecution';
+import { useScriptExecution } from '@/features/automation';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useAuth } from '@/features/auth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
@@ -70,14 +70,14 @@ export const ScriptGallery: React.FC = () => {
   const scriptsRef = useRef(scripts);
   useEffect(() => { scriptsRef.current = scripts; }, [scripts]);
 
-  const handleReplaceScript = (script: Script) => {
+  const handleReplaceScript = useCallback((script: Script) => {
     setScriptToReplace(script);
     if (script.metadata.isWatchdog) {
       openNewSentinelModal();
     } else {
       openNewScriptModal();
     }
-  };
+  }, [openNewSentinelModal, openNewScriptModal]);
 
   const handleCloseModal = (resultScript?: Script) => {
     setScriptToReplace(null);
@@ -133,13 +133,13 @@ export const ScriptGallery: React.FC = () => {
     setTimeout(() => trySelectAndScroll(0), 400);
   };
 
-  const handleEnterFocusMode = (rect: DOMRect) => {
+  const handleEnterFocusMode = useCallback((rect: DOMRect) => {
     if (galleryRef.current && galleryRef.current.parentElement) {
       savedScrollTop.current = galleryRef.current.parentElement.scrollTop;
     }
     setSourceRect(rect);
     setFocusMode(true);
-  };
+  }, [setFocusMode]);
 
   const handleExitFocusMode = useCallback(() => {
     setFocusMode(false);

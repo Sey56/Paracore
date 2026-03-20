@@ -2,6 +2,7 @@ import React, { useRef, useLayoutEffect } from 'react';
 import { Script } from '@/types/scriptModel';
 import { ScriptCard } from '../../ScriptCard/ScriptCard';
 import styles from '../ScriptGallery.module.css';
+import { useScriptExecution } from '@/features/automation';
 
 interface FocusOverlayProps {
   script: Script;
@@ -21,6 +22,9 @@ export const FocusOverlay: React.FC<FocusOverlayProps> = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const { selectedScript } = useScriptExecution();
+
+  const isSelected = selectedScript?.id?.toLowerCase().replace(/\\/g, '/') === script.id?.toLowerCase().replace(/\\/g, '/');
 
   // 1. Position & Resize Logic (Must run before animation)
   useLayoutEffect(() => {
@@ -112,6 +116,7 @@ export const FocusOverlay: React.FC<FocusOverlayProps> = ({
         <div ref={containerRef} className={styles.heroGrid}>
           <ScriptCard
             script={script}
+            isSelected={isSelected}
             onSelect={() => { }}
             isFromActiveSource={isFromActiveSource}
             isCompact={false}

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { InspectorTabs } from './InspectorTabs';
-import { useScriptExecution } from '../../hooks/useScriptExecution';
+import { useScriptExecution } from '@/features/automation';
 import { useScripts } from '../../hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
 

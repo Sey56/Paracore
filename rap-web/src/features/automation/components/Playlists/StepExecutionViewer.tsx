@@ -3,7 +3,7 @@ import { ExecutionResult } from '@/types/common';
 import { StructuredOutput } from '@/types/scriptModel';
 import { StructuredOutputViewer } from '../ScriptInspector/StructuredOutputViewer';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
-import { useScriptExecution } from '../../hooks/useScriptExecution';
+import { useScriptExecution } from '@/features/automation';
 import { useMemo } from 'react';
 
 interface StepExecutionViewerProps {
