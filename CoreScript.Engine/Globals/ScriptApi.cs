@@ -488,13 +488,19 @@ namespace CoreScript.Engine.Globals
             }
             else
             {
-                // --- SUGGESTION ENGINE (User-Facing only) ---
                 var cleanName = categoryOrClass.Trim();
-                var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
                 var allValidTerms = GetMagicNames();
 
-                var matches = allValidTerms.Where(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase) ||
-                                                       t.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
+                // If the exact name exists in GetMagicNames(), it's a valid category with 0 instances.
+                // Return an empty list — don't throw.
+                if (allValidTerms.Any(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return results; // Empty list
+                }
+
+                // --- SUGGESTION ENGINE (for genuine typos only) ---
+                var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
+                var matches = allValidTerms.Where(t => t.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
                                                        t.StartsWith(cleanName, StringComparison.OrdinalIgnoreCase)).Take(3).ToList();
 
                 if (matches.Any())
