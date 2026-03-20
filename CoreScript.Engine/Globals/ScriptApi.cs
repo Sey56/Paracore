@@ -442,6 +442,19 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// Returns all placed model element instances with a valid category.
+        /// <para>Use this for project-wide census, auditing, or filtering across all categories.</para>
+        /// <para>Example: <c>GetElements().Where(e => e.Category.Name == "Walls").Count()</c></para>
+        /// </summary>
+        public static List<Element> GetElements()
+        {
+            return new FilteredElementCollector(Doc)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null)
+                .ToList();
+        }
+
+        /// <summary>
         /// Finds all elements of type T in the document.
         /// </summary>
         public static List<T> GetElements<T>() where T : Element

@@ -10,7 +10,6 @@ Production-ready snippets you can paste directly into the **Workshop** tab. Ever
 Get an instant count of every category in the model — the first thing a BIM Manager runs on a new file.
 ```csharp
 var census = GetElements()
-    .Where(e => e.Category != null)
     .GroupBy(e => e.Category.Name)
     .Select(g => new { name = g.Key, value = g.Count() })
     .OrderByDescending(x => x.value);
@@ -22,11 +21,11 @@ BarChart(census.Take(20));
 Missing Marks are a top-10 BIM coordination issue. Find them all, grouped by category.
 ```csharp
 var unmarked = GetElements()
-    .Where(e => e.Category != null && string.IsNullOrWhiteSpace(e.GetStr("Mark")))
+    .Where(e => string.IsNullOrWhiteSpace(e.GetStr("Mark")))
     .GroupBy(e => e.Category.Name)
-    .Select(g => new { Category = g.Key, Count = g.Count(), Elements = g.ToList() })
+    .Select(g => new { Category = g.Key, Count = g.Count() })
     .OrderByDescending(x => x.Count);
-Table(unmarked.Select(x => new { x.Category, x.Count }));
+Table(unmarked);
 Println($">>> Total unmarked elements: {unmarked.Sum(x => x.Count)}");
 ```
 
@@ -206,7 +205,7 @@ Println($">>> Total Concrete Volume: {floors.Sum(f => f.Volume_m3):F3} m³");
 
 ## 🛠️ Batch Automation (Transactions)
 
-### 13. Standardize Door "Mark" from Room Number
+### 13. Standardize Door Marks from Room Numbers
 Auto-populate each door's Mark parameter based on its host room number — a common BIM requirement.
 ```csharp
 Transact("Auto-Mark Doors", () => {
@@ -214,8 +213,8 @@ Transact("Auto-Mark Doors", () => {
     foreach (var door in GetElements<FamilyInstance>("Doors")) {
         var room = door.FromRoom ?? door.ToRoom ?? door.Room;
         if (room != null) {
-            var mark = $"D-{room.Number}-{++count % 100:D2}";
-            door.LookupParameter("Mark")?.Set(mark);
+            count++;
+            door.LookupParameter("Mark")?.Set($"D-{room.Number}-{count:D2}");
         }
     }
     Println($"✓ Auto-marked {count} doors.");
@@ -245,18 +244,20 @@ Transact("Purge Comments", () => {
 });
 ```
 
-### 16. Stamp All Sheets with Project Number
-Write the project number into every sheet's description for consistent printing headers.
+### 16. Stamp Selection with a Mark Prefix
+Add a prefix to the Mark field of all selected elements — great for zone or phase tagging.
 ```csharp
-var projectNumber = Doc.ProjectInformation.Number;
-Transact($"Stamp Sheets: {projectNumber}", () => {
+var prefix = "Z1-";
+Transact($"Stamp Mark: {prefix}", () => {
     var count = 0;
-    foreach (var sheet in GetElements<ViewSheet>()) {
-        var desc = sheet.GetStr("Sheet Issue Date");
-        sheet.LookupParameter("Comments")?.Set($"Project: {projectNumber}");
-        count++;
+    foreach (var e in Selection) {
+        var p = e.LookupParameter("Mark");
+        if (p != null && !p.IsReadOnly) {
+            var current = p.AsString() ?? "";
+            if (!current.StartsWith(prefix)) { p.Set(prefix + current); count++; }
+        }
     }
-    Println($"✓ Stamped {count} sheets with project number '{projectNumber}'.");
+    Println($"✓ Stamped {count} elements with prefix '{prefix}'.");
 });
 ```
 
@@ -268,7 +269,6 @@ Transact($"Stamp Sheets: {projectNumber}", () => {
 See what your model is made of at a glance — useful for file size audits.
 ```csharp
 var distribution = GetElements()
-    .Where(e => e.Category != null)
     .GroupBy(e => e.Category.Name)
     .Select(g => new { name = g.Key, value = g.Count() })
     .OrderByDescending(x => x.value)
@@ -276,7 +276,7 @@ var distribution = GetElements()
 PieChart(distribution);
 ```
 
-### 18. Wall Lengths by Level (Stacked Report)
+### 18. Wall Lengths by Level (Bar Chart)
 Compare wall quantities across levels — instantly shows where the heavy design work is.
 ```csharp
 var report = GetElements<Wall>()
@@ -303,8 +303,8 @@ GetElements<Wall>().Where(w => w.GetStr("Base Constraint") == "Level 1").Table()
 // Find rooms with area > 50 m² and zoom to them
 GetElements<Room>().Where(r => r.GetNum("Area", "m2") > 50).Table().Zoom();
 
-// Find and isolate all generic models with "TEMP" in Comments
-GetElements("Generic Models").Where(e => e.GetStr("Comments").Contains("TEMP")).Isolate();
+// Filter elements by Mark and select them
+GetElements("Doors").WhereParam("Mark", "A1").Table().Select();
 
 // Total length of all pipes in meters
 Println($"Total pipe length: {GetElements("Pipes").SumParam("Length", "m").Round(2)} m");
@@ -315,8 +315,8 @@ Deploy a background monitor that continuously reports on your current selection 
 ```csharp
 Watchdog(() => {
     if (Selection.Count == 0) return;
-    var categories = Selection.Where(e => e.Category != null)
-        .GroupBy(e => e.Category.Name)
+    var categories = Selection
+        .GroupBy(e => e.Category?.Name ?? "Unknown")
         .Select(g => $"{g.Key}: {g.Count()}");
     var totalArea = Selection.Sum(e => e.GetNum("Area", "m2"));
     var summary = string.Join(" | ", categories);
