@@ -2,6 +2,9 @@ import React from 'react';
 import { ExecutionResult } from '@/types/common';
 import { StructuredOutput } from '@/types/scriptModel';
 import { StructuredOutputViewer } from '../ScriptInspector/StructuredOutputViewer';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
+import { useScriptExecution } from '../../hooks/useScriptExecution';
+import { useMemo } from 'react';
 
 interface StepExecutionViewerProps {
     result: ExecutionResult;
@@ -10,6 +13,10 @@ interface StepExecutionViewerProps {
 }
 
 export const StepExecutionViewer: React.FC<StepExecutionViewerProps> = ({ result, stepNumber, scriptName }) => {
+    const { revitStatus } = useRevitStatus();
+    const { selectedScript } = useScriptExecution();
+    const currentDocTitle = useMemo(() => revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null, [revitStatus.document]);
+
     const rawOutput = result.output || "";
     const lines = rawOutput.split('\n');
     // Initialize with the explicit structured output from the backend
@@ -72,7 +79,14 @@ export const StepExecutionViewer: React.FC<StepExecutionViewerProps> = ({ result
                     <div className="space-y-4">
                         {structuredItems.map((item, idx) => (
                             <div key={idx} className="border border-gray-100 dark:border-gray-800 rounded-lg overflow-hidden">
-                                <StructuredOutputViewer item={item} />
+                                <StructuredOutputViewer 
+                                    item={item} 
+                                    isDashboard={false}
+                                    capturedDocTitle={null}
+                                    currentDocTitle={currentDocTitle}
+                                    selectedScript={selectedScript}
+                                    executionResult={result}
+                                />
                             </div>
                         ))}
                     </div>

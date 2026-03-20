@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShieldHeart } from '@fortawesome/free-solid-svg-icons';
 import { Script } from '@/types/scriptModel';
 import { ScriptCard } from '../../ScriptCard/ScriptCard';
+import { useScriptExecution } from '@/features/automation/hooks/useScriptExecution';
 
 interface ScriptGridProps {
   favoriteScripts: Script[];
@@ -27,6 +28,12 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
   isAuthenticated,
   searchTerm
 }) => {
+  const { selectedScript } = useScriptExecution();
+  
+  const getIsSelected = (scriptId: string) => {
+    return selectedScript?.id?.toLowerCase().replace(/\\/g, '/') === scriptId.toLowerCase().replace(/\\/g, '/');
+  };
+
   return (
     <div className="relative flex flex-col">
       {/* Favorites Section */}
@@ -47,6 +54,7 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
               <ScriptCard
                 key={script.id}
                 script={script}
+                isSelected={getIsSelected(script.id)}
                 onSelect={() => handleScriptSelect(script)}
                 isFromActiveSource={isFromActiveSource(script)}
                 isCompact={true}
@@ -79,6 +87,7 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
               <ScriptCard
                 key={script.id}
                 script={script}
+                isSelected={getIsSelected(script.id)}
                 onSelect={() => handleScriptSelect(script)}
                 isFromActiveSource={isFromActiveSource(script)}
                 isCompact={isCompactView}

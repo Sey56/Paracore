@@ -19,7 +19,9 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchStatus = useCallback(async () => {
     try {
       const response = await api.get("/api/status");
-      setParacoreConnected(response.data.paracoreConnected);
+      
+      const newParacoreConnected = response.data.paracoreConnected;
+      setParacoreConnected(prev => prev !== newParacoreConnected ? newParacoreConnected : prev);
 
       const newRevitStatus: RevitStatus = {
         isConnected: response.data.revitOpen,
@@ -27,12 +29,25 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
         document: response.data.documentOpen ? response.data.documentTitle : null,
         documentType: response.data.documentOpen ? response.data.documentType : null,
       };
-      setRevitStatus(newRevitStatus);
+
+      setRevitStatus(prev => {
+        if (
+          prev.isConnected === newRevitStatus.isConnected &&
+          prev.version === newRevitStatus.version &&
+          prev.document === newRevitStatus.document &&
+          prev.documentType === newRevitStatus.documentType
+        ) {
+          return prev; // Same data, keep stable reference to prevent re-renders
+        }
+        return newRevitStatus;
+      });
     } catch (error) {
       console.error("[RAP] Failed to fetch status:", error);
-      // Removed noisy notification on every interval failure
-      setParacoreConnected(false);
-      setRevitStatus(initialRevitStatus);
+      setParacoreConnected(prev => prev ? false : prev);
+      setRevitStatus(prev => {
+        if (!prev.isConnected && prev.document === null) return prev;
+        return initialRevitStatus;
+      });
     }
   }, [initialRevitStatus]);
 

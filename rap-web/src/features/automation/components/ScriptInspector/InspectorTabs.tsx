@@ -9,6 +9,7 @@ import { ParametersTab } from './ParametersTab';
 import { ConsoleTabContent } from './ConsoleTabContent';
 import { TableTabContent } from './TableTabContent';
 import { MetadataTabContent } from './MetadataTabContent';
+import { useRevitStatus } from "@/hooks/useRevitStatus";
 
 import { useAuth } from "@/features/auth";
 import {
@@ -40,8 +41,17 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   } = useUI();
 
   const [hasUnviewedTableData, setHasUnviewedTableData] = useState(false);
-  const [persistentStructuredOutput, setPersistentStructuredOutput] = useState<StructuredOutput[] | undefined>(undefined);
-  const [persistentExecutionTimestamp, setPersistentExecutionTimestamp] = useState<number | undefined>(undefined);
+  const [persistentStructuredOutput, setPersistentStructuredOutput] = useState<StructuredOutput[] | undefined>(() => {
+    const saved = localStorage.getItem('paracore_analytics_output');
+    return saved ? JSON.parse(saved) : undefined;
+  });
+  const [persistentExecutionTimestamp, setPersistentExecutionTimestamp] = useState<number | undefined>(() => {
+    const saved = localStorage.getItem('paracore_analytics_timestamp');
+    return saved ? Number(saved) : undefined;
+  });
+  const [capturedDocTitle, setCapturedDocTitle] = useState<string | null>(() => {
+    return localStorage.getItem('paracore_analytics_captured_doc');
+  });
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   
   // Track the last processed execution to avoid duplicate processing or processing intermediate states
@@ -68,11 +78,18 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
     return output.some(item => {
       // Only pulsate for tables and charts
       if (!['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(item.type)) return false;
+      
+      // Optimization: Basic check for data existence and minimal length
+      if (!item.data || item.data.length < 3) return false; 
+      
+      // Optimization: For large outputs, skip parsing and assume it's non-empty
+      if (item.data.length > 500) return true;
+      
       try {
         const parsed = JSON.parse(item.data);
         if (Array.isArray(parsed)) return parsed.length > 0;
         if (typeof parsed === 'object' && parsed !== null) return Object.keys(parsed).length > 0;
-        return !!parsed;
+        return false;
       } catch {
         return false;
       }
@@ -84,11 +101,17 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
     // 1. Skip if no result or if we already processed this exact result
     if (!executionResult || executionResult.timestamp === lastProcessedTimestampRef.current) {
       // Handle the case where executionResult is explicitly cleared (e.g. by Global Console clear)
-      if (executionResult === null) {
+      // V12 SMART GUARD: Only clear persistence if we have previously processed a result.
+      // This prevents the initial null state on app refresh from wiping the loaded localStorage data.
+      if (executionResult === null && lastProcessedTimestampRef.current !== undefined) {
         setPersistentStructuredOutput(undefined);
         setPersistentExecutionTimestamp(undefined);
+        setCapturedDocTitle(null);
         setHasUnviewedTableData(false);
         lastProcessedTimestampRef.current = undefined;
+        localStorage.removeItem('paracore_analytics_output');
+        localStorage.removeItem('paracore_analytics_timestamp');
+        localStorage.removeItem('paracore_analytics_captured_doc');
       }
       return;
     }
@@ -107,10 +130,50 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
       if (activeInspectorTab !== 'table') {
         setHasUnviewedTableData(true);
       }
+      // V13: Clear captured title so it can be re-captured for this specific execution
+      setCapturedDocTitle(null);
+    } else {
+      // New run completed but produced NO analytics:
+      // Clear persistence to ensure the UI reflects the latest execution result (empty).
+      setPersistentStructuredOutput(undefined);
+      setPersistentExecutionTimestamp(undefined);
+      setCapturedDocTitle(null);
+      setHasUnviewedTableData(false);
+      localStorage.removeItem('paracore_analytics_output');
+      localStorage.removeItem('paracore_analytics_timestamp');
+      localStorage.removeItem('paracore_analytics_captured_doc');
     }
-    // If output is empty, we do NOT update persistence (keeping old data)
-    // and we do NOT trigger hasUnviewedTableData.
-  }, [executionResult, activeInspectorTab]);
+  }, [executionResult]); // Only depend on result, not tab switch
+
+  const { revitStatus } = useRevitStatus();
+  const currentDocTitle = React.useMemo(() => revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null, [revitStatus.document]);
+
+  // Capture document title for data context tagging - ONE TIME CAPTURE per execution
+  useEffect(() => {
+    // V13 GUARD: Only capture if we have an active run result AND we haven't captured a title yet.
+    // This prevents re-capturing when the user switches documents later.
+    if (persistentExecutionTimestamp && currentDocTitle && !capturedDocTitle) {
+      setCapturedDocTitle(currentDocTitle);
+      localStorage.setItem('paracore_analytics_captured_doc', currentDocTitle);
+    }
+  }, [persistentExecutionTimestamp, currentDocTitle, capturedDocTitle]);
+
+  // Sync persistence to localStorage
+  useEffect(() => {
+    if (persistentStructuredOutput) {
+      localStorage.setItem('paracore_analytics_output', JSON.stringify(persistentStructuredOutput));
+    } else {
+      localStorage.removeItem('paracore_analytics_output');
+    }
+  }, [persistentStructuredOutput]);
+
+  useEffect(() => {
+    if (persistentExecutionTimestamp) {
+      localStorage.setItem('paracore_analytics_timestamp', String(persistentExecutionTimestamp));
+    } else {
+      localStorage.removeItem('paracore_analytics_timestamp');
+    }
+  }, [persistentExecutionTimestamp]);
 
   // Mark as viewed when user visits the table tab
   useEffect(() => {
@@ -122,10 +185,6 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   // Reset EVERYTHING when switching scripts - total clean slate
   useEffect(() => {
     setIsMetadataOpen(false);
-    setPersistentStructuredOutput(undefined);
-    setPersistentExecutionTimestamp(undefined);
-    setHasUnviewedTableData(false);
-    lastProcessedTimestampRef.current = undefined;
   }, [script?.id]);
 
   // Create a virtual execution result that includes the persistent output
@@ -252,9 +311,16 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
           />
         </div>
 
-        <div className={`h-full w-full min-w-0 overflow-hidden ${activeInspectorTab !== 'table' ? 'opacity-0 pointer-events-none absolute inset-0' : 'relative'}`}>
-          <TableTabContent executionResult={virtualExecutionResult} />
-        </div>
+        {activeInspectorTab === 'table' && (
+          <div className="h-full w-full min-w-0 overflow-hidden relative">
+            <TableTabContent 
+              executionResult={virtualExecutionResult} 
+              capturedDocTitle={capturedDocTitle}
+              currentDocTitle={currentDocTitle}
+              selectedScript={script}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

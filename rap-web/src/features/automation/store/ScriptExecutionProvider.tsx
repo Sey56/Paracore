@@ -174,7 +174,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       return;
     }
 
-    if (source !== 'refresh' && source !== 'hard_reset') {
+    if (source === 'user' || source === 'agent' || source === 'replace') {
       setCombinedScriptContent("// Loading script context...");
       setPresets([]);
     }

@@ -8,15 +8,15 @@ import { useAuth } from "@/features/auth";
 import { useWatchdog } from "@/context/providers/WatchdogProvider";
 import { filterVisibleParameters, validateParameters } from '@/utils/parameterVisibility';
 
-export const useScriptCard = (script: Script, onSelect: () => void) => {
+export const useScriptCard = (script: Script, onSelect: () => void, isSelected: boolean) => {
   const {
-    selectedScript,
     runningScriptPath,
     runScript,
     setSelectedScript,
     editScript,
     renameScript,
-    userEditedScriptParameters
+    userEditedScriptParameters,
+    selectedScript
   } = useScriptExecution();
 
   const { toggleFavoriteScript, deleteScript, isSyncActive, reloadScript } = useScripts();
@@ -45,7 +45,6 @@ export const useScriptCard = (script: Script, onSelect: () => void) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isSelected = selectedScript?.id?.toLowerCase().replace(/\\/g, '/') === script.id?.toLowerCase().replace(/\\/g, '/');
   const isRunning = runningScriptPath === script.id;
 
   const path = (script.absolutePath || script.id || script.name || "").toLowerCase().replace(/\\/g, '/');

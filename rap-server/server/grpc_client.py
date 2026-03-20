@@ -835,7 +835,7 @@ def execute_repl(code: str, session_id: str):
                 "is_success": response.is_success,
                 "output": response.output,
                 "error_message": response.error_message,
-                "structured_output": structured_output_data
+                "structured_output": structured_output_data,
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:

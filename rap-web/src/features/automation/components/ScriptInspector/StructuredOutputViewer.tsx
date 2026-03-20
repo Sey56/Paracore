@@ -6,20 +6,22 @@ import {
 } from 'recharts';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useScripts } from '../../hooks/useScripts';
-import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronDown, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
-import { Tooltip } from '@/components/common/Tooltip';
+import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronLeft, faChevronRight, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 
-import { StructuredOutput } from '@/types/scriptModel';
+import { StructuredOutput, Script } from '@/types/scriptModel';
+import { ExecutionResult } from '@/types/common';
 
 interface StructuredOutputViewerProps {
   item: StructuredOutput;
   isDashboard?: boolean;
+  capturedDocTitle: string | null;
+  currentDocTitle: string | null;
+  selectedScript: Script | null;
+  executionResult: ExecutionResult | null;
 }
 
 const getChartColor = (index: number, total: number) => {
@@ -49,12 +51,20 @@ const CustomPieTooltip = ({ active, payload }: { active?: boolean; payload?: { n
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
-        <p className="text-slate-700 dark:text-white font-bold m-0 mb-1">{payload[0].name}</p>
+        <p className="text-slate-700 dark:white font-bold m-0 mb-1">{payload[0].name}</p>
         <p className="text-blue-600 dark:text-blue-400 m-0">{`value : ${payload[0].value}`}</p>
       </div>
     );
   }
   return null;
+};
+
+const renderColorfulLegendText = (value: string) => {
+  return (
+    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 ml-1 mr-4">
+      {value}
+    </span>
+  );
 };
 
 // --- TableView: Viewport-Locked Scrolling Architecture ---
@@ -84,6 +94,13 @@ const TableView: React.FC<{
   const [data, setData] = useState(initialData);
   const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  // --- Virtualization State ---
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600); // Default fallback
+  const rowHeight = 36; // Consistent height for calculation
+  const overscan = 10; // Number of rows to render outside visible area
 
   // Column Resizing Logic
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -116,7 +133,12 @@ const TableView: React.FC<{
   }, [handleMouseMove]);
 
   useEffect(() => {
+    const observer = new ResizeObserver(entries => {
+      if (entries[0]) setContainerHeight(entries[0].contentRect.height);
+    });
+    if (containerRef.current) observer.observe(containerRef.current);
     return () => {
+      observer.disconnect();
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -165,23 +187,13 @@ const TableView: React.FC<{
       result.sort((a, b) => {
         const aVal = a[sortConfig.key];
         const bVal = b[sortConfig.key];
-        
-        // Improved numeric sorting logic: attempt to parse numbers even if strings
-        // We check if values are effectively numeric before comparing them numerically
         const aStr = String(aVal ?? '').trim();
         const bStr = String(bVal ?? '').trim();
-        
         const aNum = parseFloat(aStr);
         const bNum = parseFloat(bStr);
-        
         const isANum = !isNaN(aNum) && isFinite(aNum);
         const isBNum = !isNaN(bNum) && isFinite(bNum);
-
-        if (isANum && isBNum) {
-          return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
-        }
-
-        // Fallback to string comparison
+        if (isANum && isBNum) return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
         return sortConfig.direction === 'asc' 
           ? aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' }) 
           : bStr.localeCompare(aStr, undefined, { numeric: true, sensitivity: 'base' });
@@ -190,124 +202,209 @@ const TableView: React.FC<{
     return result;
   }, [data, filterText, sortConfig]);
 
+  // --- Virtualization Calculations ---
+  const totalRows = filteredData.length;
+  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+  const endIndex = Math.min(totalRows, Math.ceil((scrollTop + containerHeight) / rowHeight) + overscan);
+  const visibleData = filteredData.slice(startIndex, endIndex);
+  const offsetY = startIndex * rowHeight;
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  };
+
   return (
     <div className="flex flex-col w-full h-full min-w-0">
-      {/* VIEWPORT SCROLL HUB: Handles both axes internally */}
-      <div className="flex-1 w-full min-h-0 overflow-auto bg-slate-50/5 dark:bg-black/5 custom-scrollbar max-h-[calc(100vh-140px)]">
-        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs border-collapse">
-          <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-30 shadow-sm">
-            <tr>
-              {headers.map((header, index) => {
-                const width = columnWidths[header] || (header.toLowerCase() === 'id' ? 80 : 150);
+      <div 
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="flex-1 w-full min-h-0 overflow-auto bg-slate-50/5 dark:bg-black/5 custom-scrollbar relative"
+      >
+        <div style={{ height: totalRows * rowHeight, width: '100%', position: 'relative' }}>
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs border-collapse absolute top-0 left-0" style={{ transform: `translateY(${offsetY}px)` }}>
+            <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-30 shadow-sm" style={{ transform: `translateY(-${offsetY}px)` }}>
+              <tr>
+                {headers.map((header, index) => {
+                  const width = columnWidths[header] || (header.toLowerCase() === 'id' ? 80 : 150);
+                  return (
+                    <th
+                      key={index}
+                      scope="col"
+                      style={{ width, minWidth: width }}
+                      className="relative px-3 py-2.5 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none group border-r border-slate-200 dark:border-slate-700 last:border-r-0"
+                    >
+                      <div className="flex items-center space-x-1" onClick={() => {
+                        let direction: 'asc' | 'desc' = 'asc';
+                        if (sortConfig?.key === header && sortConfig.direction === 'asc') direction = 'desc';
+                        setSortConfig({ key: header, direction });
+                      }}>
+                        <span className="truncate block">{beautifyHeader(header)}</span>
+                        <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0">
+                          {sortConfig?.key === header ? (
+                            sortConfig.direction === 'asc' ? <FontAwesomeIcon icon={faSortUp} /> : <FontAwesomeIcon icon={faSortDown} />
+                          ) : (
+                            <FontAwesomeIcon icon={faSort} className="opacity-0 group-hover:opacity-50" />
+                          )}
+                        </span>
+                      </div>
+                      <div onMouseDown={(e) => handleMouseDown(e, header)} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-20" />
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800">
+              {visibleData.map((row: Record<string, unknown>, index: number) => {
+                const rowIndex = startIndex + index;
+                const idColKey = Object.keys(row).find(k => ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase()));
+                const hasId = !!idColKey;
+                const isActive = activeRowIndex === rowIndex;
                 return (
-                  <th
-                    key={index}
-                    scope="col"
-                    style={{ width, minWidth: width, borderRightColor: 'var(--border-divider)' }}
-                    className="relative px-3 py-2.5 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none group border-r last:border-r-0"
-                  >
-                    <div className="flex items-center space-x-1" onClick={() => {
-                      let direction: 'asc' | 'desc' = 'asc';
-                      if (sortConfig?.key === header && sortConfig.direction === 'asc') direction = 'desc';
-                      setSortConfig({ key: header, direction });
-                    }}>
-                      <span className="truncate block">{beautifyHeader(header)}</span>
-                      <span className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0">
-                        {sortConfig?.key === header ? (
-                          sortConfig.direction === 'asc' ? <FontAwesomeIcon icon={faSortUp} /> : <FontAwesomeIcon icon={faSortDown} />
-                        ) : (
-                          <FontAwesomeIcon icon={faSort} className="opacity-0 group-hover:opacity-50" />
-                        )}
-                      </span>
-                    </div>
-                    <div onMouseDown={(e) => handleMouseDown(e, header)} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-blue-500/50 active:bg-blue-600 transition-colors z-20" />
-                  </th>
+                  <tr key={rowIndex} style={{ height: rowHeight }} className={`${hasId ? "transition-colors" : ""} ${isActive ? "bg-blue-100/50 dark:bg-blue-800/20 border-l-4 border-blue-500" : "hover:bg-blue-50/50 dark:hover:bg-blue-900/10"}`}>
+                    {headers.map((header, colIndex) => {
+                      const cellValue = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
+                      const isIdColumn = ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(header.toLowerCase());
+                      const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === header;
+                      const canEdit = !isIdColumn && !!onUpdate && hasId;
+                      const width = columnWidths[header];
+
+                      return (
+                        <td
+                          key={colIndex}
+                          style={{ width, minWidth: width }}
+                          className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 last:border-0 ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
+                          onClick={() => {
+                            if (isIdColumn && idColKey) {
+                              const val = row[idColKey];
+                              const id = typeof val === 'string' ? parseInt(val, 10) : Number(val);
+                              if (!isNaN(id)) { setActiveRowIndex(rowIndex); onSelect([id]); }
+                            }
+                          }}
+                          onDoubleClick={() => { if (canEdit) { setEditingCell({ rowIndex, colKey: header }); setEditValue(cellValue); } }}
+                        >
+                          {isEditing ? (
+                            <input
+                              autoFocus
+                              type="text"
+                              className="w-full h-full bg-white dark:bg-slate-800 border-b-2 border-blue-500 focus:outline-none text-slate-900 dark:text-slate-100 px-1"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={async () => {
+                                if (editValue !== cellValue && hasId && onUpdate && idColKey) {
+                                  const id = typeof row[idColKey] === 'string' ? parseInt(row[idColKey] as string, 10) : Number(row[idColKey]);
+                                  setIsUpdating(true);
+                                  const success = await onUpdate(id, header, editValue);
+                                  setIsUpdating(false);
+                                  if (success) {
+                                    const updatedData = [...data];
+                                    const originalDataIndex = data.findIndex(r => r === row);
+                                    if (originalDataIndex !== -1) {
+                                      updatedData[originalDataIndex] = { ...updatedData[originalDataIndex], [header]: editValue };
+                                      setData(updatedData);
+                                    }
+                                  } else setEditValue(cellValue);
+                                }
+                                setEditingCell(null);
+                              }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingCell(null); }}
+                              disabled={isUpdating}
+                            />
+                          ) : (
+                            <div className="truncate">{cellValue}</div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 );
               })}
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-slate-900 divide-y" style={{ borderTopColor: 'var(--border-divider)', borderBottomColor: 'var(--border-divider)' } as React.CSSProperties}>
-            {filteredData.map((row: Record<string, unknown>, rowIndex: number) => {
-              const idColKey = Object.keys(row).find(k => ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase()));
-              const hasId = !!idColKey;
-              const isActive = activeRowIndex === rowIndex;
-              return (
-                <tr key={rowIndex} className={`${hasId ? "transition-colors" : ""} ${isActive ? "bg-blue-100/50 dark:bg-blue-800/20 border-l-4 border-blue-500" : "hover:bg-blue-50/50 dark:hover:bg-blue-900/10"}`} style={{ borderBottomColor: 'var(--border-divider)' }}>
-                  {headers.map((header, colIndex) => {
-                    const cellValue = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
-                    const isIdColumn = ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(header.toLowerCase());
-                    const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === header;
-                    const canEdit = !isIdColumn && !!onUpdate && hasId;
-                    const width = columnWidths[header];
-
-                    return (
-                      <td
-                        key={colIndex}
-                        style={{ width, borderRightColor: 'var(--border-divider)' }}
-                        className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 border-r last:border-0 ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
-                        onClick={() => {
-                          if (isIdColumn && idColKey) {
-                            const val = row[idColKey];
-                            const id = typeof val === 'string' ? parseInt(val, 10) : Number(val);
-                            if (!isNaN(id)) { setActiveRowIndex(rowIndex); onSelect([id]); }
-                          }
-                        }}
-                        onDoubleClick={() => { if (canEdit) { setEditingCell({ rowIndex, colKey: header }); setEditValue(cellValue); } }}
-                      >
-                        {isEditing ? (
-                          <input
-                            autoFocus
-                            type="text"
-                            className="w-full bg-white dark:bg-slate-800 border-b-2 border-blue-500 focus:outline-none text-slate-900 dark:text-slate-100 px-1 py-0.5"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={async () => {
-                              if (editValue !== cellValue && hasId && onUpdate && idColKey) {
-                                const id = typeof row[idColKey] === 'string' ? parseInt(row[idColKey] as string, 10) : Number(row[idColKey]);
-                                setIsUpdating(true);
-                                const success = await onUpdate(id, header, editValue);
-                                setIsUpdating(false);
-                                if (success) {
-                                  const updatedData = [...data];
-                                  const originalRowIndex = data.findIndex(r => r === row);
-                                  if (originalRowIndex !== -1) {
-                                    updatedData[originalRowIndex] = { ...updatedData[originalRowIndex], [header]: editValue };
-                                    setData(updatedData);
-                                  }
-                                } else setEditValue(cellValue);
-                              }
-                              setEditingCell(null);
-                            }}
-                            onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingCell(null); }}
-                            disabled={isUpdating}
-                          />
-                        ) : (
-                          <div className="break-words">{cellValue}</div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
+    </div>
+  );
+};
+
+// --- Navigator Component ---
+
+const Navigator: React.FC<{
+  executionResult: ExecutionResult | null;
+  activeAnalyticsSubTabIndex: number;
+  handlePrev: () => void;
+  handleNext: () => void;
+}> = ({ executionResult, activeAnalyticsSubTabIndex, handlePrev, handleNext }) => {
+  if (!executionResult?.structuredOutput || executionResult.structuredOutput.length <= 1) return null;
+  const count = executionResult.structuredOutput.length;
+  
+  return (
+    <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 mr-2 shadow-sm">
+      <button 
+        onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+        className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
+        title="Previous"
+      >
+        <FontAwesomeIcon icon={faChevronLeft} className="text-[9px]" />
+      </button>
+      <span className="text-[9px] font-black font-mono text-slate-500 dark:text-slate-400 min-w-[24px] text-center tracking-tighter cursor-default">
+        {activeAnalyticsSubTabIndex + 1}/{count}
+      </span>
+      <button 
+        onClick={(e) => { e.stopPropagation(); handleNext(); }}
+        className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
+        title="Next"
+      >
+        <FontAwesomeIcon icon={faChevronRight} className="text-[9px]" />
+      </button>
     </div>
   );
 };
 
 // --- Main Component ---
 
-export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ item, isDashboard = false }) => {
+export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = React.memo(({ 
+  item, 
+  isDashboard = false, 
+  capturedDocTitle,
+  currentDocTitle,
+  selectedScript,
+  executionResult
+}) => {
   const { showNotification } = useNotifications();
-  const { selectedScript } = useScriptExecution();
   const chartId = useId().replace(/:/g, '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [filterText, setFilterText] = useState('');
   const { activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex } = useUI();
-  const { executionResult } = useScriptExecution();
+  const [isReady, setIsReady] = useState(false);
+  
+  // Definitive Recharts Dimension Fix
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Reset readiness and dimensions when the item changes
+    setIsReady(false);
+    setDimensions({ width: 0, height: 0 });
+    
+    const timer = setTimeout(() => setIsReady(true), 400); 
+    
+    const observer = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) {
+        setDimensions({ width, height });
+      }
+    });
+
+    if (chartContainerRef.current) observer.observe(chartContainerRef.current);
+    
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [item.type, item.data, activeAnalyticsSubTabIndex]);
+
+  const isDocMismatch = capturedDocTitle && currentDocTitle && capturedDocTitle !== currentDocTitle;
   
   const parsedData = useMemo(() => { 
     try { return JSON.parse(item.data); } catch { return undefined; } 
@@ -341,30 +438,14 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
     setActiveAnalyticsSubTabIndex(nextIdx);
   }, [executionResult, activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex]);
 
-  const Navigator = () => {
-    if (!executionResult?.structuredOutput || executionResult.structuredOutput.length <= 1) return null;
-    const count = executionResult.structuredOutput.length;
-    
+  const NavigatorInternal = () => {
     return (
-      <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 mr-2 shadow-sm">
-        <button 
-          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-          className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
-          title="Previous"
-        >
-          <FontAwesomeIcon icon={faChevronLeft} className="text-[9px]" />
-        </button>
-        <span className="text-[9px] font-black font-mono text-slate-500 dark:text-slate-400 min-w-[24px] text-center tracking-tighter cursor-default">
-          {activeAnalyticsSubTabIndex + 1}/{count}
-        </span>
-        <button 
-          onClick={(e) => { e.stopPropagation(); handleNext(); }}
-          className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
-          title="Next"
-        >
-          <FontAwesomeIcon icon={faChevronRight} className="text-[9px]" />
-        </button>
-      </div>
+      <Navigator 
+        executionResult={executionResult}
+        activeAnalyticsSubTabIndex={activeAnalyticsSubTabIndex}
+        handlePrev={handlePrev}
+        handleNext={handleNext}
+      />
     );
   };
 
@@ -630,7 +711,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
   if (parsedData === undefined) return <pre className="p-3 text-xs text-red-600 bg-red-50 rounded-xl">Error: Invalid JSON.</pre>;
 
   return (
-    <div className={`bg-white dark:bg-slate-900 ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm' : 'h-full flex flex-col'} group relative overflow-hidden flex flex-col`}>
+    <div className={`bg-white dark:bg-slate-900 group relative overflow-hidden flex flex-col ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm' : 'h-full'}`}>
       {/* Viewer Header */}
       <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]">
         <div className="flex-grow min-w-0 flex items-center gap-3">
@@ -646,10 +727,16 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
               />
-              {filterText && tableData && (
+              {tableData && (
                 <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800/50 shadow-sm transition-all duration-200 animate-in fade-in zoom-in-95">
-                    {filteredDataCount} {filteredDataCount === 1 ? 'row' : 'rows'}
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 font-mono bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-slate-700/50 shadow-sm transition-all duration-200">
+                    {filterText ? (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {filteredDataCount} of {tableData.length}
+                      </span>
+                    ) : (
+                      tableData.length
+                    )} rows x {Object.keys(tableData[0] || {}).length} cols
                   </span>
                 </div>
               )}
@@ -678,7 +765,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
             </div>
           )}
           <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />
-          <Navigator />
+          <NavigatorInternal />
         </div>
       </div>
       
@@ -690,59 +777,53 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
           </div>
         )}
 
-        {item.type === 'chart-bar' && (
-          <div id={chartId} className="flex-1 w-full min-h-[300px] relative px-2 py-2 overflow-hidden flex flex-col items-stretch">
-            <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
-              <BarChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.2} />
-                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
-                <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
-                <ChartTooltip content={<CustomChartTooltip />} />
-                <Legend iconType="circle" />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard}>
-                  {parsedData.map((_: unknown, index: number) => (
-                    <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-        {item.type === 'chart-pie' && (
-          <div id={chartId} className="flex-1 w-full min-h-[300px] relative px-2 py-2 overflow-hidden flex flex-col items-stretch">
-            <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
-              <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-                <Pie 
-                  data={parsedData} 
-                  cx="50%" 
-                  cy="50%" 
-                  labelLine={false} 
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`} 
-                  outerRadius="80%" 
-                  fill="#8884d8" 
-                  dataKey="value"
-                  isAnimationActive={!isDashboard}
-                >
-                  {parsedData.map((_: unknown, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}
-                </Pie>
-                <ChartTooltip content={<CustomPieTooltip />} />
-                <Legend iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-        {item.type === 'chart-line' && (
-          <div id={chartId} className="flex-1 w-full min-h-[300px] relative px-2 py-2 overflow-hidden flex flex-col items-stretch">
-            <ResponsiveContainer width="100%" height="100%" minHeight={100} minWidth={100}>
-              <LineChart data={parsedData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.2} />
-                <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
-                <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
-                <ChartTooltip content={<CustomChartTooltip />} />
-                <Legend iconType="circle" />
-                <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} />
-              </LineChart>
-            </ResponsiveContainer>
+        {(item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && (
+          <div ref={chartContainerRef} id={chartId} className="flex-1 w-full min-h-[350px] relative px-2 py-2 overflow-hidden">
+            <div className="absolute inset-0">
+              {isReady && dimensions.width > 0 && dimensions.height > 0 && (
+                <ResponsiveContainer key={`${item.type}-${activeAnalyticsSubTabIndex}`} width="99%" height="99%" debounce={50}>
+                  {item.type === 'chart-bar' ? (
+                    <BarChart data={parsedData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
+                      <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
+                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                      <ChartTooltip content={<CustomChartTooltip />} />
+                      <Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard}>
+                        {parsedData.map((_: unknown, index: number) => (
+                          <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  ) : item.type === 'chart-pie' ? (
+                    <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
+                      <Pie 
+                        data={parsedData} 
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius="80%" 
+                        fill="#8884d8" 
+                        dataKey="value"
+                        isAnimationActive={!isDashboard}
+                      >
+                        {parsedData.map((_: unknown, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}
+                      </Pie>
+                      <ChartTooltip content={<CustomPieTooltip />} />
+                      <Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} />
+                    </PieChart>
+                  ) : (
+                    <LineChart data={parsedData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
+                      <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
+                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                      <ChartTooltip content={<CustomChartTooltip />} />
+                      <Legend iconType="circle" iconSize={10} formatter={renderColorfulLegendText} />
+                      <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )}
+            </div>
           </div>
         )}
         {item.type === 'message' && <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">{parsedData}</p>}
@@ -755,27 +836,49 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = ({ 
 
       {/* Subtle Footer for Context */}
       {(executionResult?.scriptName || (item.type === 'table' && tableData)) && (
-        <div className="px-4 py-1 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/10 flex items-center shrink-0">
+        <div className="px-4 py-1.5 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/10 flex items-center shrink-0">
           <div className="flex-1 flex items-center gap-3">
             {executionResult?.scriptName && (
               <>
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 select-none">Origin</span>
-                <span className="text-[11px] font-bold italic text-slate-500 dark:text-slate-400 truncate">{executionResult.scriptName}</span>
+                <span className="text-[11px] font-bold italic text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{executionResult.scriptName}</span>
               </>
+            )}
+            
+            {capturedDocTitle && (
+              <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-800/40 pl-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 select-none">Document</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-bold italic truncate max-w-[200px] ${isDocMismatch ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {capturedDocTitle}
+                  </span>
+                  {isDocMismatch && (
+                    <div className="relative group/mismatch-footer translate-y-[1px]">
+                      <span className="text-amber-500 cursor-help">
+                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px] animate-pulse" />
+                      </span>
+                      <div className="absolute z-[130] left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/mismatch-footer:opacity-100 group-hover/mismatch-footer:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch-footer:translate-y-0 pointer-events-none border border-amber-500/20">
+                        <div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest pb-1 border-b border-amber-500/10">
+                          <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+                        </div>
+                        This output was rendered for <span className="text-blue-600 dark:text-blue-400">'{capturedDocTitle}'</span>.
+                        <br />
+                        The active document is now <span className="text-emerald-600 dark:text-emerald-400">'{currentDocTitle}'</span>.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
           
-          <div className="flex-1 flex justify-center">
-            {item.type === 'table' && tableData && (
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 font-mono tracking-tight">
-                {filterText ? `${filteredDataCount} of ` : ''}{tableData.length} rows x {Object.keys(tableData[0] || {}).length} columns
-              </span>
-            )}
-          </div>
+          <div className="flex justify-center" />
 
           <div className="flex-1" />
         </div>
       )}
     </div>
   );
-};
+});
+
+StructuredOutputViewer.displayName = 'StructuredOutputViewer';
