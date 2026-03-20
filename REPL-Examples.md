@@ -310,19 +310,18 @@ GetElements("Doors").WhereParam("Mark", "A1").Table().Select();
 Println($"Total pipe length: {GetElements("Pipes").SumParam("Length", "m").Round(2)} m");
 ```
 
-### 20. Live Watchdog — Real-Time Selection Dashboard
-Deploy a background monitor that continuously reports on your current selection as you work.
+### 20. Select All Instances of Same Type
+Select one element, run this to find and select every other instance of that same type in the model.
 ```csharp
-Watchdog(() => {
-    if (Selection.Count == 0) return;
-    var categories = Selection
-        .GroupBy(e => e.Category?.Name ?? "Unknown")
-        .Select(g => $"{g.Key}: {g.Count()}");
-    var totalArea = Selection.Sum(e => e.GetNum("Area", "m2"));
-    var summary = string.Join(" | ", categories);
-    var areaStr = totalArea > 0 ? $" | Area: {totalArea:F2} m²" : "";
-    WatchdogReport($"{Selection.Count} selected → {summary}{areaStr}", "info");
-}, intervalSeconds: 2);
+var typeIds = Selection.Select(e => e.GetTypeId()).Distinct().ToList();
+var allSame = GetElements().Where(e => typeIds.Contains(e.GetTypeId())).ToList();
+Table(allSame.Select(e => new {
+    e.Id, e.Name,
+    Category = e.Category?.Name,
+    Level = e.GetStr("Level")
+}));
+allSame.Select();
+Println($"✓ Found and selected {allSame.Count} elements of the same type(s).");
 ```
 
 ---
