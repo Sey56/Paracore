@@ -607,5 +607,22 @@ namespace CoreScript.Engine.Globals
             }
             return list;
         }
+
+        public static IEnumerable<Element> Isolate(this IEnumerable<Element> elements)
+        {
+            var list = elements.ToList();
+            if (list.Any())
+            {
+                var doc = list.First().Document;
+                var view = doc.ActiveView;
+                if (view != null && view.CanEnableTemporaryViewPropertiesMode())
+                {
+                    Tx.Transact(doc, "Isolate Elements", () => {
+                        view.IsolateElementsTemporary(list.Select(e => e.Id).ToList());
+                    });
+                }
+            }
+            return list;
+        }
     }
 }
