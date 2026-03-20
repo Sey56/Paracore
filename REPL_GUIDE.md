@@ -60,7 +60,7 @@ Paracore extends every Revit `Element` with smart, **StorageType-aware** paramet
 > Revit elements like `Wall`, `Room`, `Floor` etc. do NOT have direct C# properties like `.Width`, `.Length`, or `.Level`. You **must** use these accessors to read most parameter values.
 
 ### The Rule of Thumb (Native Properties vs Extension Methods)
-Because Revit API is quirky, some common attributes are hardcoded as **native C# properties** on specific element classes, while the vast majority exist purely as dynamic `Parameters`.
+In the Revit API, some common attributes are exposed as native C# properties on specific element classes, while the vast majority of data exists as dynamic Parameters.
 1. **If IntelliSense suggests it natively**: Properties like `.Name`, `.Area`, `.Volume`, and `.Location` are often hardcoded natively on classes like `Room` or `Wall`. You can use them directly!
     - Example: `room.Area` or `wall.Volume`
 2. **If it's a standard Revit property without IntelliSense**: Things like `Level`, `Base Constraint`, `Mark`, or `Comments` live exclusively in the `Parameters` dictionary. You **must** use Paracore's extension methods to read them.
@@ -265,16 +265,10 @@ When you create a `Table`, append a unit to the property name to enable unit-awa
 ## 🛠️ Model Modification
 
 ### Transactions
-To modify the model, you **must** wrap your code in a `Transact` block:
+To modify the model, you **must** wrap your code in a `Transact` block. If you need to access the active document inside the block, simply use the global `Doc` object.
 ```csharp
 Transact("Standardize Names", () => {
     foreach(var r in GetElements<Room>()) r.Name = r.Name.ToUpper();
-});
-```
-The `Transact` block also supports a `Document` parameter:
-```csharp
-Transact("My Edit", (doc) => {
-    // 'doc' is available here
 });
 ```
 
@@ -333,5 +327,4 @@ Selection.Count    // Prints the number of selected elements
 - **Smart Indentation**: Auto-indent on Enter + brace awareness.
 - **Tab Support**: Press Tab to insert 4 spaces.
 - **Execution**: Press **`Ctrl + Enter`** to run.
-- **Labels**: Start your code with `/// My Label` to name your execution turn in the console logs.
 - **Persistence**: Your code stays in the editor after running.
