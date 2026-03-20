@@ -442,15 +442,18 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Returns all placed model element instances with a valid category.
-        /// <para>Use this for project-wide census, auditing, or filtering across all categories.</para>
+        /// Returns all physical model element instances (Walls, Doors, Rooms, Floors, etc.).
+        /// <para>Excludes element types, annotations, materials, and internal Revit objects.</para>
         /// <para>Example: <c>GetElements().Where(e => e.Category.Name == "Walls").Count()</c></para>
         /// </summary>
         public static List<Element> GetElements()
         {
             return new FilteredElementCollector(Doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null)
+                .Where(e => e.Category != null
+                    && e.Category.CategoryType == CategoryType.Model
+                    && !(e is Material)
+                    && !(e is AppearanceAssetElement))
                 .ToList();
         }
 
