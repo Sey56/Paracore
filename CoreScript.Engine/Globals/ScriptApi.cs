@@ -468,8 +468,7 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Discovery helper for the REPL. Targets categories or classes automatically.
-        /// <para>If name ends with 'Type' or 'Types', returns Types. Otherwise returns instances.</para>
-        /// <para>Example: <c>GetElements("Doors")</c> or <c>GetElements("FurnitureTypes")</c></para>
+        /// <para>Example: <c>GetElements("Doors")</c> or <c>GetElements("WallType")</c></para>
         /// </summary>
         public static List<Element> GetElements(string categoryOrClass)
         {
@@ -479,8 +478,7 @@ namespace CoreScript.Engine.Globals
             if (results.Count > 0)
             {
                 // TRANSPARENCY: Inform the user if we had to fall back to Types (e.g. for Grid Heads)
-                var isTypeRequested = categoryOrClass.EndsWith("Type", StringComparison.OrdinalIgnoreCase) || 
-                                       categoryOrClass.EndsWith("Types", StringComparison.OrdinalIgnoreCase);
+                var isTypeRequested = categoryOrClass.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
                 
                 // If the user didn't ask for Types, but we only found ElementTypes, it's a fallback.
                 if (!isTypeRequested && results.All(e => e is ElementType))
@@ -493,7 +491,7 @@ namespace CoreScript.Engine.Globals
                 // --- SUGGESTION ENGINE (User-Facing only) ---
                 var cleanName = categoryOrClass.Trim();
                 var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
-                var allValidTerms = GetMagicNames(); // Already includes Cats + Families + Common Classes
+                var allValidTerms = GetMagicNames();
 
                 var matches = allValidTerms.Where(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase) ||
                                                        t.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||

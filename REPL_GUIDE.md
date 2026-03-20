@@ -43,7 +43,6 @@ Paracore's "Magic" engine resolves strings into Revit elements, categories, or f
 | Command | Return Type | Description |
 | :--- | :--- | :--- |
 | `GetElements("Doors")` | `List<Element>` | Gets instances of a Category or Family. |
-| `GetElements("DoorTypes")` | `List<Element>` | Gets types/symbols (append `Types` suffix). |
 | `GetElements<T>()` | `List<T>` | Gets all elements of a C# class (e.g. `Wall`, `Room`). |
 | `GetElements<FamilyInstance>("Doors")` | `List<FamilyInstance>` | Gets loadable component instances filtered by category. |
 | `GetElements<FamilySymbol>("Doors")` | `List<FamilySymbol>` | Gets loadable component types filtered by category. |

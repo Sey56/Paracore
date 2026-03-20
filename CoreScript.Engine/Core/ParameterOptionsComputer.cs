@@ -20,7 +20,8 @@ namespace CoreScript.Engine.Core
             if (string.IsNullOrEmpty(revitElementType)) return new List<string>();
 
             var cleanName = revitElementType.Trim();
-            var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
+            var singularName = cleanName.EndsWith("ies", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 3) + "y" : 
+                               (cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) && !cleanName.EndsWith("ss", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName);
 
             if (_revitTypes == null)
             {
@@ -145,7 +146,9 @@ namespace CoreScript.Engine.Core
                 }
 
                 var isTypeRequested = cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
-                var singularName = cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName;
+                                       
+                var singularName = cleanName.EndsWith("ies", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 3) + "y" : 
+                                   (cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) && !cleanName.EndsWith("ss", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName);
 
                 // Enum Discovery — for types like BuiltInParameter, BuiltInCategory, etc.
                 if (_revitTypes == null)
@@ -187,8 +190,10 @@ namespace CoreScript.Engine.Core
                     // Apply Optional Category Filter (e.g. from RevitElements attribute)
                     if (!string.IsNullOrEmpty(categoryFilter))
                     {
+                        var filterSingular = categoryFilter.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? categoryFilter.Substring(0, categoryFilter.Length - 1) : categoryFilter;
                         elements = elements.Where(e =>
                             e.Category?.Name.Equals(categoryFilter, StringComparison.OrdinalIgnoreCase) == true ||
+                            e.Category?.Name.Replace(" ", "").EndsWith(filterSingular, StringComparison.OrdinalIgnoreCase) == true ||
                             e.Category?.BuiltInCategory.ToString().Contains(categoryFilter) == true);
                     }
 
@@ -197,19 +202,16 @@ namespace CoreScript.Engine.Core
 
                 // --- ROBUST CATEGORY DISCOVERY (V4.2.0) ---
                 var baseCategoryName = cleanName;
-                if (isTypeRequested)
-                {
-                    if (cleanName.EndsWith("Types", StringComparison.OrdinalIgnoreCase))
-                        baseCategoryName = cleanName.Substring(0, cleanName.Length - 5);
-                    else if (cleanName.EndsWith("Type", StringComparison.OrdinalIgnoreCase))
-                        baseCategoryName = cleanName.Substring(0, cleanName.Length - 4);
-                }
 
                 Category? matchedCategory = null;
                 foreach (Category cat in _doc.Settings.Categories)
                 {
+                    var catSingular = cat.Name.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cat.Name.Substring(0, cat.Name.Length - 1) : cat.Name;
+
                     if (cat.Name.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) || 
-                        cat.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase))
+                        cat.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
+                        catSingular.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) ||
+                        catSingular.Equals(singularName, StringComparison.OrdinalIgnoreCase))
                     {
                         matchedCategory = cat;
                         break;
@@ -224,8 +226,11 @@ namespace CoreScript.Engine.Core
                     var builtin = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>()
                         .FirstOrDefault(c =>
                             c.ToString().Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) ||
+                            c.ToString().Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
                             c.ToString().Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase) ||
-                            c.ToString().Equals($"OST_{baseCategoryName}s", StringComparison.OrdinalIgnoreCase));
+                            c.ToString().Equals($"OST_{singularName}", StringComparison.OrdinalIgnoreCase) ||
+                            c.ToString().Equals($"OST_{baseCategoryName}s", StringComparison.OrdinalIgnoreCase) ||
+                            c.ToString().Equals($"OST_{singularName}s", StringComparison.OrdinalIgnoreCase));
 
                     if (builtin != default) categoryId = new ElementId(builtin);
                 }
