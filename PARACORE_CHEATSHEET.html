@@ -310,7 +310,7 @@
 
             <!-- Diagnostics -->
             <section>
-                <h2>🛠️ Diagnostics & Watchdogs</h2>
+                <h2>🛠️ Diagnostics</h2>
                 <table>
                     <thead>
                         <tr>
@@ -327,7 +327,6 @@
                         <tr><td><code>ListProperties(e)</code></td><td class="desc">Key API metadata table.</td><td class="example"><code>ListProperties(e)</code></td></tr>
                         <tr><td><code>ListGeometry(e)</code></td><td class="desc">Volume/Area/Solid table.</td><td class="example"><code>ListGeometry(e)</code></td></tr>
                         <tr><td><code>Transact("n", fn)</code></td><td class="desc">Wrap edits in transaction.</td><td class="example"><code>Transact("Up", () => { ... })</code></td></tr>
-                        <tr><td><code>Watchdog(fn, s)</code></td><td class="desc">Register background monitor.</td><td class="example"><code>Watchdog(() => { ... })</code></td></tr>
                         <tr><td><code>SetExecutionTimeout(n)</code></td><td class="desc">Extend script time limits.</td><td class="example"><code>SetExecutionTimeout(60)</code></td></tr>
                     </tbody>
                 </table>
@@ -356,9 +355,7 @@
             </section>
         </div>
 
-        <footer>
-            PRO TIP: Use <code>/// My Label</code> as the first line of your script to name your output tab!
-        </footer>
+        <footer style="height: 20px; opacity: 0.5;"></footer>
     </div>
 </body>
 </html>

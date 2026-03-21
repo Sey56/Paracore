@@ -92,7 +92,7 @@ Handle Revit's floating-point noise and unit math.
 
 ---
 
-## 🛠️ Diagnostics & Watchdogs
+## 🛠️ Diagnostics
 Tools for BIM managers and debuggers.
 
 | Function | Description | Example |
@@ -104,14 +104,7 @@ Tools for BIM managers and debuggers.
 | `ListProperties(e)` | Key API metadata table. | `ListProperties(e)` |
 | `ListGeometry(e)` | Volume/Area/Solid table. | `ListGeometry(e)` |
 | `Transact("name", fn)`| Wrap edits in a transaction. | `Transact("Up", () => ...)` |
-| `Watchdog(fn, s)` | Register background monitor. | `Watchdog(() => ...)` |
 | `SetExecutionTimeout(n)`| Extend script time limits. | `SetExecutionTimeout(60)` |
-
----
-
-🚀 **Pro Tip**: Use `/// Label` at the top of your script to name your output tab in the console!
-
----
 
 ## 📊 Structured Output Reference
 Understanding when to use `.Table()` vs. Auto-rendering functions.

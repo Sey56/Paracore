@@ -272,20 +272,11 @@ Transact("Standardize Names", () => {
 });
 ```
 
-### Background Watchdogs
-Register a task that runs periodically when Revit is idle:
-```csharp
-Watchdog(() => {
-    var shortWalls = GetElements<Wall>().Where(w => w.GetNum("Length", "mm") < 1000);
-    if(shortWalls.Any()) WatchdogReport($"Found {shortWalls.Count()} short walls!", "warning", shortWalls);
-}, intervalSeconds: 10);
-```
-
-`WatchdogReport(summary, status, data)` sends a status report:
-- `status`: `"success"`, `"warning"`, or `"error"`
-- `data`: optional list of elements or objects
-
 ### Execution Timeout
+Increase script timeout for long-running operations (default is 10s):
+```csharp
+SetExecutionTimeout(60); // 60 seconds
+```
 Increase script timeout for long-running operations (default is 10s):
 ```csharp
 SetExecutionTimeout(60); // 60 seconds
