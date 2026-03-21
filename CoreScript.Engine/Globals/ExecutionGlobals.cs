@@ -173,32 +173,10 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Provides a registry of high-priority parameters for common Revit categories.
-        /// Captures the "Essence" of each category for the Smart Table.
-        /// </summary>
-        private static readonly Dictionary<string, string[]> SmartSchemaRegistry = new Dictionary<string, string[]>
-        {
-            ["Rooms"] = new[] { "Number", "Level", "Area", "Perimeter", "Unbounded Height", "Volume", "Comments" },
-            ["Walls"] = new[] { "Mark", "Base Constraint", "Top Constraint", "Length", "Width", "Area", "Volume", "Comments" },
-            ["Doors"] = new[] { "Mark", "Level", "Type Name", "Comments" },
-            ["Windows"] = new[] { "Mark", "Level", "Type Name", "Comments" },
-            ["Floors"] = new[] { "Level", "Thickness", "Area", "Volume", "Comments" },
-            ["Roofs"] = new[] { "Base Level", "Thickness", "Area", "Volume", "Comments" },
-            ["Ceilings"] = new[] { "Level", "Height Offset From Level", "Area", "Volume" },
-            ["Sheets"] = new[] { "Sheet Number", "Sheet Name", "Designed By", "Approved By", "Sheet Issue Date", "Drawn By", "Checked By", "Current Revision" },
-            ["Views"] = new[] { "View Name", "View Classification", "Detail Level", "Scale Value 1:", "Title on Sheet" },
-            ["Levels"] = new[] { "Elevation" },
-            ["Pipes"] = new[] { "System Type", "Size", "Length", "Comments" },
-            ["Ducts"] = new[] { "System Type", "Size", "Length", "Comments" },
-            ["Structural Columns"] = new[] { "Mark", "Base Level", "Top Level", "Comments" },
-            ["Structural Framing"] = new[] { "Mark", "Reference Level", "Length", "Comments" },
-        };
-
-        /// <summary>
         /// Materializes lazy IEnumerables and converts anonymous types (from Roslyn scripting)
         /// to dictionaries so System.Text.Json can serialize them reliably.
         /// If expandElements is true, it also detects homogeneous Revit element collections
-        /// and automatically extracts relevant parameters as columns.
+        /// and automatically extracts ALL parameters as columns.
         /// </summary>
         private static object MaterializeForSerialization(object data, bool expandElements = false)
         {
@@ -226,7 +204,6 @@ namespace CoreScript.Engine.Globals
                     if (elements.Count > 0 && elements.Count == items.Count)
                     {
                         var first = elements[0];
-                        string catName = first.Category?.Name ?? "General";
                         var firstCatId = first.Category?.Id?.Value;
                         
                         // Check homogeneity on a small sample for performance
@@ -234,28 +211,16 @@ namespace CoreScript.Engine.Globals
 
                         if (isHomogeneous)
                         {
-                            // A. GET SCHEMA: Try registry first, then dynamic discovery
-                            List<string> schema;
-                            if (SmartSchemaRegistry.TryGetValue(catName, out var registered))
-                            {
-                                schema = registered.ToList();
-                            }
-                            else
-                            {
-                                // Dynamic discovery: Numeric parameters + key context
-                                var keyParams = new[] { "Mark", "Level", "Base Constraint", "Reference Level", "Comments" };
-                                var discovered = first.Parameters.Cast<Parameter>()
-                                    .Where(p => p.HasValue && (p.StorageType == StorageType.Double || p.StorageType == StorageType.Integer))
-                                    .Select(p => p.Definition.Name)
-                                    .Take(10);
-                                
-                                schema = keyParams.Where(k => first.LookupParameter(k) != null)
-                                    .Concat(discovered)
-                                    .Distinct()
-                                    .ToList();
-                            }
+                            // DYNAMIC DISCOVERY: Extract ALL parameter names from the first element.
+                            // Since all elements share the same category, they share the same parameter set.
+                            var schema = first.Parameters.Cast<Parameter>()
+                                .Where(p => p.HasValue)
+                                .Select(p => p.Definition.Name)
+                                .Distinct()
+                                .OrderBy(n => n)
+                                .ToList();
 
-                            // B. CAPTURE DATA
+                            // CAPTURE DATA: Id + Name + every parameter value
                             var resultList = new List<object>();
                             foreach (var el in elements)
                             {
@@ -265,29 +230,13 @@ namespace CoreScript.Engine.Globals
                                     ["Name"] = el.Name,
                                 };
 
-                                var elType = el.GetType();
                                 foreach (var key in schema)
                                 {
                                     try
                                     {
-                                        // 1. Preferred: Formatted Revit Value (respects project units/names)
-                                        var val = el.GetVal(key);
-                                        if (val != "-") { row[key] = val; continue; }
-
-                                        // 2. Reflection: Capture C# properties not in Parameters
-                                        var prop = elType.GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                                        if (prop != null)
-                                        {
-                                            var pVal = prop.GetValue(el);
-                                            if (pVal != null)
-                                            {
-                                                if (pVal is Element revitEl) row[key] = revitEl.Name;
-                                                else row[key] = el.GetStr(key); // Use smart GetStr for automatic unit formatting
-                                                continue;
-                                            }
-                                        }
+                                        row[key] = el.GetVal(key);
                                     }
-                                    catch { }
+                                    catch { row[key] = "-"; }
                                 }
                                 resultList.Add(row);
                             }
