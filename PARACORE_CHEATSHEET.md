@@ -110,3 +110,20 @@ Tools for BIM managers and debuggers.
 ---
 
 🚀 **Pro Tip**: Use `/// Label` at the top of your script to name your output tab in the console!
+
+---
+
+## 📊 Structured Output Reference
+Understanding when to use `.Table()` vs. Auto-rendering functions.
+
+### Manual Tables (Chain `.Table()`)
+*   **`elements.Table()`**: Dynamic discovery of all parameters.
+*   **`data.Table()`**: Renders any object list or projection.
+
+### Auto-Rendering (No `.Table()` needed)
+*   **`Peek(el)`**: Forensics (API vs UI values).
+*   **`ListParams(el)`**: Every parameter table.
+*   **`ListProperties(el)`**: Non-parameter metadata.
+*   **`ListGeometry(el)`**: Solid/Volume/Area breakdown.
+*   **`GetMagicNames()`**: All targetable names list.
+*   **`GetCategories()`**: Project categories list.

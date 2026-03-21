@@ -331,6 +331,26 @@
                         <tr><td><code>SetExecutionTimeout(n)</code></td><td class="desc">Extend script time limits.</td><td class="example"><code>SetExecutionTimeout(60)</code></td></tr>
                     </tbody>
                 </table>
+            <!-- Structured Output -->
+            <section>
+                <h2>📊 Structured Output & Auto-Rendering</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Method</th>
+                            <th style="width: 30%;">Rendering Mode</th>
+                            <th style="width: 45%;">Best For</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>.Table()</code></td><td class="desc"><b>Manual</b> (Chain)</td><td class="example">Smart collections & custom projections.</td></tr>
+                        <tr><td><code>Peek(el)</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Forensic API vs UI value audit.</td></tr>
+                        <tr><td><code>ListParams(el)</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Quick exhaustive parameter list.</td></tr>
+                        <tr><td><code>ListProperties(el)</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Internal metadata (Level, Workset, etc).</td></tr>
+                        <tr><td><code>ListGeometry(el)</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Solid/Volume/Area breakdown.</td></tr>
+                        <tr><td><code>GetMagicNames()</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Discovering targetable element terms.</td></tr>
+                    </tbody>
+                </table>
             </section>
         </div>
 

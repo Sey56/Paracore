@@ -328,3 +328,29 @@ Selection.Count    // Prints the number of selected elements
 - **Tab Support**: Press Tab to insert 4 spaces.
 - **Execution**: Press **`Ctrl + Enter`** to run.
 - **Persistence**: Your code stays in the editor after running.
+
+---
+
+## 📊 Structured Output & Auto-Rendering Reference
+
+Use this matrix to understand when to manually call `.Table()` and when the engine provides a structured view automatically.
+
+### 1. Manual Collection Tables (Chain `.Table()`)
+Chain these to elements or collections to pipe them into the **Summary** tab.
+*   **`elements.Table()`**: **Smart & Dynamic**. Discovers and renders ALL parameters for homogeneous element collections.
+*   **`data.Table()`**: Renders any list of objects, anonymous types, or dictionaries.
+
+### 2. Auto-Rendering Diagnostics (No `.Table()` needed)
+These methods directly output a table to the Summary tab for fast discovery:
+*   **`Peek(el)`**: **Forensic Audit**. Shows `Parameter | Storage | GetStr | GetNum | UI Value` side-by-side.
+*   **`ListParams(el)`**: Clean, sorted table of every non-empty parameter and its formatted value.
+*   **`ListProperties(el)`**: Tables of internal Revit properties (Level, Workset, DesignOption, Location).
+*   **`ListGeometry(el)`**: Summary table of Solid counts, Volume, and Surface Area.
+*   **`ListBIPs(el)`**: Lists all valid `BuiltInParameter` identifiers for the specific element.
+
+### 3. Metadata Discovery
+*   **`GetMagicNames()`**: Master table of targetable Category, Family, and Class names.
+*   **`GetCategories()`**: Full table of all Categories available in the project.
+
+---
+🚀 **Mastery Tip**: If you need to manipulate or filter the data *before* rendering, use the extension equivalent (e.g., `el.AllParams().Table()`) instead of the auto-rendering helper.
