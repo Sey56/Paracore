@@ -54,7 +54,7 @@ Chain these onto `IEnumerable<Element>`.
 | :--- | :--- | :--- |
 | `.WhereParam(n, v)` | Fast string filter. | `.WhereParam("Mark", "A")` |
 | `.SumParam(n, u)` | Fast unit-aware sum. | `.SumParam("Area", "m2")` |
-| `.Table()` | Renders as a searchable grid. | `GetElements().Table()` |
+| `.Table()` | Smart, exhaustive parameter grid. | `GetElements("Walls").Table()` |
 | `.Select()` | Selects elements in Revit UI.| `walls.Select()` |
 | `.Zoom()` | Zooms to elements in Revit. | `walls.Zoom()` |
 | `.Isolate()` | Isolates in the active view. | `walls.Isolate()` |
