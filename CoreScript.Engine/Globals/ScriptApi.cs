@@ -182,6 +182,13 @@ namespace CoreScript.Engine.Globals
         public static void Delete(object input) => Globals.Delete(input);
 
         /// <summary>
+        /// The ULTIMATE diagnostic tool for REPL. 
+        /// Lists every parameter and shows exactly how the engine resolves it:
+        /// Name | Storage | GetStr() | GetNum() | GetVal() (UI Formatting)
+        /// </summary>
+        public static void Peek(object input) => Globals.Peek(input);
+
+        /// <summary>
         /// Discovery helper for the REPL. Lists all BuiltInParameter identifiers for an element.
         /// usage: ListBIPs(myWall)
         /// </summary>
