@@ -121,9 +121,11 @@ Understanding when to use `.Table()` vs. Auto-rendering functions.
 *   **`data.Table()`**: Renders any object list or projection.
 
 ### Auto-Rendering (No `.Table()` needed)
-*   **`Peek(el)`**: Forensics (API vs UI values).
-*   **`ListParams(el)`**: Every parameter table.
-*   **`ListProperties(el)`**: Non-parameter metadata.
+*   **`Peek(el)`**: Forensic comparison (API vs UI).
+*   **`ListParams(el)`**: Full instance parameter table.
+*   **`ListProperties(el)`**: Non-parameter metadata (Level, Workset).
 *   **`ListGeometry(el)`**: Solid/Volume/Area breakdown.
-*   **`GetMagicNames()`**: All targetable names list.
+
+### Returns List (No Table)
+*   **`GetMagicNames()`**: All targetable hydration names.
 *   **`GetCategories()`**: Project categories list.
