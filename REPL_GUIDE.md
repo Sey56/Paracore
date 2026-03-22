@@ -43,6 +43,7 @@ Paracore's "Magic" engine resolves strings into Revit elements, categories, or f
 | Command | Return Type | Description |
 | :--- | :--- | :--- |
 | `GetElements("Doors")` | `List<Element>` | Gets instances of a Category or Family. |
+| `GetElements<Element>()` | `List<Element>` | **Universal Accessor**: Gets EVERY element in the model. |
 | `GetElements<T>()` | `List<T>` | Gets all elements of a C# class (e.g. `Wall`, `Room`). |
 | `GetElements<FamilyInstance>("Doors")` | `List<FamilyInstance>` | Gets loadable component instances filtered by category. |
 | `GetElements<FamilySymbol>("Doors")` | `List<FamilySymbol>` | Gets loadable component types filtered by category. |
@@ -50,6 +51,9 @@ Paracore's "Magic" engine resolves strings into Revit elements, categories, or f
 | `GetElement<T>("name")` | `T?` | Finds one element of type `T` by name or identity. |
 | `GetMagicNames()` | `List<string>` | Lists all targetable category, family, and class names. |
 | `GetCategories()` | `List<string>` | Lists all Revit categories in the document. |
+
+> [!TIP]
+> **Universal Accessor**: Use `GetElements<Element>()` to target everything in the model at once. Since `Element` is the base class for all Revit objects, this is the most powerful way to perform bulk audits or cross-category filtering.
 
 ---
 

@@ -52,17 +52,18 @@ if (dupes.Any()) {
 }
 ```
 
-### 4. Find "Lost" Walls Far From Origin
-Bad CAD imports often scatter elements thousands of meters from the origin. This checks walls.
+### 4. Universal Element Audit (Find "Lost" Elements)
+Find elements more than 500m from the origin (likely misplaced or CAD import artifacts). This scans **every element** in the model.
 ```csharp
 var limit = 500.InputUnit("m");
-var lost = GetElements<Wall>().Where(w => {
-    var crv = (w.Location as LocationCurve)?.Curve;
-    var pt = crv?.GetEndPoint(0);
-    return pt != null && (Math.Abs(pt.X) > limit || Math.Abs(pt.Y) > limit);
+var lost = GetElements<Element>().Where(e => {
+    var bb = e.get_BoundingBox(null);
+    if (bb == null) return false;
+    var center = (bb.Min + bb.Max) / 2.0;
+    return Math.Abs(center.X) > limit || Math.Abs(center.Y) > limit;
 });
-Println($"⚠ Found {lost.Count()} walls more than 500m from origin.");
-Table(lost.Select(w => new { w.Id, w.Name, Length_m = w.GetNum("Length", "m") }));
+Println($"⚠ Found {lost.Count()} elements more than 500m from origin.");
+Table(lost.Select(e => new { e.Id, e.Name, Category = e.Category?.Name }));
 ```
 
 ### 5. Ghost Element Detector (Zero Volume/Area)

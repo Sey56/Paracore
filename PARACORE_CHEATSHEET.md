@@ -23,6 +23,7 @@ Methods to "find" things in your model.
 
 | Function | Description | Example |
 | :--- | :--- | :--- |
+| `GetElements<Element>()` | Gets ALL elements in the model. | `GetElements<Element>()` |
 | `GetElements<T>()` | Gets all elements of a class. | `GetElements<Wall>()` |
 | `GetElements("Name")` | Gets by Category/Family name. | `GetElements("Doors")` |
 | `GetElement("id/Name")` | Gets a single element. | `GetElement("W1")` |
