@@ -69,10 +69,11 @@ Render rich visuals in the **Summary** tab.
 
 | Method / Global | Description | Example |
 | :--- | :--- | :--- |
-| `.BarChart() / .BarGraph()` | Fluent Bar Chart/Graph. | `data.BarGraph()` |
-| `.PieChart() / .PieGraph()` | Fluent Pie Chart/Graph. | `data.PieGraph()` |
-| `.LineChart() / .LineGraph()`| Fluent Line Chart/Graph. | `data.LineGraph()` |
-| `Table(data)` | Global Table (any data). | `Table(myList)` |
+| `.BarChart() / BarChart()` | Fluent Bar Chart (Extension or Global). | `data.BarChart()` |
+| `.PieChart() / PieChart()` | Fluent Pie Chart (Extension or Global). | `PieChart(data)` |
+| `.LineChart() / LineChart()`| Fluent Line Chart (Extension or Global). | `data.LineChart()` |
+| `.Table() / Table()` | Universal Table (any data). | `elements.Table()` |
+| `.Delete() / Delete()` | Safe Delete (Auto-Transaction). | `Delete(trash)` |
 
 ---
 
