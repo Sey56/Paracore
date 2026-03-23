@@ -793,11 +793,11 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
               {isReady && dimensions.width > 0 && dimensions.height > 0 && (
                 <ResponsiveContainer key={`${item.type}-${activeAnalyticsSubTabIndex}`} width="99%" height="99%" debounce={50}>
                   {item.type === 'chart-bar' ? (
-                    <BarChart data={parsedData} margin={{ top: 20, right: 30, left: 20, bottom: 35 }}>
+                    <BarChart data={parsedData} margin={{ top: 20, right: 30, left: 30, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
-                      <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -25, fill: 'currentColor', fontSize: 11, opacity: 0.5 }} />
-                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: -10, fill: 'currentColor', fontSize: 11, opacity: 0.5 }} />
-                      <ChartTooltip content={<CustomChartTooltip />} />
+                      <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -15, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
+                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: 5, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
+                      <ChartTooltip content={<CustomChartTooltip />} cursor={false} />
                       <Bar dataKey={chartKeys.yAxisKey} radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard} fill="#3b82f6">
                         {parsedData.map((_: unknown, index: number) => (
                           <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />
@@ -822,10 +822,10 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
                       <Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} />
                     </PieChart>
                   ) : (
-                    <LineChart data={parsedData} margin={{ top: 20, right: 30, left: 20, bottom: 35 }}>
+                    <LineChart data={parsedData} margin={{ top: 20, right: 30, left: 30, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                      <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -25, fill: 'currentColor', fontSize: 11, opacity: 0.5 }} />
-                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: -10, fill: 'currentColor', fontSize: 11, opacity: 0.5 }} />
+                      <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -15, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
+                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: 5, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
                       <ChartTooltip content={<CustomChartTooltip />} />
                       <Line type="monotone" dataKey={chartKeys.yAxisKey} stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} />
                     </LineChart>
