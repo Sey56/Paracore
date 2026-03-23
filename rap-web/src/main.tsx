@@ -3,7 +3,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AppProvider } from './context/AppProvider';
 import { ThemeProvider } from './context/ThemeProvider';
+import { initTelemetry } from './utils/telemetry';
 import './styles/tailwind.global.css';
+
+// Initialize anonymous telemetry tracking if user is opted-in
+initTelemetry();
 
 // ── Global Tooltip Hijacker ──
 // Converts native `title` attributes to `data-tooltip` so the CSS custom

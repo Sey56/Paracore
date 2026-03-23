@@ -3,6 +3,7 @@ import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Script, ScriptParameter } from '@/types/scriptModel';
 import { ExecutionResult } from '@/types/common';
+import { trackEvent } from '@/utils/telemetry';
 
 export const useExecutionRunner = (
   threadId: string | null,
@@ -27,6 +28,10 @@ export const useExecutionRunner = (
     updateScriptLastRunTime(script.id);
     setRunningScriptPath(script.id);
     
+    // TELEMETRY: Track script or REPL execution
+    const eventName = script.id === 'repl' || (script.name && script.name.toLowerCase().includes('repl')) ? 'repl_executed' : 'script_executed';
+    trackEvent(eventName, { has_parameters: parameters.length > 0 });
+
     showNotification(`Running script: ${script.name}...`, "info");
 
     try {

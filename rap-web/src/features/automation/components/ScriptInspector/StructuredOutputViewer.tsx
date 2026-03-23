@@ -11,6 +11,7 @@ import { useUI } from '@/hooks/useUI';
 import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
 import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronLeft, faChevronRight, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { trackEvent } from '@/utils/telemetry';
 
 import { StructuredOutput, Script } from '@/types/scriptModel';
 import { ExecutionResult } from '@/types/common';
@@ -543,7 +544,9 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
             return obj;
           });
         };
-        const importedData = parseCSV(text); if (importedData.length === 0) return;
+        const importedData = parseCSV(text); 
+        if (importedData.length === 0) return;
+        trackEvent('mass_edit_csv_uploaded', { row_count: importedData.length });
         const currentData = JSON.parse(item.data);
         const tableData = Array.isArray(currentData) ? currentData : [currentData];
         if (tableData.length === 0) return;

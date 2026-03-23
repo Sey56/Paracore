@@ -27,6 +27,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "axios": "^1.11.0",
     "nanoid": "^5.1.5",
+    "posthog-js": "^1.363.1",
     "primereact": "^10.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

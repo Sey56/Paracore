@@ -13,6 +13,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { REPLCodeEditor } from './REPLCodeEditor';
 import { save, open } from '@tauri-apps/api/dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/api/fs';
+import { trackEvent } from '@/utils/telemetry';
 
 // V11: Decoupled REPL Laboratory with Deep/Selective Clear
 interface ConsoleTabContentProps {
@@ -134,6 +135,8 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     
     if (isMultiLine) setMultiCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
     else setSingleCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
+
+    trackEvent('repl_executed', { repl_type: currentReplType });
 
     try {
       const response = await api.post("/api/repl", { code: command, session_id: "global" });

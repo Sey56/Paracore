@@ -9,6 +9,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { ConfirmActionModal } from '@/features/automation/components/ScriptInspector/ConfirmActionModal';
 import { ScriptExecutionContext } from '@/features/automation/store/ScriptExecutionContext';
+import { trackEvent } from '@/utils/telemetry';
 import { useContext } from 'react';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 
@@ -116,6 +117,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
       return;
     }
     await armAllInList(allScripts);
+    trackEvent('sentinel_deployed', { method: 'deploy_all', count: allScripts.length });
   };
 
   return (
@@ -245,6 +247,7 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
                               onClick={() => {
                                 const paramsSnapshot = userEditedScriptParameters[s.id] || s.parameters;
                                 toggleScriptArm(path, paramsSnapshot);
+                                if (!isArmed) trackEvent('sentinel_deployed', { method: 'single' });
                               }}
                               className={`px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all active:scale-95
                                 ${isArmed ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 border border-amber-200 dark:border-amber-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-indigo-600 border border-transparent hover:border-indigo-100'}`}
