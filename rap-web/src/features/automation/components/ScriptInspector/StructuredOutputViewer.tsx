@@ -31,14 +31,14 @@ const getChartColor = (index: number, total: number) => {
   return `hsl(${hue}, 65%, 55%)`;
 };
 
-const CustomChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string, value: string | number }[]; label?: string }) => {
+const CustomChartTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
         <p className="text-slate-500 dark:text-slate-400 font-medium m-0 mb-1">{label}</p>
-        {payload.map((entry, index) => (
+        {payload.map((entry: any, index: number) => (
           <p key={index} className="text-blue-600 dark:text-blue-400 font-bold m-0">
-            {`${entry.name} : ${entry.value}`}
+            {`${entry.dataKey || entry.name || 'value'} : ${entry.value}`}
           </p>
         ))}
       </div>
@@ -47,12 +47,12 @@ const CustomChartTooltip = ({ active, payload, label }: { active?: boolean; payl
   return null;
 };
 
-const CustomPieTooltip = ({ active, payload }: { active?: boolean; payload?: { name: string, value: string | number }[] }) => {
+const CustomPieTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-slate-900 shadow-2xl rounded-xl p-2 px-3 text-xs border-none">
-        <p className="text-slate-700 dark:white font-bold m-0 mb-1">{payload[0].name}</p>
-        <p className="text-blue-600 dark:text-blue-400 m-0">{`value : ${payload[0].value}`}</p>
+        <p className="text-slate-700 dark:text-white font-bold m-0 mb-1">{payload[0].name}</p>
+        <p className="text-blue-600 dark:text-blue-400 m-0">{`${payload[0].dataKey || 'value'} : ${payload[0].value}`}</p>
       </div>
     );
   }
@@ -342,7 +342,6 @@ const Navigator: React.FC<{
       <button 
         onClick={(e) => { e.stopPropagation(); handlePrev(); }}
         className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
-        title="Previous"
       >
         <FontAwesomeIcon icon={faChevronLeft} className="text-[9px]" />
       </button>
@@ -352,7 +351,6 @@ const Navigator: React.FC<{
       <button 
         onClick={(e) => { e.stopPropagation(); handleNext(); }}
         className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"
-        title="Next"
       >
         <FontAwesomeIcon icon={faChevronRight} className="text-[9px]" />
       </button>
@@ -423,6 +421,15 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
     
     return { tableData: parsed, filteredDataCount: count };
   }, [parsedData, item.type, filterText]);
+
+  const chartKeys = useMemo(() => {
+    if (!parsedData || !Array.isArray(parsedData) || parsedData.length === 0) return { xAxisKey: 'name', yAxisKey: 'value' };
+    const firstRow = parsedData[0];
+    const keys = Object.keys(firstRow);
+    const yAxisKey = keys.find(k => typeof firstRow[k] === 'number') || 'value';
+    const xAxisKey = keys.find(k => k !== yAxisKey) || 'name';
+    return { xAxisKey, yAxisKey };
+  }, [parsedData]);
 
   const handlePrev = useCallback(() => {
     if (!executionResult?.structuredOutput) return;
@@ -783,13 +790,12 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
               {isReady && dimensions.width > 0 && dimensions.height > 0 && (
                 <ResponsiveContainer key={`${item.type}-${activeAnalyticsSubTabIndex}`} width="99%" height="99%" debounce={50}>
                   {item.type === 'chart-bar' ? (
-                    <BarChart data={parsedData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                    <BarChart data={parsedData} margin={{ top: 20, right: 30, left: 20, bottom: 35 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
-                      <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
-                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                      <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -25, fill: 'currentColor', fontSize: 11, opacity: 0.5 }} />
+                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: -10, fill: 'currentColor', fontSize: 11, opacity: 0.5 }} />
                       <ChartTooltip content={<CustomChartTooltip />} />
-                      <Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} />
-                      <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard}>
+                      <Bar dataKey={chartKeys.yAxisKey} radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard} fill="#3b82f6">
                         {parsedData.map((_: unknown, index: number) => (
                           <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />
                         ))}
@@ -803,7 +809,8 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
                         cy="50%" 
                         outerRadius="80%" 
                         fill="#8884d8" 
-                        dataKey="value"
+                        dataKey={chartKeys.yAxisKey}
+                        nameKey={chartKeys.xAxisKey}
                         isAnimationActive={!isDashboard}
                       >
                         {parsedData.map((_: unknown, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}
@@ -812,13 +819,12 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
                       <Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} />
                     </PieChart>
                   ) : (
-                    <LineChart data={parsedData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                    <LineChart data={parsedData} margin={{ top: 20, right: 30, left: 20, bottom: 35 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                      <XAxis dataKey="name" fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} />
-                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                      <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -25, fill: 'currentColor', fontSize: 11, opacity: 0.5 }} />
+                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: -10, fill: 'currentColor', fontSize: 11, opacity: 0.5 }} />
                       <ChartTooltip content={<CustomChartTooltip />} />
-                      <Legend iconType="circle" iconSize={10} formatter={renderColorfulLegendText} />
-                      <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} />
+                      <Line type="monotone" dataKey={chartKeys.yAxisKey} stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} />
                     </LineChart>
                   )}
                 </ResponsiveContainer>

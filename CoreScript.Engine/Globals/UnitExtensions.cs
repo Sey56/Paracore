@@ -106,12 +106,6 @@ namespace CoreScript.Engine.Globals
             return value < -tolerance;
         }
 
-        /// <summary> Rounds a double value to the specified number of decimal places. </summary>
-        public static double Round(this double value, int decimals = 2)
-        {
-            return Math.Round(value, decimals);
-        }
-
         /// <summary> 
         /// Rounds the raw internal value to match the precision of a specific human unit.
         /// Example: wallLength.RoundTo("mm") snaps 6.561679... to the exact internal value for 2000.00mm.

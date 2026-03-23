@@ -9,6 +9,19 @@ namespace CoreScript.Engine.Globals
 {
     public static class ElementExtensions
     {
+        /// <summary>
+        /// Discovery helper for REPL: Lists all native C# properties available for the element type via Reflection.
+        /// usage: typeof(Wall).GetProperties()... or simply myWall.GetNativeProperties().Table()
+        /// </summary>
+        public static IEnumerable<object> GetNativeProperties(this Element e)
+        {
+            if (e == null) return Enumerable.Empty<object>();
+            return e.GetType()
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .OrderBy(p => p.Name)
+                .Select(p => new { Name = p.Name, Type = p.PropertyType.Name });
+        }
+
         /// <summary> 
         /// Gets the parameter value as a string. 
         /// Smart: Resolves ElementId names, handles Strings, falls back to C# Properties (Reflection), 
