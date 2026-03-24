@@ -438,12 +438,13 @@ def scaffold_project_full(project_root: str):
         globals_content = (
             "// This file enables IntelliSense for custom globals and implicit imports.\n"
             "global using System;\nglobal using System.Collections.Generic;\nglobal using System.Linq;\nglobal using System.Text.Json;\n"
+            "global using System.Globalization;\n"
             "global using Microsoft.CSharp;\nglobal using Autodesk.Revit.DB;\nglobal using Autodesk.Revit.DB.Architecture;\n"
             "global using Autodesk.Revit.DB.Structure;\nglobal using Autodesk.Revit.DB.Mechanical;\nglobal using Autodesk.Revit.DB.Plumbing;\n"
             "global using Autodesk.Revit.DB.Electrical;\nglobal using Autodesk.Revit.UI;\nglobal using CoreScript.Engine.Globals;\n"
             "global using static CoreScript.Engine.Globals.ScriptApi;\nglobal using static CoreScript.Engine.Globals.WatchdogRegistry;\n"
             "global using SixLabors.ImageSharp;\nglobal using SixLabors.ImageSharp.Processing;\nglobal using SixLabors.ImageSharp.PixelFormats;\n"
-            "global using RestSharp;\nglobal using MiniExcelLibs;\nglobal using MathNet.Numerics;\nglobal using MathNet.Numerics.LinearAlgebra;\n"
+            "global using MiniExcelLibs;\nglobal using MathNet.Numerics;\nglobal using MathNet.Numerics.LinearAlgebra;\n"
             "global using MathNet.Numerics.Statistics;"
         )
         with open(os.path.join(project_root, "Globals.cs"), 'w', encoding='utf-8') as f:

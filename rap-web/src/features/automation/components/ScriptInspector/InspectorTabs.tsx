@@ -61,7 +61,9 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   
   // Track the last processed execution to avoid duplicate processing or processing intermediate states
-  const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
+  // Initialize from persisted timestamp so Clear works even before a new execution in this session
+  const savedTimestamp = localStorage.getItem('paracore_analytics_timestamp');
+  const lastProcessedTimestampRef = useRef<number | undefined>(savedTimestamp ? Number(savedTimestamp) : undefined);
 
   const allTabs: { id: InspectorTab, label: string, icon: import("@fortawesome/fontawesome-svg-core").IconProp, hidden?: boolean }[] = [
     { id: "parameters", label: "Parameters", icon: faSlidersH, hidden: !script },

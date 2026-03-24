@@ -473,6 +473,20 @@ namespace CoreScript.Engine.Globals
                 .ToList();
         }
 
+
+        /// <summary>
+        /// Finds all elements belonging to a specific BuiltInCategory.
+        /// <para>Example: <c>GetElements(BuiltInCategory.OST_Doors)</c></para>
+        /// <para>Works seamlessly with Params hydrated BuiltInCategory properties.</para>
+        /// </summary>
+        public static List<Element> GetElements(BuiltInCategory category)
+        {
+            return new FilteredElementCollector(Doc)
+                .OfCategory(category)
+                .WhereElementIsNotElementType()
+                .ToList();
+        }
+
         /// <summary>
         /// Discovery helper for the REPL. Targets categories or classes automatically.
         /// <para>Example: <c>GetElements("Doors")</c> or <c>GetElements("WallType")</c></para>

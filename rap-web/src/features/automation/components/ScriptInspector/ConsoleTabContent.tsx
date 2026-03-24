@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import type { ExecutionResult } from "@/types/common";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCopy, faTrash, faMagicWandSparkles, faSpinner, faCheck, faTimes, faCode, faExpand, faCompress, faPlay, faSave, faFolderOpen, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faTrash, faMagicWandSparkles, faSpinner, faCheck, faTimes, faCode, faExpand, faCompress, faPlay, faSave, faFolderOpen, faCheckCircle, faFile } from '@fortawesome/free-solid-svg-icons';
 import { useScriptExecution } from '../../index';
 import { useScripts } from '../../index';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
@@ -317,6 +317,12 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     } catch (err: unknown) { showNotification((err as Error).message, "error"); }
   };
 
+  const handleNewSnippet = () => {
+    setMultiLineValue("");
+    setActiveSnippetPath(null);
+    setActiveSnippetName(null);
+  };
+
   const handleLoadSnippet = async () => {
     try {
       const sel = await open({ multiple: false, filters: [{ name: 'C# Script', extensions: ['cs'] }] });
@@ -468,8 +474,9 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
           <div className="flex items-center gap-4">
             {isMultiLine && (
               <>
+                <button onClick={handleNewSnippet} className="text-slate-400 hover:text-green-500 transition-colors flex items-center text-[11px] font-bold"><FontAwesomeIcon icon={faFile} className="mr-1.5 text-[10px]" />New</button>
                 <button onClick={handleLoadSnippet} className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-[11px] font-bold"><FontAwesomeIcon icon={faFolderOpen} className="mr-1.5 text-[10px]" />Load</button>
-                <button onClick={() => handleSaveSnippet(false)} className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-[11px] font-bold"><FontAwesomeIcon icon={faSave} className="mr-1.5 text-[10px]" />Save</button>
+                <button onClick={() => handleSaveSnippet(false)} className={`transition-colors flex items-center text-[11px] font-bold ${activeSnippetPath ? 'text-slate-400 hover:text-blue-500' : 'text-slate-300 dark:text-slate-600 cursor-default'}`} disabled={!activeSnippetPath}><FontAwesomeIcon icon={faSave} className="mr-1.5 text-[10px]" />Save</button>
                 <button onClick={() => handleSaveSnippet(true)} className="text-slate-400 hover:text-blue-500 transition-colors flex items-center text-[11px] font-bold"><FontAwesomeIcon icon={faSave} className="mr-1.5 text-[10px] opacity-50" />As...</button>
               </>
             )}

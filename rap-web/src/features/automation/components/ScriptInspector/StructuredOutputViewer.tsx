@@ -499,24 +499,38 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
   const handleCopy = useCallback(() => {
     try {
       const parsed = JSON.parse(item.data);
-      const data = Array.isArray(parsed) ? parsed : [parsed];
+      let data = Array.isArray(parsed) ? parsed : [parsed];
       if (data.length === 0) return;
+      
+      if (filterText) {
+        const lowerFilter = filterText.toLowerCase();
+        data = data.filter((row: Record<string, unknown>) => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(lowerFilter)));
+      }
+      if (data.length === 0) { showNotification('No data matches the current filter.', 'warning'); return; }
+
       const textToCopy = [Object.keys(data[0]).join('\t'), ...data.map((row: Record<string, unknown>) => Object.values(row).map(v => String(v ?? '')).join('\t'))].join('\n');
       navigator.clipboard.writeText(textToCopy);
       showNotification('Table data copied to clipboard.', 'success');
     } catch { showNotification('Failed to copy table data.', 'error'); }
-  }, [item.data, showNotification]);
+  }, [item.data, filterText, showNotification]);
 
   const handleDownloadCsv = useCallback(async () => {
     try {
       const parsed = JSON.parse(item.data);
-      const data = Array.isArray(parsed) ? parsed : [parsed];
+      let data = Array.isArray(parsed) ? parsed : [parsed];
       if (data.length === 0) return;
+
+      if (filterText) {
+        const lowerFilter = filterText.toLowerCase();
+        data = data.filter((row: Record<string, unknown>) => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(lowerFilter)));
+      }
+      if (data.length === 0) { showNotification('No data matches the current filter.', 'warning'); return; }
+
       const csvContent = [Object.keys(data[0]).join(','), ...data.map((row: Record<string, unknown>) => Object.values(row).map((val: unknown) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
       const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `export_${new Date().toISOString().slice(0, 10)}.csv` });
       if (filePath) { await writeTextFile(filePath, csvContent); showNotification('CSV exported successfully!', 'success'); }
     } catch { showNotification("Failed to export CSV data.", "error"); }
-  }, [item.data, showNotification]);
+  }, [item.data, filterText, showNotification]);
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;

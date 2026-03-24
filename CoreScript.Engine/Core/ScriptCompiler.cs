@@ -89,7 +89,7 @@ namespace CoreScript.Engine.Core
             return ScriptOptions.Default
                 .WithReferences(coreRefs.Concat(revitRefs))
                 .WithImports(
-                    "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json",
+                    "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", "System.Globalization",
                     "Microsoft.CSharp",
                     "Autodesk.Revit.DB",
                     "Autodesk.Revit.DB.Architecture",
