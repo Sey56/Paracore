@@ -22,6 +22,39 @@ namespace CoreScript.Engine.Globals
                 .Select(p => new { Name = p.Name, Type = p.PropertyType.Name });
         }
 
+        /// <summary>
+        /// Smart name matching for REPL and Filters.
+        /// Checks Element.Name AND Family Name for loadable components.
+        /// </summary>
+        public static bool Matches(this Element e, string pattern)
+        {
+            if (e == null || string.IsNullOrEmpty(pattern)) return false;
+            
+            // Check Name (Type Name for instances)
+            if (e.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase)) return true;
+
+            // Check Family Name for Loadable Families
+            if (e is FamilyInstance fi && fi.Symbol.FamilyName.Contains(pattern, StringComparison.OrdinalIgnoreCase)) return true;
+            if (e is FamilySymbol fs && fs.FamilyName.Contains(pattern, StringComparison.OrdinalIgnoreCase)) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Robustly gets the Family Name of an element (handles Loadable vs System families).
+        /// </summary>
+        public static string GetFamilyName(this Element e)
+        {
+            if (e == null) return "";
+            if (e is FamilyInstance fi) return fi.Symbol.FamilyName;
+            if (e is FamilySymbol fs) return fs.FamilyName;
+
+            // Fallback for system families or any element with ELEM_FAMILY_PARAM
+            var p = e.get_Parameter(BuiltInParameter.ELEM_FAMILY_PARAM);
+            var val = p?.AsValueString();
+            return !string.IsNullOrEmpty(val) ? val : e.Name;
+        }
+
         /// <summary> 
         /// Gets the parameter value as a string. 
         /// Smart: Resolves ElementId names, handles Strings, falls back to C# Properties (Reflection), 
@@ -592,10 +625,22 @@ namespace CoreScript.Engine.Globals
             return elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary> Fuzzy name/family name matching for collections. </summary>
+        public static IEnumerable<Element> WhereMatches(this IEnumerable<Element> elements, string pattern)
+        {
+            return elements.Where(e => e.Matches(pattern));
+        }
+
         public static double SumParam(this IEnumerable<Element> elements, string name, string unit)
         {
             return elements.Sum(e => e.GetNum(name, unit));
         }
+
+        /// <summary> Renders the collection as an interactive table in the Summary tab. </summary>
+        public static void Table(this IEnumerable<Element> elements) => ScriptApi.Table(elements);
+
+        /// <summary> Renders any collection as an interactive table in the Summary tab. </summary>
+        public static void Table(this IEnumerable<object> data) => ScriptApi.Table(data);
 
         public static IEnumerable<Element> Select(this IEnumerable<Element> elements)
         {

@@ -42,6 +42,8 @@ Smart, unit-aware extension methods on every `Element`.
 | `.GetNum(name)` | `double` | Raw numeric (Internal). | `e.GetNum("Length")` |
 | `.GetVal(name)` | `string` | WYSIWYG (UI Format). | `e.GetVal("Width")` |
 | `.GetInt(name)` | `int` | Integer/Boolean getter. | `e.GetInt("Is External")` |
+| `.GetFamilyName()`| `string` | True Family Name getter. | `e.GetFamilyName()` |
+| `.Matches("pattern")`| `bool` | Fuzzy Type/Family matcher. | `e.Matches("Flush")` |
 | `.SetVal(n, v)` | `void` | **Smart Setter** (Auto-ID/Unit).| `e.SetVal("Mark", "101")` |
 | `.SetNum(n, v, u)`| `void` | Explicit Unit Setter. | `e.SetNum("L", 1.5, "m")` |
 | `.TypeParams()` | `List` | Access all Type parameters. | `e.TypeParams().Table()` |
@@ -54,6 +56,7 @@ Chain these onto `IEnumerable<Element>`.
 | Method | Description | Example |
 | :--- | :--- | :--- |
 | `.WhereParam(n, v)` | Fast string filter. | `.WhereParam("Mark", "A")` |
+| `.WhereMatches(p)` | Fuzzy name/family filter. | `.WhereMatches("Flush")` |
 | `.SumParam(n, u)` | Fast unit-aware sum. | `.SumParam("Area", "m2")` |
 | `.Table()` | Smart, exhaustive parameter grid. | `GetElements("Walls").Table()` |
 | `.Select()` | Selects elements in Revit UI.| `walls.Select()` |
@@ -84,7 +87,6 @@ Handle Revit's floating-point noise and unit math.
 | :--- | :--- | :--- |
 | `.InputUnit("u")` | Number -> Internal (Feet). | `300.InputUnit("mm")` |
 | `.OutputUnit("u")` | Internal -> Human units. | `val.OutputUnit("m2")` |
-| `.Round(decimals)` | Rounds a decimal number. | `val.Round(2)` |
 | `.RoundTo("mm")` | Snap to unit precision. | `val.RoundTo("mm")` |
 | `.FormatUnit("m")` | Formatted string with unit. | `val.FormatUnit("m")` |
 | `.IsAlmostEqualTo()` | Fuzzy equality check. | `val.IsAlmostEqualTo(target)` |

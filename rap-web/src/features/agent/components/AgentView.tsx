@@ -137,7 +137,7 @@ export const AgentView: React.FC = () => {
         const t_name = response.data.tool_call.name;
         const isSelectionTool = t_name === 'set_active_script';
         const isRunTool = t_name.startsWith('run_') && t_name !== 'run_script_by_name';
-
+        
         if (isSelectionTool || isRunTool) {
           let scriptToSelect = null;
           if (response.data.active_script) {
@@ -167,6 +167,9 @@ export const AgentView: React.FC = () => {
             }
             setActiveInspectorTab('parameters');
           }
+        } else if (t_name === 'execute_dynamic_query') {
+            // Activate console tab so user can see output when it runs
+            setActiveInspectorTab('console');
         }
 
         const toolCallMessage: Message = {
@@ -279,27 +282,66 @@ export const AgentView: React.FC = () => {
     invokeAgent([{ type: 'human', content: messageText, id: `user-${Date.now()}` }]);
   };
 
-  const handleToolResponse = (toolCall: ToolCall, userDecision: 'approve' | 'reject') => {
+  const handleToolResponse = async (toolCall: ToolCall, userDecision: 'approve' | 'reject') => {
     const isScriptRun = toolCall.name.startsWith('run_');
-    const parameters = isScriptRun ?
-      (toolCall.name === 'run_script_by_name' ? toolCall.args.parameters : toolCall.args) :
-      {};
-
-    const toolMessageContent = {
-      user_decision: userDecision,
-      parameters: userDecision === 'approve' ? parameters : {},
-    };
-
+    const isDynamicQuery = toolCall.name === 'execute_dynamic_query';
+    
+    // UI optimistic update
     setMessages(prev => [...prev, {
       type: 'tool',
-      content: JSON.stringify(toolMessageContent),
+      content: JSON.stringify({ user_decision: userDecision }),
       tool_call_id: toolCall.id,
     }]);
 
-    if (isScriptRun && userDecision === 'approve') {
+    if (userDecision === 'reject') {
+        invokeAgent([{ type: 'human', content: `I have rejected the action. Let's try a different approach.`, id: `user-${Date.now()}` }]);
+        return;
+    }
+
+    if (isDynamicQuery) {
+        setIsLoading(true);
+        try {
+            const effectiveUrl = rapServerUrl ? `${rapServerUrl}/api/repl` : "/api/repl";
+            const res = await api.post(effectiveUrl, {
+                code: toolCall.args.csharp_code,
+                session_id: threadId || "temp_session"
+            });
+            
+            // Format output identically to C# execution result
+            const rawOutputPayload = {
+              structuredOutput: res.data.structured_output,
+              output: res.data.output,
+              internal_data: res.data.internal_data,
+            };
+            
+            // Send back to agent
+            invokeAgent(
+               [{ type: 'human', content: `System: Raw REPL Execution Result JSON:\n${JSON.stringify(rawOutputPayload)}`, id: `system-${Date.now()}` }],
+               { isInternal: true, summary: null, raw_output: rawOutputPayload }
+            );
+
+            // Switch to console or table to show user results
+            if (res.data.structured_output && res.data.structured_output.some((o: any) => o.type === 'table')) {
+                setActiveInspectorTab('table');
+            } else {
+                setActiveInspectorTab('console');
+            }
+            
+        } catch (err) {
+            console.error("Failed to run REPL snippet:", err);
+            showNotification("Failed to run snippet in Revit", "error");
+            invokeAgent([{ type: 'human', content: `System: Execution failed due to server error.`, id: `system-${Date.now()}` }]);
+        } finally {
+            setIsLoading(false);
+        }
+        return;
+    }
+
+    if (isScriptRun) {
       if (selectedScript) {
         agentRunTriggeredRef.current = true;
         const currentParamsArray = userEditedScriptParameters[selectedScript.id] || [];
+        const parameters = toolCall.name === 'run_script_by_name' ? toolCall.args.parameters : toolCall.args;
         const finalParams = selectedScript.parameters.map(p => {
           const uiMatch = currentParamsArray.find(up => up.name === p.name);
           const toolArgs = parameters as Record<string, string | number | boolean>;
@@ -312,8 +354,6 @@ export const AgentView: React.FC = () => {
       } else {
         showNotification("Error: No script is selected.", "error");
       }
-    } else if (userDecision === 'reject') {
-      invokeAgent([{ type: 'human', content: `I have rejected the action.`, id: `user-${Date.now()}` }]);
     }
   };
 
@@ -340,16 +380,47 @@ export const AgentView: React.FC = () => {
     return { activePendingToolCall: activeCall };
   }, [messages]);
 
+  const resolvedToolCallIds = useMemo(() => {
+    return new Set(messages.filter(m => m.type === 'tool').map(m => m.tool_call_id));
+  }, [messages]);
+
   const renderMessageContent = (msg: Message) => {
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       const toolCall = msg.tool_calls[0];
-      const { script_metadata, ...displayArgs } = toolCall.args;
+      const { script_metadata, csharp_code, justification, ...displayArgs } = toolCall.args;
+      
+      const isDynamicQuery = toolCall.name === 'execute_dynamic_query';
+      const isResolved = toolCall.id ? resolvedToolCallIds.has(toolCall.id) : false;
 
       return (
-        <div className="space-y-2">
-          <p className="font-semibold text-xs uppercase tracking-wider opacity-60">Action: {toolCall.name}</p>
-          {Object.keys(displayArgs).length > 0 && (
-            <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 text-[10px] font-mono opacity-80 overflow-x-auto">
+        <div className="space-y-4 my-2">
+          {justification && (
+              <div className="flex items-start space-x-2 opacity-80">
+                  <div className="w-1 h-full min-h-[1.2em] bg-[var(--accent)] rounded-full shrink-0" />
+                  <p className="text-[13px] italic leading-relaxed text-[var(--text-main)]">{justification as string}</p>
+              </div>
+          )}
+
+          {isDynamicQuery && csharp_code && (
+              <div className="bg-[var(--bg-ground)] rounded-xl border border-[var(--border-divider)] shadow-sm overflow-hidden relative group">
+                  <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-group)] border-b border-[var(--border-divider)]">
+                     <div className="flex items-center space-x-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+                        <span className="text-[10px] font-black tracking-widest text-[var(--text-muted)] uppercase">Paracore Execution</span>
+                     </div>
+                     {isResolved && (
+                        <div className="flex items-center space-x-1.5 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
+                           <FontAwesomeIcon icon={faCheckCircle} className="text-[9px] text-green-500" />
+                           <span className="text-[9px] font-black tracking-tighter text-green-500 uppercase">Executed</span>
+                        </div>
+                     )}
+                  </div>
+                  <pre className="text-[12px] font-mono text-[var(--text-main)] whitespace-pre-wrap leading-loose p-4 overflow-x-auto custom-scrollbar">{csharp_code as string}</pre>
+              </div>
+          )}
+
+          {!isDynamicQuery && Object.keys(displayArgs).length > 0 && (
+            <div className="bg-[var(--bg-ground)] p-3 rounded-lg border border-[var(--border-divider)] text-[10px] font-mono opacity-70 overflow-x-auto text-[var(--text-main)]">
               {JSON.stringify(displayArgs, null, 2)}
             </div>
           )}
@@ -415,97 +486,153 @@ export const AgentView: React.FC = () => {
       : Array.isArray(msg.content)
         ? (msg.content as { text: string }[]).map((i) => i.text || '').join('\n')
         : '';
-    return <p className="whitespace-pre-wrap leading-relaxed">{content}</p>;
+    return <div className="text-[13.5px] leading-relaxed break-words whitespace-pre-wrap">{content}</div>;
   };
 
+  const isHuman = (msg: Message) => msg.type === 'human' && !msg.content?.toString().startsWith('System:');
+
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      {/* Header */}
-      <div className="flex justify-between items-center px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div>
-          <h2 className="text-lg font-bold text-gray-800 dark:text-white">Paracore Agent</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Powered by CoreScript.Engine</p>
+    <div className="flex flex-col h-full bg-transparent overflow-hidden relative font-sans">
+      {/* ── GROUNDED HEADER ── */}
+      <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-[var(--bg-panel)] border-b border-[var(--border-divider)] z-20">
+        <div className="flex items-center space-x-3">
+          <div className="w-1 h-4 bg-blue-600 dark:bg-blue-500 rounded-full" />
+          <div className="flex items-baseline space-x-2">
+            <h1 className="text-sm font-black text-[var(--text-main)] tracking-tight uppercase">Paracore Agent</h1>
+            <span className="text-[10px] font-bold text-[var(--text-muted)] tracking-[0.1em]">STATIONED</span>
+          </div>
+          <div className="flex items-center space-x-1 ml-2">
+             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+             <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Active</span>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <button onClick={() => setIsClearChatModalOpen(true)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all">
-            <FontAwesomeIcon icon={faTrash} size="sm" />
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => setIsClearChatModalOpen(true)} 
+            title="Clear Session" 
+            className="p-1.5 text-[var(--text-muted)] hover:text-red-500 transition-colors"
+          >
+            <FontAwesomeIcon icon={faTrash} className="text-xs" />
           </button>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-8 space-y-6">
-        {messages.filter(m => m.type !== 'tool').map((msg) => (
-          <div key={msg.id} className={`flex ${msg.type === 'human' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex max-w-[85%] space-x-3 ${msg.type === 'human' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.type === 'human' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
-                <FontAwesomeIcon icon={msg.type === 'human' ? faUser : faRobot} size="xs" />
-              </div>
-              <div className={`p-4 rounded-2xl shadow-sm text-sm ${msg.type === 'human' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none border border-gray-100 dark:border-gray-700'}`}>
-                {typeof msg.content === 'string'
-                  ? renderMessageContent(msg)
-                  : Array.isArray(msg.content)
-                    ? msg.content.map((i, idx) => <p key={idx}>{i.text}</p>)
-                    : renderMessageContent(msg)}
+      {/* ── MESSAGES CANAL ── */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-6">
+        {messages.filter(m => m.type !== 'tool' && !isHuman(m) && !(m.type === 'human' && typeof m.content === 'string' && m.content.startsWith('System:'))).length === 0 && Array.isArray(messages) && messages.filter(m => m.type === 'human' && !m.content?.toString().startsWith('System:')).length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full opacity-30 text-center space-y-4">
+                <FontAwesomeIcon icon={faRobot} size="3x" className="text-[var(--text-muted)]" />
+                <p className="text-sm font-bold tracking-widest uppercase text-[var(--text-muted)]">Awaiting Orders</p>
+            </div>
+        )}
+
+        {messages.filter(m => m.type !== 'tool' && !(m.type === 'human' && typeof m.content === 'string' && m.content.startsWith('System:'))).map((msg) => {
+          const human = isHuman(msg);
+          
+          return (
+            <div key={msg.id} className={`flex ${human ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+              <div className={`flex max-w-[90%] lg:max-w-[80%] space-x-3 ${human ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                
+                {/* Avatar / Icon */}
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm border ${
+                  human 
+                    ? 'bg-[var(--accent)] border-[var(--accent)] text-white' 
+                    : 'bg-[var(--bg-card)] border-[var(--border-divider)] text-[var(--accent)]'
+                }`}>
+                  <FontAwesomeIcon icon={human ? faUser : faRobot} size="xs" />
+                </div>
+
+                {/* Message Surface */}
+                <div className={`
+                    px-4 py-3 rounded-xl border transition-all shadow-sm
+                    ${human 
+                        ? 'bg-[var(--bg-group)] border-[var(--accent)] text-[var(--text-main)] shadow-[inset_0_0_0_1px_var(--accent)]' 
+                        : 'bg-[var(--bg-panel)] border-[var(--border-divider)] text-[var(--text-main)]'
+                    }
+                `}>
+                  {renderMessageContent(msg)}
+                </div>
+
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+
         {isLoading && (
-          <div className="flex justify-start items-center space-x-3 animate-pulse">
-            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-              <FontAwesomeIcon icon={faRobot} size="xs" className="text-gray-400" />
+          <div className="flex justify-start items-center space-x-3 animate-in fade-in slide-in-from-bottom-2">
+            <div className="w-8 h-8 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-divider)] flex items-center justify-center shadow-sm">
+              <FontAwesomeIcon icon={faRobot} size="xs" className="text-[var(--accent)] animate-pulse" />
             </div>
-            <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-700 flex space-x-1">
-              <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="px-5 py-3.5 bg-[var(--bg-panel)] rounded-xl border border-[var(--border-divider)] shadow-sm flex space-x-1.5 items-center">
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}
 
         {/* Global PROCEED Button */}
         {activePendingToolCall && (
-          <div className="flex justify-center pt-2">
+          <div className="flex justify-center pt-2 pb-6 space-x-4">
             <button
               onClick={() => {
                 if (!activePendingToolCall) return;
                 handleToolResponse(activePendingToolCall, 'approve');
               }}
-              className="group flex items-center space-x-3 bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-full shadow-2xl hover:shadow-blue-500/40 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-500 ring-4 ring-white dark:ring-gray-800"
+              className="group flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg shadow-lg hover:shadow-blue-500/30 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-500"
             >
-              <FontAwesomeIcon icon={faCheckCircle} className="group-hover:scale-125 transition-transform text-lg" />
-              <span className="font-bold text-base tracking-tight italic">Proceed with {selectedScript?.name || 'Action'}</span>
+              <FontAwesomeIcon icon={faCheckCircle} className="group-hover:scale-110 transition-transform" />
+              <span className="font-black text-[11px] uppercase tracking-widest">{activePendingToolCall.name === 'execute_dynamic_query' ? 'Approve & Run' : 'Proceed'}</span>
+            </button>
+            <button
+              onClick={() => {
+                if (!activePendingToolCall) return;
+                handleToolResponse(activePendingToolCall, 'reject');
+              }}
+              className="group flex items-center space-x-2 bg-[var(--bg-card)] border border-[var(--border-divider)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/50 px-5 py-2.5 rounded-lg shadow-sm transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-500"
+            >
+              <FontAwesomeIcon icon={faTimesCircle} className="group-hover:scale-110 transition-transform" />
+              <span className="font-black text-[11px] uppercase tracking-widest">Reject</span>
             </button>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-6 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-        <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex space-x-3 bg-gray-50 dark:bg-gray-700/50 p-1 rounded-xl border border-gray-200 dark:border-gray-600 focus-within:ring-2 focus-within:ring-blue-500/50 transition-all">
+      {/* ── GROUNDED INPUT AREA ── */}
+      <div className="p-4 bg-[var(--bg-panel)] border-t border-[var(--border-divider)] z-20">
+        <form 
+          onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} 
+          className="flex items-center space-x-3 bg-[var(--bg-ground)] p-1.5 rounded-xl border border-[var(--border-divider)] focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20 transition-all shadow-inner"
+        >
+          <div className="pl-3 text-[var(--accent)] opacity-40 flex-shrink-0">
+             <FontAwesomeIcon icon={faRobot} size="sm" />
+          </div>
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Tell me what you want to automate in Revit..."
-            className="flex-1 bg-transparent px-4 py-2.5 text-sm focus:outline-none dark:text-white"
+            placeholder="Tell me what you want to automate or query..."
+            className="flex-1 bg-transparent px-2 py-2 text-sm focus:outline-none text-[var(--text-main)] placeholder-[var(--text-muted)]/50 font-medium"
             disabled={isLoading}
           />
-          <button type="submit" disabled={isLoading || !input.trim()} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 shadow-sm">
-            <FontAwesomeIcon icon={faPaperPlane} size="sm" />
+          <button 
+            type="submit" 
+            disabled={isLoading || !input.trim()} 
+            className="w-10 h-10 shrink-0 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-400 transition-all disabled:opacity-30 flex items-center justify-center shadow-md active:scale-95"
+          >
+            <FontAwesomeIcon icon={faPaperPlane} className="text-xs" />
           </button>
         </form>
       </div>
 
       {/* Modals */}
-      <Modal isOpen={isClearChatModalOpen} onClose={() => setIsClearChatModalOpen(false)} title="Clear History">
+      <Modal isOpen={isClearChatModalOpen} onClose={() => setIsClearChatModalOpen(false)} title="Clear Session">
         <div className="p-6 text-center space-y-4">
-          <p className="text-gray-600 dark:text-gray-400">This will permanently delete your conversation history. Continue?</p>
+          <p className="text-sm font-medium text-[var(--text-main)] opacity-80">This will permanently delete your conversation history for this session. Continue?</p>
           <div className="flex justify-center space-x-3">
-            <button onClick={() => setIsClearChatModalOpen(false)} className="px-6 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg font-medium text-sm">Cancel</button>
-            <button onClick={handleClearChat} className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700">Clear All</button>
+            <button onClick={() => setIsClearChatModalOpen(false)} className="px-6 py-2 bg-[var(--bg-card)] border border-[var(--border-divider)] text-[var(--text-main)] rounded-lg font-bold text-[11px] uppercase tracking-widest">Cancel</button>
+            <button onClick={handleClearChat} className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold text-[11px] uppercase tracking-widest hover:bg-red-700">Clear All</button>
           </div>
         </div>
       </Modal>

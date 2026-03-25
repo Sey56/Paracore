@@ -191,26 +191,9 @@ namespace CoreScript.Engine.Core
                     .Where(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)))
                     .ToList() ?? new List<PropertyDeclarationSyntax>();
 
-                string targetItemType = "Element";
-                var targetProp = properties.FirstOrDefault(p => p.Identifier.Text == parameterName);
-                if (targetProp != null)
-                {
-                    targetItemType = targetProp.Type.ToString().Trim();
-
-                    // Handle Generics (e.g. List<Room> or System.Collections.Generic.List<Room>)
-                    var match = System.Text.RegularExpressions.Regex.Match(targetItemType, @"<([^>]+)>");
-                    if (match.Success)
-                    {
-                        targetItemType = match.Groups[1].Value;
-                    }
-                    // Handle Arrays (e.g. Room[])
-                    else if (targetItemType.EndsWith("[]"))
-                    {
-                        targetItemType = targetItemType.Substring(0, targetItemType.Length - 2);
-                    }
-
-                    targetItemType = targetItemType.TrimEnd('?');
-                }
+                var param = schema.FirstOrDefault(p => p.Name == parameterName);
+                string targetItemType = param?.RevitElementType ?? "Element";
+                string category = param?.RevitElementCategory ?? "";
 
                 foreach (var propSyntax in properties)
                 {
@@ -244,8 +227,9 @@ namespace CoreScript.Engine.Core
 
                 if (isFilter)
                 {
-                    sb.AppendLine($"var baseItems = new ParameterOptionsComputer(ExecutionGlobals.Current.Value.Doc).ComputeElementOptions(\"{targetItemType}\");");
-                    sb.AppendLine($"var result = baseItems.Cast<{targetItemType}>().Where(item => wrapper.{functionName}(item)).ToList();");
+                    sb.AppendLine($"var baseItems = new ParameterOptionsComputer(ExecutionGlobals.Current.Value.Doc).ComputeElementOptions(\"{targetItemType}\", \"{category}\");");
+                    // Use dynamic to avoid strict assembly/type matching issues in Roslyn for loadable families
+                    sb.AppendLine($"var result = baseItems.Where(item => {{ try {{ return wrapper.{functionName}((dynamic)item); }} catch {{ return false; }} }}).ToList();");
                 }
                 else
                 {

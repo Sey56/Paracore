@@ -215,6 +215,7 @@
                 </table>
             </section>
 
+
             <!-- Accessors -->
             <section>
                 <h2>🪄 Element Accessors (Read/Write)</h2>
@@ -232,6 +233,8 @@
                         <tr><td><code>.GetNum(name)</code></td><td class="type">double</td><td class="desc">Raw numeric (Internal Feet).</td><td class="example"><code>e.GetNum("Length")</code></td></tr>
                         <tr><td><code>.GetVal(name)</code></td><td class="type">string</td><td class="desc">WYSIWYG (UI Formatted).</td><td class="example"><code>e.GetVal("Width")</code></td></tr>
                         <tr><td><code>.GetInt(name)</code></td><td class="type">int</td><td class="desc">Integer/Boolean getter.</td><td class="example"><code>e.GetInt("Is External")</code></td></tr>
+                        <tr><td><code>.GetFamilyName()</code></td><td class="type">string</td><td class="desc">True Family Name getter.</td><td class="example"><code>e.GetFamilyName()</code></td></tr>
+                        <tr><td><code>.Matches("p")</code></td><td class="type">bool</td><td class="desc">Fuzzy Type/Family matcher.</td><td class="example"><code>e.Matches("Flush")</code></td></tr>
                         <tr><td><code>.SetVal(n, v)</code></td><td class="type">void</td><td class="desc"><b>Smart Setter</b> (Auto-ID/Unit).</td><td class="example"><code>e.SetVal("Mark", "101")</code></td></tr>
                         <tr><td><code>.SetNum(n, v, u)</code></td><td class="type">void</td><td class="desc">Explicit Unit Setter.</td><td class="example"><code>e.SetNum("L", 1.5, "m")</code></td></tr>
                         <tr><td><code>.TypeParams()</code></td><td class="type">List</td><td class="desc">Access all Type parameters.</td><td class="example"><code>e.TypeParams().Table()</code></td></tr>
@@ -252,6 +255,7 @@
                     </thead>
                     <tbody>
                         <tr><td><code>.WhereParam(n, v)</code></td><td class="desc">Fast string equality filter.</td><td class="example"><code>.WhereParam("Mark", "A")</code></td></tr>
+                        <tr><td><code>.WhereMatches(p)</code></td><td class="desc">Fuzzy name/family filter.</td><td class="example"><code>.WhereMatches("Flush")</code></td></tr>
                         <tr><td><code>.SumParam(n, u)</code></td><td class="desc">Fast unit-aware numeric sum.</td><td class="example"><code>.SumParam("Area", "m2")</code></td></tr>
                         <tr><td><code>.Table()</code></td><td class="desc">Smart, exhaustive parameter grid.</td><td class="example"><code>GetElements("Walls").Table()</code></td></tr>
                         <tr><td><code>.Select()</code></td><td class="desc">Selects elements in Revit UI.</td><td class="example"><code>walls.Select()</code></td></tr>
@@ -297,7 +301,6 @@
                     <tbody>
                         <tr><td><code>.InputUnit("u")</code></td><td class="desc">Number -> Internal (Feet).</td><td class="example"><code>300.InputUnit("mm")</code></td></tr>
                         <tr><td><code>.OutputUnit("u")</code></td><td class="desc">Internal -> Human units.</td><td class="example"><code>val.OutputUnit("m2")</code></td></tr>
-                        <tr><td><code>.Round(decimals)</code></td><td class="desc">Rounds a decimal number.</td><td class="example"><code>val.Round(2)</code></td></tr>
                         <tr><td><code>.RoundTo("mm")</code></td><td class="desc">Snap to unit precision.</td><td class="example"><code>val.RoundTo("mm")</code></td></tr>
                         <tr><td><code>.FormatUnit("m")</code></td><td class="desc">Formatted string with unit.</td><td class="example"><code>val.FormatUnit("m")</code></td></tr>
                         <tr><td><code>.IsAlmostEqualTo()</code></td><td class="desc">Fuzzy equality check.</td><td class="example"><code>val.IsAlmostEqualTo(target)</code></td></tr>

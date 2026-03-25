@@ -19,7 +19,7 @@ class ChatRequest(BaseModel):
     llm_model: str | None = None
     llm_api_key_name: str | None = None
     llm_api_key_value: str | None = None
-    agent_scripts_path: str
+    agent_scripts_path: str | None = None
     user_edited_parameters: dict | None = None
     tool_call_id: str | None = None
     tool_output: str | None = None
@@ -37,37 +37,29 @@ async def chat_with_agent(request: ChatRequest):
             raise HTTPException(status_code=400, detail="Missing API Key.")
 
         # 1. Setup Dependencies
-        from agent.v3_agent import RevitDeps, run_v3_chat
-        deps = RevitDeps(
-            agent_scripts_path=request.agent_scripts_path,
-            cloud_token=request.token
+        from agent.v4_repl_agent import v4_repl_agent, AgentDeps, InterruptedException
+        deps = AgentDeps(
+            user_id=request.token or "unknown",
+            thread_id=request.thread_id or "unknown"
         )
 
         # 2. Reconstruct High-Fidelity History (The Steel Shield)
         from pydantic import TypeAdapter
         from pydantic_ai.messages import (
-            ModelMessage,
-            ModelRequest,
-            ModelResponse,
-            TextPart,
-            ToolCallPart,
-            ToolReturnPart,
-            UserPromptPart,
+            ModelMessage, ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolReturnPart, UserPromptPart
         )
         pydantic_history: List[ModelMessage] = []
 
         if request.raw_history:
-            # OPTION A: Industrial Fidelity Restore
             try:
                 raw_msgs = json.loads(request.raw_history)
                 ta = TypeAdapter(List[ModelMessage])
                 pydantic_history = ta.validate_python(raw_msgs)
-                logger.info(f"[V3] Restored full high-fidelity chain ({len(pydantic_history)} msgs).")
+                logger.info(f"[V4] Restored full high-fidelity chain ({len(pydantic_history)} msgs).")
             except Exception as e:
-                logger.warning(f"[V3] Raw history restore failed: {e}")
+                logger.warning(f"[V4] Raw history restore failed: {e}")
 
         if not pydantic_history and request.history:
-            # OPTION B: Manual Reconstruction (Fall-back/Turn 1)
             call_id_to_name = {}
             for h in request.history:
                 m_type = h.get("type")
@@ -89,76 +81,124 @@ async def chat_with_agent(request: ChatRequest):
                 elif m_type == "tool":
                     c_id = h.get("tool_call_id", "unknown")
                     t_name = call_id_to_name.get(c_id, "unknown")
+                    
+                    # --- THE SHIELD LAYER ---
+                    # If this is a return from our super tool, truncate it to protect context window
+                    if t_name == "execute_dynamic_query" and len(text) > 1000:
+                        try:
+                            # Try to parse it as JSON to give a smart summary
+                            data = json.loads(text)
+                            if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
+                                text = f"Execution successful. Returned a {data.get('type', 'table')} with {len(data['data'])} rows. Tell the user to view the full result in the UI."
+                            else:
+                                text = f"Execution successful. Output was very large ({len(text)} chars) and has been truncated. Tell the user to check the UI."
+                        except:
+                            text = f"Execution successful. Output truncated due to size ({len(text)} chars)."
+                            
                     pydantic_history.append(ModelRequest(parts=[ToolReturnPart(tool_name=t_name, content=text, tool_call_id=c_id)]))
 
-        # 3. Invoke V3 Agent
-        result = await run_v3_chat(
-            message=request.message,
-            history=pydantic_history,
-            deps=deps,
-            model_name=request.llm_model or "gemini-1.5-flash",
-            api_key=request.llm_api_key_value,
-            provider=request.llm_provider or "Google"
-        )
+        # --- THE PROTOCOL SHIELD ---
+        # If raw_history ended with a ToolCallPart, we MUST supply a ToolReturnPart BEFORE the next user message,
+        # or else strict providers (like OpenAI/Google API) will crash with 400 Bad Request.
+        if pydantic_history and isinstance(pydantic_history[-1], ModelResponse):
+            last_msg = pydantic_history[-1]
+            for part in last_msg.parts:
+                if isinstance(part, ToolCallPart):
+                    # We inject a dummy return part. The actual context the LLM needs is in request.message anyway.
+                    pydantic_history.append(ModelRequest(parts=[ToolReturnPart(tool_name=part.tool_name, content="Execution output provided in next system message.", tool_call_id=part.tool_call_id)]))
 
-
-        # 4. Process Result
-        # confirmed: PydanticAI 1.47 uses '.output'
-        final_message = result.output if isinstance(result.output, str) else "Processing complete."
-
+        # 3. Invoke V4 Agent
         response_data = {
             "thread_id": request.thread_id or str(uuid.uuid4()),
             "status": "complete",
-            "message": final_message,
+            "message": "",
             "tool_call": None,
-            "active_script": None,
-            "current_plan": None
+            "raw_history_json": None
         }
 
-        # 5. Extract Tools for Sovereign Handoff (Current Turn ONLY)
-        if result.new_messages():
-            from pydantic_ai.messages import ModelResponse, ToolCallPart
-            for msg in result.new_messages():
-                if isinstance(msg, ModelResponse):
-                    for part in msg.parts:
-                        if isinstance(part, ToolCallPart):
-                            t_name = part.tool_name
-                            t_args = part.args
-
-                            is_selection = t_name == "set_active_script"
-                            is_run_call = t_name.startswith("run_") and t_name != "run_script_by_name"
-
-                            if is_selection or is_run_call:
-                                response_data["status"] = "interrupted"
-                                response_data["tool_call"] = {
-                                    "id": part.tool_call_id or f"tc-{uuid.uuid4()}",
-                                    "name": t_name,
-                                    "arguments": t_args
-                                }
-                                s_id = t_args.get("script_id") if is_selection else t_name.replace("run_", "")
-                                try:
-                                    from agent.orchestrator.registry import ScriptRegistry
-                                    registry = ScriptRegistry(request.agent_scripts_path)
-                                    repo_script = registry.find_script_by_tool_id(s_id)
-                                    if repo_script:
-                                        active_script = json.loads(json.dumps(repo_script))
-                                        active_script["id"] = s_id
-                                        response_data["active_script"] = active_script
-                                except: pass
-
-                            if t_name == "propose_automation_plan":
-                                response_data["current_plan"] = t_args
-
-        # 6. HIGH FIDELITY PERSISTENCE (The Memory Shield)
-        # Use 'all_messages_json' to capture the entire chain including reasoning tokens
         try:
-            response_data["raw_history_json"] = result.all_messages_json().decode('utf-8')
-            logger.info(f"[V3] Finalizing turnaround: {len(result.all_messages())} messages preserved.")
-        except Exception as e:
-            logger.warning(f"[V3] History preservation failed: {e}")
+            # Industrial Model Factory
+            model_name = request.llm_model or 'gemini-1.5-flash'
+            api_key = request.llm_api_key_value
+            provider = request.llm_provider or "Google"
+            p_lower = provider.lower()
+            
+            import os
+            model = None
+            if p_lower == "google":
+                os.environ["GOOGLE_API_KEY"] = api_key
+                from pydantic_ai.models.google import GoogleModel
+                model = GoogleModel(model_name)
+            elif p_lower == "openrouter" or "openai" in p_lower:
+                os.environ["OPENAI_API_KEY"] = api_key
+                from pydantic_ai.models.openai import OpenAIModel
+                from pydantic_ai.providers.openai import OpenAIProvider
+
+                # In PydanticAI 1.47, configuration belongs to the Provider
+                if p_lower == "openrouter":
+                    provider_obj = OpenAIProvider(
+                        base_url="https://openrouter.ai/api/v1",
+                        api_key=api_key
+                    )
+                    model = OpenAIModel(model_name, provider=provider_obj)
+                else: # plain openai
+                    provider_obj = OpenAIProvider(api_key=api_key)
+                    model = OpenAIModel(model_name, provider=provider_obj)
+            else:
+                model = model_name
+
+            from pydantic_ai.settings import ModelSettings
+            result = await v4_repl_agent.run(
+                request.message,
+                message_history=pydantic_history,
+                deps=deps,
+                model=model,
+                model_settings=ModelSettings(max_tokens=2048)
+            )
+            
+            response_data["message"] = str(result.output) if isinstance(result.output, str) else "Processing complete."
+            
+            try:
+                raw_json = result.all_messages_json()
+                response_data["raw_history_json"] = raw_json.decode('utf-8') if isinstance(raw_json, bytes) else str(raw_json)
+                logger.info(f"[V4] Finalizing turnaround: history preserved.")
+            except Exception as e:
+                logger.warning(f"[V4] History preservation failed: {e}")
+
+        except InterruptedException as e:
+            # SOVEREIGN HANDOFF: The agent called execute_dynamic_query. 
+            # We catch it here and send it to the frontend for human approval.
+            response_data["status"] = "interrupted"
+            
+            call_id = f"tc-{uuid.uuid4()}"
+            response_data["tool_call"] = {
+                "id": call_id,
+                "name": "execute_dynamic_query",
+                "arguments": {
+                    "csharp_code": e.csharp_code,
+                    "justification": e.justification
+                }
+            }
+            
+            # Since the run crashed, PydanticAI threw away the LLM's tool call.
+            # We aggressively save the ToolCall inside raw_history_json so the next turn remembers!
+            try:
+                # Add the aborted ToolCall to the history so it resumes smoothly
+                pydantic_history.append(ModelRequest(parts=[UserPromptPart(content=request.message)]))
+                pydantic_history.append(ModelResponse(parts=[ToolCallPart(tool_name="execute_dynamic_query", args=response_data["tool_call"]["arguments"], tool_call_id=call_id)]))
+                
+                from pydantic import TypeAdapter
+                ta = TypeAdapter(List[ModelMessage])
+                response_data["raw_history_json"] = ta.dump_json(pydantic_history).decode('utf-8')
+            except Exception as dump_err:
+                logger.warning(f"[V4] Failed to capture pre-handoff history: {dump_err}")
+
+        except Exception as run_err:
+            logger.exception(f"[V4] Agent Run Error: {run_err}")
+            raise
 
         return Response(content=json.dumps(response_data), media_type="application/json")
 
     except Exception as e:
-        logger.exception(f"[V3] Global Error: {e}")
+        logger.exception(f"[V4] Global Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

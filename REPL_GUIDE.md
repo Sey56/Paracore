@@ -113,6 +113,18 @@ In the Revit API, some common attributes are exposed as native C# properties on 
 - Best used with `Table()`: `Table(myWall.AllGeometry())`
 - Shortcut: `ListGeometry(myWall)`
 
+### `element.GetFamilyName()`
+**Robust Family Name Getter.** Returns the true Family Name for both Loadable and System families.
+- Best used in custom `.Select()` projections or manual `.Where()` filters.
+- Eliminates the need to manually check `BuiltInParameter.ELEM_FAMILY_PARAM` or cast to `FamilyInstance`.
+
+### `element.Matches("pattern")`
+**Robust Name Matcher.** Multi-property fuzzy search for filtering.
+- True if `element.Name` (Type Name) contains the pattern.
+- True if `FamilyName` contains the pattern (for Families/Symbols/Instances).
+- Case-insensitive.
+- **Why use it?** Revit's `.Name` property often omits the Family Name. `.Matches()` checks both automatically.
+
 ---
 
 ## 📐 Geometry Instances & Coordinate Spaces
@@ -204,7 +216,6 @@ Selection[0].SetNum("Base Offset", 100, "mm");
 | `.AlmostZero()` | Returns true if value is essentially 0. | `val.AlmostZero()` |
 | `.IsPositive()` | Strictly positive (> tolerance). | `val.IsPositive()` |
 | `.IsNegative()` | Strictly negative (< -tolerance). | `val.IsNegative()` |
-| `.Round(decimals)` | Rounds to decimal places. | `val.Round(2)` |
 | `.RoundTo("unit")` | Snaps internal value to unit precision. | `val.RoundTo("mm")` |
 
 ---
@@ -217,7 +228,8 @@ Every collection and element can now be visualized or manipulated using chained 
  
 | Chained Method | Description | Example |
 | :--- | :--- | :--- |
-| `.Table()` | Renders the collection or element as a table. | `Selection.Table()` |
+| `.Table()` | Renders the collection or element as a table. | `elements.Table()` |
+| `.WhereMatches("pattern")` | **New**: Fluent fuzzy filtering for collections. | `GetElements("Doors").WhereMatches("Single-Flush")` |
 | `.ChartBar()` | Renders data as a bar chart. | `data.ChartBar()` |
 | `.ChartPie()` | Renders data as a pie chart. | `data.ChartPie()` |
 | `.Select()` | Selects the element(s) in Revit. | `GetElements<Wall>().Select()` |
@@ -303,6 +315,7 @@ Selection.Count    // Prints the number of selected elements
 | I want to... | Use this... | Why? |
 | :--- | :--- | :--- |
 | **Read a Level, Type, or Workset** | `.GetStr("Level")` | Handles ElementId-to-Name resolution automatically. |
+| **Filter by Family/Type Name** | `.Matches("Single-Flush")` | **Safety First**: Automatically checks both the instance's Type Name and its Family Name. |
 | **Get raw feet/sqft for calculation** | `.GetNum("Area")` | Direct access to internal double value (no units). |
 | **Get mm/meters for calculation** | `.GetNum("Length", "mm")` | Built-in conversion + precision handling. |
 | **Find a parameter's internal name** | `ListBIPs(Selection[0])` | Shows the `BuiltInParameter` string for stable, language-independent code. |
