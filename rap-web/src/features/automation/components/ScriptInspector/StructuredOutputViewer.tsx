@@ -378,6 +378,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
   const [filterText, setFilterText] = useState('');
   const { activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex } = useUI();
   const [isReady, setIsReady] = useState(false);
+  const [showAsTable, setShowAsTable] = useState(false);
   
   // Definitive Recharts Dimension Fix
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -411,8 +412,14 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
     try { return JSON.parse(item.data); } catch { return undefined; } 
   }, [item.data]);
 
+  const effectiveType = useMemo(() => {
+    if (showAsTable) return 'table';
+    return item.type;
+  }, [item.type, showAsTable]);
+
   const { tableData, filteredDataCount } = useMemo(() => {
-    const parsed = (item.type === 'table') ? (parsedData === undefined ? [] : (Array.isArray(parsedData) ? parsedData : [parsedData])) : null;
+    const isActuallyTable = effectiveType === 'table' || effectiveType.startsWith('chart-');
+    const parsed = isActuallyTable ? (parsedData === undefined ? [] : (Array.isArray(parsedData) ? parsedData : [parsedData])) : null;
     if (!parsed) return { tableData: null, filteredDataCount: 0 };
     
     if (!filterText) return { tableData: parsed, filteredDataCount: parsed.length };
@@ -741,7 +748,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       {/* Viewer Header */}
       <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]">
         <div className="flex-grow min-w-0 flex items-center gap-3">
-          {item.type === 'table' ? (
+          {effectiveType === 'table' ? (
             <div className="relative w-full max-w-xl">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FontAwesomeIcon icon={faSearch} className="text-slate-400 text-[10px]" />
@@ -769,22 +776,22 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
             </div>
           ) : (
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-2 shrink-0">
-              {item.type === 'chart-bar' && 'Bar Graph'}
-              {item.type === 'chart-pie' && 'Pie Graph'}
-              {item.type === 'chart-line' && 'Line Graph'}
-              {!['chart-bar', 'chart-pie', 'chart-line'].includes(item.type) && item.type.replace('chart-', '')}
+              {effectiveType === 'chart-bar' && 'Bar Graph'}
+              {effectiveType === 'chart-pie' && 'Pie Graph'}
+              {effectiveType === 'chart-line' && 'Line Graph'}
+              {!['chart-bar', 'chart-pie', 'chart-line'].includes(effectiveType) && effectiveType.replace('chart-', '')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1">
-          {item.type === 'table' && (
+          {effectiveType === 'table' && (
             <div className="flex gap-1">
               <button onClick={handleCopy} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-blue-600 transition-colors" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
               <button onClick={handleDownloadCsv} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-green-500 transition-colors" title="Export CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-              <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-blue-500 transition-colors" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>
+              {item.type === 'table' && <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-blue-500 transition-colors" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>}
             </div>
           )}
-          {(item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && (
+          {(effectiveType === 'chart-bar' || effectiveType === 'chart-pie' || effectiveType === 'chart-line') && (
             <div className="flex gap-1">
               <button onClick={handleDownloadChartCsv} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-green-500 transition-colors" title="Export Data to CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
               <button onClick={handleDownloadSvg} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg hover:text-blue-500 transition-colors" title="Export as SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
@@ -796,14 +803,14 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       </div>
       
       <div className="flex-1 overflow-hidden relative flex flex-col">
-        {item.type === 'table' && (
+        {effectiveType === 'table' && (
           <div className="flex-1 h-full w-full overflow-hidden">
             <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
             <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} filterText={filterText} setFilterText={setFilterText} />
           </div>
         )}
 
-        {(item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && (
+        {showAsTable === false && (item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && (
           <div ref={chartContainerRef} id={chartId} className="flex-1 w-full min-h-[350px] relative px-2 py-2 overflow-hidden">
             {parsedData && Array.isArray(parsedData) && parsedData.length > MAX_CHART_ITEMS ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 m-4 animate-in fade-in zoom-in-95">
@@ -825,10 +832,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
                     Use <code className="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-blue-500">.GroupBy()</code> to aggregate data by Level, Category, or Type for a clean visualization.
                   </p>
                   <button 
-                    onClick={() => {
-                       // Temporary bypass for the current session by setting a large local limit if we wanted to implement "Show Anyway"
-                       // For now, we strictly enforce the limit as requested.
-                    }}
+                    onClick={() => setShowAsTable(true)}
                     className="w-full py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
                   >
                     View as Table Instead
