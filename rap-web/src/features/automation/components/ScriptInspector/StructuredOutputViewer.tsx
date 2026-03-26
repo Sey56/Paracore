@@ -10,7 +10,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useUI } from '@/hooks/useUI';
 import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
-import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronLeft, faChevronRight, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronLeft, faChevronRight, faExclamationTriangle, faMagicWandSparkles } from '@fortawesome/free-solid-svg-icons';
 import { trackEvent } from '@/utils/telemetry';
 
 import { StructuredOutput, Script } from '@/types/scriptModel';
@@ -24,6 +24,8 @@ interface StructuredOutputViewerProps {
   selectedScript: Script | null;
   executionResult: ExecutionResult | null;
 }
+
+const MAX_CHART_ITEMS = 30;
 
 const getChartColor = (index: number, total: number) => {
   if (total <= 1) return '#3b82f6';
@@ -803,50 +805,82 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
 
         {(item.type === 'chart-bar' || item.type === 'chart-pie' || item.type === 'chart-line') && (
           <div ref={chartContainerRef} id={chartId} className="flex-1 w-full min-h-[350px] relative px-2 py-2 overflow-hidden">
-            <div className="absolute inset-0">
-              {isReady && dimensions.width > 0 && dimensions.height > 0 && (
-                <ResponsiveContainer key={`${item.type}-${activeAnalyticsSubTabIndex}`} width="99%" height="99%" debounce={50}>
-                  {item.type === 'chart-bar' ? (
-                    <BarChart data={parsedData} margin={{ top: 20, right: 30, left: 30, bottom: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
-                      <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -15, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
-                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: 5, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
-                      <ChartTooltip content={<CustomChartTooltip />} cursor={false} />
-                      <Bar dataKey={chartKeys.yAxisKey} radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard} fill="#3b82f6">
-                        {parsedData.map((_: unknown, index: number) => (
-                          <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  ) : item.type === 'chart-pie' ? (
-                    <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
-                      <Pie 
-                        data={parsedData} 
-                        cx="50%" 
-                        cy="50%" 
-                        outerRadius="80%" 
-                        fill="#8884d8" 
-                        dataKey={chartKeys.yAxisKey}
-                        nameKey={chartKeys.xAxisKey}
-                        isAnimationActive={!isDashboard}
-                      >
-                        {parsedData.map((_: unknown, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}
-                      </Pie>
-                      <ChartTooltip content={<CustomPieTooltip />} />
-                      <Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} />
-                    </PieChart>
-                  ) : (
-                    <LineChart data={parsedData} margin={{ top: 20, right: 30, left: 30, bottom: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                      <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -15, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
-                      <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: 5, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
-                      <ChartTooltip content={<CustomChartTooltip />} />
-                      <Line type="monotone" dataKey={chartKeys.yAxisKey} stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} />
-                    </LineChart>
-                  )}
-                </ResponsiveContainer>
-              )}
-            </div>
+            {parsedData && Array.isArray(parsedData) && parsedData.length > MAX_CHART_ITEMS ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 m-4 animate-in fade-in zoom-in-95">
+                <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4 border border-amber-200 dark:border-amber-800/50 shadow-sm">
+                  <FontAwesomeIcon icon={faExclamationTriangle} className="text-2xl text-amber-500 animate-pulse" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tighter mb-2">High-Density Data Detected</h3>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-md leading-relaxed mb-6">
+                  Visualizing <span className="text-blue-600 dark:text-blue-400 font-black">{parsedData.length}</span> individual items will lead to an unreadable chart.
+                </p>
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm max-w-sm text-left">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center">
+                      <FontAwesomeIcon icon={faMagicWandSparkles} className="text-[10px] text-white" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Pro Tip</span>
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-3">
+                    Use <code className="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-blue-500">.GroupBy()</code> to aggregate data by Level, Category, or Type for a clean visualization.
+                  </p>
+                  <button 
+                    onClick={() => {
+                       // Temporary bypass for the current session by setting a large local limit if we wanted to implement "Show Anyway"
+                       // For now, we strictly enforce the limit as requested.
+                    }}
+                    className="w-full py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+                  >
+                    View as Table Instead
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="absolute inset-0">
+                {isReady && dimensions.width > 0 && dimensions.height > 0 && (
+                  <ResponsiveContainer key={`${item.type}-${activeAnalyticsSubTabIndex}`} width="99%" height="99%" debounce={50}>
+                    {item.type === 'chart-bar' ? (
+                      <BarChart data={parsedData} margin={{ top: 20, right: 30, left: 30, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
+                        <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -15, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
+                        <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: 5, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
+                        <ChartTooltip content={<CustomChartTooltip />} cursor={false} />
+                        <Bar dataKey={chartKeys.yAxisKey} radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard} fill="#3b82f6">
+                          {parsedData.map((_: unknown, index: number) => (
+                            <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    ) : item.type === 'chart-pie' ? (
+                      <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
+                        <Pie 
+                          data={parsedData} 
+                          cx="50%" 
+                          cy="50%" 
+                          outerRadius="80%" 
+                          fill="#8884d8" 
+                          dataKey={chartKeys.yAxisKey}
+                          nameKey={chartKeys.xAxisKey}
+                          isAnimationActive={!isDashboard}
+                        >
+                          {parsedData.map((_: unknown, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}
+                        </Pie>
+                        <ChartTooltip content={<CustomPieTooltip />} />
+                        <Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} />
+                      </PieChart>
+                    ) : (
+                      <LineChart data={parsedData} margin={{ top: 20, right: 30, left: 30, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
+                        <XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -15, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
+                        <YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: 5, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} />
+                        <ChartTooltip content={<CustomChartTooltip />} />
+                        <Line type="monotone" dataKey={chartKeys.yAxisKey} stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} />
+                      </LineChart>
+                    )}
+                  </ResponsiveContainer>
+                )}
+              </div>
+            )}
           </div>
         )}
         {item.type === 'message' && <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap">{parsedData}</p>}
