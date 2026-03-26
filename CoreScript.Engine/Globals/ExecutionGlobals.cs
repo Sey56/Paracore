@@ -457,143 +457,7 @@ namespace CoreScript.Engine.Globals
             Output.LineChart(data);
         }
 
-        /// <summary>
-        /// Discovery helper for the REPL. Lists all parameters of one or more elements in a table.
-        /// usage: ListParams(myWall) or ListParams(id) or ListParams(listOfWalls)
-        /// </summary>
-        public void ListParams(object input)
-        {
-            if (input == null) return;
 
-            // 1. Single Element
-            if (input is Element e)
-            {
-                Table(e.AllParams());
-                return;
-            }
-
-            // 2. ElementId
-            if (input is ElementId id && Doc != null)
-            {
-                ListParams(Doc.GetElement(id));
-                return;
-            }
-
-            // 3. Collection
-            if (input is System.Collections.IEnumerable enumerable)
-            {
-                var list = new List<object>();
-                foreach (var item in enumerable)
-                {
-                    if (item is Element el)
-                    {
-                        var p = el.AllParams();
-                        var row = new Dictionary<string, object> { ["Name"] = el.Name, ["Id"] = el.Id.Value };
-                        // Note: If showing a collection, we keep it simple (Name, Id + Params)
-                        foreach (dynamic pInfo in p) row[pInfo.Name] = pInfo.Value;
-                        list.Add(row);
-                    }
-                }
-                if (list.Count > 0) Table(list);
-            }
-        }
-
-        /// <summary>
-        /// Discovery helper for the REPL. Lists key Revit API properties (Level, Location, etc.)
-        /// </summary>
-        public void ListProperties(object input)
-        {
-            if (input is Element e) Table(e.AllProperties());
-            else if (input is ElementId id && Doc != null) ListProperties(Doc.GetElement(id));
-            else if (input is System.Collections.IEnumerable enumerable)
-            {
-                var list = new List<object>();
-                foreach (var item in enumerable) if (item is Element el) list.Add(el.AllProperties());
-                if (list.Count > 0) Table(list);
-            }
-        }
-
-        /// <summary>
-        /// Discovery helper for the REPL. Lists geometry summary (Solids, Volumes, Area).
-        /// </summary>
-        public void ListGeometry(object input)
-        {
-            if (input is Element e) Table(e.AllGeometry());
-            else if (input is ElementId id && Doc != null) ListGeometry(Doc.GetElement(id));
-            else if (input is System.Collections.IEnumerable enumerable)
-            {
-                var list = new List<object>();
-                foreach (var item in enumerable) if (item is Element el) list.Add(el.AllGeometry());
-                if (list.Count > 0) Table(list);
-            }
-        }
-
-        /// <summary>
-        /// The ULTIMATE diagnostic tool for REPL. 
-        /// Lists every parameter and shows exactly how the engine resolves it:
-        /// Name | Storage | GetStr() | GetNum() | GetVal() (UI Formatting)
-        /// </summary>
-        public void Peek(object input)
-        {
-            if (input == null) return;
-            if (input is Element e)
-            {
-                var snoopData = e.Parameters.Cast<Parameter>()
-                    .OrderBy(p => p.Definition.Name)
-                    .Select(p => new
-                    {
-                        Parameter = p.Definition.Name,
-                        Storage = p.StorageType.ToString(),
-                        StringValue = e.GetStr(p.Definition.Name),
-                        NumericValue = p.StorageType == StorageType.Double ? e.GetNum(p.Definition.Name).ToString("F4") : p.StorageType == StorageType.Integer ? e.GetInt(p.Definition.Name).ToString() : "-",
-                        UIValue = p.AsValueString() ?? "-"
-                    });
-                
-                Table(snoopData);
-                return;
-            }
-            if (input is ElementId id && Doc != null) { Peek(Doc.GetElement(id)); return; }
-            if (input is System.Collections.IEnumerable enumerable)
-            {
-                foreach (var item in enumerable) if (item is Element el) Peek(el);
-            }
-        }
-
-        /// <summary>
-        /// Discovery helper for the REPL. Lists all BuiltInParameter identifiers for an element.
-        /// usage: ListBIPs(myWall)
-        /// </summary>
-        public void ListBIPs(object input)
-        {
-            if (input is Element e) Table(e.AllBuiltInParams());
-            else if (input is ElementId id && Doc != null) ListBIPs(Doc.GetElement(id));
-            else if (input is System.Collections.IEnumerable enumerable)
-            {
-                var list = new List<object>();
-                foreach (var item in enumerable) if (item is Element el) list.Add(el.AllBuiltInParams());
-                if (list.Count > 0) Table(list);
-            }
-        }
-
-        /// <summary>
-        /// Quick delete helper with automatic transaction.
-        /// </summary>
-        public void Delete(object input)
-        {
-            if (Doc == null || input == null) return;
-            Transact("Delete Elements", () => {
-                if (input is Element e) Doc.Delete(e.Id);
-                else if (input is ElementId id) Doc.Delete(id);
-                else if (input is System.Collections.IEnumerable enumerable)
-                {
-                    foreach (var item in enumerable)
-                    {
-                        if (item is Element el) Doc.Delete(el.Id);
-                        else if (item is ElementId i) Doc.Delete(i);
-                    }
-                }
-            });
-        }
 
         public void Transact(string name, Action<Document> action)
         {
@@ -626,6 +490,46 @@ namespace CoreScript.Engine.Globals
 
     public static class VisualizationExtensions
     {
+        public static Element Peek(this Element e)
+        {
+            if (e == null) return e;
+            var snoopData = e.Parameters.Cast<Parameter>()
+                .OrderBy(p => p.Definition.Name)
+                .Select(p => new
+                {
+                    Parameter = p.Definition.Name,
+                    Storage = p.StorageType.ToString(),
+                    StringValue = e.GetStr(p.Definition.Name),
+                    NumericValue = p.StorageType == StorageType.Double ? e.GetNum(p.Definition.Name).ToString("F4") : p.StorageType == StorageType.Integer ? e.GetInt(p.Definition.Name).ToString() : "-",
+                    UIValue = p.AsValueString() ?? "-"
+                });
+            ExecutionGlobals.Current.Value?.Table(snoopData);
+            return e;
+        }
+
+        public static IEnumerable<Element> Peek(this IEnumerable<Element> data)
+        {
+            if (data == null) return data;
+            foreach (var e in data) if (e != null) e.Peek();
+            return data;
+        }
+
+        public static Element Delete(this Element e)
+        {
+            if (e != null) ExecutionGlobals.Current.Value?.Transact("Delete Element", () => e.Document.Delete(e.Id));
+            return e;
+        }
+
+        public static IEnumerable<Element> Delete(this IEnumerable<Element> data)
+        {
+            if (data == null) return data;
+            var elements = data.Where(e => e != null).ToList();
+            var first = elements.FirstOrDefault();
+            if (first != null) ExecutionGlobals.Current.Value?.Transact("Delete Elements", () => {
+                foreach (var e in elements) first.Document.Delete(e.Id);
+            });
+            return data;
+        }
         public static IEnumerable<T> Table<T>(this IEnumerable<T> data)
         {
             ExecutionGlobals.Current.Value?.Table(data);

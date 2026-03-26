@@ -113,7 +113,7 @@ In the Revit API, some common attributes are exposed as native C# properties on 
 - Best used with `Table()`: `Table(myWall.AllGeometry())`
 - Shortcut: `ListGeometry(myWall)`
 
-### `element.GetFamilyName()`
+### `element.FamilyName()`
 **Robust Family Name Getter.** Returns the true Family Name for both Loadable and System families.
 - Best used in custom `.Select()` projections or manual `.Where()` filters.
 - Eliminates the need to manually check `BuiltInParameter.ELEM_FAMILY_PARAM` or cast to `FamilyInstance`.
@@ -248,11 +248,6 @@ Every collection and element can now be visualized or manipulated using chained 
 | Command | Aliases | Description |
 | :--- | :--- | :--- |
 | `Table(data)` | — | Renders any list, projection, or elements as a searchable grid. **Note:** For Revit elements, numeric values are automatically formatted to your Project Units and Precision. |
-| `ListParams(input)` | — | Fast property-palette style list of ALL parameters for one or more elements. |
-| `ListBIPs(input)` | — | The "X-Ray" view. Lists the unique BuiltInParameter names for surgical code access. |
-| `ListProperties(input)` | — | Table summary of Revit API properties (Category, Level, Location, etc.). |
-| `ListGeometry(input)` | — | Summary of solids, total volume, and surface area for an element. |
-| `Delete(input)` | — | Safely deletes one or more elements (includes automatic transaction). |
 | `BarChart(data)` | `BarGraph(data)` | Renders a bar chart (objects need `name` and `value`). |
 | `PieChart(data)` | `PieGraph(data)` | Renders a pie chart (objects need `name` and `value`). |
 | `LineChart(data)` | `LineGraph(data)` | Renders a line graph. |
@@ -362,4 +357,4 @@ These return raw string lists. You can iterate over them (`foreach`) or `Println
 *   **`GetCategories()`**: Complete list of all Categories available in the project.
 
 ---
-🚀 **Mastery Tip**: If you need to manipulate or filter the data *before* rendering, use the extension equivalent (e.g., `el.AllParams().Table()`) instead of the auto-rendering helper.
+🚀 **Mastery Tip**: If you need to manipulate or filter the data *before* rendering, use the extension equivalent (e.g., `el.InstanceParams().Table()`) instead of the auto-rendering helper.

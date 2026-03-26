@@ -41,6 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
         const globalJson = `
 {
   "sdk": {
+    "version": "8.0.0",
     "rollForward": "latestFeature"
   }
 }

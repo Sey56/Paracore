@@ -1,0 +1,731 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Paracore Pitch</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 40px; 
+        }
+        h1, h2, h3 { color: #2c3e50; }
+        h1 { border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h2 { border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 40px; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        tr:nth-child(even) { background-color: #fdfdfd; }
+        a { color: #3498db; text-decoration: none; }
+        code { background-color: #f1f1f1; padding: 2px 5px; border-radius: 4px; font-family: Consolas, monospace; }
+    </style>
+</head>
+<body>
+    <h1>Paracore – The BIM Tool Factory &amp; Performance Automation Engine</h1>
+<p><strong>Presented by:</strong><br>Seyoum Hagos – Co-Founder<br>Hagos Aman – Co-Founder  </p>
+<p><strong>Location:</strong> Lemi Kura Sub‑city, Abuki Building, Office 414, Addis Ababa, Ethiopia  </p>
+<hr>
+<h2>1. Vision &amp; Mission</h2>
+<h3>1.1 Vision</h3>
+<p>To digitally transform Ethiopia’s construction industry by enabling intelligent, data‑driven, and automated design and construction workflows.</p>
+<h3>1.2 Mission</h3>
+<p>To develop accessible BIM automation tools, AI‑powered systems, and cloud‑based platforms that empower architects, engineers, and contractors to deliver efficient, high‑quality, and sustainable projects.</p>
+<h3>1.3 Innovation Identity</h3>
+<p><em>Paracore – BIM Tool Factory &amp; Performance Automation Engine</em><br>Innovators: Seyoum Hagos &amp; Hagos Aman | Year: 2025</p>
+<hr>
+<h2>2. Problem: The Automation Gap in BIM</h2>
+<h3>2.1 Industry‑Level Challenges</h3>
+<ul>
+<li>Low BIM adoption in Ethiopia – most firms still rely on 2D workflows.  </li>
+<li>Poor coordination between disciplines leads to costly clashes discovered late.  </li>
+<li>High construction errors and cost overruns – rework accounts for 5–15% of project costs.  </li>
+<li>Limited access to digital AEC tools – high cost of international software; no local alternatives.</li>
+</ul>
+<h3>2.2 The Deeper Problem: Existing Automation Tools Fall Short</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Limitation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Traditional Add‑in Development</td>
+<td>Requires C#, Visual Studio, Revit API expertise – weeks to build even simple tools.</td>
+</tr>
+<tr>
+<td>Dynamo</td>
+<td>Visual graphs become unmanageable for complex logic; break with Revit updates; poor debugging; performance issues at scale.</td>
+</tr>
+<tr>
+<td>pyRevit / RevitPythonShell</td>
+<td>Limited by Python’s Revit API bindings; no native UI generation; manual script management; no background execution.</td>
+</tr>
+<tr>
+<td>Rhino.Inside.Revit</td>
+<td>Heavy dependency; steep learning curve; primarily geometry‑focused, not workflow automation.</td>
+</tr>
+</tbody></table>
+<h3>2.3 The Real Cost: Two Tiers of Exclusion</h3>
+<p><strong>For Non‑Coders</strong> (architects, engineers, BIM coordinators)  </p>
+<ul>
+<li>Automation feels inaccessible – “I need to learn programming just to save time?”  </li>
+<li>Simple requests like “find all walls shorter than 2 meters” require developer intervention.  </li>
+<li>Valuable ideas for workflow improvements never get implemented.</li>
+</ul>
+<p><strong>For Developers</strong> (BIM managers, power users)  </p>
+<ul>
+<li>Revit API has a steep learning curve (700+ classes, complex object models).  </li>
+<li>Traditional add‑in development requires: Visual Studio setup, Revit SDK, debugging across processes, deployment headaches.  </li>
+<li>Even simple tools take hours to build, test, and distribute.  </li>
+<li>No ability to run quick experiments or inspect live data.</li>
+</ul>
+<h3>2.4 The Vision Gap</h3>
+<p>What’s missing is a bridge – an ecosystem that:  </p>
+<ul>
+<li>Empowers non‑coders to create automation through natural language (AI) and visual tools.  </li>
+<li>Empowers developers with instant execution, live data inspection, and rapid tool creation.  </li>
+<li>Works together – scripts created by developers become reusable tools for non‑coders.  </li>
+<li>Monitors live – not just one‑time checks, but continuous background quality control.</li>
+</ul>
+<hr>
+<h2>3. Solution: Paracore – The BIM Tool Factory &amp; Performance Automation Engine</h2>
+<p><strong>“We digitize and automate design and construction workflows.”</strong></p>
+<p>Paracore is a complete ecosystem that closes the automation gap. It provides:  </p>
+<ul>
+<li><strong>Real‑time BIM quality monitoring</strong> – background “Sentinels” that run continuously and report violations.  </li>
+<li><strong>Instant tool creation</strong> – no coding barrier; scripts become professional tools with automatically generated UI.  </li>
+<li><strong>AI‑assisted automation</strong> – natural language descriptions generate fully working scripts.  </li>
+<li><strong>Live data interaction</strong> – edit thousands of element properties directly from dynamic tables inside Revit.</li>
+</ul>
+<hr>
+<h2>4. Technology Overview</h2>
+<p>Paracore consists of three integrated components:  </p>
+<ol>
+<li><strong>Paracore.Addin</strong> – A Revit add‑in that hosts a gRPC server inside Revit.  </li>
+<li><strong>rap‑server</strong> – A local FastAPI sidecar that translates between gRPC (Revit) and HTTP (UI).  </li>
+<li><strong>rap‑web</strong> – A desktop application built with React, TypeScript, and Tauri, providing the user interface.</li>
+</ol>
+<h3>4.1 Key Technical Capabilities</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>BIM Tool Factory</strong></td>
+<td>Turn any script into a reusable tool with automatic parameter UI – no coding required.</td>
+</tr>
+<tr>
+<td><strong>Visual Query Builder</strong></td>
+<td>Build complex element filters through a graphical interface; generate code automatically.</td>
+</tr>
+<tr>
+<td><strong>Sentinels</strong></td>
+<td>Background scripts that continuously monitor the model and report compliance breaches in real time.</td>
+</tr>
+<tr>
+<td><strong>Active Data Grid</strong></td>
+<td>Editable tables that allow live editing of element parameters; mass‑edit via spreadsheet import/export.</td>
+</tr>
+<tr>
+<td><strong>REPL (Read‑Eval‑Print Loop)</strong></td>
+<td>Interactive C# console inside Revit for instant experimentation: <code>GetElements&lt;Wall&gt;().Count</code>, multi‑line queries, dynamic tables.</td>
+</tr>
+<tr>
+<td><strong>AI Integration</strong></td>
+<td>Scaffolding includes AI instructions; an LLM can generate Paracore‑compliant code from natural language descriptions.</td>
+</tr>
+<tr>
+<td><strong>Institutional Memory</strong></td>
+<td>Central knowledge system for sharing scripts, best practices, and automation across teams.</td>
+</tr>
+</tbody></table>
+<h3>4.2 How It Works for Different Users</h3>
+<ul>
+<li><strong>Non‑coders</strong> → Use AI generation or Visual Query Builder to create tools; run them with one click; no code touched.  </li>
+<li><strong>Developers</strong> → Write C# scripts in VS Code with full IntelliSense; scripts become tools with auto‑generated UI.  </li>
+<li><strong>BIM Managers</strong> → Deploy Sentinels to monitor model quality continuously; receive live alerts on compliance breaches.</li>
+</ul>
+<hr>
+<h2>5. Products &amp; Services</h2>
+<h3>5.1 Core Platform Features</h3>
+<ol>
+<li><strong>BIM Tool Factory</strong> – Instant conversion of scripts to tools.  </li>
+<li><strong>Visual Query Builder</strong> – No‑code model filtering and code generation.  </li>
+<li><strong>Quality at the Source (Sentinels)</strong> – Real‑time error detection and reporting.  </li>
+<li><strong>Active Data Grid</strong> – Live editing of BIM data; mass updates.  </li>
+<li><strong>Institutional Memory</strong> – Central repository for automation assets.  </li>
+<li><strong>Advanced REPL (Peek)</strong> – Live debugging, inspection, and experimentation.</li>
+</ol>
+<h3>5.2 Business Offerings</h3>
+<ul>
+<li><strong>BIM Modeling &amp; Coordination</strong> – Consulting services for projects.  </li>
+<li><strong>AEC Software Development</strong> – Custom tools and integrations.  </li>
+<li><strong>Training &amp; Certification Programs</strong> – Structured courses for professionals.  </li>
+<li><strong>Digital Twin &amp; Data Analytics</strong> – Advanced services for smart construction.</li>
+</ul>
+<hr>
+<h2>6. Implementation Areas</h2>
+<p><strong>Government Institutions</strong>  </p>
+<ul>
+<li>Construction and Management Institute (CMI)  </li>
+<li>Ministry of Urban Development and Construction (MUDC)  </li>
+<li>Ethiopian Engineering Corporation (EEC)  </li>
+<li>Ethiopian Construction Works Corporation (ECWC)  </li>
+<li>Engineering Corporation of Oromia (ECO)  </li>
+<li>Oromia Construction Corporation (OCC)</li>
+</ul>
+<p><strong>Construction Companies</strong>  </p>
+<ul>
+<li>Alpha Post Tension  </li>
+<li>Seven S ET – Advanced General Contractor</li>
+</ul>
+<p><strong>Real Estate Developers</strong>  </p>
+<ul>
+<li>GIFT  </li>
+<li>OVID</li>
+</ul>
+<p><strong>Architectural and Engineering Consulting Firms</strong>  </p>
+<ul>
+<li>BIGAR  </li>
+<li>ZIAS</li>
+</ul>
+<p><strong>Universities</strong>  </p>
+<ul>
+<li>AAiT, ASTU, AASTU</li>
+</ul>
+<p><strong>Suppliers</strong> – Materials and equipment providers</p>
+<hr>
+<h2>7. Industry Benefits</h2>
+<table>
+<thead>
+<tr>
+<th>Indicator</th>
+<th>Traditional Approach</th>
+<th>Paracore Advantage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Quality</td>
+<td>Late detection, costly rework</td>
+<td>Real‑time monitoring, preventive alerts</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>High rework costs</td>
+<td>Preventive system reduces waste</td>
+</tr>
+<tr>
+<td>Time</td>
+<td>Project delays</td>
+<td>Faster delivery through automation</td>
+</tr>
+<tr>
+<td>Productivity</td>
+<td>Manual, repetitive tasks</td>
+<td>AI‑assisted and scripted workflows</td>
+</tr>
+<tr>
+<td>Jobs</td>
+<td>BIM operators</td>
+<td>“BIM Tool Smiths” – creators, not just users</td>
+</tr>
+<tr>
+<td>Foreign Exchange</td>
+<td>Imported software tools</td>
+<td>Locally developed, sustainable ecosystem</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>8. Market Opportunity</h2>
+<h3>8.1 Ethiopia Context</h3>
+<ul>
+<li><strong>Rapid urbanization</strong> – Cities like Addis Ababa expand quickly, driving demand for efficient planning.  </li>
+<li><strong>Booming construction sector</strong> – Large‑scale investments in housing, infrastructure, and commercial developments.  </li>
+<li><strong>Government push for digitalization</strong> – National initiatives promoting e‑governance, smart cities, and digital transformation.</li>
+</ul>
+<h3>8.2 Target Market Segments</h3>
+<ul>
+<li><strong>Government Mega Projects</strong> – Smart cities, transport infrastructure, public housing.  </li>
+<li><strong>Real Estate Developers</strong> – Mixed‑use, residential, and commercial projects.  </li>
+<li><strong>NGOs &amp; International Consultants</strong> – Donor‑funded projects requiring BIM compliance and transparent reporting.</li>
+</ul>
+<h3>8.3 Market Gap &amp; Opportunity</h3>
+<ul>
+<li><strong>Low BIM penetration</strong> in Ethiopia → First‑mover advantage.  </li>
+<li><strong>Limited local expertise</strong> → High demand for training and tools.  </li>
+<li><strong>Inefficiencies in traditional workflows</strong> → Strong ROI for digital solutions.</li>
+</ul>
+<h3>8.4 Strategic Positioning</h3>
+<p>Paras Codarch (the company behind Paracore) is positioned to become:  </p>
+<ul>
+<li>A <strong>BIM technology leader in Ethiopia</strong>.  </li>
+<li>A <strong>bridge between global AEC innovation and local market needs</strong>.  </li>
+<li>A <strong>capacity builder</strong> for the next generation of digital construction professionals.</li>
+</ul>
+<hr>
+<h2>9. Business Model</h2>
+<p>Paras Codarch operates a hybrid revenue model combining consulting, SaaS, and capacity building – ensuring both short‑term cash flow and long‑term recurring revenue.</p>
+<h3>9.1 Revenue Streams</h3>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Description</th>
+<th>Revenue Type</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Consultancy Services</td>
+<td>BIM implementation, digital transformation advisory, BIM execution planning</td>
+<td>Project‑based (high value)</td>
+</tr>
+<tr>
+<td>SaaS Licensing</td>
+<td>Subscription‑based Revit add‑ins (SH_Tools, SynCad, OffsetMax); cloud‑based BIM tools</td>
+<td>Monthly / annual subscriptions</td>
+</tr>
+<tr>
+<td>Training &amp; Certification</td>
+<td>BIM certification courses, intensive bootcamps, corporate training packages</td>
+<td>Per trainee / institutional contracts</td>
+</tr>
+<tr>
+<td>Custom Software Development</td>
+<td>Tailored BIM tools, AI‑driven automation, system integrations</td>
+<td>Project‑based + maintenance</td>
+</tr>
+</tbody></table>
+<h3>9.2 Revenue Mix Strategy (3–5 Year Vision)</h3>
+<ul>
+<li><strong>Year 1–2:</strong> Focus on consultancy + training – cash flow generation.  </li>
+<li><strong>Year 3–5:</strong> Scale SaaS licensing – dominant revenue stream.  </li>
+<li><strong>Long‑Term Goal:</strong> Transition into a product‑driven company with recurring revenue.</li>
+</ul>
+<h3>9.3 Business Model Strengths</h3>
+<ul>
+<li>Diversified revenue streams → reduced risk.  </li>
+<li>Recurring SaaS income → predictable cash flow.  </li>
+<li>Strong synergy between training → tools → consulting.  </li>
+<li>High scalability through digital products.</li>
+</ul>
+<hr>
+<h2>10. Competitive Advantage</h2>
+<ul>
+<li><strong>First‑mover</strong> in Ethiopia BIM automation.  </li>
+<li><strong>Deep AEC + AI integration</strong> – native Revit API access with AI assistance.  </li>
+<li><strong>Locally developed solutions</strong> – tailored to Ethiopian context.  </li>
+<li><strong>Highly customizable platform</strong> – open source core, proprietary services.  </li>
+<li><strong>Strong domain expertise</strong> – co‑founders are architects with deep Revit knowledge.</li>
+</ul>
+<hr>
+<h2>11. Cost &amp; Sustainability Strategy</h2>
+<ul>
+<li><strong>Low capital requirement</strong> – software‑driven; leverages open‑source core.  </li>
+<li><strong>Revenue streams</strong> – automation packs, training programs, enterprise solutions.  </li>
+<li><strong>Reduces dependency</strong> on foreign software – supports national digital sovereignty.</li>
+</ul>
+<hr>
+<h2>12. Technology &amp; Innovation</h2>
+<ul>
+<li><strong>BIM platforms</strong> – Revit, Navisworks.  </li>
+<li><strong>AI‑driven automation</strong> – natural language to code.  </li>
+<li><strong>Cloud collaboration systems</strong> – future roadmap.  </li>
+<li><strong>Real‑time data analytics</strong> – sentinel reports, live tables.</li>
+</ul>
+<hr>
+<h2>13. Traction</h2>
+<h3>13.1 Product Development &amp; Innovation</h3>
+<ul>
+<li>Successfully developed proprietary BIM tools: <strong>SH_Tools, RAssistant, SynCad, RToolkit</strong>.  </li>
+<li>Continuous improvement based on real project use.</li>
+<li>Autodesk Developers Network member since 2024</li>
+</ul>
+<h3>13.2 Global Validation</h3>
+<ul>
+<li>Published applications on the <strong>Autodesk App Store</strong>.  </li>
+<li>Member of the <strong>Autodesk Developer Network (ADN)</strong> – demonstrates technical credibility and global market readiness.</li>
+</ul>
+<h3>13.3 Strategic Partnerships</h3>
+<ul>
+<li>Collaboration with <strong>Awura Tech PLC</strong>.  </li>
+<li>Signed Memorandum of Understanding (MoU) with the <strong>Construction Management Institute (CMI)</strong> – expanding reach in technology integration and industry capacity building.</li>
+</ul>
+<h3>13.4 Market Validation</h3>
+<ul>
+<li>Pilot BIM implementations underway with real projects.  </li>
+<li>Transition from concept to real market application.</li>
+</ul>
+<h3>13.5 Ecosystem Engagement</h3>
+<ul>
+<li>Active participation in workshops, seminars, and digital technology events.  </li>
+<li>Contributions to BIM awareness and knowledge dissemination.</li>
+</ul>
+<h3>13.6 Traction Summary</h3>
+<ul>
+<li>Working products (not just concept).  </li>
+<li>Global platform presence.  </li>
+<li>Strategic partnerships secured.  </li>
+<li>Early project implementation underway.  </li>
+<li>Growing industry visibility.</li>
+</ul>
+<hr>
+<h2>14. Dissemination Strategy</h2>
+<h3>14.1 Industry Engagement &amp; Outreach</h3>
+<ul>
+<li>Live demonstrations and roadshows for developers, consultants, and government institutions.  </li>
+<li>Active participation in national and international AEC forums to establish thought leadership.</li>
+</ul>
+<h3>14.2 Digital Learning Platform</h3>
+<ul>
+<li>YouTube channel with tutorials on Revit automation, BIM workflows, AI integration.  </li>
+<li>Future online knowledge hub with courses and resources.</li>
+</ul>
+<h3>14.3 Capacity Building Programs</h3>
+<ul>
+<li>Industry‑recognized BIM certifications.  </li>
+<li>Intensive bootcamps for graduates and practicing professionals.</li>
+</ul>
+<h3>14.4 Academic &amp; Research Integration</h3>
+<ul>
+<li>University lectures and partnerships (e.g., Arba Minch University, Addis Ababa University).  </li>
+<li>Publications, white papers on BIM adoption, AI in AEC, sustainable digital construction.</li>
+</ul>
+<h3>14.5 Brand Positioning</h3>
+<ul>
+<li>Establish Paras Codarch as a center of excellence in BIM and AEC technology in Africa.</li>
+</ul>
+<hr>
+<h2>15. Team</h2>
+<ul>
+<li><strong>Seyoum Hagos</strong> – Co‑Founder, Architect  </li>
+<li><strong>Hagos Aman</strong> – Co‑Founder, Architect  </li>
+<li>Engineers &amp; developers  </li>
+<li>Strategic advisors</li>
+</ul>
+<hr>
+<h2>16. Current Status</h2>
+<p>✅ <strong>Version 4.2.0 – Stable Build</strong>  </p>
+<ul>
+<li>Core system operational  </li>
+<li>Ready for pilot deployment</li>
+</ul>
+<hr>
+<h2>17. Roadmap</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Focus</th>
+<th>Key Milestones</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Year 1: Ethiopia Market Entry</strong></td>
+<td>Validation, revenue, ecosystem building</td>
+<td>3–5 pilot projects; 200+ professionals trained; first paying clients; local partnerships</td>
+</tr>
+<tr>
+<td><strong>Year 2: Product Scaling</strong></td>
+<td>Transition to recurring revenue</td>
+<td>500–1,000 SaaS users; 10+ enterprise clients; recognized BIM leader in Ethiopia</td>
+</tr>
+<tr>
+<td><strong>Year 3: East Africa Expansion</strong></td>
+<td>Regional growth</td>
+<td>Presence in 2–3 East African countries; regional client portfolio; scaled SaaS adoption</td>
+</tr>
+</tbody></table>
+<h3>17.1 Long‑Term Vision</h3>
+<ul>
+<li>Become a leading BIM &amp; AEC technology company in Africa.  </li>
+<li>Develop a fully integrated digital construction platform.  </li>
+<li>Expand into AI‑driven design and smart city solutions.</li>
+</ul>
+<hr>
+<h2>18. Financial Projections (5‑Year Model)</h2>
+<h3>18.1 Revenue Projection (ETB)</h3>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Consultancy</th>
+<th>SaaS Subscriptions</th>
+<th>Training Programs</th>
+<th>Custom Development</th>
+<th><strong>Total Revenue</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>3,000,000</td>
+<td>500,000</td>
+<td>1,200,000</td>
+<td>800,000</td>
+<td><strong>5,500,000</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>4,500,000</td>
+<td>1,500,000</td>
+<td>2,000,000</td>
+<td>1,200,000</td>
+<td><strong>9,200,000</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>6,000,000</td>
+<td>3,500,000</td>
+<td>3,000,000</td>
+<td>2,000,000</td>
+<td><strong>14,500,000</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>7,500,000</td>
+<td>6,500,000</td>
+<td>4,000,000</td>
+<td>3,000,000</td>
+<td><strong>21,000,000</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td>9,000,000</td>
+<td>10,000,000</td>
+<td>5,500,000</td>
+<td>4,500,000</td>
+<td><strong>29,000,000</strong></td>
+</tr>
+</tbody></table>
+<h3>18.2 Cost Structure (ETB)</h3>
+<table>
+<thead>
+<tr>
+<th>Cost Category</th>
+<th>Year 1</th>
+<th>Year 2</th>
+<th>Year 3</th>
+<th>Year 4</th>
+<th>Year 5</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Salaries</td>
+<td>2,400,000</td>
+<td>3,600,000</td>
+<td>5,000,000</td>
+<td>6,500,000</td>
+<td>8,000,000</td>
+</tr>
+<tr>
+<td>Office &amp; Operations</td>
+<td>600,000</td>
+<td>800,000</td>
+<td>1,000,000</td>
+<td>1,200,000</td>
+<td>1,500,000</td>
+</tr>
+<tr>
+<td>Cloud &amp; Infrastructure</td>
+<td>300,000</td>
+<td>600,000</td>
+<td>1,200,000</td>
+<td>2,000,000</td>
+<td>3,000,000</td>
+</tr>
+<tr>
+<td>Marketing &amp; Sales</td>
+<td>200,000</td>
+<td>500,000</td>
+<td>1,000,000</td>
+<td>1,500,000</td>
+<td>2,000,000</td>
+</tr>
+<tr>
+<td>R&amp;D / Product Dev</td>
+<td>800,000</td>
+<td>1,200,000</td>
+<td>1,800,000</td>
+<td>2,500,000</td>
+<td>3,500,000</td>
+</tr>
+<tr>
+<td><strong>Total Cost</strong></td>
+<td><strong>4,300,000</strong></td>
+<td><strong>6,700,000</strong></td>
+<td><strong>10,000,000</strong></td>
+<td><strong>13,700,000</strong></td>
+<td><strong>18,000,000</strong></td>
+</tr>
+</tbody></table>
+<h3>18.3 Profit Projection (ETB)</h3>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Revenue</th>
+<th>Cost</th>
+<th>Net Profit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>5,500,000</td>
+<td>4,300,000</td>
+<td>1,200,000</td>
+</tr>
+<tr>
+<td>2</td>
+<td>9,200,000</td>
+<td>6,700,000</td>
+<td>2,500,000</td>
+</tr>
+<tr>
+<td>3</td>
+<td>14,500,000</td>
+<td>10,000,000</td>
+<td>4,500,000</td>
+</tr>
+<tr>
+<td>4</td>
+<td>21,000,000</td>
+<td>13,700,000</td>
+<td>7,300,000</td>
+</tr>
+<tr>
+<td>5</td>
+<td>29,000,000</td>
+<td>18,000,000</td>
+<td>11,000,000</td>
+</tr>
+</tbody></table>
+<h3>18.4 Break‑Even Analysis</h3>
+<p>✅ Break‑even achieved in <strong>Year 1–2</strong> – low‑risk entry, strong signal for investors.</p>
+<h3>18.5 SaaS Growth Assumptions</h3>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Users</th>
+<th>Avg Monthly Fee (ETB)</th>
+<th>Annual SaaS Revenue (ETB)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>50</td>
+<td>800</td>
+<td>500,000</td>
+</tr>
+<tr>
+<td>2</td>
+<td>150</td>
+<td>850</td>
+<td>1,500,000</td>
+</tr>
+<tr>
+<td>3</td>
+<td>350</td>
+<td>900</td>
+<td>3,500,000</td>
+</tr>
+<tr>
+<td>4</td>
+<td>600</td>
+<td>900</td>
+<td>6,500,000</td>
+</tr>
+<tr>
+<td>5</td>
+<td>900+</td>
+<td>950</td>
+<td>10,000,000</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>19. Funding Ask</h2>
+<h3>19.1 Required Investment</h3>
+<p><strong>$250,000 – $400,000 (Seed Round)</strong><br><em>Recommended Ask: $300,000</em></p>
+<h3>19.2 Use of Funds</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>%</th>
+<th>Amount</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Office &amp; Infrastructure</td>
+<td>15%</td>
+<td>$45,000</td>
+</tr>
+<tr>
+<td>Product Development</td>
+<td>25%</td>
+<td>$75,000</td>
+</tr>
+<tr>
+<td>Hiring &amp; Team</td>
+<td>30%</td>
+<td>$90,000</td>
+</tr>
+<tr>
+<td>Cloud Infrastructure</td>
+<td>10%</td>
+<td>$30,000</td>
+</tr>
+<tr>
+<td>Marketing &amp; Scaling</td>
+<td>20%</td>
+<td>$60,000</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>100%</strong></td>
+<td><strong>$300,000</strong></td>
+</tr>
+</tbody></table>
+<h3>19.3 Runway &amp; Impact</h3>
+<ul>
+<li><strong>Runway:</strong> 18–24 months  </li>
+<li><strong>Milestones Achieved with Funding:</strong>  <ul>
+<li>500+ SaaS users  </li>
+<li>10+ enterprise clients  </li>
+<li>Strong recurring revenue base  </li>
+<li>Market leadership in Ethiopia</li>
+</ul>
+</li>
+</ul>
+<h3>19.4 Investor Value Proposition</h3>
+<ul>
+<li>Early entry into a <strong>high‑growth, under‑digitized AEC market</strong>.  </li>
+<li>Scalable <strong>SaaS + consulting hybrid model</strong>.  </li>
+<li>Strong traction with <strong>working products and partnerships</strong>.  </li>
+<li>Funding will move Paras Codarch from <strong>early traction → scalable growth stage</strong>.</li>
+</ul>
+<hr>
+<h2>20. Impact &amp; Value</h2>
+<ul>
+<li><strong>Job creation</strong> – “BIM Tool Smiths” instead of passive software users.  </li>
+<li><strong>Skill development</strong> – massive upskilling of Ethiopian AEC professionals.  </li>
+<li><strong>Reduced construction waste</strong> – less rework, better coordination.  </li>
+<li><strong>Increased efficiency</strong> – automation accelerates project delivery.  </li>
+<li><strong>Supports national digital transformation</strong> – aligns with government initiatives.</li>
+</ul>
+<hr>
+<h2>21. Call to Action</h2>
+<p>🚀 <strong>Let’s build the future of construction in Ethiopia – together.</strong></p>
+<p><strong>Paras Codarch AEC Technology (PCAT)</strong><br>Addis Ababa, Ethiopia<br>📧 <a href="mailto:hagosaman2019@gmail.com">hagosaman2019@gmail.com</a><br>📞 0911544413</p>
+<p><strong>Open Source Project:</strong> <a href="https://github.com/Sey56/Paracore">github.com/Sey56/Paracore</a></p>
+
+
+</body>
+</html>

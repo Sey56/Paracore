@@ -395,7 +395,7 @@ async def edit_script_logic(tool_path: str, force_scaffold: bool = False):
 
 def _scaffold_project_inplace(project_root: str, project_name: str):
     try:
-        with open(os.path.join(project_root, "global.json"), 'w') as f: f.write('{"sdk": {"rollForward": "latestFeature"}}')
+        with open(os.path.join(project_root, "global.json"), 'w') as f: f.write('{"sdk": {"version": "8.0.0", "rollForward": "latestFeature"}}')
         pack_root = os.path.dirname(project_root)
         _ensure_pack_gitignore(pack_root)
     except: pass
@@ -425,7 +425,7 @@ def scaffold_project_full(project_root: str):
 
         # 2. global.json
         with open(os.path.join(project_root, "global.json"), 'w', encoding='utf-8') as f:
-            f.write('{\n    "sdk": {\n        "rollForward": "latestFeature"\n    }\n}')
+            f.write('{\n    "sdk": {\n        "version": "8.0.0",\n        "rollForward": "latestFeature"\n    }\n}')
 
         # 3. .editorconfig
         with open(os.path.join(project_root, ".editorconfig"), 'w', encoding='utf-8') as f:

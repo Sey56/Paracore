@@ -175,7 +175,7 @@
                 </div>
             </div>
             <div class="exercise-task">
-                <strong>Task:</strong> Identify all <strong>Doors</strong> that are either missing a "Fire Rating" (blank/null) or have a rating of "0 mins", but ONLY if the door's host wall has the word "Exterior" in its type name or the door's true <code>.GetFamilyName()</code> contains "Exterior". Output a table showing the Door ID, Family Name, and current Fire Rating.
+                <strong>Task:</strong> Identify all <strong>Doors</strong> that are either missing a "Fire Rating" (blank/null) or have a rating of "0 mins", but ONLY if the door's host wall has the word "Exterior" in its type name or the door's true <code>.FamilyName()</code> contains "Exterior". Output a table showing the Door ID, Family Name, and current Fire Rating.
             </div>
         </div>
 
@@ -273,7 +273,7 @@
                 </div>
             </div>
             <div class="exercise-task">
-                <strong>Task:</strong> Scan for ANY loadable <code>FamilyInstance</code> across the model whose true <code>.GetFamilyName()</code> contains "Import", "CAD", or "dwg", OR any element where the string representation of its <code>.AllGeometry()</code> shows an abnormally high solid count (e.g., &gt; 100 faces/solids) suggesting raw unpurged imports. Table the worst offenders.
+                <strong>Task:</strong> Scan for ANY loadable <code>FamilyInstance</code> across the model whose true <code>.FamilyName()</code> contains "Import", "CAD", or "dwg", OR any element where the string representation of its <code>.AllGeometry()</code> shows an abnormally high solid count (e.g., &gt; 100 faces/solids) suggesting raw unpurged imports. Table the worst offenders.
             </div>
         </div>
 

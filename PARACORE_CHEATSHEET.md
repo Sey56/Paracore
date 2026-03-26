@@ -42,7 +42,7 @@ Smart, unit-aware extension methods on every `Element`.
 | `.GetNum(name)` | `double` | Raw numeric (Internal). | `e.GetNum("Length")` |
 | `.GetVal(name)` | `string` | WYSIWYG (UI Format). | `e.GetVal("Width")` |
 | `.GetInt(name)` | `int` | Integer/Boolean getter. | `e.GetInt("Is External")` |
-| `.GetFamilyName()`| `string` | True Family Name getter. | `e.GetFamilyName()` |
+| `.FamilyName()`| `string` | True Family Name getter. | `e.FamilyName()` |
 | `.Matches("pattern")`| `bool` | Fuzzy Type/Family matcher. | `e.Matches("Flush")` |
 | `.SetVal(n, v)` | `void` | **Smart Setter** (Auto-ID/Unit).| `e.SetVal("Mark", "101")` |
 | `.SetNum(n, v, u)`| `void` | Explicit Unit Setter. | `e.SetNum("L", 1.5, "m")` |
@@ -101,13 +101,13 @@ Tools for BIM managers and debuggers.
 
 | Function | Description | Example |
 | :--- | :--- | :--- |
-| `Peek(element)` | Side-by-side API analysis. | `Peek(Selection[0])` |
-| `.AllParams()` | Full raw parameter list. | `Table(e.AllParams())` |
-| `ListParams(e)` | Sorted property table. | `ListParams(e)` |
-| `ListBIPs(e)` | Show BuiltInParameters. | `ListBIPs(e)` |
-| `ListProperties(e)` | Key API metadata table. | `ListProperties(e)` |
-| `ListGeometry(e)` | Volume/Area/Solid table. | `ListGeometry(e)` |
-| `Transact("name", fn)`| Wrap edits in a transaction. | `Transact("Up", () => ...)` |
+| `.Peek()` | Side-by-side API analysis. | `Selection[0].Peek()` |
+| `.InstanceParams()` | Full raw instance parameter list. | `Table(e.InstanceParams())` |
+| `.CombinedParams()` | Full Grid (Instance & Type). | `e.CombinedParams().Table()` |
+| `.BuiltInParams()` | Show BuiltInParameters. | `e.BuiltInParams().Table()` |
+| `.NativeProperties()` | Key API metadata table. | `e.NativeProperties().Table()` |
+| `.GeometrySummary()` | Volume/Area/Solid table. | `e.GeometrySummary().Table()` |
+| `.Delete()` | Safe deletion wrapper. | `e.Delete()` |
 | `SetExecutionTimeout(n)`| Extend script time limits. | `SetExecutionTimeout(60)` |
 
 ## 📊 Structured Output Reference
@@ -117,11 +117,9 @@ Understanding when to use `.Table()` vs. Auto-rendering functions.
 *   **`elements.Table()`**: Dynamic discovery of all parameters.
 *   **`data.Table()`**: Renders any object list or projection.
 
-### Auto-Rendering (No `.Table()` needed)
-*   **`Peek(el)`**: Forensic comparison (API vs UI).
-*   **`ListParams(el)`**: Full instance parameter table.
-*   **`ListProperties(el)`**: Non-parameter metadata (Level, Workset).
-*   **`ListGeometry(el)`**: Solid/Volume/Area breakdown.
+### Action Methods (Auto-Rendering)
+*   **`.Peek()`**: Forensic comparison (API vs UI).
+*   **`.Delete()`**: Safe deletion.
 
 ### Returns List (No Table)
 *   **`GetMagicNames()`**: All targetable hydration names.

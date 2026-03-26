@@ -56,13 +56,13 @@ If the user asks for a chart or table, or a large amount of data needs to be dis
 - `BarGraph(data)`, `PieGraph(data)`, `LineGraph(data)` -> Renders charts. USE MEANINGFUL PROPERTY NAMES in your anonymous objects (e.g., `Level` instead of `name`, `TotalArea_m2` instead of `value`) so axes are labeled beautifully!
   - Example: `GetElements<Wall>().GroupBy(w => w.GetStr("Base Constraint")).Select(g => new { Level = g.Key, TotalArea_m2 = g.Sum(w => w.GetNum("Area")).OutputUnit("m2") }).BarGraph();`
 
-### 🛠️ Diagnostics (Auto-Rendering)
-These methods instantly output forensic tables to the Summary tab. Do NOT chain `.Table()` after them!
-- `Peek(element)` -> Side-by-side API analysis (GetStr, GetNum, Storage, API)
-- `ListParams(element)` -> Sorted property table of ALL instance parameters
-- `ListBIPs(element)` -> Shows BuiltInParameters
-- `ListProperties(element)` -> API Metadata (Level, Workset, Location)
-- `ListGeometry(element)` -> Volume/Area/Solid Breakdown
+### 🛠️ Diagnostics & Extractors
+Always chain these extension methods to your object (e.g., `element.CombinedParams().Table()`). Do NOT pass the element inside parentheses!
+- `element.Peek()` -> Side-by-side API analysis (Auto-renders! Do not chain .Table())
+- `element.CombinedParams()` -> Gets BOTH Instance & Type parameters
+- `element.BuiltInParams()` -> Gets BuiltInParameters
+- `element.NativeProperties()` -> API Metadata (Level, Workset, Location)
+- `element.GeometrySummary()` -> Volume/Area/Solid Breakdown
 
 ### ⚖️ Precision & Units
 Revit uses Imperial units internally (Decimal Feet). Use Paracore math extensions:

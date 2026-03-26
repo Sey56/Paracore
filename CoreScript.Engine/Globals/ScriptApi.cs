@@ -161,40 +161,6 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Discovery helper for the REPL. Lists all parameters of one or more elements in a table.
-        /// usage: ListParams(myWall) or ListParams(id) or ListParams(listOfWalls)
-        /// </summary>
-        public static void ListParams(object input) => Globals.ListParams(input);
-
-        /// <summary>
-        /// Discovery helper for the REPL. Lists key Revit API properties (Level, Location, etc.)
-        /// </summary>
-        public static void ListProperties(object input) => Globals.ListProperties(input);
-
-        /// <summary>
-        /// Discovery helper for the REPL. Lists geometry summary (Solids, Volumes, Area).
-        /// </summary>
-        public static void ListGeometry(object input) => Globals.ListGeometry(input);
-
-        /// <summary>
-        /// Quick delete helper with automatic transaction.
-        /// </summary>
-        public static void Delete(object input) => Globals.Delete(input);
-
-        /// <summary>
-        /// The ULTIMATE diagnostic tool for REPL. 
-        /// Lists every parameter and shows exactly how the engine resolves it:
-        /// Name | Storage | GetStr() | GetNum() | GetVal() (UI Formatting)
-        /// </summary>
-        public static void Peek(object input) => Globals.Peek(input);
-
-        /// <summary>
-        /// Discovery helper for the REPL. Lists all BuiltInParameter identifiers for an element.
-        /// usage: ListBIPs(myWall)
-        /// </summary>
-        public static void ListBIPs(object input) => Globals.ListBIPs(input);
-
-        /// <summary>
         /// Selects the specified elements in the Revit user interface and zooms to them.
         /// </summary>
         public static void Select(IEnumerable<Element> elements)

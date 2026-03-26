@@ -11,9 +11,9 @@ namespace CoreScript.Engine.Globals
     {
         /// <summary>
         /// Discovery helper for REPL: Lists all native C# properties available for the element type via Reflection.
-        /// usage: typeof(Wall).GetProperties()... or simply myWall.GetNativeProperties().Table()
+        /// usage: typeof(Wall).GetProperties()... or simply myWall.ReflectionProperties().Table()
         /// </summary>
-        public static IEnumerable<object> GetNativeProperties(this Element e)
+        public static IEnumerable<object> ReflectionProperties(this Element e)
         {
             if (e == null) return Enumerable.Empty<object>();
             return e.GetType()
@@ -23,8 +23,8 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Smart name matching for REPL and Filters.
-        /// Checks Element.Name AND Family Name for loadable components.
+        /// Fuzzy substring search against the Element's identity.
+        /// Automatically checks if the specified string is contained within the Type Name OR the true Family Name.
         /// </summary>
         public static bool Matches(this Element e, string pattern)
         {
@@ -43,7 +43,7 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Robustly gets the Family Name of an element (handles Loadable vs System families).
         /// </summary>
-        public static string GetFamilyName(this Element e)
+        public static string FamilyName(this Element e)
         {
             if (e == null) return "";
             if (e is FamilyInstance fi) return fi.Symbol.FamilyName;
@@ -251,9 +251,9 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Gets all BUILT-IN parameters of the element as a list of objects (Name, BIP, Value).
-        /// Ideal for REPL discovery: Table(myWall.AllBuiltInParams())
+        /// Ideal for REPL discovery: Table(myWall.BuiltInParams())
         /// </summary>
-        public static IEnumerable<object> AllBuiltInParams(this Element e)
+        public static IEnumerable<object> BuiltInParams(this Element e)
         {
             if (e == null) return new List<object>();
 
@@ -269,10 +269,10 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Gets all parameters of the element as a list of objects (Name, Storage, Value).
-        /// Ideal for REPL exploration: Table(myWall.AllParams())
+        /// Gets all instance parameters of the element as a list of objects (Name, Storage, Value).
+        /// Ideal for REPL exploration: Table(myWall.InstanceParams())
         /// </summary>
-        public static IEnumerable<object> AllParams(this Element e)
+        public static IEnumerable<object> InstanceParams(this Element e)
         {
             if (e == null) return new List<object>();
 
@@ -296,7 +296,18 @@ namespace CoreScript.Engine.Globals
                 return new List<object>();
             
             var type = e.Document.GetElement(typeId);
-            return type.AllParams();
+            return type.InstanceParams();
+        }
+
+        /// <summary>
+        /// Gets both instance and type parameters of the element as a combined list with Scope headers.
+        /// </summary>
+        public static IEnumerable<object> CombinedParams(this Element e)
+        {
+            if (e == null) return new List<object>();
+            var inst = e.InstanceParams().Select(p => { dynamic dp = p; return new { Scope = "Instance", Name = dp.Name, Storage = dp.Storage, Value = dp.Value }; });
+            var type = e.TypeParams().Select(p => { dynamic dp = p; return new { Scope = "Type", Name = dp.Name, Storage = dp.Storage, Value = dp.Value }; });
+            return inst.Concat(type);
         }
 
         /// <summary>
@@ -319,7 +330,7 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Gets a summary of the most important Revit API properties (Category, Level, Workset, etc.)
         /// </summary>
-        public static IEnumerable<object> AllProperties(this Element e)
+        public static IEnumerable<object> NativeProperties(this Element e)
         {
             if (e == null) return new List<object>();
 
@@ -347,7 +358,7 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Gets a summary of the element's geometry (Solids, Surfaces, Volumes).
         /// </summary>
-        public static IEnumerable<object> AllGeometry(this Element e)
+        public static IEnumerable<object> GeometrySummary(this Element e)
         {
             if (e == null) return new List<object>();
 
@@ -625,7 +636,9 @@ namespace CoreScript.Engine.Globals
             return elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary> Fuzzy name/family name matching for collections. </summary>
+        /// <summary> 
+        /// Convenience filter. Returns elements whose Type Name OR Family Name contains the specified substring.
+        /// </summary>
         public static IEnumerable<Element> WhereMatches(this IEnumerable<Element> elements, string pattern)
         {
             return elements.Where(e => e.Matches(pattern));

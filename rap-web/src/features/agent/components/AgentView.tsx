@@ -10,7 +10,6 @@ import { useScripts } from '@/features/automation';
 import { filterVisibleParameters } from '@/utils/parameterVisibility';
 
 import { Modal } from '@/components/common/Modal';
-import WorkingSetPanel from './WorkingSetPanel';
 import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import OrchestrationPlanCard from './OrchestrationPlanCard';
 import { Script, ScriptParameter } from '@/types/scriptModel';
@@ -29,7 +28,6 @@ export const AgentView: React.FC = () => {
     setActiveInspectorTab,
   } = useUI();
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
-  const [workingSet, setWorkingSet] = useState<Record<string, number[]>>({});
 
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
@@ -110,7 +108,6 @@ export const AgentView: React.FC = () => {
       }
 
       if (response.data.thread_id) setThreadId(response.data.thread_id);
-      if (response.data.working_set) setWorkingSet(response.data.working_set);
 
       if (response.data.status === 'complete' && response.data.message) {
         const agentMessage: Message = {
@@ -360,7 +357,6 @@ export const AgentView: React.FC = () => {
   const handleClearChat = useCallback(() => {
     setMessages([]);
     setThreadId(null);
-    setWorkingSet({});
     setInput('');
     setIsClearChatModalOpen(false);
     localStorage.removeItem(LOCAL_STORAGE_KEY_MESSAGES);
@@ -637,7 +633,7 @@ export const AgentView: React.FC = () => {
         </div>
       </Modal>
 
-      <WorkingSetPanel workingSet={workingSet} />
+
     </div>
   );
 };

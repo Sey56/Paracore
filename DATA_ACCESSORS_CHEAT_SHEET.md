@@ -86,11 +86,11 @@ GetElements<Room>()
 
 Paracore provides tools to help you discover what data is available on elements without leaving the REPL.
 
-### `GetNativeProperties()`
+### `ReflectionProperties()`
 **Returns a table**. Lists all direct C# properties available on the Revit class (e.g., exposing that `Room` has an `.Area` property, whereas `Wall` does not). This is your quick reference to avoid needing raw Reflection (`typeof(Room).GetProperties()`).
 
 ```csharp
 // "Show me all native C# properties available for this wall"
-Selection.First().GetNativeProperties().Table();
+Selection.First().ReflectionProperties().Table();
 // Output: Table with columns 'Name' (e.g. Width) and 'Type' (e.g. Double)
 ```

@@ -233,7 +233,7 @@
                         <tr><td><code>.GetNum(name)</code></td><td class="type">double</td><td class="desc">Raw numeric (Internal Feet).</td><td class="example"><code>e.GetNum("Length")</code></td></tr>
                         <tr><td><code>.GetVal(name)</code></td><td class="type">string</td><td class="desc">WYSIWYG (UI Formatted).</td><td class="example"><code>e.GetVal("Width")</code></td></tr>
                         <tr><td><code>.GetInt(name)</code></td><td class="type">int</td><td class="desc">Integer/Boolean getter.</td><td class="example"><code>e.GetInt("Is External")</code></td></tr>
-                        <tr><td><code>.GetFamilyName()</code></td><td class="type">string</td><td class="desc">True Family Name getter.</td><td class="example"><code>e.GetFamilyName()</code></td></tr>
+                        <tr><td><code>.FamilyName()</code></td><td class="type">string</td><td class="desc">True Family Name getter.</td><td class="example"><code>e.FamilyName()</code></td></tr>
                         <tr><td><code>.Matches("p")</code></td><td class="type">bool</td><td class="desc">Fuzzy Type/Family matcher.</td><td class="example"><code>e.Matches("Flush")</code></td></tr>
                         <tr><td><code>.SetVal(n, v)</code></td><td class="type">void</td><td class="desc"><b>Smart Setter</b> (Auto-ID/Unit).</td><td class="example"><code>e.SetVal("Mark", "101")</code></td></tr>
                         <tr><td><code>.SetNum(n, v, u)</code></td><td class="type">void</td><td class="desc">Explicit Unit Setter.</td><td class="example"><code>e.SetNum("L", 1.5, "m")</code></td></tr>
@@ -317,26 +317,23 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 25%;">Function</th>
+                            <th style="width: 25%;">Method</th>
                             <th style="width: 30%;">Description</th>
                             <th style="width: 45%;">Example / Code</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td><code>Peek(element)</code></td><td class="desc">Side-by-side API analysis.</td><td class="example"><code>Peek(Selection[0])</code></td></tr>
-                        <tr><td><code>.AllParams()</code></td><td class="desc">Full raw parameter list.</td><td class="example"><code>Table(e.AllParams())</code></td></tr>
-                        <tr><td><code>ListParams(e)</code></td><td class="desc">Sorted property table.</td><td class="example"><code>ListParams(e)</code></td></tr>
-                        <tr><td><code>ListBIPs(e)</code></td><td class="desc">Show BuiltInParameters.</td><td class="example"><code>ListBIPs(e)</code></td></tr>
-                        <tr><td><code>ListProperties(e)</code></td><td class="desc">Key API metadata table.</td><td class="example"><code>ListProperties(e)</code></td></tr>
-                        <tr><td><code>ListGeometry(e)</code></td><td class="desc">Volume/Area/Solid table.</td><td class="example"><code>ListGeometry(e)</code></td></tr>
+                        <tr><td><code>.Peek()</code></td><td class="desc">Side-by-side API analysis.</td><td class="example"><code>Selection[0].Peek()</code></td></tr>
+                        <tr><td><code>.InstanceParams()</code></td><td class="desc">Full raw instance parameter list.</td><td class="example"><code>e.InstanceParams().Table()</code></td></tr>
+                        <tr><td><code>.CombinedParams()</code></td><td class="desc">Full Grid (Instance & Type).</td><td class="example"><code>e.CombinedParams().Table()</code></td></tr>
+                        <tr><td><code>.BuiltInParams()</code></td><td class="desc">Show BuiltInParameters.</td><td class="example"><code>e.BuiltInParams().Table()</code></td></tr>
+                        <tr><td><code>.NativeProperties()</code></td><td class="desc">Key API metadata table.</td><td class="example"><code>e.NativeProperties().Table()</code></td></tr>
+                        <tr><td><code>.GeometrySummary()</code></td><td class="desc">Volume/Area/Solid table.</td><td class="example"><code>e.GeometrySummary().Table()</code></td></tr>
+                        <tr><td><code>.Delete()</code></td><td class="desc">Safe deletion wrapper.</td><td class="example"><code>e.Delete()</code></td></tr>
                         <tr><td><code>Transact("n", fn)</code></td><td class="desc">Wrap edits in transaction.</td><td class="example"><code>Transact("Up", () => { ... })</code></td></tr>
-                        <tr><td><code>SetExecutionTimeout(n)</code></td><td class="desc">Extend script time limits.</td><td class="example"><code>SetExecutionTimeout(60)</code></td></tr>
                     </tbody>
                 </table>
             </section>
-
-            <!-- Structured Output -->
-            <section>
                 <h2>📊 Structured Output & Auto-Rendering</h2>
                 <table>
                     <thead>
@@ -348,10 +345,8 @@
                     </thead>
                     <tbody>
                         <tr><td><code>.Table()</code></td><td class="desc"><b>Manual</b> (Chain)</td><td class="example">Smart collections & custom projections.</td></tr>
-                        <tr><td><code>Peek(el)</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Forensic API vs UI value audit.</td></tr>
-                        <tr><td><code>ListParams(el)</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Quick exhaustive parameter list.</td></tr>
-                        <tr><td><code>ListProperties(el)</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Internal metadata (Level, Workset, etc).</td></tr>
-                        <tr><td><code>ListGeometry(el)</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Solid/Volume/Area breakdown.</td></tr>
+                        <tr><td><code>.Peek()</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Forensic API vs UI value audit.</td></tr>
+                        <tr><td><code>.Delete()</code></td><td class="desc"><b>Auto</b> (Direct)</td><td class="example">Safe element deletion wrapper.</td></tr>
                     </tbody>
                 </table>
                 <p style="margin-top: 10px; font-size: 0.9em;"><i>* Note: <code>GetMagicNames()</code> and <code>GetCategories()</code> return <b>List&lt;string&gt;</b> for iteration/printing.</i></p>
