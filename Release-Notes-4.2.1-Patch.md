@@ -1,7 +1,7 @@
 # Paracore 4.2.1 (Patch Release)
 
 ## Overview
-What started as a simple patch release evolved into a major architectural overhaul for the C# automation engine. Version 4.2.1 finalizes the **"Pure Chained" Fluent API**, implements a massive performance fix for UI Predicate Hydration, and bulletproofs the `.NET 8` assembly resolution layer for external deployments.
+Version 4.2.1 finalizes the **"Pure Chained" Fluent API**, implements a massive performance fix for UI Predicate Hydration, and bulletproofs the `.NET 8` assembly resolution layer for external deployments.
 
 ## ⚡ Core Engine & Hydration (Critical Fix)
 * **Pre-Filtered UI Predicates:** Fixed a severe scoping issue where evaluating a custom `_Filter` predicate on Loadable Components (like Doors and Windows) would aggressively iterate every Family Instance in the model. The engine now strictly honors the `[RevitElements(Category="...")]` attribute *before* applying your custom C# predicate, resulting in lightning-fast UI dropdowns.
