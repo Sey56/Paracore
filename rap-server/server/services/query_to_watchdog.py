@@ -38,10 +38,8 @@ async def generate_watchdog_script_content(
 
     # Indent the blocks for their respective locations
     filtering_code = indent_block(filtering_raw.strip(), 4)
-    # output_code used in 'table' case (depth 8)
-    table_output = indent_block(output_raw.strip(), 8)
-    # manual_run_output used in 'else -> if string.IsNullOrEmpty' (depth 12)
-    manual_run_output = indent_block(output_raw.strip(), 12)
+    # output_code used inside ShowResults() (depth 8)
+    results_output = indent_block(output_raw.strip(), 8)
     
     helpers = query_code["helpers"]
     
@@ -58,6 +56,11 @@ Watchdog(() =>
 
 {filtering_code}
 
+    void ShowResults()
+    {{
+{results_output}
+    }}
+
     // --- Actions & Reporting ---
     string action = ExecutionGlobals.Get<string>("__sentinel_action__")?.ToLowerInvariant() ?? string.Empty;
 
@@ -71,7 +74,7 @@ Watchdog(() =>
     }}
     else if (action == "table")
     {{
-{table_output}
+        ShowResults();
     }}
     else
     {{
@@ -88,7 +91,7 @@ Watchdog(() =>
         // If running manually in Gallery (no action), also show results
         if (string.IsNullOrEmpty(action))
         {{
-{manual_run_output}
+            ShowResults();
         }}
     }}
 }});
