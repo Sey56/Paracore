@@ -7,15 +7,19 @@ Production-ready snippets you can paste directly into the **Workshop** tab. Ever
 ## 🔍 Model Auditing & Quality Control
 
 ### 1. Full Project Element Census
-Get an instant count of every major category in the model — the first thing a BIM Manager runs on a new file.
+Get an instant count of every model category in the project — the first thing a BIM Manager runs on a new file.
 ```csharp
-var categories = new[] { "Walls", "Doors", "Windows", "Floors", "Roofs", "Ceilings",
-    "Rooms", "Structural Columns", "Structural Framing", "Furniture", "Generic Models",
-    "Pipes", "Ducts", "Mechanical Equipment", "Electrical Equipment", "Plumbing Fixtures" };
-var census = categories
-    .Select(cat => new { name = cat, value = GetElements(cat).Count })
+// Get all model elements (excluding internal types and symbols)
+var modelElements = GetElements<Element>()
+    .WhereElementIsNotElementType()
+    .WhereElementIsViewIndependent();
+
+var census = modelElements
+    .GroupBy(e => e.Category?.Name ?? "Uncategorized")
+    .Select(g => new { name = g.Key, value = g.Count() })
     .Where(x => x.value > 0)
     .OrderByDescending(x => x.value);
+
 Table(census);
 BarChart(census);
 ```
@@ -53,15 +57,22 @@ if (dupes.Any()) {
 ```
 
 ### 4. Universal Element Audit (Find "Lost" Elements)
-Find elements more than 500m from the origin (likely misplaced or CAD import artifacts). This scans **every element** in the model.
+Find elements more than 500m from the origin (likely misplaced or CAD import artifacts). This scans **every model element** in the project safely.
 ```csharp
 var limit = 500.InputUnit("m");
-var lost = GetElements<Element>().Where(e => {
-    var bb = e.get_BoundingBox(null);
-    if (bb == null) return false;
-    var center = (bb.Min + bb.Max) / 2.0;
-    return Math.Abs(center.X) > limit || Math.Abs(center.Y) > limit;
-});
+var origin = XYZ.Zero;
+
+var lost = GetElements<Element>()
+    .WhereElementIsNotElementType()
+    .WhereElementIsViewIndependent()
+    .Where(e => {
+        var bb = e.get_BoundingBox(null);
+        if (bb == null) return false;
+        var center = (bb.Min + bb.Max) / 2.0;
+        // Check if the 2D distance from the origin exceeds the limit
+        return new XYZ(center.X, center.Y, 0).DistanceTo(origin) > limit;
+    });
+
 Println($"⚠ Found {lost.Count()} elements more than 500m from origin.");
 Table(lost.Select(e => new { e.Id, e.Name, Category = e.Category?.Name }));
 ```
