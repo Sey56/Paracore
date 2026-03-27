@@ -380,6 +380,7 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Sets the execution timeout for the current script. Default is 10 seconds.
         /// Call this at the start of your script if you need more time for long-running operations.
+        /// </summary>
         public static void SetExecutionTimeout(int seconds)
         {
             ExecutionGlobals.SetExecutionTimeout(seconds);

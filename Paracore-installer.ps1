@@ -99,8 +99,38 @@ if (-not $resolvedPublishDir -or -not (Test-Path (Join-Path $resolvedPublishDir 
 }
 
 Write-Host "Resolved Publish Directory: $resolvedPublishDir" -ForegroundColor Cyan
+
+# --- Targeted Dependency Bundle (Official Sweep) ---
+# We find and bundle ONLY the missing Middleware DLLs (Extensions, Grpc, AspNetCore)
+# This keeps the add-in small (15-20MB) but makes it self-sufficient for gRPC.
+Write-Host "`nPerforming Targeted Dependency Bundle (Aggressive Sweep)..." -ForegroundColor Cyan
+$nugetStore = Join-Path $env:USERPROFILE ".nuget\packages"
+$prefixes = @("microsoft.extensions.", "grpc.", "google.protobuf", "microsoft.aspnetcore.")
+
+foreach ($prefix in $prefixes) {
+    Get-ChildItem -Path $nugetStore -Filter "$prefix*" -Directory | ForEach-Object {
+        $pkgName = $_.Name
+        # Latest for everything, but specifically targeting lib/net8.0 or netstandard2.1
+        $versionDir = Get-ChildItem -Path $_.FullName -Directory | Sort-Object Name -Descending | Select-Object -First 1
+        
+        if ($versionDir) {
+            $expectedDll = "$pkgName.dll"
+            # Find the implementation DLL (not the reference one)
+            $dllFile = Get-ChildItem -Path $versionDir.FullName -Recurse -Filter $expectedDll | 
+                      Where-Object { $_.FullName -match "lib" -and $_.FullName -match "net" } | 
+                      Sort-Object { $_.FullName -match "net8.0" } -Descending | 
+                      Select-Object -First 1
+            
+            if ($dllFile -and -not (Test-Path (Join-Path $resolvedPublishDir $expectedDll))) {
+                Copy-Item -Path $dllFile.FullName -Destination $resolvedPublishDir -Force
+                Write-Host "  [+] Force-Bundled: $expectedDll" -ForegroundColor Gray
+            }
+        }
+    }
+}
+
 Pop-Location
-Write-Host 'Paracore.Addin publish complete.' -ForegroundColor Green
+Write-Host 'Paracore.Addin publish complete (Optimized Bundle).' -ForegroundColor Green
 
 # --- Code Signing (Placeholder) ---
 # For a production build, you must sign the executables to avoid antivirus issues.

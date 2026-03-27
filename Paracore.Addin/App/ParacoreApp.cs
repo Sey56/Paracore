@@ -14,6 +14,8 @@ using System;
 using System.IO;
 using System.Windows.Media.Imaging;
 using System.Collections.Generic;
+using System.Runtime.Loader;
+using System.Reflection;
 
 namespace Paracore.Addin.App
 {
@@ -31,6 +33,7 @@ namespace Paracore.Addin.App
         private static ServerActionHandler? _serverActionHandler;
         private static ExternalEvent? _externalEvent;
         private static IServiceProvider? _serviceProvider;
+        private static ParacoreLoadContext? _alc;
 
         public static Dictionary<string, string> ActiveWorkspaces = new(); // Kept for legacy compatibility if needed
 
@@ -48,10 +51,35 @@ namespace Paracore.Addin.App
             RevitVersion = application.ControlledApplication.VersionNumber;
             RevitInstallPath = Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName) ?? RevitInstallPath;
             FileLogger.Log($"Detected Revit {RevitVersion} at {RevitInstallPath}");
-            FileLogger.Log($"Paracore Add-in loaded from: {typeof(ParacoreApp).Assembly.Location}");
 
-            // Initialize the custom assembly resolver
-            CoreScript.Engine.Globals.CustomAssemblyResolver.Initialize();
+            var addinDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location);
+            FileLogger.Log($"Paracore Add-in loaded from: {addinDir}");
+
+            // --- 2. Initialize the Isolated Load Context (ALC) ---
+            if (!string.IsNullOrEmpty(addinDir))
+            {
+                var alc = new ParacoreLoadContext(addinDir);
+                _alc = alc; // Store for later strict validation
+                
+                AssemblyLoadContext.Default.Resolving += (context, assemblyName) => {
+                    if (string.IsNullOrEmpty(assemblyName.Name) || 
+                        assemblyName.Name.StartsWith("Autodesk.", StringComparison.OrdinalIgnoreCase) ||
+                        assemblyName.Name.StartsWith("RevitAPI", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return null;
+                    }
+
+                    string assemblyPath = Path.Combine(addinDir, assemblyName.Name + ".dll");
+                    if (File.Exists(assemblyPath))
+                    {
+                        return alc.LoadFromAssemblyPath(assemblyPath);
+                    }
+                    return null;
+                };
+
+                FileLogger.Log($"[Init] Isolated Load Context initialized for {addinDir}");
+            }
+            // ----------------------------------------------------------------------------
 
             // Setup Dependency Injection
             var services = new ServiceCollection();
@@ -204,6 +232,52 @@ namespace Paracore.Addin.App
 
         public static IServiceProvider ServiceProvider => _serviceProvider ?? throw new InvalidOperationException("Service Provider has not been initialized.");
 
+        public static void ValidateAndForceLoadDependencies()
+        {
+            var addinDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location);
+            if (string.IsNullOrEmpty(addinDir)) return;
+
+            // 1. Health Check (Probe for existence)
+            var criticalProbes = new[] {
+                "CoreScript.Engine.dll",
+                "Grpc.AspNetCore.Server.dll",
+                "Microsoft.Extensions.Hosting.dll"
+            };
+
+            var missing = new List<string>();
+            foreach (var dll in criticalProbes)
+            {
+                if (!File.Exists(Path.Combine(addinDir, dll)))
+                    missing.Add(dll);
+            }
+
+            if (missing.Count > 0)
+            {
+                string msg = "Paracore: Critical components are missing from the installation folder.\n\n" +
+                             "Missing: " + string.Join(", ", missing);
+                FileLogger.LogError(msg);
+                throw new InvalidOperationException(msg);
+            }
+
+            // 2. Strict Loading (Force usage of local DLLs)
+            if (_alc != null)
+            {
+                string[] strictAssemblies = { "Microsoft.Extensions.Hosting", "Grpc.AspNetCore.Server" };
+                foreach (var name in strictAssemblies)
+                {
+                    try
+                    {
+                        _alc.LoadFromAssemblyName(new AssemblyName(name));
+                    }
+                    catch (Exception ex)
+                    {
+                        FileLogger.Log($"[Strict] Could not pre-load {name}: {ex.Message}", CoreScript.Engine.Logging.LogLevel.Warning);
+                        // We don't throw here, as it might just be a specific sub-dependency
+                    }
+                }
+            }
+        }
+
         private static void UpdateButtonState()
         {
             if (_toggleButton != null)
@@ -212,6 +286,42 @@ namespace Paracore.Addin.App
                 _toggleButton.ToolTip = _serverRunning
                     ? "Server is running. Click to stop."
                     : "Server is stopped. Click to start.";
+            }
+        }
+
+        private void ValidateDeploymentHealth(string addinDir)
+        {
+            try
+            {
+                // We only probe for the presence of TOP-LEVEL assemblies.
+                // If they are missing, it's a critical installation error.
+                // We avoid listing every single abstraction to keep messages clean.
+                var criticalProbes = new[] {
+                    "CoreScript.Engine.dll",
+                    "Grpc.AspNetCore.Server.dll",
+                    "Microsoft.Extensions.Hosting.dll"
+                };
+
+                var missing = new List<string>();
+                foreach (var dll in criticalProbes)
+                {
+                    if (!File.Exists(Path.Combine(addinDir, dll)))
+                        missing.Add(dll);
+                }
+
+                if (missing.Count > 0)
+                {
+                    string msg = "Paracore: Critical components are missing from the installation folder. " +
+                                 "The application will not function correctly.\n\n" +
+                                 "Missing: " + string.Join(", ", missing);
+
+                    FileLogger.LogError(msg);
+                    TaskDialog.Show("Paracore - System Health", msg);
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"[Health] Failed to validate deployment: {ex.Message}");
             }
         }
     }

@@ -21,7 +21,11 @@ namespace Paracore.Addin.Commands
             {
                 try
                 {
-                    // Resolve ILogger from the ServiceProvider
+                    // --- 1. Validate Deployment and Force Strict Loading ---
+                    // This ensures the developer machine behaves exactly like the user machine.
+                    ParacoreApp.ValidateAndForceLoadDependencies();
+
+                    // 2. Resolve ILogger from the ServiceProvider
                     var logger = ParacoreApp.ServiceProvider.GetRequiredService<ILogger>();
 
                     // ✅ Inject context
