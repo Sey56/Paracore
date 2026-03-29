@@ -14,7 +14,7 @@ using System;
 using System.IO;
 using System.Windows.Media.Imaging;
 using System.Collections.Generic;
-using System.Runtime.Loader;
+
 using System.Reflection;
 
 namespace Paracore.Addin.App
@@ -33,7 +33,7 @@ namespace Paracore.Addin.App
         private static ServerActionHandler? _serverActionHandler;
         private static ExternalEvent? _externalEvent;
         private static IServiceProvider? _serviceProvider;
-        private static ParacoreLoadContext? _alc;
+
 
         public static Dictionary<string, string> ActiveWorkspaces = new(); // Kept for legacy compatibility if needed
 
@@ -55,31 +55,8 @@ namespace Paracore.Addin.App
             var addinDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location);
             FileLogger.Log($"Paracore Add-in loaded from: {addinDir}");
 
-            // --- 2. Initialize the Isolated Load Context (ALC) ---
-            if (!string.IsNullOrEmpty(addinDir))
-            {
-                var alc = new ParacoreLoadContext(addinDir);
-                _alc = alc; // Store for later strict validation
-                
-                AssemblyLoadContext.Default.Resolving += (context, assemblyName) => {
-                    if (string.IsNullOrEmpty(assemblyName.Name) || 
-                        assemblyName.Name.StartsWith("Autodesk.", StringComparison.OrdinalIgnoreCase) ||
-                        assemblyName.Name.StartsWith("RevitAPI", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return null;
-                    }
-
-                    string assemblyPath = Path.Combine(addinDir, assemblyName.Name + ".dll");
-                    if (File.Exists(assemblyPath))
-                    {
-                        return alc.LoadFromAssemblyPath(assemblyPath);
-                    }
-                    return null;
-                };
-
-                FileLogger.Log($"[Init] Isolated Load Context initialized for {addinDir}");
-            }
-            // ----------------------------------------------------------------------------
+            // NOTE: ALC isolation is now handled by Paracore.Shim.
+            // This code runs INSIDE the isolated context.
 
             // Setup Dependency Injection
             var services = new ServiceCollection();
@@ -161,11 +138,17 @@ namespace Paracore.Addin.App
 
         private void CreateRibbonButtons(RibbonPanel panel)
         {
+            // Determine command assembly: use shim proxies if available, else direct commands (fallback)
+            var assemblyDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location)!;
+            var shimPath = Path.Combine(assemblyDir, "Paracore.Shim.dll");
+            var useShim = File.Exists(shimPath);
+            var cmdAssembly = useShim ? shimPath : typeof(ParacoreApp).Assembly.Location;
+
             PushButtonData toggleServerButton = new(
                 "ToggleCoreScriptServer",
                 "(Off)",
-                typeof(ParacoreApp).Assembly.Location,
-                typeof(ToggleServerCommand).FullName)
+                cmdAssembly,
+                useShim ? "Paracore.Shim.ToggleServerProxy" : typeof(ToggleServerCommand).FullName!)
             {
                 ToolTip = "Toggle the Paracore server to run scripts from Paracore and VSCode.",
                 LargeImage = new BitmapImage(
@@ -181,8 +164,8 @@ namespace Paracore.Addin.App
             PushButtonData toggleDashboardButton = new(
                 "ToggleDashboard",
                 "Dashboard",
-                typeof(ParacoreApp).Assembly.Location,
-                typeof(ToggleDashboardCommand).FullName)
+                cmdAssembly,
+                useShim ? "Paracore.Shim.ToggleDashboardProxy" : typeof(ToggleDashboardCommand).FullName!)
             {
                 ToolTip = "Toggle the Paracore dashboard.",
                 LargeImage = new BitmapImage(
@@ -259,23 +242,8 @@ namespace Paracore.Addin.App
                 throw new InvalidOperationException(msg);
             }
 
-            // 2. Strict Loading (Force usage of local DLLs)
-            if (_alc != null)
-            {
-                string[] strictAssemblies = { "Microsoft.Extensions.Hosting", "Grpc.AspNetCore.Server" };
-                foreach (var name in strictAssemblies)
-                {
-                    try
-                    {
-                        _alc.LoadFromAssemblyName(new AssemblyName(name));
-                    }
-                    catch (Exception ex)
-                    {
-                        FileLogger.Log($"[Strict] Could not pre-load {name}: {ex.Message}", CoreScript.Engine.Logging.LogLevel.Warning);
-                        // We don't throw here, as it might just be a specific sub-dependency
-                    }
-                }
-            }
+            // NOTE: Strict ALC loading is now handled by Paracore.Shim.
+            // All dependencies resolve from the isolated context automatically.
         }
 
         private static void UpdateButtonState()

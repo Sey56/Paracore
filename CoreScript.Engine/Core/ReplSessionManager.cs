@@ -162,13 +162,29 @@ namespace CoreScript.Engine.Core
                     ExecutionGlobals.SetContext(globals);
                     try
                     {
-                        var state = await CSharpScript.RunAsync(fullCode, options, globals: globals);
+                        // Create a loader aware of our isolated ALC to prevent Roslyn from
+                        // loading a second copy of CoreScript.Engine into its own LoadContext.
+                        var loader = new Microsoft.CodeAnalysis.Scripting.Hosting.InteractiveAssemblyLoader();
+                        var currentAlc = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(typeof(ReplSessionManager).Assembly);
+                        if (currentAlc != null)
+                        {
+                            foreach (var asm in currentAlc.Assemblies)
+                            {
+                                try { loader.RegisterDependency(asm); } catch { }
+                            }
+                        }
+
+                        // NO globals: parameter — avoids cross-ALC type cast.
+                        // Context is accessible via ScriptApi (using static) + ExecutionGlobals.SetContext.
+                        var script = CSharpScript.Create(fullCode, options, assemblyLoader: loader);
+                        var state = await script.RunAsync();
                         session = new ReplSession { State = state, Globals = globals };
                     }
                     finally
                     {
                         ExecutionGlobals.ClearContext();
                     }
+
                 }
                 else
                 {

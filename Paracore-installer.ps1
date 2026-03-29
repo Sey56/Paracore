@@ -100,6 +100,21 @@ if (-not $resolvedPublishDir -or -not (Test-Path (Join-Path $resolvedPublishDir 
 
 Write-Host "Resolved Publish Directory: $resolvedPublishDir" -ForegroundColor Cyan
 
+# --- Build Paracore.Shim (Isolation Layer) ---
+Write-Host "`nBuilding Paracore.Shim (Isolation Layer)..." -ForegroundColor Cyan
+$shimDir = Join-Path -Path $ProjectRoot -ChildPath 'Paracore.Shim'
+dotnet build $shimDir -c Release
+$shimDll = Get-ChildItem -Path "$shimDir\bin\Release" -Recurse -Filter "Paracore.Shim.dll" |
+           Select-Object -First 1
+if ($shimDll) {
+    Copy-Item -Path $shimDll.FullName -Destination $resolvedPublishDir -Force
+    Write-Host "  [+] Copied Paracore.Shim.dll to publish directory" -ForegroundColor Green
+} else {
+    Write-Host "Error: Paracore.Shim.dll not found after build." -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+
 # --- Targeted Dependency Bundle (Official Sweep) ---
 # We find and bundle ONLY the missing Middleware DLLs (Extensions, Grpc, AspNetCore)
 # This keeps the add-in small (15-20MB) but makes it self-sufficient for gRPC.

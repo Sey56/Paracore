@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -22,8 +23,23 @@ namespace CoreScript.Engine.Core
             string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
                               "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine +
                               code;
-            return CSharpScript.Create(fullCode, options);
+
+            // Create a loader that is aware of assemblies in our isolated ALC.
+            // Without this, Roslyn's default loader only sees Default context assemblies,
+            // causing "Script context is not available" when running inside the shim.
+            var loader = new Microsoft.CodeAnalysis.Scripting.Hosting.InteractiveAssemblyLoader();
+            var currentAlc = AssemblyLoadContext.GetLoadContext(typeof(ScriptCompiler).Assembly);
+            if (currentAlc != null)
+            {
+                foreach (var asm in currentAlc.Assemblies)
+                {
+                    try { loader.RegisterDependency(asm); } catch { }
+                }
+            }
+
+            return CSharpScript.Create(fullCode, options, assemblyLoader: loader);
         }
+
 
         public string GetCodeHash(string code)
         {

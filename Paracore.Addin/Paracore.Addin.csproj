@@ -110,10 +110,10 @@
 <![CDATA[<?xml version="1.0" encoding="utf-8"?>
 <RevitAddIns>
   <AddIn Type="Application">
-    <Name>Paracore.Addin</Name>
-    <Assembly>Paracore\Paracore.Addin.dll</Assembly>
+    <Name>Paracore</Name>
+    <Assembly>Paracore\Paracore.Shim.dll</Assembly>
     <ClientId>12345678-1234-1234-1234-123456789012</ClientId> <!-- Replace with a unique GUID -->
-    <FullClassName>Paracore.Addin.App.ParacoreApp</FullClassName>
+    <FullClassName>Paracore.Shim.ParacoreShim</FullClassName>
     <VendorId>RAP</VendorId>
     <VendorDescription>RAP Community</VendorDescription>
   </AddIn>

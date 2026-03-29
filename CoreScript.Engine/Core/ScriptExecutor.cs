@@ -70,14 +70,28 @@ namespace CoreScript.Engine.Core
 
     internal class SharedAssemblyLoadContext : AssemblyLoadContext
     {
-        public SharedAssemblyLoadContext(string name) : base(name, isCollectible: true) { }
+        private readonly AssemblyLoadContext _parentContext;
+
+        public SharedAssemblyLoadContext(string name) : base(name, isCollectible: true)
+        {
+            // Capture the ALC that CoreScript.Engine is loaded in (the isolated context).
+            // This ensures scripts can find ExecutionGlobals, ScriptApi, and all Paracore types.
+            _parentContext = AssemblyLoadContext.GetLoadContext(typeof(ScriptExecutor).Assembly)
+                             ?? AssemblyLoadContext.Default;
+        }
 
         protected override Assembly? Load(AssemblyName assemblyName)
         {
-            var loadedAssembly = AssemblyLoadContext.Default.Assemblies
+            // 1. Check the parent (isolated) context first — this is where CoreScript.Engine lives
+            var loaded = _parentContext.Assemblies
                 .FirstOrDefault(a => a.GetName().Name == assemblyName.Name);
+            if (loaded != null) return loaded;
 
-            return loadedAssembly != null ? loadedAssembly : null;
+            // 2. Fall back to Default for system/Revit assemblies
+            loaded = AssemblyLoadContext.Default.Assemblies
+                .FirstOrDefault(a => a.GetName().Name == assemblyName.Name);
+            return loaded;
         }
     }
+
 }
