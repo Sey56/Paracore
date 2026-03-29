@@ -105,7 +105,7 @@ begin
   Result := RegKeyExists(HKLM, RevitKey) or RegKeyExists(HKCU, RevitKey);
 end;
 
-function IsDotNet8DesktopRuntimeInstalled: Boolean;
+function IsAspNetCore8RuntimeInstalled: Boolean;
 var
   VersionNames: TArrayOfString;
   I: Integer;
@@ -114,7 +114,7 @@ begin
   Result := False;
   
   // 1. Registry check (x64)
-  if RegGetSubkeyNames(HKLM64, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App', VersionNames) then
+  if RegGetSubkeyNames(HKLM64, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.AspNetCore.App', VersionNames) then
   begin
     for I := 0 to GetArrayLength(VersionNames) - 1 do
     begin
@@ -128,7 +128,7 @@ begin
   end;
 
   // 2. Folder check (Fallback)
-  if FindFirst(ExpandConstant('{pf64}\dotnet\shared\Microsoft.WindowsDesktop.App\*'), FindRec) then
+  if FindFirst(ExpandConstant('{pf64}\dotnet\shared\Microsoft.AspNetCore.App\*'), FindRec) then
   begin
     repeat
       if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0) and (Pos('8.', FindRec.Name) = 1) then
@@ -140,35 +140,18 @@ begin
     until not FindNext(FindRec);
     FindClose(FindRec);
   end;
-  
-  // 3. Last resort - check the base .NET Core folder
-  if not Result then
-  begin
-    if FindFirst(ExpandConstant('{pf64}\dotnet\shared\Microsoft.NETCore.App\*'), FindRec) then
-    begin
-      repeat
-        if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0) and (Pos('8.', FindRec.Name) = 1) then
-        begin
-          Result := True;
-          FindClose(FindRec);
-          Exit;
-        end;
-      until not FindNext(FindRec);
-      FindClose(FindRec);
-    end;
-  end;
 end;
 
 function InitializeSetup: Boolean;
 begin
   Result := True;
-  if not IsDotNet8DesktopRuntimeInstalled then
+  if not IsAspNetCore8RuntimeInstalled then
   begin
-    if MsgBox('Paracore requires the .NET 8 Desktop Runtime to function properly in Revit 2025+.' + #13#10#13#10 +
-              'The installer could not verify if .NET 8 is installed on this system.' + #13#10#13#10 +
-              'Would you like to proceed anyway? (Ensure you have .NET Desktop Runtime 8.0 x64 installed)', mbConfirmation, MB_YESNO) = IDNO then
+    if MsgBox('Paracore requires the ASP.NET Core 8 Runtime (x64) to function properly in Revit 2025+.' + #13#10#13#10 +
+              'The installer could not verify if the ASP.NET Core 8 Runtime is installed on this system.' + #13#10#13#10 +
+              'Would you like to proceed anyway? (Ensure you have the "ASP.NET Core Runtime 8.0" x64 installed)', mbConfirmation, MB_YESNO) = IDNO then
     begin
       Result := False;
     end;
   end;
-end;
+end;

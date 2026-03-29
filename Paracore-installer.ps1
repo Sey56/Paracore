@@ -77,14 +77,14 @@ Push-Location $addinDir
 
 # Clean previous builds to ensure no stale DLLs (like RServer.Addin.dll) remain
 Write-Host "Cleaning previous builds..." -ForegroundColor Cyan
-dotnet clean -c Release
+dotnet clean Paracore.Addin.csproj -c Release
 if (Test-Path $publishDir) {
     Remove-Item -Path $publishDir -Recurse -Force
 }
 
 # This command gathers all necessary DLLs for deployment.
 # We use default publish path to avoid RID/framework conflicts with -o flag in some environments
-dotnet publish -c Release
+dotnet publish Paracore.Addin.csproj -c Release
 
 # Dynamically resolve the actual publish directory
 $resolvedPublishDir = Get-ChildItem -Path "$addinDir\bin\Release" -Recurse -Filter "Paracore.Addin.dll" | 
@@ -118,34 +118,53 @@ if ($shimDll) {
 # --- Targeted Dependency Bundle (Official Sweep) ---
 # We find and bundle ONLY the missing Middleware DLLs (Extensions, Grpc, AspNetCore)
 # This keeps the add-in small (15-20MB) but makes it self-sufficient for gRPC.
-Write-Host "`nPerforming Targeted Dependency Bundle (Aggressive Sweep)..." -ForegroundColor Cyan
+# CRITICAL: We MUST target v8.x packages to match our net8.0 target framework.
+# The previous logic grabbed "latest version" which could be v9.x if the dev has .NET 9 SDK.
+Write-Host "`nPerforming Targeted Dependency Bundle (v8.x Strict Sweep)..." -ForegroundColor Cyan
 $nugetStore = Join-Path $env:USERPROFILE ".nuget\packages"
 $prefixes = @("microsoft.extensions.", "grpc.", "google.protobuf", "microsoft.aspnetcore.")
 
 foreach ($prefix in $prefixes) {
     Get-ChildItem -Path $nugetStore -Filter "$prefix*" -Directory | ForEach-Object {
         $pkgName = $_.Name
-        # Latest for everything, but specifically targeting lib/net8.0 or netstandard2.1
-        $versionDir = Get-ChildItem -Path $_.FullName -Directory | Sort-Object Name -Descending | Select-Object -First 1
+        # STRICT: Prefer v8.x versions to match our net8.0 target framework.
+        # This prevents v9.x preview/SDK DLLs from contaminating the bundle.
+        $versionDir = Get-ChildItem -Path $_.FullName -Directory |
+                      Where-Object { $_.Name -match '^8\.' } |
+                      Sort-Object Name -Descending |
+                      Select-Object -First 1
+
+        # Fallback: If no 8.x version exists (e.g. grpc.core), take the latest available
+        if (-not $versionDir) {
+            $versionDir = Get-ChildItem -Path $_.FullName -Directory |
+                          Sort-Object Name -Descending |
+                          Select-Object -First 1
+        }
         
         if ($versionDir) {
             $expectedDll = "$pkgName.dll"
             # Find the implementation DLL (not the reference one)
+            # Strictly prefer net8.0, then fall back to netstandard2.1/2.0
             $dllFile = Get-ChildItem -Path $versionDir.FullName -Recurse -Filter $expectedDll | 
                       Where-Object { $_.FullName -match "lib" -and $_.FullName -match "net" } | 
-                      Sort-Object { $_.FullName -match "net8.0" } -Descending | 
+                      Sort-Object { 
+                          if ($_.FullName -match "net8\.0") { 0 }
+                          elseif ($_.FullName -match "netstandard2\.1") { 1 }
+                          elseif ($_.FullName -match "netstandard2\.0") { 2 }
+                          else { 3 }
+                      } |
                       Select-Object -First 1
             
             if ($dllFile -and -not (Test-Path (Join-Path $resolvedPublishDir $expectedDll))) {
                 Copy-Item -Path $dllFile.FullName -Destination $resolvedPublishDir -Force
-                Write-Host "  [+] Force-Bundled: $expectedDll" -ForegroundColor Gray
+                Write-Host "  [+] Force-Bundled: $expectedDll (from $($versionDir.Name))" -ForegroundColor Gray
             }
         }
     }
 }
 
 Pop-Location
-Write-Host 'Paracore.Addin publish complete (Optimized Bundle).' -ForegroundColor Green
+Write-Host 'Paracore.Addin publish complete (Isolated Bundle).' -ForegroundColor Green
 
 # --- Code Signing (Placeholder) ---
 # For a production build, you must sign the executables to avoid antivirus issues.

@@ -39,46 +39,38 @@ namespace Paracore.Addin.Services
         {
             if (_running) return;
 
-            var builder = Host.CreateDefaultBuilder()
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.ConfigureKestrel(options =>
-                    {
-                        options.ListenLocalhost(50051, o => o.Protocols = HttpProtocols.Http2);
-                        // Set max message size for gRPC
-                        options.Limits.MaxRequestBodySize = 50 * 1024 * 1024; // 50 MB
-                        options.Limits.MaxResponseBufferSize = 50 * 1024 * 1024; // 50 MB
-                    });
+            var builder = WebApplication.CreateBuilder();
 
-                    webBuilder.ConfigureServices(services =>
-                    {
-                        services.AddGrpc();
-                        services.AddSingleton(_uiApp); // Register UIApplication as a singleton
-                        services.AddCoreScriptEngineServices(); // Add CoreScript.Engine services
+            // Configure Kestrel for gRPC
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.ListenLocalhost(50051, o => o.Protocols = HttpProtocols.Http2);
+                options.Limits.MaxRequestBodySize = 50 * 1024 * 1024;  // 50 MB
+                options.Limits.MaxResponseBufferSize = 50 * 1024 * 1024; // 50 MB
+            });
 
-                        // Register Handlers
-                        services.AddSingleton<ScriptExecutionHandler>();
-                        services.AddSingleton<MetadataHandler>();
-                        services.AddSingleton<ContextHandler>();
-                        services.AddSingleton<FileSystemHandler>();
-                        services.AddSingleton<ReplHandler>();
-                    });
-                    webBuilder.Configure(app =>
-                    {
-                        app.UseRouting();
-                        app.UseEndpoints(endpoints =>
-                        {
-                            endpoints.MapGrpcService<CoreScriptRunnerService>();
-                        });
-                    });
-                });
+            // Register services
+            builder.Services.AddGrpc();
+            builder.Services.AddSingleton(_uiApp);
+            builder.Services.AddCoreScriptEngineServices();
+            builder.Services.AddSingleton<ScriptExecutionHandler>();
+            builder.Services.AddSingleton<MetadataHandler>();
+            builder.Services.AddSingleton<ContextHandler>();
+            builder.Services.AddSingleton<FileSystemHandler>();
+            builder.Services.AddSingleton<ReplHandler>();
 
-            _webHost = builder.Build();
+            var app = builder.Build();
+
+            app.UseRouting();
+            app.MapGrpcService<CoreScriptRunnerService>();
+
+            _webHost = app;
             _webHost.Start();
 
             _running = true;
             _logger.Log($"gRPC Server started on http://localhost:50051: {DateTime.Now}", LogLevel.Debug);
         }
+
 
         public async Task StopAsync()
         {

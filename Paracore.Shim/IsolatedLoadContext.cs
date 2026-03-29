@@ -28,11 +28,14 @@ namespace Paracore.Shim
             if (string.IsNullOrEmpty(assemblyName.Name))
                 return null;
 
-            // Framework-provided assemblies MUST come from the Default context
-            // where <FrameworkReference Include="Microsoft.AspNetCore.App" /> provides them.
-            // The NuGet package versions in our bundle are incomplete facades that cause
-            // MissingMethodException (e.g. GenericHostBuilderExtensions.ConfigureWebHostDefaults).
-            // pyRevit does not use these, so skipping them is safe.
+            // ASP.NET Core and Extensions assemblies MUST come from the shared framework.
+            // These DLLs have internal cross-references and type forwarding that only work
+            // when loaded as a complete unit by the .NET host. Loading individual DLLs from
+            // our bundle causes MissingMethodException because the internal wiring is broken.
+            //
+            // PREREQUISITE: The ASP.NET Core 8 Runtime must be installed on the machine.
+            // The installer validates this before allowing installation.
+            // pyRevit does not use these assemblies, so skipping them is safe for isolation.
             if (assemblyName.Name.StartsWith("Microsoft.Extensions.", StringComparison.OrdinalIgnoreCase) ||
                 assemblyName.Name.StartsWith("Microsoft.AspNetCore.", StringComparison.OrdinalIgnoreCase))
                 return null;
