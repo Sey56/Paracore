@@ -70,11 +70,16 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
     return [];
   });
 
+  const savedTimestamp = localStorage.getItem('paracore_console_last_timestamp');
+  const lastProcessedConsoleTimestampRef = useRef<number | undefined>(savedTimestamp ? Number(savedTimestamp) : undefined);
+
   const handleClear = useCallback(() => {
     setLocalHistory([]);
     setAiResult(null);
     clearExecutionResult(); // Deep Clear: Includes Analytics Tab
     localStorage.removeItem('paracore_console_history');
+    localStorage.removeItem('paracore_console_last_timestamp');
+    lastProcessedConsoleTimestampRef.current = undefined;
     // Command histories (single-line & multi-line) are intentionally preserved
     showNotification("Console and Analytics cleared", "info");
   }, [showNotification, clearExecutionResult]);
@@ -206,9 +211,21 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   const lastIsRunningRef = useRef(false);
 
   useEffect(() => {
-    if (executionResult && executionResult !== lastResultRef.current) {
+    if (!executionResult) {
+       // Optional: handle explicit clear if needed, similar to InspectorTabs
+       return;
+    }
+
+    if (executionResult !== lastResultRef.current) {
       lastResultRef.current = executionResult;
       
+      if (executionResult.timestamp === lastProcessedConsoleTimestampRef.current) {
+        return;
+      }
+      
+      lastProcessedConsoleTimestampRef.current = executionResult.timestamp;
+      localStorage.setItem('paracore_console_last_timestamp', String(executionResult.timestamp));
+
       const internalData = executionResult.internalData || "";
       const isRepl = internalData.startsWith('REPL');
       const replType: 'single' | 'multi' | undefined = isRepl ? (internalData.includes('MULTI') ? 'multi' : 'single') : undefined;
