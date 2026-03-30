@@ -9,6 +9,7 @@ using Paracore.Addin.ViewModels;
 using System;
 using Microsoft.Extensions.DependencyInjection; // Added
 using CoreScript.Engine.Logging; // Added
+using Paracore.Addin.Handlers; // Added
 
 namespace Paracore.Addin.Commands
 {
@@ -25,8 +26,12 @@ namespace Paracore.Addin.Commands
                     // This ensures the developer machine behaves exactly like the user machine.
                     ParacoreApp.ValidateAndForceLoadDependencies();
 
-                    // 2. Resolve ILogger from the ServiceProvider
+                    // 2. Resolve ILogger and RevitContext from the ServiceProvider
                     var logger = ParacoreApp.ServiceProvider.GetRequiredService<ILogger>();
+                    var revitContext = ParacoreApp.ServiceProvider.GetRequiredService<RevitContext>();
+                    
+                    // ✅ Provide the active UIApplication to the context
+                    revitContext.UIApplication = commandData.Application;
 
                     // ✅ Inject context
                     var context = new ServerContext(commandData.Application);
@@ -36,10 +41,17 @@ namespace Paracore.Addin.Commands
                     var codeExecutionEvent = ExternalEvent.Create(actionHandler);
                     ServerViewModel.Instance.Initialize(codeExecutionEvent);
 
-                    // ✅ Start server with standard dispatcher
-                    var server = new CoreScriptServer(commandData.Application, logger); // Pass logger
-                    server.Start();
-                    ParacoreApp.SetServer(server);
+                    // ✅ Start client with standard dispatcher
+                    var client = new CoreScriptClient(
+                        ParacoreApp.ServiceProvider.GetRequiredService<ScriptExecutionHandler>(),
+                        ParacoreApp.ServiceProvider.GetRequiredService<MetadataHandler>(),
+                        ParacoreApp.ServiceProvider.GetRequiredService<ContextHandler>(),
+                        ParacoreApp.ServiceProvider.GetRequiredService<FileSystemHandler>(),
+                        ParacoreApp.ServiceProvider.GetRequiredService<ReplHandler>(),
+                        logger);
+
+                    client.Start();
+                    ParacoreApp.SetClient(client);
                     ParacoreApp.SetServerRunning(true);
                     ServerViewModel.Instance.IsServerRunning = true;
 
@@ -55,8 +67,8 @@ namespace Paracore.Addin.Commands
             {
                 try
                 {
-                    ParacoreApp.Server?.Stop();
-                    ParacoreApp.SetServer(null);
+                    ParacoreApp.Client?.Stop();
+                    ParacoreApp.SetClient(null);
                     ParacoreApp.SetServerRunning(false);
                     ServerViewModel.Instance.IsServerRunning = false;
                     TaskDialog.Show("Paracore Server", "Paracore Server stopped!");

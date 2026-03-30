@@ -1128,3 +1128,123 @@ class CoreScriptRunner(object):
             timeout,
             metadata,
             _registered_method=True)
+
+
+class AddinBridgeStub(object):
+    """Internal service for the Revit Add-in to talk to the Sidecar
+    """
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.Subscribe = channel.unary_stream(
+                '/CoreScript.AddinBridge/Subscribe',
+                request_serializer=corescript__pb2.SubscribeRequest.SerializeToString,
+                response_deserializer=corescript__pb2.TaskEnvelope.FromString,
+                _registered_method=True)
+        self.SubmitResult = channel.unary_unary(
+                '/CoreScript.AddinBridge/SubmitResult',
+                request_serializer=corescript__pb2.TaskResult.SerializeToString,
+                response_deserializer=corescript__pb2.SubmitResultResponse.FromString,
+                _registered_method=True)
+
+
+class AddinBridgeServicer(object):
+    """Internal service for the Revit Add-in to talk to the Sidecar
+    """
+
+    def Subscribe(self, request, context):
+        """Add-in calls this to receive tasks from the Sidecar
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SubmitResult(self, request, context):
+        """Add-in calls this to submit the result of a task
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_AddinBridgeServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'Subscribe': grpc.unary_stream_rpc_method_handler(
+                    servicer.Subscribe,
+                    request_deserializer=corescript__pb2.SubscribeRequest.FromString,
+                    response_serializer=corescript__pb2.TaskEnvelope.SerializeToString,
+            ),
+            'SubmitResult': grpc.unary_unary_rpc_method_handler(
+                    servicer.SubmitResult,
+                    request_deserializer=corescript__pb2.TaskResult.FromString,
+                    response_serializer=corescript__pb2.SubmitResultResponse.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'CoreScript.AddinBridge', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('CoreScript.AddinBridge', rpc_method_handlers)
+
+
+ # This class is part of an EXPERIMENTAL API.
+class AddinBridge(object):
+    """Internal service for the Revit Add-in to talk to the Sidecar
+    """
+
+    @staticmethod
+    def Subscribe(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/CoreScript.AddinBridge/Subscribe',
+            corescript__pb2.SubscribeRequest.SerializeToString,
+            corescript__pb2.TaskEnvelope.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SubmitResult(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/CoreScript.AddinBridge/SubmitResult',
+            corescript__pb2.TaskResult.SerializeToString,
+            corescript__pb2.SubmitResultResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)

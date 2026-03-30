@@ -6,17 +6,20 @@ using Paracore.Addin.Models;
 using System;
 using System.Threading.Tasks;
 using Autodesk.Revit.UI;
+using Paracore.Addin.App;
 
 namespace Paracore.Addin.Handlers
 {
     public class ReplHandler
     {
-        private readonly UIApplication _uiApp;
+        private readonly RevitContext _revitContext;
 
-        public ReplHandler(UIApplication uiApp)
+        public ReplHandler(RevitContext revitContext)
         {
-            _uiApp = uiApp;
+            _revitContext = revitContext;
         }
+
+        private UIApplication? _uiApp => _revitContext.UIApplication;
 
         public async Task<ExecuteReplResponse> ExecuteRepl(ExecuteReplRequest request)
         {

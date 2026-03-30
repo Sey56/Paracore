@@ -31,6 +31,36 @@ service CoreScriptRunner {
   rpc ExecuteRepl (ExecuteReplRequest) returns (ExecuteReplResponse);
 }
 
+// Internal service for the Revit Add-in to talk to the Sidecar
+service AddinBridge {
+  // Add-in calls this to receive tasks from the Sidecar
+  rpc Subscribe (SubscribeRequest) returns (stream TaskEnvelope);
+  // Add-in calls this to submit the result of a task
+  rpc SubmitResult (TaskResult) returns (SubmitResultResponse);
+}
+
+message SubscribeRequest {
+  string addin_version = 1;
+}
+
+message SubmitResultResponse {
+  bool accepted = 1;
+}
+
+message TaskEnvelope {
+  string task_id = 1;
+  string method_name = 2; // e.g. "ExecuteScript", "GetContext"
+  bytes payload_json = 3; // The request serialized as JSON for maximum flexibility
+}
+
+message TaskResult {
+  string task_id = 1;
+  bool is_success = 2;
+  bytes result_json = 3;
+  string error_message = 4;
+}
+
+
 message ClearAssemblyCacheRequest {}
 
 message ClearAssemblyCacheResponse {

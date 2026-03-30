@@ -27,7 +27,7 @@ namespace Paracore.Addin.App
         public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         public static string RevitVersion { get; private set; } = "Unknown"; // Default fallback
         public static string RevitInstallPath { get; private set; } = @"C:\Program Files\Autodesk\Revit"; // Default fallback base
-        private static CoreScriptServer? _server;
+        private static CoreScriptClient? _client;
         private static bool _serverRunning;
         private static PushButton? _toggleButton;
         private static ServerActionHandler? _serverActionHandler;
@@ -60,7 +60,20 @@ namespace Paracore.Addin.App
 
             // Setup Dependency Injection
             var services = new ServiceCollection();
+            
+            // Register Revit Context provider (to hold UIApplication later)
+            services.AddSingleton<Paracore.Addin.App.RevitContext>();
+
+            // Register Engine services
             services.AddCoreScriptEngineServices();
+
+            // Register Addin Handlers
+            services.AddSingleton<Paracore.Addin.Handlers.ScriptExecutionHandler>();
+            services.AddSingleton<Paracore.Addin.Handlers.MetadataHandler>();
+            services.AddSingleton<Paracore.Addin.Handlers.ContextHandler>();
+            services.AddSingleton<Paracore.Addin.Handlers.FileSystemHandler>();
+            services.AddSingleton<Paracore.Addin.Handlers.ReplHandler>();
+
             _serviceProvider = services.BuildServiceProvider();
 
             const string tabName = "Paracore";
@@ -191,7 +204,7 @@ namespace Paracore.Addin.App
 
         public Result OnShutdown(UIControlledApplication application)
         {
-            _server?.Stop();
+            _client?.Stop();
             _serverRunning = false;
             UpdateButtonState();
 
@@ -207,10 +220,10 @@ namespace Paracore.Addin.App
             UpdateButtonState();
         }
 
-        public static CoreScriptServer? Server => _server;
-        public static void SetServer(CoreScriptServer? server)
+        public static CoreScriptClient? Client => _client;
+        public static void SetClient(CoreScriptClient? client)
         {
-            _server = server;
+            _client = client;
         }
 
         public static IServiceProvider ServiceProvider => _serviceProvider ?? throw new InvalidOperationException("Service Provider has not been initialized.");
@@ -223,8 +236,8 @@ namespace Paracore.Addin.App
             // 1. Health Check (Probe for existence)
             var criticalProbes = new[] {
                 "CoreScript.Engine.dll",
-                "Grpc.AspNetCore.Server.dll",
-                "Microsoft.Extensions.Hosting.dll"
+                "Paracore.Server.exe", // The new Sidecar muscle
+                "Grpc.Net.Client.dll"
             };
 
             var missing = new List<string>();

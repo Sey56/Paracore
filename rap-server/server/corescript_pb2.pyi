@@ -6,6 +6,40 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class SubscribeRequest(_message.Message):
+    __slots__ = ("addin_version",)
+    ADDIN_VERSION_FIELD_NUMBER: _ClassVar[int]
+    addin_version: str
+    def __init__(self, addin_version: _Optional[str] = ...) -> None: ...
+
+class SubmitResultResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: bool = ...) -> None: ...
+
+class TaskEnvelope(_message.Message):
+    __slots__ = ("task_id", "method_name", "payload_json")
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    METHOD_NAME_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_JSON_FIELD_NUMBER: _ClassVar[int]
+    task_id: str
+    method_name: str
+    payload_json: bytes
+    def __init__(self, task_id: _Optional[str] = ..., method_name: _Optional[str] = ..., payload_json: _Optional[bytes] = ...) -> None: ...
+
+class TaskResult(_message.Message):
+    __slots__ = ("task_id", "is_success", "result_json", "error_message")
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    task_id: str
+    is_success: bool
+    result_json: bytes
+    error_message: str
+    def __init__(self, task_id: _Optional[str] = ..., is_success: bool = ..., result_json: _Optional[bytes] = ..., error_message: _Optional[str] = ...) -> None: ...
+
 class ClearAssemblyCacheRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

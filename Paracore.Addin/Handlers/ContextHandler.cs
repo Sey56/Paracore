@@ -10,21 +10,24 @@ using System.Linq;
 using System.Threading.Tasks;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Paracore.Addin.App;
 
 namespace Paracore.Addin.Handlers
 {
     public class ContextHandler
     {
-        private readonly UIApplication? _uiApp;
+        private readonly RevitContext _revitContext;
         private readonly ILogger _logger;
         private readonly IParameterExtractor _parameterExtractor;
 
-        public ContextHandler(UIApplication? uiApp, ILogger logger, IParameterExtractor parameterExtractor)
+        public ContextHandler(RevitContext revitContext, ILogger logger, IParameterExtractor parameterExtractor)
         {
-            _uiApp = uiApp;
+            _revitContext = revitContext;
             _logger = logger;
             _parameterExtractor = parameterExtractor;
         }
+
+        private UIApplication? _uiApp => _revitContext.UIApplication;
 
         public GetStatusResponse GetStatus()
         {

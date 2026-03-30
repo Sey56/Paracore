@@ -15,24 +15,27 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Autodesk.Revit.UI;
+using Paracore.Addin.App;
 
 namespace Paracore.Addin.Handlers
 {
     public class ScriptExecutionHandler
     {
-        private readonly UIApplication? _uiApp;
+        private readonly RevitContext _revitContext;
         private readonly ILogger _logger;
         private readonly IScriptCombiner _scriptCombiner;
         private readonly IScriptParser _scriptParser;
         private static readonly SemaphoreSlim ExecutionLock = new(1);
 
-        public ScriptExecutionHandler(UIApplication? uiApp, ILogger logger, IScriptCombiner scriptCombiner, IScriptParser scriptParser)
+        public ScriptExecutionHandler(RevitContext revitContext, ILogger logger, IScriptCombiner scriptCombiner, IScriptParser scriptParser)
         {
-            _uiApp = uiApp;
+            _revitContext = revitContext;
             _logger = logger;
             _scriptCombiner = scriptCombiner;
             _scriptParser = scriptParser;
         }
+
+        private UIApplication? _uiApp => _revitContext.UIApplication;
 
         public async Task<RegisterWatchdogSourceResponse> RegisterWatchdogSource(RegisterWatchdogSourceRequest request)
         {
@@ -388,7 +391,7 @@ namespace Paracore.Addin.Handlers
             }
         }
 
-        public async Task<ExecuteScriptResponse> ExecuteScript(ExecuteScriptRequest request, ServerCallContext context)
+        public async Task<ExecuteScriptResponse> ExecuteScript(ExecuteScriptRequest request, CancellationToken token = default)
         {
             _logger.Log("[ScriptExecutionHandler] Entering ExecuteScript.", LogLevel.Debug);
             ExecutionResult finalResult = new ExecutionResult { IsSuccess = false, ErrorMessage = "Execution not started" };
@@ -415,7 +418,7 @@ namespace Paracore.Addin.Handlers
             else
             {
                 _logger.Log("[ScriptExecutionHandler] Waiting for execution lock.", LogLevel.Debug);
-                await ExecutionLock.WaitAsync(context.CancellationToken);
+                await ExecutionLock.WaitAsync(token);
                 _logger.Log("[ScriptExecutionHandler] Acquired execution lock.", LogLevel.Debug);
                 Action<ExecutionResult>? handler = null;
                 try
@@ -444,7 +447,7 @@ namespace Paracore.Addin.Handlers
                         targetExecutionId = ServerViewModel.Instance.DispatchScript(scriptContentStr, parametersJsonStr, serverContext);
                         _logger.Log($"[ScriptExecutionHandler] DispatchScript called (ID: {targetExecutionId}). Waiting for completion.", LogLevel.Debug);
                     }
-                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(45), context.CancellationToken);
+                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(45), token);
                     var finishedTask = await Task.WhenAny(completionSource.Task, timeoutTask);
 
                     if (finishedTask == completionSource.Task)
