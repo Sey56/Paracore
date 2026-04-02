@@ -72,6 +72,21 @@ try
 
     var app = builder.Build();
 
+    _ = Task.Run(() => {
+        try {
+            while (true) {
+                var line = Console.ReadLine();
+                if (line != null && line.Trim().ToLower() == "exit") {
+                    Log("Received graceful exit command over STDIN.");
+                    var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+                    lifetime.StopApplication();
+                    break;
+                }
+                if (line == null) break;
+            }
+        } catch {}
+    });
+
     // Configure the HTTP request pipeline.
     app.MapGrpcService<AddinBridgeService>();
     app.MapGrpcService<CoreScriptProxyService>();

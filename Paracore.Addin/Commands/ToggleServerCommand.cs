@@ -18,15 +18,33 @@ namespace Paracore.Addin.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            if (!ParacoreApp.ServerRunning)
+            // The Server is considered "Running" if our logical flag is true AND the background host process is alive
+            bool isActuallyRunning = ParacoreApp.ServerRunning && ParacoreApp.IsSidecarRunning();
+
+            if (!isActuallyRunning)
             {
                 try
                 {
+                    // Clean up any lingering clients if the process died manually behind the scenes
+                    if (ParacoreApp.Client != null)
+                    {
+                        ParacoreApp.Client.Stop();
+                        ParacoreApp.SetClient(null);
+                    }
+                    // Terminate lingering zombies if prior state was desynced
+                    ParacoreApp.StopSidecar();
+
                     // --- 1. Validate Deployment and Force Strict Loading ---
                     // This ensures the developer machine behaves exactly like the user machine.
                     ParacoreApp.ValidateAndForceLoadDependencies();
 
-                    // 2. Resolve ILogger and RevitContext from the ServiceProvider
+                    // --- 2. Spin up the Background Sidecar Process ---
+                    ParacoreApp.StartSidecar();
+                    
+                    // Give Kestrel a tiny window to bind the gRPC HTTP port before dialing
+                    System.Threading.Thread.Sleep(500);
+
+                    // 3. Resolve ILogger and RevitContext from the ServiceProvider
                     var logger = ParacoreApp.ServiceProvider.GetRequiredService<ILogger>();
                     var revitContext = ParacoreApp.ServiceProvider.GetRequiredService<RevitContext>();
                     
@@ -59,6 +77,7 @@ namespace Paracore.Addin.Commands
                 }
                 catch (Exception ex)
                 {
+                    ParacoreApp.StopSidecar(); // Fail safely
                     TaskDialog.Show("Paracore Server - Error", $"Failed to start Paracore Server: {ex.Message}\n\nCheck CoreScriptServerLog.txt for more details.");
                     return Result.Failed;
                 }
@@ -71,6 +90,10 @@ namespace Paracore.Addin.Commands
                     ParacoreApp.SetClient(null);
                     ParacoreApp.SetServerRunning(false);
                     ServerViewModel.Instance.IsServerRunning = false;
+
+                    // TEARDOWN PROCESS
+                    ParacoreApp.StopSidecar();
+
                     TaskDialog.Show("Paracore Server", "Paracore Server stopped!");
                 }
                 catch (Exception ex)

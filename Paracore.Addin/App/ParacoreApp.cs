@@ -33,6 +33,7 @@ namespace Paracore.Addin.App
         private static ServerActionHandler? _serverActionHandler;
         private static ExternalEvent? _externalEvent;
         private static IServiceProvider? _serviceProvider;
+        private static System.Diagnostics.Process? _sidecarProcess;
 
 
         public static Dictionary<string, string> ActiveWorkspaces = new(); // Kept for legacy compatibility if needed
@@ -208,6 +209,8 @@ namespace Paracore.Addin.App
             _serverRunning = false;
             UpdateButtonState();
 
+            StopSidecar();
+
             FileLogger.Log("=== Paracore Shutdown Complete ===");
 
             return Result.Succeeded;
@@ -224,6 +227,74 @@ namespace Paracore.Addin.App
         public static void SetClient(CoreScriptClient? client)
         {
             _client = client;
+        }
+
+        public static void StartSidecar()
+        {
+            var addinDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location)!;
+            var sidecarPath = Path.Combine(addinDir, "Paracore.Server.exe");
+
+            if (File.Exists(sidecarPath))
+            {
+                _sidecarProcess = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = sidecarPath,
+                        Arguments = $"--parent-pid {System.Diagnostics.Process.GetCurrentProcess().Id}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardInput = true,
+                        WorkingDirectory = addinDir
+                    }
+                };
+                _sidecarProcess.Start();
+                FileLogger.Log($"Sidecar process started successfully (PID: {_sidecarProcess.Id})");
+            }
+            else
+            {
+                string msg = $"CRITICAL ERROR: Paracore Sidecar ('Paracore.Server.exe') not found in the add-in folder.\nPath searched: {sidecarPath}";
+                FileLogger.LogError(msg);
+                throw new FileNotFoundException(msg);
+            }
+        }
+
+        public static void StopSidecar()
+        {
+            try
+            {
+                if (_sidecarProcess != null && !_sidecarProcess.HasExited)
+                {
+                    FileLogger.Log("Stopping Sidecar process gracefully via stdin...");
+                    try { _sidecarProcess.StandardInput.WriteLine("exit"); } catch { }
+                    
+                    if (!_sidecarProcess.WaitForExit(1500))
+                    {
+                        FileLogger.Log("Sidecar process didn't close in time. Force killing.");
+                        try { _sidecarProcess.Kill(); } catch { }
+                    }
+
+                    _sidecarProcess.Dispose();
+                    _sidecarProcess = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"Error stopping Sidecar: {ex.Message}");
+            }
+        }
+
+        public static bool IsSidecarRunning()
+        {
+            if (_sidecarProcess == null) return false;
+            try
+            {
+                return !_sidecarProcess.HasExited;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public static IServiceProvider ServiceProvider => _serviceProvider ?? throw new InvalidOperationException("Service Provider has not been initialized.");

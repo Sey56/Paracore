@@ -23,18 +23,25 @@ def get_revit_config():
     return _revit_config
 
 def init_channel():
-    """Initializes the global gRPC channel."""
+    """Initializes the global gRPC channel with aggressive reconnect limits."""
     global _channel
     if _channel is None:
         grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
-        logging.info(f"Initializing gRPC channel to {grpc_server_address}")
-        _channel = grpc.insecure_channel(grpc_server_address)
+        logging.debug(f"Initializing gRPC channel to {grpc_server_address}")
+        # Force gRPC to cap its exponential reconnect backoff at 2 seconds
+        # instead of the native 120-second default, so sidecar reboots connect instantly.
+        options = [
+            ('grpc.initial_reconnect_backoff_ms', 500),
+            ('grpc.max_reconnect_backoff_ms', 2000),
+            ('grpc.min_reconnect_backoff_ms', 500)
+        ]
+        _channel = grpc.insecure_channel(grpc_server_address, options=options)
 
 def close_channel():
     """Closes the global gRPC channel."""
     global _channel
     if _channel:
-        logging.info("Closing gRPC channel")
+        logging.debug("Closing gRPC channel")
         _channel.close()
         _channel = None
 
@@ -47,9 +54,14 @@ def get_corescript_runner_stub():
 
     try:
         if _channel is None:
-            logging.warning("Global gRPC channel not initialized. Creating temporary channel.")
+            logging.debug("Global gRPC channel not initialized. Creating temporary channel.")
             grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
-            local_channel = grpc.insecure_channel(grpc_server_address)
+            options = [
+                ('grpc.initial_reconnect_backoff_ms', 500),
+                ('grpc.max_reconnect_backoff_ms', 2000),
+                ('grpc.min_reconnect_backoff_ms', 500)
+            ]
+            local_channel = grpc.insecure_channel(grpc_server_address, options=options)
             stub = corescript_pb2_grpc.CoreScriptRunnerStub(local_channel)
             yield stub
         else:
@@ -116,6 +128,7 @@ def get_status():
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:
             # Silently return a disconnected response instead of raising/logging
+            close_channel()
             return corescript_pb2.GetStatusResponse(paracore_connected=False, revit_open=False)
         logging.error(format_grpc_error(e))
         raise # Re-raise other gRPC errors

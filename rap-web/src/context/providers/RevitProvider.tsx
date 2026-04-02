@@ -53,9 +53,12 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     fetchStatus();
-    const intervalId = setInterval(fetchStatus, 5000);
+    // Fast polling when disconnected (1s) to quickly catch the Sidecar booting up.
+    // Standard polling when connected (5s) to save resources.
+    const pollInterval = ParacoreConnected ? 5000 : 1000;
+    const intervalId = setInterval(fetchStatus, pollInterval);
     return () => clearInterval(intervalId);
-  }, [fetchStatus]);
+  }, [fetchStatus, ParacoreConnected]);
 
   const contextValue = useMemo(() => ({
     ParacoreConnected,

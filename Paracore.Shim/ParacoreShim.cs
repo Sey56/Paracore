@@ -22,7 +22,6 @@ namespace Paracore.Shim
 
         private object? _realApp;
         private MethodInfo? _shutdownMethod;
-        private System.Diagnostics.Process? _sidecarProcess;
 
         public Result OnStartup(UIControlledApplication application)
         {
@@ -68,12 +67,6 @@ namespace Paracore.Shim
                 var result = (Result)startupMethod.Invoke(_realApp, new object[] { application })!;
                 Log($"ParacoreApp.OnStartup returned: {result}");
 
-                // 5. Start the Add-in Sidecar (Paracore.Server.exe)
-                if (result == Result.Succeeded)
-                {
-                    StartSidecar(shimDir);
-                }
-
                 return result;
             }
             catch (Exception ex)
@@ -100,73 +93,14 @@ namespace Paracore.Shim
                 if (_realApp != null && _shutdownMethod != null)
                 {
                     var result = (Result)_shutdownMethod.Invoke(_realApp, new object[] { application })!;
-                    StopSidecar();
                     return result;
                 }
-                StopSidecar();
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
                 Log($"Shutdown error: {ex.Message}");
                 return Result.Failed;
-            }
-        }
-
-        private void StartSidecar(string shimDir)
-        {
-            try
-            {
-                var sidecarPath = Path.Combine(shimDir, "Paracore.Server.exe");
-                Log($"Searching for Sidecar at: {sidecarPath}");
-
-                if (File.Exists(sidecarPath))
-                {
-                    Log($"Starting Sidecar: {sidecarPath}");
-                    _sidecarProcess = new System.Diagnostics.Process
-                    {
-                        StartInfo = new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = sidecarPath,
-                            Arguments = $"--parent-pid {System.Diagnostics.Process.GetCurrentProcess().Id}",
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            WorkingDirectory = shimDir
-                        }
-                    };
-                    _sidecarProcess.Start();
-                    Log($"Sidecar process started successfully (PID: {_sidecarProcess.Id})");
-                }
-                else
-                {
-                    var msg = $"CRITICAL ERROR: Paracore Sidecar ('Paracore.Server.exe') not found in the add-in folder.\n\nPath searched: {sidecarPath}\n\nPlease ensure you have rebuilt the Paracore.Addin project to bundle the sidecar correctly.";
-                    Log(msg);
-                    TaskDialog.Show("Paracore - Sidecar Missing", msg);
-                }
-            }
-            catch (Exception ex)
-            {
-                var errorMsg = $"ERROR starting Sidecar: {ex.Message}";
-                Log(errorMsg);
-                TaskDialog.Show("Paracore - Sidecar Error", errorMsg);
-            }
-        }
-
-        private void StopSidecar()
-        {
-            try
-            {
-                if (_sidecarProcess != null && !_sidecarProcess.HasExited)
-                {
-                    Log("Stopping Sidecar process...");
-                    _sidecarProcess.Kill();
-                    _sidecarProcess.Dispose();
-                    _sidecarProcess = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"Error stopping Sidecar: {ex.Message}");
             }
         }
 
