@@ -15,7 +15,9 @@
 
 [Setup]
 AppId={{F22B529C-22A9-42A0-9243-A335A195A80C-ADDIN}}
-AppName=Paracore
+AppName=Paracore Addin
+AppVerName=Paracore Addin {#MyAppVersion}
+UpdateUninstallLogAppName=yes
 AppVersion=4.3.2
 AppPublisher=Paras Codarch
 DefaultDirName={commonappdata}\{#AppDataFolderName}
