@@ -75,7 +75,8 @@ const renderColorfulLegendText = (value: string) => {
 const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm3', 'cum', 'ft3', 'cuft'];
 
 const beautifyHeader = (header: string) => {
-  const match = header.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
+  let cleaned = header.replace(/_/g, ' ');
+  const match = cleaned.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
   if (match) {
     const possibleName = match[1].replace(/[_([]$/, '').trim();
     const possibleUnit = match[2].trim();
@@ -83,7 +84,7 @@ const beautifyHeader = (header: string) => {
       return possibleName;
     }
   }
-  return header;
+  return cleaned;
 };
 
 const TableView: React.FC<{
@@ -470,7 +471,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
     const map = new Map<string, { name: string; unit: string }>();
     if (!selectedScript?.parameters) return map;
     selectedScript.parameters.forEach(p => {
-      const cleanId = p.name.replace(/\s+/g, '').toLowerCase();
+      const cleanId = p.name.replace(/[\s_]+/g, '').toLowerCase();
       map.set(cleanId, { name: p.name, unit: p.unit || "" });
       map.set(p.name.toLowerCase(), { name: p.name, unit: p.unit || "" });
     });
@@ -484,11 +485,12 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
 
   const handleUpdateParameter = useCallback(async (elementId: number, parameterName: string, newValue: string) => {
     try {
-      const meta = paramMetadataMap.get(parameterName.toLowerCase()) || paramMetadataMap.get(parameterName.replace(/\s+/g, '').toLowerCase());
-      let realName = meta?.name || parameterName;
+      const cleanSearch = parameterName.replace(/[\s_]+/g, '').toLowerCase();
+      const meta = paramMetadataMap.get(parameterName.toLowerCase()) || paramMetadataMap.get(cleanSearch);
+      let realName = meta?.name || parameterName.replace(/_/g, ' ');
       let unit = meta?.unit || "";
       if (!unit) {
-        const match = parameterName.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
+        const match = realName.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
         if (match) {
           const possibleName = match[1].replace(/[_([]$/, '').trim();
           const possibleUnit = match[2].trim();
@@ -581,11 +583,12 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
           if (match) {
             Object.keys(impRow).forEach(col => {
               if (['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(col.toLowerCase())) return;
-              const meta = paramMetadataMap.get(col.toLowerCase()) || paramMetadataMap.get(col.replace(/\s+/g, '').toLowerCase());
-              let realName = meta?.name || col;
+              const cleanColName = col.replace(/[\s_]+/g, '').toLowerCase();
+              const meta = paramMetadataMap.get(col.toLowerCase()) || paramMetadataMap.get(cleanColName);
+              let realName = meta?.name || col.replace(/_/g, ' ');
               let unit = meta?.unit || "";
               if (!unit) {
-                const match = col.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
+                const match = realName.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
                 if (match) {
                   const possibleName = match[1].replace(/[_([]$/, '').trim();
                   const possibleUnit = match[2].trim();
