@@ -33,16 +33,16 @@ Before using this extension, you must have the `Paracore.Addin` installed in Rev
 1.  Run the Paracore Installer to install the add-in.
 2.  Launch Revit.
 3.  Go to the "Paracore" tab in the Revit ribbon.
-4.  Optionally use the UI, but the background server is ready to receive commands from this extension!
+4.  Click the Server toggle button (it will initially say "Off"). Once toggled, it will show "ON", indicating the background server is ready to receive commands from this extension.
 
 ## Usage
 
-1.  **Create Workspace**: Create an empty folder (e.g., `TestWorkspace`) and run VS Code in it.
-2.  **Initialize**: Open the Command Palette and select **CoreScript: Initialize Workspace** (or press `Ctrl+Shift+S`).
+1.  **Create Workspace**: Create an empty folder (e.g., `TestWorkspace`), then open it in VS Code (e.g., right-click the folder and select "Open with Code").
+2.  **Initialize**: Press `Ctrl+Shift+S` (or use the Command Palette: **CoreScript: Initialize Workspace**) to set up the workspace.
     *   This will scaffold the workspace with necessary files for Revit API IntelliSense and custom globals.
     *   **Important**: Wait for the workspace to be fully generated. It is complete when the `obj` and `bin` folders are created.
-3.  **Write Scripts**: Navigate to the `Scripts` folder. The entry point is `Main.cs`. You can create additional scripts in this folder and reference them in `Main.cs`.
-4.  **Run**: To execute your script, use the command **CoreScript: Run in Revit** (or press `Ctrl+Shift+R`).
+3.  **Write Scripts**: Navigate to the new `Scripts` folder. The entry point is `Main.cs`. You can write code directly here, or create other `.cs` files inside the `Scripts` folder and reference them in `Main.cs`.
+4.  **Run**: To execute your script, press `Ctrl+Shift+R`. All outputs will stream directly to the VS Code Output tab.
 
 ## Execution Output
 
