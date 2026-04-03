@@ -39,14 +39,7 @@ Development is ongoing for the following advanced features:
 - **Playlist Mode**: Sequential execution of standardized BIM workflows.
 - **.ptool Marketplace**: A hub for sharing and discovering specialized automation tools.
 
-## ⚠️ Known Incompatibilities
 
-### pyRevit & Roslyn Conflict
-Paracore uses a modern version of the **Microsoft Roslyn (C# Compiler)** engine. 
-- **The Conflict**: pyRevit loads an older version of Roslyn, which may block Paracore from loading its required components.
-- **Resolution**: To use Paracore, you may need to temporarily disable pyRevit.
-
----
 
 ## 📄 License
 This project is licensed under the **MIT License**.
