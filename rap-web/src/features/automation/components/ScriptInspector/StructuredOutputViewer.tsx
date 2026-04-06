@@ -93,7 +93,8 @@ const TableView: React.FC<{
   onUpdate?: (elementId: number, parameterName: string, newValue: string) => Promise<boolean>;
   filterText: string;
   setFilterText: (t: string) => void;
-}> = ({ data: initialData, onSelect, onUpdate, filterText, setFilterText }) => {
+  onFilteredDataChange?: (data: Record<string, unknown>[]) => void;
+}> = ({ data: initialData, onSelect, onUpdate, filterText, setFilterText, onFilteredDataChange }) => {
   const { showNotification } = useNotifications();
   const [data, setData] = useState(initialData);
   const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
@@ -205,6 +206,12 @@ const TableView: React.FC<{
     }
     return result;
   }, [data, filterText, sortConfig]);
+
+  useEffect(() => {
+    if (onFilteredDataChange) {
+      onFilteredDataChange(filteredData);
+    }
+  }, [filteredData, onFilteredDataChange]);
 
   // --- Virtualization Calculations ---
   const totalRows = filteredData.length;
@@ -377,6 +384,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [filterText, setFilterText] = useState('');
+  const [currentFilteredData, setCurrentFilteredData] = useState<Record<string, unknown>[]>([]);
   const { activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex } = useUI();
   const [isReady, setIsReady] = useState(false);
   const [showAsTable, setShowAsTable] = useState(false);
@@ -510,10 +518,12 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
   const handleCopy = useCallback(() => {
     try {
       const parsed = JSON.parse(item.data);
-      let data = Array.isArray(parsed) ? parsed : [parsed];
+      let data = currentFilteredData && currentFilteredData.length > 0 
+        ? currentFilteredData 
+        : (Array.isArray(parsed) ? parsed : [parsed]);
       if (data.length === 0) return;
       
-      if (filterText) {
+      if (filterText && (!currentFilteredData || currentFilteredData.length === 0)) {
         const lowerFilter = filterText.toLowerCase();
         data = data.filter((row: Record<string, unknown>) => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(lowerFilter)));
       }
@@ -523,15 +533,17 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       navigator.clipboard.writeText(textToCopy);
       showNotification('Table data copied to clipboard.', 'success');
     } catch { showNotification('Failed to copy table data.', 'error'); }
-  }, [item.data, filterText, showNotification]);
+  }, [item.data, filterText, showNotification, currentFilteredData]);
 
   const handleDownloadCsv = useCallback(async () => {
     try {
       const parsed = JSON.parse(item.data);
-      let data = Array.isArray(parsed) ? parsed : [parsed];
+      let data = currentFilteredData && currentFilteredData.length > 0 
+        ? currentFilteredData 
+        : (Array.isArray(parsed) ? parsed : [parsed]);
       if (data.length === 0) return;
 
-      if (filterText) {
+      if (filterText && (!currentFilteredData || currentFilteredData.length === 0)) {
         const lowerFilter = filterText.toLowerCase();
         data = data.filter((row: Record<string, unknown>) => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(lowerFilter)));
       }
@@ -541,7 +553,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `export_${new Date().toISOString().slice(0, 10)}.csv` });
       if (filePath) { await writeTextFile(filePath, csvContent); showNotification('CSV exported successfully!', 'success'); }
     } catch { showNotification("Failed to export CSV data.", "error"); }
-  }, [item.data, filterText, showNotification]);
+  }, [item.data, filterText, showNotification, currentFilteredData]);
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -809,7 +821,7 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
         {effectiveType === 'table' && (
           <div className="flex-1 h-full w-full overflow-hidden">
             <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
-            <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} filterText={filterText} setFilterText={setFilterText} />
+            <TableView data={tableData || []} onSelect={handleSelectElements} onUpdate={handleUpdateParameter} filterText={filterText} setFilterText={setFilterText} onFilteredDataChange={setCurrentFilteredData} />
           </div>
         )}
 
