@@ -38,10 +38,14 @@ Smart, unit-aware extension methods on every `Element`.
 
 | Method | Type | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `.GetStr(name)` | `string` | Smart Name/String getter. | `e.GetStr("Level")` |
-| `.GetNum(name)` | `double` | Raw numeric (Internal). | `e.GetNum("Length")` |
-| `.GetVal(name)` | `string` | WYSIWYG (UI Format). | `e.GetVal("Width")` |
-| `.GetInt(name)` | `int` | Integer/Boolean getter. | `e.GetInt("Is External")` |
+| `.GetStr(name)` | `string` | **Instance** String getter. | `e.GetStr("Mark")` |
+| `.GetNum(name)` | `double` | **Instance** Raw numeric. | `e.GetNum("Offset")` |
+| `.GetVal(name)` | `string` | **Instance** WYSIWYG Format. | `e.GetVal("Phase")` |
+| `.GetInt(name)` | `int` | **Instance** Integer/Bool. | `e.GetInt("Is External")` |
+| `.GetTypeStr(n)`| `string` | **Type** String getter. | `e.GetTypeStr("Model")` |
+| `.GetTypeNum(n)`| `double` | **Type** Raw numeric. | `e.GetTypeNum("Width")` |
+| `.GetTypeVal(n)`| `string` | **Type** WYSIWYG Format. | `e.GetTypeVal("Height")` |
+| `.GetTypeInt(n)`| `int` | **Type** Integer/Bool. | `e.GetTypeInt("Cost")` |
 | `.FamilyName()`| `string` | True Family Name getter. | `e.FamilyName()` |
 | `.Matches("pattern")`| `bool` | Fuzzy Type/Family matcher. | `e.Matches("Flush")` |
 | `.SetVal(n, v)` | `void` | **Smart Setter** (Auto-ID/Unit).| `e.SetVal("Mark", "101")` |

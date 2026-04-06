@@ -68,12 +68,13 @@ namespace CoreScript.Engine.Globals
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
-                if (bp != null) return FormatParamValue(e, bp);
+                if (bp != null && bp.HasValue) return FormatParamValue(e, bp);
             }
 
             // 2. Try standard name lookup ("Level")
             var p = e.LookupParameter(name);
-            if (p != null) return FormatParamValue(e, p);
+            if (p != null && p.HasValue) return FormatParamValue(e, p);
+
 
             // 3. Smart Fallback: Try C# Property via Reflection (Room.Level, Wall.Width, etc.)
             try
@@ -162,12 +163,13 @@ namespace CoreScript.Engine.Globals
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
-                if (bp != null) return bp.AsDouble();
+                if (bp != null && bp.HasValue) return bp.AsDouble();
             }
 
             // 2. Standard lookup
             var p = e.LookupParameter(name);
-            if (p != null) return p.AsDouble();
+            if (p != null && p.HasValue) return p.AsDouble();
+
 
             // 3. Reflection fallback
             try
@@ -195,12 +197,13 @@ namespace CoreScript.Engine.Globals
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
-                if (bp != null) return bp.AsInteger();
+                if (bp != null && bp.HasValue) return bp.AsInteger();
             }
 
             // 2. Standard lookup
             var p = e.LookupParameter(name);
-            if (p != null) return p.AsInteger();
+            if (p != null && p.HasValue) return p.AsInteger();
+
 
             // 3. Reflection fallback
             try
@@ -235,6 +238,7 @@ namespace CoreScript.Engine.Globals
             {
                 var formatted = p.AsValueString();
                 if (!string.IsNullOrEmpty(formatted)) return formatted;
+                if (p.StorageType == StorageType.String) return p.AsString() ?? "-";
             }
 
             // Fallback to Smart GetStr (handles Reflection and ElementId names)
@@ -248,6 +252,25 @@ namespace CoreScript.Engine.Globals
             if (e == null) return "-";
             return e.GetNum(name).FormatUnit(unit);
         }
+
+        // =================================================================================
+        // EXPLICIT TYPE PARAMETER SCOPE WRAPPERS
+        // =================================================================================
+
+        public static Element GetElementType(this Element e)
+        {
+            var id = e?.GetTypeId();
+            if (id == null || id == ElementId.InvalidElementId) return null;
+            return e.Document.GetElement(id);
+        }
+
+        public static string GetTypeStr(this Element e, string name) => e.GetElementType()?.GetStr(name) ?? "";
+        public static string GetTypeStr(this Element e, string name, string unit) => e.GetElementType()?.GetStr(name, unit) ?? "";
+        public static double GetTypeNum(this Element e, string name) => e.GetElementType()?.GetNum(name) ?? 0.0;
+        public static double GetTypeNum(this Element e, string name, string unit) => e.GetElementType()?.GetNum(name, unit) ?? 0.0;
+        public static int GetTypeInt(this Element e, string name) => e.GetElementType()?.GetInt(name) ?? 0;
+        public static string GetTypeVal(this Element e, string name) => e.GetElementType()?.GetVal(name) ?? "-";
+        public static string GetTypeVal(this Element e, string name, string unit) => e.GetElementType()?.GetVal(name, unit) ?? "-";
 
         /// <summary>
         /// Gets all BUILT-IN parameters of the element as a list of objects (Name, BIP, Value).

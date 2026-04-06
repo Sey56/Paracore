@@ -229,10 +229,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td><code>.GetStr(name)</code></td><td class="type">string</td><td class="desc">Smart Name/String getter.</td><td class="example"><code>e.GetStr("Level")</code></td></tr>
-                        <tr><td><code>.GetNum(name)</code></td><td class="type">double</td><td class="desc">Raw numeric (Internal Feet).</td><td class="example"><code>e.GetNum("Length")</code></td></tr>
-                        <tr><td><code>.GetVal(name)</code></td><td class="type">string</td><td class="desc">WYSIWYG (UI Formatted).</td><td class="example"><code>e.GetVal("Width")</code></td></tr>
-                        <tr><td><code>.GetInt(name)</code></td><td class="type">int</td><td class="desc">Integer/Boolean getter.</td><td class="example"><code>e.GetInt("Is External")</code></td></tr>
+                        <tr><td><code>.GetStr(name)</code></td><td class="type">string</td><td class="desc"><b>Instance</b> String getter.</td><td class="example"><code>e.GetStr("Mark")</code></td></tr>
+                        <tr><td><code>.GetNum(name)</code></td><td class="type">double</td><td class="desc"><b>Instance</b> Raw numeric.</td><td class="example"><code>e.GetNum("Offset")</code></td></tr>
+                        <tr><td><code>.GetVal(name)</code></td><td class="type">string</td><td class="desc"><b>Instance</b> WYSIWYG Formatted.</td><td class="example"><code>e.GetVal("Phase")</code></td></tr>
+                        <tr><td><code>.GetInt(name)</code></td><td class="type">int</td><td class="desc"><b>Instance</b> Integer/Bool.</td><td class="example"><code>e.GetInt("Is External")</code></td></tr>
+                        <tr><td><code>.GetTypeStr(n)</code></td><td class="type">string</td><td class="desc"><b>Type</b> String getter.</td><td class="example"><code>e.GetTypeStr("Model")</code></td></tr>
+                        <tr><td><code>.GetTypeNum(n)</code></td><td class="type">double</td><td class="desc"><b>Type</b> Raw numeric.</td><td class="example"><code>e.GetTypeNum("Width")</code></td></tr>
+                        <tr><td><code>.GetTypeVal(n)</code></td><td class="type">string</td><td class="desc"><b>Type</b> WYSIWYG Formatted.</td><td class="example"><code>e.GetTypeVal("Height")</code></td></tr>
+                        <tr><td><code>.GetTypeInt(n)</code></td><td class="type">int</td><td class="desc"><b>Type</b> Integer/Bool.</td><td class="example"><code>e.GetTypeInt("Cost")</code></td></tr>
                         <tr><td><code>.FamilyName()</code></td><td class="type">string</td><td class="desc">True Family Name getter.</td><td class="example"><code>e.FamilyName()</code></td></tr>
                         <tr><td><code>.Matches("p")</code></td><td class="type">bool</td><td class="desc">Fuzzy Type/Family matcher.</td><td class="example"><code>e.Matches("Flush")</code></td></tr>
                         <tr><td><code>.SetVal(n, v)</code></td><td class="type">void</td><td class="desc"><b>Smart Setter</b> (Auto-ID/Unit).</td><td class="example"><code>e.SetVal("Mark", "101")</code></td></tr>
