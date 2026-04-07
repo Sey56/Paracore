@@ -1,4 +1,4 @@
-# 🚀 Paracore REPL: Master Cheat Sheet (V4.2.0)
+# 🚀 Paracore REPL: Master Cheat Sheet (V4.3.0)
 
 A quick reference guide for high-speed Revit automation using Paracore's fluent API.
 
@@ -47,6 +47,10 @@ Smart, unit-aware extension methods on every `Element`.
 | `.GetTypeVal(n)`| `string` | **Type** WYSIWYG Format. | `e.GetTypeVal("Height")` |
 | `.GetTypeInt(n)`| `int` | **Type** Integer/Bool. | `e.GetTypeInt("Cost")` |
 | `.FamilyName()`| `string` | True Family Name getter. | `e.FamilyName()` |
+| `.RoomTo()` | `string` | **Door/Window** Room Name (Into) | `e.RoomTo()` |
+| `.RoomFrom()` | `string` | **Door/Window** Room Name (From) | `e.RoomFrom()` |
+| `.HingeSide()` | `string` | **Door** Hinge Side (Left/Right) | `e.HingeSide()` |
+| `.Handing()` | `string` | **Door** Handing (LH, RH, etc.) | `e.Handing()` |
 | `.Matches("pattern")`| `bool` | Fuzzy Type/Family matcher. | `e.Matches("Flush")` |
 | `.SetVal(n, v)` | `void` | **Smart Setter** (Auto-ID/Unit).| `e.SetVal("Mark", "101")` |
 | `.SetNum(n, v, u)`| `void` | Explicit Unit Setter. | `e.SetNum("L", 1.5, "m")` |

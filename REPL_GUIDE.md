@@ -127,6 +127,26 @@ In the Revit API, some common attributes are exposed as native C# properties on 
 
 ---
 
+## 🚪 Specialized Door/Window Accessors
+Revit's native door properties are notoriously difficult to schedule correctly (handling phases, room detection, and relative orientations). Paracore simplifies these into first-class citizens.
+
+### `.RoomTo()` / `.RoomFrom()`
+**Room Accessors.** Returns the name of the room.
+- Automatically detects the **latest phase** of the project to ensure accuracy.
+- Returns `"-"` if no room is found.
+
+### `.HingeSide()`
+**Orientation Helper.** Returns `"Left"` or `"Right"`.
+- This is relative to the **RoomFrom** (the "Exterior") side of the door.
+- Standing in the `FromRoom` looking at the door, if the hinge is on your left, it returns `"Left"`.
+
+### `.Handing()`
+**Industry Standard Handing.** Returns `"LH"`, `"RH"`, `"LHR"`, `"RHR"`.
+- Uses the standard American convention.
+- **LH** (Left Hand), **RH** (Right Hand), **LHR** (Left Hand Reverse), **RHR** (Right Hand Reverse).
+
+---
+
 ## 📐 Geometry Instances & Coordinate Spaces
 When working with **CAD Imports** or **Nested Families**, Revit provides geometry through a `GeometryInstance`. You must choose which "space" you want to work in.
 

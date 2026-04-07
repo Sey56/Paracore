@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paracore Master Cheat Sheet V4.2.0</title>
+    <title>Paracore Master Cheat Sheet V4.3.0</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -167,7 +167,7 @@
     <div class="container">
         <header>
             <h1>Paracore API Master Cheat Sheet</h1>
-            <span class="version">ELITE DEPLOYMENT • VERSION 4.2.0</span>
+            <span class="version">ELITE DEPLOYMENT • VERSION 4.3.0</span>
         </header>
 
         <div class="section-grid">
@@ -238,6 +238,10 @@
                         <tr><td><code>.GetTypeVal(n)</code></td><td class="type">string</td><td class="desc"><b>Type</b> WYSIWYG Formatted.</td><td class="example"><code>e.GetTypeVal("Height")</code></td></tr>
                         <tr><td><code>.GetTypeInt(n)</code></td><td class="type">int</td><td class="desc"><b>Type</b> Integer/Bool.</td><td class="example"><code>e.GetTypeInt("Cost")</code></td></tr>
                         <tr><td><code>.FamilyName()</code></td><td class="type">string</td><td class="desc">True Family Name getter.</td><td class="example"><code>e.FamilyName()</code></td></tr>
+                        <tr><td><code>.RoomTo()</code></td><td class="type">string</td><td class="desc"><b>Door</b> Room Name (Into).</td><td class="example"><code>e.RoomTo()</code></td></tr>
+                        <tr><td><code>.RoomFrom()</code></td><td class="type">string</td><td class="desc"><b>Door</b> Room Name (From).</td><td class="example"><code>e.RoomFrom()</code></td></tr>
+                        <tr><td><code>.HingeSide()</code></td><td class="type">string</td><td class="desc"><b>Door</b> Hinge (Left/Right).</td><td class="example"><code>e.HingeSide()</code></td></tr>
+                        <tr><td><code>.Handing()</code></td><td class="type">string</td><td class="desc"><b>Door</b> Handing (LH,RH,etc).</td><td class="example"><code>e.Handing()</code></td></tr>
                         <tr><td><code>.Matches("p")</code></td><td class="type">bool</td><td class="desc">Fuzzy Type/Family matcher.</td><td class="example"><code>e.Matches("Flush")</code></td></tr>
                         <tr><td><code>.SetVal(n, v)</code></td><td class="type">void</td><td class="desc"><b>Smart Setter</b> (Auto-ID/Unit).</td><td class="example"><code>e.SetVal("Mark", "101")</code></td></tr>
                         <tr><td><code>.SetNum(n, v, u)</code></td><td class="type">void</td><td class="desc">Explicit Unit Setter.</td><td class="example"><code>e.SetNum("L", 1.5, "m")</code></td></tr>

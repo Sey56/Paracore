@@ -127,21 +127,18 @@ BarChart(gfa);
 Println($">>> Total GFA: {gfa.Sum(x => x.value):F2} m²");
 ```
 
-### 8. Door-to-Room Relationship Report
-Which door belongs to which room? Essential for fire safety, security, and hardware schedules.
+### 8. Pro Door Schedule (Room & Handing Audit)
+Generate a technical door schedule with rooms and industry-standard handing — no Revit API logic required.
 ```csharp
-Table(GetElements<FamilyInstance>("Doors").Select(d => {
-    var fromRoom = d.FromRoom;
-    var toRoom = d.ToRoom;
-    return new {
-        d.Id,
-        Door = d.Name,
-        Level = d.GetStr("Level"),
-        From_Room = fromRoom != null ? $"{fromRoom.Number} - {fromRoom.Name}" : "—",
-        To_Room = toRoom != null ? $"{toRoom.Number} - {toRoom.Name}" : "—",
-        Width_mm = d.GetNum("Width", "mm"),
-        Height_mm = d.GetNum("Height", "mm")
-    };
+Table(GetElements<FamilyInstance>("Doors").Select(d => new {
+    d.Id,
+    Mark = d.GetStr("Mark"),
+    Level = d.GetStr("Level"),
+    From = d.RoomFrom(), // Smart Room Detection
+    To = d.RoomTo(),     // Smart Room Detection
+    Handing = d.Handing(), // LH, RH, LHR, RHR
+    Hinge = d.HingeSide(), // Left / Right
+    Width_mm = d.GetNum("Width", "mm")
 }));
 ```
 
