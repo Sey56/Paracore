@@ -1,0 +1,137 @@
+﻿<UserControl x:Class="SH_Tools.Views.MapLayerSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SH_Tools.Views"
+             xmlns:converters="clr-namespace:SH_Tools.Converters"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors" 
+             xmlns:viewmodels="clr-namespace:SH_Tools.ViewModels" d:DataContext="{d:DesignInstance Type=viewmodels:CadViewModel}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="640">
+
+    <UserControl.Resources>
+
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <converters:CategoryToVisibilityConverter x:Key="CategoryToVisibilityConverter"/>
+        <converters:StringToDoubleConverter x:Key="StringToDoubleConverter"/>
+        <converters:LayerNameConverter x:Key="LayerNameConverter"/>
+
+    </UserControl.Resources>
+
+    <Border Padding="10, 0, 10, 0">
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="360">
+
+            <ScrollViewer.Resources>
+                <Style TargetType="ScrollBar">
+                    <Setter Property="Opacity" Value="0.5"/>
+                </Style>
+            </ScrollViewer.Resources>
+            <!-- Your content goes here -->
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <ItemsControl ItemsSource="{Binding Layers}" Grid.Row="0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                        <ComboBox HorizontalContentAlignment="Center" VerticalAlignment="Center" Grid.Column="0" ItemsSource="{Binding CategoryNames}" SelectedItem="{Binding SelectedCategory}" Margin="5">
+                                            <ComboBox.ItemContainerStyle>
+                                                <Style TargetType="ComboBoxItem">
+                                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                                </Style>
+                                            </ComboBox.ItemContainerStyle>
+                                        </ComboBox>
+
+                                    <ComboBox HorizontalContentAlignment="Center" VerticalAlignment="Center" x:Name="cadLayerNamesComboBox" Grid.Column="1" ItemsSource="{Binding CadLayerNames}" SelectedItem="{Binding LayerName}" Margin="5">
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem">
+                                                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Converter={StaticResource LayerNameConverter}}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+
+                                    <ComboBox HorizontalContentAlignment="Center" VerticalAlignment="Center" Grid.Column="2" ItemsSource="{Binding ElementTypes}" SelectedItem="{Binding SelectedElementType}" IsEnabled="{Binding ElementName=cadLayerNamesComboBox, Path=SelectedItem, Converter={StaticResource NullToBoolConverter}}" Margin="5">
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem">
+                                                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+
+
+
+
+
+                                    <TextBox Grid.Column="3" ToolTip="Enter Sill Height" ToolTipService.InitialShowDelay="500"
+    Text="{Binding SillHeight, 
+                   Mode=TwoWay, 
+                   UpdateSourceTrigger=PropertyChanged, 
+                   Converter={StaticResource StringToDoubleConverter},
+                   ConverterParameter=#0.##}"
+    Visibility="{Binding SelectedCategory, Converter={StaticResource CategoryToVisibilityConverter}}" 
+    Width="40" 
+    Margin="5" 
+    VerticalContentAlignment="Center"
+    IsEnabled="{Binding SelectedElementType, Converter={StaticResource NullToBoolConverter}}">
+                                        <i:Interaction.Triggers>
+                                            <i:EventTrigger EventName="TextChanged">
+                                                <i:InvokeCommandAction Command="{Binding TextChangedCommand}" 
+                       CommandParameter="{Binding}" />
+                                            </i:EventTrigger>
+                                            <i:EventTrigger EventName="LostFocus">
+                                                <i:InvokeCommandAction Command="{Binding LostFocusCommand}" 
+                       CommandParameter="{Binding}" />
+                                            </i:EventTrigger>
+                                        </i:Interaction.Triggers>
+                                    </TextBox>
+
+
+                                    <Button Grid.Column="4" Command="{Binding DataContext.DeleteLayerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                 CommandParameter="{Binding}" Width="20" Margin="5" ToolTip="Delete layer" ToolTipService.InitialShowDelay="500">
+                                    <TextBlock FontSize="20" Text="-" Margin="0,-5,0,0"/>
+                                </Button>
+
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Command="{Binding AddLayerCommand}" Grid.Row="1"
+        HorizontalAlignment="Left" Margin="5" ToolTip="Create a layer" ToolTipService.InitialShowDelay="500"
+        Width="50" Visibility="{Binding SelectedBaseLevel, Converter={StaticResource NullToVisibilityConverter}}"
+        BorderThickness="0">
+                    <Button.Effect>
+                        <DropShadowEffect Color="Gray" Direction="330" ShadowDepth="2" Opacity="0.8"/>
+                    </Button.Effect>
+                    <TextBlock FontSize="20" Text="+" Margin="0,-5,0,0"/>
+                </Button>
+
+            </Grid>
+
+        </ScrollViewer>
+    </Border>
+</UserControl>
+

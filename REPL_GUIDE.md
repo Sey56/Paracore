@@ -127,23 +127,34 @@ In the Revit API, some common attributes are exposed as native C# properties on 
 
 ---
 
-## 🚪 Specialized Door/Window Accessors
-Revit's native door properties are notoriously difficult to schedule correctly (handling phases, room detection, and relative orientations). Paracore simplifies these into first-class citizens.
+## 🚪 Specialized Door/Window Accessors (Stable Orientation)
+Revit's native door properties (`ToRoom`/`FromRoom`) are notoriously inconsistent because they swap whenever a user flips the door's facing direction. Paracore solves this by providing **Orientation-Normalized** helpers that remain stable regardless of flips.
 
-### `.RoomTo()` / `.RoomFrom()`
-**Room Accessors.** Returns the name of the room.
-- Automatically detects the **latest phase** of the project to ensure accuracy.
-- Returns `"-"` if no room is found.
+### `.RoomAccess()`
+**The Stability Anchor.** Returns the name of the room on the **non-swing side** of the door.
+- In architectural practice, this is the "Access" side (e.g., the Corridor or Bedroom side where the security reader/key is located).
+- **Immutable**: This value will NOT change if you flip the door's facing direction or hand in Revit.
 
-### `.HingeSide()`
-**Orientation Helper.** Returns `"Left"` or `"Right"`.
-- This is relative to the **RoomFrom** (the "Exterior") side of the door.
-- Standing in the `FromRoom` looking at the door, if the hinge is on your left, it returns `"Left"`.
+### `.RoomDestination()`
+**The Target Room.** Returns the name of the room the door **swings into**.
+- Combined with `.RoomAccess()`, this gives you a perfectly consistent "From -> To" report for your entire project.
 
 ### `.Handing()`
 **Industry Standard Handing.** Returns `"LH"`, `"RH"`, `"LHR"`, `"RHR"`.
-- Uses the standard American convention.
-- **LH** (Left Hand), **RH** (Right Hand), **LHR** (Left Hand Reverse), **RHR** (Right Hand Reverse).
+- Uses the standard American/BIM matrix based on Revit's `HandFlipped` and `FacingFlipped` properties.
+- This mapping assumes the family's default (unflipped) state is a standard Left Hand Reverse (LHR), which is the Revit default.
+
+| Handing | Description |
+| :--- | :--- |
+| **LH** | Left Hand (Push) |
+| **RH** | Right Hand (Push) |
+| **LHR** | Left Hand Reverse (Pull) |
+| **RHR** | Right Hand Reverse (Pull) |
+
+### `.HingeSide()`
+**Normalized Perspective.** Returns `"Left"` or `"Right"`.
+- This is calculated relative to the **Access Room**. 
+- Standing in the `RoomAccess` looking at the door, if the hinge is on your left, it returns `"Left"`.
 
 ---
 

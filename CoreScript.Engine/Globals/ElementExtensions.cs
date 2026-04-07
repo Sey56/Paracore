@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
@@ -378,111 +379,6 @@ namespace CoreScript.Engine.Globals
             return props;
         }
 
-        /// <summary>
-        /// Gets a summary of the element's geometry (Solids, Surfaces, Volumes).
-        /// </summary>
-        public static IEnumerable<object> GeometrySummary(this Element e)
-        {
-            if (e == null) return new List<object>();
-
-            var results = new List<object>();
-            var opt = new Options { DetailLevel = ViewDetailLevel.Fine };
-            var geo = e.get_Geometry(opt);
-
-            if (geo == null) return results;
-
-            void Process(GeometryElement g, string source = "Direct")
-            {
-                foreach (var obj in g)
-                {
-                    if (obj.Visibility == Visibility.Invisible) continue;
-
-                    string matName = "Default";
-                    var matId = ElementId.InvalidElementId;
-
-                    // Try to finding material from GraphicsStyle FIRST if the object has one
-                    if (obj.GraphicsStyleId != ElementId.InvalidElementId)
-                    {
-                        var gs = e.Document.GetElement(obj.GraphicsStyleId) as GraphicsStyle;
-                        matId = gs?.GraphicsStyleCategory?.Material?.Id ?? ElementId.InvalidElementId;
-                    }
-
-                    if (obj is Solid s && s.Volume > 0.00001)
-                    {
-                        // Fallback to searching Faces if GS failed
-                        if (matId == ElementId.InvalidElementId)
-                        {
-                            matId = s.Faces.Cast<Face>().FirstOrDefault(f => f.MaterialElementId != ElementId.InvalidElementId)?.MaterialElementId ?? ElementId.InvalidElementId;
-                        }
-                        
-                        matName = matId != ElementId.InvalidElementId ? e.Document.GetElement(matId)?.Name : "By Category";
-
-                        results.Add(new
-                        {
-                            Type = "Solid",
-                            Source = source,
-                            Material = matName,
-                            Volume = Math.Round(s.Volume, 4).ToString() + " CF",
-                            Area = Math.Round(s.SurfaceArea, 4).ToString() + " SF",
-                            Faces = s.Faces.Size,
-                            Edges = s.Edges.Size
-                        });
-                    }
-                    else if (obj is GeometryInstance inst)
-                    {
-                        // Recursively process instance geometry (Symbol geometry) - Revit 2025 Pattern
-                        var symbolId = inst.GetSymbolGeometryId().SymbolId;
-                        var symbol = e.Document.GetElement(symbolId);
-                        var symbolName = symbol?.Name ?? "Nested Instance";
-                        Process(inst.GetInstanceGeometry(), $"Symbol: {symbolName}");
-                    }
-                    else if (obj is Mesh m)
-                    {
-                        matName = matId != ElementId.InvalidElementId ? e.Document.GetElement(matId)?.Name : "Mesh (Generic)";
-                        results.Add(new
-                        {
-                            Type = "Mesh",
-                            Source = source,
-                            Material = matName,
-                            Volume = "-",
-                            Area = "-",
-                            Faces = m.NumTriangles,
-                            Vertices = m.Vertices.Count
-                        });
-                    }
-                    else if (obj is Curve c)
-                    {
-                        matName = matId != ElementId.InvalidElementId ? e.Document.GetElement(matId)?.Name : "Curve (Line)";
-                        results.Add(new
-                        {
-                            Type = c.GetType().Name,
-                            Source = source,
-                            Material = matName,
-                            Volume = "-",
-                            Area = "-",
-                            Faces = "-",
-                            Details = $"Length: {Math.Round(c.Length, 4)} ft"
-                        });
-                    }
-                    else if (obj is PolyLine pl)
-                    {
-                        results.Add(new
-                        {
-                            Type = "PolyLine",
-                            Source = source,
-                            Material = "N/A (PolyLine)",
-                            Volume = "-",
-                            Area = "-",
-                            Faces = "-",
-                            Details = $"{pl.NumberOfCoordinates} Points"
-                        });
-                    }
-                }
-            }
-
-            Process(geo);
-            return results;
-        }
 
         /// <summary>
         /// Gets the parameter value as a double and converts it FROM internal units to target units.
@@ -644,65 +540,231 @@ namespace CoreScript.Engine.Globals
             return e;
         }
 
+        /// <summary>
+        /// Gets a recursive summary of the element's geometry (Solids, Curves, Arcs).
+        /// Automatically accumulates transformations to provide World-Space results.
+        /// </summary>
+        public static List<object> GeometrySummary(this Element e)
+        {
+            var summary = new List<object>();
+            if (e == null) return summary;
+
+            var options = new Options { 
+                IncludeNonVisibleObjects = true,
+                View = e.Document.ActiveView 
+            };
+            
+            var geom = e.get_Geometry(options);
+            if (geom != null) ScanGeometryRecursive(e.Document, geom, Transform.Identity, summary, "Base");
+
+            return summary;
+        }
+
+        private static void ScanGeometryRecursive(Document doc, GeometryElement geom, Transform tr, List<object> summary, string source)
+        {
+            foreach (var obj in geom)
+            {
+                if (obj == null) continue;
+
+                if (obj is Solid solid && solid.Volume > 0)
+                {
+                    summary.Add(new {
+                        Type = "Solid",
+                        Source = source,
+                        Material = solid.Faces.Size > 0 ? (doc.GetElement(solid.Faces.get_Item(0).MaterialElementId)?.Name ?? "-") : "-",
+                        Volume = Math.Round(solid.Volume, 4) + " CF",
+                        Area = Math.Round(solid.SurfaceArea, 4) + " SF",
+                        Faces = solid.Faces.Size,
+                        Edges = solid.Edges.Size
+                    });
+                }
+                else if (obj is Curve curve)
+                {
+                    var worldCurve = curve.CreateTransformed(tr);
+                    summary.Add(new {
+                        Type = worldCurve is Arc ? "Arc" : "Curve (Line)",
+                        Source = source,
+                        Material = "-",
+                        Volume = "-",
+                        Area = "-",
+                        Faces = "-",
+                        Edges = "Length: " + Math.Round(worldCurve.Length, 4) + " ft"
+                    });
+                }
+                else if (obj is GeometryInstance inst)
+                {
+                    var subTr = tr.Multiply(inst.Transform);
+                    // Use Symbol Geometry with accumulated transform (SH_Tools pattern)
+                    ScanGeometryRecursive(doc, inst.GetSymbolGeometry(), subTr, summary, "Symbol: " + source);
+                }
+            }
+        }
+
         // --- Room Helpers for Doors/Windows ---
 
         /// <summary> Gets the "To Room" name. Automatically detects the latest phase if possible. </summary>
-        public static string RoomTo(this FamilyInstance fi)
-        {
-            if (fi == null) return "-";
-            try {
-                var room = fi.ToRoom;
-                if (room == null) {
-                    var lastPhase = fi.Document.Phases.Cast<Phase>().LastOrDefault();
-                    if (lastPhase != null) room = fi.get_ToRoom(lastPhase);
-                }
-                return room?.Name ?? "-";
-            } catch { return "-"; }
-        }
+        // --- Stable Orientation Helpers for Doors/Windows ---
 
-        /// <summary> Gets the "From Room" name. Automatically detects the latest phase if possible. </summary>
-        public static string RoomFrom(this FamilyInstance fi)
-        {
-            if (fi == null) return "-";
-            try {
-                var room = fi.FromRoom;
-                if (room == null) {
-                    var lastPhase = fi.Document.Phases.Cast<Phase>().LastOrDefault();
-                    if (lastPhase != null) room = fi.get_FromRoom(lastPhase);
-                }
-                return room?.Name ?? "-";
-            } catch { return "-"; }
-        }
+        /// <summary> Returns the Room the door leads FROM (The "Access" or "Exterior" side). Stable regardless of flips. </summary>
+        public static string RoomFrom(this FamilyInstance fi) => fi.RoomAccess();
 
-        // --- Smart Handing for Doors/Windows ---
-
-        /// <summary> Returns true if the door's hand (hinge side) is flipped from family default. </summary>
-        public static bool IsHandFlipped(this FamilyInstance fi) => fi?.HandFlipped ?? false;
-
-        /// <summary> Returns true if the door's face (opening direction) is flipped from family default. </summary>
-        public static bool IsFacingFlipped(this FamilyInstance fi) => fi?.FacingFlipped ?? false;
+        /// <summary> Returns the Room the door leads TO (The "Destination" or "Swing" side). Stable regardless of flips. </summary>
+        public static string RoomTo(this FamilyInstance fi) => fi.RoomDestination();
 
         /// <summary> 
-        /// Returns "Left" or "Right" hinge side based on standard Revit orientation.
-        /// (Assumes Family Default = Left Hinge)
+        /// Gets the name of the "Access Room" (The room the door swings AWAY from).
+        /// Uses a robust dual-probe geometric check with Phase-awareness.
         /// </summary>
-        public static string HingeSide(this FamilyInstance fi)
-        {
-            if (fi == null) return "-";
-            return fi.HandFlipped ? "Right" : "Left";
-        }
+        public static string RoomAccess(this FamilyInstance fi) => fi.GetRoomNames().From;
 
         /// <summary> 
-        /// Returns the industry standard handing code:
-        /// LH (Left Hand), RH (Right Hand), LHR (Left Hand Reverse), RHR (Right Hand Reverse)
+        /// Gets the name of the "Destination Room" (The room the door swings INTO).
+        /// Uses a robust dual-probe geometric check with Phase-awareness.
         /// </summary>
+        public static string RoomDestination(this FamilyInstance fi) => fi.GetRoomNames().To;
+
+        private static (string From, string To) GetRoomNames(this FamilyInstance fi)
+        {
+            if (fi == null) return ("-", "-");
+
+            try {
+                var doc = fi.Document;
+                var phase = doc.GetElement(fi.CreatedPhaseId) as Phase;
+                var loc = (fi.Location as LocationPoint)?.Point;
+                if (loc == null) return ("-", "-");
+
+                // 1. Calculate two probe points 2.5ft on either side of the door
+                var facing = fi.FacingOrientation.Normalize();
+                var zOffset = new XYZ(0, 0, 3.0); // 3ft up to avoid floor/threshold collisions
+                
+                var probeA = loc + (facing * 2.5) + zOffset;
+                var probeB = loc - (facing * 2.5) + zOffset;
+
+                // 2. Identify rooms at those probes
+                var roomA = doc.GetRoomAtPoint(probeA, phase);
+                var roomB = doc.GetRoomAtPoint(probeB, phase);
+
+                var nameA = roomA?.Name ?? "External";
+                var nameB = roomB?.Name ?? "External";
+
+                // 3. Find the "Swing Center" (where the physical leaf/arc live)
+                var arc = fi.FindSwingArc();
+                if (arc == null) 
+                {
+                    // If no arc, we use the FacingOrientation as a fallback, 
+                    // which is still better than the native properties.
+                    return (nameB, nameA);
+                }
+
+                // Weighted test: We check 3 points along the arc to be sure
+                var testPoints = new[] { 
+                    arc.Evaluate(0.2, true), 
+                    arc.Evaluate(0.5, true), 
+                    arc.Evaluate(0.8, true) 
+                };
+                
+                double totalDistA = testPoints.Sum(p => p.DistanceTo(probeA));
+                double totalDistB = testPoints.Sum(p => p.DistanceTo(probeB));
+
+                // If the "Swing Cluster" is closer to Probe A, then A is the destination room.
+                // From = Room B, To = Room A
+                return totalDistA < totalDistB ? (nameB, nameA) : (nameA, nameB);
+
+            } catch { return ("-", "-"); }
+        }
+
+        /// <summary> Returns industry standard handing (LH, RH, LHR, RHR) based on physical swing geometry seen from RoomFrom. </summary>
         public static string Handing(this FamilyInstance fi)
         {
             if (fi == null) return "-";
-            string hand = fi.HandFlipped ? "R" : "L";
-            string reverse = fi.FacingFlipped ? "R" : "";
-            return $"{hand}H{reverse}";
+            var arc = fi.FindSwingArc();
+            if (arc == null) return "-";
+
+            // 1. Perspective: Stand in RoomFrom and look at the door
+            var rooms = fi.GetRoomNames();
+            var loc = (fi.Location as LocationPoint)?.Point;
+            if (loc == null) return "-";
+
+            // Facing vector normally points from RoomFrom to RoomTo (for a non-flipped door)
+            // But we use a proven vector: from door location towards the swing
+            var swingMid = arc.Evaluate(0.5, true);
+            var toSwing = (swingMid - loc).Normalize();
+            
+            // 2. Determine if it's a "Reverse" swing (if it swings TOWARDS RoomFrom)
+            // We use the facing vector as a reference for the "RoomTo" direction
+            var facing = fi.FacingOrientation.Normalize();
+            bool isReverse = facing.DotProduct(toSwing) < 0;
+
+            // 3. Determine Hinge Side (Left/Right)
+            // We look "Into" the door from the Access side. 
+            var lookDir = isReverse ? -facing : facing;
+            var hinge = arc.Center;
+            var toHinge = (hinge - loc).Normalize();
+
+            // Right-hand rule: LookDir x Z gives the "Right" vector in Revit
+            var rightVector = lookDir.CrossProduct(XYZ.BasisZ);
+            bool isRight = rightVector.DotProduct(toHinge) > 0;
+
+            string code = isRight ? "RH" : "LH";
+            return isReverse ? code + "R" : code;
         }
+
+        /// <summary> Returns "Left" or "Right" hinge side as seen from the Access room. </summary>
+        public static string HingeSide(this FamilyInstance fi)
+        {
+            var handing = fi.Handing();
+            if (handing.StartsWith("LH")) return "Left";
+            if (handing.StartsWith("RH")) return "Right";
+            return "-";
+        }
+
+        public static Arc? FindSwingArc(this FamilyInstance fi)
+        {
+            var view = fi.Document.ActiveView;
+            if (view == null) return null;
+
+            var options = new Options { 
+                IncludeNonVisibleObjects = true,
+                View = view 
+            };
+            
+            var geom = fi.get_Geometry(options);
+            if (geom == null) return null;
+
+            return ScanForArcRecursive(geom, Transform.Identity);
+        }
+
+        private static Arc? ScanForArcRecursive(GeometryElement geom, Transform tr)
+        {
+            Arc? bestArc = null;
+            if (geom == null) return null;
+
+            foreach (var obj in geom)
+            {
+                if (obj == null) continue;
+
+                if (obj is Arc arc)
+                {
+                    var worldArc = arc.CreateTransformed(tr) as Arc;
+                    if (worldArc != null && worldArc.Radius > 1.0)
+                    {
+                        if (bestArc == null || worldArc.Radius > bestArc.Radius)
+                            bestArc = worldArc;
+                    }
+                }
+                else if (obj is GeometryInstance inst)
+                {
+                    var subTr = tr.Multiply(inst.Transform);
+                    var subArc = ScanForArcRecursive(inst.GetSymbolGeometry(), subTr);
+                    if (subArc != null && (bestArc == null || subArc.Radius > bestArc.Radius))
+                        bestArc = subArc;
+                }
+            }
+            return bestArc;
+        }
+
+        public static bool IsHandFlipped(this FamilyInstance fi) => fi?.HandFlipped ?? false;
+        public static bool IsFacingFlipped(this FamilyInstance fi) => fi?.FacingFlipped ?? false;
     }
 
     public static class IdentityExtensions

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Architecture Image Coordinate Finder</title>
+    <style>
+        body { background: #111; color: white; font-family: sans-serif; }
+        canvas { border: 1px solid #444; cursor: crosshair; }
+        #info { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); p-4; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <p>Coordinates: <span id="coords">0, 0</span></p>
+        <p>Last Click: <span id="click">None</span></p>
+    </div>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+        };
+        // Use the absolute path if possible, but for browser tool we might need a relative or serve it
+        img.src = './paracore_architecture_final_session_v4_1774857484233.png';
+
+        canvas.addEventListener('mousemove', (e) => {
+            document.getElementById('coords').textContent = `${e.offsetX}, ${e.offsetY}`;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            document.getElementById('click').textContent = `${e.offsetX}, ${e.offsetY}`;
+            console.log(`Clicked at: ${e.offsetX}, ${e.offsetY}`);
+        });
+    </script>
+</body>
+</html>

@@ -79,19 +79,19 @@ GetElements<Room>()
 *   Need to do Math? 👉 **`GetNum`**
 *   Need to export clean data to Excel? 👉 **`GetStr`**
 *   Need the exact text users see in Revit UI? 👉 **`GetVal`**
-*   Need to schedule doors/windows by room or orientation? 👉 **`RoomTo/From`, `Handing`**
+*   Need stable Door scheduling (Handing/Rooms)? 👉 **`RoomAccess()`, `Handing()`**
 
 ---
 
 ## 4. Specialized Door/Window Accessors
-Beyond raw data, Paracore provides "Smart" accessors for high-level architectural scheduling. These methods handle the complexity of phases, room detection, and relative orientations automatically.
+Beyond raw data, Paracore provides "Smart" accessors for high-level architectural scheduling. These methods are **handing-invariant**, meaning they remain stable even if you flip the door's face in Revit.
 
 | Method Signature | Core Behavior | Output Example |
 | :--- | :--- | :--- |
-| **`.RoomTo()`** | Returns the name of the room the door/window opens **into**. | `"Bedroom 101"` |
-| **`.RoomFrom()`** | Returns the name of the room the door/window opens **from**. | `"Corridor"` |
-| **`.HingeSide()`** | Returns `"Left"` or `"Right"` hinge side as seen from the `FromRoom`. | `"Left"` |
-| **`.Handing()`** | Returns the industry standard handing code (LH, RH, LHR, RHR). | `"RHR"` |
+| **`.RoomAccess()`** | Returns the room on the **non-swing side** (The source). | `"Bedroom 101"` |
+| **`.RoomDestination()`** | Returns the room the door **swings into**. | `"Shower"` |
+| **`.Handing()`** | Returns the industry standard handing code (LH, RH, LHR, RHR). | `"RH"` |
+| **`.HingeSide()`** | Returns `"Left"` or `"Right"` as seen from the `RoomAccess`. | `"Left"` |
 
 ---
 

@@ -100,7 +100,7 @@
   <AddIn Type="Application">
     <Name>Paracore</Name>
     <Assembly>Paracore\Paracore.Shim.dll</Assembly>
-    <ClientId>12345678-1234-1234-1234-123456789012</ClientId> <!-- Replace with a unique GUID -->
+    <ClientId>B2A5D84E-F6C2-494E-874D-93BB6D7A524F</ClientId>
     <FullClassName>Paracore.Shim.ParacoreShim</FullClassName>
     <VendorId>RAP</VendorId>
     <VendorDescription>RAP Community</VendorDescription>
@@ -135,47 +135,6 @@
     <Copy SourceFiles="@(SidecarFiles)" DestinationFolder="$(SidecarOutputDir)" SkipUnchangedFiles="true" />
     
     <Message Text="[Paracore] Sidecar bundled successfully to: $(SidecarOutputDir)" Importance="high" />
-  </Target>
-
-  <!-- Automated Local Deployment for Development (Revit 2025) -->
-  <Target Name="DeployToRevit" AfterTargets="CopySidecarToOutput" Condition="'$(Configuration)' == 'Debug' OR '$(Configuration)' == 'Debug-2025'">
-    <PropertyGroup>
-      <RevitAddinsParentDir>$(AppData)\Autodesk\Revit\Addins\2025</RevitAddinsParentDir>
-      <RevitAddinsDir>$(RevitAddinsParentDir)\Paracore</RevitAddinsDir>
-    </PropertyGroup>
-
-    <Message Text="[Paracore] Deploying all components to Revit Addins: $(RevitAddinsDir)..." Importance="high" />
-
-    <ItemGroup>
-      <AddinFiles Include="$(TargetDir)\**\*.*" />
-    </ItemGroup>
-
-    <!-- Ensure the directory exists -->
-    <MakeDir Directories="$(RevitAddinsDir)" />
-
-    <!-- 1. Copy everything from TargetDir (Addin, Shim, Server) to Paracore subfolder -->
-    <Copy SourceFiles="@(AddinFiles)" DestinationFolder="$(RevitAddinsDir)\%(RecursiveDir)" SkipUnchangedFiles="true" />
-
-    <!-- 2. Create the .addin manifest in the parent folder so Revit can find it -->
-    <PropertyGroup>
-      <AddinManifestContent>
-<![CDATA[<?xml version="1.0" encoding="utf-8"?>
-<RevitAddIns>
-  <AddIn Type="Application">
-    <Name>Paracore</Name>
-    <Assembly>Paracore\Paracore.Shim.dll</Assembly>
-    <ClientId>12345678-1234-1234-1234-123456789012</ClientId>
-    <FullClassName>Paracore.Shim.ParacoreShim</FullClassName>
-    <VendorId>RAP</VendorId>
-    <VendorDescription>RAP Community</VendorDescription>
-  </AddIn>
-</RevitAddIns>]]>
-      </AddinManifestContent>
-    </PropertyGroup>
-
-    <WriteLinesToFile File="$(RevitAddinsParentDir)\Paracore.Addin.addin" Lines="$(AddinManifestContent)" Overwrite="true" Encoding="utf-8" />
-
-    <Message Text="[Paracore] Deployment complete! Ready to start Revit 2025." Importance="high" />
   </Target>
 
 </Project>

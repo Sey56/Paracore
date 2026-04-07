@@ -134,10 +134,10 @@ Table(GetElements<FamilyInstance>("Doors").Select(d => new {
     d.Id,
     Mark = d.GetStr("Mark"),
     Level = d.GetStr("Level"),
-    From = d.RoomFrom(), // Smart Room Detection
-    To = d.RoomTo(),     // Smart Room Detection
+    From = d.RoomAccess(), // Stable Access Room
+    To = d.RoomDestination(), // Stable Swing Room
     Handing = d.Handing(), // LH, RH, LHR, RHR
-    Hinge = d.HingeSide(), // Left / Right
+    Hinge = d.HingeSide(), // Relative to Access Room
     Width_mm = d.GetNum("Width", "mm")
 }));
 ```

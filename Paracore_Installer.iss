@@ -58,6 +58,12 @@ Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\RServer.Addin.addin"; Tasks: Revit2026
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\RServer"; Tasks: Revit2026
 
+; Cleanup user-level local deployments (Ghost copies from Debug builds)
+Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"
+Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore"
+Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"
+Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore"
+
 [Files]
 ; Install Add-in for Revit 2025
 Source: "{#PublishDir}\*"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore"; Tasks: Revit2025; Flags: recursesubdirs replacesameversion

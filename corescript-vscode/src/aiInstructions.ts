@@ -130,6 +130,14 @@ export const COPILOT_INSTRUCTIONS = "# Script Context: Paracore Tool Project\n" 
 "3. **NO HALLUCINATIONS**: Never use `sf`, `sq`, `ft`, `ft2`, `sqft` or other custom keys. \n" +
 "4. **PURPOSE**: `[Unit]` is exclusively for Metric shielding.\n" +
 "\n" +
+"### Specialized Door/Window Accessors (Stable Orientation)\n" +
+"Revit's native `ToRoom`/`FromRoom` properties are inconsistent. Use these stable Paracore helpers:\n" +
+"- `.RoomAccess()`: (Stable) Returns the room name on the non-swing side (The source/exterior).\n" +
+"- `.RoomDestination()`: (Stable) Returns the room name the door swings INTO.\n" +
+"- `.Handing()`: (Stable) Returns \"LH\", \"RH\", \"LHR\", or \"RHR\" regardless of flips.\n" +
+"- `.HingeSide()`: (Stable) Returns \"Left\" or \"Right\" as seen from the Access room.\n" +
+"- `.IsHandFlipped()` / `.IsFacingFlipped()`: Raw orientation booleans.\n" +
+"\n" +
 "### Data Providers (Suffix Conventions)\n" +
 "\n" +
 "Define a companion property or method with the `_Suffix\" naming convention:\n" +
