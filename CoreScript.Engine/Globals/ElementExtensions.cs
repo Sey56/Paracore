@@ -643,6 +643,66 @@ namespace CoreScript.Engine.Globals
             }
             return e;
         }
+
+        // --- Room Helpers for Doors/Windows ---
+
+        /// <summary> Gets the "To Room" name. Automatically detects the latest phase if possible. </summary>
+        public static string RoomTo(this FamilyInstance fi)
+        {
+            if (fi == null) return "-";
+            try {
+                var room = fi.ToRoom;
+                if (room == null) {
+                    var lastPhase = fi.Document.Phases.Cast<Phase>().LastOrDefault();
+                    if (lastPhase != null) room = fi.get_ToRoom(lastPhase);
+                }
+                return room?.Name ?? "-";
+            } catch { return "-"; }
+        }
+
+        /// <summary> Gets the "From Room" name. Automatically detects the latest phase if possible. </summary>
+        public static string RoomFrom(this FamilyInstance fi)
+        {
+            if (fi == null) return "-";
+            try {
+                var room = fi.FromRoom;
+                if (room == null) {
+                    var lastPhase = fi.Document.Phases.Cast<Phase>().LastOrDefault();
+                    if (lastPhase != null) room = fi.get_FromRoom(lastPhase);
+                }
+                return room?.Name ?? "-";
+            } catch { return "-"; }
+        }
+
+        // --- Smart Handing for Doors/Windows ---
+
+        /// <summary> Returns true if the door's hand (hinge side) is flipped from family default. </summary>
+        public static bool IsHandFlipped(this FamilyInstance fi) => fi?.HandFlipped ?? false;
+
+        /// <summary> Returns true if the door's face (opening direction) is flipped from family default. </summary>
+        public static bool IsFacingFlipped(this FamilyInstance fi) => fi?.FacingFlipped ?? false;
+
+        /// <summary> 
+        /// Returns "Left" or "Right" hinge side based on standard Revit orientation.
+        /// (Assumes Family Default = Left Hinge)
+        /// </summary>
+        public static string HingeSide(this FamilyInstance fi)
+        {
+            if (fi == null) return "-";
+            return fi.HandFlipped ? "Right" : "Left";
+        }
+
+        /// <summary> 
+        /// Returns the industry standard handing code:
+        /// LH (Left Hand), RH (Right Hand), LHR (Left Hand Reverse), RHR (Right Hand Reverse)
+        /// </summary>
+        public static string Handing(this FamilyInstance fi)
+        {
+            if (fi == null) return "-";
+            string hand = fi.HandFlipped ? "R" : "L";
+            string reverse = fi.FacingFlipped ? "R" : "";
+            return $"{hand}H{reverse}";
+        }
     }
 
     public static class IdentityExtensions

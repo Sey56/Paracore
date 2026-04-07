@@ -39,6 +39,16 @@ export const COPILOT_INSTRUCTIONS = "# Script Context: Paracore Tool Project\n" 
 "| `Watchdog(action)` | void | **SENTINEL ONLY**: Wrapper for background monitoring logic |\n" +
 "| `WatchdogReport(msg, status)` | void | **SENTINEL ONLY**: Push a status report (\"success\", \"warning\", \"error\") |\n" +
 "\n" +
+"### Door & Window Extensions (FamilyInstance)\n" +
+"| Method | Type | Purpose |\n" +
+"|--------|------|---------|\n" +
+"| `RoomTo()` | string | Name of the room the door opens INTO (latest phase) |\n" +
+"| `RoomFrom()` | string | Name of the room the door opens FROM (latest phase) |\n" +
+"| `HingeSide()` | string | \"Left\" or \"Right\" hinge location (from FromRoom side) |\n" +
+"| `Handing()` | string | Industry code: LH, RH, LHR, RHR |\n" +
+"| `IsHandFlipped()` | bool | Returns true if hand is flipped from family default |\n" +
+"| `IsFacingFlipped()` | bool | Returns true if face is flipped from family default |\n" +
+"\n" +
 "## Implicit Using Statements\n" +
 "\n" +
 "These namespaces are available without explicit `using`:\n" +
