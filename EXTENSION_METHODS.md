@@ -615,6 +615,32 @@ GetElements<Wall>()
 
 ---
 
+## 🗃️ Collection: Data Science & Analytics
+
+### `.ToNotebook(string notebookName)`
+
+> The ultimate bridge to Pandas and AI analysis.
+> Takes any collection (elements or anonymous objects), serializes it to a highly compressed JSON file, and **automatically generates and opens a Jupyter Notebook** in VS Code to analyze the data.
+
+```csharp
+// Export complex scheduling data straight to a new Jupyter Notebook
+GetElements<Room>()
+    .Select(r => new {
+        Number = r.GetStr("Number"),
+        Name = r.Name,
+        Level = r.GetStr("Level"),
+        Area = r.Area.OutputUnit("m2", 2)
+    })
+    .ToNotebook("Room_Analysis");
+```
+
+**How it works (Scratch & Save):**
+1. Generates `data.json` and `<notebookName>.ipynb` in a temporary scratch folder.
+2. The notebook is pre-populated with Python code specifically mapped to load your `data.json` straight into a `pandas.DataFrame`.
+3. Auto-launches VS Code. Click "Save As" in VS Code to keep the analysis permanently.
+
+---
+
 ## 📈 Collection: Visualization
 
 These come from `VisualizationExtensions` and work on **any** `IEnumerable<T>`.

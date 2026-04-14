@@ -448,6 +448,7 @@ Selection.Count     // Prints selection count
 | Set same value on many | `.SetParam("Comments", "Done")` |
 | Get raw feet for calculation | `.GetNum("Length")` |
 | Get mm for calculation | `.GetNum("Length", "mm")` |
+| Export data to Pandas/Python | `.ToNotebook("Analytics")` |
 | Find a BIP name | `Selection[0].BuiltInParams().Table()` |
 | Debug a filter | `Selection[0].Peek()` |
 | Compare two lengths | `.IsAlmostEqualTo(target)` |
@@ -511,4 +512,14 @@ GetElements<FamilyInstance>("Doors")
     })
     .OrderByParam("Mark")
     .Table()
+    
+// Export Rooms for Pandas Analysis
+GetElements<Room>()
+    .Select(r => new {
+        Number = r.GetStr("Number"),
+        Name = r.Name,
+        Level = r.GetStr("Level"),
+        Area_m2 = r.Area.OutputUnit("m2", 2)
+    })
+    .ToNotebook("Room_Analysis")
 ```
