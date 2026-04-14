@@ -232,8 +232,8 @@ const TableView: React.FC<{
         className="flex-1 w-full min-h-0 overflow-auto bg-slate-50/5 dark:bg-black/5 custom-scrollbar relative"
       >
         <div style={{ height: totalRows * rowHeight, width: '100%', position: 'relative' }}>
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs border-collapse absolute top-0 left-0" style={{ transform: `translateY(${offsetY}px)` }}>
-            <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-30 shadow-sm" style={{ transform: `translateY(-${offsetY}px)` }}>
+          <table className="min-w-full text-xs border-collapse absolute top-0 left-0" style={{ transform: `translateY(${offsetY}px)` }}>
+            <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-30 shadow-sm border-b border-slate-200 dark:border-slate-700/50" style={{ transform: `translateY(-${offsetY}px)` }}>
               <tr>
                 {headers.map((header, index) => {
                   const width = columnWidths[header] || (header.toLowerCase() === 'id' ? 80 : 150);
@@ -242,7 +242,7 @@ const TableView: React.FC<{
                       key={index}
                       scope="col"
                       style={{ width, minWidth: width }}
-                      className="relative px-3 py-2.5 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none group border-r border-slate-200 dark:border-slate-700 last:border-r-0"
+                      className="relative px-3 py-2.5 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none group"
                     >
                       <div className="flex items-center space-x-1" onClick={() => {
                         let direction: 'asc' | 'desc' = 'asc';
@@ -264,14 +264,15 @@ const TableView: React.FC<{
                 })}
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="bg-white dark:bg-slate-900">
               {visibleData.map((row: Record<string, unknown>, index: number) => {
                 const rowIndex = startIndex + index;
                 const idColKey = Object.keys(row).find(k => ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase()));
                 const hasId = !!idColKey;
                 const isActive = activeRowIndex === rowIndex;
+                const isAltRow = rowIndex % 2 === 1;
                 return (
-                  <tr key={rowIndex} style={{ height: rowHeight }} className={`${hasId ? "transition-colors" : ""} ${isActive ? "bg-blue-100/50 dark:bg-blue-800/20 border-l-4 border-blue-500" : "hover:bg-blue-50/50 dark:hover:bg-blue-900/10"}`}>
+                  <tr key={rowIndex} style={{ height: rowHeight }} className={`${hasId ? "transition-colors" : ""} ${isActive ? "bg-blue-100/50 dark:bg-blue-800/20 border-l-4 border-blue-500" : `hover:bg-blue-50/50 dark:hover:bg-blue-900/10 ${isAltRow ? 'bg-black/[0.02] dark:bg-white/[0.02]' : ''}`}`}>
                     {headers.map((header, colIndex) => {
                       const cellValue = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
                       const isIdColumn = ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(header.toLowerCase());
@@ -283,7 +284,7 @@ const TableView: React.FC<{
                         <td
                           key={colIndex}
                           style={{ width, minWidth: width }}
-                          className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 last:border-0 ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
+                          className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
                           onClick={() => {
                             if (isIdColumn && idColKey) {
                               const val = row[idColKey];

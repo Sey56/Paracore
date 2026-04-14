@@ -11,12 +11,13 @@ const llmProviders = [
   {
     name: 'Google',
     models: [
-      'gemini-3.0-pro',
-      'gemini-3.0-flash',
-      'gemini-3.0-preview',
+      'gemini-3.1-pro-preview',
+      'gemini-3-flash-preview',
+      'gemini-3.1-flash-lite-preview',
       'gemini-2.5-pro',
       'gemini-2.5-flash',
-      'gemini-2.5-preview',
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
     ],
     apiKeyName: 'GEMINI_API_KEY',
   },

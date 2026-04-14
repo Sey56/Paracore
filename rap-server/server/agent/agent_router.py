@@ -194,8 +194,17 @@ async def chat_with_agent(request: ChatRequest):
                 logger.warning(f"[V4] Failed to capture pre-handoff history: {dump_err}")
 
         except Exception as run_err:
-            logger.exception(f"[V4] Agent Run Error: {run_err}")
-            raise
+            from pydantic_ai.exceptions import ModelHTTPError
+            if isinstance(run_err, ModelHTTPError) and run_err.status_code == 503:
+                logger.warning(f"[V4] Caught 503 High Demand Error from Google GenAI API.")
+                response_data["status"] = "complete"
+                response_data["message"] = "SYSTEM ALERT: Google's free Gemini API is currently experiencing a massive global traffic spike (HTTP 503: Service Unavailable). \n\nYour code and request are perfectly fine, but Google's physical servers are rejecting free-tier requests right now. \n\n**Solutions:**\n1. Wait 5-10 minutes and try again.\n2. Go to Settings -> LLM Configuration and switch your provider to OpenRouter or Deepseek to bypass Google's network entirely."
+            elif isinstance(run_err, ModelHTTPError) and run_err.status_code == 404:
+                response_data["status"] = "complete"
+                response_data["message"] = f"SYSTEM ALERT: The model you selected '{model_name}' was not found (HTTP 404). Please go to Settings and ensure you are using the correct string (e.g., `gemini-3-flash-preview`)."
+            else:
+                logger.exception(f"[V4] Agent Run Error: {run_err}")
+                raise
 
         return Response(content=json.dumps(response_data), media_type="application/json")
 

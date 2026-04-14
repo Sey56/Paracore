@@ -3,7 +3,7 @@ import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
 import api from '@/api/axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faRobot, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faAsterisk, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScriptExecution } from '@/features/automation';
 import { useScripts } from '@/features/automation';
@@ -37,8 +37,24 @@ export const AgentView: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const agentRunTriggeredRef = useRef<boolean>(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'; // reset to calculate accurately
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+    }
+  }, [input]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  };
 
   // PLAN ORCHESTRATION STATE
   const [activePlan, setActivePlan] = useState<OrchestrationPlan | null>(null);
@@ -389,36 +405,92 @@ export const AgentView: React.FC = () => {
       const isResolved = toolCall.id ? resolvedToolCallIds.has(toolCall.id) : false;
 
       return (
-        <div className="space-y-4 my-2">
+        <div className="space-y-3 w-full max-w-2xl">
           {justification && (
-              <div className="flex items-start space-x-2 opacity-80">
-                  <div className="w-1 h-full min-h-[1.2em] bg-[var(--accent)] rounded-full shrink-0" />
-                  <p className="text-[13px] italic leading-relaxed text-[var(--text-main)]">{justification as string}</p>
+              <div className="text-[13.5px] leading-relaxed break-words whitespace-pre-wrap -mt-0.5">
+                  {justification as string}
               </div>
           )}
 
-          {isDynamicQuery && csharp_code && (
-              <div className="bg-[var(--bg-ground)] rounded-xl border border-[var(--border-divider)] shadow-sm overflow-hidden relative group">
-                  <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-group)] border-b border-[var(--border-divider)]">
+          {csharp_code ? (
+              <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-divider)] shadow-sm overflow-hidden mt-2">
+                  <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border-divider)]/50">
                      <div className="flex items-center space-x-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
-                        <span className="text-[10px] font-black tracking-widest text-[var(--text-muted)] uppercase">Paracore Execution</span>
+                        <div className="w-5 h-5 rounded-full bg-[var(--bg-group)] flex items-center justify-center border border-[var(--border-divider)] shadow-sm shrink-0">
+                           <FontAwesomeIcon icon={faAsterisk} className="text-[10px] text-[var(--accent)]" />
+                        </div>
+                        <span className="text-[12px] font-medium text-[var(--text-main)]">Action Proposed</span>
                      </div>
-                     {isResolved && (
-                        <div className="flex items-center space-x-1.5 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
-                           <FontAwesomeIcon icon={faCheckCircle} className="text-[9px] text-green-500" />
-                           <span className="text-[9px] font-black tracking-tighter text-green-500 uppercase">Executed</span>
+                     {isResolved ? (
+                        <div className="flex items-center space-x-1.5 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20">
+                           <FontAwesomeIcon icon={faCheckCircle} className="text-[10px] text-green-500" />
+                           <span className="text-[10px] font-bold tracking-wide text-green-500 uppercase">Executed</span>
+                        </div>
+                     ) : (
+                        <div className="flex items-center space-x-2">
+                           <button
+                             onClick={() => handleToolResponse(toolCall, 'reject')}
+                             className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-muted)] hover:text-red-500 transition-colors bg-transparent border border-transparent hover:border-red-500/20 rounded-md"
+                           >
+                             Reject
+                           </button>
+                           <button
+                             onClick={() => handleToolResponse(toolCall, 'approve')}
+                             className="px-3 py-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors rounded-md shadow-sm"
+                           >
+                             Approve & Run
+                           </button>
                         </div>
                      )}
                   </div>
-                  <pre className="text-[12px] font-mono text-[var(--text-main)] whitespace-pre-wrap leading-loose p-4 overflow-x-auto custom-scrollbar">{csharp_code as string}</pre>
+                  
+                  <details className="group">
+                    <summary className="px-4 py-2.5 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider cursor-pointer hover:bg-[var(--bg-group)] transition-colors list-none flex items-center select-none">
+                      <span className="mr-2 opacity-50 group-open:rotate-90 transition-transform">▶</span>
+                      View Source Code
+                    </summary>
+                    <div className="border-t border-[var(--border-divider)]/50 bg-[var(--bg-ground)]">
+                       <pre className="text-[12px] font-mono text-[var(--text-main)] opacity-90 whitespace-pre-wrap leading-relaxed p-4 overflow-x-auto custom-scrollbar">
+                         {csharp_code as string}
+                       </pre>
+                    </div>
+                  </details>
               </div>
-          )}
-
-          {!isDynamicQuery && Object.keys(displayArgs).length > 0 && (
-            <div className="bg-[var(--bg-ground)] p-3 rounded-lg border border-[var(--border-divider)] text-[10px] font-mono opacity-70 overflow-x-auto text-[var(--text-main)]">
-              {JSON.stringify(displayArgs, null, 2)}
-            </div>
+          ) : Object.keys(displayArgs).length > 0 && (
+             <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-divider)] shadow-sm overflow-hidden mt-2">
+                 <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border-divider)]/50">
+                    <div className="flex items-center space-x-2">
+                       <div className="w-5 h-5 rounded-full bg-[var(--bg-group)] flex items-center justify-center border border-[var(--border-divider)] shadow-sm shrink-0">
+                          <FontAwesomeIcon icon={faAsterisk} className="text-[10px] text-[var(--accent)]" />
+                       </div>
+                       <span className="text-[12px] font-medium text-[var(--text-main)]">Tool Invoked: {toolCall.name}</span>
+                    </div>
+                    {isResolved ? (
+                       <div className="flex items-center space-x-1.5 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20">
+                          <FontAwesomeIcon icon={faCheckCircle} className="text-[10px] text-green-500" />
+                          <span className="text-[10px] font-bold tracking-wide text-green-500 uppercase">Resolved</span>
+                       </div>
+                    ) : (
+                       <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleToolResponse(toolCall, 'reject')}
+                            className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-muted)] hover:text-red-500 transition-colors bg-transparent border border-transparent hover:border-red-500/20 rounded-md"
+                          >
+                            Reject
+                          </button>
+                          <button
+                            onClick={() => handleToolResponse(toolCall, 'approve')}
+                            className="px-3 py-1.5 text-[11px] font-bold text-[var(--text-main)] bg-[var(--bg-group)] border border-[var(--border-divider)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors rounded-md shadow-sm"
+                          >
+                            Proceed
+                          </button>
+                       </div>
+                    )}
+                 </div>
+                 <div className="p-4 text-[11px] font-mono opacity-80 overflow-x-auto text-[var(--text-main)]">
+                   {JSON.stringify(displayArgs, null, 2)}
+                 </div>
+             </div>
           )}
         </div>
       );
@@ -490,16 +562,14 @@ export const AgentView: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-transparent overflow-hidden relative font-sans">
       {/* ── GROUNDED HEADER ── */}
-      <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-[var(--bg-panel)] border-b border-[var(--border-divider)] z-20">
+      <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 z-20 mt-3 mb-2 mx-4 bg-[var(--bg-ground)] rounded-2xl border border-[var(--border-divider)] shadow-sm">
         <div className="flex items-center space-x-3">
-          <div className="w-1 h-4 bg-blue-600 dark:bg-blue-500 rounded-full" />
-          <div className="flex items-baseline space-x-2">
-            <h1 className="text-sm font-black text-[var(--text-main)] tracking-tight uppercase">Paracore Agent</h1>
-            <span className="text-[10px] font-bold text-[var(--text-muted)] tracking-[0.1em]">STATIONED</span>
+          <div className="w-8 h-8 rounded-full bg-[var(--bg-panel)] flex items-center justify-center shadow-md border border-[var(--border-divider)]">
+             <FontAwesomeIcon icon={faAsterisk} size="sm" className="text-[var(--accent)]" />
           </div>
-          <div className="flex items-center space-x-1 ml-2">
-             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-             <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Active</span>
+          <div className="flex flex-col">
+            <h1 className="text-[13px] font-black text-[var(--text-main)] tracking-tight uppercase leading-tight">Paracore</h1>
+            <span className="text-[10px] font-bold text-[var(--text-muted)] tracking-wider uppercase leading-none">Agent</span>
           </div>
         </div>
         <div className="flex items-center space-x-2">
@@ -517,7 +587,9 @@ export const AgentView: React.FC = () => {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-6">
         {messages.filter(m => m.type !== 'tool' && !isHuman(m) && !(m.type === 'human' && typeof m.content === 'string' && m.content.startsWith('System:'))).length === 0 && Array.isArray(messages) && messages.filter(m => m.type === 'human' && !m.content?.toString().startsWith('System:')).length === 0 && (
             <div className="flex flex-col items-center justify-center h-full opacity-30 text-center space-y-4">
-                <FontAwesomeIcon icon={faRobot} size="3x" className="text-[var(--text-muted)]" />
+                <div className="w-16 h-16 rounded-full bg-[var(--bg-panel)] flex items-center justify-center border border-[var(--border-divider)]/50 shadow-sm opacity-60 mb-2">
+                    <FontAwesomeIcon icon={faAsterisk} size="2x" className="text-[var(--accent)]" />
+                </div>
                 <p className="text-sm font-bold tracking-widest uppercase text-[var(--text-muted)]">Awaiting Orders</p>
             </div>
         )}
@@ -530,20 +602,20 @@ export const AgentView: React.FC = () => {
               <div className={`flex max-w-[90%] lg:max-w-[80%] space-x-3 ${human ? 'flex-row-reverse space-x-reverse' : ''}`}>
                 
                 {/* Avatar / Icon */}
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm border ${
+                <div className={`mt-1 w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${
                   human 
-                    ? 'bg-[var(--accent)] border-[var(--accent)] text-white' 
-                    : 'bg-[var(--bg-card)] border-[var(--border-divider)] text-[var(--accent)]'
+                    ? 'bg-transparent text-[var(--text-muted)] border-transparent opacity-50' 
+                    : 'bg-[var(--bg-panel)] border-[var(--border-divider)] text-[var(--accent)] shadow-sm'
                 }`}>
-                  <FontAwesomeIcon icon={human ? faUser : faRobot} size="xs" />
+                  <FontAwesomeIcon icon={human ? faUser : faAsterisk} size="sm" className={human ? "" : "opacity-90"} />
                 </div>
 
                 {/* Message Surface */}
                 <div className={`
-                    px-4 py-3 rounded-xl border transition-all shadow-sm
+                    py-1.5 transition-all
                     ${human 
-                        ? 'bg-[var(--bg-group)] border-[var(--accent)] text-[var(--text-main)] shadow-[inset_0_0_0_1px_var(--accent)]' 
-                        : 'bg-[var(--bg-panel)] border-[var(--border-divider)] text-[var(--text-main)]'
+                        ? 'px-4 bg-[var(--bg-panel)] text-[var(--text-main)] rounded-2xl rounded-tr-sm shadow-sm border border-[var(--border-divider)]' 
+                        : 'text-[var(--text-main)] max-w-full'
                     }
                 `}>
                   {renderMessageContent(msg)}
@@ -567,59 +639,38 @@ export const AgentView: React.FC = () => {
           </div>
         )}
 
-        {/* Global PROCEED Button */}
-        {activePendingToolCall && (
-          <div className="flex justify-center pt-2 pb-6 space-x-4">
-            <button
-              onClick={() => {
-                if (!activePendingToolCall) return;
-                handleToolResponse(activePendingToolCall, 'approve');
-              }}
-              className="group flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg shadow-lg hover:shadow-blue-500/30 transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-500"
-            >
-              <FontAwesomeIcon icon={faCheckCircle} className="group-hover:scale-110 transition-transform" />
-              <span className="font-black text-[11px] uppercase tracking-widest">{activePendingToolCall.name === 'execute_dynamic_query' ? 'Approve & Run' : 'Proceed'}</span>
-            </button>
-            <button
-              onClick={() => {
-                if (!activePendingToolCall) return;
-                handleToolResponse(activePendingToolCall, 'reject');
-              }}
-              className="group flex items-center space-x-2 bg-[var(--bg-card)] border border-[var(--border-divider)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/50 px-5 py-2.5 rounded-lg shadow-sm transition-all active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-500"
-            >
-              <FontAwesomeIcon icon={faTimesCircle} className="group-hover:scale-110 transition-transform" />
-              <span className="font-black text-[11px] uppercase tracking-widest">Reject</span>
-            </button>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-4" />
       </div>
 
       {/* ── GROUNDED INPUT AREA ── */}
-      <div className="p-4 bg-[var(--bg-panel)] border-t border-[var(--border-divider)] z-20">
+      <div className="p-4 bg-transparent z-20 max-w-4xl mx-auto w-full">
         <form 
           onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} 
-          className="flex items-center space-x-3 bg-[var(--bg-ground)] p-1.5 rounded-xl border border-[var(--border-divider)] focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20 transition-all shadow-inner"
+          className="flex items-end space-x-3"
         >
-          <div className="pl-3 text-[var(--accent)] opacity-40 flex-shrink-0">
-             <FontAwesomeIcon icon={faRobot} size="sm" />
+          <div className="flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border-divider)] focus-within:border-[var(--accent)] focus-within:shadow-[0_0_15px_-3px_rgba(var(--accent-rgb),0.2)] transition-all shadow-sm overflow-hidden flex items-center">
+             <textarea
+               ref={textareaRef}
+               value={input}
+               onChange={(e) => setInput(e.target.value)}
+               onKeyDown={handleKeyDown}
+               placeholder="What do you want to automate today?"
+               className="w-full bg-transparent px-4 py-3 text-[13.5px] focus:outline-none text-[var(--text-main)] placeholder-[var(--text-muted)]/50 font-medium resize-none min-h-[44px] max-h-[250px] custom-scrollbar leading-relaxed"
+               disabled={isLoading}
+               rows={1}
+             />
           </div>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Tell me what you want to automate or query..."
-            className="flex-1 bg-transparent px-2 py-2 text-sm focus:outline-none text-[var(--text-main)] placeholder-[var(--text-muted)]/50 font-medium"
-            disabled={isLoading}
-          />
           <button 
             type="submit" 
             disabled={isLoading || !input.trim()} 
-            className="w-10 h-10 shrink-0 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-400 transition-all disabled:opacity-30 flex items-center justify-center shadow-md active:scale-95"
+            className="w-[46px] h-[46px] shrink-0 bg-[var(--accent)] text-white rounded-[14px] hover:opacity-90 transition-all disabled:opacity-30 disabled:hover:opacity-30 flex items-center justify-center shadow-lg active:scale-95"
           >
-            <FontAwesomeIcon icon={faPaperPlane} className="text-xs" />
+            <FontAwesomeIcon icon={faPaperPlane} className="text-sm shadow-sm" />
           </button>
         </form>
+        <div className="text-center mt-2 opacity-50 text-[10px] text-[var(--text-muted)]">
+          Shift+Enter for new line • Press Enter to send
+        </div>
       </div>
 
       {/* Modals */}
