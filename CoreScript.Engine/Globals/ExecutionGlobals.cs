@@ -352,6 +352,7 @@ namespace CoreScript.Engine.Globals
 
         public Output Output { get; private set; }
         public IParameterHydrator Hydrator { get; }
+        public Guid ExecutionId { get; } = Guid.NewGuid();
 
         public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters, Dictionary<string, object>? rawParameters = null)
         {

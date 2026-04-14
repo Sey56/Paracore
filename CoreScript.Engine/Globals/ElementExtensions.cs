@@ -591,6 +591,18 @@ namespace CoreScript.Engine.Globals
                         Edges = "Length: " + Math.Round(worldCurve.Length, 4) + " ft"
                     });
                 }
+                else if (obj is PolyLine polyline)
+                {
+                    summary.Add(new {
+                        Type = "PolyLine",
+                        Source = source,
+                        Material = "-",
+                        Volume = "-",
+                        Area = "-",
+                        Faces = "-",
+                        Edges = "Vertices: " + polyline.GetCoordinates().Count
+                    });
+                }
                 else if (obj is GeometryInstance inst)
                 {
                     var subTr = tr.Multiply(inst.Transform);
@@ -776,31 +788,81 @@ namespace CoreScript.Engine.Globals
 
     public static class CollectionExtensions
     {
-        public static IEnumerable<Element> WhereParam(this IEnumerable<Element> elements, string name, string value)
+        /// <summary>
+        /// Filters a collection by a Revit parameter value.
+        /// Preserves the original element type (T) throughout the chain.
+        /// </summary>
+        public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string value)
+            where T : Element
         {
             return elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary> 
-        /// Convenience filter. Returns elements whose Type Name OR Family Name contains the specified substring.
+        /// <summary>
+        /// Filters a collection by a Revit parameter value using a numeric comparison.
         /// </summary>
-        public static IEnumerable<Element> WhereMatches(this IEnumerable<Element> elements, string pattern)
+        public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, double value, string unit = "")
+            where T : Element
+        {
+            return elements.Where(e => Math.Abs(e.GetNum(name, string.IsNullOrEmpty(unit) ? "ft" : unit) - value) < 0.001);
+        }
+
+        /// <summary>
+        /// Filters a collection by a Revit parameter using a comparison operator (>, <, >=, <=).
+        /// </summary>
+        public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, double value, string unit = "")
+            where T : Element
+        {
+            var u = string.IsNullOrEmpty(unit) ? "ft" : unit;
+            return op.ToLower() switch
+            {
+                ">" => elements.Where(e => e.GetNum(name, u) > value),
+                "<" => elements.Where(e => e.GetNum(name, u) < value),
+                ">=" => elements.Where(e => e.GetNum(name, u) >= value),
+                "<=" => elements.Where(e => e.GetNum(name, u) <= value),
+                _ => elements.Where(e => Math.Abs(e.GetNum(name, u) - value) < 0.001),
+            };
+        }
+
+        /// <summary>
+        /// Filters a collection by a Revit parameter using a string comparison (contains, starts, ends).
+        /// </summary>
+        public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, string value)
+            where T : Element
+        {
+            return op.ToLower() switch
+            {
+                "contains" => elements.Where(e => e.GetStr(name).Contains(value, StringComparison.OrdinalIgnoreCase)),
+                "starts" or "startswith" => elements.Where(e => e.GetStr(name).StartsWith(value, StringComparison.OrdinalIgnoreCase)),
+                "ends" or "endswith" => elements.Where(e => e.GetStr(name).EndsWith(value, StringComparison.OrdinalIgnoreCase)),
+                _ => elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)),
+            };
+        }
+
+        /// <summary>
+        /// Filters a collection to elements whose Type Name OR Family Name contains the substring.
+        /// Preserves the original element type (T) throughout the chain.
+        /// </summary>
+        public static IEnumerable<T> WhereMatches<T>(this IEnumerable<T> elements, string pattern)
+            where T : Element
         {
             return elements.Where(e => e.Matches(pattern));
         }
 
-        public static double SumParam(this IEnumerable<Element> elements, string name, string unit)
+        /// <summary>
+        /// Sums a numeric parameter across a typed collection.
+        /// </summary>
+        public static double SumParam<T>(this IEnumerable<T> elements, string name, string unit)
+            where T : Element
         {
             return elements.Sum(e => e.GetNum(name, unit));
         }
 
-        /// <summary> Renders the collection as an interactive table in the Summary tab. </summary>
-        public static void Table(this IEnumerable<Element> elements) => ScriptApi.Table(elements);
-
-        /// <summary> Renders any collection as an interactive table in the Summary tab. </summary>
-        public static void Table(this IEnumerable<object> data) => ScriptApi.Table(data);
-
-        public static IEnumerable<Element> Select(this IEnumerable<Element> elements)
+        /// <summary>
+        /// Selects the typed collection in the Revit UI and zooms to them.
+        /// </summary>
+        public static IEnumerable<T> Select<T>(this IEnumerable<T> elements)
+            where T : Element
         {
             var list = elements.ToList();
             if (list.Any())
@@ -812,7 +874,11 @@ namespace CoreScript.Engine.Globals
             return list;
         }
 
-        public static IEnumerable<Element> Zoom(this IEnumerable<Element> elements)
+        /// <summary>
+        /// Zooms the active view to fit the typed collection.
+        /// </summary>
+        public static IEnumerable<T> Zoom<T>(this IEnumerable<T> elements)
+            where T : Element
         {
             var list = elements.ToList();
             if (list.Any())
@@ -824,7 +890,11 @@ namespace CoreScript.Engine.Globals
             return list;
         }
 
-        public static IEnumerable<Element> Isolate(this IEnumerable<Element> elements)
+        /// <summary>
+        /// Temporarily isolates the typed collection in the active view and zooms to it.
+        /// </summary>
+        public static IEnumerable<T> Isolate<T>(this IEnumerable<T> elements)
+            where T : Element
         {
             var list = elements.ToList();
             if (list.Any())
@@ -833,12 +903,166 @@ namespace CoreScript.Engine.Globals
                 var view = doc.ActiveView;
                 if (view != null && view.CanEnableTemporaryViewPropertiesMode())
                 {
-                    Tx.Transact(doc, "Isolate Elements", () => {
+                    Tx.Transact(doc, "Isolate Elements", () =>
+                    {
                         view.IsolateElementsTemporary(list.Select(e => e.Id).ToList());
                     });
                 }
             }
             return list;
+        }
+
+        /// <summary>
+        /// Hides the collection in the active view.
+        /// </summary>
+        public static IEnumerable<T> Hide<T>(this IEnumerable<T> elements)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (list.Any())
+            {
+                var view = list.First().Document.ActiveView;
+                if (view != null)
+                {
+                    var hideable = list.Where(e => e.CanBeHidden(view)).Select(e => e.Id).ToList();
+                    if (hideable.Any())
+                        Tx.Transact(view.Document, "Hide Elements", () => view.HideElements(hideable));
+                }
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Unhides the collection in the active view.
+        /// </summary>
+        public static IEnumerable<T> Unhide<T>(this IEnumerable<T> elements)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (list.Any())
+            {
+                var view = list.First().Document.ActiveView;
+                if (view != null)
+                    Tx.Transact(view.Document, "Unhide Elements", () => view.UnhideElements(list.Select(e => e.Id).ToList()));
+            }
+            return list;
+        }
+
+        // ── BULK WRITE ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Sets a string parameter on every element in the collection in a single transaction.
+        /// Works on any Revit parameter or C#-settable string property.
+        /// <para>Example: GetElements("Doors").WhereParam("Level","Level 1").SetParam("Comments","Reviewed")</para>
+        /// </summary>
+        public static IEnumerable<T> SetParam<T>(this IEnumerable<T> elements, string name, object value)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (!list.Any()) return list;
+            var doc = list.First().Document;
+            Tx.Transact(doc, $"Set {name}", () =>
+            {
+                foreach (var e in list)
+                    e.SetVal(name, value);
+            });
+            return list;
+        }
+
+        // ── SORTING ───────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Sorts the collection ascending by a Revit parameter or C# property value.
+        /// Automatically uses numeric sorting for Double/Integer parameters (Area, Length, Width, etc.)
+        /// and string sorting for text parameters.
+        /// <para>Example: GetElements("Walls").OrderByParam("Width").Table()</para>
+        /// </summary>
+        public static IEnumerable<T> OrderByParam<T>(this IEnumerable<T> elements, string name)
+            where T : Element
+        {
+            var list = elements.ToList();
+            return IsNumericParam(list, name)
+                ? list.OrderBy(e => e.GetNum(name))
+                : list.OrderBy(e => e.GetStr(name));
+        }
+
+        /// <summary>
+        /// Sorts the collection descending by a Revit parameter or C# property value.
+        /// Automatically uses numeric sorting for Double/Integer parameters (Area, Length, Width, etc.)
+        /// and string sorting for text parameters.
+        /// <para>Example: GetElements("Rooms").OrderByParamDesc("Area").Table()</para>
+        /// </summary>
+        public static IEnumerable<T> OrderByParamDesc<T>(this IEnumerable<T> elements, string name)
+            where T : Element
+        {
+            var list = elements.ToList();
+            return IsNumericParam(list, name)
+                ? list.OrderByDescending(e => e.GetNum(name))
+                : list.OrderByDescending(e => e.GetStr(name));
+        }
+
+        /// <summary>
+        /// Returns true if the named parameter on the first element is a numeric storage type (Double or Integer).
+        /// Falls back to checking if the C# property returns a numeric type via reflection.
+        /// </summary>
+        private static bool IsNumericParam<T>(List<T> elements, string name) where T : Element
+        {
+            var first = elements.FirstOrDefault();
+            if (first == null) return false;
+
+            // Check Revit parameter storage type
+            var p = first.LookupParameter(name);
+            if (p == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
+                p = first.get_Parameter(bip);
+            if (p != null)
+                return p.StorageType == StorageType.Double || p.StorageType == StorageType.Integer;
+
+            // Check C# property type via reflection
+            var prop = first.GetType().GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            if (prop != null)
+            {
+                var t = prop.PropertyType;
+                return t == typeof(double) || t == typeof(float) || t == typeof(int) || t == typeof(long);
+            }
+
+            return false;
+        }
+
+        // ── GROUPING ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Groups the collection by a parameter value and renders a summary table (Group, Count).
+        /// <para>Example: GetElements("Doors").GroupByParam("Level").Table()</para>
+        /// </summary>
+        /// <param name="groupBy">The parameter or property name to group by (e.g. "Level", "Base Constraint").</param>
+        public static IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy)
+            where T : Element
+        {
+            return elements
+                .GroupBy(e => e.GetStr(groupBy))
+                .OrderBy(g => g.Key)
+                .Select(g => new { Group = g.Key, Count = g.Count() } as object);
+        }
+
+        /// <summary>
+        /// Groups the collection by a parameter and sums a numeric parameter per group.
+        /// <para>Example: GetElements("Walls").GroupByParam("Base Constraint", "Length", "m").Table()</para>
+        /// </summary>
+        /// <param name="groupBy">The parameter or property name to group by (e.g. "Level", "Base Constraint").</param>
+        /// <param name="sum">The numeric parameter to sum per group (e.g. "Length", "Area").</param>
+        /// <param name="unit">The unit for the sum (e.g. "m", "m2"). Defaults to internal feet if empty.</param>
+        public static IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy, string sum, string unit = "")
+            where T : Element
+        {
+            return elements
+                .GroupBy(e => e.GetStr(groupBy))
+                .OrderBy(g => g.Key)
+                .Select(g => new
+                {
+                    Group = g.Key,
+                    Count = g.Count(),
+                    Total = Math.Round(g.Sum(e => e.GetNum(sum, string.IsNullOrEmpty(unit) ? "ft" : unit)), 3)
+                } as object);
         }
     }
 }

@@ -287,7 +287,73 @@ namespace CoreScript.Engine.Core
                 }
 
                 // Otherwise, fall back to the return value of the expression
-                var output = session.State.ReturnValue?.ToString() ?? string.Empty;
+                var retVal = session.State.ReturnValue;
+                var output = string.Empty;
+
+                if (retVal != null)
+                {
+                    bool hasStructuredOutput = structuredOutput.Count > 0;
+                    bool isEnumerable = retVal is System.Collections.IEnumerable && !(retVal is string);
+
+                    // If a UI component like .Table() was generated, don't dump the raw data to the console too
+                    if (hasStructuredOutput && isEnumerable)
+                    {
+                        output = string.Empty;
+                    }
+                    // If it's a raw collection, print a truncated list instead of massive JSON blocks.
+                    else if (isEnumerable)
+                    {
+                        try
+                        {
+                            var list = new List<string>();
+                            int count = 1;
+                            int maxItems = 50;
+
+                            foreach (var item in (System.Collections.IEnumerable)retVal)
+                            {
+                                if (count > maxItems)
+                                {
+                                    list.Add($"... (output truncated. Use .Table() for full inspection)");
+                                    break;
+                                }
+
+                                if (item is Autodesk.Revit.DB.Element el)
+                                {
+                                    list.Add($"{count:D2} - {el.Name} ({el.Id.Value})");
+                                }
+                                else if (item != null)
+                                {
+                                    string str = item.ToString().Trim();
+                                    
+                                    // Remove ugly curly braces from anonymous types
+                                    if (str.StartsWith("{") && str.EndsWith("}"))
+                                    {
+                                        str = str.Substring(1, str.Length - 2).Trim();
+                                    }
+                                    
+                                    list.Add($"{count:D2} - {str}");
+                                }
+                                else
+                                {
+                                    list.Add($"{count:D2} - null");
+                                }
+                                count++;
+                            }
+
+                            output = string.Join("\n", list);
+                        }
+                        catch
+                        {
+                            output = retVal.ToString();
+                        }
+                    }
+                    // For primitives, strings, and standard objects, use default ToString
+                    else
+                    {
+                        output = retVal.ToString();
+                    }
+                }
+
                 return (true, output, string.Empty, structuredOutput);
             }
             catch (Exception ex)

@@ -20,8 +20,8 @@ namespace Paracore.Addin.Context
         private readonly List<StructuredOutputItem> _structuredOutputItems = new(); // New list
 
         public UIApplication UIApp { get; }
-        public UIDocument UIDoc => UIApp.ActiveUIDocument!;
-        public Document Doc => UIApp.ActiveUIDocument?.Document!;
+        public UIDocument UIDoc { get; }
+        public Document Doc { get; }
 
         // 🎯 Expose log buffer for output
         public IReadOnlyList<string> PrintLog => _printMessages;
@@ -43,6 +43,8 @@ namespace Paracore.Addin.Context
         public ServerContext(UIApplication uiApp, bool isReadOnly = false)
         {
             UIApp = uiApp;
+            UIDoc = uiApp.ActiveUIDocument!;
+            Doc = uiApp.ActiveUIDocument?.Document!;
             IsReadOnly = isReadOnly;
             PrintCallback = msg =>
             {
