@@ -456,7 +456,7 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Discovery helper for the REPL. Targets categories or classes automatically.
-        /// <para>Example: <c>GetElements("Doors")</c> or <c>GetElements("WallType")</c></para>
+        /// <para>Example: <c>GetElements("Doors")</c></para>
         /// </summary>
         public static List<Element> GetElements(string categoryOrClass)
         {

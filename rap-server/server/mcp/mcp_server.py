@@ -1,11 +1,7 @@
-import asyncio
+import os
 import json
 import logging
-import os
-
-import mcp.types as types
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
+from mcp.server.fastmcp import FastMCP
 
 # Local imports
 if __name__ == "__main__" and __package__ is None:
@@ -13,8 +9,6 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from grpc_client import close_channel, execute_script, get_context, init_channel
-
-from agent.orchestrator.registry import ScriptRegistry
 
 # Configure logging
 log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcp_debug.log")
@@ -26,238 +20,104 @@ logging.basicConfig(
 )
 logger = logging.getLogger("paracore-mcp")
 
-# Configuration
-def get_scripts_path():
-    """Determines the scripts path with priority: 1. CLI Arg, 2. Env Var, 3. Derived Default"""
-    import argparse
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--scripts-path", type=str, help="Root path for script discovery")
-    args, _ = parser.parse_known_args()
-
-    if args.scripts_path:
-        return args.scripts_path
-
-    env_path = os.getenv("PARACORE_SCRIPTS_PATH")
-    if env_path:
-        return env_path
-
-    # Derived fallback: {RepoRoot}/Agent-Library
-    # mcp_server.py is in rap-server/server/mcp
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    derived_path = os.path.join(base_dir, "Agent-Library")
-    return derived_path
-
-SCRIPTS_PATH = get_scripts_path()
-
-# Initialize Registry
-registry = ScriptRegistry(SCRIPTS_PATH)
-server = Server("paracore-mcp", version="0.1.0")
-
-@server.list_tools()
-async def handle_list_tools() -> list[types.Tool]:
-    """List available Paracore scripts and context tools."""
-    logger.info(f"Listing tools for path: {SCRIPTS_PATH}")
-    mcp_tools = registry.get_mcp_tools()
-
-    tools = []
-    for t in mcp_tools:
-        tools.append(types.Tool(
-            name=t["name"],
-            description=t["description"],
-            inputSchema=t["input_schema"]
-        ))
-
-    # Add specialized Revit tools
-    tools.append(types.Tool(
-        name="get_revit_context",
-        description="Get information about the current Revit document, view, and selection.",
-        inputSchema={"type": "object", "properties": {}},
-    ))
-    # Note: get_revit_levels removed - use get_parameter_options instead
-    tools.append(types.Tool(
-        name="get_script_parameters",
-        description="Get the detailed parameter definitions for a specific script tool.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "script_tool_id": {"type": "string", "description": "The tool ID of the script (e.g., 'auditing_wall_length_auditor_advanced')."}
-            },
-            "required": ["script_tool_id"]
-        },
-    ))
-    tools.append(types.Tool(
-        name="get_parameter_options",
-        description="Compute available options for a script parameter dynamically from Revit (e.g., fetch real Level names or Element Types).",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "script_tool_id": {"type": "string", "description": "The tool ID of the script."},
-                "parameter_name": {"type": "string", "description": "The name of the parameter to compute options for."}
-            },
-            "required": ["script_tool_id", "parameter_name"]
-        },
-    ))
-
-    return tools
-
-@server.call_tool()
-async def handle_call_tool(
-    name: str, arguments: dict | None
-) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-    """Handle tool calls by executing scripts or Revit commands."""
-    arguments = arguments or {}
-
-    if name == "get_revit_context":
-        try:
-            context = get_context()
-            return [types.TextContent(type="text", text=json.dumps(context, indent=2))]
-        except Exception as e:
-            return [types.TextContent(type="text", text=f"Error getting context: {str(e)}")]
+# Initialize FastMCP Server
+mcp = FastMCP("Paracore Revit Server")
 
 
-    if name == "get_script_parameters":
-        tool_id = arguments.get("script_tool_id")
-        target_script = registry.find_script_by_tool_id(tool_id)
-        if not target_script:
-            return [types.TextContent(type="text", text=f"Error: Script '{tool_id}' not found.")]
-        return [types.TextContent(type="text", text=json.dumps(target_script.get("parameters", []), indent=2))]
 
-    if name == "get_parameter_options":
-        tool_id = arguments.get("script_tool_id")
-        param_name = arguments.get("parameter_name")
-
-        target_script = registry.find_script_by_tool_id(tool_id)
-        if not target_script:
-            return [types.TextContent(type="text", text=f"Error: Script '{tool_id}' not found.")]
-
-        script_path = target_script.get("absolutePath") or target_script.get("path")
-
-        try:
-            import glob
-
-            from utils import resolve_script_path
-            absolute_path = resolve_script_path(script_path)
-
-            # For options computation, we need the main script content
-            source_code = ""
-            scripts_dir = os.path.join(absolute_path, "Scripts")
+@mcp.tool()
+def explore_revit_data(csharp_code: str, justification: str) -> str:
+    """
+    Executes a C# snippet SILENTLY in Revit to fetch data without mutating the model.
+    CRITICAL: Before writing ANY C# code, if you are unfamiliar with the Paracore fluent API, 
+    you MUST read `paracore://repl-guide`, `paracore://extension-methods`, and `paracore://system-prompt`.
+    Do NOT guess standard Revit API syntax. Paracore is highly specialized.
+    """
+    logger.info(f"MCP Exploring Data: {justification}")
+    try:
+        # Wrap simple snippets in the minimal list serialization payload, 
+        # or execute_script inside grpc_client handles raw text wrapping if structured properly.
+        # Paracore v4 engine handles raw C# directly assuming standard implicit using context.
+        result = execute_script(csharp_code, "{}")
+        
+        if result["is_success"]:
+            output_str = ""
+            if result.get("structured_output"):
+                output_str = json.dumps(result.get("structured_output"))
+            else:
+                output_str = str(result.get("output", "Execution succeeded with no output."))
             
-            if os.path.isdir(scripts_dir):
-                cs_files = glob.glob(os.path.join(scripts_dir, "*.cs"))
-                if not cs_files: return [types.TextContent(type="text", text="Error: No files found in script project.")]
+            # The Shield: Truncate massive outputs to prevent context flooding
+            if len(output_str) > 8000:
+                output_str = output_str[:8000] + "\n... [TRUNCATED: Result exceeded 8000 characters. Refine your query.]"
+            return output_str
+        else:
+            return f"Execution Failed: {result['error_message']}\nDetails: {result['error_details']}"
+    except Exception as e:
+        logger.error(f"MCP Exploration Exception: {e}")
+        return f"Error executing exploration script: {str(e)}"
 
-                # Find the one with 'Params'
-                found_main = False
-                for f_path in cs_files:
-                    with open(f_path, 'r', encoding='utf-8-sig') as f:
-                        content = f.read()
-                        if "class Params" in content:
-                            source_code = content
-                            found_main = True
-                            break
-                if not found_main:
-                    with open(cs_files[0], 'r', encoding='utf-8-sig') as f:
-                        source_code = f.read()
-            elif os.path.isfile(absolute_path):
-                with open(absolute_path, 'r', encoding='utf-8-sig') as f:
-                    source_code = f.read()
+@mcp.tool()
+def execute_dynamic_query(csharp_code: str, justification: str) -> str:
+    """
+    Executes a C# snippet to MODIFY the Revit model.
+    CRITICAL: You MUST evaluate the Paracore resources (`paracore://extension-methods`) to ensure 
+    you are using native commands like `element.SetVal("Name", "X")` rather than standard Revit API.
+    Only use when absolutely sure.
+    """
+    logger.info(f"MCP Executing Query: {justification}")
+    try:
+        result = execute_script(csharp_code, "{}")
+        if result["is_success"]:
+            return f"Execution Successful.\nOutput:\n{result.get('output', '')}"
+        else:
+            return f"Execution Failed: {result['error_message']}\nDetails: {result['error_details']}"
+    except Exception as e:
+         return f"Error executing task script: {str(e)}"
 
-            from grpc_client import compute_parameter_options
-            resp = compute_parameter_options(source_code, param_name)
-            return [types.TextContent(type="text", text=json.dumps(resp, indent=2))]
-        except Exception as e:
-            return [types.TextContent(type="text", text=f"Error computing options: {str(e)}")]
 
-    # Handle script tools (run_*)
-    if name.startswith("run_"):
-        tool_id = name.replace("run_", "")
-        target_script = registry.find_script_by_tool_id(tool_id)
+# Resources
+@mcp.resource("paracore://system-prompt")
+def read_system_prompt() -> str:
+    """The fundamental AI System Prompt that defines Paracore's entire REPL behavioral workflow."""
+    try:
+        from agent.prompt import SYSTEM_PROMPT
+        return SYSTEM_PROMPT
+    except Exception as e:
+        logger.error(f"Error loading system prompt: {e}")
+        return "Error loading prompt."
 
-        if not target_script:
-            return [types.TextContent(type="text", text=f"Error: Script tool '{name}' not found.")]
-
-        script_name = target_script.get("name", "unnamed_script")
-        script_path = target_script.get("absolutePath") or target_script.get("path")
-
-        logger.info(f"Executing {script_name} via MCP")
-
-        try:
-            import glob
-
-            from utils import resolve_script_path
-
-            absolute_path = resolve_script_path(script_path)
-            script_files_payload = []
-
-            scripts_dir = os.path.join(absolute_path, "Scripts")
-            if os.path.isdir(scripts_dir):
-                for file_path in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                    with open(file_path, 'r', encoding='utf-8-sig') as f:
-                        script_files_payload.append({"FileName": os.path.basename(file_path), "Content": f.read()})
-            elif os.path.isfile(absolute_path):
-                with open(absolute_path, 'r', encoding='utf-8-sig') as f:
-                    script_files_payload.append({"FileName": os.path.basename(absolute_path), "Content": f.read()})
-
-            if not script_files_payload:
-                return [types.TextContent(type="text", text="Error: No script files found.")]
-
-            # Standardized Parameter Mapping
-            parameters = []
-            param_defs = {p.get("name"): p for p in target_script.get("parameters", [])}
-
-            for k, v in arguments.items():
-                p_def = param_defs.get(k, {})
-                parameters.append({
-                    "Name": k,
-                    "Value": v,
-                    "Type": p_def.get("type", "string"),
-                    "Unit": p_def.get("unit", ""),
-                    "MultiSelect": p_def.get("multiSelect", False),
-                    "SelectionType": p_def.get("selectionType", "")
-                })
-
-            # Metadata injection
-            parameters.append({"Name": "__script_name__", "Value": script_name, "Type": "string"})
-
-            response = execute_script(json.dumps(script_files_payload), json.dumps(parameters))
-
-            result = f"Execution {'Successful' if response.get('is_success') else 'Failed'}\n"
-            if response.get('output'):
-                result += f"Output:\n{response.get('output')}\n"
-            if response.get('error_message'):
-                result += f"\nError: {response['error_message']}"
-
-            return [types.TextContent(type="text", text=result)]
-
-        except Exception as e:
-            logger.exception("MCP Execution Failure")
-            return [types.TextContent(type="text", text=f"Error: {str(e)}")]
-
-    return [types.TextContent(type="text", text=f"Error: Unknown tool '{name}'")]
-
-@server.list_resources()
-async def handle_list_resources() -> list[types.Resource]:
-    return [types.Resource(uri="paracore://instructions", name="Paracore Instructions", mimeType="text/markdown")]
-
-@server.read_resource()
-async def handle_read_resource(uri: str) -> types.ReadResourceResult:
-    if uri == "paracore://instructions":
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        path = os.path.join(base_dir, "Instruction.md")
+@mcp.resource("paracore://repl-guide")
+def read_repl_guide() -> str:
+    """The authoritative REPL Guide describing magic category hydration strings and retrieval shortcuts."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "REPL_GUIDE.md")
+    try:
         with open(path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return types.ReadResourceResult(contents=[types.TextResourceContents(uri=uri, text=content, mimeType="text/markdown")])
-    raise ValueError(f"Unknown resource: {uri}")
+            return f.read()
+    except Exception:
+        return "REPL_GUIDE.md not found."
 
-async def main():
-    init_channel()
-    # Trigger a fresh script scan on startup
-    logger.info("Triggering fresh script registry refresh...")
-    registry.refresh(force=True)
+@mcp.resource("paracore://extension-methods")
+def read_extension_methods() -> str:
+    """The complete technical reference for all fluent element getters/setters, properties, and formatting tools."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "EXTENSION_METHODS.md")
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except Exception:
+        return "EXTENSION_METHODS.md not found."
 
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, server.create_initialization_options())
-    close_channel()
+# Prompts
+@mcp.prompt()
+def analyze_revit_model() -> str:
+    """Prompt template for analyzing the current Revit model Health."""
+    return "Please read the paracore://api-docs resource, get the current Revit context, and then write a C# query to analyze the model for any anomalous elements."
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    init_channel()
+    logger.info("Starting Paracore FastMCP Server via stdio...")
+    try:
+        mcp.run(transport="stdio")
+    finally:
+        close_channel()
+        logger.info("FastMCP Server closed.")

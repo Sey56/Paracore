@@ -242,21 +242,21 @@ export const InspectorTabs: React.FC<InspectorTabsProps> = ({ script, isRunning,
                         : 'opacity-60'
                     } ${
                       tab.id === 'table' && hasUnviewedTableData
-                        ? 'text-blue-500 dark:text-blue-400 drop-shadow-[0_0_12px_rgba(59,130,246,0.8)]'
+                        ? 'text-blue-500 dark:text-blue-400'
                         : ''
                     }`} 
                   />
-                  {tab.id === 'table' && hasUnviewedTableData && (
-                    <div className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse border-2 border-white dark:border-slate-900 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
-                  )}
                 </div>
                 <span className={`text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all duration-1000 ${
                   tab.id === 'table' && hasUnviewedTableData 
-                    ? "text-blue-500 dark:text-blue-400 drop-shadow-[0_0_15px_rgba(59,130,246,0.9)]" 
+                    ? "text-blue-500 dark:text-blue-400" 
                     : ""
                 }`}>
                   {tab.label}
                 </span>
+                {tab.id === 'table' && hasUnviewedTableData && (
+                  <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse shadow-sm" />
+                )}
               </button>
             </React.Fragment>
           ))}
