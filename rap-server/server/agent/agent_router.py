@@ -202,6 +202,10 @@ async def chat_with_agent(request: ChatRequest):
             elif isinstance(run_err, ModelHTTPError) and run_err.status_code == 404:
                 response_data["status"] = "complete"
                 response_data["message"] = f"SYSTEM ALERT: The model you selected '{model_name}' was not found (HTTP 404). Please go to Settings and ensure you are using the correct string (e.g., `gemini-3-flash-preview`)."
+            elif isinstance(run_err, ModelHTTPError) and run_err.status_code == 429:
+                logger.warning(f"[V4] Caught 429 Quota Exceeded Error from API.")
+                response_data["status"] = "complete"
+                response_data["message"] = f"SYSTEM ALERT: You have exceeded your API usage quota / rate limit (HTTP 429). \n\nIf you are using a free tier API key, you may need to wait a minute before sending another message, or check your billing plan."
             else:
                 logger.exception(f"[V4] Agent Run Error: {run_err}")
                 raise

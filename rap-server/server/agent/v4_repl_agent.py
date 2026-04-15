@@ -48,14 +48,16 @@ async def execute_dynamic_query(ctx: RunContext[AgentDeps], args: DynamicQueryAr
     raise InterruptedException(args.csharp_code, args.justification)
 
 class ExploreQueryArgs(BaseModel):
-    csharp_code: str = Field(description="The C# snippet to execute silently for parameter discovery or data fetching.")
-    justification: str = Field(description="Why you need this information before completing the user's task.")
+    csharp_code: str = Field(description="The C# snippet to execute silently for schema and parameter discovery ONLY.")
+    justification: str = Field(description="Why you need to inspect the schema before generating the final query.")
 
 @v4_repl_agent.tool
 async def explore_revit_data(ctx: RunContext[AgentDeps], args: ExploreQueryArgs) -> str:
     """
     Executes a dynamic C# snippet SILENTLY in Revit and returns the output to you immediately.
-    Use this to run `.CombinedParams().Table()` or check properties BEFORE writing the final answer.
+    CRITICAL: This tool is STRICTLY for schema discovery (e.g., inspecting `.CombinedParams().Take(1)`). 
+    DO NOT use this tool to fetch the final data the user asked for. 
+    You MUST use `execute_dynamic_query` to fetch the actual user data so it runs through the UI approval process!
     """
     try:
         # We auto-inject Take(20) at the end if Table() or CombinedParams is used to prevent token flooding

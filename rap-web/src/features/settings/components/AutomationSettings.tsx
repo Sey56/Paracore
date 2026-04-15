@@ -8,7 +8,7 @@ import { isTelemetryEnabled, setTelemetryEnabled } from '@/utils/telemetry';
 export const AutomationSettings: React.FC = () => {
   const { showNotification } = useNotifications();
   const [isClearing, setIsClearing] = useState(false);
-  const [telemetryOptIn, setTelemetryOptIn] = useState(true);
+  const [telemetryOptIn, setTelemetryOptIn] = useState(false);
 
   React.useEffect(() => {
     setTelemetryOptIn(isTelemetryEnabled());

@@ -3,7 +3,7 @@ import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
 import api from '@/api/axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faAsterisk, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faAsterisk, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt, faCopy } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScriptExecution } from '@/features/automation';
 import { useScripts } from '@/features/automation';
@@ -14,6 +14,11 @@ import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import OrchestrationPlanCard from './OrchestrationPlanCard';
 import { Script, ScriptParameter } from '@/types/scriptModel';
 import { Message, ToolCall, OrchestrationPlan } from '../types/agentTypes';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus, vs, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useTheme } from '@/context/ThemeContext';
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
@@ -34,6 +39,8 @@ export const AgentView: React.FC = () => {
   const { selectedScript, setSelectedScript, runScript, executionResult, clearExecutionResult, userEditedScriptParameters } = useScriptExecution();
   const { scripts, toolLibraryPath } = useScripts();
   const rapServerUrl = useRapServerUrl();
+  const { theme } = useTheme();
+  const syntaxStyle = theme === 'eclipse' ? atomDark : (theme === 'midnight' || theme === 'dark' ? vscDarkPlus : vs);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const agentRunTriggeredRef = useRef<boolean>(false);
@@ -181,8 +188,7 @@ export const AgentView: React.FC = () => {
             setActiveInspectorTab('parameters');
           }
         } else if (t_name === 'execute_dynamic_query') {
-            // Activate console tab so user can see output when it runs
-            setActiveInspectorTab('console');
+            // Agent REPL execution is now isolated. We no longer hijack the user's Inspector tabs.
         }
 
         const toolCallMessage: Message = {
@@ -327,23 +333,33 @@ export const AgentView: React.FC = () => {
               internal_data: res.data.internal_data,
             };
             
-            // Send back to agent
-            invokeAgent(
-               [{ type: 'human', content: `System: Raw REPL Execution Result JSON:\n${JSON.stringify(rawOutputPayload)}`, id: `system-${Date.now()}` }],
+            // Defend the LLM Context: Scrub massive JSON arrays from the system prompt, but allow small ones to pass through
+            const shieldedPayload: any = { ...rawOutputPayload };
+            if (Array.isArray(shieldedPayload.structuredOutput) && shieldedPayload.structuredOutput.length > 0) {
+              shieldedPayload.structuredOutput = shieldedPayload.structuredOutput.map((item: any) => {
+                if (item.type === 'table') {
+                  const rowCount = Array.isArray(item.data) ? item.data.length : 0;
+                  if (rowCount > 50) {
+                      return { type: 'table', summary: `[SHIELDED: Table payload with ${rowCount} rows hidden to save tokens. Tell the user you cannot list them all here, and they must view the table natively on the UI.]` };
+                  }
+                  return item; // Pass small tables through so the LLM can read and format them
+                }
+                return { type: item.type, summary: `[SHIELDED: Rich UI payload hidden]` };
+              });
+            }
+            
+            // Removed tab switching logic. Agent execution results now remain strictly in the chat context.
+
+            // Send back to agent and WAIT for the agent to finish before clearing the loading state
+            await invokeAgent(
+               [{ type: 'human', content: `System: Raw REPL Execution Result JSON:\n${JSON.stringify(shieldedPayload)}`, id: `system-${Date.now()}` }],
                { isInternal: true, summary: null, raw_output: rawOutputPayload }
             );
-
-            // Switch to console or table to show user results
-            if (res.data.structured_output && res.data.structured_output.some((o: any) => o.type === 'table')) {
-                setActiveInspectorTab('table');
-            } else {
-                setActiveInspectorTab('console');
-            }
             
         } catch (err) {
             console.error("Failed to run REPL snippet:", err);
             showNotification("Failed to run snippet in Revit", "error");
-            invokeAgent([{ type: 'human', content: `System: Execution failed due to server error.`, id: `system-${Date.now()}` }]);
+            await invokeAgent([{ type: 'human', content: `System: Execution failed due to server error.`, id: `system-${Date.now()}` }]);
         } finally {
             setIsLoading(false);
         }
@@ -435,6 +451,18 @@ export const AgentView: React.FC = () => {
                              Reject
                            </button>
                            <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               navigator.clipboard.writeText(csharp_code as string);
+                               showNotification("Code copied to clipboard!", "success");
+                             }}
+                             title="Copy code for manual execution in the Multi-Line REPL"
+                             className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors bg-[var(--bg-group)] border border-[var(--border-divider)] hover:border-[var(--accent)] rounded-md shadow-sm"
+                           >
+                             <FontAwesomeIcon icon={faCopy} className="mr-1.5" />
+                             Copy
+                           </button>
+                           <button
                              onClick={() => handleToolResponse(toolCall, 'approve')}
                              className="px-3 py-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors rounded-md shadow-sm"
                            >
@@ -449,10 +477,24 @@ export const AgentView: React.FC = () => {
                       <span className="mr-2 opacity-50 group-open:rotate-90 transition-transform">▶</span>
                       View Source Code
                     </summary>
-                    <div className="border-t border-[var(--border-divider)]/50 bg-[var(--bg-ground)]">
-                       <pre className="text-[12px] font-mono text-[var(--text-main)] opacity-90 whitespace-pre-wrap leading-relaxed p-4 overflow-x-auto custom-scrollbar">
-                         {csharp_code as string}
-                       </pre>
+                    <div className="border-t border-[var(--border-divider)]/50 bg-slate-100 dark:bg-slate-900 overflow-x-auto custom-scrollbar text-[12.5px] leading-relaxed code-viewer-override">
+                        <SyntaxHighlighter
+                          key={theme}
+                          style={syntaxStyle as any}
+                          language="csharp"
+                          PreTag="div"
+                          customStyle={{ 
+                            margin: 0, 
+                            padding: '16px', 
+                            backgroundColor: 'transparent',
+                            wordBreak: 'break-word',
+                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                          }}
+                          codeTagProps={{ style: { fontFamily: 'inherit' } }}
+                          wrapLines={true}
+                        >
+                          {String(csharp_code).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
                     </div>
                   </details>
               </div>
@@ -554,7 +596,55 @@ export const AgentView: React.FC = () => {
       : Array.isArray(msg.content)
         ? (msg.content as { text: string }[]).map((i) => i.text || '').join('\n')
         : '';
-    return <div className="text-[13.5px] leading-relaxed break-words whitespace-pre-wrap">{content}</div>;
+        
+    return (
+        <div className="text-[13.5px] leading-relaxed break-words">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              ul: ({node, ...props}) => <ul className="list-disc pl-5 my-2 space-y-1" {...props} />,
+              ol: ({node, ...props}) => <ol className="list-decimal pl-5 my-2 space-y-1" {...props} />,
+              li: ({node, ...props}) => <li className="pl-1" {...props} />,
+              strong: ({node, ...props}) => <strong className="font-bold text-[var(--text-main)]" {...props} />,
+              em: ({node, ...props}) => <em className="italic opacity-90" {...props} />,
+              p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
+              a: ({node, ...props}) => <a className="text-[var(--accent)] hover:underline underline-offset-2" {...props} />,
+              code: ({node, className, children, ...props}: any) => {
+                const match = /language-(\w+)/.exec(className || '');
+                const isInline = !match && !String(children).includes('\n');
+                return isInline ? (
+                  <code className="bg-[var(--bg-group)] text-[var(--text-main)] px-1.5 py-0.5 rounded text-[11px] font-mono border border-[var(--border-divider)]" {...props}>
+                    {children}
+                  </code>
+                ) : (
+                  <div className="my-3 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700/60 shadow-sm text-[12.5px] custom-scrollbar bg-slate-100 dark:bg-slate-900 code-viewer-override">
+                    <SyntaxHighlighter
+                      key={theme}
+                      style={syntaxStyle as any}
+                      language={match ? match[1] : 'csharp'}
+                      PreTag="div"
+                      customStyle={{ 
+                        margin: 0, 
+                        padding: '14px', 
+                        backgroundColor: 'transparent',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      }}
+                      codeTagProps={{ style: { fontFamily: 'inherit' } }}
+                      showLineNumbers
+                      wrapLines={true}
+                      {...props}
+                    >
+                      {String(children).replace(/\n$/, '')}
+                    </SyntaxHighlighter>
+                  </div>
+                )
+              }
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
+    );
   };
 
   const isHuman = (msg: Message) => msg.type === 'human' && !msg.content?.toString().startsWith('System:');
@@ -629,7 +719,7 @@ export const AgentView: React.FC = () => {
         {isLoading && (
           <div className="flex justify-start items-center space-x-3 animate-in fade-in slide-in-from-bottom-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-divider)] flex items-center justify-center shadow-sm">
-              <FontAwesomeIcon icon={faRobot} size="xs" className="text-[var(--accent)] animate-pulse" />
+              <FontAwesomeIcon icon={faAsterisk} size="xs" className="text-[var(--accent)] animate-pulse" />
             </div>
             <div className="px-5 py-3.5 bg-[var(--bg-panel)] rounded-xl border border-[var(--border-divider)] shadow-sm flex space-x-1.5 items-center">
               <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
