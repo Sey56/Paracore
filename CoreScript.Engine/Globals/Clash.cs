@@ -16,7 +16,7 @@ namespace CoreScript.Engine.Globals
         /// Finds all elements of a specific category that clash with the given element.
         /// Uses a tiered approach: Broad-phase (Bounding Box) -> Precise-phase (Boolean).
         /// </summary>
-        public static IEnumerable<ClashResult> Find(Element element, string categoryName, double toleranceMeters = 0, bool calculateVolume = false)
+        public static IEnumerable<ClashResult> Find(Element element, string categoryName, double toleranceMeters = 0, bool calculateVolume = false, bool createHelper = false)
         {
             if (element == null) return Enumerable.Empty<ClashResult>();
 
@@ -72,13 +72,13 @@ namespace CoreScript.Engine.Globals
 
             // 4. Generate Results
             return collector.Where(el => el.Id != element.Id)
-                            .Select(other => CreateResult(element, other, toleranceMeters, calculateVolume));
+                            .Select(other => CreateResult(element, other, toleranceMeters, calculateVolume, createHelper));
         }
 
         /// <summary>
         /// Detailed check between two specific elements.
         /// </summary>
-        public static ClashResult Check(Element a, Element b, double toleranceMeters = 0, bool calculateVolume = true)
+        public static ClashResult Check(Element a, Element b, double toleranceMeters = 0, bool calculateVolume = true, bool createHelper = false)
         {
             if (a == null || b == null) return null;
             
@@ -101,10 +101,10 @@ namespace CoreScript.Engine.Globals
                 if (!filter.PassesFilter(b)) return null;
             }
 
-            return CreateResult(a, b, toleranceMeters, calculateVolume);
+            return CreateResult(a, b, toleranceMeters, calculateVolume, createHelper);
         }
 
-        private static ClashResult CreateResult(Element a, Element b, double toleranceMeters, bool calculateVolume)
+        private static ClashResult CreateResult(Element a, Element b, double toleranceMeters, bool calculateVolume, bool createHelper)
         {
             var result = new ClashResult
             {
@@ -126,9 +126,22 @@ namespace CoreScript.Engine.Globals
 
             if (isHard)
             {
-                var (vol, centroid) = CalculateIntersectionMetrics(a, b);
-                result.IntersectionVolume = vol;
-                result.Centroid = centroid;
+                var solids = GetIntersectionSolids(a, b);
+                if (solids.Any())
+                {
+                    double vol = 0;
+                    XYZ weightedCentroidSum = new XYZ(0, 0, 0);
+                    foreach (var s in solids) { vol += s.Volume; weightedCentroidSum += s.ComputeCentroid() * s.Volume; }
+
+                    result.IntersectionVolume = vol;
+                    result.Centroid = vol > 0 ? weightedCentroidSum / vol : null;
+
+                    if (createHelper && vol > 0)
+                    {
+                        var helperId = CreateHelper(a.Document, solids, $"Clash_{a.Id}_{b.Id}");
+                        if (helperId != ElementId.InvalidElementId) result.HelperId = helperId.Value;
+                    }
+                }
             }
             else
             {
@@ -156,17 +169,82 @@ namespace CoreScript.Engine.Globals
         {
             try
             {
+                var intersectionSolids = GetIntersectionSolids(a, b);
+                if (!intersectionSolids.Any()) return (0, null);
+
+                double totalVol = 0;
+                XYZ weightedCentroidSum = new XYZ(0, 0, 0);
+
+                foreach (var solid in intersectionSolids)
+                {
+                    var v = solid.Volume;
+                    totalVol += v;
+                    weightedCentroidSum += solid.ComputeCentroid() * v;
+                }
+
+                XYZ finalCentroid = totalVol > 0 ? weightedCentroidSum / totalVol : null;
+                return (totalVol, finalCentroid); 
+            }
+            catch { return (0, null); }
+        }
+
+        public static ElementId CreateHelper(Document doc, List<Solid> solids, string name)
+        {
+            try
+            {
+                DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                ds.SetShape(solids.Cast<GeometryObject>().ToList());
+                ds.Name = name;
+
+                // --- Revit 2025 X-Ray Visualization ---
+                // Apply a transparent red override so the helper is visible THROUGH walls/columns
+                var view = doc.ActiveView;
+                if (view != null)
+                {
+                    var ogs = new OverrideGraphicSettings();
+                    ogs.SetSurfaceTransparency(60); // 60% transparent
+                    var red = new Color(255, 0, 0);
+                    
+                    // Modern Revit API (2019+): Set Foreground Pattern Color
+                    ogs.SetSurfaceForegroundPatternColor(red);
+                    ogs.SetCutForegroundPatternColor(red);
+                    
+                    // CRITICAL: Must also set a Solid Fill Pattern ID for the color to appear
+                    var solidPattern = new FilteredElementCollector(doc)
+                        .OfClass(typeof(FillPatternElement))
+                        .Cast<FillPatternElement>()
+                        .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+                        
+                    if (solidPattern != null)
+                    {
+                        ogs.SetSurfaceForegroundPatternId(solidPattern.Id);
+                        ogs.SetCutForegroundPatternId(solidPattern.Id);
+                    }
+                    
+                    view.SetElementOverrides(ds.Id, ogs);
+                }
+
+                return ds.Id;
+            }
+            catch { return ElementId.InvalidElementId; }
+        }
+
+        /// <summary>
+        /// Calculates the geometric intersection solids between two elements.
+        /// </summary>
+        public static List<Solid> GetIntersectionSolids(Element a, Element b)
+        {
+            var results = new List<Solid>();
+            try
+            {
                 Options opt = new Options { DetailLevel = ViewDetailLevel.Fine };
                 var geomA = a.get_Geometry(opt);
                 var geomB = b.get_Geometry(opt);
 
-                if (geomA == null || geomB == null) return (0, null);
+                if (geomA == null || geomB == null) return results;
 
                 var solidsA = ExtractSolids(geomA);
                 var solidsB = ExtractSolids(geomB);
-
-                double totalVol = 0;
-                XYZ weightedCentroidSum = new XYZ(0, 0, 0);
 
                 foreach (var solidA in solidsA)
                 {
@@ -178,21 +256,17 @@ namespace CoreScript.Engine.Globals
                         try
                         {
                             var intersection = BooleanOperationsUtils.ExecuteBooleanOperation(solidA, solidB, BooleanOperationsType.Intersect);
-                            if (intersection != null && intersection.Volume > 0)
+                            if (intersection != null && intersection.Volume > 0.000001) // Tolerance filter
                             {
-                                var v = intersection.Volume;
-                                totalVol += v;
-                                weightedCentroidSum += intersection.ComputeCentroid() * v;
+                                results.Add(intersection);
                             }
                         }
                         catch { }
                     }
                 }
-
-                XYZ finalCentroid = totalVol > 0 ? weightedCentroidSum / totalVol : null;
-                return (totalVol, finalCentroid); 
             }
-            catch { return (0, null); }
+            catch { }
+            return results;
         }
 
         private static List<Solid> ExtractSolids(GeometryElement geom)

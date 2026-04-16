@@ -423,6 +423,11 @@ namespace CoreScript.Engine.Globals
         }
 
         // Visualization Globals
+        public void Show(object data)
+        {
+            Output.Table(data);
+        }
+
         public void Table(object data)
         {
             Output.Table(data);
@@ -531,6 +536,12 @@ namespace CoreScript.Engine.Globals
             });
             return data;
         }
+        public static IEnumerable<T> Show<T>(this IEnumerable<T> data)
+        {
+            ExecutionGlobals.Current.Value?.Table(data);
+            return data;
+        }
+
         public static IEnumerable<T> Table<T>(this IEnumerable<T> data)
         {
             ExecutionGlobals.Current.Value?.Table(data);

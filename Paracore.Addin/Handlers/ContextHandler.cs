@@ -205,7 +205,7 @@ namespace Paracore.Addin.Handlers
                     if (uidoc == null) throw new Exception("No active document.");
                     var ids = request.ElementIds.Select(id => new ElementId(id)).ToList();
                     uidoc.Selection.SetElementIds(ids);
-                    if (ids.Count > 0) uidoc.ShowElements(ids.First());
+                    if (ids.Count > 0) uidoc.ShowElements(ids);
                     return true;
                 });
                 response.IsSuccess = true;

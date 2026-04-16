@@ -25,10 +25,10 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary> Returns all elements of a target category that clash with this element. </summary>
-        public static IEnumerable<ClashResult> GetClashes(this Element e, string categoryName, string tolerance = "0", bool includeVolume = false)
+        public static IEnumerable<ClashResult> GetClashes(this Element e, string categoryName, string tolerance = "0", bool includeVolume = false, bool createHelper = false)
         {
             double tolMeters = tolerance.ToMeters();
-            return Clash.Find(e, categoryName, tolMeters, includeVolume);
+            return Clash.Find(e, categoryName, tolMeters, includeVolume, createHelper);
         }
 
         /// <summary> Boolean check: Does this element clash with the other element? </summary>
@@ -49,29 +49,42 @@ namespace CoreScript.Engine.Globals
         /// PROJECT-WIDE AUDIT: Checks every element in the source collection against a target category.
         /// Implementation uses optimized spatial filtering to handle large models efficiently.
         /// </summary>
-        public static IEnumerable<ClashResult> AuditClashes(this IEnumerable<Element> source, string targetCategory, string tolerance = "0", bool includeVolume = false)
+        public static IEnumerable<ClashResult> AuditClashes(this IEnumerable<Element> source, string targetCategory, string tolerance = "0", bool includeVolume = false, bool createHelper = false)
         {
             if (source == null) return Enumerable.Empty<ClashResult>();
             
             double tolMeters = tolerance.ToMeters();
             var results = new List<ClashResult>();
             var processedPairs = new HashSet<string>();
+            var doc = source.FirstOrDefault()?.Document;
 
-            foreach (var element in source)
+            Action performAudit = () =>
             {
-                var clashes = Clash.Find(element, targetCategory, tolMeters, includeVolume);
-                foreach (var clash in clashes)
+                foreach (var element in source)
                 {
-                    // Deduplicate pairs (Element A vs B is the same as B vs A)
-                    var id1 = clash.ElementIdA.Value;
-                    var id2 = clash.ElementIdB.Value;
-                    var key = id1 < id2 ? $"{id1}_{id2}" : $"{id2}_{id1}";
-                    
-                    if (processedPairs.Add(key))
+                    var clashes = Clash.Find(element, targetCategory, tolMeters, includeVolume, createHelper);
+                    foreach (var clash in clashes)
                     {
-                        results.Add(clash);
+                        // Deduplicate pairs (Element A vs B is the same as B vs A)
+                        var id1 = clash.ElementIdA.Value;
+                        var id2 = clash.ElementIdB.Value;
+                        var key = id1 < id2 ? $"{id1}_{id2}" : $"{id2}_{id1}";
+                        
+                        if (processedPairs.Add(key))
+                        {
+                            results.Add(clash);
+                        }
                     }
                 }
+            };
+
+            if (createHelper && doc != null)
+            {
+                Tx.Transact(doc, "Generate Clash Helpers", performAudit);
+            }
+            else
+            {
+                performAudit();
             }
 
             return results;

@@ -388,7 +388,30 @@ const TableView: React.FC<{
                                if (!isNaN(currentCellId!)) { 
                                  setActiveRowIndex(rowIndex); 
                                  setActiveElementId(currentCellId);
-                                 onSelect([currentCellId!]); 
+                                 
+                                 // --- CLASH-AWARE SELECTION v2 (Helper Priority) ---
+                                 // If we have a HelperId (Intersection Geometry), prioritize it.
+                                 const rowElementIds: number[] = [];
+                                 let helperId: number | null = null;
+
+                                 Object.entries(row).forEach(([k, v]) => {
+                                   const lk = k.toLowerCase();
+                                   const isIdKey = lk === 'id' || lk.endsWith('id') || lk.endsWith('id_a') || lk.endsWith('id_b') || /id[a-zA-Z]$/.test(lk);
+                                   const isHelperKey = lk === 'helperid' || lk === 'helper_id';
+
+                                   if ((isIdKey || isHelperKey) && v !== null && v !== undefined) {
+                                      const idVal = typeof v === 'string' ? parseInt(v, 10) : Number(v);
+                                      if (!isNaN(idVal)) {
+                                         if (isHelperKey) helperId = idVal;
+                                         else rowElementIds.push(idVal);
+                                      }
+                                   }
+                                 });
+
+                                 // If we have a helper, we select just the helper (for precise zoom) 
+                                 // or the helper + the current clicked item for context.
+                                 const finalSelection = helperId ? [helperId] : Array.from(new Set(rowElementIds));
+                                 onSelect(finalSelection.length > 0 ? finalSelection : [currentCellId!]); 
                                }
                              }
                            }}

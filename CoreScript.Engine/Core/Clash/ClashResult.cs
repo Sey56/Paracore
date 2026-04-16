@@ -22,6 +22,12 @@ namespace CoreScript.Engine.Core.Clash
         public string SystemB { get; set; }
         
         /// <summary>
+        /// ID of the temporary intersection geometry (DirectShape) created for visualization.
+        /// Serialized as a long for the frontend coordination table.
+        /// </summary>
+        public long? HelperId { get; set; }
+        
+        /// <summary>
         /// Precise intersection volume in cubic meters.
         /// Only calculated if requested (High-End Audit).
         /// </summary>
@@ -39,7 +45,8 @@ namespace CoreScript.Engine.Core.Clash
 
         public override string ToString()
         {
-            return $"Clash: {NameA} ({ElementIdA}) <-> {NameB} ({ElementIdB}) | Vol: {IntersectionVolume:F4} m3";
+            var helper = HelperId.HasValue && HelperId.Value != -1 ? $" [Helper: {HelperId}]" : "";
+            return $"Clash: {NameA} ({ElementIdA}) <-> {NameB} ({ElementIdB}) | Vol: {IntersectionVolume:F4} m3{helper}";
         }
     }
 }
