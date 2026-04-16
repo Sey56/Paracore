@@ -180,5 +180,42 @@ namespace CoreScript.Engine.Globals
                 ? UnitTypeId.CubicFeet
                 : null;
         }
+
+        /// <summary> 
+        /// Parses a dimension string (e.g., "50mm", "0.1m", "2ft") and returns the value in METERS.
+        /// Defaults to meters if no unit suffix is found.
+        /// </summary>
+        public static double ToMeters(this string value)
+        {
+            if (string.IsNullOrEmpty(value) || value == "0") return 0;
+
+            string input = value.Trim().ToLower();
+            string numPart = "";
+            string unitPart = "";
+            bool foundUnit = false;
+
+            foreach (char c in input)
+            {
+                if (!foundUnit && (char.IsDigit(c) || c == '.' || c == '-'))
+                {
+                    numPart += c;
+                }
+                else if (char.IsLetter(c) || c == '²' || c == '³')
+                {
+                    foundUnit = true;
+                    unitPart += c;
+                }
+            }
+
+            if (!double.TryParse(numPart, out double val)) return 0;
+            if (string.IsNullOrEmpty(unitPart)) return val; 
+
+            var unitTypeId = GetUnitTypeId(unitPart);
+            if (unitTypeId == null) return val;
+
+            // Convert to internal (feet) then to meters
+            double internalValue = UnitUtils.ConvertToInternalUnits(val, unitTypeId);
+            return UnitUtils.ConvertFromInternalUnits(internalValue, UnitTypeId.Meters);
+        }
     }
 }

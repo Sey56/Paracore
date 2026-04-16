@@ -89,8 +89,47 @@ const beautifyHeader = (header: string) => {
 
 const renderCellContent = (header: string, value: any) => {
   if (value === null || value === undefined) return '';
+  
+  // High-End Logic: Detect and Format Complex Geometric Objects (XYZ Coordinates)
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const v = value as any;
+    // Revit Serialization can be 'X' or 'x'. We check both.
+    const xKey = Object.keys(v).find(k => k.toLowerCase() === 'x');
+    const yKey = Object.keys(v).find(k => k.toLowerCase() === 'y');
+    const zKey = Object.keys(v).find(k => k.toLowerCase() === 'z');
+
+    if (xKey !== undefined && yKey !== undefined && zKey !== undefined) {
+      const x = Number(v[xKey] ?? 0).toFixed(2);
+      const y = Number(v[yKey] ?? 0).toFixed(2);
+      const z = Number(v[zKey] ?? 0).toFixed(2);
+      return (
+        <span className="font-mono text-[10px] text-blue-500/80 bg-blue-500/5 px-1.5 py-0.5 rounded border border-blue-500/10 shadow-sm">
+          ({x}, {y}, {z})
+        </span>
+      );
+    }
+    
+    // Smart Fallback: Print clean JSON instead of [object Object]
+    try {
+      return (
+        <span className="text-[10px] opacity-40 font-mono italic">
+           {JSON.stringify(value).substring(0, 30)}{JSON.stringify(value).length > 30 ? '...' : ''}
+        </span>
+      );
+    } catch { return '[Object]'; }
+  }
+
   const cellValue = String(value);
   const normalized = header.toLowerCase().replace(/[\s_]+/g, '');
+  
+  // Special handling for volume to prevent "0" hiding small clashes
+  if (normalized.includes('volume')) {
+    const val = parseFloat(cellValue);
+    if (!isNaN(val)) {
+       // If it's very small but NOT zero, show more decimals
+       return val === 0 ? "0" : val < 0.01 ? val.toFixed(4) : val.toFixed(2);
+    }
+  }
   
   // Sustainability Highlighting (BIM 6.0)
   if (normalized === 'carbon' || normalized === 'embodiedcarbon' || normalized === 'gwp') {
@@ -149,6 +188,7 @@ const TableView: React.FC<{
   const { showNotification } = useNotifications();
   const [data, setData] = useState(initialData);
   const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
+  const [activeElementId, setActiveElementId] = useState<number | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   // --- Virtualization State ---
@@ -318,31 +358,40 @@ const TableView: React.FC<{
             <tbody className="bg-white dark:bg-slate-900">
               {visibleData.map((row: Record<string, unknown>, index: number) => {
                 const rowIndex = startIndex + index;
-                const idColKey = Object.keys(row).find(k => ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(k.toLowerCase()));
-                const hasId = !!idColKey;
+                const idColKeys = Object.keys(row).filter(k => {
+                  const lower = k.toLowerCase();
+                  return lower === 'id' || lower.endsWith('id') || lower.endsWith('id_a') || lower.endsWith('id_b') || /id[a-zA-Z]$/.test(lower);
+                });
+                const hasId = idColKeys.length > 0;
                 const isActive = activeRowIndex === rowIndex;
                 const isAltRow = rowIndex % 2 === 1;
                 return (
                   <tr key={rowIndex} style={{ height: rowHeight }} className={`${hasId ? "transition-colors" : ""} ${isActive ? "bg-blue-100/50 dark:bg-blue-800/20 border-l-4 border-blue-500" : `hover:bg-blue-50/50 dark:hover:bg-blue-900/10 ${isAltRow ? 'bg-black/[0.02] dark:bg-white/[0.02]' : ''}`}`}>
                     {headers.map((header, colIndex) => {
                       const cellValue = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
-                      const isIdColumn = ['id', 'elementid', 'revitid', 'element id', 'revit id'].includes(header.toLowerCase());
+                      const lowerHeader = header.toLowerCase();
+                      const isIdColumn = lowerHeader === 'id' || lowerHeader.endsWith('id') || lowerHeader.endsWith('id_a') || lowerHeader.endsWith('id_b') || /id[a-zA-Z]$/.test(lowerHeader);
+                      const currentCellId = isIdColumn ? (typeof row[header] === 'string' ? parseInt(row[header] as string, 10) : Number(row[header])) : null;
+                      const isElementActive = isIdColumn && activeElementId === currentCellId && activeRowIndex === rowIndex;
+                      
                       const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === header;
                       const canEdit = !isIdColumn && !!onUpdate && hasId;
                       const width = columnWidths[header];
-
+ 
                       return (
-                        <td
-                          key={colIndex}
-                          style={{ width, minWidth: width }}
-                          className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
-                          onClick={() => {
-                            if (isIdColumn && idColKey) {
-                              const val = row[idColKey];
-                              const id = typeof val === 'string' ? parseInt(val, 10) : Number(val);
-                              if (!isNaN(id)) { setActiveRowIndex(rowIndex); onSelect([id]); }
-                            }
-                          }}
+                         <td
+                           key={colIndex}
+                           style={{ width, minWidth: width }}
+                           className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 transition-all duration-200 ${canEdit ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdColumn ? 'font-mono font-bold cursor-pointer relative group/cell' : ''} ${isElementActive ? 'text-white bg-blue-600 shadow-[inset_0_0_10px_rgba(0,0,0,0.1)]' : isIdColumn ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
+                           onClick={() => {
+                             if (isIdColumn) {
+                               if (!isNaN(currentCellId!)) { 
+                                 setActiveRowIndex(rowIndex); 
+                                 setActiveElementId(currentCellId);
+                                 onSelect([currentCellId!]); 
+                               }
+                             }
+                           }}
                           onDoubleClick={() => { if (canEdit) { setEditingCell({ rowIndex, colKey: header }); setEditValue(cellValue); } }}
                         >
                           {isEditing ? (
@@ -576,6 +625,43 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
     } catch (error) { showNotification("Failed to update parameter in Revit.", "error"); return false; }
   }, [showNotification, paramMetadataMap]);
 
+  const formatValueForExport = (header: string, value: any): string => {
+    if (value === null || value === undefined) return '';
+    
+    // 1. Geometric Objects (XYZ) -> Standardized string representation
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      const v = value as any;
+      const xKey = Object.keys(v).find(k => k.toLowerCase() === 'x');
+      const yKey = Object.keys(v).find(k => k.toLowerCase() === 'y');
+      const zKey = Object.keys(v).find(k => k.toLowerCase() === 'z');
+
+      if (xKey !== undefined && yKey !== undefined && zKey !== undefined) {
+        const x = Number(v[xKey] ?? 0).toFixed(3);
+        const y = Number(v[yKey] ?? 0).toFixed(3);
+        const z = Number(v[zKey] ?? 0).toFixed(3);
+        return `(${x}, ${y}, ${z})`;
+      }
+      return JSON.stringify(value);
+    }
+
+    const lowerHeader = header.toLowerCase();
+    const isIdColumn = lowerHeader === 'id' || lowerHeader.endsWith('id') || lowerHeader.endsWith('id_a') || lowerHeader.endsWith('id_b') || /id[a-zA-Z]$/.test(lowerHeader);
+
+    // 2. Numeric Formatting (Protecting IDs and Integers)
+    if (typeof value === 'number' || (!isNaN(Number(value)) && String(value).trim() !== '')) {
+      const val = Number(value);
+      
+      // CRITICAL: Never apply decimals to IDs or Integers
+      if (isIdColumn || Number.isInteger(val)) return val.toString();
+      
+      // Formatting for high-precision floats (Volumes, etc)
+      if (lowerHeader.includes('volume')) return val.toFixed(4);
+      return val.toFixed(3);
+    }
+
+    return String(value);
+  };
+
   const handleCopy = useCallback(() => {
     try {
       const parsed = JSON.parse(item.data);
@@ -590,11 +676,17 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       }
       if (data.length === 0) { showNotification('No data matches the current filter.', 'warning'); return; }
 
-      const textToCopy = [Object.keys(data[0]).join('\t'), ...data.map((row: Record<string, unknown>) => Object.values(row).map(v => String(v ?? '')).join('\t'))].join('\n');
+      const textToCopy = [
+        Object.keys(data[0]).join('\t'), 
+        ...data.map((row: Record<string, unknown>) => 
+          Object.keys(data[0]).map(header => formatValueForExport(header, row[header])).join('\t')
+        )
+      ].join('\n');
+
       navigator.clipboard.writeText(textToCopy);
       showNotification('Table data copied to clipboard.', 'success');
     } catch { showNotification('Failed to copy table data.', 'error'); }
-  }, [item.data, filterText, showNotification, currentFilteredData]);
+  }, [item.data, filterText, showNotification, currentFilteredData, formatValueForExport]);
 
   const handleDownloadCsv = useCallback(async () => {
     try {
@@ -610,11 +702,21 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       }
       if (data.length === 0) { showNotification('No data matches the current filter.', 'warning'); return; }
 
-      const csvContent = [Object.keys(data[0]).join(','), ...data.map((row: Record<string, unknown>) => Object.values(row).map((val: unknown) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+      const headers = Object.keys(data[0]);
+      const csvContent = [
+        headers.join(','), 
+        ...data.map((row: Record<string, unknown>) => 
+          headers.map(header => {
+            const val = formatValueForExport(header, row[header]);
+            return `"${val.replace(/"/g, '""')}"`;
+          }).join(',')
+        )
+      ].join('\n');
+
       const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `export_${new Date().toISOString().slice(0, 10)}.csv` });
       if (filePath) { await writeTextFile(filePath, csvContent); showNotification('CSV exported successfully!', 'success'); }
     } catch { showNotification("Failed to export CSV data.", "error"); }
-  }, [item.data, filterText, showNotification, currentFilteredData]);
+  }, [item.data, filterText, showNotification, currentFilteredData, formatValueForExport]);
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;

@@ -258,12 +258,16 @@ export const ConsoleTabContent: React.FC<ConsoleTabContentProps> = ({
   useEffect(() => { setAiResult(null); }, [executionResult, isRunning]);
 
   const handleCopy = () => {
+    // 1. Start with the committed console history
     let contentToCopy = localHistory.map(item => (item.type === 'input' ? `> ${item.text}` : item.text)).join('\n');
-    const activeResult = pendingResult || executionResult;
-    if (activeResult) {
-      const activeText = (activeResult.output ? String(activeResult.output) : "") + (activeResult.error ? "\n" + String(activeResult.error) : "");
-      if (activeText && localHistory[localHistory.length - 1]?.text !== activeText) contentToCopy += "\n\n" + activeText;
+    
+    // 2. Only append the PENDING result (which hasn't been committed to history yet)
+    // We skip executionResult because it is already added to localHistory by the useEffect
+    if (pendingResult) {
+      const activeText = (pendingResult.output ? String(pendingResult.output) : "") + (pendingResult.error ? "\n" + String(pendingResult.error) : "");
+      if (activeText) contentToCopy += (contentToCopy ? "\n\n" : "") + activeText;
     }
+    
     if (!contentToCopy) contentToCopy = isRunning ? "Executing..." : "Ready";
     navigator.clipboard.writeText(contentToCopy).then(() => showNotification("Copied", "info"));
   };

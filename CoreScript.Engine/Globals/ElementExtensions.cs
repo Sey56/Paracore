@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using CoreScript.Engine.Core.Clash;
 
 namespace CoreScript.Engine.Globals
 {
@@ -21,6 +22,126 @@ namespace CoreScript.Engine.Globals
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .OrderBy(p => p.Name)
                 .Select(p => new { Name = p.Name, Type = p.PropertyType.Name });
+        }
+
+        /// <summary> Returns all elements of a target category that clash with this element. </summary>
+        public static IEnumerable<ClashResult> GetClashes(this Element e, string categoryName, string tolerance = "0", bool includeVolume = false)
+        {
+            double tolMeters = tolerance.ToMeters();
+            return Clash.Find(e, categoryName, tolMeters, includeVolume);
+        }
+
+        /// <summary> Boolean check: Does this element clash with the other element? </summary>
+        public static bool ClashesWith(this Element e, Element other, string tolerance = "0")
+        {
+            if (e == null || other == null) return false;
+            double tolMeters = tolerance.ToMeters();
+            return Clash.Check(e, other, tolMeters, false) != null;
+        }
+
+        /// <summary> filters out clashes between elements in the same system (e.g. Sanitary pipes clashing with Sanitary fittings). </summary>
+        public static IEnumerable<ClashResult> FilterBySystem(this IEnumerable<ClashResult> clashes)
+        {
+            return clashes.Where(c => c.SystemA != c.SystemB || string.IsNullOrEmpty(c.SystemA));
+        }
+
+        /// <summary>
+        /// PROJECT-WIDE AUDIT: Checks every element in the source collection against a target category.
+        /// Implementation uses optimized spatial filtering to handle large models efficiently.
+        /// </summary>
+        public static IEnumerable<ClashResult> AuditClashes(this IEnumerable<Element> source, string targetCategory, string tolerance = "0", bool includeVolume = false)
+        {
+            if (source == null) return Enumerable.Empty<ClashResult>();
+            
+            double tolMeters = tolerance.ToMeters();
+            var results = new List<ClashResult>();
+            var processedPairs = new HashSet<string>();
+
+            foreach (var element in source)
+            {
+                var clashes = Clash.Find(element, targetCategory, tolMeters, includeVolume);
+                foreach (var clash in clashes)
+                {
+                    // Deduplicate pairs (Element A vs B is the same as B vs A)
+                    var id1 = clash.ElementIdA.Value;
+                    var id2 = clash.ElementIdB.Value;
+                    var key = id1 < id2 ? $"{id1}_{id2}" : $"{id2}_{id1}";
+                    
+                    if (processedPairs.Add(key))
+                    {
+                        results.Add(clash);
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        // --- Fluent Unit Transformers for Clash Reports ---
+
+        /// <summary> Converts clash coordinates and volumes to match the ACTIVE PROJECT'S display units (WYSIWYG). </summary>
+        public static IEnumerable<ClashResult> InProjectUnits(this IEnumerable<ClashResult> clashes)
+        {
+            var first = clashes.FirstOrDefault();
+            if (first == null) return clashes;
+            
+            var doc = ScriptApi.Doc;
+            var units = doc.GetUnits();
+            
+            // Getting current display unit IDs
+            var lengthUnit = units.GetFormatOptions(SpecTypeId.Length).GetUnitTypeId();
+            var volumeUnit = units.GetFormatOptions(SpecTypeId.Volume).GetUnitTypeId();
+
+            return clashes.Select(c => {
+                var clone = c.Clone();
+                clone.IntersectionVolume = UnitUtils.ConvertFromInternalUnits(c.IntersectionVolume, volumeUnit);
+                if (c.Centroid != null)
+                {
+                    clone.Centroid = new XYZ(
+                        UnitUtils.ConvertFromInternalUnits(c.Centroid.X, lengthUnit),
+                        UnitUtils.ConvertFromInternalUnits(c.Centroid.Y, lengthUnit),
+                        UnitUtils.ConvertFromInternalUnits(c.Centroid.Z, lengthUnit)
+                    );
+                }
+                return clone;
+            });
+        }
+
+        /// <summary> Forces Metric units (Meters and Cubic Meters) regardless of project settings. </summary>
+        public static IEnumerable<ClashResult> InMetric(this IEnumerable<ClashResult> clashes)
+        {
+            return clashes.Select(c => {
+                var clone = c.Clone();
+                clone.IntersectionVolume = c.IntersectionVolume.OutputUnit("m3");
+                if (c.Centroid != null)
+                {
+                    clone.Centroid = new XYZ(
+                        c.Centroid.X.OutputUnit("m"),
+                        c.Centroid.Y.OutputUnit("m"),
+                        c.Centroid.Z.OutputUnit("m")
+                    );
+                }
+                return clone;
+            });
+        }
+
+        /// <summary> Forces Imperial units (Decimal Feet and Cubic Feet) regardless of project settings. </summary>
+        public static IEnumerable<ClashResult> InImperial(this IEnumerable<ClashResult> clashes)
+        {
+            return clashes.Select(c => {
+                var clone = c.Clone();
+                // Internal units are already Feet/CF, so we just round them for cleanliness
+                clone.IntersectionVolume = Math.Round(c.IntersectionVolume, 3);
+                if (c.Centroid != null)
+                {
+                    clone.Centroid = new XYZ(
+                        Math.Round(c.Centroid.X, 3),
+                        Math.Round(c.Centroid.Y, 3),
+                        Math.Round(c.Centroid.Z, 3)
+                    );
+                }
+                return clone;
+            });
         }
 
         /// <summary>
@@ -986,6 +1107,8 @@ namespace CoreScript.Engine.Globals
 
         // ── SORTING ───────────────────────────────────────────────────────────
 
+        // ── SORTING ───────────────────────────────────────────────────────────
+
         /// <summary>
         /// Sorts the collection ascending by a Revit parameter or C# property value.
         /// Automatically uses numeric sorting for Double/Integer parameters (Area, Length, Width, etc.)
@@ -993,12 +1116,14 @@ namespace CoreScript.Engine.Globals
         /// <para>Example: GetElements("Walls").OrderByParam("Width").Table()</para>
         /// </summary>
         public static IEnumerable<T> OrderByParam<T>(this IEnumerable<T> elements, string name)
-            where T : Element
+            where T : class
         {
             var list = elements.ToList();
-            return IsNumericParam(list, name)
-                ? list.OrderBy(e => e.GetNum(name))
-                : list.OrderBy(e => e.GetStr(name));
+            bool isNumeric = IsNumericParamGeneric(list, name);
+            
+            return isNumeric
+                ? list.OrderBy(e => GetNumGeneric(e, name))
+                : list.OrderBy(e => GetStrGeneric(e, name));
         }
 
         /// <summary>
@@ -1008,39 +1133,69 @@ namespace CoreScript.Engine.Globals
         /// <para>Example: GetElements("Rooms").OrderByParamDesc("Area").Table()</para>
         /// </summary>
         public static IEnumerable<T> OrderByParamDesc<T>(this IEnumerable<T> elements, string name)
-            where T : Element
+            where T : class
         {
             var list = elements.ToList();
-            return IsNumericParam(list, name)
-                ? list.OrderByDescending(e => e.GetNum(name))
-                : list.OrderByDescending(e => e.GetStr(name));
+            bool isNumeric = IsNumericParamGeneric(list, name);
+            
+            return isNumeric
+                ? list.OrderByDescending(e => GetNumGeneric(e, name))
+                : list.OrderByDescending(e => GetStrGeneric(e, name));
         }
 
-        /// <summary>
-        /// Returns true if the named parameter on the first element is a numeric storage type (Double or Integer).
-        /// Falls back to checking if the C# property returns a numeric type via reflection.
-        /// </summary>
-        private static bool IsNumericParam<T>(List<T> elements, string name) where T : Element
+        private static bool IsNumericParamGeneric<T>(List<T> elements, string name) where T : class
         {
             var first = elements.FirstOrDefault();
             if (first == null) return false;
 
-            // Check Revit parameter storage type
-            var p = first.LookupParameter(name);
-            if (p == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
-                p = first.get_Parameter(bip);
-            if (p != null)
-                return p.StorageType == StorageType.Double || p.StorageType == StorageType.Integer;
+            // 1. If it's a Revit Element, check parameters
+            if (first is Element e)
+            {
+                var p = e.LookupParameter(name);
+                if (p == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
+                    p = e.get_Parameter(bip);
+                if (p != null)
+                    return p.StorageType == StorageType.Double || p.StorageType == StorageType.Integer;
+            }
 
-            // Check C# property type via reflection
-            var prop = first.GetType().GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            // 2. Fallback: Check C# property type via reflection (for POCOs like ClashResult or Elements)
+            var prop = first.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (prop != null)
             {
                 var t = prop.PropertyType;
-                return t == typeof(double) || t == typeof(float) || t == typeof(int) || t == typeof(long);
+                return t == typeof(double) || t == typeof(float) || t == typeof(int) || t == typeof(long) || t == typeof(decimal);
             }
 
             return false;
+        }
+
+        private static double GetNumGeneric<T>(T item, string name) where T : class
+        {
+            if (item is Element e) return e.GetNum(name);
+            
+            var prop = item.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (prop != null)
+            {
+                var val = prop.GetValue(item);
+                if (val is double d) return d;
+                if (val is float f) return (double)f;
+                if (val is int i) return (double)i;
+                if (val is long l) return (double)l;
+                if (val is decimal dec) return (double)dec;
+            }
+            return 0;
+        }
+
+        private static string GetStrGeneric<T>(T item, string name) where T : class
+        {
+            if (item is Element e) return e.GetStr(name);
+            
+            var prop = item.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (prop != null)
+            {
+                return prop.GetValue(item)?.ToString() ?? "";
+            }
+            return "";
         }
 
         // ── GROUPING ──────────────────────────────────────────────────────────
@@ -1049,12 +1204,11 @@ namespace CoreScript.Engine.Globals
         /// Groups the collection by a parameter value and renders a summary table (Group, Count).
         /// <para>Example: GetElements("Doors").GroupByParam("Level").Table()</para>
         /// </summary>
-        /// <param name="groupBy">The parameter or property name to group by (e.g. "Level", "Base Constraint").</param>
         public static IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy)
-            where T : Element
+            where T : class
         {
             return elements
-                .GroupBy(e => e.GetStr(groupBy))
+                .GroupBy(e => GetStrGeneric(e, groupBy))
                 .OrderBy(g => g.Key)
                 .Select(g => new { Group = g.Key, Count = g.Count() } as object);
         }
@@ -1063,20 +1217,20 @@ namespace CoreScript.Engine.Globals
         /// Groups the collection by a parameter and sums a numeric parameter per group.
         /// <para>Example: GetElements("Walls").GroupByParam("Base Constraint", "Length", "m").Table()</para>
         /// </summary>
-        /// <param name="groupBy">The parameter or property name to group by (e.g. "Level", "Base Constraint").</param>
-        /// <param name="sum">The numeric parameter to sum per group (e.g. "Length", "Area").</param>
-        /// <param name="unit">The unit for the sum (e.g. "m", "m2"). Defaults to internal feet if empty.</param>
         public static IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy, string sum, string unit = "")
-            where T : Element
+            where T : class
         {
             return elements
-                .GroupBy(e => e.GetStr(groupBy))
+                .GroupBy(e => GetStrGeneric(e, groupBy))
                 .OrderBy(g => g.Key)
                 .Select(g => new
                 {
                     Group = g.Key,
                     Count = g.Count(),
-                    Total = Math.Round(g.Sum(e => e.GetNum(sum, string.IsNullOrEmpty(unit) ? "ft" : unit)), 3)
+                    Total = Math.Round(g.Sum(e => {
+                        if (e is Element el) return el.GetNum(sum, string.IsNullOrEmpty(unit) ? "ft" : unit);
+                        return GetNumGeneric(e, sum);
+                    }), 3)
                 } as object);
         }
     }
