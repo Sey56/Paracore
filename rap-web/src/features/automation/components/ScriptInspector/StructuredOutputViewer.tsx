@@ -10,7 +10,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useUI } from '@/hooks/useUI';
 import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
-import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronLeft, faChevronRight, faExclamationTriangle, faMagicWandSparkles } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faFileCsv, faSort, faSortUp, faSortDown, faSearch, faUpload, faCopy, faChevronLeft, faChevronRight, faExclamationTriangle, faMagicWandSparkles, faLeaf, faTree } from '@fortawesome/free-solid-svg-icons';
 import { trackEvent } from '@/utils/telemetry';
 
 import { StructuredOutput, Script } from '@/types/scriptModel';
@@ -85,6 +85,57 @@ const beautifyHeader = (header: string) => {
     }
   }
   return cleaned;
+};
+
+const renderCellContent = (header: string, value: any) => {
+  if (value === null || value === undefined) return '';
+  const cellValue = String(value);
+  const normalized = header.toLowerCase().replace(/[\s_]+/g, '');
+  
+  // Sustainability Highlighting (BIM 6.0)
+  if (normalized === 'carbon' || normalized === 'embodiedcarbon' || normalized === 'gwp') {
+    const val = parseFloat(cellValue);
+    if (!isNaN(val)) {
+      let color = 'text-emerald-600 dark:text-emerald-400';
+      if (val > 100) color = 'text-amber-600 dark:text-amber-400';
+      if (val > 500) color = 'text-rose-600 dark:text-rose-400';
+      return (
+        <span className={`font-bold ${color} flex items-center gap-1`}>
+          {val.toLocaleString()} 
+          <span className="text-[9px] opacity-60 font-medium uppercase tracking-tighter">kgCO2e</span>
+        </span>
+      );
+    }
+  }
+
+  if (normalized === 'uvalue' || normalized === 'u-value' || normalized === 'heattransfercoefficient') {
+    const val = parseFloat(cellValue);
+    if (!isNaN(val)) {
+      let color = 'text-emerald-600 dark:text-emerald-400';
+      if (val > 0.35) color = 'text-amber-600 dark:text-amber-400';
+      if (val > 1.2) color = 'text-rose-600 dark:text-rose-400';
+      return (
+        <span className={`font-bold ${color} flex items-center gap-1`}>
+          {val.toFixed(3)}
+          <span className="text-[9px] opacity-60 font-medium uppercase tracking-tighter">W/m²K</span>
+        </span>
+      );
+    }
+  }
+
+  if (normalized === 'heatloss' || normalized === 'energy' || normalized === 'qvalue' || normalized === 'heatload') {
+    const val = parseFloat(cellValue);
+    if (!isNaN(val)) {
+       return (
+        <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+          {val.toLocaleString()}
+          <span className="text-[9px] opacity-60 font-medium uppercase tracking-tighter">Watts</span>
+        </span>
+      );
+    }
+  }
+
+  return cellValue;
 };
 
 const TableView: React.FC<{
@@ -322,7 +373,7 @@ const TableView: React.FC<{
                               disabled={isUpdating}
                             />
                           ) : (
-                            <div className="truncate">{cellValue}</div>
+                            <div className="truncate">{renderCellContent(header, row[header])}</div>
                           )}
                         </td>
                       );
@@ -426,6 +477,15 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
     if (showAsTable) return 'table';
     return item.type;
   }, [item.type, showAsTable]);
+
+  const items = useMemo(() => {
+    if (!item.data) return [];
+    const lower = item.data.toLowerCase();
+    const headers = ['carbon', 'uvalue', 'u-value', 'gwp', 'heatloss', 'energy'];
+    return headers.filter(h => lower.includes(`"${h}"`));
+  }, [item.data]);
+
+  const isSustainData = items.length > 0;
 
   const { tableData, filteredDataCount } = useMemo(() => {
     const isActuallyTable = effectiveType === 'table' || effectiveType.startsWith('chart-');
@@ -791,11 +851,13 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
               )}
             </div>
           ) : (
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-2 shrink-0">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-2 shrink-0 flex items-center gap-2">
+              {isSustainData && <FontAwesomeIcon icon={faLeaf} className="text-emerald-500 animate-pulse" />}
               {effectiveType === 'chart-bar' && 'Bar Graph'}
               {effectiveType === 'chart-pie' && 'Pie Graph'}
               {effectiveType === 'chart-line' && 'Line Graph'}
-              {!['chart-bar', 'chart-pie', 'chart-line'].includes(effectiveType) && effectiveType.replace('chart-', '')}
+              {isSustainData && <span className="text-emerald-600 dark:text-emerald-500 font-black ml-1 bg-emerald-100/50 dark:bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-500/20">BIM 6.0 Sustainability Report</span>}
+              {!['chart-bar', 'chart-pie', 'chart-line'].includes(effectiveType) && !isSustainData && effectiveType.replace('chart-', '')}
             </span>
           )}
         </div>
