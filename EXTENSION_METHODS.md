@@ -6,7 +6,6 @@ A comprehensive guide to every extension method available on Revit elements and 
 > All collection extension methods are **fully generic** — they preserve the specific element type (`Wall`, `FamilyInstance`, etc.) throughout the entire fluent chain. You never lose type information.
 
 ---
-
 ## 📖 Table of Contents
 
 1. [Two Query Modes](#-two-query-modes)
@@ -24,7 +23,8 @@ A comprehensive guide to every extension method available on Revit elements and 
 13. [Collection: Bulk Write](#-collection-bulk-write)
 14. [Collection: Visualization](#-collection-visualization)
 15. [Collection: Revit UI Actions](#-collection-revit-ui-actions)
-16. [Complete Fluent Chain Examples](#-complete-fluent-chain-examples)
+16. [Element: Materials & Sustainability](#-element-materials--sustainability)
+17. [Complete Fluent Chain Examples](#-complete-fluent-chain-examples)
 
 ---
 
@@ -684,6 +684,49 @@ GetElements<Wall>()
 GetElements("Generic Models")
     .WhereMatches("TEMP")
     .Delete()
+```
+
+---
+
+## 🌿 Element: Materials & Sustainability
+
+Specialized methods for BIM 6.0 auditing and material discovery.
+
+### `element.Materials()`
+
+> Returns a list of all `Material` objects assigned to the element. Works on both Instances and Types.
+
+### `element.MaterialNames()`
+
+> Returns a list of strings containing material names.
+
+### `element.GetMaterialNames()`
+
+> Returns a comma-separated string of material names (ideal for `Table()` output).
+
+```csharp
+Selection[0].GetMaterialNames() // → "Glass, Aluminum, Concrete"
+```
+
+---
+
+### `Eco.GetCarbon(element)`
+
+> **BIM 6.0 Carbon Engine.** Calculates embodied carbon (kgCO2e) using a resilient multi-tier audit:
+> 1. Layer-by-layer material audit (Compound Structure).
+> 2. Curtain system traversal (Panels + Mullions).
+> 3. Volume-based fallback with industry-standard intensity defaults.
+
+### `Eco.GetUValue(element)`
+
+> **BIM 6.0 Thermal Engine.** Calculates thermal transmittance (W/m²K):
+> - Solves multi-layer resistance for host objects.
+> - Performs area-weighted averaging for Curtain Walls.
+> - Falls back to Type-level thermal assets if instance data is missing.
+
+```csharp
+var carbon = Eco.GetCarbon(wall);
+var uValue = Eco.GetUValue(wall);
 ```
 
 ---

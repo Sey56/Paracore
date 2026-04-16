@@ -110,6 +110,21 @@ namespace CoreScript.Engine.Globals
             return "";
         }
 
+        /// <summary> Gets all Materials assigned to the element. </summary>
+        public static IEnumerable<Material> Materials(this Element e)
+        {
+            if (e == null) return Enumerable.Empty<Material>();
+            return e.GetMaterialIds(false)
+                .Select(id => e.Document.GetElement(id) as Material)
+                .Where(m => m != null);
+        }
+
+        /// <summary> Gets a list of Material names assigned to the element. </summary>
+        public static IEnumerable<string> MaterialNames(this Element e) => e.Materials().Select(m => m.Name);
+
+        /// <summary> Gets a comma-separated string of material names assigned to the element. </summary>
+        public static string GetMaterialNames(this Element e) => string.Join(", ", e.MaterialNames());
+
         private static string FormatParamValue(Element e, Parameter p)
         {
             switch (p.StorageType)
