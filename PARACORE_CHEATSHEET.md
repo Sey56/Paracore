@@ -143,6 +143,19 @@ Auto-detects numeric vs string parameters. No manual casting needed.
 | `.BarChart()` / `.BarGraph()` | Bar chart (needs `name`+`value`) |
 | `.PieChart()` / `.PieGraph()` | Pie chart |
 | `.LineChart()` / `.LineGraph()` | Line chart |
+| `.Show()` | **Pro Output**: Smart data grid + 3D Helpers focus |
+
+---
+
+## 🛡️ Coordination & Clash Audit
+
+High-performance geometric interference detection and reporting.
+
+| Method | Description | Example |
+| :--- | :--- | :--- |
+| `.AuditClashes(target)` | Detects intersections with target category | `.AuditClashes("Pipes")` |
+| `.AuditClashes(target, tol)`| Audit with double tolerance | `.AuditClashes("Walls", 5.0)` |
+| `.Table()` | Displays Coordination Table + Visualization | `.Table()` |
 
 ---
 

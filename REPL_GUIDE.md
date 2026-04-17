@@ -345,6 +345,26 @@ door.IsFacingFlipped()    // true/false
 
 ---
 
+## 🛡️ Coordination & Clash Audit
+
+High-performance geometric interference detection and reporting. These methods leverage the optimized spatial query engine for "DirectShape First" coordination.
+
+| Method | Description | Example |
+| :--- | :--- | :--- |
+| `.AuditClashes(target)` | Detects intersections with target category | `.AuditClashes("Pipes")` |
+| `.AuditClashes(target, tol)`| Audit with double tolerance | `.AuditClashes("Walls", 5.0)` |
+| `.Table()` | **Pro Output**: Table + 3D Helpers | `.Table()` |
+
+```csharp
+// 🛡️ ARCH/STRUCT COORDINATION AUDIT 🛡️
+// Detects clashes and automatically creates 3D intersection volumes/pillars
+GetElements("Walls")
+    .AuditClashes("StructuralColumns")
+    .Table();
+```
+
+---
+
 ## 🔎 Diagnostics & Inspection
 
 | Method | Description |
@@ -451,6 +471,8 @@ Selection.Count     // Prints selection count
 | Export data to Pandas/Python | `.ToNotebook("Analytics")` |
 | Find a BIP name | `Selection[0].BuiltInParams().Table()` |
 | Debug a filter | `Selection[0].Peek()` |
+| Find intersections (Clashes) | `.AuditClashes("Pipes").Table()` |
+| Audit using tolerance        | `.AuditClashes("Pipes", 5.0).Table()` |
 | Compare two lengths | `.IsAlmostEqualTo(target)` |
 
 ### 🚫 Do NOT
@@ -522,4 +544,10 @@ GetElements<Room>()
         Area_m2 = r.Area.OutputUnit("m2", 2)
     })
     .ToNotebook("Room_Analysis")
+
+// 🛡️ One-Click Coordination Sweep 🛡️
+GetElements("Walls")
+    .AuditClashes("StructuralColumns")
+    .Table()
+```
 ```

@@ -425,6 +425,7 @@ const TableView: React.FC<{
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
                               onBlur={async () => {
+                                const idColKey = idColKeys[0];
                                 if (editValue !== cellValue && hasId && onUpdate && idColKey) {
                                   const id = typeof row[idColKey] === 'string' ? parseInt(row[idColKey] as string, 10) : Number(row[idColKey]);
                                   setIsUpdating(true);

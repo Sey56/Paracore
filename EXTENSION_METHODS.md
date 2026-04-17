@@ -651,6 +651,7 @@ These come from `VisualizationExtensions` and work on **any** `IEnumerable<T>`.
 | `.BarChart()` / `.BarGraph()` | Bar chart (needs `name` + `value` properties) |
 | `.PieChart()` / `.PieGraph()` | Pie chart |
 | `.LineChart()` / `.LineGraph()` | Line chart |
+| `.Show()` | **Pro Output**: Smart data grid + automated 3D geometric focus |
 
 ```csharp
 // Count doors per level as pie chart
@@ -730,6 +731,43 @@ var uValue = Eco.GetUValue(wall);
 ```
 
 ---
+
+## 🛡️ Collection: Coordination & Geometric Auditing
+
+High-performance interference detection and unit-aware coordination reporting. These methods leverage the optimized spatial query engine for "DirectShape First" coordination.
+
+### `.AuditClashes(targetCategory)`
+> **Surgical Interference Check.** Detects every intersection between elements in the source collection and the target category.
+
+### `.AuditClashes(target, tolerance)`
+> **Advanced Coordination Audit.**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `target` | `string` | The interference category (e.g. "StructuralColumns") |
+| `tolerance` | `double` | Geometric tolerance (e.g. `5.0`) |
+
+```csharp
+// 🛡️ ARCH/STRUCT COORDINATION AUDIT 🛡️
+// Detects where columns are embedded in walls
+GetElements("Walls")
+    .AuditClashes("StructuralColumns", tolerance: 2.0)
+    .Table();
+```
+
+---
+
+### `.Table()`
+> **Professional Output.** The definitive method for coordination scripts.
+> 1. Renders an interactive **Coordination Grid** in the Summary tab.
+> 2. Automatically links rows to **3D intersection helpers** — click a row to focus Revit on the exact clash point.
+
+```csharp
+GetElements("Walls").AuditClashes("Pipes").Table();
+```
+
+---
+
 
 ## 🚀 Complete Fluent Chain Examples
 

@@ -107,3 +107,34 @@ Paracore provides tools to help you discover what data is available on elements 
 Selection.First().ReflectionProperties().Table();
 // Output: Table with columns 'Name' (e.g. Width) and 'Type' (e.g. Double)
 ```
+
+---
+
+## 5. Coordination Data Accessors
+
+When performing geometric clash audits using `.AuditClashes()`, Paracore returns a collection of `ClashResult` objects. These contain specialized geometric and element data for coordination reporting.
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| **`.ElementA`** | `Element` | The source element (from the primary collection). |
+| **`.ElementB`** | `Element` | The colliding element (from the target category). |
+| **`.Volume`** | `double` | The raw volume of the intersection (if `includeVolume: true`). |
+| **`.Centroid`** | `XYZ` | The 3D center point of the intersection. |
+| **`.HelperId`** | `ElementId?`| The ID of the red 3D "X-Ray" helper (if `createHelper: true`). |
+
+### 💡 Pro Usage
+Use these accessors in a `.Select()` projection to generate professional coordination reports:
+
+```csharp
+// Detect clashes and display in UI with 3D Helpers
+GetElements("Walls")
+    .AuditClashes("Pipes")
+    .Table()
+    .Select(c => new {
+        Wall = c.ElementA.GetStr("Mark"),
+        Pipe = c.ElementB.GetStr("System Name"),
+        Clash_Volume = c.Volume,           // Converted by InProjectUnits
+        Clash_Position = c.Centroid,       // Converted by InProjectUnits
+    })
+    .Show();
+```

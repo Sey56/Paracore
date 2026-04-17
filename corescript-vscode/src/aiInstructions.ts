@@ -33,11 +33,20 @@ export const COPILOT_INSTRUCTIONS = "# Script Context: Paracore Tool Project\n" 
 "| `BarChart(data)` | void | Render a bar chart in the Summary tab |\n" +
 "| `PieChart(data)` | void | Render a pie chart in the Summary tab |\n" +
 "| `LineChart(data)` | void | Render a line chart in the Summary tab |\n" +
+"| `Show(data)` | void | **Coordination Only**: Renders Clash Grid + 3D Helpers focus |\n" +
 "| `SetExecutionTimeout(seconds)` | void | Extend the default 10s timeout |\n" +
 "| `GetElement<T>(name)` | T? | Find a Revit element by its Name |\n" +
 "| `GetElements<T>()` | List<T> | Get all elements of type T in the document |\n" +
 "| `Watchdog(action)` | void | **SENTINEL ONLY**: Wrapper for background monitoring logic |\n" +
-"| `WatchdogReport(msg, status)` | void | **SENTINEL ONLY**: Push a status report (\"success\", \"warning\", \"error\") |\n" +
+"| `WatchdogReport(msg, status, ids)` | void | **SENTINEL ONLY**: Push a report (\"success\",\"warning\",\"error\") with optional List<ElementId>? ids |\n" +
+"\n" +
+"### 🛡️ Coordination & Clash Audit (Element Collections)\n" +
+"| Method | Purpose |\n" +
+"|--------|---------|\n" +
+"| `.AuditClashes(targetCat)` | Detect every intersection with target category |\n" +
+"| `.AuditClashes(cat, tol, vol, help)` | **Pro**: `tol`=\"10mm\", `vol`=bool, `help`=bool (renders 3D red helpers) |\n" +
+"| `.InProjectUnits()` | Transforms result coordinates/volumes to Active Project Units |\n" +
+"| `.Show()` | **Preferred Output**: Coordination Grid + Automated 3D Focus |\n" +
 "\n" +
 "### Door & Window Extensions (FamilyInstance)\n" +
 "| Method | Type | Purpose |\n" +
