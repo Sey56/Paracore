@@ -29,6 +29,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLayoutSwapped, setIsLayoutSwapped] = useState(() => {
     return localStorage.getItem('isLayoutSwapped') === 'true';
   });
+  const [showSentinelFAB, setShowSentinelFAB] = useState(() => {
+    return localStorage.getItem('showSentinelFAB') === 'true';
+  });
 
   const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource | null>(null);
   const [activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex] = useState(0);
@@ -49,6 +52,14 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLayoutSwapped(prev => {
       const newValue = !prev;
       localStorage.setItem('isLayoutSwapped', String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  const toggleSentinelFAB = useCallback(() => {
+    setShowSentinelFAB(prev => {
+      const newValue = !prev;
+      localStorage.setItem('showSentinelFAB', String(newValue));
       return newValue;
     });
   }, []);
@@ -256,6 +267,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     toggleLayoutSwap,
     activeAnalyticsSubTabIndex,
     setActiveAnalyticsSubTabIndex,
+    showSentinelFAB,
+    toggleSentinelFAB,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -296,6 +309,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isLayoutSwapped,
     toggleLayoutSwap,
     activeAnalyticsSubTabIndex,
+    showSentinelFAB,
+    toggleSentinelFAB,
   ]);
 
   return (

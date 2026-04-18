@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBolt, faTrash, faSpinner, faCheckCircle, faInfoCircle, faShieldHalved, faChartPie } from '@fortawesome/free-solid-svg-icons';
+import { faBolt, faTrash, faSpinner, faCheckCircle, faInfoCircle, faShieldHalved, faChartPie, faDisplay } from '@fortawesome/free-solid-svg-icons';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { isTelemetryEnabled, setTelemetryEnabled } from '@/utils/telemetry';
+import { useUI } from '@/hooks/useUI';
 
 export const AutomationSettings: React.FC = () => {
   const { showNotification } = useNotifications();
+  const { showSentinelFAB, toggleSentinelFAB } = useUI();
   const [isClearing, setIsClearing] = useState(false);
   const [telemetryOptIn, setTelemetryOptIn] = useState(false);
 
@@ -44,7 +46,54 @@ export const AutomationSettings: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* UI Experience Section */}
       <div className="space-y-2">
+        <h3 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+          <FontAwesomeIcon icon={faDisplay} className="text-blue-500 text-sm" />
+          Interface & Experience
+        </h3>
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed max-w-xl">
+          Customize how Paracore's floating interface elements behave.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-6 shadow-sm group hover:border-blue-500/30 transition-all flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex gap-4 items-center flex-1">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 shrink-0">
+              <FontAwesomeIcon icon={faDisplay} className="text-xl" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Show Sentinel FAB</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
+                Display the floating elliptical button for quick access to Sentinel controls. Disable this if it blocks your workflow.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={toggleSentinelFAB}
+            className={`
+              relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+              transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2
+              ${showSentinelFAB ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}
+            `}
+            role="switch"
+            aria-checked={showSentinelFAB}
+          >
+            <span
+              aria-hidden="true"
+              className={`
+                pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 
+                transition duration-200 ease-in-out
+                ${showSentinelFAB ? 'translate-x-7' : 'translate-x-0'}
+              `}
+            />
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2 pt-4">
         <h3 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
           <FontAwesomeIcon icon={faBolt} className="text-blue-500 text-sm" />
           Engine Performance
@@ -145,3 +194,4 @@ export const AutomationSettings: React.FC = () => {
     </div>
   );
 };
+

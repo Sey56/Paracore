@@ -11,6 +11,7 @@ interface TableTabContentProps {
   capturedDocTitle: string | null;
   currentDocTitle: string | null;
   selectedScript: Script | null;
+  isHeaderPortalTarget?: boolean;
 }
 
 export const TableTabContent: React.FC<TableTabContentProps> = React.memo(({
@@ -18,6 +19,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = React.memo(({
   capturedDocTitle,
   currentDocTitle,
   selectedScript,
+  isHeaderPortalTarget = false
 }) => {
   const items = executionResult?.structuredOutput;
   const { activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex } = useUI();
@@ -55,6 +57,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = React.memo(({
             currentDocTitle={currentDocTitle}
             selectedScript={selectedScript}
             executionResult={executionResult}
+            isHeaderPortalTarget={isHeaderPortalTarget}
           />
         ) : (
           <StructuredOutputViewer 
@@ -64,6 +67,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = React.memo(({
             currentDocTitle={currentDocTitle}
             selectedScript={selectedScript}
             executionResult={executionResult}
+            isHeaderPortalTarget={isHeaderPortalTarget}
           />
         )}
       </div>

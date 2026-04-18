@@ -163,7 +163,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     };
 
     return (
-        <div className="relative w-full h-[300px] bg-slate-100 dark:bg-slate-900 code-viewer-override border-t border-b border-slate-200 dark:border-slate-800 overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
+        <div className="relative w-full h-full bg-transparent overflow-hidden">
             <div className="grid w-full h-full p-0">
                 <div
                     ref={highlighterRef}

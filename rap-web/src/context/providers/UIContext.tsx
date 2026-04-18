@@ -87,6 +87,10 @@ export interface UIContextProps {
   // Layout Swap
   isLayoutSwapped: boolean;
   toggleLayoutSwap: () => void;
+
+  // Sentinel FAB Visibility
+  showSentinelFAB: boolean;
+  toggleSentinelFAB: () => void;
 }
 
 export const UIContext = createContext<UIContextProps | undefined>(undefined);

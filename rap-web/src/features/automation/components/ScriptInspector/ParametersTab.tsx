@@ -350,9 +350,11 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 <Tooltip text={finalTooltipMessage}>
                   <button
                     className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-2xl active:scale-95
-                      ${isRunDisabled
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
-                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30 hover:shadow-blue-500/40 ring-4 ring-blue-500/5'
+                      ${isRunning
+                        ? 'bg-blue-600 text-white cursor-wait opacity-90'
+                        : isRunDisabled
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30 hover:shadow-blue-500/40 ring-4 ring-blue-500/5'
                       }`}
                     onClick={handleRunScript}
                     disabled={isRunDisabled}

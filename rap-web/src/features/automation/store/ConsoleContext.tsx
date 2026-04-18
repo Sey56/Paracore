@@ -1,0 +1,284 @@
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import type { ExecutionResult } from "@/types/common";
+import type { Script } from "@/types/scriptModel";
+import api from '@/api/axios';
+import { useNotifications } from '@/hooks/useNotifications';
+import { trackEvent } from '@/utils/telemetry';
+import { save, open } from '@tauri-apps/api/dialog';
+import { writeTextFile, readTextFile } from '@tauri-apps/api/fs';
+
+export type ConsoleItemType = 'input' | 'output' | 'error' | 'status';
+
+export interface ConsoleItem {
+  type: ConsoleItemType;
+  text: string;
+  timestamp: Date;
+  replType?: 'single' | 'multi';
+}
+
+interface ConsoleContextType {
+  localHistory: ConsoleItem[];
+  setLocalHistory: React.Dispatch<React.SetStateAction<ConsoleItem[]>>;
+  handleClear: () => void;
+  
+  singleLineValue: string;
+  setSingleLineValue: (val: string) => void;
+  multiLineValue: string;
+  setMultiLineValue: (val: string) => void;
+  
+  isMultiLine: boolean;
+  setIsMultiLine: (val: boolean) => void;
+  
+  isReplLoading: boolean;
+  handleReplSubmit: (isMulti: boolean, activeSnippetName?: string | null) => Promise<void>;
+  
+  singleCommandHistory: string[];
+  multiCommandHistory: string[];
+  
+  activeSnippetPath: string | null;
+  setActiveSnippetPath: (val: string | null) => void;
+  activeSnippetName: string | null;
+  setActiveSnippetName: (val: string | null) => void;
+
+  aiResult: any | null;
+  setAiResult: (val: any | null) => void;
+  isExplaining: boolean;
+  setIsExplaining: (val: boolean) => void;
+
+  // Snippet Handlers
+  handleNewSnippet: () => void;
+  handleLoadSnippet: () => Promise<void>;
+  handleSaveSnippet: (forceSaveAs?: boolean) => Promise<void>;
+}
+
+const ConsoleContext = createContext<ConsoleContextType | undefined>(undefined);
+
+export const useConsole = () => {
+  const context = useContext(ConsoleContext);
+  if (!context) throw new Error("useConsole must be used within a ConsoleProvider");
+  return context;
+};
+
+export const ConsoleProvider: React.FC<{ 
+  children: React.ReactNode,
+  executionResult: ExecutionResult | null,
+  setExecutionResult: (res: ExecutionResult | null) => void,
+  selectedScript: Script | null
+}> = ({ children, executionResult, setExecutionResult, selectedScript }) => {
+  const { showNotification } = useNotifications();
+  
+  const [localHistory, setLocalHistory] = useState<ConsoleItem[]>(() => {
+    const saved = localStorage.getItem('paracore_console_history');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((item: any) => ({ ...item, timestamp: new Date(item.timestamp) }));
+      } catch { return []; }
+    }
+    return [];
+  });
+
+  const [singleLineValue, setSingleLineValue] = useState(() => localStorage.getItem('paracore_repl_single_value') || "");
+  const [multiLineValue, setMultiLineValue] = useState(() => localStorage.getItem('paracore_repl_multi_value') || "");
+  const [isMultiLine, setIsMultiLine] = useState(() => localStorage.getItem('paracore_repl_multiline') === 'true');
+  const [isReplLoading, setIsReplLoading] = useState(false);
+  
+  const [activeSnippetPath, setActiveSnippetPath] = useState<string | null>(() => localStorage.getItem('paracore_repl_active_path'));
+  const [activeSnippetName, setActiveSnippetName] = useState<string | null>(() => localStorage.getItem('paracore_repl_active_name'));
+
+  const [singleCommandHistory, setSingleCommandHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem('paracore_repl_single_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [multiCommandHistory, setMultiCommandHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem('paracore_repl_multi_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [aiResult, setAiResult] = useState<any | null>(null);
+  const [isExplaining, setIsExplaining] = useState(false);
+
+  useEffect(() => { localStorage.setItem('paracore_console_history', JSON.stringify(localHistory)); }, [localHistory]);
+  useEffect(() => { localStorage.setItem('paracore_repl_single_history', JSON.stringify(singleCommandHistory)); }, [singleCommandHistory]);
+  useEffect(() => { localStorage.setItem('paracore_repl_multi_history', JSON.stringify(multiCommandHistory)); }, [multiCommandHistory]);
+  useEffect(() => { localStorage.setItem('paracore_repl_single_value', singleLineValue); }, [singleLineValue]);
+  useEffect(() => { localStorage.setItem('paracore_repl_multi_value', multiLineValue); }, [multiLineValue]);
+  useEffect(() => { localStorage.setItem('paracore_repl_multiline', String(isMultiLine)); }, [isMultiLine]);
+  
+  useEffect(() => {
+    if (activeSnippetPath) localStorage.setItem('paracore_repl_active_path', activeSnippetPath);
+    else localStorage.removeItem('paracore_repl_active_path');
+  }, [activeSnippetPath]);
+  
+  useEffect(() => {
+    if (activeSnippetName) localStorage.setItem('paracore_repl_active_name', activeSnippetName);
+    else localStorage.removeItem('paracore_repl_active_name');
+  }, [activeSnippetName]);
+
+  const handleClear = useCallback(() => {
+    setLocalHistory([]);
+    setAiResult(null);
+    setExecutionResult(null);
+    localStorage.removeItem('paracore_console_history');
+    localStorage.removeItem('paracore_console_last_timestamp');
+    showNotification("Console and Analytics cleared", "info");
+  }, [showNotification, setExecutionResult]);
+
+  const handleReplSubmit = async (isMulti: boolean, activeName?: string | null) => {
+    const command = isMulti ? multiLineValue.trim() : singleLineValue.trim();
+    if (!command || isReplLoading) return;
+
+    setAiResult(null);
+    const currentReplType = (isMulti ? 'multi' : 'single') as 'multi' | 'single';
+
+    if (command.toLowerCase() === 'help' || command === '?') {
+      const helpInput: ConsoleItem = { type: 'input', text: 'Help', timestamp: new Date(), replType: currentReplType };
+      const helpOutput: ConsoleItem = { type: 'output', text: "🚀 PARCORE REPL QUICK START:\nDiscovery: GetElements(\"Walls\"), ListParams(wall)\nEssentials: Selection[0], Println(x), vars\nAnalytics: Table(elements), BarChart(data)\nModify: Transact(\"Name\", () => { ... })\nSystem: help, clear, cls", timestamp: new Date(), replType: currentReplType };
+      
+      setLocalHistory(prev => [...prev, helpInput, helpOutput].slice(-100));
+      if (!isMulti) setSingleLineValue(""); 
+      return;
+    }
+
+    if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') {
+      setLocalHistory([]);
+      localStorage.removeItem('paracore_console_history');
+      if (!isMulti) setSingleLineValue("");
+      showNotification("Console history cleared", "info");
+      return;
+    }
+    
+    if (!isMulti) setSingleLineValue("");
+    setIsReplLoading(true);
+    const identifier = isMulti ? (activeName || "Multi-Line REPL") : command;
+    const statusItem: ConsoleItem = { type: 'status', text: `> ${identifier}`, timestamp: new Date(), replType: currentReplType };
+    setLocalHistory(prev => [...prev, statusItem].slice(-100));
+    
+    if (isMulti) setMultiCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
+    else setSingleCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
+
+    trackEvent('repl_executed', { repl_type: currentReplType });
+
+    try {
+      const response = await api.post("/api/repl", { code: command, session_id: "global" });
+      if (response.data.is_success) {
+        setExecutionResult({ 
+          output: response.data.output || '', 
+          isSuccess: true, 
+          error: null, 
+          structuredOutput: response.data.structured_output || [], 
+          internalData: `REPL_${currentReplType.toUpperCase()}`, 
+          timestamp: Date.now(), 
+          scriptName: isMulti ? identifier : "REPL" 
+        });
+      } else {
+        setExecutionResult({ 
+          output: response.data.output || '', 
+          isSuccess: false, 
+          error: response.data.error_message || 'Error', 
+          structuredOutput: [], 
+          internalData: `REPL_${currentReplType.toUpperCase()}`, 
+          timestamp: Date.now(), 
+          scriptName: isMulti ? identifier : "REPL" 
+        });
+      }
+    } catch (err: any) {
+      const errorItem: ConsoleItem = { type: 'error', text: `Error: ${err.message}`, timestamp: new Date(), replType: currentReplType };
+      setLocalHistory(prev => [...prev, errorItem].slice(-100));
+    } finally {
+      setIsReplLoading(false);
+    }
+  };
+
+  const handleSaveSnippet = async (forceSaveAs: boolean = false) => {
+    if (!multiLineValue.trim()) return;
+    try {
+      let targetPath = activeSnippetPath;
+      if (forceSaveAs || !targetPath) {
+        targetPath = await save({ 
+          filters: [{ name: 'C# Script', extensions: ['cs'] }], 
+          defaultPath: activeSnippetName ? `${activeSnippetName}.cs` : 'MyReplSnippet.cs' 
+        });
+      }
+      if (targetPath) {
+        await writeTextFile(targetPath, multiLineValue);
+        setActiveSnippetPath(targetPath);
+        const filename = targetPath.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
+        setActiveSnippetName(filename);
+        showNotification(forceSaveAs ? "Saved As" : "Saved", "success");
+      }
+    } catch (err: any) { showNotification(err.message, "error"); }
+  };
+
+  const handleNewSnippet = () => {
+    setMultiLineValue("");
+    setActiveSnippetPath(null);
+    setActiveSnippetName(null);
+    showNotification("New snippet created", "info");
+  };
+
+  const handleLoadSnippet = async () => {
+    try {
+      const sel = await open({ multiple: false, filters: [{ name: 'C# Script', extensions: ['cs'] }] });
+      if (sel && typeof sel === 'string') {
+        const content = await readTextFile(sel);
+        setMultiLineValue(content);
+        setActiveSnippetPath(sel);
+        const filename = sel.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
+        setActiveSnippetName(filename);
+        showNotification("Loaded", "success");
+      }
+    } catch (err: any) { showNotification(err.message, "error"); }
+  };
+
+  // Process execution results into history
+  const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!executionResult) return;
+    if (executionResult.timestamp === lastProcessedTimestampRef.current) return;
+    
+    lastProcessedTimestampRef.current = executionResult.timestamp;
+    
+    const internalData = executionResult.internalData || "";
+    const isRepl = internalData.startsWith('REPL');
+    const replType: 'single' | 'multi' | undefined = isRepl ? (internalData.includes('MULTI') ? 'multi' : 'single') : undefined;
+
+    const newItems: ConsoleItem[] = [];
+
+    // IF NOT REPL, add status marker for the script execution start
+    if (!isRepl) {
+        const scriptName = executionResult.scriptName || "Script";
+        newItems.push({ type: 'status', text: `> ${scriptName}`, timestamp: new Date() });
+    }
+
+    if (executionResult.output) {
+      newItems.push({ type: 'output', text: String(executionResult.output), timestamp: new Date(), replType });
+    }
+    if (executionResult.error) {
+      newItems.push({ type: 'error', text: String(executionResult.error), timestamp: new Date(), replType });
+    }
+
+    if (newItems.length > 0) {
+        setLocalHistory(prev => [...prev, ...newItems].slice(-100));
+    }
+  }, [executionResult]);
+
+  return (
+    <ConsoleContext.Provider value={{
+      localHistory, setLocalHistory, handleClear,
+      singleLineValue, setSingleLineValue,
+      multiLineValue, setMultiLineValue,
+      isMultiLine, setIsMultiLine,
+      isReplLoading, handleReplSubmit,
+      singleCommandHistory, multiCommandHistory,
+      activeSnippetPath, setActiveSnippetPath,
+      activeSnippetName, setActiveSnippetName,
+      aiResult, setAiResult,
+      isExplaining, setIsExplaining,
+      handleNewSnippet, handleLoadSnippet, handleSaveSnippet
+    }}>
+      {children}
+    </ConsoleContext.Provider>
+  );
+};

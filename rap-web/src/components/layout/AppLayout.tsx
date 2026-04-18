@@ -23,6 +23,7 @@ import SettingsModal from '@/features/settings/components/SettingsModal';
 import TeamManagementModal from '@/features/settings/components/TeamManagementModal';
 import { AgentView } from "@/features/agent/components/AgentView";
 import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
+import { BottomPanel } from "@/components/layout/BottomPanel/BottomPanel";
 
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, user, activeRole } = useAuth();
@@ -83,7 +84,8 @@ export const AppLayout: React.FC = () => {
     activeScriptSource,
     infoModalState,
     closeInfoModal,
-    isLayoutSwapped
+    isLayoutSwapped,
+    showSentinelFAB
   } = useUI();
 
   const isMobile = useBreakpoint();
@@ -165,7 +167,7 @@ export const AppLayout: React.FC = () => {
       <SettingsModal />
       <TeamManagementModal />
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
-      <FloatingActionButton />
+      {showSentinelFAB && <FloatingActionButton />}
 
       {selectedScript && <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />}
 
@@ -197,18 +199,24 @@ export const AppLayout: React.FC = () => {
                       />
                     </div>
                   )}
-                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto custom-scrollbar p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
-                    {activeMainView === 'scripts' && <ScriptGallery />}
-                    {activeMainView === 'agent' && <AgentView />}
-                    {activeMainView === 'playlists' && <PlaylistsTab />}
+                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden ${isMobile ? 'pt-4' : ''}`}>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0">
+                      {activeMainView === 'scripts' && <ScriptGallery />}
+                      {activeMainView === 'agent' && <AgentView />}
+                      {activeMainView === 'playlists' && <PlaylistsTab />}
+                    </div>
+                    {activeMainView !== 'playlists' && <BottomPanel />}
                   </div>
                 </>
               ) : (
                 <>
-                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto custom-scrollbar p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
-                    {activeMainView === 'scripts' && <ScriptGallery />}
-                    {activeMainView === 'agent' && <AgentView />}
-                    {activeMainView === 'playlists' && <PlaylistsTab />}
+                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden ${isMobile ? 'pt-4' : ''}`}>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0">
+                      {activeMainView === 'scripts' && <ScriptGallery />}
+                      {activeMainView === 'agent' && <AgentView />}
+                      {activeMainView === 'playlists' && <PlaylistsTab />}
+                    </div>
+                    {activeMainView !== 'playlists' && <BottomPanel />}
                   </div>
                   {activeMainView !== 'playlists' && (
                     <div 

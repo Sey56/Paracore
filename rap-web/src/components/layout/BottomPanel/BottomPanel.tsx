@@ -1,0 +1,200 @@
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTerminal, faChartLine, faTrash, faCopy, faMagicWandSparkles, faExpandAlt, faCompressAlt } from '@fortawesome/free-solid-svg-icons';
+import { useConsole } from '@/features/automation/store/ConsoleContext';
+import { useScriptExecution } from '@/features/automation';
+import { ExecutionHistory } from '@/features/automation/components/ScriptInspector/ExecutionHistory';
+import { TableTabContent } from '@/features/automation/components/ScriptInspector/TableTabContent';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
+import { useNotifications } from '@/hooks/useNotifications';
+
+export const BottomPanel: React.FC = () => {
+  const { localHistory, handleClear, aiResult, isExplaining } = useConsole();
+  const { executionResult, selectedScript } = useScriptExecution();
+  const { revitStatus } = useRevitStatus();
+  const { showNotification } = useNotifications();
+  
+  const [activeTab, setActiveTab] = useState<'history' | 'analytics'>('history');
+  const [isExpanded, setIsExpanded] = useState(() => {
+    return localStorage.getItem('paracore_bottom_panel_expanded') === 'true';
+  });
+
+  const [panelHeight, setPanelHeight] = useState(() => {
+    const saved = localStorage.getItem('paracore_bottom_panel_height');
+    return saved ? parseInt(saved) : 300;
+  });
+  
+  const [isResizing, setIsResizing] = useState(false);
+  const [hasUnviewedAnalytics, setHasUnviewedAnalytics] = useState(false);
+
+  const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    localStorage.setItem('paracore_bottom_panel_expanded', String(isExpanded));
+  }, [isExpanded]);
+
+  useEffect(() => {
+    if (!executionResult) return;
+    if (executionResult.timestamp === lastProcessedTimestampRef.current) return;
+    lastProcessedTimestampRef.current = executionResult.timestamp;
+    
+    const hasAnalytics = executionResult.structuredOutput && executionResult.structuredOutput.some(item => 
+      ['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(item.type)
+    );
+
+    if (hasAnalytics && activeTab !== 'analytics') {
+      setHasUnviewedAnalytics(true);
+    }
+  }, [executionResult, activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      setHasUnviewedAnalytics(false);
+    }
+  }, [activeTab]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isExpanded) return;
+    setIsResizing(true);
+    e.preventDefault();
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    const newHeight = window.innerHeight - e.clientY;
+    // Limit resizing range - Min 48px to keep header visible
+    if (newHeight >= 48 && newHeight <= window.innerHeight - 100) {
+      setPanelHeight(newHeight);
+    }
+  }, [isResizing]);
+
+  const handleMouseUp = useCallback(() => {
+    if (isResizing) {
+      setIsResizing(false);
+      localStorage.setItem('paracore_bottom_panel_height', panelHeight.toString());
+    }
+  }, [isResizing, panelHeight]);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  const currentDocTitle = React.useMemo(() => revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null, [revitStatus.document]);
+  
+  const handleCopy = () => {
+    const content = localHistory.map(item => (item.type === 'input' ? `> ${item.text}` : item.text)).join('\n');
+    navigator.clipboard.writeText(content).then(() => showNotification("Copied to clipboard", "info"));
+  };
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  const getPanelClasses = () => {
+    const base = "flex flex-col bg-white dark:bg-slate-900 transition-all duration-300 ease-in-out z-40 overflow-hidden";
+    if (isExpanded) return `${base} absolute inset-0 z-[100] border-none shadow-none`;
+    return `${base} relative border-t border-slate-200 dark:border-gray-700 shadow-lg`;
+  };
+
+  const getPanelStyle = () => {
+    if (isExpanded) return { height: '100%', width: '100%', top: 0, left: 0 };
+    return { height: `${panelHeight}px` };
+  };
+
+  return (
+    <div className={getPanelClasses()} style={getPanelStyle()}>
+      {/* Resizer Handle */}
+      {!isExpanded && (
+        <div 
+          className="absolute -top-1 inset-x-0 h-2 cursor-ns-resize hover:bg-blue-500/20 transition-colors z-50 group flex items-center justify-center"
+          onMouseDown={handleMouseDown}
+        >
+          <div className="w-12 h-1 bg-slate-300 dark:bg-slate-600 rounded-full group-hover:bg-blue-400" />
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0">
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`w-12 h-12 flex items-center justify-center border-b-2 transition-all ${activeTab === 'history' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 shadow-[inset_0_-2px_0_rgba(59,130,246,1)]' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            title="Execution History"
+          >
+            <FontAwesomeIcon icon={faTerminal} className="text-sm" />
+          </button>
+          <button 
+            onClick={() => setActiveTab('analytics')}
+            className={`w-12 h-12 flex items-center justify-center border-b-2 transition-all relative ${activeTab === 'analytics' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 shadow-[inset_0_-2px_0_rgba(59,130,246,1)]' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            title="Analytics & Tables"
+          >
+            <FontAwesomeIcon icon={faChartLine} className="text-sm" />
+            {hasUnviewedAnalytics && (
+              <div className="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-sm" />
+            )}
+          </button>
+        </div>
+
+        <div className="flex-1 flex items-center gap-3 min-w-0 ml-4">
+          <div id="bottom-panel-portal-root" className="flex-1 flex items-center gap-2 overflow-hidden" />
+
+          <div className="flex items-center gap-3 shrink-0 ml-auto">
+            {activeTab === 'history' && (
+              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+                <button onClick={handleClear} title="Clear Console" className="text-slate-400 hover:text-red-500 transition-colors">
+                  <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                </button>
+                <button onClick={handleCopy} title="Copy History" className="text-slate-400 hover:text-blue-500 transition-colors">
+                  <FontAwesomeIcon icon={faCopy} className="text-xs" />
+                </button>
+              </div>
+            )}
+            
+            <div className="flex items-center border-l border-slate-200 dark:border-slate-700 ml-1 pl-3">
+              <button 
+                onClick={toggleExpand} 
+                title={isExpanded ? "Restore Layout" : "Fill Gallery Area"}
+                className={`transition-colors p-2 ${isExpanded ? 'text-blue-500 hover:text-blue-600' : 'text-slate-400 hover:text-blue-500'}`}
+              >
+                <FontAwesomeIcon icon={isExpanded ? faCompressAlt : faExpandAlt} className="text-xs" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden relative">
+        <div className={`h-full w-full ${activeTab !== 'history' ? 'hidden' : ''}`}>
+          <ExecutionHistory />
+        </div>
+        <div className={`h-full w-full ${activeTab !== 'analytics' ? 'hidden' : ''}`}>
+          <TableTabContent 
+            executionResult={executionResult} 
+            capturedDocTitle={null} 
+            currentDocTitle={currentDocTitle} 
+            selectedScript={selectedScript} 
+            isHeaderPortalTarget={activeTab === 'analytics'}
+          />
+        </div>
+
+        {isExplaining && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+             <FontAwesomeIcon icon={faMagicWandSparkles} spin className="text-blue-500 text-4xl mb-4" />
+             <p className="text-lg font-bold text-slate-700 dark:text-slate-200 animate-pulse tracking-widest uppercase">AI ANALYZING</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
