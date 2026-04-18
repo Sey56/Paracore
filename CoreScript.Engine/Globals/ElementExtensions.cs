@@ -535,6 +535,41 @@ namespace CoreScript.Engine.Globals
             Tx.Transact(e.Document, "Delete Element", () => e.Document.Delete(e.Id));
         }
 
+        /// <summary>
+        /// Deletes all elements in the collection in a single transaction.
+        /// BIM-Smart: Skips Pinned elements and Curtain Panels to avoid internal Revit exceptions.
+        /// Handles dependencies safely by checking IsValidObject before each deletion.
+        /// </summary>
+        public static void Delete<T>(this IEnumerable<T> elements)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (!list.Any()) return;
+            
+            var doc = list.First().Document;
+            Tx.Transact(doc, "Delete Elements", () =>
+            {
+                foreach (var e in list)
+                {
+                    // 1. Basic Validity
+                    if (e == null || !e.IsValidObject || e.Id == ElementId.InvalidElementId) continue;
+                    
+                    // 2. BIM Safety: Skip Pinned, Panels, and Curtain-Wall-Hosted Doors
+                    if (e.Pinned) continue;
+                    if (e is Panel) continue;
+
+                    // Use the user's proven host-kind check for Curtain Wall doors
+                    if (e is FamilyInstance fi)
+                    {
+                        if (fi.Host is Wall hostWall && hostWall.WallType.Kind == WallKind.Curtain)
+                            continue;
+                    }
+
+                    try { doc.Delete(e.Id); } catch { }
+                }
+            });
+        }
+
         public static Element Hide(this Element e)
         {
             var view = e.Document.ActiveView;
@@ -633,121 +668,147 @@ namespace CoreScript.Engine.Globals
         // --- Stable Orientation Helpers for Doors/Windows ---
 
         /// <summary> Returns the Room the door leads FROM (The "Access" or "Exterior" side). Stable regardless of flips. </summary>
-        public static string RoomFrom(this FamilyInstance fi) => fi.RoomAccess();
+        public static string RoomFrom(this Element e) => e.GetRoomNames().From;
 
         /// <summary> Returns the Room the door leads TO (The "Destination" or "Swing" side). Stable regardless of flips. </summary>
-        public static string RoomTo(this FamilyInstance fi) => fi.RoomDestination();
+        public static string RoomTo(this Element e) => e.GetRoomNames().To;
 
         /// <summary> 
         /// Gets the name of the "Access Room" (The room the door swings AWAY from).
         /// Uses a robust dual-probe geometric check with Phase-awareness.
         /// </summary>
-        public static string RoomAccess(this FamilyInstance fi) => fi.GetRoomNames().From;
+        public static string RoomAccess(this Element e) => e.GetRoomNames().From;
 
         /// <summary> 
         /// Gets the name of the "Destination Room" (The room the door swings INTO).
         /// Uses a robust dual-probe geometric check with Phase-awareness.
         /// </summary>
-        public static string RoomDestination(this FamilyInstance fi) => fi.GetRoomNames().To;
+        public static string RoomDestination(this Element e) => e.GetRoomNames().To;
 
-        private static (string From, string To) GetRoomNames(this FamilyInstance fi)
+        private static (string From, string To) GetRoomNames(this Element e)
         {
-            if (fi == null) return ("-", "-");
+            if (e == null) return ("-", "-");
 
             try {
-                var doc = fi.Document;
-                var phase = doc.GetElement(fi.CreatedPhaseId) as Phase;
-                var loc = (fi.Location as LocationPoint)?.Point;
+                var doc = e.Document;
+                var phaseId = e.CreatedPhaseId;
+                if (phaseId == ElementId.InvalidElementId) 
+                    phaseId = doc.GetElement(e.GetTypeId())?.CreatedPhaseId ?? ElementId.InvalidElementId;
+                
+                var phase = doc.GetElement(phaseId) as Phase;
+                
+                // Get Location Point
+                XYZ? loc = null;
+                if (e is FamilyInstance fi) loc = (fi.Location as LocationPoint)?.Point;
+                else if (e is Panel panel) loc = (panel.Location as LocationPoint)?.Point;
+                
                 if (loc == null) return ("-", "-");
 
-                // 1. Calculate two probe points 2.5ft on either side of the door
-                var facing = fi.FacingOrientation.Normalize();
-                var zOffset = new XYZ(0, 0, 3.0); // 3ft up to avoid floor/threshold collisions
-                
+                // Get Facing Orientation
+                XYZ? facing = null;
+                if (e is FamilyInstance fi2) facing = fi2.FacingOrientation.Normalize();
+                else if (e is Panel panel2) facing = panel2.FacingOrientation.Normalize();
+
+                if (facing == null) return ("-", "-");
+
+                // 1. Calculate two probe points on either side of the wall
+                var zOffset = new XYZ(0, 0, 3.0); 
                 var probeA = loc + (facing * 2.5) + zOffset;
                 var probeB = loc - (facing * 2.5) + zOffset;
 
-                // 2. Identify rooms at those probes
                 var roomA = doc.GetRoomAtPoint(probeA, phase);
                 var roomB = doc.GetRoomAtPoint(probeB, phase);
-
                 var nameA = roomA?.Name ?? "External";
                 var nameB = roomB?.Name ?? "External";
 
-                // 3. Find the "Swing Center" (where the physical leaf/arc live)
-                var arc = fi.FindSwingArc();
-                if (arc == null) 
-                {
-                    // If no arc, we use the FacingOrientation as a fallback, 
-                    // which is still better than the native properties.
-                    return (nameB, nameA);
-                }
+                // 2. Use the Swing Arc to determine 'To' and 'From'
+                var arc = e.FindSwingArc();
+                if (arc == null) return (nameB, nameA); // Fallback to orientation
 
-                // Weighted test: We check 3 points along the arc to be sure
-                var testPoints = new[] { 
-                    arc.Evaluate(0.2, true), 
-                    arc.Evaluate(0.5, true), 
-                    arc.Evaluate(0.8, true) 
-                };
-                
-                double totalDistA = testPoints.Sum(p => p.DistanceTo(probeA));
-                double totalDistB = testPoints.Sum(p => p.DistanceTo(probeB));
+                var swingMid = arc.Evaluate(0.5, true);
+                double distA = swingMid.DistanceTo(probeA);
+                double distB = swingMid.DistanceTo(probeB);
 
-                // If the "Swing Cluster" is closer to Probe A, then A is the destination room.
-                // From = Room B, To = Room A
-                return totalDistA < totalDistB ? (nameB, nameA) : (nameA, nameB);
+                // If swing is closer to Probe A, then A is the 'To' room.
+                return distA < distB ? (nameB, nameA) : (nameA, nameB);
 
             } catch { return ("-", "-"); }
         }
 
-        /// <summary> Returns industry standard handing (LH, RH, LHR, RHR) based on physical swing geometry seen from RoomFrom. </summary>
-        public static string Handing(this FamilyInstance fi)
+        /// <summary> Returns industry standard handing (LH or RH) as seen from the side the door swings AWAY from. </summary>
+        public static string Handing(this Element e)
         {
-            if (fi == null) return "-";
-            var arc = fi.FindSwingArc();
-            if (arc == null) return "-";
+            if (e == null) return "-";
+            var arc = e.FindSwingArc();
+            
+            if (arc == null)
+            {
+                if (e is FamilyInstance fi) return fi.HandFlipped ? "RH" : "LH";
+                return "-";
+            }
 
-            // 1. Perspective: Stand in RoomFrom and look at the door
-            var rooms = fi.GetRoomNames();
-            var loc = (fi.Location as LocationPoint)?.Point;
+            // Get Location Point
+            XYZ? loc = null;
+            if (e is FamilyInstance fi2) loc = (fi2.Location as LocationPoint)?.Point;
+            else if (e is Panel panel) loc = (panel.Location as LocationPoint)?.Point;
+            
             if (loc == null) return "-";
 
-            // Facing vector normally points from RoomFrom to RoomTo (for a non-flipped door)
-            // But we use a proven vector: from door location towards the swing
-            var swingMid = arc.Evaluate(0.5, true);
-            var toSwing = (swingMid - loc).Normalize();
+            // 1. Perspective: Stand in RoomFrom (the side the door swings AWAY from)
+            var rooms = e.GetRoomNames();
             
-            // 2. Determine if it's a "Reverse" swing (if it swings TOWARDS RoomFrom)
-            // We use the facing vector as a reference for the "RoomTo" direction
-            var facing = fi.FacingOrientation.Normalize();
-            bool isReverse = facing.DotProduct(toSwing) < 0;
+            // Get Facing Orientation
+            XYZ? facing = null;
+            if (e is FamilyInstance fi3) facing = fi3.FacingOrientation.Normalize();
+            else if (e is Panel panel2) facing = panel2.FacingOrientation.Normalize();
 
-            // 3. Determine Hinge Side (Left/Right)
-            // We look "Into" the door from the Access side. 
-            var lookDir = isReverse ? -facing : facing;
+            if (facing == null) return "-";
+
+            var probeA = loc + (facing * 2.5);
+            var phaseId = e.CreatedPhaseId;
+            var roomA = e.Document.GetRoomAtPoint(new XYZ(probeA.X, probeA.Y, loc.Z + 3.0), e.Document.GetElement(phaseId) as Phase);
+            var nameA = roomA?.Name ?? "External";
+
+            // Vector pointing TOWARDS the 'From' room
+            var toFrom = (rooms.From == nameA) ? facing : -facing;
+            
+            // 2. Look direction: From RoomFrom TOWARDS the door (into RoomTo)
+            var lookDir = -toFrom;
+
+            // 3. Determine Hinge Side
             var hinge = arc.Center;
             var toHinge = (hinge - loc).Normalize();
 
-            // Right-hand rule: LookDir x Z gives the "Right" vector in Revit
             var rightVector = lookDir.CrossProduct(XYZ.BasisZ);
             bool isRight = rightVector.DotProduct(toHinge) > 0;
 
-            string code = isRight ? "RH" : "LH";
-            return isReverse ? code + "R" : code;
+            return isRight ? "RH" : "LH";
         }
 
         /// <summary> Returns "Left" or "Right" hinge side as seen from the Access room. </summary>
-        public static string HingeSide(this FamilyInstance fi)
+        public static string HingeSide(this Element e)
         {
-            var handing = fi.Handing();
+            var handing = e.Handing();
             if (handing.StartsWith("LH")) return "Left";
             if (handing.StartsWith("RH")) return "Right";
             return "-";
         }
 
-        public static Arc? FindSwingArc(this FamilyInstance fi)
+        public static Arc? FindSwingArc(this Element e)
         {
-            var view = fi.Document.ActiveView;
+            var doc = e.Document;
+            var view = doc.ActiveView;
+
+            // 1. Ensure we have a view that shows symbolic geometry (Swing Arcs)
+            if (view == null || (view.ViewType != ViewType.FloorPlan && view.ViewType != ViewType.AreaPlan && view.ViewType != ViewType.CeilingPlan))
+            {
+                // Find a plan view. Prefer one on the same level.
+                var levelId = e.LevelId;
+                var allPlanViews = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>();
+                view = allPlanViews.FirstOrDefault(v => v.GenLevel?.Id == levelId && !v.IsTemplate) 
+                       ?? allPlanViews.FirstOrDefault(v => !v.IsTemplate);
+            }
+
             if (view == null) return null;
 
             var options = new Options { 
@@ -755,7 +816,7 @@ namespace CoreScript.Engine.Globals
                 View = view 
             };
             
-            var geom = fi.get_Geometry(options);
+            var geom = e.get_Geometry(options);
             if (geom == null) return null;
 
             return ScanForArcRecursive(geom, Transform.Identity);
@@ -773,7 +834,7 @@ namespace CoreScript.Engine.Globals
                 if (obj is Arc arc)
                 {
                     var worldArc = arc.CreateTransformed(tr) as Arc;
-                    if (worldArc != null && worldArc.Radius > 1.0)
+                    if (worldArc != null && worldArc.Radius > 0.5)
                     {
                         if (bestArc == null || worldArc.Radius > bestArc.Radius)
                             bestArc = worldArc;

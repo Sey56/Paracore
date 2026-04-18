@@ -104,7 +104,6 @@ export const useScriptCard = (script: Script, onSelect: () => void, isSelected: 
   const handleRunClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRunButtonDisabled) return;
-    setActiveInspectorTab('console');
     await runScript(script);
   };
 

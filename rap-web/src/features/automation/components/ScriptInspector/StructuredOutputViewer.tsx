@@ -294,7 +294,7 @@ const TableView: React.FC<{
 
 const Navigator: React.FC<{ executionResult: ExecutionResult | null; activeAnalyticsSubTabIndex: number; handlePrev: () => void; handleNext: () => void; }> = ({ executionResult, activeAnalyticsSubTabIndex, handlePrev, handleNext }) => {
   if (!executionResult?.structuredOutput || executionResult.structuredOutput.length <= 1) return null;
-  return <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 mr-2 shadow-sm"><button onClick={(e) => { e.stopPropagation(); handlePrev(); }} className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"><FontAwesomeIcon icon={faChevronLeft} className="text-[9px]" /></button><span className="text-[9px] font-black font-mono text-slate-500 dark:text-slate-400 min-w-[24px] text-center tracking-tighter cursor-default">{activeAnalyticsSubTabIndex + 1}/{executionResult.structuredOutput.length}</span><button onClick={(e) => { e.stopPropagation(); handleNext(); }} className="text-slate-400 hover:text-blue-600 transition-colors p-0.5"><FontAwesomeIcon icon={faChevronRight} className="text-[9px]" /></button></div>;
+  return <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 mr-2 shadow-sm"><button onClick={(e) => { e.stopPropagation(); handlePrev(); }} className="text-slate-400 hover:text-blue-600 transition-colors p-0.5" title="Previous View"><FontAwesomeIcon icon={faChevronLeft} className="text-[9px]" /></button><span className="text-[9px] font-black font-mono text-slate-500 dark:text-slate-400 min-w-[24px] text-center tracking-tighter cursor-default">{activeAnalyticsSubTabIndex + 1}/{executionResult.structuredOutput.length}</span><button onClick={(e) => { e.stopPropagation(); handleNext(); }} className="text-slate-400 hover:text-blue-600 transition-colors p-0.5" title="Next View"><FontAwesomeIcon icon={faChevronRight} className="text-[9px]" /></button></div>;
 };
 
 export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = React.memo(({ item, isDashboard = false, capturedDocTitle, currentDocTitle, selectedScript, executionResult, isHeaderPortalTarget = false }) => {
@@ -401,29 +401,213 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
   };
 
   const handleDownloadChartCsv = useCallback(async () => { try { const data = Array.isArray(parsedData) ? parsedData : [parsedData]; if (data.length === 0) return; const csvContent = [Object.keys(data[0]).join(','), ...data.map((row: any) => Object.values(row).map((val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))].join('\n'); const filePath = await save({ filters: [{ name: 'CSV', extensions: ['csv'] }], defaultPath: `chart_data_${new Date().toISOString().slice(0, 10)}.csv` }); if (filePath) { await writeTextFile(filePath, csvContent); showNotification('Chart data exported as CSV.', 'success'); } } catch { showNotification("Failed to export CSV data.", "error"); } }, [parsedData, showNotification]);
+  
   const handleDownloadSvg = useCallback(async () => {
-    const container = document.getElementById(chartId); if (!container) return;
+    const container = document.getElementById(chartId);
+    if (!container) return;
     try {
-      const allSvgs = Array.from(container.querySelectorAll('svg')); let originalSvg: SVGSVGElement | null = null; let maxArea = 0; for (const svg of allSvgs) { const rect = svg.getBoundingClientRect(); const area = rect.width * rect.height; if (area > maxArea) { maxArea = area; originalSvg = svg; } }
-      if (!originalSvg || maxArea < 1000) { showNotification("Could not find the chart image to export.", "warning"); return; }
-      const width = originalSvg.getBoundingClientRect().width || parseFloat(originalSvg.getAttribute("width") || "0"); const height = originalSvg.getBoundingClientRect().height || parseFloat(originalSvg.getAttribute("height") || "0"); if (!width || !height) { showNotification("Chart has no dimensions to export.", "warning"); return; }
-      const clonedSvg = originalSvg.cloneNode(true) as SVGSVGElement; clonedSvg.setAttribute("width", width.toString()); clonedSvg.setAttribute("height", height.toString()); clonedSvg.setAttribute("viewBox", `0 0 ${width} ${height}`); clonedSvg.style.overflow = "visible";
-      const stylesToCopy = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-opacity', 'fill-opacity', 'opacity', 'font-family', 'font-size', 'font-weight', 'transform', 'transform-origin', 'visibility', 'display', 'stop-color', 'stop-opacity'];
-      const originalNodes = originalSvg.querySelectorAll('*'); const clonedNodes = clonedSvg.querySelectorAll('*');
-      originalNodes.forEach((orig, idx) => { const clone = clonedNodes[idx] as any; if (clone && (clone.style)) { const comp = window.getComputedStyle(orig); stylesToCopy.forEach(s => { let v = comp.getPropertyValue(s); if (v === 'currentColor') v = comp.color; if (v) clone.style.setProperty(s, v); }); } });
-      const ser = new XMLSerializer(); let src = ser.serializeToString(clonedSvg); if (!src.match(/^<svg[^>]+"http:\/\/www\.w3\.org\/1999\/xlink"/)) src = src.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
-      const filePath = await save({ filters: [{ name: 'SVG', extensions: ['svg'] }], defaultPath: `chart_${item.type}_${new Date().toISOString().slice(0, 10)}.svg` }); if (filePath) { await writeTextFile(filePath, src); showNotification('Chart exported as SVG.', 'success'); }
-    } catch { showNotification("Failed to export chart image.", "error"); }
-  }, [chartId, item.type, showNotification]);
+      const allSvgs = Array.from(container.querySelectorAll('svg'));
+      let originalSvg: SVGSVGElement | null = null;
+      let maxArea = 0;
+      for (const svg of allSvgs) {
+        const rect = svg.getBoundingClientRect();
+        const area = rect.width * rect.height;
+        if (area > maxArea) {
+          maxArea = area;
+          originalSvg = svg;
+        }
+      }
+      if (!originalSvg || maxArea < 1000) {
+        showNotification("Could not find the chart image to export.", "warning");
+        return;
+      }
 
-  const HeaderControls = () => (
-    <div className="flex items-center gap-4 w-full">
+      const rect = originalSvg.getBoundingClientRect();
+      const width = rect.width || parseFloat(originalSvg.getAttribute("width") || "0");
+      const height = rect.height || parseFloat(originalSvg.getAttribute("height") || "0");
+      
+      if (!width || !height) {
+        showNotification("Chart has no dimensions to export.", "warning");
+        return;
+      }
+
+      const clonedSvg = originalSvg.cloneNode(true) as SVGSVGElement;
+      clonedSvg.setAttribute("width", width.toString());
+      clonedSvg.setAttribute("height", height.toString());
+      clonedSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      clonedSvg.style.overflow = "visible";
+
+      // 🎯 Styles to copy from computed to inline
+      const stylesToCopy = [
+        'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-opacity',
+        'fill-opacity', 'opacity', 'font-family', 'font-size', 'font-weight',
+        'transform', 'transform-origin', 'visibility', 'display', 'stop-color',
+        'stop-opacity', 'text-anchor', 'dominant-baseline', 'alignment-baseline',
+        'color', 'shape-rendering'
+      ];
+
+      const copyStyles = (source: Element, target: HTMLElement | SVGElement) => {
+        const comp = window.getComputedStyle(source);
+        const tagName = source.tagName.toLowerCase();
+        stylesToCopy.forEach(s => {
+          let v = comp.getPropertyValue(s);
+          
+          if (v === 'currentColor') {
+            v = comp.color;
+          }
+          
+          if (s === 'fill' && (!v || v === 'none' || v === 'rgba(0, 0, 0, 0)') && (tagName === 'text' || tagName === 'tspan')) {
+            v = comp.color;
+          }
+
+          if (s === 'stroke' && (v === 'none' || !v) && (tagName === 'line' || tagName === 'path')) {
+             const sw = comp.strokeWidth;
+             if (sw && sw !== '0px' && !source.classList.contains('recharts-rectangle')) {
+                v = comp.color;
+             }
+          }
+
+          if (v && v !== 'none') target.style.setProperty(s, v);
+        });
+      };
+
+      // 🎨 Step 1: Copy styles to all cloned elements BEFORE adding background (to keep indices aligned)
+      const originalNodes = Array.from(originalSvg.querySelectorAll('*'));
+      const clonedNodes = Array.from(clonedSvg.querySelectorAll('*'));
+      
+      copyStyles(originalSvg, clonedSvg);
+      originalNodes.forEach((orig, idx) => {
+        const clone = clonedNodes[idx] as HTMLElement;
+        if (clone && clone.style) {
+          copyStyles(orig, clone);
+        }
+      });
+
+      // 🎨 Step 2: Handle Legends (which are HTML and must be manually reconstructed into SVG)
+      const padding = 20;
+      const legendWrapper = container.querySelector('.recharts-legend-wrapper');
+      const legendItems = legendWrapper ? Array.from(legendWrapper.querySelectorAll('.recharts-legend-item')) : [];
+      let legendG: SVGGElement | null = null;
+      let extraHeight = 0;
+
+      if (legendWrapper && legendItems.length > 0) {
+        const containerRect = container.getBoundingClientRect();
+        const lWrapperRect = legendWrapper.getBoundingClientRect();
+        
+        // Use relative positions to recreate the legend exactly where it is on screen
+        const wrapperRelX = lWrapperRect.left - containerRect.left;
+        const wrapperRelY = lWrapperRect.top - containerRect.top;
+
+        legendG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        legendG.setAttribute("transform", `translate(${wrapperRelX + padding}, ${wrapperRelY + padding})`);
+
+        legendItems.forEach((itemEl, idx) => {
+          const itemRect = itemEl.getBoundingClientRect();
+          const itemRelX = itemRect.left - lWrapperRect.left;
+          const itemRelY = itemRect.top - lWrapperRect.top;
+
+          const textEl = itemEl.querySelector('.recharts-legend-item-text');
+          const iconEl = itemEl.querySelector('.recharts-surface path') || itemEl.querySelector('.recharts-surface circle'); 
+          const compIcon = iconEl ? window.getComputedStyle(iconEl) : null;
+          
+          // Resolve legend icon color from actual computed styles (handles themes)
+          const color = compIcon ? (compIcon.fill !== 'none' && compIcon.fill !== 'rgba(0, 0, 0, 0)' ? compIcon.fill : compIcon.stroke) : getChartColor(idx, legendItems.length);
+          const label = textEl ? textEl.textContent : `Item ${idx}`;
+
+          const itemG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          itemG.setAttribute("transform", `translate(${itemRelX}, ${itemRelY})`);
+
+          // 🔲 Create the rectangular legend icon
+          const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          r.setAttribute("width", "12"); 
+          r.setAttribute("height", "12");
+          r.setAttribute("fill", color); 
+          r.setAttribute("rx", "2");
+          itemG.appendChild(r);
+
+          // 🔤 Create the legend text
+          const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          t.setAttribute("x", "18"); 
+          t.setAttribute("y", "10");
+          t.setAttribute("font-family", "Inter, system-ui, sans-serif"); 
+          t.setAttribute("font-size", "11");
+          t.setAttribute("font-weight", "600");
+          
+          // Use theme-aware text color
+          const compText = textEl ? window.getComputedStyle(textEl) : null;
+          t.setAttribute("fill", compText ? compText.color : (document.documentElement.classList.contains('dark') ? "#94a3b8" : "#64748b"));
+          t.textContent = label || '';
+          itemG.appendChild(t);
+
+          legendG!.appendChild(itemG);
+        });
+
+        // If legend is below the chart, we need to expand the wrapper height
+        if (wrapperRelY + lWrapperRect.height > height) { 
+          extraHeight = (wrapperRelY + lWrapperRect.height) - height; 
+        }      
+      }
+
+      // 🎨 Step 3: Create the final wrapper SVG that holds background, chart, and legend
+      const wrapperSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const totalW = width + (padding * 2);
+      const totalH = height + extraHeight + (padding * 2);
+      wrapperSvg.setAttribute("width", totalW.toString());
+      wrapperSvg.setAttribute("height", totalH.toString());
+      wrapperSvg.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
+      wrapperSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+      // Resolve final background color
+      let bgColor = 'transparent';
+      let currEl: HTMLElement | null = container;
+      while (currEl && (bgColor === 'transparent' || bgColor === 'rgba(0, 0, 0, 0)')) {
+        bgColor = window.getComputedStyle(currEl).backgroundColor;
+        currEl = currEl.parentElement;
+      }
+      if (bgColor === 'transparent' || bgColor === 'rgba(0, 0, 0, 0)') {
+        bgColor = document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff';
+      }
+
+      const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bgRect.setAttribute("width", "100%"); 
+      bgRect.setAttribute("height", "100%");
+      bgRect.setAttribute("fill", bgColor);
+      wrapperSvg.appendChild(bgRect);
+
+      const chartG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      chartG.setAttribute("transform", `translate(${padding}, ${padding})`);
+      chartG.appendChild(clonedSvg);
+      wrapperSvg.appendChild(chartG);
+
+      if (legendG) wrapperSvg.appendChild(legendG);
+
+      const ser = new XMLSerializer();
+      let src = ser.serializeToString(wrapperSvg);
+      if (!src.match(/^<svg[^>]+"http:\/\/www\.w3\.org\/1999\/xlink"/)) {
+        src = src.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+      }
+
+      const filePath = await save({
+        filters: [{ name: 'SVG', extensions: ['svg'] }],
+        defaultPath: `chart_${item.type}_${new Date().toISOString().slice(0, 10)}.svg`
+      });
+      if (filePath) {
+        await writeTextFile(filePath, src);
+        showNotification('Chart exported as SVG.', 'success');
+      }
+    } catch (err) {
+      console.error("SVG Export Error:", err);
+      showNotification("Failed to export chart image.", "error");
+    }
+  }, [chartId, item.type, showNotification, getChartColor]);
+
+  const headerControls = (
+    <div className="flex items-center gap-4 w-full tooltip-bottom">
       <div className="flex-grow flex items-center gap-3 min-w-0">
         {effectiveType === 'table' ? (
           <div className="relative w-full max-w-2xl">
             <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400"><FontAwesomeIcon icon={faSearch} className="text-[10px]" /></div>
-            <input type="text" placeholder="Filter table..." className="pl-8 pr-20 block w-full text-[11px] h-8 border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 border transition-all" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
-            {tableData && <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none"><span className="text-[10px] font-bold text-slate-400 font-mono bg-slate-50 dark:bg-slate-900/50 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700/50 shadow-sm">{filterText ? `${filteredDataCount}/${tableData.length}` : tableData.length} rows</span></div>}
+            <input type="text" placeholder="Filter table..." className="pl-8 block w-full text-[11px] h-8 border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 border transition-all" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
           </div>
         ) : (
           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 shrink-0 flex items-center gap-2">
@@ -437,12 +621,12 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
           <div className="flex gap-1">
             <button onClick={handleCopy} className="p-1.5 hover:text-blue-600 transition-colors" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
             <button onClick={handleDownloadCsv} className="p-1.5 hover:text-green-500 transition-colors" title="Export CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-            {item.type === 'table' && <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:text-blue-500 transition-colors" title="Upload CSV / Mass Edit"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>}
+            {item.type === 'table' && <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:text-blue-500 transition-colors" title="Upload CSV"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>}
           </div>
         ) : (
           <div className="flex gap-1">
-            <button onClick={handleDownloadChartCsv} className="p-1.5 hover:text-green-500 transition-colors" title="Export Data to CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
-            <button onClick={handleDownloadSvg} className="p-1.5 hover:text-blue-500 transition-colors" title="Export as SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
+            <button onClick={handleDownloadChartCsv} className="p-1.5 hover:text-green-500 transition-colors" title="Export CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
+            <button onClick={handleDownloadSvg} className="p-1.5 hover:text-blue-500 transition-colors" title="Export SVG"><FontAwesomeIcon icon={faDownload} className="text-xs" /></button>
           </div>
         )}
         {executionResult?.structuredOutput && executionResult.structuredOutput.length > 1 && (
@@ -459,8 +643,8 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
 
   return (
     <div className={`bg-white dark:bg-slate-900 group relative overflow-hidden flex flex-col ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm' : 'h-full'}`}>
-      {!isHeaderPortalTarget && <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]"><HeaderControls /></div>}
-      {isHeaderPortalTarget && portalEl && createPortal(<HeaderControls />, portalEl)}
+      {!isHeaderPortalTarget && <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]">{headerControls}</div>}
+      {isHeaderPortalTarget && portalEl && createPortal(headerControls, portalEl)}
       
       <div className="flex-1 overflow-hidden relative flex flex-col">
         {effectiveType === 'table' ? (
@@ -482,7 +666,22 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
                       <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} /><XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -15, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} /><YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: 5, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} /><ChartTooltip content={<CustomChartTooltip />} cursor={false} /><Bar dataKey={chartKeys.yAxisKey} radius={[4, 4, 0, 0]} isAnimationActive={!isDashboard} fill="#3b82f6">{parsedData.map((_: any, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}</Bar>
                     </BarChart>
                   ) : item.type === 'chart-pie' ? (
-                    <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}><Pie data={parsedData} cx="50%" cy="50%" outerRadius="80%" fill="#8884d8" dataKey={chartKeys.yAxisKey} nameKey={chartKeys.xAxisKey} isAnimationActive={!isDashboard}>{parsedData.map((_: any, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}</Pie><ChartTooltip content={<CustomPieTooltip />} /><Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} /></PieChart>
+                    <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
+                      <Pie
+                        data={parsedData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius="80%"
+                        fill="#8884d8"
+                        dataKey={chartKeys.yAxisKey}
+                        nameKey={chartKeys.xAxisKey}
+                        isAnimationActive={!isDashboard}
+                      >
+                        {parsedData.map((_: any, index: number) => <Cell key={`cell-${index}`} fill={getChartColor(index, parsedData.length)} />)}
+                      </Pie>
+                      <ChartTooltip content={<CustomPieTooltip />} />
+                      <Legend iconType="square" iconSize={10} formatter={renderColorfulLegendText} />
+                    </PieChart>
                   ) : (
                     <LineChart data={parsedData} margin={{ top: 20, right: 30, left: 30, bottom: 40 }}><CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} /><XAxis dataKey={chartKeys.xAxisKey} fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} interval={0} minTickGap={5} label={{ value: chartKeys.xAxisKey, position: 'insideBottom', offset: -15, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} /><YAxis fontSize={10} tick={{ fill: 'currentColor', opacity: 0.7 }} label={{ value: chartKeys.yAxisKey, angle: -90, position: 'insideLeft', offset: 5, fill: 'currentColor', fontSize: 12, fontWeight: 'bold', opacity: 0.8 }} /><ChartTooltip content={<CustomChartTooltip />} /><Line type="monotone" dataKey={chartKeys.yAxisKey} stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={!isDashboard} /></LineChart>
                   )}
@@ -497,24 +696,28 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
 
       {(executionResult?.scriptName || (item.type === 'table' && tableData)) && (
         <div className="px-4 py-1.5 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/10 flex items-center shrink-0">
-          <div className="flex-1 flex items-center gap-3">
+          <div className="flex-grow flex items-center gap-3">
             {executionResult?.scriptName && <><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 select-none">Origin</span><span className="text-[11px] font-bold italic text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{executionResult.scriptName}</span></>}
-            {capturedDocTitle && (
-              <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-800/40 pl-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 select-none">Document</span>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[11px] font-bold italic truncate max-w-[200px] ${isDocMismatch ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}>{capturedDocTitle}</span>
-                  {isDocMismatch && (
-                    <div className="relative group/mismatch-footer translate-y-[1px]">
-                      <span className="text-amber-500 cursor-help"><FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px] animate-pulse" /></span>
-                      <div className="absolute z-[130] left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/mismatch-footer:opacity-100 group-hover/mismatch-footer:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch-footer:translate-y-0 pointer-events-none border border-amber-500/20"><div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest pb-1 border-b border-amber-500/10"><FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch</div>This output was rendered for <span className="text-blue-600 dark:text-blue-400">'{capturedDocTitle}'</span>.<br />The active document is now <span className="text-emerald-600 dark:text-emerald-400">'{currentDocTitle}'</span>.</div>
-                    </div>
-                  )}
-                </div>
+            <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-800/40 pl-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 select-none">Document</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-[11px] font-bold italic truncate max-w-[200px] ${isDocMismatch ? 'text-amber-600 dark:text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}>{capturedDocTitle || "Unknown Document"}</span>
+                {isDocMismatch && (
+                  <div className="relative group/mismatch-footer translate-y-[1px]">
+                    <span className="text-amber-500 cursor-help"><FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px] animate-pulse" /></span>
+                    <div className="absolute z-[130] left-1/2 -translate-x-1/2 bottom-full mb-2 p-3 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/mismatch-footer:opacity-100 group-hover/mismatch-footer:visible transition-all duration-300 transform translate-y-1 group-hover/mismatch-footer:translate-y-0 pointer-events-none border border-amber-500/20"><div className="text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1.5 uppercase tracking-widest pb-1 border-b border-amber-500/10"><FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch</div>This output was rendered for <span className="text-blue-600 dark:text-blue-400">'{capturedDocTitle}'</span>.<br />The active document is now <span className="text-emerald-600 dark:text-emerald-400">'{currentDocTitle}'</span>.</div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
-          <div className="flex-1" />
+          {tableData && (
+            <div className="shrink-0 pl-4 border-l border-slate-200 dark:border-slate-800/40">
+              <span className="text-[11px] font-bold italic text-slate-500 dark:text-slate-400">
+                {filterText ? `${filteredDataCount}/${tableData.length}` : tableData.length} rows{tableData[0] ? `, ${Object.keys(tableData[0]).length} columns` : ''}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

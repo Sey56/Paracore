@@ -91,7 +91,7 @@ export const FocusOverlay: React.FC<FocusOverlayProps> = ({
       ref={wrapperRef}
       style={{
         position: 'fixed',
-        zIndex: 1000,
+        zIndex: 50,
       }}
     >
       <div

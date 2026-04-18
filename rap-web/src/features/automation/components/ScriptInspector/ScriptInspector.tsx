@@ -69,7 +69,7 @@ export const ScriptInspector: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 tooltip-bottom">
           {script ? (
             <>
               <button
@@ -84,7 +84,7 @@ export const ScriptInspector: React.FC = () => {
               </button>
               <button
                 onClick={() => setSelectedScript(null)}
-                className="p-1.5 text-slate-400 hover:text-red-500 transition-all duration-200 ml-1"
+                className="p-1.5 text-slate-400 hover:text-red-500 transition-all duration-200 ml-1 tooltip-left"
                 title="Back to REPL"
               >
                 <FontAwesomeIcon icon={faChevronUp} className="text-xs" />
@@ -92,16 +92,16 @@ export const ScriptInspector: React.FC = () => {
             </>
           ) : (
             <div className="flex items-center gap-2">
-              <button onClick={handleNewSnippet} title="New Snippet" className="p-1.5 text-slate-400 hover:text-green-500 transition-colors">
+              <button onClick={handleNewSnippet} title="New / Clear" className="p-1.5 text-slate-400 hover:text-green-500 transition-colors">
                 <FontAwesomeIcon icon={faFile} className="text-xs" />
               </button>
-              <button onClick={handleLoadSnippet} title="Load Snippet" className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
+              <button onClick={handleLoadSnippet} title="Open" className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
                 <FontAwesomeIcon icon={faFolderOpen} className="text-xs" />
               </button>
               <button 
                 onClick={() => handleSaveSnippet(false)} 
                 disabled={!multiLineValue.trim()} 
-                title="Save Snippet" 
+                title="Save" 
                 className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
               >
                 <FontAwesomeIcon icon={faSave} className="text-xs" />
@@ -114,11 +114,8 @@ export const ScriptInspector: React.FC = () => {
       {/* Metadata Panel */}
       {isMetadataOpen && script && script.metadata && (
         <div className="border-b border-slate-200/60 dark:border-slate-700/40 bg-slate-50/80 dark:bg-slate-900/60 animate-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between px-5 pt-3 pb-1">
+          <div className="flex items-center px-5 pt-3 pb-1">
             <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Script Info</span>
-            <button onClick={() => setIsMetadataOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors">
-              <FontAwesomeIcon icon={faChevronUp} className="text-[10px]" />
-            </button>
           </div>
           <div className="px-5 pb-4 max-h-[200px] overflow-y-auto custom-scrollbar">
             <MetadataTabContent metadata={script.metadata} scriptName={script.name} />

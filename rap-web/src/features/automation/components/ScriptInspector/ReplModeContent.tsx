@@ -1,8 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useConsole } from '../../store/ConsoleContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { REPLCodeEditor } from './REPLCodeEditor';
 
 export const ReplModeContent: React.FC = () => {
@@ -10,7 +10,8 @@ export const ReplModeContent: React.FC = () => {
     singleLineValue, setSingleLineValue,
     multiLineValue, setMultiLineValue,
     isReplLoading, handleReplSubmit,
-    activeSnippetName, handleSaveSnippet
+    activeSnippetName, handleSaveSnippet,
+    singleCommandHistory
   } = useConsole();
   
   const { runningScriptPath } = useScriptExecution();
@@ -18,10 +19,107 @@ export const ReplModeContent: React.FC = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isRunning = !!runningScriptPath;
 
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [currentValueBeforeHistory, setCurrentValueBeforeHistory] = useState<string>("");
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       handleReplSubmit(true, activeSnippetName);
+    }
+  };
+
+  const handleSingleLineKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const { selectionStart, selectionEnd, value } = input;
+
+    if (e.key === 'Enter') {
+      handleReplSubmit(false);
+      setHistoryIndex(-1);
+      setCurrentValueBeforeHistory("");
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (singleCommandHistory.length === 0) return;
+      
+      const nextIndex = historyIndex + 1;
+      if (nextIndex < singleCommandHistory.length) {
+        if (historyIndex === -1) {
+          setCurrentValueBeforeHistory(singleLineValue);
+        }
+        setHistoryIndex(nextIndex);
+        setSingleLineValue(singleCommandHistory[nextIndex]);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex === -1) return;
+
+      const nextIndex = historyIndex - 1;
+      if (nextIndex >= 0) {
+        setHistoryIndex(nextIndex);
+        setSingleLineValue(singleCommandHistory[nextIndex]);
+      } else {
+        setHistoryIndex(-1);
+        setSingleLineValue(currentValueBeforeHistory);
+      }
+    }
+
+    // --- Auto-Pairing Helper ---
+    const pairs: Record<string, string> = {
+      '(': ')',
+      '[': ']',
+      '{': '}',
+      '"': '"',
+      "'": "'",
+      '<': '>'
+    };
+
+    // 1. Handle Opening Characters
+    if (pairs[e.key]) {
+      e.preventDefault();
+      const opening = e.key;
+      const closing = pairs[e.key];
+      const selectedText = value.substring(selectionStart!, selectionEnd!);
+      
+      const newValue = 
+        value.substring(0, selectionStart!) + 
+        opening + 
+        selectedText + 
+        closing + 
+        value.substring(selectionEnd!);
+      
+      setSingleLineValue(newValue);
+      
+      // Place cursor between the pair (or keep selection wrapped)
+      setTimeout(() => {
+        input.setSelectionRange(selectionStart! + 1, selectionStart! + 1 + selectedText.length);
+      }, 0);
+      return;
+    }
+
+    // 2. Handle Closing Character Overwrite (if typing ')' when ')' is already there)
+    const closers = [')', ']', '}', '"', "'", '>'];
+    if (closers.includes(e.key) && selectionStart === selectionEnd && value[selectionStart!] === e.key) {
+      e.preventDefault();
+      input.setSelectionRange(selectionStart! + 1, selectionStart! + 1);
+      return;
+    }
+
+    // 3. Smart Backspace (delete both if between a pair)
+    if (e.key === 'Backspace' && selectionStart === selectionEnd && selectionStart! > 0) {
+      const charBefore = value[selectionStart! - 1];
+      const charAfter = value[selectionStart!];
+      
+      if (pairs[charBefore] === charAfter) {
+        e.preventDefault();
+        const newValue = value.substring(0, selectionStart! - 1) + value.substring(selectionStart! + 1);
+        setSingleLineValue(newValue);
+        setTimeout(() => {
+          input.setSelectionRange(selectionStart! - 1, selectionStart! - 1);
+        }, 0);
+      }
     }
   };
 
@@ -42,7 +140,7 @@ export const ReplModeContent: React.FC = () => {
             }
           }} 
           disabled={isReplLoading || isRunning} 
-          placeholder="Multi-line C# playground... (Ctrl+Enter to run)" 
+          placeholder="C# Playground... (Ctrl+Enter to run)" 
         />
       </div>
       
@@ -55,8 +153,12 @@ export const ReplModeContent: React.FC = () => {
             className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-bold flex items-center shadow-lg transition-all active:scale-95 disabled:opacity-50 text-sm" 
             onClick={() => handleReplSubmit(true, activeSnippetName)}
           >
-            <FontAwesomeIcon icon={faPlay} className="mr-2 h-3" />
-            RUN
+            {isReplLoading ? (
+              <FontAwesomeIcon icon={faSpinner} spin className="mr-2 h-3" />
+            ) : (
+              <FontAwesomeIcon icon={faPlay} className="mr-2 h-3" />
+            )}
+            {isReplLoading ? "RUNNING..." : "RUN"}
           </button>
         </div>
 
@@ -67,8 +169,16 @@ export const ReplModeContent: React.FC = () => {
             ref={inputRef} 
             type="text" 
             value={singleLineValue} 
-            onChange={(e) => setSingleLineValue(e.target.value)} 
-            onKeyDown={(e) => { if (e.key === 'Enter') handleReplSubmit(false); }} 
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            onChange={(e) => {
+              setSingleLineValue(e.target.value);
+              setHistoryIndex(-1);
+              setCurrentValueBeforeHistory("");
+            }} 
+            onKeyDown={handleSingleLineKeyDown} 
             placeholder="Single command..." 
             disabled={isReplLoading || isRunning} 
             className="w-full pl-7 pr-4 py-2.5 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white transition-all font-mono" 

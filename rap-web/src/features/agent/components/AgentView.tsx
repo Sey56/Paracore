@@ -456,8 +456,7 @@ export const AgentView: React.FC = () => {
                                navigator.clipboard.writeText(csharp_code as string);
                                showNotification("Code copied to clipboard!", "success");
                              }}
-                             title="Copy code for manual execution in the Multi-Line REPL"
-                             className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors bg-[var(--bg-group)] border border-[var(--border-divider)] hover:border-[var(--accent)] rounded-md shadow-sm"
+                             title="Copy code for manual execution in the REPL Playground"                             className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors bg-[var(--bg-group)] border border-[var(--border-divider)] hover:border-[var(--accent)] rounded-md shadow-sm"
                            >
                              <FontAwesomeIcon icon={faCopy} className="mr-1.5" />
                              Copy

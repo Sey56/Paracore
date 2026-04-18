@@ -15,6 +15,7 @@ export const BottomPanel: React.FC = () => {
   const { showNotification } = useNotifications();
   
   const [activeTab, setActiveTab] = useState<'history' | 'analytics'>('history');
+  
   const [isExpanded, setIsExpanded] = useState(() => {
     return localStorage.getItem('paracore_bottom_panel_expanded') === 'true';
   });
@@ -26,6 +27,9 @@ export const BottomPanel: React.FC = () => {
   
   const [isResizing, setIsResizing] = useState(false);
   const [hasUnviewedAnalytics, setHasUnviewedAnalytics] = useState(false);
+  const [isFlashingAnalytics, setIsFlashingAnalytics] = useState(false);
+  const [hasUnviewedHistory, setHasUnviewedHistory] = useState(false);
+  const [isFlashingHistory, setIsFlashingHistory] = useState(false);
 
   const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
 
@@ -38,16 +42,37 @@ export const BottomPanel: React.FC = () => {
     if (executionResult.timestamp === lastProcessedTimestampRef.current) return;
     lastProcessedTimestampRef.current = executionResult.timestamp;
     
+    // 1. Check for Analytics
     const hasAnalytics = executionResult.structuredOutput && executionResult.structuredOutput.some(item => 
       ['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(item.type)
     );
 
-    if (hasAnalytics && activeTab !== 'analytics') {
-      setHasUnviewedAnalytics(true);
+    if (hasAnalytics) {
+      if (activeTab !== 'analytics') {
+        setHasUnviewedAnalytics(true);
+      }
+      // Flash the Analytics icon
+      setIsFlashingAnalytics(true);
+      setTimeout(() => setIsFlashingAnalytics(false), 1000);
     }
+
+    // 2. History Flash & Badge (Always triggered as every execution produces a history entry)
+    if (activeTab !== 'history') {
+      setHasUnviewedHistory(true);
+    }
+    // Flash the History icon
+    setIsFlashingHistory(true);
+    const historyTimer = setTimeout(() => setIsFlashingHistory(false), 1000);
+    
+    return () => {
+        clearTimeout(historyTimer);
+    };
   }, [executionResult, activeTab]);
 
   useEffect(() => {
+    if (activeTab === 'history') {
+      setHasUnviewedHistory(false);
+    }
     if (activeTab === 'analytics') {
       setHasUnviewedAnalytics(false);
     }
@@ -114,31 +139,38 @@ export const BottomPanel: React.FC = () => {
   return (
     <div className={getPanelClasses()} style={getPanelStyle()}>
       {/* Resizer Handle */}
-      {!isExpanded && (
-        <div 
-          className="absolute -top-1 inset-x-0 h-2 cursor-ns-resize hover:bg-blue-500/20 transition-colors z-50 group flex items-center justify-center"
-          onMouseDown={handleMouseDown}
-        >
-          <div className="w-12 h-1 bg-slate-300 dark:bg-slate-600 rounded-full group-hover:bg-blue-400" />
-        </div>
-      )}
+      <div 
+        className={`absolute -top-1 inset-x-0 h-2 cursor-ns-resize hover:bg-blue-500/20 transition-colors z-[110] group flex items-center justify-center ${isExpanded ? 'opacity-0 hover:opacity-100' : ''}`}
+        onMouseDown={handleMouseDown}
+      >
+        <div className="w-12 h-1 bg-slate-300 dark:bg-slate-600 rounded-full group-hover:bg-blue-400" />
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0">
         <div className="flex items-center gap-1">
           <button 
             onClick={() => setActiveTab('history')}
-            className={`w-12 h-12 flex items-center justify-center border-b-2 transition-all ${activeTab === 'history' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 shadow-[inset_0_-2px_0_rgba(59,130,246,1)]' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            className={`w-12 h-12 flex items-center justify-center border-b-2 transition-all relative ${activeTab === 'history' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 shadow-[inset_0_-2px_0_rgba(59,130,246,1)]' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
             title="Execution History"
           >
-            <FontAwesomeIcon icon={faTerminal} className="text-sm" />
+            <FontAwesomeIcon 
+              icon={faTerminal} 
+              className={`text-sm transition-all duration-300 ${isFlashingHistory ? 'scale-150 text-blue-500' : ''}`} 
+            />
+            {hasUnviewedHistory && (
+              <div className="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-sm" />
+            )}
           </button>
           <button 
             onClick={() => setActiveTab('analytics')}
             className={`w-12 h-12 flex items-center justify-center border-b-2 transition-all relative ${activeTab === 'analytics' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 shadow-[inset_0_-2px_0_rgba(59,130,246,1)]' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
             title="Analytics & Tables"
           >
-            <FontAwesomeIcon icon={faChartLine} className="text-sm" />
+            <FontAwesomeIcon 
+              icon={faChartLine} 
+              className={`text-sm transition-all duration-300 ${isFlashingAnalytics ? 'scale-150 text-blue-500' : ''}`} 
+            />
             {hasUnviewedAnalytics && (
               <div className="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-sm" />
             )}
@@ -146,15 +178,15 @@ export const BottomPanel: React.FC = () => {
         </div>
 
         <div className="flex-1 flex items-center gap-3 min-w-0 ml-4">
-          <div id="bottom-panel-portal-root" className="flex-1 flex items-center gap-2 overflow-hidden" />
+          <div id="bottom-panel-portal-root" className="flex-1 flex items-center gap-2" />
 
           <div className="flex items-center gap-3 shrink-0 ml-auto">
             {activeTab === 'history' && (
-              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+              <div className="flex items-center gap-3 animate-in fade-in duration-300 tooltip-bottom">
                 <button onClick={handleClear} title="Clear Console" className="text-slate-400 hover:text-red-500 transition-colors">
                   <FontAwesomeIcon icon={faTrash} className="text-xs" />
                 </button>
-                <button onClick={handleCopy} title="Copy History" className="text-slate-400 hover:text-blue-500 transition-colors">
+                <button onClick={handleCopy} title="Copy Console" className="text-slate-400 hover:text-blue-500 transition-colors">
                   <FontAwesomeIcon icon={faCopy} className="text-xs" />
                 </button>
               </div>
@@ -181,7 +213,7 @@ export const BottomPanel: React.FC = () => {
         <div className={`h-full w-full ${activeTab !== 'analytics' ? 'hidden' : ''}`}>
           <TableTabContent 
             executionResult={executionResult} 
-            capturedDocTitle={null} 
+            capturedDocTitle={executionResult?.capturedDocTitle || null} 
             currentDocTitle={currentDocTitle} 
             selectedScript={selectedScript} 
             isHeaderPortalTarget={activeTab === 'analytics'}

@@ -3,6 +3,8 @@ import type { ExecutionResult } from "@/types/common";
 import type { Script } from "@/types/scriptModel";
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
+import { useUI } from '@/hooks/useUI';
 import { trackEvent } from '@/utils/telemetry';
 import { save, open } from '@tauri-apps/api/dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/api/fs';
@@ -66,6 +68,7 @@ export const ConsoleProvider: React.FC<{
   selectedScript: Script | null
 }> = ({ children, executionResult, setExecutionResult, selectedScript }) => {
   const { showNotification } = useNotifications();
+  const { revitStatus } = useRevitStatus();
   
   const [localHistory, setLocalHistory] = useState<ConsoleItem[]>(() => {
     const saved = localStorage.getItem('paracore_console_history');
@@ -84,7 +87,10 @@ export const ConsoleProvider: React.FC<{
   const [isReplLoading, setIsReplLoading] = useState(false);
   
   const [activeSnippetPath, setActiveSnippetPath] = useState<string | null>(() => localStorage.getItem('paracore_repl_active_path'));
-  const [activeSnippetName, setActiveSnippetName] = useState<string | null>(() => localStorage.getItem('paracore_repl_active_name'));
+  const [activeSnippetName, setActiveSnippetName] = useState<string | null>(() => {
+    const saved = localStorage.getItem('paracore_repl_active_name');
+    return saved === "Multi-Line REPL" ? null : saved;
+  });
 
   const [singleCommandHistory, setSingleCommandHistory] = useState<string[]>(() => {
     const saved = localStorage.getItem('paracore_repl_single_history');
@@ -151,7 +157,8 @@ export const ConsoleProvider: React.FC<{
     
     if (!isMulti) setSingleLineValue("");
     setIsReplLoading(true);
-    const identifier = isMulti ? (activeName || "Multi-Line REPL") : command;
+    const sanitizedActiveName = activeName === "Multi-Line REPL" ? null : activeName;
+    const identifier = isMulti ? (sanitizedActiveName || "REPL Playground") : command;
     const statusItem: ConsoleItem = { type: 'status', text: `> ${identifier}`, timestamp: new Date(), replType: currentReplType };
     setLocalHistory(prev => [...prev, statusItem].slice(-100));
     
@@ -159,6 +166,8 @@ export const ConsoleProvider: React.FC<{
     else setSingleCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
 
     trackEvent('repl_executed', { repl_type: currentReplType });
+
+    const capturedDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
 
     try {
       const response = await api.post("/api/repl", { code: command, session_id: "global" });
@@ -170,7 +179,8 @@ export const ConsoleProvider: React.FC<{
           structuredOutput: response.data.structured_output || [], 
           internalData: `REPL_${currentReplType.toUpperCase()}`, 
           timestamp: Date.now(), 
-          scriptName: isMulti ? identifier : "REPL" 
+          scriptName: isMulti ? identifier : "REPL",
+          capturedDocTitle
         });
       } else {
         setExecutionResult({ 
@@ -180,7 +190,8 @@ export const ConsoleProvider: React.FC<{
           structuredOutput: [], 
           internalData: `REPL_${currentReplType.toUpperCase()}`, 
           timestamp: Date.now(), 
-          scriptName: isMulti ? identifier : "REPL" 
+          scriptName: isMulti ? identifier : "REPL",
+          capturedDocTitle
         });
       }
     } catch (err: any) {
