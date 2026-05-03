@@ -9,8 +9,8 @@ import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useNotifications } from '@/hooks/useNotifications';
 
 export const BottomPanel: React.FC = () => {
-  const { localHistory, handleClear, aiResult, isExplaining } = useConsole();
-  const { executionResult, selectedScript } = useScriptExecution();
+  const { localHistory, setLocalHistory, aiResult, isExplaining, setAiResult } = useConsole();
+  const { executionResult, clearExecutionResult, selectedScript } = useScriptExecution();
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
   
@@ -116,9 +116,52 @@ export const BottomPanel: React.FC = () => {
 
   const currentDocTitle = React.useMemo(() => revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null, [revitStatus.document]);
   
-  const handleCopy = () => {
+  // ── History: Copy & Clear ────────────────────────────────────────────
+  const hasHistoryData = localHistory.length > 0;
+
+  const handleHistoryCopy = () => {
     const content = localHistory.map(item => (item.type === 'input' ? `> ${item.text}` : item.text)).join('\n');
-    navigator.clipboard.writeText(content).then(() => showNotification("Copied to clipboard", "info"));
+    navigator.clipboard.writeText(content).then(() => showNotification("History copied to clipboard", "info"));
+  };
+
+  const handleHistoryClear = () => {
+    setLocalHistory([]);
+    setAiResult(null);
+    localStorage.removeItem('paracore_console_history');
+    showNotification("History cleared", "info");
+  };
+
+  // ── Analytics: Copy & Clear ──────────────────────────────────────────
+  const hasAnalyticsData = !!(executionResult?.structuredOutput && executionResult.structuredOutput.length > 0);
+
+  const handleAnalyticsCopy = () => {
+    if (!executionResult?.structuredOutput) return;
+    
+    const parts: string[] = [];
+    for (const item of executionResult.structuredOutput) {
+      if (item.type === 'table' && item.data) {
+        try {
+          const rows = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+          if (Array.isArray(rows) && rows.length > 0) {
+            const headers = Object.keys(rows[0]);
+            parts.push(headers.join('\t'));
+            for (const row of rows) {
+              parts.push(headers.map(h => String(row[h] ?? '')).join('\t'));
+            }
+          }
+        } catch { /* skip unparseable items */ }
+      } else if (item.data) {
+        parts.push(typeof item.data === 'string' ? item.data : JSON.stringify(item.data, null, 2));
+      }
+    }
+    
+    const text = parts.join('\n\n');
+    navigator.clipboard.writeText(text).then(() => showNotification("Analytics copied to clipboard", "info"));
+  };
+
+  const handleAnalyticsClear = () => {
+    clearExecutionResult();
+    showNotification("Analytics cleared", "info");
   };
 
   const toggleExpand = () => {
@@ -181,12 +224,25 @@ export const BottomPanel: React.FC = () => {
           <div id="bottom-panel-portal-root" className="flex-1 flex items-center gap-2" />
 
           <div className="flex items-center gap-3 shrink-0 ml-auto">
-            {activeTab === 'history' && (
-              <div className="flex items-center gap-3 animate-in fade-in duration-300 tooltip-bottom">
-                <button onClick={handleClear} title="Clear Console" className="text-slate-400 hover:text-red-500 transition-colors">
+            {/* History tab buttons — only when there's data */}
+            {activeTab === 'history' && hasHistoryData && (
+              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+                <button onClick={handleHistoryClear} title="Clear History" className="text-slate-400 hover:text-red-500 transition-colors">
                   <FontAwesomeIcon icon={faTrash} className="text-xs" />
                 </button>
-                <button onClick={handleCopy} title="Copy Console" className="text-slate-400 hover:text-blue-500 transition-colors">
+                <button onClick={handleHistoryCopy} title="Copy History" className="text-slate-400 hover:text-blue-500 transition-colors">
+                  <FontAwesomeIcon icon={faCopy} className="text-xs" />
+                </button>
+              </div>
+            )}
+            
+            {/* Analytics tab buttons — only when there's data */}
+            {activeTab === 'analytics' && hasAnalyticsData && (
+              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+                <button onClick={handleAnalyticsClear} title="Clear Analytics" className="text-slate-400 hover:text-red-500 transition-colors">
+                  <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                </button>
+                <button onClick={handleAnalyticsCopy} title="Copy Analytics" className="text-slate-400 hover:text-blue-500 transition-colors">
                   <FontAwesomeIcon icon={faCopy} className="text-xs" />
                 </button>
               </div>

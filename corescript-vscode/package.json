@@ -2,7 +2,7 @@
   "name": "corescript",
   "displayName": "corescript-vscode",
   "description": "Write C# Top-level scripts (with custom globals like Print, Println, Show, Transact, Doc) with full IntelliSense and code completion. Execute your scripts directly in Revit and see results instantly in the VS Code output tab. Requires the Paracore.Addin installed in Revit. Note: This extension is completely standalone and operates independently from the Paracore desktop application.",
-  "version": "4.3.2",
+  "version": "4.4.0",
   "license": "MIT",
   "author": {
     "name": "Seyoum Hagos"

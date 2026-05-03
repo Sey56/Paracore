@@ -853,6 +853,25 @@ namespace CoreScript.Engine.Globals
 
         public static bool IsHandFlipped(this FamilyInstance fi) => fi?.HandFlipped ?? false;
         public static bool IsFacingFlipped(this FamilyInstance fi) => fi?.FacingFlipped ?? false;
+
+        /// <summary>
+        /// Returns true if the FamilyInstance is a standard door (hosted in a Basic/Stacked wall, not a Curtain Wall panel).
+        /// </summary>
+        public static bool IsStandardDoor(this FamilyInstance fi)
+        {
+            if (fi == null) return false;
+            return !(fi.Host is Wall w && w.WallType.Kind == WallKind.Curtain);
+        }
+
+        /// <summary>
+        /// Filters a collection of FamilyInstance elements to only standard doors,
+        /// excluding Curtain Wall hosted panels (glass doors).
+        /// <para>Example: GetElements&lt;FamilyInstance&gt;("Doors").StandardOnly().Table()</para>
+        /// </summary>
+        public static IEnumerable<FamilyInstance> StandardOnly(this IEnumerable<FamilyInstance> elements)
+        {
+            return elements.Where(fi => fi.IsStandardDoor());
+        }
     }
 
     public static class IdentityExtensions

@@ -24,7 +24,9 @@ A comprehensive guide to every extension method available on Revit elements and 
 14. [Collection: Visualization](#-collection-visualization)
 15. [Collection: Revit UI Actions](#-collection-revit-ui-actions)
 16. [Element: Materials & Sustainability](#-element-materials--sustainability)
-17. [Complete Fluent Chain Examples](#-complete-fluent-chain-examples)
+17. [Numeric & Unit Comparison Helpers](#-numeric--unit-comparison-helpers)
+18. [Complete Fluent Chain Examples](#-complete-fluent-chain-examples)
+19. [Quick Reference Card](#-quick-reference-card)
 
 ---
 
@@ -285,11 +287,14 @@ GetElements<Wall>().First().ReflectionProperties().Table()
 
 Revit's native `ToRoom`/`FromRoom` properties swap when a door is flipped. These helpers are stable regardless of flip state.
 
+> [!WARNING]
+> **Swing-Based Detection:** `RoomTo()` and `RoomFrom()` determine room relationships based on the **physical swing arc geometry** — the room the arc swings into is the "To" room. This is the most reliable geometric approach, but it may not always match the **architectural intent**. For example, in egress situations where code requires the door to swing toward the exit, the swing direction is opposite to the logical "entry" direction. In such cases, consider adding a shared parameter to explicitly tag the intended direction.
+
 ---
 
 ### `fi.RoomAccess()` / `fi.RoomFrom()`
 
-> Returns the room on the **non-swing side** — the "Access" side. Immutable.
+> Returns the room on the **non-swing side** — the side the door swings away from. Stable regardless of flips.
 
 ```csharp
 door.RoomAccess()   // → "Corridor"
@@ -309,17 +314,16 @@ door.RoomDestination()  // → "Office 101"
 
 ### `fi.Handing()`
 
-> Returns the industry-standard handing code using a geometric swing arc analysis.
+> Returns the handing code as seen from `RoomFrom()` — the non-swing side.
+> Since `RoomFrom()` is always the side the door swings **away from**, the observer always sees a Push door. `Handing()` will always return `LH` or `RH`.
 
 | Code | Meaning |
 |---|---|
-| `LH` | Left Hand (Push) |
-| `RH` | Right Hand (Push) |
-| `LHR` | Left Hand Reverse (Pull) |
-| `RHR` | Right Hand Reverse (Pull) |
+| `LH` | Left Hand — hinges on the left as seen from `RoomFrom()` |
+| `RH` | Right Hand — hinges on the right as seen from `RoomFrom()` |
 
 ```csharp
-door.Handing()    // → "RHR"
+door.Handing()    // → "LH" or "RH"
 ```
 
 ---
@@ -459,9 +463,9 @@ These return the element (chainable).
 | `.Select()` | ✅ | ✅ | Selects in Revit UI |
 | `.Zoom()` | ✅ | ✅ | Zooms/shows in active view |
 | `.Isolate()` | ✅ | ✅ | Temporarily isolates in active view |
-| `.Hide()` | ✅ | ✅ | Hides single in active view |
-| `.Unhide()` | ✅ | ✅ | Unhides single in active view |
-| `.Delete()` | ✅ | ✅ | Deletes (with auto-transaction) |
+| `.Hide()` | ✅ | ✅ | Hides from active view |
+| `.Unhide()` | ✅ | ✅ | Unhides in active view |
+| `.Delete()` | ✅ | ✅ | BIM-Smart Delete (auto-transaction) |
 
 ```csharp
 Selection[0].Select().Zoom()
@@ -672,7 +676,9 @@ All return `IEnumerable<T>` (chainable).
 | `.Select()` | Selects all elements in the Revit UI |
 | `.Zoom()` | Zooms the active view to fit the elements |
 | `.Isolate()` | Temporarily isolates in the active view |
-| `.Delete()` | Deletes all elements (IEnumerable<Element> only) |
+| `.Hide()` | Hides all elements in the active view |
+| `.Unhide()` | Unhides all elements in the active view |
+| `.Delete()` | **BIM-Smart Delete** (Safe for Pinned/Curtain elements) |
 | `.Peek()` | Forensic audit of every element in the collection |
 
 ```csharp
@@ -732,6 +738,18 @@ var uValue = Eco.GetUValue(wall);
 
 ---
 
+### `Eco.GetWeather()`
+
+> **Live Project Weather.** Fetches current meteorological data for the project's exact Latitude/Longitude using the Open-Meteo API.
+
+```csharp
+var weather = Eco.GetWeather();
+Println($"Current Temp: {weather.Temperature}°C");
+Println($"Wind Speed: {weather.WindSpeed} km/h");
+```
+
+---
+
 ## 🛡️ Collection: Coordination & Geometric Auditing
 
 High-performance interference detection and unit-aware coordination reporting. These methods leverage the optimized spatial query engine for "DirectShape First" coordination.
@@ -768,6 +786,41 @@ GetElements("Walls").AuditClashes("Pipes").Table();
 
 ---
 
+
+---
+
+## 🔢 Numeric & Unit Comparison Helpers
+
+Available on `double`. These methods handle floating-point noise and Revit's internal unit precision automatically.
+
+### Precision Comparisons (Fuzzy Equality)
+
+| Method | Description |
+|---|---|
+| `.IsAlmostEqualTo(val)` | True if within 1e-9 tolerance |
+| `.AlmostZero()` | True if essentially zero |
+| `.IsPositive()` | Strictly positive (> 1e-9) |
+| `.IsNegative()` | Strictly negative (< -1e-9) |
+| `.IsGreaterThan(val)` | Strictly greater than (outside tolerance) |
+| `.IsLessThan(val)` | Strictly less than (outside tolerance) |
+
+```csharp
+if (wall.GetNum("Length").AlmostZero()) { /* ... */ }
+if (room.Area.IsGreaterThan(25.0.InputUnit("m2"))) { /* ... */ }
+```
+
+---
+
+### `value.RoundTo(unit, decimals)`
+
+> **Unit-Snapping Rounding.** Rounds the internal Revit value so that it matches a clean decimal in the target unit.
+
+```csharp
+// Snaps a raw length (e.g. 6.56167...) to the internal feet for exactly 2000mm
+double snapped = wall.GetNum("Length").RoundTo("mm", 0);
+```
+
+---
 
 ## 🚀 Complete Fluent Chain Examples
 
@@ -836,6 +889,16 @@ GetElements("Doors")
 
 ---
 
+### Bulk Delete: BIM-Smart & Safe
+The `.Delete()` extension method is now **BIM-Aware**. It automatically skips Pinned elements, Curtain Wall Panels, and hosted Curtain Doors to prevent Revit exceptions and model corruption.
+
+```csharp
+// Deletes ALL doors safely. No manual filtering needed for Curtain Walls!
+GetElements("Doors").Delete();
+```
+
+---
+
 ## 📚 Quick Reference Card
 
 | What I want | Method |
@@ -856,4 +919,6 @@ GetElements("Doors")
 | Select in Revit | `.Select()` |
 | Zoom to elements | `.Zoom()` |
 | Isolate in view | `.Isolate()` |
-| Delete all | `.Delete()` |
+| Hide in view | `.Hide()` |
+| Unhide in view | `.Unhide()` |
+| Delete all (BIM-Safe) | `.Delete()` |

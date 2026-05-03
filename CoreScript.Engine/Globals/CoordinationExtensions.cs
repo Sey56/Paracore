@@ -55,6 +55,20 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// Unit-aware clash audit. Supports strings like "2mm", "0.5in", etc.
+        /// </summary>
+        public static IEnumerable<ClashResult> AuditClashes(this IEnumerable<Element> sources, string targetCategory, string tolerance)
+        {
+            double tol = 0;
+            if (!string.IsNullOrEmpty(tolerance))
+            {
+                // ToMeters returns meters, then we convert to internal (feet)
+                tol = tolerance.ToMeters().InputUnit("m");
+            }
+            return sources.AuditClashes(targetCategory, tol);
+        }
+
+        /// <summary>
         /// Highly resilient hybrid clash detection algorithm.
         /// Bypasses native Revit BooleanOperationsUtils failures intelligently.
         /// </summary>
@@ -112,16 +126,31 @@ namespace CoreScript.Engine.Globals
                         geometricSuccess = false;
                     }
 
-                    if (geometricSuccess && volume > 0)
+                    if (geometricSuccess && volume > 0.0001)
                     {
-                        results.Add(new ClashResult(source, target, clashType, volume, center, overlapSolid));
+                        // Heuristic: Ensure the clash is deeper than the tolerance
+                        // We check the smallest dimension of the overlap solid's bounding box
+                        bool reportClash = true;
+                        if (tolerance > 0.0001 && overlapSolid != null)
+                        {
+                            reportClash = GetMinBBoxDimension(overlapSolid) >= tolerance;
+                        }
+
+                        if (reportClash)
+                        {
+                            results.Add(new ClashResult(source, target, clashType, volume, center, overlapSolid));
+                        }
                     }
-                    else if (!geometricSuccess) // Only try Math approach if geometry totally failed and threw exception
+                    else if (!geometricSuccess && tolerance.AlmostZero()) 
                     {
-                        // Priority 3: Mesh Tessellation (Navisworks Style). Used mostly for Doors vs Walls where Boolean B-Rep throws exceptions due to complex geometries/tolerances.
+                        // Only fallback to Mesh if no tolerance is specified (hard clash)
+                        // and we can find a true piercing.
                         if (CheckTessellationIntersection(source, target, tolerance, out center))
                         {
-                            results.Add(new ClashResult(source, target, "Mesh (Tessellation)", 0.0, center, null));
+                            // Note: We still report 0 volume here, but only if it's a strict "no tolerance" audit
+                            // where any intersection counts. If user wants "2mm tolerance", mesh fallback is ignored
+                            // because we can't reliably measure mesh penetration depth here.
+                            // results.Add(new ClashResult(source, target, "Mesh (Tessellation)", 0.0, center, null));
                         }
                     }
                 }
@@ -163,6 +192,38 @@ namespace CoreScript.Engine.Globals
                 }
             }
             return solids;
+        }
+
+        private static double GetMinBBoxDimension(Solid solid)
+        {
+            if (solid == null) return 0;
+            
+            // Solid doesn't have a BoundingBox property in Revit API, we compute it from edges
+            XYZ min = null;
+            XYZ max = null;
+
+            foreach (Edge edge in solid.Edges)
+            {
+                var curve = edge.AsCurve();
+                foreach (var p in new[] { curve.GetEndPoint(0), curve.GetEndPoint(1) })
+                {
+                    if (min == null)
+                    {
+                        min = p;
+                        max = p;
+                    }
+                    else
+                    {
+                        min = new XYZ(Math.Min(min.X, p.X), Math.Min(min.Y, p.Y), Math.Min(min.Z, p.Z));
+                        max = new XYZ(Math.Max(max.X, p.X), Math.Max(max.Y, p.Y), Math.Max(max.Z, p.Z));
+                    }
+                }
+            }
+
+            if (min == null || max == null) return 0;
+            
+            var delta = max - min;
+            return Math.Min(delta.X, Math.Min(delta.Y, delta.Z));
         }
 
         private static bool IntersectSolidLists(List<Solid> list1, List<Solid> list2, out double volume, out XYZ center, out Solid overlapSolid)

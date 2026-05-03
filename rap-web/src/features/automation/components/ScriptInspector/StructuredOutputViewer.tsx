@@ -265,19 +265,43 @@ const TableView: React.FC<{
             </thead>
             <tbody className="bg-white dark:bg-slate-900">
               {visibleData.map((row, index) => {
-                const rowIndex = startIndex + index; const hasId = Object.keys(row).some(k => ['id', 'elementid', 'revitid'].includes(k.toLowerCase()));
+                                const rowIndex = startIndex + index; 
+                const hasId = Object.keys(row).some(k => {
+                  const l = k.toLowerCase();
+                  return l === 'id' || l === 'elementid' || l === 'revitid' || (l.endsWith('id') && l.length > 2);
+                });
+
                 return (
                   <tr key={rowIndex} style={{ height: rowHeight }} className={`${hasId ? "transition-colors" : ""} ${activeRowIndex === rowIndex ? "bg-blue-100/50 dark:bg-blue-800/20 border-l-4 border-blue-500" : `hover:bg-blue-50/50 dark:hover:bg-blue-900/10 ${rowIndex % 2 === 1 ? 'bg-black/[0.02] dark:bg-white/[0.02]' : ''}`}`}>
                     {headers.map((header, colIndex) => {
                       const cellValue = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
-                      const isIdCol = ['id', 'elementid', 'revitid'].includes(header.toLowerCase());
+                                            const lHeader = header.toLowerCase();
+                      const isIdCol = ['id', 'elementid', 'revitid'].includes(lHeader) || (lHeader.endsWith('id') && lHeader.length > 2);
+
                       const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === header;
                       return (
                          <td key={colIndex} style={{ width: columnWidths[header], minWidth: columnWidths[header] }} className={`px-3 py-2 whitespace-nowrap text-slate-700 dark:text-slate-300 transition-all duration-200 ${!isIdCol && !!onUpdate && hasId ? 'cursor-pointer hover:bg-white/50 dark:hover:bg-black/20' : ''} ${isIdCol ? 'font-mono font-bold cursor-pointer relative group/cell' : ''} ${isIdCol && activeElementId === Number(cellValue) && activeRowIndex === rowIndex ? 'text-white bg-blue-600 shadow-[inset_0_0_10px_rgba(0,0,0,0.1)]' : isIdCol ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10' : ''} ${isUpdating && isEditing ? 'opacity-50' : ''}`}
                            onClick={() => { if (isIdCol && !isNaN(Number(cellValue))) { setActiveRowIndex(rowIndex); setActiveElementId(Number(cellValue)); onSelect([Number(cellValue)]); } }}
                            onDoubleClick={() => { if (!isIdCol && !!onUpdate && hasId) { setEditingCell({ rowIndex, colKey: header }); setEditValue(cellValue); } }}
                         >
-                          {isEditing ? <input autoFocus className="w-full h-full bg-white dark:bg-slate-800 border-b-2 border-blue-500 focus:outline-none text-slate-900 dark:text-slate-100 px-1" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={async () => { if (editValue !== cellValue && hasId && onUpdate) { const id = Number(row[Object.keys(row).find(k => ['id', 'elementid', 'revitid'].includes(k.toLowerCase())) || 'Id']); setIsUpdating(true); if (await onUpdate(id, header, editValue)) { const updatedData = [...data]; updatedData[data.findIndex(r => r === row)] = { ...row, [header]: editValue }; setData(updatedData); } else setEditValue(cellValue); setIsUpdating(false); } setEditingCell(null); }} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingCell(null); }} disabled={isUpdating} /> : <div className="truncate">{renderCellContent(header, row[header])}</div>}
+                                                    {isEditing ? <input autoFocus className="w-full h-full bg-white dark:bg-slate-800 border-b-2 border-blue-500 focus:outline-none text-slate-900 dark:text-slate-100 px-1" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={async () => { 
+                            if (editValue !== cellValue && hasId && onUpdate) { 
+                              const idKey = Object.keys(row).find(k => {
+                                const l = k.toLowerCase();
+                                return l === 'id' || l === 'elementid' || l === 'revitid' || (l.endsWith('id') && l.length > 2);
+                              }) || 'Id';
+                              const id = Number(row[idKey]); 
+                              setIsUpdating(true); 
+                              if (await onUpdate(id, header, editValue)) { 
+                                const updatedData = [...data]; 
+                                updatedData[data.findIndex(r => r === row)] = { ...row, [header]: editValue }; 
+                                setData(updatedData); 
+                              } else setEditValue(cellValue); 
+                              setIsUpdating(false); 
+                            } 
+                            setEditingCell(null); 
+                          }} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingCell(null); }} disabled={isUpdating} /> : <div className="truncate">{renderCellContent(header, row[header])}</div>}
+
                         </td>
                       );
                     })}
@@ -389,7 +413,11 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
         const lines = text.replace(/\r/g, "").split("\n").filter(l => l.trim() !== ""); if (lines.length < 2) return;
         const headers = parseLine(lines[0]); const importedData = lines.slice(1).map(line => { const values = parseLine(line); const obj: any = {}; headers.forEach((h, i) => { if (h) obj[h] = values[i] !== undefined ? values[i] : ""; }); return obj; });
         const currentData = JSON.parse(item.data); const tableData = Array.isArray(currentData) ? currentData : [currentData]; if (tableData.length === 0) return;
-        const idKey = Object.keys(tableData[0]).find(k => ['id', 'elementid', 'revitid'].includes(k.toLowerCase())) || 'Id';
+                const idKey = Object.keys(tableData[0]).find(k => {
+          const l = k.toLowerCase();
+          return l === 'id' || l === 'elementid' || l === 'revitid' || (l.endsWith('id') && l.length > 2);
+        }) || 'Id';
+
         const updates: any[] = []; importedData.forEach(impRow => {
           const impId = parseInt(String(impRow[idKey] || '').replace(/,/g, ''), 10); const match = tableData.find(r => Number(r[idKey]) === impId);
           if (match) { Object.keys(impRow).forEach(col => { if (['id', 'elementid', 'revitid'].includes(col.toLowerCase())) return; const cleanColName = col.replace(/[\s_]+/g, '').toLowerCase(); const meta = paramMetadataMap.get(col.toLowerCase()) || paramMetadataMap.get(cleanColName); let realName = meta?.name || col.replace(/_/g, ' '); let unit = meta?.unit || ""; if (!unit) { const m = realName.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/); if (m) { const pn = m[1].replace(/[_([]$/, '').trim(); const pu = m[2].trim(); if (VALID_UNITS.includes(pu.toLowerCase())) { realName = pn; unit = pu; } } } if (String(impRow[col]) !== String(match[col])) updates.push({ element_id: impId, parameter_name: realName, new_value_string: String(impRow[col]), unit }); }); }
