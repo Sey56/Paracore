@@ -79,7 +79,6 @@ export const BottomPanel: React.FC = () => {
   }, [activeTab]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isExpanded) return;
     setIsResizing(true);
     e.preventDefault();
   };
@@ -90,8 +89,12 @@ export const BottomPanel: React.FC = () => {
     // Limit resizing range - Min 48px to keep header visible
     if (newHeight >= 48 && newHeight <= window.innerHeight - 100) {
       setPanelHeight(newHeight);
+      // If expanded and user drags down past a threshold, exit expanded mode
+      if (isExpanded && newHeight < window.innerHeight - 100) {
+        setIsExpanded(false);
+      }
     }
-  }, [isResizing]);
+  }, [isResizing, isExpanded]);
 
   const handleMouseUp = useCallback(() => {
     if (isResizing) {
@@ -174,7 +177,7 @@ export const BottomPanel: React.FC = () => {
     return `${base} relative border-t border-slate-200 dark:border-gray-700 shadow-lg`;
   };
 
-  const getPanelStyle = () => {
+  const getPanelStyle = (): React.CSSProperties => {
     if (isExpanded) return { height: '100%', width: '100%', top: 0, left: 0 };
     return { height: `${panelHeight}px` };
   };
@@ -183,7 +186,7 @@ export const BottomPanel: React.FC = () => {
     <div className={getPanelClasses()} style={getPanelStyle()}>
       {/* Resizer Handle */}
       <div 
-        className={`absolute -top-1 inset-x-0 h-2 cursor-ns-resize hover:bg-blue-500/20 transition-colors z-[110] group flex items-center justify-center ${isExpanded ? 'opacity-0 hover:opacity-100' : ''}`}
+        className={`absolute -top-1 inset-x-0 h-2 cursor-ns-resize hover:bg-blue-500/20 transition-colors z-[110] group flex items-center justify-center`}
         onMouseDown={handleMouseDown}
       >
         <div className="w-12 h-1 bg-slate-300 dark:bg-slate-600 rounded-full group-hover:bg-blue-400" />
@@ -226,7 +229,7 @@ export const BottomPanel: React.FC = () => {
           <div className="flex items-center gap-3 shrink-0 ml-auto">
             {/* History tab buttons — only when there's data */}
             {activeTab === 'history' && hasHistoryData && (
-              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+              <div className="flex items-center gap-3 animate-in fade-in duration-300 tooltip-bottom">
                 <button onClick={handleHistoryClear} title="Clear History" className="text-slate-400 hover:text-red-500 transition-colors">
                   <FontAwesomeIcon icon={faTrash} className="text-xs" />
                 </button>
@@ -238,7 +241,7 @@ export const BottomPanel: React.FC = () => {
             
             {/* Analytics tab buttons — only when there's data */}
             {activeTab === 'analytics' && hasAnalyticsData && (
-              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+              <div className="flex items-center gap-3 animate-in fade-in duration-300 tooltip-bottom">
                 <button onClick={handleAnalyticsClear} title="Clear Analytics" className="text-slate-400 hover:text-red-500 transition-colors">
                   <FontAwesomeIcon icon={faTrash} className="text-xs" />
                 </button>

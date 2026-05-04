@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useConsole } from '../../store/ConsoleContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -22,6 +22,15 @@ export const ReplModeContent: React.FC = () => {
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [currentValueBeforeHistory, setCurrentValueBeforeHistory] = useState<string>("");
 
+  // Re-focus the single-line input after loading finishes
+  const wasLoadingRef = useRef(false);
+  useEffect(() => {
+    if (wasLoadingRef.current && !isReplLoading) {
+      inputRef.current?.focus();
+    }
+    wasLoadingRef.current = isReplLoading;
+  }, [isReplLoading]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -37,6 +46,7 @@ export const ReplModeContent: React.FC = () => {
       handleReplSubmit(false);
       setHistoryIndex(-1);
       setCurrentValueBeforeHistory("");
+      setTimeout(() => inputRef.current?.focus(), 0);
       return;
     }
 
