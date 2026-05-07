@@ -490,6 +490,30 @@ namespace CoreScript.Engine.Globals
             ExecutionGlobals.Current.Value?.Println($"⚠️ Found {resList.Count} Geometric Clashes.");
         }
 
+        /// <summary>
+        /// Clears all visual clash helper geometry (DirectShapes named "CORE_CLASH") from the document.
+        /// </summary>
+        public static void ClearClashHelpers(this Document doc)
+        {
+            var oldHelpers = new FilteredElementCollector(doc)
+                .OfClass(typeof(DirectShape))
+                .Where(e => e.Name == "CORE_CLASH")
+                .Select(e => e.Id).ToList();
+
+            if (oldHelpers.Any())
+            {
+                Tx.Transact(doc, "Clear Clash Helpers", () =>
+                {
+                    doc.Delete(oldHelpers);
+                });
+                ExecutionGlobals.Current.Value?.Println($"✅ Cleared {oldHelpers.Count} clash helpers.");
+            }
+            else
+            {
+                ExecutionGlobals.Current.Value?.Println("✅ No clash helpers found to clear.");
+            }
+        }
+
         #endregion
     }
 }
