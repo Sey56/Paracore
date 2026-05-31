@@ -35,7 +35,8 @@ api.interceptors.response.use(
       localStorage.removeItem('rap_active_team');
 
       // We do NOT reload here anymore, as it causes infinite loops during startup transitions.
-      // The app state will eventually react to the cleared localStorage or return to login on next action.
+      // Instead, we dispatch a custom event that AuthProvider will listen for to safely log the user out in React state.
+      window.dispatchEvent(new Event('paracore-auth-expired'));
     }
     return Promise.reject(error);
   }

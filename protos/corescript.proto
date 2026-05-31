@@ -195,6 +195,7 @@ message ExecuteScriptRequest {
   bytes parameters_json = 2;
   string source = 3;
   bytes compiled_assembly = 4; 
+  string license_tier = 5;
 }
 
 message StructuredOutputItem {
@@ -445,6 +446,7 @@ message UpdateElementParameterResponse {
 message ExecuteReplRequest {
   string code = 1;
   string session_id = 2;
+  string license_tier = 3;
 }
 
 message ExecuteReplResponse {

@@ -22,7 +22,9 @@ export const BottomPanel: React.FC = () => {
 
   const [panelHeight, setPanelHeight] = useState(() => {
     const saved = localStorage.getItem('paracore_bottom_panel_height');
-    return saved ? parseInt(saved) : 300;
+    const parsed = saved ? parseInt(saved) : 300;
+    // Ensure a usable minimum on load so the handle is always reachable
+    return Math.max(parsed, 80);
   });
   
   const [isResizing, setIsResizing] = useState(false);
@@ -86,13 +88,12 @@ export const BottomPanel: React.FC = () => {
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing) return;
     const newHeight = window.innerHeight - e.clientY;
-    // Limit resizing range - Min 48px to keep header visible
-    if (newHeight >= 48 && newHeight <= window.innerHeight - 100) {
-      setPanelHeight(newHeight);
-      // If expanded and user drags down past a threshold, exit expanded mode
-      if (isExpanded && newHeight < window.innerHeight - 100) {
-        setIsExpanded(false);
-      }
+    // Min 80px to keep resize handle always reachable above the header
+    const clampedHeight = Math.max(80, Math.min(newHeight, window.innerHeight - 100));
+    setPanelHeight(clampedHeight);
+    // If expanded and user drags down past a threshold, exit expanded mode
+    if (isExpanded && clampedHeight < window.innerHeight - 100) {
+      setIsExpanded(false);
     }
   }, [isResizing, isExpanded]);
 
@@ -186,7 +187,7 @@ export const BottomPanel: React.FC = () => {
     <div className={getPanelClasses()} style={getPanelStyle()}>
       {/* Resizer Handle */}
       <div 
-        className={`absolute -top-1 inset-x-0 h-2 cursor-ns-resize hover:bg-blue-500/20 transition-colors z-[110] group flex items-center justify-center`}
+        className={`absolute -top-2 inset-x-0 h-4 cursor-ns-resize hover:bg-blue-500/20 transition-colors z-[110] group flex items-center justify-center`}
         onMouseDown={handleMouseDown}
       >
         <div className="w-12 h-1 bg-slate-300 dark:bg-slate-600 rounded-full group-hover:bg-blue-400" />

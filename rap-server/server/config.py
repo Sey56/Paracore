@@ -44,19 +44,15 @@ def load_public_key():
     print("!!! WARNING: JWT Public Key NOT LOADED. Authentication will fail.")
     return None
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 class Settings:
     db_path = os.getenv("RAP_DATABASE_PATH", f"{os.path.dirname(__file__)}/rap_local.db")
     # Replace backslashes with forward slashes for SQLAlchemy URL compatibility
     db_path = db_path.replace("\\", "/")
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
-    SECRET_KEY: str = "your-very-secret-key-here"
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-only-fallback-key")
     ALGORITHM: str = "RS256"
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "RS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 480)) # 8 hours
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 43200)) # 30 days
     AUTH_SERVER_URL: str = os.getenv("AUTH_SERVER_URL", "http://localhost:8001")
 
     # Load the public key directly from the file

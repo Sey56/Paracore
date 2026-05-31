@@ -437,6 +437,7 @@ export const Sidebar = () => {
             userSourcePaths={userSourcePaths}
             onClone={handleCloneClick}
             onRefresh={fetchRemoteScriptSources}
+            onRegister={() => setIsRegisterModalOpen(true)}
           />
         )}
 

@@ -12,12 +12,14 @@ import { ScriptExecutionContext } from '@/features/automation/store/ScriptExecut
 import { trackEvent } from '@/utils/telemetry';
 import { useContext } from 'react';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
+import { useUI } from '@/hooks/useUI';
 
 interface WatchdogSettingsProps {
   isAuthenticated: boolean;
 }
 
 export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthenticated }) => {
+  const { showSentinelFAB, toggleSentinelFAB } = useUI();
   const {
     configuredWatchdogRoots,
     watchdogSources,
@@ -124,6 +126,41 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
     <fieldset disabled={!isAuthenticated} className="disabled:opacity-50">
       <div className="mb-8">
         <h3 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight">Sentinel Settings</h3>
+      </div>
+
+      {/* Show Sentinel FAB Toggle */}
+      <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-6 shadow-sm mb-12 flex flex-col md:flex-row items-center justify-between gap-6 hover:border-indigo-500/30 transition-all">
+        <div className="flex gap-4 items-center flex-1">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shrink-0">
+            <FontAwesomeIcon icon={faMousePointer} className="text-xl" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Show Sentinel FAB</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
+              Display the floating elliptical button for quick access to Sentinel controls. Disable this if it blocks your workflow.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={toggleSentinelFAB}
+          className={`
+            relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+            transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2
+            ${showSentinelFAB ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}
+          `}
+          role="switch"
+          aria-checked={showSentinelFAB}
+        >
+          <span
+            aria-hidden="true"
+            className={`
+              pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 
+              transition duration-200 ease-in-out
+              ${showSentinelFAB ? 'translate-x-7' : 'translate-x-0'}
+            `}
+          />
+        </button>
       </div>
 
       <div className="space-y-6 mb-12">

@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSync, faGlobe, faShieldHeart } from '@fortawesome/free-solid-svg-icons';
 import { defaultCategories } from '@/data/categories';
 import { ActiveScriptSource } from '@/context/providers/UIContext';
+import { useAuth } from '@/features/auth';
 
 interface GalleryHeaderProps {
   isAuthenticated: boolean;
@@ -29,6 +30,8 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
   onNewScript,
   onNewSentinel
 }) => {
+  const { isEnterprise } = useAuth();
+  
   return (
     <div className="flex flex-col space-y-4 mb-6">
       {/* Top Row: Category Filter Chips + Units Count */}
@@ -85,15 +88,19 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
                 >
                   + New Script
                 </button>
-                <div className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-2" />
-                <button
-                  onClick={onNewSentinel}
-                  className="text-xs font-black text-amber-500 hover:text-amber-600 uppercase tracking-widest hover:underline flex items-center gap-1"
-                  title="New Sentinel"
-                >
-                  <FontAwesomeIcon icon={faShieldHeart} className="text-xs" />
-                  Sentinel
-                </button>
+                {isEnterprise && (
+                  <>
+                    <div className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-2" />
+                    <button
+                      onClick={onNewSentinel}
+                      className="text-xs font-black text-amber-500 hover:text-amber-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+                      title="New Sentinel"
+                    >
+                      <FontAwesomeIcon icon={faShieldHeart} className="text-xs" />
+                      Sentinel
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>

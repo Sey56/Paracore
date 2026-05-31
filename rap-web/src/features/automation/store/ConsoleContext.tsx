@@ -5,6 +5,7 @@ import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useUI } from '@/hooks/useUI';
+import { AuthContext } from '@/features/auth/store/AuthContext';
 import { trackEvent } from '@/utils/telemetry';
 import { save, open } from '@tauri-apps/api/dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/api/fs';
@@ -69,6 +70,8 @@ export const ConsoleProvider: React.FC<{
 }> = ({ children, executionResult, setExecutionResult, selectedScript }) => {
   const { showNotification } = useNotifications();
   const { revitStatus } = useRevitStatus();
+  const authContext = React.useContext(AuthContext);
+  const isEnterprise = authContext?.isEnterprise ?? false;
   
   const [localHistory, setLocalHistory] = useState<ConsoleItem[]>(() => {
     const saved = localStorage.getItem('paracore_console_history');
@@ -140,7 +143,79 @@ export const ConsoleProvider: React.FC<{
 
     if (command.toLowerCase() === 'help' || command === '?') {
       const helpInput: ConsoleItem = { type: 'input', text: 'Help', timestamp: new Date(), replType: currentReplType };
-      const helpOutput: ConsoleItem = { type: 'output', text: "🚀 PARCORE REPL QUICK START:\nDiscovery: GetElements(\"Walls\"), ListParams(wall)\nEssentials: Selection[0], Println(x), vars\nAnalytics: Table(elements), BarChart(data)\nModify: Transact(\"Name\", () => { ... })\nSystem: help, clear, cls", timestamp: new Date(), replType: currentReplType };
+      const P = 47;
+      const h = (cmd: string, desc: string) => `  ${cmd}`.padEnd(P) + desc;
+      const helpText = [
+        "━".repeat(P + 16),
+        "  📖 PARACORE REPL — QUICK REFERENCE",
+        "━".repeat(P + 16),
+        "",
+        "🔍 DISCOVERY",
+        h('GetElements("Walls")',                    'All walls (generic)'),
+        h('GetElements<Wall>()',                     'All walls (typed)'),
+        h('GetElements<FamilyInstance>("Doors")',     'Typed + filtered'),
+        h('GetElement("name")',                      'Find one by name'),
+        h('Selection',                               'Current Revit selection'),
+        h('Selection[0]',                            'First selected element'),
+        "",
+        "📥 READ PARAMETERS",
+        h('el.GetStr("Level")',                      '→ "Level 1"'),
+        h('el.GetNum("Area", "m2")',                 '→ 25.46'),
+        h('el.GetVal("Area")',                       '→ "25.46 m²" (as in Revit)'),
+        h('el.GetInt("Is External")',                '→ 1 (yes/no)'),
+        h('el.GetTypeNum("Width", "mm")',            '→ 900.0 (from Type)'),
+        "",
+        "✏️ WRITE",
+        h('el.SetVal("Comments", "Done")',           'Smart setter'),
+        h('el.SetVal("Level", "Level 2")',           'Resolves ElementId'),
+        h('el.SetNum("Offset", 500, "mm")',          'Unit-aware setter'),
+        h('.SetParam("Mark", "W-01")',               'Bulk set on collection'),
+        "",
+        "🗂️ FILTER",
+        h('.WhereParam("Level", "Level 1")',         'Exact match'),
+        h('.WhereParam("Mark", "starts", "D-")',     'String operation'),
+        h('.WhereParam("Area", ">", 25, "m2")',      'Numeric comparison'),
+        h('.WhereMatches("Single-Flush")',           'Fuzzy name match'),
+        h('.Where(w => w.Width > 0.5)',              'Lambda (typed mode)'),
+        "",
+        "🔼 SORT & GROUP",
+        h('.OrderByParam("Area")',                   'Ascending (auto-numeric)'),
+        h('.OrderByParamDesc("Area")',               'Descending'),
+        h('.GroupByParam("Level")',                   '→ Group | Count'),
+        h('.GroupByParam("Level", "Area", "m2")',     '→ Group | Count | Total'),
+        h('.SumParam("Length", "m")',                 '→ Total as double'),
+        "",
+        "📈 VISUALIZE",
+        h('.Table()',                                 'Interactive data grid'),
+        h('.BarChart() / .PieChart() / .LineChart()', 'Charts'),
+        h('.Select(r => new { ... }).Table()',        'Custom projections'),
+        "",
+        "🖱️ REVIT UI",
+        h('.Select()',                               'Select in Revit UI'),
+        h('.Zoom()',                                 'Zoom to elements'),
+        h('.Isolate()',                              'Isolate in view'),
+        h('.Hide() / .Unhide()',                     'Toggle visibility'),
+        h('.Delete()',                               'BIM-safe delete'),
+        "",
+        "⚖️ UNITS",
+        h('10.InputUnit("m2")',                      'User → internal feet'),
+        h('val.OutputUnit("mm", 2)',                 'Internal → display'),
+        h('val.FormatUnit("mm")',                    '→ "3600.0 mm"'),
+        "",
+        "🔎 DIAGNOSTICS",
+        h('el.Peek()',                               'Full parameter audit'),
+        h('el.CombinedParams().Table()',             'Instance + Type params'),
+        h('el.BuiltInParams().Table()',              'All BIP identifiers'),
+        "",
+        "🛠️ SYSTEM",
+        h('Transact("name", () => { ... })',         'Wrap model changes'),
+        h('vars / list',                             'Show session variables'),
+        h('clear vars / reset',                      'Reset REPL memory'),
+        h('clear / cls',                             'Clear console'),
+        h('help / ?',                                'This reference'),
+        "━".repeat(P + 16),
+      ].join("\n");
+      const helpOutput: ConsoleItem = { type: 'output', text: helpText, timestamp: new Date(), replType: currentReplType };
       
       setLocalHistory(prev => [...prev, helpInput, helpOutput].slice(-100));
       if (!isMulti) setSingleLineValue(""); 
@@ -170,7 +245,7 @@ export const ConsoleProvider: React.FC<{
     const capturedDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
 
     try {
-      const response = await api.post("/api/repl", { code: command, session_id: "global" });
+      const response = await api.post("/api/repl", { code: command, session_id: "global", license_tier: isEnterprise ? "enterprise" : "free" });
       if (response.data.is_success) {
         setExecutionResult({ 
           output: response.data.output || '', 

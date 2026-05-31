@@ -20,11 +20,6 @@ namespace CoreScript.Engine.Core
         // ✅ Added: log buffer for Print(...) output
         public List<string> PrintLog { get; set; } = new();
 
-        /// <summary>
-        /// Stores internal, structured data (e.g., working set updates) for agent processing,
-        /// not intended for direct user display in the console.
-        /// </summary>
-        public string? InternalData { get; set; }
 
         /// <summary>
         /// Factory for failed execution result.

@@ -1,17 +1,45 @@
 import os
+import sys
+
+# Handle PyInstaller bundle paths
+if getattr(sys, 'frozen', False):
+    # In a bundle, the root is sys._MEIPASS
+    base_dir = sys._MEIPASS
+    # Add the base directory to path so internal imports work
+    if base_dir not in sys.path:
+        sys.path.insert(0, base_dir)
+else:
+    # In development mode, up one level from 'mcp' folder to 'server'
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(current_dir)
+    if base_dir not in sys.path:
+        sys.path.insert(0, base_dir)
+
+def _get_resource_path(filename: str) -> str:
+    """Resolve a bundled resource file path for both frozen and dev modes."""
+    if getattr(sys, 'frozen', False):
+        # PyInstaller extracts --add-data files into sys._MEIPASS
+        return os.path.join(sys._MEIPASS, filename)
+    else:
+        # Dev mode: up 4 levels from mcp_server.py to Paracore repo root
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        return os.path.join(repo_root, filename)
+
 import json
 import logging
 from mcp.server.fastmcp import FastMCP
 
-# Local imports
-if __name__ == "__main__" and __package__ is None:
-    import sys
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from grpc_client import close_channel, execute_script, get_context, init_channel
+# Now we can safely import from grpc_client (which is in base_dir/server or base_dir)
+from grpc_client import close_channel, execute_repl, execute_script, get_context, init_channel
 
 # Configure logging
-log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcp_debug.log")
+if getattr(sys, 'frozen', False):
+    # Log next to the executable in bundled mode
+    log_dir = os.path.dirname(sys.executable)
+else:
+    log_dir = os.path.dirname(os.path.abspath(__file__))
+
+log_file = os.path.join(log_dir, "mcp_debug.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,9 +47,15 @@ logging.basicConfig(
     filemode='a'
 )
 logger = logging.getLogger("paracore-mcp")
+logger.info(f"MCP Logging initialized at {log_file}")
 
 # Initialize FastMCP Server
-mcp = FastMCP("Paracore Revit Server")
+mcp = FastMCP("Paracore")
+
+@mcp.tool()
+def ping() -> str:
+    """Diagnostic tool to verify the MCP server is alive and responding."""
+    return "pong"
 
 
 
@@ -29,23 +63,45 @@ mcp = FastMCP("Paracore Revit Server")
 def explore_revit_data(csharp_code: str, justification: str) -> str:
     """
     Executes a C# snippet SILENTLY in Revit to fetch data without mutating the model.
-    CRITICAL: Before writing ANY C# code, if you are unfamiliar with the Paracore fluent API, 
-    you MUST read `paracore://repl-guide`, `paracore://extension-methods`, and `paracore://system-prompt`.
-    Do NOT guess standard Revit API syntax. Paracore is highly specialized.
+    DO NOT use standard Revit API. This is the Paracore REPL with a specialized fluent API.
+    Globals: Doc, UIDoc, ActiveView, Selection.
+    The LAST EXPRESSION is auto-returned (no Print/return needed).
+
+    SYNTAX CHEAT SHEET:
+    - GetElements<Room>().Count()         → count rooms
+    - GetElements<Wall>()                 → all walls
+    - GetElements("Doors")                → by category name
+    - GetElement("name")                  → single element by name
+    - el.GetStr("Level")                  → "Level 1" (smart string)
+    - el.GetNum("Area", "m2")             → 25.46 (unit-converted)
+    - el.GetVal("Width")                  → "300 mm" (as in Revit UI)
+    - .WhereParam("Level", "Level 1")     → filter by param
+    - .WhereMatches("Single-Flush")       → fuzzy name filter
+    - .OrderByParam("Area")               → sort ascending
+    - .GroupByParam("Level", "Area", "m2") → group + sum
+    - .SumParam("Area", "m2")             → total
+    - .Select(x => new { ... }).Table()   → data grid
+    - el.CombinedParams().Table()         → discover all parameters
+    - el.Peek()                           → forensic audit
+    - Transact("name", () => { ... })     → wrap model changes
+
+    For full reference, read paracore://extension-methods.
     """
     logger.info(f"MCP Exploring Data: {justification}")
     try:
-        # Wrap simple snippets in the minimal list serialization payload, 
-        # or execute_script inside grpc_client handles raw text wrapping if structured properly.
-        # Paracore v4 engine handles raw C# directly assuming standard implicit using context.
-        result = execute_script(csharp_code, "{}")
+        result = execute_repl(csharp_code, "mcp-session")
+        logger.info(f"MCP Raw Result: is_success={result.get('is_success')}, output='{result.get('output', '')}', structured={result.get('structured_output')}")
         
         if result["is_success"]:
-            output_str = ""
+            # Check all possible output channels
             if result.get("structured_output"):
                 output_str = json.dumps(result.get("structured_output"))
+            elif result.get("output"):
+                output_str = str(result["output"])
+            elif result.get("internal_data"):
+                output_str = str(result["internal_data"])
             else:
-                output_str = str(result.get("output", "Execution succeeded with no output."))
+                output_str = "Execution succeeded with no output."
             
             # The Shield: Truncate massive outputs to prevent context flooding
             if len(output_str) > 8000:
@@ -60,16 +116,26 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
 @mcp.tool()
 def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     """
-    Executes a C# snippet to MODIFY the Revit model.
-    CRITICAL: You MUST evaluate the Paracore resources (`paracore://extension-methods`) to ensure 
-    you are using native commands like `element.SetVal("Name", "X")` rather than standard Revit API.
-    Only use when absolutely sure.
+    Executes a C# snippet in Revit. Use for the user's final query (read or write).
+    DO NOT use standard Revit API. Use Paracore fluent API (same syntax as explore_revit_data).
+    Write: el.SetVal("Comments", "Done"), el.SetNum("Offset", 500, "mm"),
+           .SetParam("Mark", "W-01") for bulk, .Delete() for BIM-safe delete.
+    All writes must be in Transact("name", () => { ... }) unless using SetVal/Delete.
     """
     logger.info(f"MCP Executing Query: {justification}")
     try:
-        result = execute_script(csharp_code, "{}")
+        result = execute_repl(csharp_code, "mcp-session")
         if result["is_success"]:
-            return f"Execution Successful.\nOutput:\n{result.get('output', '')}"
+            # Check all possible output channels
+            if result.get("structured_output"):
+                output_str = json.dumps(result.get("structured_output"))
+            elif result.get("output"):
+                output_str = str(result["output"])
+            elif result.get("internal_data"):
+                output_str = str(result["internal_data"])
+            else:
+                output_str = "Execution succeeded with no output."
+            return f"Execution Successful.\nOutput:\n{output_str}"
         else:
             return f"Execution Failed: {result['error_message']}\nDetails: {result['error_details']}"
     except Exception as e:
@@ -90,22 +156,24 @@ def read_system_prompt() -> str:
 @mcp.resource("paracore://repl-guide")
 def read_repl_guide() -> str:
     """The authoritative REPL Guide describing magic category hydration strings and retrieval shortcuts."""
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "REPL_GUIDE.md")
+    path = _get_resource_path("REPL_GUIDE.md")
     try:
         with open(path, 'r', encoding='utf-8') as f:
             return f.read()
-    except Exception:
-        return "REPL_GUIDE.md not found."
+    except Exception as e:
+        logger.error(f"REPL_GUIDE.md not found at {path}: {e}")
+        return f"REPL_GUIDE.md not found at {path}"
 
 @mcp.resource("paracore://extension-methods")
 def read_extension_methods() -> str:
     """The complete technical reference for all fluent element getters/setters, properties, and formatting tools."""
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "EXTENSION_METHODS.md")
+    path = _get_resource_path("EXTENSION_METHODS.md")
     try:
         with open(path, 'r', encoding='utf-8') as f:
             return f.read()
-    except Exception:
-        return "EXTENSION_METHODS.md not found."
+    except Exception as e:
+        logger.error(f"EXTENSION_METHODS.md not found at {path}: {e}")
+        return f"EXTENSION_METHODS.md not found at {path}"
 
 # Prompts
 @mcp.prompt()

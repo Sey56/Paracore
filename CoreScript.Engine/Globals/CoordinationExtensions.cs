@@ -12,16 +12,18 @@ namespace CoreScript.Engine.Globals
         public Element TargetElement { get; set; }
         public string ClashType { get; set; }
         public double OverlapVolume { get; set; }
+        public double PenetrationDepth { get; set; }
         public XYZ ClashCenter { get; set; }
         public Solid OverlapSolid { get; set; }
         public long HelperId { get; set; }
 
-        public ClashResult(Element source, Element target, string type, double vol, XYZ center, Solid solid)
+        public ClashResult(Element source, Element target, string type, double vol, double depth, XYZ center, Solid solid)
         {
             SourceElement = source;
             TargetElement = target;
             ClashType = type;
             OverlapVolume = vol;
+            PenetrationDepth = depth;
             ClashCenter = center;
             OverlapSolid = solid;
             HelperId = -1;
@@ -35,6 +37,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static IEnumerable<ClashResult> AuditClashes(this IEnumerable<Element> sources, string targetCategory, double tolerance = 0.0)
         {
+            LicenseContext.RequireEnterprise("Coordination Audit");
             if (sources == null || !sources.Any()) return Enumerable.Empty<ClashResult>();
             
             var doc = sources.First().Document;
@@ -59,6 +62,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static IEnumerable<ClashResult> AuditClashes(this IEnumerable<Element> sources, string targetCategory, string tolerance)
         {
+            LicenseContext.RequireEnterprise("Coordination Audit");
             double tol = 0;
             if (!string.IsNullOrEmpty(tolerance))
             {
@@ -74,6 +78,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static IEnumerable<ClashResult> AuditClashes(this IEnumerable<Element> sources, IEnumerable<Element> targets, double tolerance = 0.0)
         {
+            LicenseContext.RequireEnterprise("Coordination Audit");
             var results = new List<ClashResult>();
             var doc = sources.FirstOrDefault()?.Document;
             if (doc == null || !targets.Any()) return results;
@@ -129,16 +134,17 @@ namespace CoreScript.Engine.Globals
                     if (geometricSuccess && volume > 0.0001)
                     {
                         // Heuristic: Ensure the clash is deeper than the tolerance
-                        // We check the smallest dimension of the overlap solid's bounding box
+                        // We use a rotationally-invariant penetration depth formula instead of AABB.
+                        double depth = GetPenetrationDepth(overlapSolid);
                         bool reportClash = true;
                         if (tolerance > 0.0001 && overlapSolid != null)
                         {
-                            reportClash = GetMinBBoxDimension(overlapSolid) >= tolerance;
+                            reportClash = depth >= tolerance;
                         }
 
                         if (reportClash)
                         {
-                            results.Add(new ClashResult(source, target, clashType, volume, center, overlapSolid));
+                            results.Add(new ClashResult(source, target, clashType, volume, depth, center, overlapSolid));
                         }
                     }
                     else if (!geometricSuccess && tolerance.AlmostZero()) 
@@ -194,36 +200,23 @@ namespace CoreScript.Engine.Globals
             return solids;
         }
 
-        private static double GetMinBBoxDimension(Solid solid)
+        private static double GetPenetrationDepth(Solid solid)
         {
             if (solid == null) return 0;
-            
-            // Solid doesn't have a BoundingBox property in Revit API, we compute it from edges
-            XYZ min = null;
-            XYZ max = null;
-
-            foreach (Edge edge in solid.Edges)
+            try
             {
-                var curve = edge.AsCurve();
-                foreach (var p in new[] { curve.GetEndPoint(0), curve.GetEndPoint(1) })
-                {
-                    if (min == null)
-                    {
-                        min = p;
-                        max = p;
-                    }
-                    else
-                    {
-                        min = new XYZ(Math.Min(min.X, p.X), Math.Min(min.Y, p.Y), Math.Min(min.Z, p.Z));
-                        max = new XYZ(Math.Max(max.X, p.X), Math.Max(max.Y, p.Y), Math.Max(max.Z, p.Z));
-                    }
-                }
+                double area = solid.SurfaceArea;
+                if (area < 0.000001) return 0;
+                
+                // Heuristic: Average Thickness = Volume / (Surface Area / 2)
+                // This formula accurately estimates the penetration depth of an intersection solid 
+                // regardless of its rotation, completely avoiding the flaws of Axis-Aligned Bounding Boxes.
+                return solid.Volume / (area / 2.0);
             }
-
-            if (min == null || max == null) return 0;
-            
-            var delta = max - min;
-            return Math.Min(delta.X, Math.Min(delta.Y, delta.Z));
+            catch
+            {
+                return 0;
+            }
         }
 
         private static bool IntersectSolidLists(List<Solid> list1, List<Solid> list2, out double volume, out XYZ center, out Solid overlapSolid)
@@ -481,7 +474,8 @@ namespace CoreScript.Engine.Globals
                 SourceName = r.SourceElement.Name,
                 TargetName = r.TargetElement.Name,
                 Type = r.ClashType,
-                Volume = units != null ? UnitFormatUtils.Format(units, SpecTypeId.Volume, r.OverlapVolume, false) : Math.Round(r.OverlapVolume, 4).ToString(),
+                Volume = r.OverlapVolume.OutputUnit("m3", 4).ToString("0.0000") + " m³",
+                Depth = units != null ? UnitFormatUtils.Format(units, SpecTypeId.Length, r.PenetrationDepth, false) : Math.Round(r.PenetrationDepth, 2).ToString(),
                 X = units != null ? UnitFormatUtils.Format(units, SpecTypeId.Length, r.ClashCenter.X, false) : Math.Round(r.ClashCenter.X, 2).ToString(),
                 Y = units != null ? UnitFormatUtils.Format(units, SpecTypeId.Length, r.ClashCenter.Y, false) : Math.Round(r.ClashCenter.Y, 2).ToString()
             });
@@ -495,6 +489,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void ClearClashHelpers(this Document doc)
         {
+            LicenseContext.RequireEnterprise("Coordination Audit");
             var oldHelpers = new FilteredElementCollector(doc)
                 .OfClass(typeof(DirectShape))
                 .Where(e => e.Name == "CORE_CLASH")

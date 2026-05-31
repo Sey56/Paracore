@@ -199,9 +199,11 @@ namespace CoreScript.Engine.Globals
                 // 2. Try Smart Expansion for Revit Elements
                 if (expandElements)
                 {
-                    var elements = items.OfType<Element>().ToList();
-                    // Only expand if the WHOLE collection is Revit elements
-                    if (elements.Count > 0 && elements.Count == items.Count)
+                    // Filter out deleted/invalid elements to prevent serialization crashes
+                    var elements = items.OfType<Element>().Where(e => e.IsValidObject).ToList();
+                    
+                    // Only expand if the WHOLE collection is Revit elements (ignoring invalid ones)
+                    if (elements.Count > 0 && elements.Count == items.OfType<Element>().Count())
                     {
                         var first = elements[0];
                         var firstCatId = first.Category?.Id?.Value;
@@ -211,11 +213,26 @@ namespace CoreScript.Engine.Globals
 
                         if (isHomogeneous)
                         {
-                            // DYNAMIC DISCOVERY: Extract ALL parameter names from the first element.
+                            // DYNAMIC DISCOVERY: Extract ALL parameter names from the first element and its Type.
                             // Since all elements share the same category, they share the same parameter set.
-                            var schema = first.Parameters.Cast<Parameter>()
+                            var paramNames = first.Parameters.Cast<Parameter>()
                                 .Where(p => p.HasValue)
                                 .Select(p => p.Definition.Name)
+                                .ToList();
+
+                            var typeId = first.GetTypeId();
+                            if (typeId != null && typeId != ElementId.InvalidElementId)
+                            {
+                                var elementType = first.Document.GetElement(typeId);
+                                if (elementType != null)
+                                {
+                                    paramNames.AddRange(elementType.Parameters.Cast<Parameter>()
+                                        .Where(p => p.HasValue)
+                                        .Select(p => p.Definition.Name));
+                                }
+                            }
+
+                            var schema = paramNames
                                 .Distinct()
                                 .OrderBy(n => n)
                                 .ToList();
@@ -249,7 +266,20 @@ namespace CoreScript.Engine.Globals
                 var list = new List<object>();
                 foreach (var item in items)
                 {
+                    // Skip deleted elements
+                    if (item is Element el && !el.IsValidObject) continue;
+
                     var itemType = item.GetType();
+
+                    // BIM-FIX: If we are rendering a table (expandElements=true) and the data is a 
+                    // simple primitive (string, enum, int), wrap it in an object so the UI 
+                    // shows a "Value" column instead of splitting the string into letters.
+                    if (expandElements && (itemType.IsPrimitive || itemType == typeof(string) || itemType.IsEnum))
+                    {
+                        list.Add(new Dictionary<string, object> { ["Value"] = item.ToString() });
+                        continue;
+                    }
+
                     bool isAnonymous = itemType.Name.StartsWith("<>") &&
                                        itemType.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false);
 
@@ -417,10 +447,6 @@ namespace CoreScript.Engine.Globals
             _context.LogError(message);
         }
 
-        public void SetInternalData(string data)
-        {
-            _context.SetInternalData(data);
-        }
 
         // Visualization Globals
         public void Show(object data)
@@ -520,22 +546,6 @@ namespace CoreScript.Engine.Globals
             return data;
         }
 
-        public static Element Delete(this Element e)
-        {
-            if (e != null) ExecutionGlobals.Current.Value?.Transact("Delete Element", () => e.Document.Delete(e.Id));
-            return e;
-        }
-
-        public static IEnumerable<Element> Delete(this IEnumerable<Element> data)
-        {
-            if (data == null) return data;
-            var elements = data.Where(e => e != null).ToList();
-            var first = elements.FirstOrDefault();
-            if (first != null) ExecutionGlobals.Current.Value?.Transact("Delete Elements", () => {
-                foreach (var e in elements) first.Document.Delete(e.Id);
-            });
-            return data;
-        }
         public static IEnumerable<T> Show<T>(this IEnumerable<T> data)
         {
             ExecutionGlobals.Current.Value?.Table(data);

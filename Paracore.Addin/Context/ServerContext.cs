@@ -27,7 +27,6 @@ namespace Paracore.Addin.Context
         public IReadOnlyList<string> PrintLog => _printMessages;
         public IReadOnlyList<string> ErrorLog => _errorMessages;
         public IReadOnlyList<StructuredOutputItem> StructuredOutputLog => _structuredOutputItems; // New property
-        public string? InternalDataLog { get; private set; } // Property for CodeRunner to access via reflection
         public bool IsReadOnly { get; }
 
         // ✅ Backing delegate for script printing
@@ -56,10 +55,6 @@ namespace Paracore.Addin.Context
             };
         }
 
-        public void SetInternalData(string data)
-        {
-            InternalDataLog = data;
-        }
 
         public void Println(string message)
         {

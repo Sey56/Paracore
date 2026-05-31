@@ -33,7 +33,6 @@ from agent import agent_router
 from api import (
     assist_router,
     auth_router,
-    manifest_router,
     playlist_router,
     presets_router,
     runs_router,
@@ -116,7 +115,6 @@ app.include_router(team_source_router.router)
 app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
 app.include_router(agent_router.router)
-app.include_router(manifest_router.router)
 app.include_router(assist_router.router)
 app.include_router(tool_builder_router.router)
 app.include_router(query_router.router)

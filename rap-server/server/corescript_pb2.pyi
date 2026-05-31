@@ -255,16 +255,18 @@ class ScriptFile(_message.Message):
     def __init__(self, file_name: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
 
 class ExecuteScriptRequest(_message.Message):
-    __slots__ = ("script_content", "parameters_json", "source", "compiled_assembly")
+    __slots__ = ("script_content", "parameters_json", "source", "compiled_assembly", "license_tier")
     SCRIPT_CONTENT_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_JSON_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     COMPILED_ASSEMBLY_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_TIER_FIELD_NUMBER: _ClassVar[int]
     script_content: str
     parameters_json: bytes
     source: str
     compiled_assembly: bytes
-    def __init__(self, script_content: _Optional[str] = ..., parameters_json: _Optional[bytes] = ..., source: _Optional[str] = ..., compiled_assembly: _Optional[bytes] = ...) -> None: ...
+    license_tier: str
+    def __init__(self, script_content: _Optional[str] = ..., parameters_json: _Optional[bytes] = ..., source: _Optional[str] = ..., compiled_assembly: _Optional[bytes] = ..., license_tier: _Optional[str] = ...) -> None: ...
 
 class StructuredOutputItem(_message.Message):
     __slots__ = ("type", "data", "title")
@@ -679,12 +681,14 @@ class UpdateElementParameterResponse(_message.Message):
     def __init__(self, is_success: bool = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class ExecuteReplRequest(_message.Message):
-    __slots__ = ("code", "session_id")
+    __slots__ = ("code", "session_id", "license_tier")
     CODE_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_TIER_FIELD_NUMBER: _ClassVar[int]
     code: str
     session_id: str
-    def __init__(self, code: _Optional[str] = ..., session_id: _Optional[str] = ...) -> None: ...
+    license_tier: str
+    def __init__(self, code: _Optional[str] = ..., session_id: _Optional[str] = ..., license_tier: _Optional[str] = ...) -> None: ...
 
 class ExecuteReplResponse(_message.Message):
     __slots__ = ("is_success", "output", "error_message", "structured_output")

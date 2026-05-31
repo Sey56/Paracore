@@ -106,13 +106,6 @@ namespace CoreScript.Engine.Globals
             Globals.Print(message);
         }
 
-        /// <summary>
-        /// Internal use only. Sets data to be passed back to the host application.
-        /// </summary>
-        public static void SetInternalData(string data)
-        {
-            Globals.SetInternalData(data);
-        }
 
         /// <summary>
         /// Starts a new Revit transaction with the specified name.
@@ -297,6 +290,7 @@ namespace CoreScript.Engine.Globals
         /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
         public static void Watchdog(Action<Document> callback, int intervalSeconds = 5)
         {
+            LicenseContext.RequireEnterprise("Sentinels");
             bool isRegistration = Parameters.TryGetValue("__is_watchdog_registration__", out var isReg) && isReg is bool b && b;
 
             if (isRegistration)
@@ -327,6 +321,7 @@ namespace CoreScript.Engine.Globals
         /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
         public static void Watchdog(Action callback, int intervalSeconds = 5)
         {
+            LicenseContext.RequireEnterprise("Sentinels");
             bool isRegistration = Parameters.TryGetValue("__is_watchdog_registration__", out var isReg) && isReg is bool b && b;
 
             if (isRegistration)
@@ -357,6 +352,7 @@ namespace CoreScript.Engine.Globals
         /// <param name="data">Optional list of elements or objects for details</param>
         public static void WatchdogReport(string summary, string status = "success", object? data = null)
         {
+            LicenseContext.RequireEnterprise("Sentinels");
             string? path = null;
 
             // Priority 1: Current execution context (when running via UI)

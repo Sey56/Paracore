@@ -157,7 +157,7 @@ try {
 
             Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $serverReleaseDir
 
-            robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
+            robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache build dist /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
 
     
 

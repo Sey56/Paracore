@@ -69,6 +69,15 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    const handleAuthExpired = () => {
+      console.warn("Auth token expired! Logging out gracefully.");
+      logout();
+    };
+    window.addEventListener('paracore-auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('paracore-auth-expired', handleAuthExpired);
+  }, [logout]);
+
+  useEffect(() => {
     const storedCloudToken = localStorage.getItem('rap_cloud_token');
     const storedUser = localStorage.getItem('rap_user');
     const storedSessionStartTime = localStorage.getItem('rap_session_start_time');
@@ -309,8 +318,11 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const memoizedUser = React.useMemo(() => user, [user]);
 
+  const isEnterprise = isAuthenticated && cloudToken !== null && cloudToken !== "rap-local-token";
+
   const contextValue = React.useMemo(() => ({
     isAuthenticated,
+    isEnterprise,
     user: memoizedUser,
     cloudToken,
     localToken,
@@ -322,6 +334,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     activeRole
   }), [
     isAuthenticated,
+    isEnterprise,
     memoizedUser,
     cloudToken,
     localToken,

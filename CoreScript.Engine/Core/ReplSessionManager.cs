@@ -26,10 +26,11 @@ namespace CoreScript.Engine.Core
         private static readonly Dictionary<string, ReplSession> _sessions = new Dictionary<string, ReplSession>();
         private static readonly object _lock = new object();
 
-        public static async Task<(bool isSuccess, string output, string error, List<string> structuredOutput)> ExecuteAsync(string code, string sessionId, ICoreScriptContext context)
+        public static async Task<(bool isSuccess, string output, string error, List<string> structuredOutput)> ExecuteAsync(string code, string sessionId, ICoreScriptContext context, string licenseTier = "free")
         {
             try
             {
+                LicenseContext.Tier = licenseTier;
                 var lowerCode = code.Trim().ToLowerInvariant();
 
                 // 1. Intercept Meta-Commands BEFORE any wrapping or session logic
@@ -358,6 +359,7 @@ namespace CoreScript.Engine.Core
             }
             catch (Exception ex)
             {
+                LicenseContext.Reset();
                 FileLogger.LogError($"[REPL] Error: {ex.Message}");
                 return (false, string.Empty, ex.Message, new List<string>());
             }

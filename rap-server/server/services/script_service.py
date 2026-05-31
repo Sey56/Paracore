@@ -661,7 +661,6 @@ def delete_script_logic(script_path: str, delete_scaffolding_only: bool = False)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def get_script_manifest_logic(path: str): return grpc_client.get_script_manifest(path)
 def rename_script_logic(old_path: str, new_name: str):
     """
     V5 ROBUST: Renames a script while ensuring all file handles (Watchdog + Sync) are released first.

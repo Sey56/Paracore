@@ -24,30 +24,9 @@ export const TopBar: React.FC = () => {
   const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const helpDropdownRef = useRef<HTMLDivElement>(null);
-  const [hasGeneratedManifest, setHasGeneratedManifest] = useState(false);
 
-  const handleAgentModeClick = async () => {
+  const handleAgentModeClick = () => {
     setActiveMainView('agent');
-
-    // Trigger manifest generation only once per session when entering Agent Mode
-    if (!hasGeneratedManifest && toolLibraryPath) {
-      try {
-        console.log("Triggering manifest generation...");
-        showNotification("Generating script manifest...", "info");
-        const response = await fetch('http://localhost:8000/api/manifest/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agent_scripts_path: toolLibraryPath })
-        });
-        const data = await response.json();
-        console.log("Manifest generation triggered successfully.");
-        showNotification(`Script manifest generated successfully! Found ${data.count} scripts.`, "success");
-        setHasGeneratedManifest(true);
-      } catch (error) {
-        console.error("Failed to trigger manifest generation:", error);
-        showNotification("Failed to generate manifest.", "error");
-      }
-    }
   };
 
   useEffect(() => {

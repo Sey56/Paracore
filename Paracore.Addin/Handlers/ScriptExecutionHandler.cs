@@ -536,7 +536,7 @@ namespace Paracore.Addin.Handlers
                 }
             }
 
-            response.InternalData = finalResult.InternalData ?? "";
+            response.InternalData = "";
             return response;
         }
 

@@ -24,6 +24,45 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// Discovery helper for REPL: Lists all public C# methods available for the element runtime type via Reflection.
+        /// Excludes property getters/setters and basic object methods to avoid noise.
+        /// usage: myDoor.ReflectionMethods().Table()
+        /// </summary>
+        public static IEnumerable<object> ReflectionMethods(this Element e)
+        {
+            if (e == null) return Enumerable.Empty<object>();
+            return e.GetType()
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .Where(m => !m.IsSpecialName) // Exclude property getters/setters (get_*, set_*)
+                .Where(m => m.DeclaringType != typeof(object)) // Exclude basic System.Object methods (Equals, ToString, etc.)
+                .OrderBy(m => m.Name)
+                .Select(m => new 
+                { 
+                    Method = m.Name, 
+                    ReturnType = FormatTypeName(m.ReturnType),
+                    Parameters = string.Join(", ", m.GetParameters().Select(p => $"{FormatTypeName(p.ParameterType)} {p.Name}")),
+                    DeclaringType = m.DeclaringType?.Name ?? "Unknown"
+                });
+        }
+
+        private static string FormatTypeName(Type type)
+        {
+            if (type == null) return "Unknown";
+            if (!type.IsGenericType) return type.Name;
+
+            var genericArguments = type.GetGenericArguments();
+            var typeName = type.Name;
+            var backtickIndex = typeName.IndexOf('`');
+            if (backtickIndex > 0)
+            {
+                typeName = typeName.Substring(0, backtickIndex);
+            }
+            
+            var argNames = string.Join(", ", genericArguments.Select(FormatTypeName));
+            return $"{typeName}<{argNames}>";
+        }
+
+        /// <summary>
         /// Fuzzy substring search against the Element's identity.
         /// Automatically checks if the specified string is contained within the Type Name OR the true Family Name.
         /// </summary>
@@ -106,6 +145,14 @@ namespace CoreScript.Engine.Globals
                 }
             }
             catch { }
+
+            // 4. Type parameter fallback
+            var typeId = e.GetTypeId();
+            if (typeId != null && typeId != ElementId.InvalidElementId)
+            {
+                var type = e.Document.GetElement(typeId);
+                if (type != null) return type.GetStr(name);
+            }
 
             return "";
         }
@@ -201,6 +248,14 @@ namespace CoreScript.Engine.Globals
             }
             catch { }
 
+            // 4. Type parameter fallback
+            var typeId = e.GetTypeId();
+            if (typeId != null && typeId != ElementId.InvalidElementId)
+            {
+                var type = e.Document.GetElement(typeId);
+                if (type != null) return type.GetNum(name);
+            }
+
             return 0.0;
         }
 
@@ -234,6 +289,14 @@ namespace CoreScript.Engine.Globals
             }
             catch { }
 
+            // 4. Type parameter fallback
+            var typeId = e.GetTypeId();
+            if (typeId != null && typeId != ElementId.InvalidElementId)
+            {
+                var type = e.Document.GetElement(typeId);
+                if (type != null) return type.GetInt(name);
+            }
+
             return 0;
         }
 
@@ -259,7 +322,11 @@ namespace CoreScript.Engine.Globals
 
             // Fallback to Smart GetStr (handles Reflection and ElementId names)
             var fallback = e.GetStr(name);
-            return string.IsNullOrEmpty(fallback) ? "-" : fallback;
+            if (!string.IsNullOrEmpty(fallback)) return fallback;
+
+            // Fallback to Type parameters
+            var typeVal = e.GetTypeVal(name);
+            return string.IsNullOrEmpty(typeVal) || typeVal == "-" ? "-" : typeVal;
         }
 
         /// <summary> Gets the formatted value string in a specific unit (with suffix). </summary>
@@ -340,13 +407,15 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Gets both instance and type parameters of the element as a combined list with Scope headers.
+        /// Also includes Native Properties (like Pinned, Category, etc.) for a complete view.
         /// </summary>
         public static IEnumerable<object> CombinedParams(this Element e)
         {
             if (e == null) return new List<object>();
-            var inst = e.InstanceParams().Select(p => { dynamic dp = p; return new { Scope = "Instance", Name = dp.Name, Storage = dp.Storage, Value = dp.Value }; });
-            var type = e.TypeParams().Select(p => { dynamic dp = p; return new { Scope = "Type", Name = dp.Name, Storage = dp.Storage, Value = dp.Value }; });
-            return inst.Concat(type);
+            var inst = e.InstanceParams().Select(p => { dynamic dp = p; return (object)new { Scope = "Instance", Name = (string)dp.Name, Storage = (string)dp.Storage, Value = (string)dp.Value }; });
+            var type = e.TypeParams().Select(p => { dynamic dp = p; return (object)new { Scope = "Type", Name = (string)dp.Name, Storage = (string)dp.Storage, Value = (string)dp.Value }; });
+            var native = e.NativeProperties().Select(p => { dynamic dp = p; return (object)new { Scope = "Native", Name = (string)dp.Property, Storage = "Property", Value = (string)dp.Value }; });
+            return native.Concat(inst).Concat(type);
         }
 
         /// <summary>
@@ -454,8 +523,38 @@ namespace CoreScript.Engine.Globals
                     p = e.get_Parameter(bip);
                 }
 
-                if (p == null) return;
+                if (p == null)
+                {
+                    // Smart Fallback: Try C# Property via Reflection (e.g. "Pinned", "Name")
+                    try
+                    {
+                        var prop = e.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                        if (prop != null && prop.CanWrite)
+                        {
+                            var targetType = prop.PropertyType;
+                            try
+                            {
+                                if (targetType == typeof(bool) && value is string sVal)
+                                {
+                                    if (bool.TryParse(sVal, out var bVal)) prop.SetValue(e, bVal);
+                                }
+                                else if (targetType == typeof(string))
+                                {
+                                    prop.SetValue(e, value.ToString());
+                                }
+                                else
+                                {
+                                    var converted = Convert.ChangeType(value, targetType);
+                                    prop.SetValue(e, converted);
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                    catch { }
 
+                    return;
+                }
                 // 1. Double/Numeric
                 if (value is double d) { p.Set(d); return; }
                 if (value is int i) { p.Set(i); return; }
@@ -529,10 +628,13 @@ namespace CoreScript.Engine.Globals
             return e;
         }
 
-        public static void Delete(this Element e)
+        public static Element Delete(this Element e)
         {
-            if (e == null) return;
-            Tx.Transact(e.Document, "Delete Element", () => e.Document.Delete(e.Id));
+            if (e == null || !e.IsValidObject) return e;
+            Tx.Transact(e.Document, "Delete Element", () => {
+                if (e.IsValidObject) e.Document.Delete(e.Id);
+            });
+            return e;
         }
 
         /// <summary>
@@ -540,11 +642,11 @@ namespace CoreScript.Engine.Globals
         /// BIM-Smart: Skips Pinned elements and Curtain Panels to avoid internal Revit exceptions.
         /// Handles dependencies safely by checking IsValidObject before each deletion.
         /// </summary>
-        public static void Delete<T>(this IEnumerable<T> elements)
+        public static IEnumerable<T> Delete<T>(this IEnumerable<T> elements)
             where T : Element
         {
             var list = elements.ToList();
-            if (!list.Any()) return;
+            if (!list.Any()) return elements;
             
             var doc = list.First().Document;
             Tx.Transact(doc, "Delete Elements", () =>
@@ -568,6 +670,7 @@ namespace CoreScript.Engine.Globals
                     try { doc.Delete(e.Id); } catch { }
                 }
             });
+            return elements;
         }
 
         public static Element Hide(this Element e)

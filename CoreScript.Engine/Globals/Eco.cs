@@ -23,6 +23,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static double GetCarbon(Element element)
         {
+            LicenseContext.RequireEnterprise("Eco Analysis");
             if (element == null) return 0;
 
             // Handle Curtain Walls (Traverse Grid sub-elements recursively)
@@ -108,6 +109,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static double GetUValue(Element element)
         {
+            LicenseContext.RequireEnterprise("Eco Analysis");
             return _thermalSolver.CalculateUValue(element);
         }
 
@@ -117,6 +119,7 @@ namespace CoreScript.Engine.Globals
         /// <returns>A dynamic object containing Temperature, WindSpeed, etc.</returns>
         public static dynamic GetWeather()
         {
+            LicenseContext.RequireEnterprise("Eco Analysis");
             var doc = ExecutionGlobals.Current.Value?.Doc;
             if (doc == null) return new { Error = "No active document" };
 

@@ -48,6 +48,5 @@ namespace Paracore.Addin.Services
         }
 
         public void AddStructuredOutput(string type, string jsonData) { }
-        public void SetInternalData(string data) { }
     }
 }

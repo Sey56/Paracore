@@ -443,21 +443,6 @@ def stop_sync_session(script_path: str):
         logging.error(f"Error calling StopSyncSession gRPC: {e}")
         return {"is_success": False, "error_message": str(e)}
 
-def get_script_manifest(script_path: str) -> str:
-    """
-    Calls the gRPC service to get a JSON manifest of scripts from a given path.
-    """
-    try:
-        with get_corescript_runner_stub() as stub:
-            request = corescript_pb2.GetScriptManifestRequest(script_path=script_path)
-            response = stub.GetScriptManifest(request)
-            return response.manifest_json
-    except grpc.RpcError as e:
-        if e.code() == grpc.StatusCode.UNAVAILABLE:
-            return json.dumps({"scripts": [], "error": "Revit is closed or Paracore server is unavailable."})
-        return json.dumps({"scripts": [], "error": str(e)})
-    except Exception as e:
-        return json.dumps({"scripts": [], "error": str(e)})
 
 def get_context():
     """
@@ -495,24 +480,6 @@ def get_context():
     except Exception as e:
         raise e
 
-def validate_working_set_grpc(element_ids: list[int]) -> list[int]:
-    """
-    Calls the gRPC service to validate a list of element IDs against the active Revit document.
-    """
-    logging.info(f"Attempting to validate {len(element_ids)} element IDs via gRPC.")
-    try:
-        with get_corescript_runner_stub() as stub:
-            request = corescript_pb2.ValidateWorkingSetRequest(element_ids=element_ids)
-            response = stub.ValidateWorkingSet(request)
-            valid_ids = list(response.valid_element_ids)
-            logging.info(f"gRPC ValidateWorkingSet call successful. {len(valid_ids)} IDs are valid.")
-            return valid_ids
-    except grpc.RpcError as e:
-        logging.error(format_grpc_error(e))
-        return [] # Return empty list on error
-    except Exception as e:
-        logging.error(f"An unexpected error occurred during gRPC ValidateWorkingSet call: {e}")
-        return [] # Return empty list on error
 
 def compute_parameter_options(script_content: str, parameter_name: str, parameters: dict = None):
     """
@@ -832,7 +799,7 @@ def clear_assembly_cache():
         logging.error(format_grpc_error(e))
         return {"is_success": False, "message": f"gRPC Error: {e.details()}"}
 
-def execute_repl(code: str, session_id: str):
+def execute_repl(code: str, session_id: str, license_tier: str = "free"):
     """
     Calls the gRPC service to execute a REPL command in Revit.
     """
@@ -840,7 +807,8 @@ def execute_repl(code: str, session_id: str):
         with get_corescript_runner_stub() as stub:
             request = corescript_pb2.ExecuteReplRequest(
                 code=code,
-                session_id=session_id
+                session_id=session_id,
+                license_tier=license_tier
             )
             response = stub.ExecuteRepl(request)
             structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in getattr(response, 'structured_output', [])]

@@ -10,7 +10,7 @@ import { useUI } from '@/hooks/useUI';
 import { TeamScriptSource } from '@/types/index';
 import { useUserTeamSources } from '../hooks/useUserTeamSources';
 import { Role } from '@/features/auth';
-import { message } from '@tauri-apps/api/dialog';
+import { message, confirm as tauriConfirm } from '@tauri-apps/api/dialog';
 
 interface GitStatus {
   branch_info: {
@@ -113,7 +113,7 @@ const TeamSourceSettings: React.FC<TeamSourceSettingsProps> = ({ isAuthenticated
       showNotification('No active team selected.', 'error');
       return;
     }
-    const userConfirmed = await confirm(`Are you sure you want to un-register TeamSource '${sourceToRemove.name}'? This will not delete the local folder.`);
+    const userConfirmed = await tauriConfirm(`Are you sure you want to un-register TeamSource '${sourceToRemove.name}'? This will not delete the local folder.`);
     if (userConfirmed !== true) {
       return;
     }

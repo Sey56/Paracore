@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faExpandAlt, faCompressAlt, faChevronDown, faSortAmountDown } from '@fortawesome/free-solid-svg-icons';
+import { useAuth } from '@/features/auth';
 
 interface CommandConsoleProps {
   isAuthenticated: boolean;
@@ -40,6 +41,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
 }) => {
   const [isSortOpen, setIsSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+  const { isEnterprise } = useAuth();
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -76,7 +78,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           {[
             { id: 'all', label: 'All' },
             { id: 'scripts', label: 'Scripts' },
-            { id: 'guards', label: 'Sentinels' }
+            ...(isEnterprise ? [{ id: 'guards', label: 'Sentinels' }] : [])
           ].map(t => (
             <button
               key={t.id}
