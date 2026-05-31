@@ -144,6 +144,15 @@ async def chat_with_agent(request: ChatRequest):
                 else: # plain openai
                     provider_obj = OpenAIProvider(api_key=api_key)
                     model = OpenAIModel(model_name, provider=provider_obj)
+            elif p_lower == "deepseek":
+                os.environ["DEEPSEEK_API_KEY"] = api_key
+                from pydantic_ai.models.openai import OpenAIModel
+                from pydantic_ai.providers.openai import OpenAIProvider
+                provider_obj = OpenAIProvider(
+                    base_url="https://api.deepseek.com",
+                    api_key=api_key
+                )
+                model = OpenAIModel(model_name, provider=provider_obj)
             else:
                 model = model_name
 

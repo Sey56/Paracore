@@ -79,11 +79,11 @@ List their `Id`, `Name`, and `Width_mm` in a table.
 
 **Challenge 11: The Pipe Penetration Audit**
 Find all **Walls** that intersect with **Pipes** and display the coordination results in a table.
-*   *Hint: Use `.AuditClashes("Pipes")` and `.Show()`.*
+*   *Hint: Use `.AuditClashes("Pipes")` and `.Table()`.*
 
 **Challenge 12: The Visual Coordination Sweep**
-Perform a high-precision audit to find all **Structural Columns** that clash with **Walls** with a **2mm** tolerance. Calculate the intersection **Volume** and create **Red 3D Helpers** for visual review.
-*   *Hint: Use `.AuditClashes("Walls", "2mm", true, true)` and then `.InProjectUnits().Show()` to see the results in your project's units.*
+Perform a high-precision audit to find all **Structural Columns** that clash with **Walls** with a **2mm** tolerance. The audit creates **Red 3D Helpers** automatically and displays the results in a Coordination Grid.
+*   *Hint: Use `.AuditClashes("Walls", "2mm").Table()` to see the results with 3D helpers in the model.*
 
 ---
 

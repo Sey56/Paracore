@@ -337,7 +337,7 @@ Revit's `ToRoom`/`FromRoom` swap when a door is flipped. These are stable regard
 ```csharp
 door.RoomAccess()         // "Corridor"  — always the non-swing side
 door.RoomDestination()    // "Office 101" — always the swing-into side
-door.Handing()            // "RHR" — LH, RH, LHR, RHR
+door.Handing()            // "RH" — LH or RH
 door.HingeSide()          // "Right" — from Access Room perspective
 door.IsHandFlipped()      // true/false
 door.IsFacingFlipped()    // true/false
@@ -378,9 +378,11 @@ GetElements("Walls")
 | `element.ParamsDict()` | `Dictionary<string,string>` of all params |
 | `element.GeometrySummary()` | Solid/Curve/PolyLine breakdown |
 | `element.ReflectionProperties()` | All native C# properties on the type |
+| `element.ReflectionMethods()` | All public C# methods on the type (with params) |
 
 ```csharp
 Selection[0].Peek()
+Selection[0].ReflectionMethods().Table()
 Selection[0].BuiltInParams().Table()  // Find BIP names for language-independent code
 ```
 

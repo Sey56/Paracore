@@ -1,6 +1,9 @@
 # 🧩 Paracore Extension Methods Reference
 
-A comprehensive guide to every extension method available on Revit elements and collections in Paracore scripts. All methods are defined in `ElementExtensions.cs` and are globally available in the REPL and in all scripts.
+A comprehensive guide to every extension method available on Revit elements and collections in Paracore scripts. All methods are defined in `ElementExtensions.cs`, `UnitExtensions.cs`, `CoordinationExtensions.cs`, and `NotebookExtensions.cs` and are globally available in the REPL and in all scripts.
+
+> [!NOTE]
+> All extension methods work identically in the **REPL** (single-line and multi-line) and in **Gallery scripts** (full C# project structure). They were designed as shortcuts to simplify the verbose Revit API, but they are standard C# extension methods available everywhere the engine runs.
 
 > [!TIP]
 > All collection extension methods are **fully generic** — they preserve the specific element type (`Wall`, `FamilyInstance`, etc.) throughout the entire fluent chain. You never lose type information.
@@ -24,9 +27,10 @@ A comprehensive guide to every extension method available on Revit elements and 
 14. [Collection: Visualization](#-collection-visualization)
 15. [Collection: Revit UI Actions](#-collection-revit-ui-actions)
 16. [Element: Materials & Sustainability](#-element-materials--sustainability)
-17. [Numeric & Unit Comparison Helpers](#-numeric--unit-comparison-helpers)
-18. [Complete Fluent Chain Examples](#-complete-fluent-chain-examples)
-19. [Quick Reference Card](#-quick-reference-card)
+17. [Collection: Coordination & Geometric Auditing](#-collection-coordination--geometric-auditing)
+18. [Numeric & Unit Comparison Helpers](#-numeric--unit-comparison-helpers)
+19. [Complete Fluent Chain Examples](#-complete-fluent-chain-examples)
+20. [Quick Reference Card](#-quick-reference-card)
 
 ---
 
@@ -75,6 +79,7 @@ All methods on `Element`. Automatically handle:
 - `BuiltInParameter` name lookups
 - `ElementId` → Element Name resolution
 - C# native property fallback via Reflection
+- Type parameter fallback (Automatically checks the element's Type if the instance parameter is missing)
 - Unit conversion (where applicable)
 
 ---
@@ -86,6 +91,7 @@ All methods on `Element`. Automatically handle:
 - If parameter is an `ElementId` (Level, Type, Room), returns the **element name** (e.g., `"Level 1"`).
 - Falls back to Revit's formatted value string for numbers.
 - Falls back to C# property via Reflection (e.g., `"HandFlipped"` → `"True"`).
+- Falls back to Type parameter if not found on the instance (e.g., standard door `"Width"`).
 - Returns `""` if not found.
 
 ```csharp
@@ -113,6 +119,7 @@ room.GetStr("Area", "m2")     // → "25.46"
 
 - Returns `0.0` if not found.
 - Falls back to C# property via Reflection for native doubles (`Width`, `Volume`, etc.).
+- Falls back to Type parameter if not found on the instance.
 
 ```csharp
 wall.GetNum("Length")    // → 11.811 (feet)
@@ -145,6 +152,7 @@ floor.GetNum("Volume", "m3")   // → 0.72
 
 - Returns values like `"3600.0 mm"`, `"1.25 m³"`, `"Level 1"`.
 - Falls back to `GetStr` if Revit doesn't provide a formatted string.
+- Automatically falls back to Type parameters if an instance parameter is not found.
 - Returns `"-"` if not found.
 
 ```csharp
@@ -201,9 +209,21 @@ door.GetTypeNum("Width", "mm")          // → 900.0 (type width)
 
 ## ✏️ Element: Smart Write Methods
 
+### The Transaction Behavior (`IsModifiable` Check)
+Both `SetVal` and `SetNum` contain built-in transaction intelligence. Before applying a change, the engine checks `e.Document.IsModifiable`:
+* **If `false` (No Active Transaction):** A new, isolated "mini-transaction" is created. Ideal for REPL one-liners.
+* **If `true` (Active Transaction Exists):** The engine bypasses creating a transaction and applies the change instantly.
+> [!IMPORTANT]
+> **Mass Edits:** When modifying multiple elements in a loop, **always** wrap the loop in a `Transact()` block. This ensures Revit only opens one transaction, dramatically improving performance and keeping the Undo stack clean.
+
+---
+
 ### `element.SetVal(name, value)`
 
-> **The Smart Setter.** Automatically determines how to write the value based on parameter type.
+> **The Smart Setter.** Automatically determines how to write the value based on parameter type. Uses Reflection to locate Native C# properties if no parameter matches.
+
+**Overloads:**
+*   `public static void SetVal(this Element e, string name, object value)`
 
 | Input type | Behavior |
 |---|---|
@@ -211,27 +231,33 @@ door.GetTypeNum("Width", "mm")          // → 900.0 (type width)
 | `string "Level 1"` | Resolves name to `ElementId` automatically |
 | `string "Updated"` | Standard string set |
 | `double 3.5` | Direct numeric set (internal units) |
-| `int 4` | Integer set |
+| `bool true` | Native C# Property set via Reflection (e.g. "Pinned") |
 
 ```csharp
 wall.SetVal("Comments", "Reviewed")    // string
 wall.SetVal("Base Offset", "500 mm")   // value string — unit parsed
 wall.SetVal("Level", "Level 2")        // ElementId resolved by name
-wall.SetVal("Mark", "W-01")
+wall.SetVal("Pinned", true)            // Native C# property
 ```
-
-> [!NOTE]
-> `SetVal` automatically wraps in a transaction if none is active.
 
 ---
 
 ### `element.SetNum(name, value, unit)`
 
-> **Explicit Unit-Aware Numeric Setter.** Converts from the specified unit to internal Revit units before setting.
+> **The Math Setter.** Specifically designed to take raw mathematical doubles and convert them FROM the specified unit INTO Revit's internal decimal feet before setting.
+
+**Overloads:**
+*   `public static void SetNum(this Element e, string name, double value)` *(Assumes value is already internal Decimal Feet)*
+*   `public static void SetNum(this Element e, string name, double value, string unit)` *(Converts from specified unit)*
 
 ```csharp
-wall.SetNum("Base Offset", 500, "mm")   // sets 500mm in Revit internal feet
-wall.SetNum("Sill Height", 0.9, "m")
+double calculatedHeight = 3.0; // Assume we calculated this in Meters
+
+// CORRECT: Converts 3.0 from Meters into Internal Feet, then sets it.
+wall.SetNum("Unconnected Height", calculatedHeight, "m"); 
+
+// DANGEROUS: Revit will assume 3.0 means 3 Feet!
+wall.SetVal("Unconnected Height", calculatedHeight); 
 ```
 
 ---
@@ -279,6 +305,17 @@ door.Matches("NonExistent")   // → false
 ```csharp
 GetElements<Wall>().First().ReflectionProperties().Table()
 // Columns: Name | Type
+```
+
+---
+
+### `element.ReflectionMethods()`
+
+> Returns a list of all public C# methods available on the element's runtime type (via Reflection), excluding standard System.Object methods. Details the method name, return type, parameters, and declaring type.
+
+```csharp
+GetElements<FamilyInstance>("Doors").First().ReflectionMethods().Table()
+// Columns: Method | ReturnType | Parameters | DeclaringType
 ```
 
 ---
@@ -359,6 +396,29 @@ door.IsFacingFlipped()  // → true / false
 ```csharp
 var arc = door.FindSwingArc();
 // arc.Radius, arc.Center, arc.GetEndPoint(0)
+```
+
+---
+
+### `fi.IsStandardDoor()`
+
+> Returns `true` if the door is hosted in a standard wall (Basic/Stacked), `false` if it’s a Curtain Wall panel.
+
+```csharp
+door.IsStandardDoor()  // → true for standard doors
+// false for curtain wall glass doors
+```
+
+---
+
+### `.StandardOnly()` — Collection Filter
+
+> Filters a `FamilyInstance` collection to exclude Curtain Wall hosted panels. Curtain wall doors don’t carry standard properties like Level, Width, Height, Room, or swing geometry.
+
+```csharp
+GetElements<FamilyInstance>("Doors")
+    .StandardOnly()
+    .Table();
 ```
 
 ---
@@ -651,7 +711,7 @@ These come from `VisualizationExtensions` and work on **any** `IEnumerable<T>`.
 
 | Method | Description |
 |---|---|
-| `.Table()` | Renders as an interactive data grid in the Summary tab |
+| `.Table()` | Renders as an interactive data grid. Automatically extracts **both** Instance and Type parameters into columns. |
 | `.BarChart()` / `.BarGraph()` | Bar chart (needs `name` + `value` properties) |
 | `.PieChart()` / `.PieGraph()` | Pie chart |
 | `.LineChart()` / `.LineGraph()` | Line chart |
@@ -765,11 +825,18 @@ High-performance interference detection and unit-aware coordination reporting. T
 | `target` | `string` | The interference category (e.g. "StructuralColumns") |
 | `tolerance` | `double` | Geometric tolerance (e.g. `5.0`) |
 
+### `.AuditClashes(target, tolerance)` — Unit-Aware String Tolerance
+> Accepts a unit-aware string tolerance like `"5mm"`, `"0.5in"`, `"2cm"`. Internally parses and converts to Revit internal units.
+
 ```csharp
-// 🛡️ ARCH/STRUCT COORDINATION AUDIT 🛡️
-// Detects where columns are embedded in walls
+// Numeric tolerance (internal units)
 GetElements("Walls")
     .AuditClashes("StructuralColumns", tolerance: 2.0)
+    .Table();
+
+// Unit-aware string tolerance
+GetElements("Walls")
+    .AuditClashes("Pipes", "5mm")
     .Table();
 ```
 
@@ -782,6 +849,15 @@ GetElements("Walls")
 
 ```csharp
 GetElements("Walls").AuditClashes("Pipes").Table();
+```
+
+---
+
+### `doc.ClearClashHelpers()`
+> **Cleanup Utility.** Clears all visual clash helper geometry (DirectShapes named `"CORE_CLASH"`) from the document. Useful when you want to reset the view manually.
+
+```csharp
+Doc.ClearClashHelpers();
 ```
 
 ---
@@ -822,7 +898,42 @@ double snapped = wall.GetNum("Length").RoundTo("mm", 0);
 
 ---
 
-## 🚀 Complete Fluent Chain Examples
+### `value.FormatValueOnly(unit, decimals)`
+
+> Returns only the numeric value converted to the target unit as a string, **without** the unit suffix.
+
+```csharp
+wall.GetNum("Length").FormatValueOnly("mm")  // → "3600"
+room.GetNum("Area").FormatValueOnly("m2")   // → "25.46"
+```
+
+---
+
+### `"dimensionString".ToMeters()`
+
+> **Dimension Parser.** Parses a dimension string with a unit suffix and returns the value in meters. Supports `mm`, `cm`, `m`, `ft`, `in`, etc. Defaults to meters if no unit suffix is found.
+
+```csharp
+"500mm".ToMeters()     // → 0.5
+"2ft".ToMeters()       // → 0.6096
+"0.1m".ToMeters()      // → 0.1
+"10".ToMeters()        // → 10.0 (defaults to meters)
+```
+
+---
+
+### Precision-Aware Comparison Extensions (Complete)
+
+| Method | Description |
+|---|---|
+| `.IsAlmostEqualTo(val)` | True if within 1e-9 tolerance |
+| `.AlmostZero()` | True if essentially zero |
+| `.IsPositive()` | Strictly positive (> 1e-9) |
+| `.IsNegative()` | Strictly negative (< -1e-9) |
+| `.IsGreaterThan(val)` | Strictly greater than (outside tolerance) |
+| `.IsLessThan(val)` | Strictly less than (outside tolerance) |
+| `.IsGreaterThanOrEqual(val)` | Greater than or approximately equal to |
+| `.IsLessThanOrEqual(val)` | Less than or approximately equal to |
 
 ### Report: All doors sorted by level, then mark
 
@@ -922,3 +1033,35 @@ GetElements("Doors").Delete();
 | Hide in view | `.Hide()` |
 | Unhide in view | `.Unhide()` |
 | Delete all (BIM-Safe) | `.Delete()` |
+
+---
+
+## 🔧 Global Script Functions
+
+These are **static methods** from `ScriptApi` that are globally available in every script and REPL session, **not** extension methods.
+
+| Function | Description |
+|---|---|
+| `Transact(name, action)` | Wrap model edits in a single undo-step transaction |
+| `Transact(name, Action<Document>)` | Transaction with `Document` parameter |
+| `Watchdog(callback, interval)` | Register a background sentinel validation *(Sentinel Scripts Only - Not for REPL)* |
+| `Watchdog(Action, interval)` | Simplified watchdog *(Sentinel Scripts Only - Not for REPL)* |
+| `WatchdogReport(summary, status, data?)` | Send status report from a sentinel *(Sentinel Scripts Only - Not for REPL)* |
+| `SetExecutionTimeout(seconds)` | Extend script timeout beyond default 10s |
+| `GetElements(BuiltInCategory)` | Query by `BuiltInCategory` enum |
+| `Show(type, data)` | Low-level structured output |
+| `Table(data)` | Global table render |
+| `BarChart(data)` / `BarGraph(data)` | Global bar chart |
+| `PieChart(data)` / `PieGraph(data)` | Global pie chart |
+| `LineChart(data)` / `LineGraph(data)` | Global line chart |
+| `Select(elements)` | Select + zoom in Revit UI |
+| `Isolate(elements)` | Temporarily isolate in active view |
+| `Zoom(elements)` | Zoom active view to fit elements |
+
+```csharp
+// Extend timeout for heavy scripts
+SetExecutionTimeout(120);
+
+// Query by BuiltInCategory (useful with hydrated enum parameters)
+var doors = GetElements(BuiltInCategory.OST_Doors);
+```

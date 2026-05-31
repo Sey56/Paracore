@@ -28,7 +28,7 @@ const llmProviders = [
   },
   {
     name: 'Deepseek',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
+    models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-pro', 'deepseek-v4-flash'],
     apiKeyName: 'DEEPSEEK_API_KEY',
   },
   {

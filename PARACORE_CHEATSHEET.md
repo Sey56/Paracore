@@ -1,5 +1,7 @@
 # 🚀 Paracore REPL: Master Cheat Sheet (V4.4.0)
 
+> All extension methods work identically in the **REPL** (single-line and multi-line) and in **Gallery scripts** (full C# project structure). They were designed as shortcuts to simplify the verbose Revit API, but they are standard C# extension methods available everywhere.
+
 A quick reference for high-speed Revit automation using Paracore's fluent API.
 
 ---
@@ -25,6 +27,7 @@ A quick reference for high-speed Revit automation using Paracore's fluent API.
 | `GetElements<Wall>()` | `List<Wall>` | By C# class (strictly typed) |
 | `GetElements<FamilyInstance>("Doors")` | `List<FamilyInstance>` | Typed + filtered by category |
 | `GetElements<Element>()` | `List<Element>` | ALL elements in model |
+| `GetElements(BuiltInCategory)` | `List<Element>` | By BuiltInCategory enum |
 | `GetElement("W-01")` | `Element?` | Single by name/mark |
 | `GetElement<Room>("Office")` | `Room?` | Single, typed |
 | `GetMagicNames()` | `List<string>` | All targetable names |
@@ -51,7 +54,7 @@ Smart, unit-aware extension methods on every `Element`.
 
 ---
 
-## 📤 Element Accessors (Type-Level)
+## 📤 Parameter Accessors (Type-Level)
 
 Same as above but target the element's **ElementType**.
 
@@ -84,11 +87,13 @@ Stable orientation helpers that don't swap when doors are flipped.
 | :--- | :--- | :--- |
 | `.RoomAccess()` / `.RoomFrom()` | `string` | Access (non-swing) side room |
 | `.RoomDestination()` / `.RoomTo()` | `string` | Swing-into room |
-| `.Handing()` | `"LH"/"RH"/"LHR"/"RHR"` | Industry standard handing |
+| `.Handing()` | `"LH"/"RH"` | Industry standard handing |
 | `.HingeSide()` | `"Left"/"Right"` | From Access Room perspective |
 | `.IsHandFlipped()` | `bool` | `FamilyInstance.HandFlipped` |
 | `.IsFacingFlipped()` | `bool` | `FamilyInstance.FacingFlipped` |
 | `.FindSwingArc()` | `Arc?` | Largest arc in door geometry |
+| `.IsStandardDoor()` | `bool` | `true` if not curtain wall panel |
+| `.StandardOnly()` | `IEnumerable` | Filters out curtain wall doors |
 
 ---
 
@@ -186,6 +191,7 @@ High-performance geometric interference detection and reporting.
 | `.ParamsDict()` | `Dictionary<string,string>` of all params |
 | `.GeometrySummary()` | Solid/Curve/PolyLine summary |
 | `.ReflectionProperties()` | All native C# properties on the type |
+| `.ReflectionMethods()` | All public C# methods on the type (with params) |
 
 ---
 
@@ -196,11 +202,17 @@ High-performance geometric interference detection and reporting.
 | `.InputUnit("mm")` | User value → internal feet | `300.0.InputUnit("mm")` |
 | `.OutputUnit("m2")` | Internal → target unit double | `val.OutputUnit("m2")` |
 | `.FormatUnit("mm")` | Formatted string with suffix | `val.FormatUnit("mm")` → `"1500 mm"` |
+| `.FormatValueOnly("mm")` | Number string without suffix | `val.FormatValueOnly("mm")` → `"1500"` |
 | `.RoundTo("mm")` | Snap to unit precision | `val.RoundTo("mm")` |
+| `.ToMeters()` | Parse dim string → meters | `"500mm".ToMeters()` → `0.5` |
 | `.IsAlmostEqualTo(v)` | Fuzzy equals (1e-9 tol) | `a.IsAlmostEqualTo(b)` |
 | `.AlmostZero()` | Effectively zero? | `val.AlmostZero()` |
 | `.IsLessThan(v)` | Precision less-than | `val.IsLessThan(limit)` |
 | `.IsGreaterThan(v)` | Precision greater-than | `val.IsGreaterThan(0)` |
+| `.IsLessThanOrEqual(v)` | Precision ≤ comparison | `val.IsLessThanOrEqual(limit)` |
+| `.IsGreaterThanOrEqual(v)` | Precision ≥ comparison | `val.IsGreaterThanOrEqual(0)` |
+| `.IsPositive()` | Strictly positive (>1e-9) | `val.IsPositive()` |
+| `.IsNegative()` | Strictly negative (<-1e-9) | `val.IsNegative()` |
 
 ---
 
@@ -247,3 +259,15 @@ GetElements<Wall>().WhereParam("Mark","").Isolate()
 // Structural walls ≥ 300mm
 GetElements<Wall>().Where(w => w.GetNum("Width","mm") >= 300).Table()
 ```
+
+---
+
+## 🔧 Script Lifecycle Globals
+
+| Method | Description | Example |
+| :--- | :--- | :--- |
+| `Transact(name, action)` | Wrap edits in a single undo-step | `Transact("Up", () => { ... })` |
+| `Watchdog(callback, interval)` | Register background validation | `Watchdog(doc => { ... }, 10)` |
+| `WatchdogReport(summary, status)` | Send status from a sentinel | `WatchdogReport("OK", "success")` |
+| `SetExecutionTimeout(seconds)` | Extend script timeout (default 10s) | `SetExecutionTimeout(60)` |
+| `Show(type, data)` | Low-level structured output | `Show("table", myList)` |

@@ -35,6 +35,7 @@ Scripts use **Top-Level Statements**. The order is mandatory:
 | `LineChart(data)` | void | Render a line chart in the Summary tab |
 | `WatchdogReport(msg, status, ids)` | void | Report health to the Watchdog UI (`"success"/"warning"/"error"`) |
 | `SetExecutionTimeout(seconds)` | void | Extend the default 10s timeout |
+| `First().CombinedParams().Table()` | void | **Discovery**: List all type/instance parameters for an element |
 
 ## Implicit Using Statements
 
@@ -118,7 +119,7 @@ High-performance geometric interference detection.
 |---|---|
 | `.AuditClashes(targetCat)` | Detect intersections with category |
 | `.AuditClashes(cat, tol)`| **Pro**: `tol` double (e.g., `5.0`) |
-| `.InProjectUnits()` | Converts results to Project Units for reporting |
+| `.AuditClashes(cat, "5mm")`| Unit-aware string tolerance |
 | `.Table()` | **Preferred**: Renders Coordination Table + Visual Helpers focus |
 
 #### 5. Output rendering

@@ -67,6 +67,15 @@ async def explain_error_logic(
         elif "google" in provider or "gemini" in provider:
             os.environ["GOOGLE_API_KEY"] = llm_api_key_value
             model = GoogleModel(llm_model)
+        elif "deepseek" in provider:
+            os.environ["DEEPSEEK_API_KEY"] = llm_api_key_value
+            from pydantic_ai.models.openai import OpenAIModel
+            from pydantic_ai.providers.openai import OpenAIProvider
+            provider_obj = OpenAIProvider(
+                base_url="https://api.deepseek.com",
+                api_key=llm_api_key_value
+            )
+            model = OpenAIModel(llm_model, provider=provider_obj)
         else:
             model = GoogleModel(llm_model)
 

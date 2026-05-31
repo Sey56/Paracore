@@ -136,7 +136,7 @@ Table(GetElements<FamilyInstance>("Doors").Select(d => new {
     Level = d.GetStr("Level"),
     From = d.RoomAccess(), // Stable Access Room
     To = d.RoomDestination(), // Stable Swing Room
-    Handing = d.Handing(), // LH, RH, LHR, RHR
+    Handing = d.Handing(), // LH or RH
     Hinge = d.HingeSide(), // Relative to Access Room
     Width_mm = d.GetNum("Width", "mm")
 }));

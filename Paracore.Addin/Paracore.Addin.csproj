@@ -8,8 +8,8 @@
     <AssemblyName>Paracore.Addin</AssemblyName>
     <PlatformTarget>x64</PlatformTarget>
     <Company>Codarch</Company>
-    <AssemblyVersion>4.4.0.0</AssemblyVersion>
-    <FileVersion>4.4.0.0</FileVersion>
+    <AssemblyVersion>4.5.0.0</AssemblyVersion>
+    <FileVersion>4.5.0.0</FileVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
