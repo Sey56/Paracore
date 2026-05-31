@@ -105,3 +105,6 @@ PARACORE_STRATEGY_ETHIOPIA.html
 # Tutorials
 Tutorials/
 NewShTool/
+
+# External projects (separate repos, must not be tracked here)
+SH_Tools/
