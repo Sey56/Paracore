@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faCircleHalfStroke, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faCircleHalfStroke, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt, faHouse } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -14,7 +14,7 @@ import { shell } from '@tauri-apps/api';
 import packageJson from '../../../../package.json';
 
 export const TopBar: React.FC = () => {
-  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap } = useUI();
+  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap, openWelcomeGate } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
@@ -187,6 +187,14 @@ export const TopBar: React.FC = () => {
             title="Swap Panels"
           >
             <FontAwesomeIcon icon={faExchangeAlt} className={isLayoutSwapped ? "rotate-180 transition-transform duration-500" : "transition-transform duration-500"} />
+          </button>
+
+          <button
+            onClick={openWelcomeGate}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+            title="Home"
+          >
+            <FontAwesomeIcon icon={faHouse} className="text-sm" />
           </button>
 
           <div className="relative" ref={helpDropdownRef}>

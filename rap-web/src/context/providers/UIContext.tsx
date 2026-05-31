@@ -75,6 +75,11 @@ export interface UIContextProps {
   activeMainView: 'scripts' | 'agent' | 'playlists';
   setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'playlists'>>;
 
+  // Welcome Gate overlay (accessible from main UI after auth)
+  isWelcomeGateOpen: boolean;
+  openWelcomeGate: () => void;
+  closeWelcomeGate: () => void;
+
   // Global InfoModal
   infoModalState: { isOpen: boolean; title: string; message: string };
   showInfoModal: (title: string, message: string) => void;

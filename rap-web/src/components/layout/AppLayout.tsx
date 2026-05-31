@@ -86,7 +86,9 @@ export const AppLayout: React.FC = () => {
     infoModalState,
     closeInfoModal,
     isLayoutSwapped,
-    showSentinelFAB
+    showSentinelFAB,
+    isWelcomeGateOpen,
+    closeWelcomeGate
   } = useUI();
 
   const isMobile = useBreakpoint();
@@ -162,6 +164,13 @@ export const AppLayout: React.FC = () => {
             </div>
             <div className="flex items-center space-x-2 text-blue-500 dark:text-blue-400 text-xs justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Preparing environment...</span></div>
           </div>
+        </div>
+      )}
+
+      {/* Welcome Gate Overlay (accessible from main UI when authenticated) */}
+      {isAuthenticated && isWelcomeGateOpen && (
+        <div className="fixed inset-0 z-[9998] bg-white/95 dark:bg-black/60 backdrop-blur-[100px] transition-all duration-300">
+          <WelcomeGate login={login} loginLocal={loginLocal} isAuthenticated onDismiss={closeWelcomeGate} />
         </div>
       )}
 

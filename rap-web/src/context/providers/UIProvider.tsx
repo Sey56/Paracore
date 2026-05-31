@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth";
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
+const LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW = 'paracore_active_main_view';
 
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
@@ -109,7 +110,20 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   }, [threadId]);
 
   // Main View Toggle
-  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'playlists'>('scripts'); // Default to 'scripts'
+  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'playlists'>(() => {
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW);
+    if (stored === 'scripts' || stored === 'agent' || stored === 'playlists') return stored;
+    return 'scripts';
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW, activeMainView);
+  }, [activeMainView]);
+
+  // Welcome Gate overlay
+  const [isWelcomeGateOpen, setIsWelcomeGateOpen] = useState(false);
+  const openWelcomeGate = useCallback(() => setIsWelcomeGateOpen(true), []);
+  const closeWelcomeGate = useCallback(() => setIsWelcomeGateOpen(false), []);
 
   // Global InfoModal state
   const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
@@ -269,6 +283,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     setActiveAnalyticsSubTabIndex,
     showSentinelFAB,
     toggleSentinelFAB,
+    isWelcomeGateOpen,
+    openWelcomeGate,
+    closeWelcomeGate,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -311,6 +328,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     activeAnalyticsSubTabIndex,
     showSentinelFAB,
     toggleSentinelFAB,
+    isWelcomeGateOpen,
+    openWelcomeGate,
+    closeWelcomeGate,
   ]);
 
   return (

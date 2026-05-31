@@ -7,7 +7,7 @@ import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useAuth } from '@/features/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTerminal, faInfoCircle, faChevronUp, faFile, faFolderOpen, faSave, faCode } from '@fortawesome/free-solid-svg-icons';
+import { faTerminal, faInfoCircle, faChevronUp, faFile, faFolderOpen, faSave, faCode, faFileExport } from '@fortawesome/free-solid-svg-icons';
 import { MetadataTabContent } from './MetadataTabContent';
 import { useConsole } from '../../store/ConsoleContext';
 
@@ -105,6 +105,14 @@ export const ScriptInspector: React.FC = () => {
                 className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
               >
                 <FontAwesomeIcon icon={faSave} className="text-xs" />
+              </button>
+              <button 
+                onClick={() => handleSaveSnippet(true)} 
+                disabled={!multiLineValue.trim()} 
+                title="Save As" 
+                className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
+              >
+                <FontAwesomeIcon icon={faFileExport} className="text-xs" />
               </button>
             </div>
           )}

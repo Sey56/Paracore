@@ -7,9 +7,11 @@ import { shell } from '@tauri-apps/api';
 interface WelcomeGateProps {
   login: () => Promise<void>;
   loginLocal: () => Promise<void>;
+  isAuthenticated?: boolean;
+  onDismiss?: () => void;
 }
 
-export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal }) => {
+export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isAuthenticated = false, onDismiss }) => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isOfflineLoading, setIsOfflineLoading] = useState(false);
 
@@ -123,68 +125,91 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal }) =
           </div>
         </div>
 
-        {/* Right Side: Access Control Panel (5 Cols) */}
+        {/* Right Side: Auth Panel (unauthenticated) or User Panel (authenticated) */}
         <div className="md:col-span-5 flex flex-col justify-center">
           <div className="p-6 lg:p-8 rounded-3xl bg-slate-100/60 dark:bg-slate-800/30 border border-slate-200/50 dark:border-slate-800/40 flex flex-col space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                Establish Session
-              </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 leading-normal">
-                Choose how you want to initialize your workspace for this active Revit session.
-              </p>
-            </div>
-
-            {/* Auth Buttons Stack */}
-            <div className="flex flex-col gap-3">
-              {/* Sign in with Google (Enterprise / Cloud) */}
-              <button
-                disabled={isGoogleLoading || isOfflineLoading}
-                onClick={handleGoogleLogin}
-                className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50 transition-all cursor-pointer overflow-hidden"
-              >
-                {isGoogleLoading ? (
-                  <FontAwesomeIcon icon={faSpinner} spin className="text-sm" />
-                ) : (
-                  <FontAwesomeIcon icon={faGoogle} className="text-sm" />
+            {isAuthenticated ? (
+              <>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Workspace Active
+                  </h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 leading-normal">
+                    You're signed in and your workspace is ready. Return to your automations whenever you're set.
+                  </p>
+                </div>
+                {onDismiss && (
+                  <button
+                    onClick={onDismiss}
+                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer overflow-hidden"
+                  >
+                    Back to Workspace
+                    <FontAwesomeIcon
+                      icon={faArrowRight}
+                      className="absolute right-4 text-xs opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
+                    />
+                  </button>
                 )}
-                {isGoogleLoading ? "Connecting..." : "Sign in with Google"}
-                <FontAwesomeIcon 
-                  icon={faArrowRight} 
-                  className="absolute right-4 text-xs opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
-                />
-              </button>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Establish Session
+                  </h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 leading-normal">
+                    Choose how you want to initialize your workspace for this active Revit session.
+                  </p>
+                </div>
 
-              {/* Continue Offline (Free Guest Mode) */}
-              <button
-                disabled={isGoogleLoading || isOfflineLoading}
-                onClick={handleOfflineLogin}
-                className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase tracking-widest border border-slate-300/40 dark:border-slate-700/50 active:scale-95 disabled:opacity-50 transition-all cursor-pointer overflow-hidden"
-              >
-                {isOfflineLoading ? (
-                  <FontAwesomeIcon icon={faSpinner} spin className="text-xs" />
-                ) : (
-                  <FontAwesomeIcon icon={faUserCheck} className="text-xs" />
-                )}
-                {isOfflineLoading ? "Starting..." : "Continue Offline"}
-                <FontAwesomeIcon 
-                  icon={faArrowRight} 
-                  className="absolute right-4 text-xs opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
-                />
-              </button>
-            </div>
+                <div className="flex flex-col gap-3">
+                  <button
+                    disabled={isGoogleLoading || isOfflineLoading}
+                    onClick={handleGoogleLogin}
+                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50 transition-all cursor-pointer overflow-hidden"
+                  >
+                    {isGoogleLoading ? (
+                      <FontAwesomeIcon icon={faSpinner} spin className="text-sm" />
+                    ) : (
+                      <FontAwesomeIcon icon={faGoogle} className="text-sm" />
+                    )}
+                    {isGoogleLoading ? "Connecting..." : "Sign in with Google"}
+                    <FontAwesomeIcon
+                      icon={faArrowRight}
+                      className="absolute right-4 text-xs opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
+                    />
+                  </button>
 
-            {/* Explanatory Info Alerts */}
-            <div className="space-y-3 pt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-normal">
-              <div className="flex gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60 mt-1 shrink-0" />
-                <p><span className="font-bold text-slate-500 dark:text-slate-400">Enterprise Cloud:</span> Sign in with Google to push/pull team repositories, share script presets, and interact with the AI Agent.</p>
-              </div>
-              <div className="flex gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1 shrink-0" />
-                <p><span className="font-bold text-slate-500 dark:text-slate-400">Offline Guest Mode:</span> Personal sandbox mode with local folders, full script runner capabilities, and immediate C# REPL execution.</p>
-              </div>
-            </div>
+                  <button
+                    disabled={isGoogleLoading || isOfflineLoading}
+                    onClick={handleOfflineLogin}
+                    className="group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase tracking-widest border border-slate-300/40 dark:border-slate-700/50 active:scale-95 disabled:opacity-50 transition-all cursor-pointer overflow-hidden"
+                  >
+                    {isOfflineLoading ? (
+                      <FontAwesomeIcon icon={faSpinner} spin className="text-xs" />
+                    ) : (
+                      <FontAwesomeIcon icon={faUserCheck} className="text-xs" />
+                    )}
+                    {isOfflineLoading ? "Starting..." : "Continue Offline"}
+                    <FontAwesomeIcon
+                      icon={faArrowRight}
+                      className="absolute right-4 text-xs opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
+                    />
+                  </button>
+                </div>
+
+                <div className="space-y-3 pt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-normal">
+                  <div className="flex gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60 mt-1 shrink-0" />
+                    <p><span className="font-bold text-slate-500 dark:text-slate-400">Enterprise Cloud:</span> Sign in with Google to push/pull team repositories, share script presets, and interact with the AI Agent.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1 shrink-0" />
+                    <p><span className="font-bold text-slate-500 dark:text-slate-400">Offline Guest Mode:</span> Personal sandbox mode with local folders, full script runner capabilities, and immediate C# REPL execution.</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
