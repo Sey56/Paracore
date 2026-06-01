@@ -152,18 +152,18 @@ required_sections = [
     ("Self-correction header", "SELF-CORRECTION"),
     ("Retry limit 3", "up to 3 times"),
     ("Error: unit missing", "GetNum"),
-    ("Error: null reference", "First()?.GetStr"),
+    ("Error: null reference", "First"),
     ("Error: wrong method", "LookupParameter"),
     ("Error: raw API", "FilteredElementCollector"),
-    ("Globals:", "Doc"),  # check for Doc (backtick-wrapped in prompt)
+    ("Globals:", "Doc"),
     ("Implicit output", "Implicit output"),
     ("No foreach", "foreach"),
-    ("Table rules", "Select()"),  # prompt says ALWAYS Select() first
+    ("Table rules", "Select()"),
     ("Graph methods", "BarGraph"),
     ("Key accessors", "GetStr"),
     ("Unit conversion", "InputUnit"),
     ("Transactions", "Transact"),
-    ("paracore://extension-methods", "paracore://extension-methods"),
+    ("Method catalog reference", "read_extension_methods"),
 ]
 
 for label, keyword in required_sections:

@@ -109,56 +109,81 @@ async def chat_with_agent(request: ChatRequest):
             "raw_history_json": None
         }
 
-        # Pre-summarize raw execution output before the agent sees it
-        agent_message = request.message
-        if request.raw_output_for_summary:
-            try:
-                summary = summarize(request.raw_output_for_summary)
-                logger.info(f"[V4] Summarized raw output: {len(summary)} chars summary")
-                agent_message = f"System: REPL execution completed. RESULTS ARE FINAL — do NOT call execute_dynamic_query again. Your next response must be TEXT ONLY (no tool calls). If the summary shows data, present it. If it says 'no structured output' or empty, tell the user no matching elements were found and suggest they verify the parameter names or refine the query.\n\n{summary}"
-            except Exception as e:
-                logger.warning(f"[V4] Summarization failed, using raw output: {e}")
+        # Build the model once (used by both main agent and summary agent)
+        model_name = request.llm_model or 'gemini-1.5-flash'
+        api_key = request.llm_api_key_value
+        provider = request.llm_provider or "Google"
+        p_lower = provider.lower()
 
-        try:
-            # Industrial Model Factory
-            model_name = request.llm_model or 'gemini-1.5-flash'
-            api_key = request.llm_api_key_value
-            provider = request.llm_provider or "Google"
-            p_lower = provider.lower()
-            
-            import os
-            model = None
-            if p_lower == "google":
-                os.environ["GOOGLE_API_KEY"] = api_key
-                from pydantic_ai.models.google import GoogleModel
-                model = GoogleModel(model_name)
-            elif p_lower == "openrouter" or "openai" in p_lower:
-                os.environ["OPENAI_API_KEY"] = api_key
-                from pydantic_ai.models.openai import OpenAIModel
-                from pydantic_ai.providers.openai import OpenAIProvider
-
-                # In PydanticAI 1.47, configuration belongs to the Provider
-                if p_lower == "openrouter":
-                    provider_obj = OpenAIProvider(
-                        base_url="https://openrouter.ai/api/v1",
-                        api_key=api_key
-                    )
-                    model = OpenAIModel(model_name, provider=provider_obj)
-                else: # plain openai
-                    provider_obj = OpenAIProvider(api_key=api_key)
-                    model = OpenAIModel(model_name, provider=provider_obj)
-            elif p_lower == "deepseek":
-                os.environ["DEEPSEEK_API_KEY"] = api_key
-                from pydantic_ai.models.openai import OpenAIModel
-                from pydantic_ai.providers.openai import OpenAIProvider
+        import os
+        model = None
+        if p_lower == "google":
+            os.environ["GOOGLE_API_KEY"] = api_key
+            from pydantic_ai.models.google import GoogleModel
+            model = GoogleModel(model_name)
+        elif p_lower == "openrouter" or "openai" in p_lower:
+            os.environ["OPENAI_API_KEY"] = api_key
+            from pydantic_ai.models.openai import OpenAIModel
+            from pydantic_ai.providers.openai import OpenAIProvider
+            if p_lower == "openrouter":
                 provider_obj = OpenAIProvider(
-                    base_url="https://api.deepseek.com",
+                    base_url="https://openrouter.ai/api/v1",
                     api_key=api_key
                 )
                 model = OpenAIModel(model_name, provider=provider_obj)
             else:
-                model = model_name
+                provider_obj = OpenAIProvider(api_key=api_key)
+                model = OpenAIModel(model_name, provider=provider_obj)
+        elif p_lower == "deepseek":
+            os.environ["DEEPSEEK_API_KEY"] = api_key
+            from pydantic_ai.models.openai import OpenAIModel
+            from pydantic_ai.providers.openai import OpenAIProvider
+            provider_obj = OpenAIProvider(
+                base_url="https://api.deepseek.com",
+                api_key=api_key
+            )
+            model = OpenAIModel(model_name, provider=provider_obj)
+        else:
+            model = model_name
 
+        # If this is a results follow-up, use the lightweight summary agent (no tools, fast).
+        if request.raw_output_for_summary:
+            try:
+                summary = summarize(request.raw_output_for_summary)
+                logger.info(f"[V4] Summarized raw output: {len(summary)} chars — formatting with summary agent.")
+
+                if "more rows" in summary.lower():
+                    summary += "\n\n*For the full table, view the **Analytics** tab.*"
+
+                from agent.v4_repl_agent import summary_agent
+                from pydantic_ai.settings import ModelSettings
+                result = await summary_agent.run(
+                    f"Format this execution result conversationally:\n\n{summary}",
+                    message_history=pydantic_history,
+                    deps=deps,
+                    model=model,
+                    model_settings=ModelSettings(max_tokens=256)
+                )
+                response_data["message"] = str(result.output) if result.output else summary
+                try:
+                    raw_json = result.all_messages_json()
+                    response_data["raw_history_json"] = raw_json.decode('utf-8') if isinstance(raw_json, bytes) else str(raw_json)
+                except Exception:
+                    pass
+                return Response(content=json.dumps(response_data), media_type="application/json")
+            except Exception as e:
+                logger.warning(f"[V4] Summary agent failed, using raw summary: {e}")
+                try:
+                    summary = summarize(request.raw_output_for_summary)
+                except Exception:
+                    summary = "Execution completed."
+                if "more rows" in summary.lower():
+                    summary += "\n\n*For the full table, view the **Analytics** tab.*"
+                response_data["message"] = summary
+                return Response(content=json.dumps(response_data), media_type="application/json")
+
+        agent_message = request.message
+        try:
             from pydantic_ai.settings import ModelSettings
             result = await v4_repl_agent.run(
                 agent_message,
@@ -178,16 +203,44 @@ async def chat_with_agent(request: ChatRequest):
                 logger.warning(f"[V4] History preservation failed: {e}")
 
         except InterruptedException as e:
-            # SOVEREIGN HANDOFF: The agent called execute_dynamic_query. 
-            # We catch it here and send it to the frontend for human approval.
+            # SOVEREIGN HANDOFF: The agent called execute_dynamic_query.
+            # If this is a follow-up after REPL execution, BLOCK the retry — force text response.
+            if request.raw_output_for_summary:
+                logger.info(f"[V4] Blocked agent retry attempt after results were already delivered.")
+                response_data["status"] = "complete"
+
+                # Use the summary to produce a meaningful response
+                try:
+                    summary = summarize(request.raw_output_for_summary)
+                except Exception:
+                    summary = "The results are in the Analytics tab."
+
+                if "no structured output" in summary.lower():
+                    response_data["message"] = "No matching elements were found. Your query returned no results — there may be no data matching the criteria you specified. Try adjusting the filter or checking the parameter names."
+                else:
+                    response_data["message"] = f"Here are the results from your query:\n\n{summary}\n\nIf you'd like a different query, please ask a new question."
+
+                try:
+                    from agent.v4_repl_agent import v4_repl_agent
+                    raw_json = result.all_messages_json() if 'result' in dir() else None
+                    if raw_json:
+                        response_data["raw_history_json"] = raw_json.decode('utf-8') if isinstance(raw_json, bytes) else str(raw_json)
+                except Exception:
+                    pass
+                return Response(content=json.dumps(response_data), media_type="application/json")
+
             response_data["status"] = "interrupted"
+            
+            # Fix HTML-encoded angle brackets that some LLMs occasionally emit
+            csharp_code = e.csharp_code
+            csharp_code = csharp_code.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").replace("&#60;", "<").replace("&#62;", ">")
             
             call_id = f"tc-{uuid.uuid4()}"
             response_data["tool_call"] = {
                 "id": call_id,
                 "name": "execute_dynamic_query",
                 "arguments": {
-                    "csharp_code": e.csharp_code,
+                    "csharp_code": csharp_code,
                     "justification": e.justification
                 }
             }

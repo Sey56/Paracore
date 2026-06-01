@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTerminal, faChartLine, faTrash, faCopy, faMagicWandSparkles, faExpandAlt, faCompressAlt } from '@fortawesome/free-solid-svg-icons';
 import { useConsole } from '@/features/automation/store/ConsoleContext';
@@ -17,6 +17,8 @@ export const BottomPanel: React.FC = () => {
   const { agentReplResults, setAgentReplResults } = useUI();
   
   const [activeTab, setActiveTab] = useState<'history' | 'analytics'>('history');
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
   
   const [isExpanded, setIsExpanded] = useState(() => {
     return localStorage.getItem('paracore_bottom_panel_expanded') === 'true';
@@ -39,33 +41,44 @@ export const BottomPanel: React.FC = () => {
     localStorage.setItem('paracore_bottom_panel_expanded', String(isExpanded));
   }, [isExpanded]);
 
+  // Analytics badge — only fires when data changes, not on tab switches
   useEffect(() => {
-    const hasAnalytics = (executionResult?.structuredOutput || agentReplResults)?.some(item => 
+    const hasAnalytics = (executionResult?.structuredOutput || agentReplResults)?.some(item =>
       ['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(item.type)
     );
+    if (!hasAnalytics) return;
 
-    if (hasAnalytics) {
-      if (activeTab !== 'analytics') {
-        setHasUnviewedAnalytics(true);
-      }
-      setIsFlashingAnalytics(true);
-      setTimeout(() => setIsFlashingAnalytics(false), 1000);
+    setIsFlashingAnalytics(true);
+    setTimeout(() => setIsFlashingAnalytics(false), 1000);
+    if (activeTabRef.current !== 'analytics') {
+      setHasUnviewedAnalytics(true);
     }
+  }, [executionResult, agentReplResults]);
 
-    // Clear agent REPL override when manual/script execution produces new results
+  // History badge — only fires when data changes, not on tab switches
+  useEffect(() => {
+    const hasHistory = executionResult?.output || executionResult?.error;
+    if (!hasHistory) return;
+
+    setIsFlashingHistory(true);
+    setTimeout(() => setIsFlashingHistory(false), 1000);
+    if (activeTabRef.current !== 'history') {
+      setHasUnviewedHistory(true);
+    }
+  }, [executionResult]);
+
+  // Clear badges when user activates the tab
+  useEffect(() => {
+    if (activeTab === 'analytics') setHasUnviewedAnalytics(false);
+    if (activeTab === 'history') setHasUnviewedHistory(false);
+  }, [activeTab]);
+
+  // Clear agent REPL override when manual/script execution produces new results
+  useEffect(() => {
     if (executionResult?.structuredOutput?.length) {
       setAgentReplResults(null);
     }
-  }, [executionResult, agentReplResults, activeTab, setAgentReplResults]);
-
-  useEffect(() => {
-    if (activeTab === 'history') {
-      setHasUnviewedHistory(false);
-    }
-    if (activeTab === 'analytics') {
-      setHasUnviewedAnalytics(false);
-    }
-  }, [activeTab]);
+  }, [executionResult, setAgentReplResults]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
@@ -123,13 +136,14 @@ export const BottomPanel: React.FC = () => {
   };
 
   // ── Analytics: Copy & Clear ──────────────────────────────────────────
-  const hasAnalyticsData = !!(executionResult?.structuredOutput && executionResult.structuredOutput.length > 0);
+  const structuredOutput = agentReplResults ?? executionResult?.structuredOutput;
+  const hasAnalyticsData = !!(structuredOutput && structuredOutput.length > 0);
 
   const handleAnalyticsCopy = () => {
-    if (!executionResult?.structuredOutput) return;
+    if (!structuredOutput) return;
     
     const parts: string[] = [];
-    for (const item of executionResult.structuredOutput) {
+    for (const item of structuredOutput) {
       if (item.type === 'table' && item.data) {
         try {
           const rows = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
@@ -152,6 +166,7 @@ export const BottomPanel: React.FC = () => {
 
   const handleAnalyticsClear = () => {
     clearExecutionResult();
+    setAgentReplResults(null);
     showNotification("Analytics cleared", "info");
   };
 
@@ -193,7 +208,10 @@ export const BottomPanel: React.FC = () => {
               className={`text-sm transition-all duration-300 ${isFlashingHistory ? 'scale-150 text-blue-500' : ''}`} 
             />
             {hasUnviewedHistory && (
-              <div className="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-sm" />
+              <span className="absolute top-2 right-1.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 border border-white dark:border-slate-800"></span>
+              </span>
             )}
           </button>
           <button 
@@ -206,7 +224,10 @@ export const BottomPanel: React.FC = () => {
               className={`text-sm transition-all duration-300 ${isFlashingAnalytics ? 'scale-150 text-blue-500' : ''}`} 
             />
             {hasUnviewedAnalytics && (
-              <div className="absolute top-3 right-3 w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-sm" />
+              <span className="absolute top-2 right-1.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 border border-white dark:border-slate-800"></span>
+              </span>
             )}
           </button>
         </div>

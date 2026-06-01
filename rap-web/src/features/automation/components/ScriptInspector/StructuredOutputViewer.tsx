@@ -647,7 +647,6 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
       <div className="flex items-center gap-1 shrink-0">
         {effectiveType === 'table' ? (
           <div className="flex gap-1">
-            <button onClick={handleCopy} className="p-1.5 hover:text-blue-600 transition-colors" title="Copy Table"><FontAwesomeIcon icon={faCopy} className="text-xs" /></button>
             <button onClick={handleDownloadCsv} className="p-1.5 hover:text-green-500 transition-colors" title="Export CSV"><FontAwesomeIcon icon={faFileCsv} className="text-xs" /></button>
             {item.type === 'table' && <button onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:text-blue-500 transition-colors" title="Upload CSV"><FontAwesomeIcon icon={faUpload} className="text-xs" /></button>}
           </div>
