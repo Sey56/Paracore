@@ -358,7 +358,11 @@ export const AgentView: React.FC = () => {
     }]);
 
     if (userDecision === 'reject') {
-        invokeAgent([{ type: 'human', content: `I have rejected the action. Let's try a different approach.`, id: `user-${Date.now()}` }]);
+        setMessages(prev => [...prev, {
+            type: 'tool',
+            content: 'REJECTED: User declined the action.',
+            tool_call_id: toolCall.id,
+        }]);
         return;
     }
 
@@ -483,6 +487,10 @@ export const AgentView: React.FC = () => {
     return new Set(messages.filter(m => m.type === 'tool').map(m => m.tool_call_id));
   }, [messages]);
 
+  const rejectedToolCallIds = useMemo(() => {
+    return new Set(messages.filter(m => m.type === 'tool' && typeof m.content === 'string' && m.content.startsWith('REJECTED')).map(m => m.tool_call_id));
+  }, [messages]);
+
   const renderMessageContent = (msg: Message) => {
     if (msg.type === 'tool' && typeof msg.content === 'string') {
       const content = msg.content;
@@ -514,6 +522,7 @@ export const AgentView: React.FC = () => {
       
       const isDynamicQuery = toolCall.name === 'execute_dynamic_query';
       const isResolved = toolCall.id ? resolvedToolCallIds.has(toolCall.id) : false;
+      const isRejected = toolCall.id ? rejectedToolCallIds.has(toolCall.id) : false;
 
       return (
         <div className="space-y-3 w-full max-w-2xl">
@@ -532,7 +541,12 @@ export const AgentView: React.FC = () => {
                         </div>
                         <span className="text-[12px] font-medium text-[var(--text-main)]">Action Proposed</span>
                      </div>
-                     {isResolved ? (
+                     {isRejected ? (
+                        <div className="flex items-center space-x-1.5 bg-red-500/10 px-2.5 py-1 rounded-md border border-red-500/20">
+                           <FontAwesomeIcon icon={faTimesCircle} className="text-[10px] text-red-500" />
+                           <span className="text-[10px] font-bold tracking-wide text-red-500 uppercase">Rejected</span>
+                        </div>
+                     ) : isResolved ? (
                         <div className="flex items-center space-x-1.5 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20">
                            <FontAwesomeIcon icon={faCheckCircle} className="text-[10px] text-green-500" />
                            <span className="text-[10px] font-bold tracking-wide text-green-500 uppercase">Executed</span>
@@ -601,7 +615,12 @@ export const AgentView: React.FC = () => {
                        </div>
                        <span className="text-[12px] font-medium text-[var(--text-main)]">Tool Invoked: {toolCall.name}</span>
                     </div>
-                    {isResolved ? (
+                     {isRejected ? (
+                        <div className="flex items-center space-x-1.5 bg-red-500/10 px-2.5 py-1 rounded-md border border-red-500/20">
+                           <FontAwesomeIcon icon={faTimesCircle} className="text-[10px] text-red-500" />
+                           <span className="text-[10px] font-bold tracking-wide text-red-500 uppercase">Rejected</span>
+                        </div>
+                     ) : isResolved ? (
                        <div className="flex items-center space-x-1.5 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20">
                           <FontAwesomeIcon icon={faCheckCircle} className="text-[10px] text-green-500" />
                           <span className="text-[10px] font-bold tracking-wide text-green-500 uppercase">Resolved</span>

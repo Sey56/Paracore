@@ -14,7 +14,7 @@ export const BottomPanel: React.FC = () => {
   const { executionResult, clearExecutionResult, selectedScript } = useScriptExecution();
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
-  const { agentReplResults } = useUI();
+  const { agentReplResults, setAgentReplResults } = useUI();
   
   const [activeTab, setActiveTab] = useState<'history' | 'analytics'>('history');
   
@@ -51,7 +51,12 @@ export const BottomPanel: React.FC = () => {
       setIsFlashingAnalytics(true);
       setTimeout(() => setIsFlashingAnalytics(false), 1000);
     }
-  }, [executionResult, agentReplResults, activeTab]);
+
+    // Clear agent REPL override when manual/script execution produces new results
+    if (executionResult?.structuredOutput?.length) {
+      setAgentReplResults(null);
+    }
+  }, [executionResult, agentReplResults, activeTab, setAgentReplResults]);
 
   useEffect(() => {
     if (activeTab === 'history') {

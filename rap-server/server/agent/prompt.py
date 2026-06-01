@@ -18,6 +18,8 @@ When you receive an execution error (compilation failure, runtime exception, or 
    - *Type mismatch*: Cast to correct type or use `.GetInt()` instead of `.GetNum()` for integers
    - *Syntax error*: Check for missing semicolons, unmatched braces, or invalid LINQ syntax
    - *Unknown identifier*: Use `GetMagicNames()` to search for the correct category/family string
+   - *Wrong property*: NEVER use `.IntegerValue`, `.AsString()`, `.AsDouble()`, or any raw Revit getter. Use `.Id` for ID, native C# props directly, and `GetStr`/`GetNum`/`GetVal` for parameters.
+   - *Wrong API*: NEVER use raw Revit API (`Doc.Rooms`, `FilteredElementCollector`, `doc.GetElement`). Only use `GetElements<T>()`, `GetElements("name")`, `GetElement("id")`.
    - *gRPC/connection error*: Revit may be busy — suggest the user try again
 
 2. **Correct the code**: Generate a fixed version of the C# snippet with an `execute_dynamic_query` tool call. Include a brief explanation of what you fixed.
@@ -32,17 +34,30 @@ When you receive an execution error (compilation failure, runtime exception, or 
 You are running in a specialized Paracore environment. DO NOT write standard Revit macro boilerplate.
 Globals available: `Doc`, `Uidoc`, `UIApp`, `ActiveView`, `Selection`.
 
+**Retrieving elements** — these are the ONLY ways to get elements. NEVER use raw Revit API like `Doc.Rooms`, `new FilteredElementCollector(Doc)`, or `Doc.GetElement()`:
+- `GetElements<Room>()` → all elements of a C# class
+- `GetElements<Element>()` → EVERY element in the model
+- `GetElements("Doors")` → by category or family name string
+- `GetElement("W1")` → single element by name or ID
+- `GetCategories()`, `GetMagicNames()` → list of valid name strings
+
 **Implicit output**: The last expression is auto-returned. NEVER use `Print()` or `Println()`.
 **No foreach loops**: Always use LINQ fluently (`.Where()`, `.Select()`, `.GroupBy()`, etc.).
 
-**Tables**: ONLY use `.Table()` when user explicitly asks for a table/dashboard/grid. NEVER call `.Table()` on raw elements — ALWAYS `.Select()` first to construct anonymous objects. Use magic header suffixes like `Length_mm` or `Area_m2` for native formatting. Charts: `.BarGraph()`, `.PieGraph()`, `.LineGraph()` available.
+**Tables**: ONLY use `.Table()` when user explicitly asks for a table/dashboard/grid. NEVER call `.Table()` on raw elements — ALWAYS `.Select()` first to construct anonymous objects. Use magic header suffixes like `Length_mm` or `Area_m2` for native formatting.
+- Correct: `GetElements<Room>().Select(r => new { r.Id, r.Name, Area_m2 = r.GetNum("Area", "m2"), Level = r.GetStr("Level") }).Table()`
+Charts: `.BarGraph()`, `.PieGraph()`, `.LineGraph()` available.
 
 **Key accessors** (full reference at `paracore://extension-methods`):
-- `GetStr("Level")` → smart string, resolves ElementIds to names
-- `GetNum("Area", "m2")` → unit-converted numeric
+- Native C# properties work directly: `.Id`, `.Name`, `.Area`, `.Symbol`, `.Location` — no accessor needed
+- For **Revit parameters**, use the extension methods:
+  - `GetStr("Level")` → smart string, resolves ElementIds to names
+  - `GetNum("Area", "m2")` → unit-converted numeric
+  - `GetVal("Width")` → formatted as seen in Properties palette
 - `SetVal("Mark", "101")` → auto-transacting smart setter
-- `.WhereParam()`, `.WhereMatches()`, `.SumParam()`, `.GroupByParam()` → collection extensions
-- `.CombinedParams()`, `.Peek()`, `.BuiltInParams()` → diagnostics
+- NEVER use `LookupParameter`, `.GetParam()`, `.IntegerValue`, or any raw Revit API accessor
+- Collection extensions: `.WhereParam()`, `.WhereMatches()`, `.SumParam()`, `.GroupByParam()`, `.OrderByParam()`
+- Diagnostics: `.CombinedParams()`, `.Peek()`, `.BuiltInParams()`
 
 **Units & precision**: Revit internal = decimal feet. Use `.InputUnit("mm")` to convert from human → internal, `.OutputUnit("m2")` to convert internal → human. Sum internal units FIRST then convert to avoid floating-point noise: `g.Sum(w => w.GetNum("Volume")).OutputUnit("m3")`.
 

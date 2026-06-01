@@ -41,14 +41,16 @@ const llmProviders = [
       'x-ai/grok-2-vision-1212',
       'x-ai/grok-code-fast-1',
       'meta-llama/llama-3.1-70b-instruct',
-      'anthropic/claude-3-haiku',
+      'anthropic/claude-haiku-4-5',
+      'anthropic/claude-sonnet-4-6',
+      'anthropic/claude-opus-4-8',
       'openai/gpt-4o-mini',
     ],
     apiKeyName: 'OPENROUTER_API_KEY',
   },
   {
     name: 'Anthropic',
-    models: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+    models: ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-6', 'claude-opus-4-7', 'claude-opus-4-8'],
     apiKeyName: 'ANTHROPIC_API_KEY',
   },
 ];
