@@ -100,9 +100,9 @@ def summarize(output_raw: Dict[str, Any]) -> str:
 
     # ── Fallback if nothing parsed ──
     if not parts:
-        return "Execution completed successfully (no output to summarize)."
+        return "EXECUTION SUCCESSFUL — no structured output to summarize."
 
-    return "\n\n".join(parts)
+    return "EXECUTION SUCCESSFUL. Summarized result:\n\n" + "\n\n".join(parts)
 
 
 def shield_tool_return(text: str, tool_name: str) -> str:
@@ -117,7 +117,7 @@ def shield_tool_return(text: str, tool_name: str) -> str:
         data = json.loads(text)
         if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
             row_count = len(data["data"])
-            return f"Execution successful. Returned a {data.get('type', 'table')} with {row_count} rows."
+            return f"EXECUTION SUCCESSFUL. Returned a {data.get('type', 'table')} with {row_count} rows."
     except (json.JSONDecodeError, TypeError):
         pass
 

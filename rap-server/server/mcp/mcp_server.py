@@ -86,7 +86,7 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     """
     Executes a C# snippet SILENTLY in Revit to fetch data without mutating the model.
     DO NOT use standard Revit API. This is the Paracore REPL with a specialized fluent API.
-    Globals: Doc, UIDoc, ActiveView, Selection.
+    Globals: Doc, UIDoc, ActiveView, Selection (uppercase — lowercase `doc` does NOT exist).
     The LAST EXPRESSION is auto-returned (no Print/return needed).
     Results are summarized: tables return first 5 rows + total count, text returns first 10 lines.
     For full data, the user must have the Paracore native desktop app (rap-web).
@@ -175,6 +175,42 @@ def search_schema(category_name: str) -> str:
     except Exception as e:
         logger.error(f"Schema search failed: {e}")
         return f"Schema search failed: {str(e)}. Try explore_revit_data with .CombinedParams().Table() instead."
+
+
+@mcp.tool()
+def read_extension_methods(query: str = "") -> str:
+    """
+    Returns the complete Paracore Extension Methods reference.
+    Call this when you need to check the EXACT syntax of any Paracore method.
+    If 'query' is provided (e.g., "GetStr", "WhereParam", "Table"), returns only
+    the relevant section. Leave empty for the full reference.
+    Covers: GetStr, GetNum, GetVal, GetInt, SetVal, SetNum, WhereParam, WhereMatches,
+    SumParam, GroupByParam, OrderByParam, OrderByParamDesc, Table, BarGraph, PieGraph,
+    LineGraph, Peek, CombinedParams, BuiltInParams, InstanceParams, TypeParams,
+    NativeProperties, GeometrySummary, AuditClashes, InputUnit, OutputUnit, Matches,
+    FamilyName, RoomAccess, RoomDestination, Handing, IsStandardDoor, and more.
+    """
+    try:
+        from agent.v4_repl_agent import _load_extension_methods_doc
+        doc = _load_extension_methods_doc()
+    except ImportError:
+        doc = _CACHED_EXTENSION_METHODS or "Extension methods reference not available."
+    if query and query.strip():
+        q = query.strip().lower()
+        lines = doc.split("\n")
+        results = []
+        in_section = False
+        for line in lines:
+            if line.startswith("## ") or line.startswith("# "):
+                in_section = q in line.lower()
+            if in_section:
+                results.append(line)
+                if len(results) > 200:
+                    break
+        if results:
+            return "\n".join(results)
+        return f"No specific section for '{query}'. Full reference start:\n\n{doc[:3000]}"
+    return doc[:8000]
 
 
 # Resources

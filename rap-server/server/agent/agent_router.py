@@ -115,7 +115,7 @@ async def chat_with_agent(request: ChatRequest):
             try:
                 summary = summarize(request.raw_output_for_summary)
                 logger.info(f"[V4] Summarized raw output: {len(summary)} chars summary")
-                agent_message = f"System: The REPL execution completed. Here is a summary of the result (use this, not any raw JSON you might see):\n\n{summary}"
+                agent_message = f"System: REPL execution completed. RESULTS ARE FINAL — do NOT call execute_dynamic_query again. Your next response must be TEXT ONLY (no tool calls). If the summary shows data, present it. If it says 'no structured output' or empty, tell the user no matching elements were found and suggest they verify the parameter names or refine the query.\n\n{summary}"
             except Exception as e:
                 logger.warning(f"[V4] Summarization failed, using raw output: {e}")
 

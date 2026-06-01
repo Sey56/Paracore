@@ -48,8 +48,8 @@ function buildReplPreview(structuredOutput: Record<string, unknown>[], plainOutp
             parts.push(`**${item.title || 'Table'}**: empty (no data).`);
           }
         } catch { parts.push(`**${item.title || 'Table'}**: result available in Analytics tab.`); }
-      } else if (['bargraph', 'piegraph', 'linegraph'].includes(String(item.type))) {
-        parts.push(`*${item.title || item.type} rendered in the Analytics tab.*`);
+      } else if (['chart-bar', 'chart-pie', 'chart-line'].includes(String(item.type))) {
+        parts.push(`*${item.title || String(item.type)} rendered in the Analytics tab.*`);
       }
     }
   }
@@ -411,8 +411,10 @@ export const AgentView: React.FC = () => {
               internal_data: res.data.internal_data,
             };
 
-            const hasTable = res.data.structured_output?.some((item: Record<string, unknown>) => item.type === 'table');
-            if (hasTable) {
+            const hasVisual = res.data.structured_output?.some((item: Record<string, unknown>) =>
+                ['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(String(item.type))
+            );
+            if (hasVisual) {
               setAgentReplResults(res.data.structured_output);
               setActiveInspectorTab('table');
             }
@@ -427,7 +429,7 @@ export const AgentView: React.FC = () => {
             }
 
             await invokeAgent(
-               [{ type: 'human', content: `System: REPL execution completed. Result available in the Analytics tab.`, id: `system-${Date.now()}` }],
+               [{ type: 'human', content: `System: REPL execution completed. Do NOT call execute_dynamic_query again — your response must be TEXT ONLY with no tool calls. Summarize the results or report that no data was found.`, id: `system-${Date.now()}` }],
                { isInternal: true, summary: null, raw_output: rawOutputPayload }
             );
             

@@ -106,3 +106,79 @@ async def search_schema(ctx: RunContext[AgentDeps], args: SchemaSearchArgs) -> s
     except Exception as e:
         logger.error(f"Schema search failed for {args.category_name}: {e}")
         return f"Schema search failed: {str(e)}. Try using explore_revit_data with .CombinedParams().Table() instead."
+
+
+# Cache the extension methods doc in memory
+_ext_methods_cache: str | None = None
+
+
+def _load_extension_methods_doc() -> str:
+    global _ext_methods_cache
+    if _ext_methods_cache is not None:
+        return _ext_methods_cache
+    # Resolve path relative to repo root (v4_repl_agent.py is at server/agent/)
+    agent_dir = os.path.dirname(os.path.abspath(__file__))
+    server_dir = os.path.dirname(agent_dir)
+    rap_server_dir = os.path.dirname(server_dir)
+    repo_root = os.path.dirname(rap_server_dir)
+    doc_path = os.path.join(repo_root, "EXTENSION_METHODS.md")
+    try:
+        with open(doc_path, "r", encoding="utf-8") as f:
+            _ext_methods_cache = f.read()
+        logger.info(f"Loaded EXTENSION_METHODS.md ({len(_ext_methods_cache)} chars)")
+        return _ext_methods_cache
+    except Exception as e:
+        logger.warning(f"Failed to load EXTENSION_METHODS.md: {e}")
+        return f"Extension methods reference not found at {doc_path}"
+
+
+class ExtensionMethodsArgs(BaseModel):
+    """No arguments — returns the full Paracore extension methods reference."""
+    query: str = Field(default="", description="Optional: a specific method or topic to search for (e.g., 'GetStr', 'WhereParam', 'Table', 'BarGraph'). Leave empty for the full reference.")
+
+
+@v4_repl_agent.tool
+async def read_extension_methods(ctx: RunContext[AgentDeps], args: ExtensionMethodsArgs) -> str:
+    """
+    Returns the complete Paracore Extension Methods reference (EXTENSION_METHODS.md).
+    Call this when you need to check the EXACT syntax, parameters, or behavior of any
+    Paracore extension method. The full reference covers:
+    - Element accessors: GetStr, GetNum, GetVal, GetInt, SetVal, SetNum
+    - Collection extensions: WhereParam, WhereMatches, SumParam, GroupByParam, OrderByParam, OrderByParamDesc
+    - Visualization: Table, BarGraph, PieGraph, LineGraph, Peek
+    - Diagnostics: CombinedParams, BuiltInParams, InstanceParams, TypeParams, NativeProperties
+    - Geometry: GeometrySummary
+    - Coordination: AuditClashes
+    - Units: InputUnit, OutputUnit, IsAlmostEqualTo, AlmostZero
+    - Element identity: Matches, FamilyName, ToElement
+    - Door/Window: RoomAccess, RoomDestination, Handing, IsStandardDoor
+    - Materials: Materials, MaterialNames, Eco.GetCarbon, Eco.GetUValue
+    If a specific method name is provided in 'query', only the relevant section is returned.
+    This is your PRIMARY reference for correct Paracore syntax. Use it whenever you're
+    unsure about a method name, argument order, or whether something exists in Paracore.
+    """
+    doc = _load_extension_methods_doc()
+    if args.query:
+        query = args.query.strip()
+        # Find the section containing the query
+        lines = doc.split("\n")
+        results = []
+        in_section = False
+        section_header = ""
+        for i, line in enumerate(lines):
+            if line.startswith("## ") or line.startswith("# "):
+                in_section = query.lower() in line.lower()
+                section_header = line
+            if in_section:
+                results.append(line)
+                if len(results) > 200:  # limit section size
+                    break
+        if results:
+            return "\n".join(results)
+        # Fallback: search the whole doc for mentions
+        relevant = [line for line in lines if query.lower() in line.lower()]
+        if relevant:
+            return f"Found references to '{query}':\n" + "\n".join(relevant[:50])
+        return f"No specific section found for '{query}'. Here is the beginning of the full reference:\n\n{doc[:3000]}"
+    # Return a trimmed version — first 8000 chars covers the core API
+    return doc[:8000]

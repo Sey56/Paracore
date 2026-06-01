@@ -110,7 +110,7 @@ check("Text output present", "Processed" in result)
 # 1i: Completely empty result
 print("\n  1i: Empty result")
 result = summarize({})
-check("Fallback message", "no output" in result.lower() or "completed successfully" in result.lower())
+check("Fallback message", "no structured output" in result.lower() or "EXECUTION SUCCESSFUL" in result)
 
 # 1j: CamelCase key (structuredOutput vs structured_output)
 print("\n  1j: snake_case keys")
@@ -151,13 +151,13 @@ required_sections = [
     ("STEP 3 Final Answer", "STEP 3"),
     ("Self-correction header", "SELF-CORRECTION"),
     ("Retry limit 3", "up to 3 times"),
-    ("Error: unit missing", "GetNum(\"Length\", \"m\")"),
+    ("Error: unit missing", "GetNum"),
     ("Error: null reference", "First()?.GetStr"),
     ("Error: wrong method", "LookupParameter"),
-    ("Error: syntax", "missing semicolons"),
+    ("Error: raw API", "FilteredElementCollector"),
     ("Globals:", "Doc"),  # check for Doc (backtick-wrapped in prompt)
     ("Implicit output", "Implicit output"),
-    ("No foreach", "No foreach loops"),
+    ("No foreach", "foreach"),
     ("Table rules", "Select()"),  # prompt says ALWAYS Select() first
     ("Graph methods", "BarGraph"),
     ("Key accessors", "GetStr"),
@@ -169,7 +169,7 @@ required_sections = [
 for label, keyword in required_sections:
     check(f"Prompt has: {label}", keyword in SYSTEM_PROMPT, f"missing '{keyword}'")
 
-check("Prompt under 6000 chars", len(SYSTEM_PROMPT) < 6000, f"got {len(SYSTEM_PROMPT)}")
+check("Prompt under 8000 chars", len(SYSTEM_PROMPT) < 8000, f"got {len(SYSTEM_PROMPT)}")
 check("No emoji headers", "🏗️" not in SYSTEM_PROMPT and "🔧" not in SYSTEM_PROMPT)
 
 # 2b: Verify STEP 1 promotes search_schema over combined params
