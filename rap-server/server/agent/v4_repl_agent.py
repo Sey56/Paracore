@@ -82,3 +82,27 @@ async def explore_revit_data(ctx: RunContext[AgentDeps], args: ExploreQueryArgs)
             
     except Exception as e:
         return f"Error executing exploration script: {str(e)}"
+
+
+class SchemaSearchArgs(BaseModel):
+    category_name: str = Field(description="The Revit category name to search for parameters (e.g., 'Rooms', 'Walls', 'Doors', 'Structural Columns'). Use GetMagicNames() to discover available category names if unsure.")
+    justification: str = Field(description="Why you need to inspect this category's schema.")
+
+@v4_repl_agent.tool
+async def search_schema(ctx: RunContext[AgentDeps], args: SchemaSearchArgs) -> str:
+    """
+    Fast parameter schema lookup for a Revit category.
+    Returns parameter names, storage types, and type/instance classification.
+    Results are cached in memory — instant on subsequent calls for the same category.
+    Use this INSTEAD OF explore_revit_data for discovery when you just need to know
+    what parameters exist for a category (names and storage types).
+    This is the PREFERRED discovery tool — it's faster and more token-efficient than
+    running .CombinedParams().Table().
+    """
+    logger.info(f"Agent searching schema for: {args.category_name} — {args.justification}")
+    try:
+        from services.schema_cache import search_schema as do_search
+        return do_search(args.category_name)
+    except Exception as e:
+        logger.error(f"Schema search failed for {args.category_name}: {e}")
+        return f"Schema search failed: {str(e)}. Try using explore_revit_data with .CombinedParams().Table() instead."

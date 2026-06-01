@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTerminal, faChartLine, faTrash, faCopy, faMagicWandSparkles, faExpandAlt, faCompressAlt } from '@fortawesome/free-solid-svg-icons';
 import { useConsole } from '@/features/automation/store/ConsoleContext';
@@ -7,12 +7,14 @@ import { ExecutionHistory } from '@/features/automation/components/ScriptInspect
 import { TableTabContent } from '@/features/automation/components/ScriptInspector/TableTabContent';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useUI } from '@/hooks/useUI';
 
 export const BottomPanel: React.FC = () => {
   const { localHistory, setLocalHistory, aiResult, isExplaining, setAiResult } = useConsole();
   const { executionResult, clearExecutionResult, selectedScript } = useScriptExecution();
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
+  const { agentReplResults } = useUI();
   
   const [activeTab, setActiveTab] = useState<'history' | 'analytics'>('history');
   
@@ -33,19 +35,12 @@ export const BottomPanel: React.FC = () => {
   const [hasUnviewedHistory, setHasUnviewedHistory] = useState(false);
   const [isFlashingHistory, setIsFlashingHistory] = useState(false);
 
-  const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
-
   useEffect(() => {
     localStorage.setItem('paracore_bottom_panel_expanded', String(isExpanded));
   }, [isExpanded]);
 
   useEffect(() => {
-    if (!executionResult) return;
-    if (executionResult.timestamp === lastProcessedTimestampRef.current) return;
-    lastProcessedTimestampRef.current = executionResult.timestamp;
-    
-    // 1. Check for Analytics
-    const hasAnalytics = executionResult.structuredOutput && executionResult.structuredOutput.some(item => 
+    const hasAnalytics = (executionResult?.structuredOutput || agentReplResults)?.some(item => 
       ['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(item.type)
     );
 
@@ -53,23 +48,10 @@ export const BottomPanel: React.FC = () => {
       if (activeTab !== 'analytics') {
         setHasUnviewedAnalytics(true);
       }
-      // Flash the Analytics icon
       setIsFlashingAnalytics(true);
       setTimeout(() => setIsFlashingAnalytics(false), 1000);
     }
-
-    // 2. History Flash & Badge (Always triggered as every execution produces a history entry)
-    if (activeTab !== 'history') {
-      setHasUnviewedHistory(true);
-    }
-    // Flash the History icon
-    setIsFlashingHistory(true);
-    const historyTimer = setTimeout(() => setIsFlashingHistory(false), 1000);
-    
-    return () => {
-        clearTimeout(historyTimer);
-    };
-  }, [executionResult, activeTab]);
+  }, [executionResult, agentReplResults, activeTab]);
 
   useEffect(() => {
     if (activeTab === 'history') {
@@ -277,6 +259,7 @@ export const BottomPanel: React.FC = () => {
             currentDocTitle={currentDocTitle} 
             selectedScript={selectedScript} 
             isHeaderPortalTarget={activeTab === 'analytics'}
+            structuredOutputOverride={agentReplResults}
           />
         </div>
 

@@ -38,6 +38,7 @@ async def chat_with_agent(request: ChatRequest):
 
         # 1. Setup Dependencies
         from agent.v4_repl_agent import v4_repl_agent, AgentDeps, InterruptedException
+        from agent.summarizer import summarize, shield_tool_return
         deps = AgentDeps(
             user_id=request.token or "unknown",
             thread_id=request.thread_id or "unknown"
@@ -85,15 +86,7 @@ async def chat_with_agent(request: ChatRequest):
                     # --- THE SHIELD LAYER ---
                     # If this is a return from our super tool, truncate it to protect context window
                     if t_name == "execute_dynamic_query" and len(text) > 1000:
-                        try:
-                            # Try to parse it as JSON to give a smart summary
-                            data = json.loads(text)
-                            if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
-                                text = f"Execution successful. Returned a {data.get('type', 'table')} with {len(data['data'])} rows. Tell the user to view the full result in the UI."
-                            else:
-                                text = f"Execution successful. Output was very large ({len(text)} chars) and has been truncated. Tell the user to check the UI."
-                        except:
-                            text = f"Execution successful. Output truncated due to size ({len(text)} chars)."
+                        text = shield_tool_return(text, t_name)
                             
                     pydantic_history.append(ModelRequest(parts=[ToolReturnPart(tool_name=t_name, content=text, tool_call_id=c_id)]))
 
@@ -115,6 +108,16 @@ async def chat_with_agent(request: ChatRequest):
             "tool_call": None,
             "raw_history_json": None
         }
+
+        # Pre-summarize raw execution output before the agent sees it
+        agent_message = request.message
+        if request.raw_output_for_summary:
+            try:
+                summary = summarize(request.raw_output_for_summary)
+                logger.info(f"[V4] Summarized raw output: {len(summary)} chars summary")
+                agent_message = f"System: The REPL execution completed. Here is a summary of the result (use this, not any raw JSON you might see):\n\n{summary}"
+            except Exception as e:
+                logger.warning(f"[V4] Summarization failed, using raw output: {e}")
 
         try:
             # Industrial Model Factory
@@ -158,7 +161,7 @@ async def chat_with_agent(request: ChatRequest):
 
             from pydantic_ai.settings import ModelSettings
             result = await v4_repl_agent.run(
-                request.message,
+                agent_message,
                 message_history=pydantic_history,
                 deps=deps,
                 model=model,

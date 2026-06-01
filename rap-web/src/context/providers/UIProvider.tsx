@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall } from "./UIContext";
+import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall, StructuredOutput } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useUserTeamSources } from "@/features/team-sources"; 
@@ -124,6 +124,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [isWelcomeGateOpen, setIsWelcomeGateOpen] = useState(false);
   const openWelcomeGate = useCallback(() => setIsWelcomeGateOpen(true), []);
   const closeWelcomeGate = useCallback(() => setIsWelcomeGateOpen(false), []);
+
+  // Agent REPL execution results (for Analytics tab rendering)
+  const [agentReplResults, setAgentReplResults] = useState<StructuredOutput[] | null>(null);
 
   // Global InfoModal state
   const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
@@ -286,6 +289,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isWelcomeGateOpen,
     openWelcomeGate,
     closeWelcomeGate,
+    agentReplResults,
+    setAgentReplResults,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -331,6 +336,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isWelcomeGateOpen,
     openWelcomeGate,
     closeWelcomeGate,
+    agentReplResults,
   ]);
 
   return (

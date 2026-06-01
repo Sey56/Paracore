@@ -32,6 +32,12 @@ from mcp.server.fastmcp import FastMCP
 # Now we can safely import from grpc_client (which is in base_dir/server or base_dir)
 from grpc_client import close_channel, execute_repl, execute_script, get_context, init_channel
 
+# Summarizer for token-efficient tool returns (works for both MCP and web)
+try:
+    from agent.summarizer import summarize
+except ImportError:
+    def summarize(x): return json.dumps(x)  # fallback
+
 # Configure logging
 if getattr(sys, 'frozen', False):
     # Log next to the executable in bundled mode
@@ -52,6 +58,22 @@ logger.info(f"MCP Logging initialized at {log_file}")
 # Initialize FastMCP Server
 mcp = FastMCP("Paracore")
 
+# Cache resource files in memory at startup (read once, serve from RAM)
+_CACHED_SYSTEM_PROMPT: str | None = None
+_CACHED_REPL_GUIDE: str | None = None
+_CACHED_EXTENSION_METHODS: str | None = None
+
+
+def _load_resource(path: str, cache: str | None) -> str:
+    """Load and cache a resource file. Returns cached copy on subsequent calls."""
+    if cache is not None:
+        return cache
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except Exception:
+        return f"Resource not found: {path}"
+
 @mcp.tool()
 def ping() -> str:
     """Diagnostic tool to verify the MCP server is alive and responding."""
@@ -66,6 +88,8 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     DO NOT use standard Revit API. This is the Paracore REPL with a specialized fluent API.
     Globals: Doc, UIDoc, ActiveView, Selection.
     The LAST EXPRESSION is auto-returned (no Print/return needed).
+    Results are summarized: tables return first 5 rows + total count, text returns first 10 lines.
+    For full data, the user must have the Paracore native desktop app (rap-web).
 
     SYNTAX CHEAT SHEET:
     - GetElements<Room>().Count()         → count rooms
@@ -78,9 +102,12 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     - .WhereParam("Level", "Level 1")     → filter by param
     - .WhereMatches("Single-Flush")       → fuzzy name filter
     - .OrderByParam("Area")               → sort ascending
+    - .OrderByParamDesc("Area")            → sort descending
     - .GroupByParam("Level", "Area", "m2") → group + sum
     - .SumParam("Area", "m2")             → total
     - .Select(x => new { ... }).Table()   → data grid
+    - .Select(x => new { ... }).BarGraph() → bar chart
+    - .Select(x => new { ... }).PieGraph() → pie chart
     - el.CombinedParams().Table()         → discover all parameters
     - el.Peek()                           → forensic audit
     - Transact("name", () => { ... })     → wrap model changes
@@ -90,23 +117,14 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     logger.info(f"MCP Exploring Data: {justification}")
     try:
         result = execute_repl(csharp_code, "mcp-session")
-        logger.info(f"MCP Raw Result: is_success={result.get('is_success')}, output='{result.get('output', '')}', structured={result.get('structured_output')}")
         
         if result["is_success"]:
-            # Check all possible output channels
-            if result.get("structured_output"):
-                output_str = json.dumps(result.get("structured_output"))
-            elif result.get("output"):
-                output_str = str(result["output"])
-            elif result.get("internal_data"):
-                output_str = str(result["internal_data"])
-            else:
-                output_str = "Execution succeeded with no output."
-            
-            # The Shield: Truncate massive outputs to prevent context flooding
-            if len(output_str) > 8000:
-                output_str = output_str[:8000] + "\n... [TRUNCATED: Result exceeded 8000 characters. Refine your query.]"
-            return output_str
+            output_raw = {
+                "structuredOutput": result.get("structured_output", []),
+                "output": result.get("output", ""),
+                "internal_data": result.get("internal_data", ""),
+            }
+            return summarize(output_raw)
         else:
             return f"Execution Failed: {result['error_message']}\nDetails: {result['error_details']}"
     except Exception as e:
@@ -121,33 +139,54 @@ def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     Write: el.SetVal("Comments", "Done"), el.SetNum("Offset", 500, "mm"),
            .SetParam("Mark", "W-01") for bulk, .Delete() for BIM-safe delete.
     All writes must be in Transact("name", () => { ... }) unless using SetVal/Delete.
+    Results are summarized: tables return first 5 rows + total count, text returns first 10 lines.
+    For full data, the user must have the Paracore native desktop app (rap-web).
     """
     logger.info(f"MCP Executing Query: {justification}")
     try:
         result = execute_repl(csharp_code, "mcp-session")
         if result["is_success"]:
-            # Check all possible output channels
-            if result.get("structured_output"):
-                output_str = json.dumps(result.get("structured_output"))
-            elif result.get("output"):
-                output_str = str(result["output"])
-            elif result.get("internal_data"):
-                output_str = str(result["internal_data"])
-            else:
-                output_str = "Execution succeeded with no output."
-            return f"Execution Successful.\nOutput:\n{output_str}"
+            output_raw = {
+                "structuredOutput": result.get("structured_output", []),
+                "output": result.get("output", ""),
+                "internal_data": result.get("internal_data", ""),
+            }
+            return summarize(output_raw)
         else:
             return f"Execution Failed: {result['error_message']}\nDetails: {result['error_details']}"
     except Exception as e:
          return f"Error executing task script: {str(e)}"
 
 
+@mcp.tool()
+def search_schema(category_name: str) -> str:
+    """
+    Search the model schema for parameter definitions of a Revit category.
+    Returns parameter names, storage types, and whether each is Type or Instance.
+    PREFERRED discovery tool — faster than running .CombinedParams().Table().
+    Results are cached in memory after first call per category.
+    Example categories: "Rooms", "Walls", "Doors", "Structural Columns", "Floors", "Ceilings".
+    Use GetMagicNames() to discover available category names if unsure.
+    """
+    logger.info(f"MCP Searching schema for: {category_name}")
+    try:
+        from services.schema_cache import search_schema as do_search
+        return do_search(category_name)
+    except Exception as e:
+        logger.error(f"Schema search failed: {e}")
+        return f"Schema search failed: {str(e)}. Try explore_revit_data with .CombinedParams().Table() instead."
+
+
 # Resources
 @mcp.resource("paracore://system-prompt")
 def read_system_prompt() -> str:
     """The fundamental AI System Prompt that defines Paracore's entire REPL behavioral workflow."""
+    global _CACHED_SYSTEM_PROMPT
+    if _CACHED_SYSTEM_PROMPT is not None:
+        return _CACHED_SYSTEM_PROMPT
     try:
         from agent.prompt import SYSTEM_PROMPT
+        _CACHED_SYSTEM_PROMPT = SYSTEM_PROMPT
         return SYSTEM_PROMPT
     except Exception as e:
         logger.error(f"Error loading system prompt: {e}")
@@ -156,24 +195,18 @@ def read_system_prompt() -> str:
 @mcp.resource("paracore://repl-guide")
 def read_repl_guide() -> str:
     """The authoritative REPL Guide describing magic category hydration strings and retrieval shortcuts."""
+    global _CACHED_REPL_GUIDE
     path = _get_resource_path("REPL_GUIDE.md")
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except Exception as e:
-        logger.error(f"REPL_GUIDE.md not found at {path}: {e}")
-        return f"REPL_GUIDE.md not found at {path}"
+    _CACHED_REPL_GUIDE = _load_resource(path, _CACHED_REPL_GUIDE)
+    return _CACHED_REPL_GUIDE
 
 @mcp.resource("paracore://extension-methods")
 def read_extension_methods() -> str:
     """The complete technical reference for all fluent element getters/setters, properties, and formatting tools."""
+    global _CACHED_EXTENSION_METHODS
     path = _get_resource_path("EXTENSION_METHODS.md")
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except Exception as e:
-        logger.error(f"EXTENSION_METHODS.md not found at {path}: {e}")
-        return f"EXTENSION_METHODS.md not found at {path}"
+    _CACHED_EXTENSION_METHODS = _load_resource(path, _CACHED_EXTENSION_METHODS)
+    return _CACHED_EXTENSION_METHODS
 
 # Prompts
 @mcp.prompt()

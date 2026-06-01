@@ -312,7 +312,6 @@ GetElements("Walls")
 
 All return `IEnumerable<T>` (fully chainable).
 
-| Method | Description |
 | Method | Single | Collection | Description |
 | :--- | :--- | :--- | :--- |
 | `.Select()` | ✅ | ✅ | Select all in Revit UI |
@@ -409,11 +408,15 @@ Println(wall.GetNum("Length").FormatUnit("mm"));  // → "3600.0 mm"
 | `.InputUnit("mm")` | User value → internal feet |
 | `.OutputUnit("m2")` | Internal → target unit double |
 | `.FormatUnit("mm")` | Formatted string with suffix |
+| `.FormatValueOnly("mm", 2)` | Numeric string without unit suffix |
+| `"dimensionString".ToMeters()` | Parse dimension (e.g. `"500mm"` → `0.5`) |
 | `.RoundTo("mm")` | Snap to unit precision |
 | `.IsAlmostEqualTo(v)` | Fuzzy equality (1e-9 tolerance) |
 | `.AlmostZero()` | Effectively zero? |
 | `.IsLessThan(v)` | Precision less-than |
 | `.IsGreaterThan(v)` | Precision greater-than |
+| `.IsGreaterThanOrEqual(v)` | Precision greater-than-or-equal |
+| `.IsLessThanOrEqual(v)` | Precision less-than-or-equal |
 | `.IsPositive()` | Strictly positive |
 | `.IsNegative()` | Strictly negative |
 

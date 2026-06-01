@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { Script } from "@/types/scriptModel";
+import { Script, StructuredOutput } from "@/types/scriptModel";
 import { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/agentTypes";
 
 export type InspectorTab = "parameters" | "console" | "table" | "metadata";
@@ -11,6 +11,7 @@ export type ActiveScriptSource =
   | null;
 
 export type { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/agentTypes";
+export type { StructuredOutput } from "@/types/scriptModel";
 
 
 
@@ -79,6 +80,10 @@ export interface UIContextProps {
   isWelcomeGateOpen: boolean;
   openWelcomeGate: () => void;
   closeWelcomeGate: () => void;
+
+  // Agent REPL execution results (for Analytics tab rendering)
+  agentReplResults: StructuredOutput[] | null;
+  setAgentReplResults: (results: StructuredOutput[] | null) => void;
 
   // Global InfoModal
   infoModalState: { isOpen: boolean; title: string; message: string };

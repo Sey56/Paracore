@@ -23,6 +23,50 @@ import { useTheme } from '@/context/ThemeContext';
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
 
+function buildReplPreview(structuredOutput: Record<string, unknown>[], plainOutput: string): string | null {
+  const parts: string[] = [];
+
+  if (Array.isArray(structuredOutput) && structuredOutput.length > 0) {
+    for (const item of structuredOutput) {
+      if (item.type === 'table') {
+        try {
+          const data = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+          if (Array.isArray(data) && data.length > 0) {
+            const totalRows = data.length;
+            const headers = Object.keys(data[0] as Record<string, unknown>);
+            const rows = data.slice(0, 5).map((r: Record<string, unknown>) => headers.map(h => String((r as Record<string, unknown>)[h] ?? '')));
+            const tableLines = [
+              '| ' + headers.join(' | ') + ' |',
+              '|' + headers.map(() => '---').join('|') + '|',
+              ...rows.map(r => '| ' + r.join(' | ') + ' |'),
+            ];
+            parts.push(`**${item.title || 'Table'}** (${totalRows} rows, showing first ${rows.length}):\n${tableLines.join('\n')}`);
+            if (totalRows > 5) {
+              parts.push(`*...and ${totalRows - 5} more rows.*  \n*Run the generated code in the **REPL Playground** to see the full table in the **Analytics** tab.*`);
+            }
+          } else {
+            parts.push(`**${item.title || 'Table'}**: empty (no data).`);
+          }
+        } catch { parts.push(`**${item.title || 'Table'}**: result available in Analytics tab.`); }
+      } else if (['bargraph', 'piegraph', 'linegraph'].includes(String(item.type))) {
+        parts.push(`*${item.title || item.type} rendered in the Analytics tab.*`);
+      }
+    }
+  }
+
+  if (plainOutput && String(plainOutput).trim()) {
+    const text = String(plainOutput).trim();
+    const lines = text.split('\n');
+    if (lines.length <= 5) {
+      parts.push(`**Output:**\n\`\`\`\n${text}\n\`\`\``);
+    } else {
+      parts.push(`**Output** (${lines.length} lines, showing first 5):\n\`\`\`\n${lines.slice(0, 5).join('\n')}\n... and ${lines.length - 5} more lines\n\`\`\``);
+    }
+  }
+
+  return parts.length > 0 ? parts.join('\n\n') : null;
+}
+
 export const AgentView: React.FC = () => {
   const {
     activeScriptSource,
@@ -31,6 +75,7 @@ export const AgentView: React.FC = () => {
     threadId,
     setThreadId,
     setActiveInspectorTab,
+    setAgentReplResults,
   } = useUI();
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
 
@@ -326,33 +371,59 @@ export const AgentView: React.FC = () => {
                 session_id: threadId || "temp_session"
             });
             
-            // Format output identically to C# execution result
+            if (!res.data.is_success) {
+                // Build retry count from recent tool failures
+                let retryCount = 1;
+                for (let i = messages.length - 1; i >= 0; i--) {
+                    if (messages[i].type === 'tool' && typeof messages[i].content === 'string' && (messages[i].content as string).startsWith('ERROR:')) {
+                        retryCount++;
+                    } else if (messages[i].type === 'human') {
+                        break;
+                    }
+                }
+
+                const errorMsg = res.data.error_message || res.data.output || 'Unknown REPL execution error';
+                const errorContent = `**Execution Failed** (retry ${retryCount}/3)\n\`\`\`\n${errorMsg}\n\`\`\``;
+
+                setMessages(prev => [...prev, {
+                    type: 'tool',
+                    content: errorContent,
+                    tool_call_id: toolCall.id,
+                }]);
+
+                const systemMsg = retryCount >= 3
+                    ? `System: REPL execution failed 3 times. Last error: ${errorMsg}. Do NOT retry. Explain the issue to the user and suggest they check their Revit model or refine the query.`
+                    : `System: REPL execution FAILED (retry ${retryCount}/3). Error: ${errorMsg}. Please correct the C# code and call execute_dynamic_query again with the fixed version.`;
+
+                await invokeAgent([{ type: 'human', content: systemMsg, id: `system-${Date.now()}` }]);
+                setIsLoading(false);
+                return;
+            }
+
+            // ── Success path (unchanged) ──
             const rawOutputPayload = {
               structuredOutput: res.data.structured_output,
               output: res.data.output,
               internal_data: res.data.internal_data,
             };
-            
-            // Defend the LLM Context: Scrub massive JSON arrays from the system prompt, but allow small ones to pass through
-            const shieldedPayload: any = { ...rawOutputPayload };
-            if (Array.isArray(shieldedPayload.structuredOutput) && shieldedPayload.structuredOutput.length > 0) {
-              shieldedPayload.structuredOutput = shieldedPayload.structuredOutput.map((item: any) => {
-                if (item.type === 'table') {
-                  const rowCount = Array.isArray(item.data) ? item.data.length : 0;
-                  if (rowCount > 50) {
-                      return { type: 'table', summary: `[SHIELDED: Table payload with ${rowCount} rows hidden to save tokens. Tell the user you cannot list them all here, and they must view the table natively on the UI.]` };
-                  }
-                  return item; // Pass small tables through so the LLM can read and format them
-                }
-                return { type: item.type, summary: `[SHIELDED: Rich UI payload hidden]` };
-              });
-            }
-            
-            // Removed tab switching logic. Agent execution results now remain strictly in the chat context.
 
-            // Send back to agent and WAIT for the agent to finish before clearing the loading state
+            const hasTable = res.data.structured_output?.some((item: Record<string, unknown>) => item.type === 'table');
+            if (hasTable) {
+              setAgentReplResults(res.data.structured_output);
+              setActiveInspectorTab('table');
+            }
+
+            const previewContent = buildReplPreview(res.data.structured_output, res.data.output);
+            if (previewContent) {
+              setMessages(prev => [...prev, {
+                type: 'tool',
+                content: previewContent,
+                tool_call_id: toolCall.id,
+              }]);
+            }
+
             await invokeAgent(
-               [{ type: 'human', content: `System: Raw REPL Execution Result JSON:\n${JSON.stringify(shieldedPayload)}`, id: `system-${Date.now()}` }],
+               [{ type: 'human', content: `System: REPL execution completed. Result available in the Analytics tab.`, id: `system-${Date.now()}` }],
                { isInternal: true, summary: null, raw_output: rawOutputPayload }
             );
             
@@ -413,6 +484,30 @@ export const AgentView: React.FC = () => {
   }, [messages]);
 
   const renderMessageContent = (msg: Message) => {
+    if (msg.type === 'tool' && typeof msg.content === 'string') {
+      const content = msg.content;
+      if (content.startsWith('ERROR:') || content.startsWith('**Execution Failed')) {
+        return (
+          <div className="text-[12.5px] leading-relaxed break-words">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                strong: ({node, ...props}) => <strong className="font-bold text-rose-600 dark:text-rose-400" {...props} />,
+                code: ({node, className, children, ...props}: any) => (
+                  <code className="bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-1.5 py-0.5 rounded text-[11px] font-mono border border-rose-200 dark:border-rose-800/50" {...props}>
+                    {children}
+                  </code>
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        );
+      }
+    }
+
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       const toolCall = msg.tool_calls[0];
       const { script_metadata, csharp_code, justification, ...displayArgs } = toolCall.args;
@@ -608,6 +703,12 @@ export const AgentView: React.FC = () => {
               em: ({node, ...props}) => <em className="italic opacity-90" {...props} />,
               p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
               a: ({node, ...props}) => <a className="text-[var(--accent)] hover:underline underline-offset-2" {...props} />,
+              table: ({node, ...props}) => <div className="my-3 overflow-x-auto rounded-xl border border-[var(--border-divider)] shadow-sm"><table className="w-full border-collapse text-[12.5px]" {...props} /></div>,
+              thead: ({node, ...props}) => <thead className="bg-slate-100 dark:bg-slate-800/80" {...props} />,
+              tbody: ({node, ...props}) => <tbody className="divide-y divide-[var(--border-divider)]" {...props} />,
+              tr: ({node, ...props}) => <tr className="even:bg-slate-50/50 dark:even:bg-slate-800/30" {...props} />,
+              th: ({node, ...props}) => <th className="px-3 py-2 text-left text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap" {...props} />,
+              td: ({node, ...props}) => <td className="px-3 py-2 text-[var(--text-main)] whitespace-nowrap border-l border-[var(--border-divider)]/30 first:border-l-0" {...props} />,
               code: ({node, className, children, ...props}: any) => {
                 const match = /language-(\w+)/.exec(className || '');
                 const isInline = !match && !String(children).includes('\n');
@@ -683,7 +784,14 @@ export const AgentView: React.FC = () => {
             </div>
         )}
 
-        {messages.filter(m => m.type !== 'tool' && !(m.type === 'human' && typeof m.content === 'string' && m.content.startsWith('System:'))).map((msg) => {
+        {messages.filter(m => {
+          if (m.type === 'tool') {
+            const c = typeof m.content === 'string' ? m.content : '';
+            return c.startsWith('ERROR:') || c.startsWith('**Execution Failed');
+          }
+          if (m.type === 'human' && typeof m.content === 'string' && m.content.startsWith('System:')) return false;
+          return true;
+        }).map((msg) => {
           const human = isHuman(msg);
           
           return (
