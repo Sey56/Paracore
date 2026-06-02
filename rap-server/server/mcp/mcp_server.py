@@ -94,18 +94,18 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     SELF-CORRECTION: retry up to 3 times on errors. Use paracore://extension-methods.
 
     CRITICAL SYNTAX (the ONLY valid Paracore methods):
-      GetElements<Room>()  GetElements("Walls")  GetElement("name")
-      GetStr("Level") → "Level 1"    GetNum("Area","m2") → 25.46
-      GetVal("Width") → "300 mm"     GetInt("Count") → 4
+      GetElements<Room>()   GetElements("Walls")   GetElement("name")
+      x.GetStr("Level") → "Level 1"    x.GetNum("Area","m2") → 25.46
+      x.GetVal("Width") → "300 mm"     x.GetInt("Count") → 4
       .WhereParam("Level","Level 1")  .WhereMatches("Single")
       .OrderByParam("Area")  .OrderByParamDesc("Area")
       .GroupByParam("Level")  .GroupByParam("Level","Area","m2")
-      .SumParam("Area","m2")  .Select(x=>new{...}).Table()
-    .SetVal("Mark","101") .SetNum("Offset",-150,"cm")
-    .BarGraph() .PieGraph() .LineGraph() — zero arguments
+      .SumParam("Area","m2")  .Select(x=>new{x.Id,Name=x.GetStr("Name")}).Table()
+      x.SetVal("Mark","101")  x.SetNum("Offset",-150,"cm")
+      .BarGraph() .PieGraph() .LineGraph() — zero arguments
       Transact("name",()=>{foreach(var w in walls){w.SetVal(...);}})
       Println($"text") — output text (NOT .Dump(), NOT .Print())
-      c.Id (NOT .IntegerValue)  c.Name  c.Symbol — native props work directly
+      x.Id (NOT .IntegerValue)  x.Name  x.Symbol — native props work directly
 
     CRITICAL: NO raw Revit API (FilteredElementCollector, BuiltInParameter,
     LookupParameter, get_Parameter, .AsString(), ElementId, doc.GetElement).

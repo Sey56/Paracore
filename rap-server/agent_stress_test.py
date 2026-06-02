@@ -146,24 +146,21 @@ required_sections = [
     ("execute_dynamic_query", "execute_dynamic_query"),
     ("explore_revit_data", "explore_revit_data"),
     ("search_schema mentioned", "search_schema"),
-    ("STEP 1 Discovery", "STEP 1"),
-    ("STEP 2 Execution", "STEP 2"),
-    ("STEP 3 Final Answer", "STEP 3"),
-    ("Self-correction header", "SELF-CORRECTION"),
-    ("Retry limit 3", "up to 3 times"),
-    ("Error: unit missing", "GetNum"),
-    ("Error: null reference", "First"),
-    ("Error: wrong method", "LookupParameter"),
-    ("Error: raw API", "FilteredElementCollector"),
-    ("Globals:", "Doc"),
-    ("Implicit output", "Implicit output"),
-    ("No foreach", "foreach"),
-    ("Table rules", "Select()"),
+    ("Retrieval guidance", "GetElements<Wall>"),
+    ("Transact guidance", "Transact"),
+    ("Table rules", "Id = el.Id"),
     ("Graph methods", "BarGraph"),
-    ("Key accessors", "GetStr"),
-    ("Unit conversion", "InputUnit"),
-    ("Transactions", "Transact"),
-    ("Method catalog reference", "read_extension_methods"),
+    ("Tools section", "read_extension_methods"),
+    ("Write rules", "SetVal"),
+    ("Retry limit 3", "retry up to 3 times"),
+    ("No foreach", "foreach"),
+    ("GetElements examples", "GetElements<FamilyInstance>"),
+    ("Filter pattern", "WhereParam"),
+    ("Select pattern", "Select"),
+    ("Unit usage in examples", "GetNum"),
+    ("Println usage", "Println"),
+    ("Transact pattern", "Transact"),
+    ("Doc pattern", "Doc.Title"),
 ]
 
 for label, keyword in required_sections:
@@ -172,11 +169,10 @@ for label, keyword in required_sections:
 check("Prompt under 8000 chars", len(SYSTEM_PROMPT) < 8000, f"got {len(SYSTEM_PROMPT)}")
 check("No emoji headers", "🏗️" not in SYSTEM_PROMPT and "🔧" not in SYSTEM_PROMPT)
 
-# 2b: Verify STEP 1 promotes search_schema over combined params
-print("\n  2b: STEP 1 prioritizes search_schema")
-check("search_schema is primary discovery",
-      "search_schema" in SYSTEM_PROMPT.split("STEP 1")[1].split("STEP 2")[0],
-      "STEP 1 should mention search_schema as primary")
+# 2b: Verify search_schema is mentioned in tools/examples
+print("\n  2b: search_schema in tools section")
+check("search_schema is mentioned",
+      "search_schema" in SYSTEM_PROMPT and "read_extension_methods" in SYSTEM_PROMPT)
 
 # ─────────────────────────────────────────────────────────────
 # 3. SCHEMA CACHE TESTS
