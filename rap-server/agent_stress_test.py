@@ -144,23 +144,22 @@ from agent.prompt import SYSTEM_PROMPT
 required_sections = [
     ("Identity", "You are Paracore"),
     ("execute_dynamic_query", "execute_dynamic_query"),
-    ("explore_revit_data", "explore_revit_data"),
+    ("Snippets for table", "Table()"),
+    ("Snippets for write", "Transact"),
+    ("Snippets for graph", "BarGraph"),
+    ("Snippets for GetStr", "GetStr"),
+    ("Snippets for GetNum", "GetNum"),
+    ("Snippets for WhereParam", "WhereParam"),
+    ("Snippets for filter", "Count()"),
+    ("Retry after execution", "retry up to 3 times"),
+    ("Doc.Title snippet", "Doc.Title"),
+    ("ActiveView snippet", "ActiveView.Name"),
+    ("Println snippet", "Println"),
+    ("GetElements snippet", "GetElements<Wall>()"),
     ("search_schema mentioned", "search_schema"),
-    ("Retrieval guidance", "GetElements<Wall>"),
-    ("Transact guidance", "Transact"),
-    ("Table rules", "Id = el.Id"),
-    ("Graph methods", "BarGraph"),
-    ("Tools section", "read_extension_methods"),
-    ("Write rules", "SetVal"),
-    ("Retry limit 3", "retry up to 3 times"),
-    ("No foreach", "foreach"),
-    ("GetElements examples", "GetElements<FamilyInstance>"),
-    ("Filter pattern", "WhereParam"),
-    ("Select pattern", "Select"),
-    ("Unit usage in examples", "GetNum"),
-    ("Println usage", "Println"),
-    ("Transact pattern", "Transact"),
-    ("Doc pattern", "Doc.Title"),
+    ("read_extension_methods mentioned", "read_extension_methods"),
+    ("explore_revit_data mentioned", "explore_revit_data"),
+    ("Table rules in snippets", "r.Id"),
 ]
 
 for label, keyword in required_sections:
@@ -169,10 +168,9 @@ for label, keyword in required_sections:
 check("Prompt under 8000 chars", len(SYSTEM_PROMPT) < 8000, f"got {len(SYSTEM_PROMPT)}")
 check("No emoji headers", "🏗️" not in SYSTEM_PROMPT and "🔧" not in SYSTEM_PROMPT)
 
-# 2b: Verify search_schema is mentioned in tools/examples
-print("\n  2b: search_schema in tools section")
-check("search_schema is mentioned",
-      "search_schema" in SYSTEM_PROMPT and "read_extension_methods" in SYSTEM_PROMPT)
+# 2b: Verify after_execution section
+print("\n  2b: after_execution rules present")
+check("after_execution rules present", "after_execution" in SYSTEM_PROMPT and "TEXT only" in SYSTEM_PROMPT)
 
 # ─────────────────────────────────────────────────────────────
 # 3. SCHEMA CACHE TESTS

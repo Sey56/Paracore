@@ -104,7 +104,7 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
       x.SetVal("Mark","101")  x.SetNum("Offset",-150,"cm")
       .BarGraph() .PieGraph() .LineGraph() — zero arguments
       Transact("name",()=>{foreach(var w in walls){w.SetVal(...);}})
-      Println($"text") — output text (NOT .Dump(), NOT .Print())
+      Println($"text") — output (capital P — NOT println, NOT Print, NOT Console.WriteLine)
       x.Id (NOT .IntegerValue)  x.Name  x.Symbol — native props work directly
 
     CRITICAL: NO raw Revit API (FilteredElementCollector, BuiltInParameter,
@@ -273,9 +273,10 @@ MCP_SYSTEM_PROMPT = """# PARACORE REPL — COMPLETE METHOD CATALOG
 You are generating C# code for the Paracore REPL engine in Revit.
 ONLY use methods listed here or standard C# LINQ. Nothing else exists.
 
-## GLOBALS (uppercase — lowercase variants do NOT exist)
-Doc, Uidoc, UIApp, ActiveView, Selection, Println()
+## GLOBALS (C# PascalCase — lowercase variants do NOT work)
+Doc, Uidoc, UIApp, ActiveView, Selection, Println(text)
 Doc.Title, ActiveView.Name, Selection.Count — work directly
+Println($"text") — C# PascalCase output. No println(), Print(), Console.WriteLine().
 
 ## RETRIEVAL
 GetElements<Wall>()               GetElements("Doors")
