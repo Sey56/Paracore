@@ -113,6 +113,12 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     - Transact("name", () => { ... })     → wrap model changes
 
     For full reference, read paracore://extension-methods.
+
+    SELF-CORRECTION: If execution fails, retry with corrected code up to 3 times.
+    Common fixes: add missing unit parameter (e.g. GetNum("Length", "m")),
+    use null-conditional ?. (e.g. .First()?.GetStr(...)),
+    replace LookupParameter/FilteredElementCollector/BuiltInParameter with Paracore equivalents
+    from the catalog. Never fabricate methods — only use methods listed above or standard LINQ.
     """
     logger.info(f"MCP Exploring Data: {justification}")
     try:
@@ -141,6 +147,10 @@ def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     All writes must be in Transact("name", () => { ... }) unless using SetVal/Delete.
     Results are summarized: tables return first 5 rows + total count, text returns first 10 lines.
     For full data, the user must have the Paracore native desktop app (rap-web).
+
+    SELF-CORRECTION: If execution fails, read the error and retry with corrected code up to 3 times.
+    Only use methods from the cheat sheet above, standard LINQ, or paracore://extension-methods.
+    Never fabricate methods. For .Select() tables, always include Id as the first column.
     """
     logger.info(f"MCP Executing Query: {justification}")
     try:

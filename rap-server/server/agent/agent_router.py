@@ -158,7 +158,7 @@ async def chat_with_agent(request: ChatRequest):
                 from agent.v4_repl_agent import summary_agent
                 from pydantic_ai.settings import ModelSettings
                 result = await summary_agent.run(
-                    f"Format this execution result conversationally:\n\n{summary}",
+                    f"Execution result:\n\n{summary}",
                     message_history=pydantic_history,
                     deps=deps,
                     model=model,

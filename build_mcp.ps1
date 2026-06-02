@@ -18,7 +18,7 @@ if (!(Test-Path $VenvPyInstaller)) {
 # 2. Build the executable using the virtual environment's PyInstaller
 Write-Host "Compiling mcp_server.py into standalone executable..." -ForegroundColor Yellow
 $RepoRoot = $PSScriptRoot
-& $VenvPyInstaller --onefile --name paracore-mcp --paths . --hidden-import mcp --hidden-import mcp.server.fastmcp --hidden-import grpc --add-data "$RepoRoot\REPL_GUIDE.md;." --add-data "$RepoRoot\EXTENSION_METHODS.md;." mcp/mcp_server.py
+& $VenvPyInstaller --onefile --name paracore-mcp --paths . --exclude-module logfire --hidden-import mcp --hidden-import mcp.server.fastmcp --hidden-import grpc --add-data "$RepoRoot\REPL_GUIDE.md;." --add-data "$RepoRoot\EXTENSION_METHODS.md;." mcp/mcp_server.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red

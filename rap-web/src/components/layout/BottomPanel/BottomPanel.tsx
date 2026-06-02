@@ -73,9 +73,9 @@ export const BottomPanel: React.FC = () => {
     if (activeTab === 'history') setHasUnviewedHistory(false);
   }, [activeTab]);
 
-  // Clear agent REPL override when manual/script execution produces new results
+  // Clear agent REPL override when any execution (manual or script) produces new results
   useEffect(() => {
-    if (executionResult?.structuredOutput?.length) {
+    if (executionResult) {
       setAgentReplResults(null);
     }
   }, [executionResult, setAgentReplResults]);

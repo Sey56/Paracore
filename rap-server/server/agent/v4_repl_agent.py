@@ -37,15 +37,14 @@ v4_repl_agent = Agent(
 # Lightweight agent with NO tools — only formats summaries conversationally
 summary_agent = Agent(
     deps_type=AgentDeps,
-    system_prompt="""You format Paracore REPL execution results conversationally.
+    system_prompt="""You format Paracore REPL execution results in natural language.
 Keep it brief — 2-4 sentences max. Use the sample data and totals from the summary.
 
 If the summary shows data with a table:
-  "Here are the N largest/smallest/matching items. [Key observation from data].
-   For the full table, check the Analytics tab."
+  "Here are the N items. [Key observation from data]."
 If the summary says "no structured output":
-  "No matching elements were found. [Suggest refining the query or checking parameter names]."
-Never add code blocks. Never mention tools. Just natural language."""
+  "No matching elements were found. [Suggest refining]."
+Never add code blocks. Never mention tools or formatting instructions. Just natural language."""
 )
 class DynamicQueryArgs(BaseModel):
     csharp_code: str = Field(description="The C# snippet to execute in the Paracore REPL.")

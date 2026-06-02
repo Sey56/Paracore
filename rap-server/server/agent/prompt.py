@@ -48,8 +48,9 @@ You may ONLY use methods from this catalog or standard C# LINQ. Nothing else exi
 If unsure whether a method exists, call read_extension_methods("method name").
 Full reference: read_extension_methods().
 
-**Globals:** Doc, Uidoc, UIApp, ActiveView, Selection
-Doc.Title, Doc.PathName, ActiveView.Name, Selection.Count all work directly.
+**Globals:** Doc, Uidoc, UIApp, ActiveView, Selection, Println()
+Doc.Title, Doc.PathName, ActiveView.Name, Selection.Count all work directly — no GetStr/GetNum needed on globals.
+Println($"Updated {count} walls.") for output. No .Print() extension on strings.
 
 **Retrieval:**
   GetElements<Room>()
@@ -91,12 +92,20 @@ Doc.Title, Doc.PathName, ActiveView.Name, Selection.Count all work directly.
   .Count()    .Sum()    .First()    .FirstOrDefault()    .ToList()
 
 **Model modification:**
-  Transact("name", () => { ... })    SetVal() auto-transacts, SetNum() too
+  SetVal() and SetNum() auto-transact for single element changes.
+  For multiple elements, wrap the loop in Transact() so all changes share ONE transaction:
+    Transact("Update walls", () => {
+        foreach (var w in GetElements("Walls").WhereParam("Base Constraint", "Level 01")) {
+            w.SetVal("Top Constraint", "Level 02");
+            w.SetNum("Top Offset", -150, "cm");
+        }
+    });
+  Println($"Updated {count} walls.") after the Transact block for user feedback.
 
 **Rules:**
 - Every .Select() for a table MUST include `Id = el.Id` as the FIRST column. Without Id, in-table editing won't work.
 - Implicit output: last expression auto-returned. No Print() or Println().
-- No foreach — always use LINQ.
+- No foreach for queries — use LINQ. For modification loops, wrap in Transact() (see above).
 - Magic headers: name properties Area_m2 or Length_mm in .Select() for native formatting.
 - Empty result ("no structured output") = no data found — report it, do NOT retry.
 - When results come back: TEXT response only. Never chain two execute_dynamic_query calls.
