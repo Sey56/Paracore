@@ -74,6 +74,11 @@ def _load_resource(path: str, cache: str | None) -> str:
     except Exception:
         return f"Resource not found: {path}"
 
+# Eagerly load resources at startup (prevent LLM from fetching full 32K docs at runtime)
+_CACHED_REPL_GUIDE = _load_resource(_get_resource_path("REPL_GUIDE.md"), None)
+_CACHED_EXTENSION_METHODS = _load_resource(_get_resource_path("EXTENSION_METHODS.md"), None)
+logger.info(f"MCP resources cached: REPL_GUIDE={len(_CACHED_REPL_GUIDE)} chars, EXTENSION_METHODS={len(_CACHED_EXTENSION_METHODS)} chars")
+
 @mcp.tool()
 def ping() -> str:
     """Diagnostic tool to verify the MCP server is alive and responding."""
@@ -84,41 +89,27 @@ def ping() -> str:
 @mcp.tool()
 def explore_revit_data(csharp_code: str, justification: str) -> str:
     """
-    Executes a C# snippet SILENTLY in Revit to fetch data without mutating the model.
-    DO NOT use standard Revit API. This is the Paracore REPL with a specialized fluent API.
-    Globals: Doc, UIDoc, ActiveView, Selection (uppercase — lowercase `doc` does NOT exist).
-    The LAST EXPRESSION is auto-returned (no Print/return needed).
-    Results are summarized: tables return first 5 rows + total count, text returns first 10 lines.
-    For full data, the user must have the Paracore native desktop app (rap-web).
+    Silent read-only C# execution in Revit. For discovery/validation only.
+    Results summarized: first 5 rows of tables, first 10 lines of text, + totals.
+    SELF-CORRECTION: retry up to 3 times on errors. Use paracore://extension-methods.
 
-    SYNTAX CHEAT SHEET:
-    - GetElements<Room>().Count()         → count rooms
-    - GetElements<Wall>()                 → all walls
-    - GetElements("Doors")                → by category name
-    - GetElement("name")                  → single element by name
-    - el.GetStr("Level")                  → "Level 1" (smart string)
-    - el.GetNum("Area", "m2")             → 25.46 (unit-converted)
-    - el.GetVal("Width")                  → "300 mm" (as in Revit UI)
-    - .WhereParam("Level", "Level 1")     → filter by param
-    - .WhereMatches("Single-Flush")       → fuzzy name filter
-    - .OrderByParam("Area")               → sort ascending
-    - .OrderByParamDesc("Area")            → sort descending
-    - .GroupByParam("Level", "Area", "m2") → group + sum
-    - .SumParam("Area", "m2")             → total
-    - .Select(x => new { ... }).Table()   → data grid
-    - .Select(x => new { ... }).BarGraph() → bar chart
-    - .Select(x => new { ... }).PieGraph() → pie chart
-    - el.CombinedParams().Table()         → discover all parameters
-    - el.Peek()                           → forensic audit
-    - Transact("name", () => { ... })     → wrap model changes
+    CRITICAL SYNTAX (the ONLY valid Paracore methods):
+      GetElements<Room>()  GetElements("Walls")  GetElement("name")
+      GetStr("Level") → "Level 1"    GetNum("Area","m2") → 25.46
+      GetVal("Width") → "300 mm"     GetInt("Count") → 4
+      .WhereParam("Level","Level 1")  .WhereMatches("Single")
+      .OrderByParam("Area")  .OrderByParamDesc("Area")
+      .GroupByParam("Level")  .GroupByParam("Level","Area","m2")
+      .SumParam("Area","m2")  .Select(x=>new{...}).Table()
+    .SetVal("Mark","101") .SetNum("Offset",-150,"cm")
+    .BarGraph() .PieGraph() .LineGraph() — zero arguments
+      Transact("name",()=>{foreach(var w in walls){w.SetVal(...);}})
+      Println($"text") — output text (NOT .Dump(), NOT .Print())
+      c.Id (NOT .IntegerValue)  c.Name  c.Symbol — native props work directly
 
-    For full reference, read paracore://extension-methods.
-
-    SELF-CORRECTION: If execution fails, retry with corrected code up to 3 times.
-    Common fixes: add missing unit parameter (e.g. GetNum("Length", "m")),
-    use null-conditional ?. (e.g. .First()?.GetStr(...)),
-    replace LookupParameter/FilteredElementCollector/BuiltInParameter with Paracore equivalents
-    from the catalog. Never fabricate methods — only use methods listed above or standard LINQ.
+    CRITICAL: NO raw Revit API (FilteredElementCollector, BuiltInParameter,
+    LookupParameter, get_Parameter, .AsString(), ElementId, doc.GetElement).
+    Parameters are STRINGS. Units are BUILT-IN. No unit conversion math.
     """
     logger.info(f"MCP Exploring Data: {justification}")
     try:
@@ -132,7 +123,9 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
             }
             return summarize(output_raw)
         else:
-            return f"Execution Failed: {result['error_message']}\nDetails: {result['error_details']}"
+            err_msg = result.get('error_message', 'Unknown error')
+            err_detail = result.get('error_details', '')
+            return f"Execution Failed: {err_msg}" + (f"\nDetails: {err_detail}" if err_detail else "")
     except Exception as e:
         logger.error(f"MCP Exploration Exception: {e}")
         return f"Error executing exploration script: {str(e)}"
@@ -140,17 +133,18 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
 @mcp.tool()
 def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     """
-    Executes a C# snippet in Revit. Use for the user's final query (read or write).
-    DO NOT use standard Revit API. Use Paracore fluent API (same syntax as explore_revit_data).
-    Write: el.SetVal("Comments", "Done"), el.SetNum("Offset", 500, "mm"),
-           .SetParam("Mark", "W-01") for bulk, .Delete() for BIM-safe delete.
-    All writes must be in Transact("name", () => { ... }) unless using SetVal/Delete.
-    Results are summarized: tables return first 5 rows + total count, text returns first 10 lines.
-    For full data, the user must have the Paracore native desktop app (rap-web).
+    Execute C# in Revit (read or modify). User's final action.
+    Same syntax as explore_revit_data. Results summarized.
+    SELF-CORRECTION: retry up to 3 times on errors.
 
-    SELF-CORRECTION: If execution fails, read the error and retry with corrected code up to 3 times.
-    Only use methods from the cheat sheet above, standard LINQ, or paracore://extension-methods.
-    Never fabricate methods. For .Select() tables, always include Id as the first column.
+    WRITES: el.SetVal("Comments","Done"), el.SetNum("Offset",-150,"cm"),
+    .Delete() for BIM-safe delete.
+    Loop mods: Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.SetNum(...);}}).
+    ALWAYS wrap multi-element writes in Transact().
+
+    For verification: use GetStr for clean names (e.g. "Level 02"),
+    not GetVal (which adds "Up to level:" prefix).
+    For .Select() tables: ALWAYS include Id=c.Id as the first column.
     """
     logger.info(f"MCP Executing Query: {justification}")
     try:
@@ -163,7 +157,9 @@ def execute_dynamic_query(csharp_code: str, justification: str) -> str:
             }
             return summarize(output_raw)
         else:
-            return f"Execution Failed: {result['error_message']}\nDetails: {result['error_details']}"
+            err_msg = result.get('error_message', 'Unknown error')
+            err_detail = result.get('error_details', '')
+            return f"Execution Failed: {err_msg}" + (f"\nDetails: {err_detail}" if err_detail else "")
     except Exception as e:
          return f"Error executing task script: {str(e)}"
 
@@ -200,33 +196,65 @@ def read_extension_methods(query: str = "") -> str:
     NativeProperties, GeometrySummary, AuditClashes, InputUnit, OutputUnit, Matches,
     FamilyName, RoomAccess, RoomDestination, Handing, IsStandardDoor, and more.
     """
-    try:
-        from agent.v4_repl_agent import _load_extension_methods_doc
-        doc = _load_extension_methods_doc()
-    except ImportError:
-        doc = _CACHED_EXTENSION_METHODS or "Extension methods reference not available."
+    path = _get_resource_path("EXTENSION_METHODS.md")
+    global _CACHED_EXTENSION_METHODS
+    _CACHED_EXTENSION_METHODS = _load_resource(path, _CACHED_EXTENSION_METHODS)
+    doc = _CACHED_EXTENSION_METHODS
     if query and query.strip():
-        q = query.strip().lower()
+        words = [w.strip().lower() for w in query.split() if len(w.strip()) > 1]
         lines = doc.split("\n")
         results = []
-        in_section = False
-        for line in lines:
-            if line.startswith("## ") or line.startswith("# "):
-                in_section = q in line.lower()
-            if in_section:
-                results.append(line)
+
+        # Try 1: match section headers containing any word
+        for word in words:
+            in_section = False
+            for line in lines:
+                if line.startswith("## ") or line.startswith("# "):
+                    in_section = word in line.lower()
+                if in_section:
+                    results.append(line)
                 if len(results) > 200:
                     break
-        if results:
-            return "\n".join(results)
-        return f"No specific section for '{query}'. Full reference start:\n\n{doc[:3000]}"
+            if results:
+                return "\n".join(results)
+
+        # Try 2: keyword search with context
+        match_indices = {i for i, line in enumerate(lines) if any(word in line.lower() for word in words)}
+        if match_indices:
+            # Expand to include surrounding context (2 lines each direction)
+            expanded = set()
+            for i in match_indices:
+                for j in range(max(0, i - 2), min(len(lines), i + 3)):
+                    expanded.add(j)
+            # Group into contiguous blocks
+            blocks = []
+            block = []
+            for i in sorted(expanded):
+                if block and i > block[-1] + 1:
+                    if block:
+                        blocks.append(block)
+                    block = []
+                block.append(i)
+            if block:
+                blocks.append(block)
+            # Build output with separators between blocks
+            out = []
+            for b in blocks:
+                if out:
+                    out.append("---")
+                for i in b:
+                    out.append(lines[i])
+                if len(out) > 80:
+                    break
+            return f"Found references to '{query}':\n" + "\n".join(out)
+        return f"No matches for '{query}'. Full reference start:\n\n{doc[:3000]}"
     return doc[:8000]
 
 
 # Resources
 @mcp.resource("paracore://system-prompt")
 def read_system_prompt() -> str:
-    """The fundamental AI System Prompt that defines Paracore's entire REPL behavioral workflow."""
+    """Paracore REPL method catalog and rules. Read this FIRST before using any tools."""
     global _CACHED_SYSTEM_PROMPT
     if _CACHED_SYSTEM_PROMPT is not None:
         return _CACHED_SYSTEM_PROMPT
@@ -234,9 +262,61 @@ def read_system_prompt() -> str:
         from agent.prompt import SYSTEM_PROMPT
         _CACHED_SYSTEM_PROMPT = SYSTEM_PROMPT
         return SYSTEM_PROMPT
-    except Exception as e:
-        logger.error(f"Error loading system prompt: {e}")
-        return "Error loading prompt."
+    except ImportError:
+        pass
+        
+    _CACHED_SYSTEM_PROMPT = MCP_SYSTEM_PROMPT
+    return _CACHED_SYSTEM_PROMPT
+
+
+MCP_SYSTEM_PROMPT = """# PARACORE REPL — COMPLETE METHOD CATALOG
+You are generating C# code for the Paracore REPL engine in Revit.
+ONLY use methods listed here or standard C# LINQ. Nothing else exists.
+
+## GLOBALS (uppercase — lowercase variants do NOT exist)
+Doc, Uidoc, UIApp, ActiveView, Selection, Println()
+Doc.Title, ActiveView.Name, Selection.Count — work directly
+
+## RETRIEVAL
+GetElements<Wall>()               GetElements("Doors")
+GetElements<FamilyInstance>("Doors")   GetElement("id-or-name")
+GetCategories()   GetMagicNames()
+
+## ACCESSORS (on elements — methods, NOT standalone functions)
+wall.GetStr("Level")           → "Level 1" (smart, resolves ElementIds)
+wall.GetNum("Area", "m2")      → 25.46 (unit-converted numeric)
+wall.GetVal("Width")           → "300 mm" (WYSIWYG, as in Properties palette)
+wall.GetInt("Count")           → 4 (yes/no → 1/0)
+wall.SetVal("Mark", "101")     → auto-transact setter
+wall.SetNum("Offset", -150, "cm") → unit-aware numeric setter
+
+Native props work directly: el.Id, el.Name, el.Symbol, el.Location
+NEVER use: .IntegerValue, .AsString(), .AsDouble(), LookupParameter,
+  get_Parameter, BuiltInParameter, FilteredElementCollector
+
+## COLLECTION EXTENSIONS (fluent, on IEnumerable<Element>)
+.WhereParam("Level", "Level 1")        .WhereParam("Area", ">", 25, "m2")
+.WhereMatches("Single-Flush")
+.OrderByParam("Area")   .OrderByParamDesc("Area")
+.GroupByParam("Level")   .GroupByParam("Level", "Area", "m2")
+.SumParam("Area", "m2")
+
+## FLUENT ENDERS (zero arguments)
+.Select(x => new { x.Id, Name = x.GetStr("Name") }).Table()
+.Select(...).BarGraph()   .PieGraph()   .LineGraph()
+
+## MODIFICATION
+element.SetVal("Comments", "Done")    element.SetNum("Offset", -150, "cm")
+Transact("name", () => { foreach(var w in walls) { w.SetVal(...); } })
+## STANDARD LINQ
+.Where() .Select() .GroupBy() .OrderBy() .ThenBy()
+.Count() .Sum() .First() .FirstOrDefault() .ToList()
+
+## COMMON PATTERNS
+Query: GetElements("Walls").WhereParam("Level","Level 1").Select(w => new { w.Id, Name = w.GetStr("Name") }).Table()
+Write: Transact("Update", () => { foreach(var w in walls) { w.SetVal("Comments","Done"); } })
+Simple: Doc.Title   ActiveView.Name   Selection.Count   GetElements<Wall>().Count()
+"""
 
 @mcp.resource("paracore://repl-guide")
 def read_repl_guide() -> str:
@@ -258,7 +338,7 @@ def read_extension_methods() -> str:
 @mcp.prompt()
 def analyze_revit_model() -> str:
     """Prompt template for analyzing the current Revit model Health."""
-    return "Please read the paracore://api-docs resource, get the current Revit context, and then write a C# query to analyze the model for any anomalous elements."
+    return "First, read paracore://system-prompt for the complete Paracore method catalog. Then explore the Revit model."
 
 if __name__ == "__main__":
     init_channel()

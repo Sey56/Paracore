@@ -172,26 +172,47 @@ async def read_extension_methods(ctx: RunContext[AgentDeps], args: ExtensionMeth
     """
     doc = _load_extension_methods_doc()
     if args.query:
-        query = args.query.strip()
-        # Find the section containing the query
+        words = [w.strip().lower() for w in args.query.split() if len(w.strip()) > 1]
         lines = doc.split("\n")
         results = []
-        in_section = False
-        section_header = ""
-        for i, line in enumerate(lines):
-            if line.startswith("## ") or line.startswith("# "):
-                in_section = query.lower() in line.lower()
-                section_header = line
-            if in_section:
-                results.append(line)
-                if len(results) > 200:  # limit section size
+
+        # Try 1: match section headers containing any word
+        for word in words:
+            in_section = False
+            for line in lines:
+                if line.startswith("## ") or line.startswith("# "):
+                    in_section = word in line.lower()
+                if in_section:
+                    results.append(line)
+                    if len(results) > 200:
+                        break
+            if results:
+                return "\n".join(results)
+
+        # Try 2: keyword search with context
+        match_indices = {i for i, line in enumerate(lines) if any(word in line.lower() for word in words)}
+        if match_indices:
+            expanded = set()
+            for i in match_indices:
+                for j in range(max(0, i - 2), min(len(lines), i + 3)):
+                    expanded.add(j)
+            blocks = []
+            block = []
+            for i in sorted(expanded):
+                if block and i > block[-1] + 1:
+                    blocks.append(block)
+                    block = []
+                block.append(i)
+            if block:
+                blocks.append(block)
+            out = []
+            for b in blocks:
+                if out:
+                    out.append("---")
+                for i in b:
+                    out.append(lines[i])
+                if len(out) > 80:
                     break
-        if results:
-            return "\n".join(results)
-        # Fallback: search the whole doc for mentions
-        relevant = [line for line in lines if query.lower() in line.lower()]
-        if relevant:
-            return f"Found references to '{query}':\n" + "\n".join(relevant[:50])
-        return f"No specific section found for '{query}'. Here is the beginning of the full reference:\n\n{doc[:3000]}"
-    # Return a trimmed version — first 8000 chars covers the core API
+            return f"Found references to '{args.query}':\n" + "\n".join(out)
+        return f"No matches for '{args.query}'. Full reference start:\n\n{doc[:3000]}"
     return doc[:8000]
