@@ -124,25 +124,164 @@ async def search_schema(ctx: RunContext[AgentDeps], args: SchemaSearchArgs) -> s
 # Cache the extension methods doc in memory
 _ext_methods_cache: str | None = None
 
+# Inline fallback reference (used when EXTENSION_METHODS.md file can't be found at runtime)
+# Condensed but complete — covers every method and important usage patterns.
+_FALLBACK_REFERENCE = """# PARACORE EXTENSION METHODS REFERENCE
+
+## Globals (C# PascalCase)
+Doc, Uidoc, UIApp, ActiveView, Selection, Println(text)
+Doc.Title → project name. ActiveView.Name → view name. Selection.Count → selection count.
+Println($"text") for output. The REPL auto-displays the last expression — no Println needed at the end.
+
+## Retrieval
+GetElements<Wall>()          — typed, all Wall instances
+GetElements<WallType>()      — all Wall type definitions
+GetElements<Room>()          — all rooms
+GetElements("Walls")         — by category string (the part after OST_ prefix)
+GetElements<FamilyInstance>("Doors") — typed + category-filtered
+GetElement("id-or-name")     — single element by name or ID
+GetCategories()              — list of category strings
+GetMagicNames()              — list of all targetable category/family/class names
+
+## Element Accessors (on any element — e.g. wall, room, door)
+Extensions — parameters are STRINGS. Never use LookupParameter or get_Parameter.
+el.GetStr("Level")            → "Level 1" (smart string, resolves ElementIds to names)
+el.GetStr("Length", "mm")     → "3600" (unit-converted string)
+el.GetNum("Area")             → raw internal feet value
+el.GetNum("Area", "m2")       → unit-converted numeric (e.g. 25.46)
+el.GetVal("Width")            → "300 mm" (WYSIWYG, as seen in Revit Properties palette)
+el.GetVal("Width", "mm")      → "300 mm" (with unit suffix)
+el.GetInt("Count")            → integer (yes/no returns 1/0)
+el.SetVal("Comments", "Done") → single-element write, auto-transacts
+el.SetVal("Level", "Level 2") → resolves name to ElementId automatically
+el.SetVal("Base Offset", "500 mm") → parses value + unit string
+el.SetVal("Pinned", true)     → native C# property set via Reflection
+el.SetNum("Offset", -150, "cm") → unit-aware numeric write, auto-transacts
+el.SetNum("Length", 3.5, "m")   → converts 3.5m to internal feet, then sets
+
+Native C# properties work directly — no accessor needed:
+el.Id, el.Name (Type Name on instances), el.Symbol, el.Location, el.Area
+Wall.WallType → the WallType element. Room.Area → area in internal units.
+NEVER use: el.LookupParameter(), el.get_Parameter(), el.AsString(), el.IntegerValue
+
+## Collection Extensions (on IEnumerable<Element>, fluent, no foreach needed)
+.WhereParam("Level", "Level 1")        → filter by parameter string (case-insensitive)
+.WhereParam("Mark", "starts", "A")     → string comparison: starts/ends/contains
+.WhereParam("Area", ">", 25, "m2")     → numeric comparison: >, <, >=, <=
+.WhereParam("Width", 200, "mm")        → exact numeric filter (tolerance 0.001)
+.WhereMatches("Single-Flush")          → fuzzy name/family filter (case-insensitive)
+.OrderByParam("Area")                  → sort ascending (auto-detects numeric vs string)
+.OrderByParamDesc("Area")              → sort descending
+.GroupByParam("Level")                 → group → count table
+.GroupByParam("Level", "Area", "m2")   → group → count + sum table
+.SumParam("Area", "m2")                → total numeric sum as double
+.SetParam("Comments", "Done")          → bulk write (COLLECTION-level, NOT on individual element)
+
+## Fluent Enders (ZERO arguments, chain directly after .Select())
+.Table()      — interactive data grid
+.BarGraph()   — bar chart
+.PieGraph()   — pie chart
+.LineGraph()  — line chart
+
+.Table() usage:
+  ALWAYS use .Select() before .Table() — never .Table() on raw elements.
+  Every .Select() includes Id as the first property.
+  Example: .Select(r => new { r.Id, Name = r.GetStr("Name"), Area_m2 = r.GetNum("Area", "m2") }).Table()
+  Magic header suffixes: name properties Area_m2 or Length_mm for auto-formatting.
+
+## Diagnostics (on elements)
+el.CombinedParams()    → instance + type params with Scope column
+el.CombinedParams().Table() → BEST for discovering all element parameters
+el.Peek()              → forensic side-by-side parameter audit (Parameter|Storage|GetStr|GetNum|UI Value)
+el.BuiltInParams()     → BuiltInParameter identifiers (Name|BIP|Value)
+el.InstanceParams()    → instance parameters only (Name|Storage|Value)
+el.TypeParams()        → type parameters only
+el.NativeProperties()  → key Revit API properties (Level, Workset, Location, etc.)
+el.GeometrySummary()   → volume/area/solid breakdown
+el.ParamsDict()        → Dictionary<string,string> of all parameters
+
+## Units (on numbers — double, int, decimal)
+.InputUnit("mm")       → human value → internal feet. Example: 300.InputUnit("mm")
+.OutputUnit("m2")      → internal feet → human. Example: val.OutputUnit("m2", 2)
+.RoundTo("mm", 0)      → snap internal value to clean unit target
+.IsAlmostEqualTo(val)  → fuzzy equality (1e-9 tolerance)
+.AlmostZero()          → essentially zero?
+.IsLessThan(val)       → precision less-than
+.IsGreaterThan(val)    → precision greater-than
+.IsPositive()          → strictly positive
+.IsNegative()          → strictly negative
+.FormatUnit("mm")      → formatted string with suffix (e.g. "3600.0 mm")
+.FormatValueOnly("mm") → numeric string without suffix (e.g. "3600")
+Revit internal = decimal feet. Sum internals first, then convert:
+  g.Sum(w => w.GetNum("Volume")).OutputUnit("m3")  — correct
+NOT: g.Sum(w => w.GetNum("Volume").OutputUnit("m3")) — floating-point noise
+
+## Standard C# LINQ (works everywhere)
+.Where() .Select() .GroupBy() .OrderBy() .ThenBy()
+.Count() .Sum() .First() .FirstOrDefault() .Distinct() .ToList()
+
+## Modification Patterns
+Single element:
+  el.SetVal("Comments", "Done") — auto-transacts, no wrapper needed.
+  el.SetNum("Offset", -150, "cm") — auto-transacts with unit conversion.
+
+Multi-element loop (ALWAYS wrap in Transact to share one transaction):
+  var walls = GetElements("Walls").WhereParam("Base Constraint", "Level 01").ToList();
+  Transact("Update walls", () => {
+      foreach (var w in walls) {
+          w.SetVal("Top Constraint", "Level 02");
+          w.SetNum("Top Offset", -150, "cm");
+      }
+  });
+  The engine detects the active Transact and skips individual auto-transactions.
+
+Multi-element bulk (one-liner, no loop needed):
+  GetElements("Doors").WhereParam("Level", "Level 1").SetParam("Comments", "Done")
+  .SetParam() is collection-level ONLY — use on IEnumerable, NOT on individual elements.
+
+Delete:
+  el.Delete() — single element delete, auto-transacts.
+  GetElements("Doors").Delete() — bulk delete, BIM-Smart (skips pinned/curtain elements).
+
+## REPL Behavior
+The REPL is like Python IDLE — the last expression is auto-displayed.
+No Println() needed for the final line. No .ToList() needed before .Table().
+Count: .Count for simple lists, .Count() for LINQ chains.
+Variables stay alive between runs in the same session.
+
+For complete examples and full details, read paracore://extension-methods.
+"""
+
 
 def _load_extension_methods_doc() -> str:
     global _ext_methods_cache
     if _ext_methods_cache is not None:
         return _ext_methods_cache
-    # Resolve path relative to repo root (v4_repl_agent.py is at server/agent/)
+    # Try multiple paths
+    paths = []
+    # 1. Repo root (dev mode)
     agent_dir = os.path.dirname(os.path.abspath(__file__))
     server_dir = os.path.dirname(agent_dir)
     rap_server_dir = os.path.dirname(server_dir)
     repo_root = os.path.dirname(rap_server_dir)
-    doc_path = os.path.join(repo_root, "EXTENSION_METHODS.md")
-    try:
-        with open(doc_path, "r", encoding="utf-8") as f:
-            _ext_methods_cache = f.read()
-        logger.info(f"Loaded EXTENSION_METHODS.md ({len(_ext_methods_cache)} chars)")
-        return _ext_methods_cache
-    except Exception as e:
-        logger.warning(f"Failed to load EXTENSION_METHODS.md: {e}")
-        return f"Extension methods reference not found at {doc_path}"
+    paths.append(os.path.join(repo_root, "EXTENSION_METHODS.md"))
+    # 2. Server directory (installed mode)
+    paths.append(os.path.join(server_dir, "EXTENSION_METHODS.md"))
+    # 3. Running directory
+    paths.append(os.path.join(os.getcwd(), "EXTENSION_METHODS.md"))
+    
+    for doc_path in paths:
+        try:
+            with open(doc_path, "r", encoding="utf-8") as f:
+                _ext_methods_cache = f.read()
+            logger.info(f"Loaded EXTENSION_METHODS.md from {doc_path} ({len(_ext_methods_cache)} chars)")
+            return _ext_methods_cache
+        except (FileNotFoundError, OSError):
+            continue
+    
+    logger.warning("EXTENSION_METHODS.md not found in any path, using inline fallback reference.")
+    _ext_methods_cache = _FALLBACK_REFERENCE
+    return _ext_methods_cache
 
 
 class ExtensionMethodsArgs(BaseModel):

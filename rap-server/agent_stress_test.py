@@ -144,22 +144,22 @@ from agent.prompt import SYSTEM_PROMPT
 required_sections = [
     ("Identity", "You are Paracore"),
     ("execute_dynamic_query", "execute_dynamic_query"),
-    ("Snippets for table", "Table()"),
-    ("Snippets for write", "Transact"),
-    ("Snippets for graph", "BarGraph"),
-    ("Snippets for GetStr", "GetStr"),
-    ("Snippets for GetNum", "GetNum"),
-    ("Snippets for WhereParam", "WhereParam"),
-    ("Snippets for filter", "Count()"),
-    ("Retry after execution", "retry up to 3 times"),
-    ("Doc.Title snippet", "Doc.Title"),
-    ("ActiveView snippet", "ActiveView.Name"),
-    ("Println snippet", "Println"),
-    ("GetElements snippet", "GetElements<Wall>()"),
-    ("search_schema mentioned", "search_schema"),
+    ("Catalog: GetStr", "GetStr"),
+    ("Catalog: GetNum", "GetNum"),
+    ("Catalog: WhereParam", "WhereParam"),
+    ("Catalog: Transact", "Transact"),
+    ("Catalog: Table", "Table"),
+    ("Catalog: BarGraph", "BarGraph"),
+    ("Catalog: SetVal", "SetVal"),
+    ("Catalog: Select pattern", "Select"),
+    ("Catalog: Id rule", "Id as the first"),
+    ("Catalog: modification example", "SetNum("),
+    ("Environment: GetElements", "GetElements<Wall>()"),
+    ("Environment: Println", "Println"),
     ("read_extension_methods mentioned", "read_extension_methods"),
-    ("explore_revit_data mentioned", "explore_revit_data"),
-    ("Table rules in snippets", "r.Id"),
+    ("search_schema mentioned", "search_schema"),
+    ("After execution rules", "after_execution"),
+    ("Retry limit", "retry up to 3 times"),
 ]
 
 for label, keyword in required_sections:
@@ -168,9 +168,9 @@ for label, keyword in required_sections:
 check("Prompt under 8000 chars", len(SYSTEM_PROMPT) < 8000, f"got {len(SYSTEM_PROMPT)}")
 check("No emoji headers", "🏗️" not in SYSTEM_PROMPT and "🔧" not in SYSTEM_PROMPT)
 
-# 2b: Verify after_execution section
-print("\n  2b: after_execution rules present")
-check("after_execution rules present", "after_execution" in SYSTEM_PROMPT and "TEXT only" in SYSTEM_PROMPT)
+# 2b: Verify catalog structure
+print("\n  2b: catalog structure present")
+check("catalog structure", "<catalog>" in SYSTEM_PROMPT and "</catalog>" in SYSTEM_PROMPT)
 
 # ─────────────────────────────────────────────────────────────
 # 3. SCHEMA CACHE TESTS
