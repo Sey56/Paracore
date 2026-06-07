@@ -20,6 +20,10 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
     const [isLoading, setIsLoading] = React.useState(false);
     const [expandedGroups, setExpandedGroups] = React.useState<Record<string, boolean>>({});
 
+    // Track which script paths we've already attempted to fetch parameters for,
+    // preventing infinite reload loops when a script genuinely has no parameters.
+    const fetchedRef = React.useRef<Set<string>>(new Set());
+
     const script = useMemo(() => {
         // Try multiple matching strategies
         const normalizedPath = scriptPath.replace(/\\/g, '/').toLowerCase();
@@ -35,9 +39,13 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
         return found;
     }, [scripts, scriptPath]);
 
-    // Automated parameter fetching
+    // Automated parameter fetching — only attempt once per script path
     useEffect(() => {
         if (script && (!script.parameters || script.parameters.length === 0)) {
+            const fetchKey = script.absolutePath || script.id || scriptPath;
+            if (fetchedRef.current.has(fetchKey)) return; // already attempted — don't loop
+            fetchedRef.current.add(fetchKey);
+
             const fetchParams = async () => {
                 setIsLoading(true);
                 try {
@@ -50,7 +58,7 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
             };
             fetchParams();
         }
-    }, [script, reloadScript]);
+    }, [script, reloadScript, scriptPath]);
 
     const mergedParameters = useMemo(() => {
         if (!script) return [];

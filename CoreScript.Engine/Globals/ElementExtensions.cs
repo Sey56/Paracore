@@ -211,10 +211,10 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary> Gets the parameter value converted to a specific unit as a string (no suffix). </summary>
-        public static string GetStr(this Element e, string name, string unit)
+        public static string GetStr(this Element e, string name, string unit, int decimals = 2)
         {
             if (e == null) return "";
-            return e.GetNum(name).FormatValueOnly(unit);
+            return e.GetNum(name).FormatValueOnly(unit, decimals);
         }
 
         /// <summary> Gets the parameter value as a double (Internal Units). Falls back to C# Property. </summary>
@@ -330,10 +330,10 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary> Gets the formatted value string in a specific unit (with suffix). </summary>
-        public static string GetVal(this Element e, string name, string unit)
+        public static string GetVal(this Element e, string name, string unit, int decimals = 2)
         {
             if (e == null) return "-";
-            return e.GetNum(name).FormatUnit(unit);
+            return e.GetNum(name).FormatUnit(unit, decimals);
         }
 
         // =================================================================================
@@ -348,12 +348,12 @@ namespace CoreScript.Engine.Globals
         }
 
         public static string GetTypeStr(this Element e, string name) => e.GetElementType()?.GetStr(name) ?? "";
-        public static string GetTypeStr(this Element e, string name, string unit) => e.GetElementType()?.GetStr(name, unit) ?? "";
+        public static string GetTypeStr(this Element e, string name, string unit, int decimals = 2) => e.GetElementType()?.GetStr(name, unit, decimals) ?? "";
         public static double GetTypeNum(this Element e, string name) => e.GetElementType()?.GetNum(name) ?? 0.0;
-        public static double GetTypeNum(this Element e, string name, string unit) => e.GetElementType()?.GetNum(name, unit) ?? 0.0;
+        public static double GetTypeNum(this Element e, string name, string unit, int decimals = 2) => e.GetElementType()?.GetNum(name, unit, decimals) ?? 0.0;
         public static int GetTypeInt(this Element e, string name) => e.GetElementType()?.GetInt(name) ?? 0;
         public static string GetTypeVal(this Element e, string name) => e.GetElementType()?.GetVal(name) ?? "-";
-        public static string GetTypeVal(this Element e, string name, string unit) => e.GetElementType()?.GetVal(name, unit) ?? "-";
+        public static string GetTypeVal(this Element e, string name, string unit, int decimals = 2) => e.GetElementType()?.GetVal(name, unit, decimals) ?? "-";
 
         /// <summary>
         /// Gets all BUILT-IN parameters of the element as a list of objects (Name, BIP, Value).
@@ -467,9 +467,9 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Gets the parameter value as a double and converts it FROM internal units to target units.
         /// </summary>
-        public static double GetNum(this Element e, string name, string unit)
+        public static double GetNum(this Element e, string name, string unit, int decimals = 2)
         {
-            return e.GetNum(name).OutputUnit(unit);
+            return e.GetNum(name).OutputUnit(unit, decimals);
         }
 
         /// <summary>
@@ -597,6 +597,61 @@ namespace CoreScript.Engine.Globals
             else Tx.Transact(e.Document, $"Set {name}", Action);
         }
 
+        /// <summary>
+        /// Sets a parameter value, converting the value from the specified unit if it is numeric or a numeric string.
+        /// </summary>
+        public static void SetVal(this Element e, string name, object value, string unit)
+        {
+            if (e == null || value == null) return;
+            if (string.IsNullOrEmpty(unit))
+            {
+                e.SetVal(name, value);
+                return;
+            }
+
+            double numericValue = 0;
+            bool isNumeric = false;
+
+            if (value is double d)
+            {
+                numericValue = d;
+                isNumeric = true;
+            }
+            else if (value is int i)
+            {
+                numericValue = i;
+                isNumeric = true;
+            }
+            else if (value is float f)
+            {
+                numericValue = f;
+                isNumeric = true;
+            }
+            else if (value is decimal dec)
+            {
+                numericValue = (double)dec;
+                isNumeric = true;
+            }
+            else if (value is string s)
+            {
+                if (double.TryParse(s, out var parsed))
+                {
+                    numericValue = parsed;
+                    isNumeric = true;
+                }
+            }
+
+            if (isNumeric)
+            {
+                double internalValue = numericValue.InputUnit(unit);
+                e.SetVal(name, internalValue);
+            }
+            else
+            {
+                e.SetVal(name, value);
+            }
+        }
+
         // --- Fluent View Commands ---
 
         public static Element Select(this Element e)
@@ -621,9 +676,9 @@ namespace CoreScript.Engine.Globals
             var view = e.Document.ActiveView;
             if (view != null && view.CanEnableTemporaryViewPropertiesMode())
             {
-                Tx.Transact(e.Document, "Isolate Element", () => {
-                    view.IsolateElementTemporary(e.Id);
-                });
+                void Action() => view.IsolateElementTemporary(e.Id);
+                if (e.Document.IsModifiable) Action();
+                else Tx.Transact(e.Document, "Isolate Element", Action);
             }
             return e;
         }
@@ -631,9 +686,9 @@ namespace CoreScript.Engine.Globals
         public static Element Delete(this Element e)
         {
             if (e == null || !e.IsValidObject) return e;
-            Tx.Transact(e.Document, "Delete Element", () => {
-                if (e.IsValidObject) e.Document.Delete(e.Id);
-            });
+            void Action() { if (e.IsValidObject) e.Document.Delete(e.Id); }
+            if (e.Document.IsModifiable) Action();
+            else Tx.Transact(e.Document, "Delete Element", Action);
             return e;
         }
 
@@ -647,15 +702,15 @@ namespace CoreScript.Engine.Globals
         {
             var list = elements.ToList();
             if (!list.Any()) return elements;
-            
+
             var doc = list.First().Document;
-            Tx.Transact(doc, "Delete Elements", () =>
+            void Action()
             {
                 foreach (var e in list)
                 {
                     // 1. Basic Validity
                     if (e == null || !e.IsValidObject || e.Id == ElementId.InvalidElementId) continue;
-                    
+
                     // 2. BIM Safety: Skip Pinned, Panels, and Curtain-Wall-Hosted Doors
                     if (e.Pinned) continue;
                     if (e is Panel) continue;
@@ -669,7 +724,9 @@ namespace CoreScript.Engine.Globals
 
                     try { doc.Delete(e.Id); } catch { }
                 }
-            });
+            }
+            if (doc.IsModifiable) Action();
+            else Tx.Transact(doc, "Delete Elements", Action);
             return elements;
         }
 
@@ -678,7 +735,9 @@ namespace CoreScript.Engine.Globals
             var view = e.Document.ActiveView;
             if (view != null && e.CanBeHidden(view))
             {
-                Tx.Transact(e.Document, "Hide Element", () => view.HideElements(new List<ElementId> { e.Id }));
+                void Action() => view.HideElements(new List<ElementId> { e.Id });
+                if (e.Document.IsModifiable) Action();
+                else Tx.Transact(e.Document, "Hide Element", Action);
             }
             return e;
         }
@@ -688,7 +747,9 @@ namespace CoreScript.Engine.Globals
             var view = e.Document.ActiveView;
             if (view != null)
             {
-                Tx.Transact(e.Document, "Unhide Element", () => view.UnhideElements(new List<ElementId> { e.Id }));
+                void Action() => view.UnhideElements(new List<ElementId> { e.Id });
+                if (e.Document.IsModifiable) Action();
+                else Tx.Transact(e.Document, "Unhide Element", Action);
             }
             return e;
         }
@@ -1101,10 +1162,9 @@ namespace CoreScript.Engine.Globals
                 var view = doc.ActiveView;
                 if (view != null && view.CanEnableTemporaryViewPropertiesMode())
                 {
-                    Tx.Transact(doc, "Isolate Elements", () =>
-                    {
-                        view.IsolateElementsTemporary(list.Select(e => e.Id).ToList());
-                    });
+                    void Action() => view.IsolateElementsTemporary(list.Select(e => e.Id).ToList());
+                    if (doc.IsModifiable) Action();
+                    else Tx.Transact(doc, "Isolate Elements", Action);
                 }
             }
             return list;
@@ -1124,7 +1184,12 @@ namespace CoreScript.Engine.Globals
                 {
                     var hideable = list.Where(e => e.CanBeHidden(view)).Select(e => e.Id).ToList();
                     if (hideable.Any())
-                        Tx.Transact(view.Document, "Hide Elements", () => view.HideElements(hideable));
+                    {
+                        var doc = view.Document;
+                        void Action() => view.HideElements(hideable);
+                        if (doc.IsModifiable) Action();
+                        else Tx.Transact(doc, "Hide Elements", Action);
+                    }
                 }
             }
             return list;
@@ -1141,7 +1206,12 @@ namespace CoreScript.Engine.Globals
             {
                 var view = list.First().Document.ActiveView;
                 if (view != null)
-                    Tx.Transact(view.Document, "Unhide Elements", () => view.UnhideElements(list.Select(e => e.Id).ToList()));
+                {
+                    var doc = view.Document;
+                    void Action() => view.UnhideElements(list.Select(e => e.Id).ToList());
+                    if (doc.IsModifiable) Action();
+                    else Tx.Transact(doc, "Unhide Elements", Action);
+                }
             }
             return list;
         }
@@ -1159,11 +1229,61 @@ namespace CoreScript.Engine.Globals
             var list = elements.ToList();
             if (!list.Any()) return list;
             var doc = list.First().Document;
-            Tx.Transact(doc, $"Set {name}", () =>
+            void Action() { foreach (var e in list) e.SetVal(name, value); }
+            if (doc.IsModifiable) Action();
+            else Tx.Transact(doc, $"Set {name}", Action);
+            return list;
+        }
+
+        /// <summary>
+        /// Sets a parameter on every element in the collection in a single transaction, converting the value from the specified unit.
+        /// </summary>
+        public static IEnumerable<T> SetParam<T>(this IEnumerable<T> elements, string name, object value, string unit)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (!list.Any()) return list;
+            var doc = list.First().Document;
+            void Action() { foreach (var e in list) e.SetVal(name, value, unit); }
+            if (doc.IsModifiable) Action();
+            else Tx.Transact(doc, $"Set {name}", Action);
+            return list;
+        }
+
+        /// <summary>
+        /// Sets a parameter on every element in the collection dynamically using a function.
+        /// </summary>
+        public static IEnumerable<T> SetParam<T>(this IEnumerable<T> elements, string name, Func<T, object> valueFactory)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (!list.Any()) return list;
+            var doc = list.First().Document;
+            void Action() { foreach (var e in list) e.SetVal(name, valueFactory(e)); }
+            if (doc.IsModifiable) Action();
+            else Tx.Transact(doc, $"Set {name}", Action);
+            return list;
+        }
+
+        /// <summary>
+        /// Sets a parameter on every element in the collection dynamically using a function with the element index.
+        /// </summary>
+        public static IEnumerable<T> SetParam<T>(this IEnumerable<T> elements, string name, Func<T, int, object> valueFactory)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (!list.Any()) return list;
+            var doc = list.First().Document;
+            void Action()
             {
-                foreach (var e in list)
-                    e.SetVal(name, value);
-            });
+                for (int idx = 0; idx < list.Count; idx++)
+                {
+                    var e = list[idx];
+                    e.SetVal(name, valueFactory(e, idx));
+                }
+            }
+            if (doc.IsModifiable) Action();
+            else Tx.Transact(doc, $"Set {name}", Action);
             return list;
         }
 

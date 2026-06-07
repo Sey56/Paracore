@@ -31,9 +31,9 @@ export const UnifiedStepInspector: React.FC<UnifiedStepInspectorProps> = ({
     const [activeTab, setActiveTab] = useState<TabType>('config');
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-gray-900">
-            {/* Header Area (Compacted) */}
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900 z-10">
+        <div className="flex flex-col h-full bg-white dark:bg-gray-900 overflow-hidden">
+            {/* Fixed Header */}
+            <div className="shrink-0 px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900 z-10">
                 <div className="flex items-center space-x-4">
                     <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
                         Step {stepIndex + 1}

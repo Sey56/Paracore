@@ -121,8 +121,8 @@ export const TopBar: React.FC = () => {
       <div className="hidden lg:flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
         {[
           { id: 'scripts', label: 'Automations', icon: faRectangleList },
-          { id: 'agent', label: 'Agent', icon: faRobot, needsCloud: true },
-          { id: 'playlists', label: 'Playlists', icon: faListUl, needsCloud: true }
+          { id: 'agent', label: 'Agent', icon: faRobot },
+          { id: 'playlists', label: 'Playlists', icon: faListUl }
         ].map(nav => {
           const isLocked = nav.needsCloud && (!activeTeam || activeTeam.team_id === 0);
           const isActive = activeMainView === nav.id;

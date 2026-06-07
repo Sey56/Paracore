@@ -7,11 +7,13 @@ import { faPaperPlane, faAsterisk, faUser, faCheckCircle, faTimesCircle, faSpinn
 import { useNotifications } from '@/hooks/useNotifications';
 import { useScriptExecution } from '@/features/automation';
 import { useScripts } from '@/features/automation';
+import { useConsole } from '@/features/automation/store/ConsoleContext';
 import { filterVisibleParameters } from '@/utils/parameterVisibility';
 
 import { Modal } from '@/components/common/Modal';
 import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import OrchestrationPlanCard from './OrchestrationPlanCard';
+import { buildReplPreview } from './ReplPreview';
 import { Script, ScriptParameter } from '@/types/scriptModel';
 import { Message, ToolCall, OrchestrationPlan } from '../types/agentTypes';
 import ReactMarkdown from 'react-markdown';
@@ -22,50 +24,6 @@ import { useTheme } from '@/context/ThemeContext';
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
-
-function buildReplPreview(structuredOutput: Record<string, unknown>[], plainOutput: string): string | null {
-  const parts: string[] = [];
-
-  if (Array.isArray(structuredOutput) && structuredOutput.length > 0) {
-    for (const item of structuredOutput) {
-      if (item.type === 'table') {
-        try {
-          const data = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-          if (Array.isArray(data) && data.length > 0) {
-            const totalRows = data.length;
-            const headers = Object.keys(data[0] as Record<string, unknown>);
-            const rows = data.slice(0, 5).map((r: Record<string, unknown>) => headers.map(h => String((r as Record<string, unknown>)[h] ?? '')));
-            const tableLines = [
-              '| ' + headers.join(' | ') + ' |',
-              '|' + headers.map(() => '---').join('|') + '|',
-              ...rows.map(r => '| ' + r.join(' | ') + ' |'),
-            ];
-            parts.push(`**${item.title || 'Table'}** (${totalRows} rows, showing first ${rows.length}):\n${tableLines.join('\n')}`);
-            if (totalRows > 5) {
-              parts.push(`*...and ${totalRows - 5} more rows.*  \n*Run the generated code in the **REPL Playground** to see the full table in the **Analytics** tab.*`);
-            }
-          } else {
-            parts.push(`**${item.title || 'Table'}**: empty (no data).`);
-          }
-        } catch { parts.push(`**${item.title || 'Table'}**: result available in Analytics tab.`); }
-      } else if (['chart-bar', 'chart-pie', 'chart-line'].includes(String(item.type))) {
-        parts.push(`*${item.title || String(item.type)} rendered in the Analytics tab.*`);
-      }
-    }
-  }
-
-  if (plainOutput && String(plainOutput).trim()) {
-    const text = String(plainOutput).trim();
-    const lines = text.split('\n');
-    if (lines.length <= 5) {
-      parts.push(`**Output:**\n\`\`\`\n${text}\n\`\`\``);
-    } else {
-      parts.push(`**Output** (${lines.length} lines, showing first 5):\n\`\`\`\n${lines.slice(0, 5).join('\n')}\n... and ${lines.length - 5} more lines\n\`\`\``);
-    }
-  }
-
-  return parts.length > 0 ? parts.join('\n\n') : null;
-}
 
 export const AgentView: React.FC = () => {
   const {
@@ -83,6 +41,7 @@ export const AgentView: React.FC = () => {
   const { showNotification } = useNotifications();
   const { selectedScript, setSelectedScript, runScript, executionResult, clearExecutionResult, userEditedScriptParameters } = useScriptExecution();
   const { scripts, toolLibraryPath } = useScripts();
+  const { setLocalHistory } = useConsole();
   const rapServerUrl = useRapServerUrl();
   const { theme } = useTheme();
   const syntaxStyle = theme === 'eclipse' ? atomDark : (theme === 'midnight' || theme === 'dark' ? vscDarkPlus : vs);
@@ -112,7 +71,16 @@ export const AgentView: React.FC = () => {
   const [activePlan, setActivePlan] = useState<OrchestrationPlan | null>(null);
   const [currentPlanStepIndex, setCurrentPlanStepIndex] = useState(-1);
 
+  const didMountRef = useRef(false);
   useEffect(() => {
+    // Skip auto-scroll on initial mount (e.g. when switching tabs).
+    // Only scroll when messages actually change or loading completes.
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      // Still scroll to bottom on first paint, but instantly (no animation)
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
@@ -155,7 +123,7 @@ export const AgentView: React.FC = () => {
       const response = await api.post(effectiveUrl, {
         thread_id: threadId,
         message: messageContent,
-        history: messages,
+        history: latestRawHistory ? undefined : messages,
         raw_history: latestRawHistory, // The Steel Shield
         agent_scripts_path: toolLibraryPath,
         token: cloudToken,
@@ -417,6 +385,17 @@ export const AgentView: React.FC = () => {
             if (hasVisual) {
               setAgentReplResults(res.data.structured_output);
               setActiveInspectorTab('table');
+            }
+
+            // Push Println / text output to the History tab so it's visible
+            // alongside the table/chart output that goes to the Analytics tab.
+            const textOutput = (res.data.output || '').trim();
+            if (textOutput) {
+              setLocalHistory(prev => [...prev, {
+                type: 'output',
+                text: textOutput,
+                timestamp: new Date(),
+              }].slice(-100));
             }
 
             const previewContent = buildReplPreview(res.data.structured_output, res.data.output);

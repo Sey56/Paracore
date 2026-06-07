@@ -32,11 +32,20 @@ from mcp.server.fastmcp import FastMCP
 # Now we can safely import from grpc_client (which is in base_dir/server or base_dir)
 from grpc_client import close_channel, execute_repl, execute_script, get_context, init_channel
 
-# Summarizer for token-efficient tool returns (works for both MCP and web)
+# Shared tool helpers (summarize, extension method search, etc.)
 try:
-    from agent.summarizer import summarize
+    from agent.tool_helpers import summarize_execution_result, format_execution_error, search_extension_methods
 except ImportError:
-    def summarize(x): return json.dumps(x)  # fallback
+    # Fallback for when agent package isn't available
+    def summarize_execution_result(x):
+        from agent.summarizer import summarize
+        return summarize(x)
+    def format_execution_error(result):
+        err = result.get('error_message', 'Unknown error')
+        det = result.get('error_details', '')
+        return f"Execution Failed: {err}" + (f"\nDetails: {det}" if det else "")
+    def search_extension_methods(query, doc):
+        return doc[:8000] if doc else "No reference available."
 
 # Configure logging
 if getattr(sys, 'frozen', False):
@@ -46,13 +55,15 @@ else:
     log_dir = os.path.dirname(os.path.abspath(__file__))
 
 log_file = os.path.join(log_dir, "mcp_debug.log")
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename=log_file,
-    filemode='a'
-)
+
+from logging.handlers import RotatingFileHandler
+_mcp_handler = RotatingFileHandler(log_file, maxBytes=1_000_000, backupCount=3)
+_mcp_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+_mcp_handler.setLevel(logging.INFO)
+
 logger = logging.getLogger("paracore-mcp")
+logger.setLevel(logging.INFO)
+logger.addHandler(_mcp_handler)
 logger.info(f"MCP Logging initialized at {log_file}")
 
 # Initialize FastMCP Server
@@ -93,6 +104,13 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     Results summarized: first 5 rows of tables, first 10 lines of text, + totals.
     SELF-CORRECTION: retry up to 3 times on errors. Use paracore://extension-methods.
 
+    PARACORE-FIRST: Use Paracore extensions for filter/sort/group/display. BANNED LINQ:
+    .Where(), .OrderBy(), .OrderByDescending(), .Sum() on collections. Use .WhereParam,
+    .OrderByParam, .OrderByParamDesc, .SumParam instead. ALLOWED: .GroupBy(lambda) for
+    multi-key grouping, .Select(x=>new{...}) for projection, .Take/.Skip/.First/.FirstOrDefault.
+    DISPLAY: ALWAYS use .Table(). NEVER foreach+Println+string.Join for data display.
+    NEVER chain `.Select()` after `.GroupByParam()`. Simply chain `.Table()` directly.
+
     CRITICAL SYNTAX (the ONLY valid Paracore methods):
       GetElements<Room>()   GetElements("Walls")   GetElement("name")
       x.GetStr("Level") → "Level 1"    x.GetNum("Area","m2") → 25.46
@@ -102,8 +120,11 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
       .GroupByParam("Level")  .GroupByParam("Level","Area","m2")
       .SumParam("Area","m2")  .Select(x=>new{x.Id,Name=x.GetStr("Name")}).Table()
       x.SetVal("Mark","101")  x.SetNum("Offset",-150,"cm")
+      x.Delete() — BIM-safe (skips Pinned/Curtain)  x.Hide()  x.Unhide()  x.Isolate()
+      .SetParam("Comments","Done") — bulk write, ONE transaction
+      .Delete() — bulk delete on collection, ONE transaction
       .BarGraph() .PieGraph() .LineGraph() — zero arguments
-      Transact("name",()=>{foreach(var w in walls){w.SetVal(...);}})
+      Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.Delete();}})
       Println($"text") — output (capital P — NOT println, NOT Print, NOT Console.WriteLine)
       x.Id (NOT .IntegerValue)  x.Name  x.Symbol — native props work directly
 
@@ -116,16 +137,9 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
         result = execute_repl(csharp_code, "mcp-session")
         
         if result["is_success"]:
-            output_raw = {
-                "structuredOutput": result.get("structured_output", []),
-                "output": result.get("output", ""),
-                "internal_data": result.get("internal_data", ""),
-            }
-            return summarize(output_raw)
+            return summarize_execution_result(result)
         else:
-            err_msg = result.get('error_message', 'Unknown error')
-            err_detail = result.get('error_details', '')
-            return f"Execution Failed: {err_msg}" + (f"\nDetails: {err_detail}" if err_detail else "")
+            return format_execution_error(result)
     except Exception as e:
         logger.error(f"MCP Exploration Exception: {e}")
         return f"Error executing exploration script: {str(e)}"
@@ -137,10 +151,20 @@ def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     Same syntax as explore_revit_data. Results summarized.
     SELF-CORRECTION: retry up to 3 times on errors.
 
-    WRITES: el.SetVal("Comments","Done"), el.SetNum("Offset",-150,"cm"),
-    .Delete() for BIM-safe delete.
-    Loop mods: Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.SetNum(...);}}).
-    ALWAYS wrap multi-element writes in Transact().
+    PARACORE-FIRST: Use Paracore extensions. BANNED LINQ: .Where(), .OrderBy(),
+    .OrderByDescending(), .Sum() on collections. Use .WhereParam, .OrderByParam, etc.
+    ALLOWED: .GroupBy(lambda) multi-key, .Select(x=>new{...}) projection, .Take/.Skip/.First.
+    DISPLAY: ALWAYS use .Table(). NEVER foreach+Println+string.Join loops.
+    NEVER chain `.Select()` after `.GroupByParam()`. Chain `.Table()` directly.
+
+    WRITES (all auto-transact when no outer Transact exists):
+    el.SetVal("Comments","Done"), el.SetNum("Offset",-150,"cm"),
+    el.Delete(), el.Hide(), el.Unhide(), el.Isolate().
+    Collection batch writes (ONE transaction for all):
+    .SetParam("Comments","Done"), .Delete(), .Hide(), .Unhide(), .Isolate().
+    Manual foreach loops: ALWAYS wrap in Transact():
+    Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.Delete();}}).
+    Inside Transact, all methods detect the active transaction — no sub-transactions.
 
     For verification: use GetStr for clean names (e.g. "Level 02"),
     not GetVal (which adds "Up to level:" prefix).
@@ -150,16 +174,9 @@ def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     try:
         result = execute_repl(csharp_code, "mcp-session")
         if result["is_success"]:
-            output_raw = {
-                "structuredOutput": result.get("structured_output", []),
-                "output": result.get("output", ""),
-                "internal_data": result.get("internal_data", ""),
-            }
-            return summarize(output_raw)
+            return summarize_execution_result(result)
         else:
-            err_msg = result.get('error_message', 'Unknown error')
-            err_detail = result.get('error_details', '')
-            return f"Execution Failed: {err_msg}" + (f"\nDetails: {err_detail}" if err_detail else "")
+            return format_execution_error(result)
     except Exception as e:
          return f"Error executing task script: {str(e)}"
 
@@ -193,7 +210,7 @@ def read_extension_methods(query: str = "") -> str:
     Covers: GetStr, GetNum, GetVal, GetInt, SetVal, SetNum, WhereParam, WhereMatches,
     SumParam, GroupByParam, OrderByParam, OrderByParamDesc, Table, BarGraph, PieGraph,
     LineGraph, Peek, CombinedParams, BuiltInParams, InstanceParams, TypeParams,
-    NativeProperties, GeometrySummary, AuditClashes, InputUnit, OutputUnit, Matches,
+    NativeProperties, GeometrySummary, InputUnit, OutputUnit, Matches,
     FamilyName, RoomAccess, RoomDestination, Handing, IsStandardDoor, and more.
     """
     path = _get_resource_path("EXTENSION_METHODS.md")
@@ -201,54 +218,8 @@ def read_extension_methods(query: str = "") -> str:
     _CACHED_EXTENSION_METHODS = _load_resource(path, _CACHED_EXTENSION_METHODS)
     doc = _CACHED_EXTENSION_METHODS
     if query and query.strip():
-        words = [w.strip().lower() for w in query.split() if len(w.strip()) > 1]
-        lines = doc.split("\n")
-        results = []
-
-        # Try 1: match section headers containing any word
-        for word in words:
-            in_section = False
-            for line in lines:
-                if line.startswith("## ") or line.startswith("# "):
-                    in_section = word in line.lower()
-                if in_section:
-                    results.append(line)
-                if len(results) > 200:
-                    break
-            if results:
-                return "\n".join(results)
-
-        # Try 2: keyword search with context
-        match_indices = {i for i, line in enumerate(lines) if any(word in line.lower() for word in words)}
-        if match_indices:
-            # Expand to include surrounding context (2 lines each direction)
-            expanded = set()
-            for i in match_indices:
-                for j in range(max(0, i - 2), min(len(lines), i + 3)):
-                    expanded.add(j)
-            # Group into contiguous blocks
-            blocks = []
-            block = []
-            for i in sorted(expanded):
-                if block and i > block[-1] + 1:
-                    if block:
-                        blocks.append(block)
-                    block = []
-                block.append(i)
-            if block:
-                blocks.append(block)
-            # Build output with separators between blocks
-            out = []
-            for b in blocks:
-                if out:
-                    out.append("---")
-                for i in b:
-                    out.append(lines[i])
-                if len(out) > 80:
-                    break
-            return f"Found references to '{query}':\n" + "\n".join(out)
-        return f"No matches for '{query}'. Full reference start:\n\n{doc[:3000]}"
-    return doc[:8000]
+        return search_extension_methods(query.strip(), doc)
+    return doc[:15000]  # return generous portion when explicitly requesting full reference
 
 
 # Resources
@@ -271,52 +242,104 @@ def read_system_prompt() -> str:
 
 MCP_SYSTEM_PROMPT = """# PARACORE REPL — COMPLETE METHOD CATALOG
 You are generating C# code for the Paracore REPL engine in Revit.
-ONLY use methods listed here or standard C# LINQ. Nothing else exists.
 
-## GLOBALS (C# PascalCase — lowercase variants do NOT work)
+## LINQ RULES — PARACORE FIRST — CHECK THIS TABLE BEFORE WRITING CODE
+  ┌──────────────────────────────┬──────────────────────────────────┐
+  │ INSTEAD OF RAW C# LINQ       │ USE PARACORE                     │
+  ├──────────────────────────────┼──────────────────────────────────┤
+  │ .Where(e => e.Property)      │ .WhereParam("Name", "value")     │
+  │ .Where(e => name.Contains)   │ .WhereMatches("pattern")         │
+  │ .Where(fi => !IsCurtain...)  │ .StandardOnly()                  │
+  │ .OrderBy(e => e.GetNum(...)) │ .OrderByParam("Name")            │
+  │ .OrderByDescending(...)      │ .OrderByParamDesc("Name")        │
+  │ .GroupBy(e => "Name")        │ .GroupByParam("Name")            │
+  │   .Select(g => new {...})    │   .Table() [chain directly]      │
+  │ .Sum(e => e.GetNum(...))     │ .SumParam("Name", "unit")        │
+  ├──────────────────────────────┼──────────────────────────────────┤
+  │ DISPLAY DATA                 │ .Table() ALWAYS                  │
+  │ foreach + Println loop       │ .Select(x => new {...}).Table()  │
+  └──────────────────────────────┴──────────────────────────────────┘
+ALLOWED LINQ (no Paracore equivalent): .GroupBy(lambda) multi-key,
+  .Select(x=>new{}) for projection, .Take/.Skip/.First/.FirstOrDefault/.Any
+WARNING: Paracore `.Select()` = Select in Revit UI (highlight elements).
+  For data projection use LINQ `.Select(x => new {...})`.
+NEVER chain LINQ `.Select()` after `.GroupByParam()`. Chain `.Table()` directly:
+  GetElements<Wall>().GroupByParam("Base Constraint").Table()
+
+## DISPLAY RULES
+ALWAYS use .Table() to display data. NEVER foreach+Println+string.Join loops.
+.Table() = interactive sortable grid. Println() = status messages only.
+
+## GLOBALS
 Doc, Uidoc, UIApp, ActiveView, Selection, Println(text)
 Doc.Title, ActiveView.Name, Selection.Count — work directly
-Println($"text") — C# PascalCase output. No println(), Print(), Console.WriteLine().
 
 ## RETRIEVAL
-GetElements<Wall>()               GetElements("Doors")
-GetElements<FamilyInstance>("Doors")   GetElement("id-or-name")
-GetCategories()   GetMagicNames()
+GetElements<Wall>()   GetElements("Doors")   GetElements<FamilyInstance>("Doors")
+GetElement("id-or-name")   GetCategories()   GetMagicNames()
 
-## ACCESSORS (on elements — methods, NOT standalone functions)
-wall.GetStr("Level")           → "Level 1" (smart, resolves ElementIds)
-wall.GetNum("Area", "m2")      → 25.46 (unit-converted numeric)
-wall.GetVal("Width")           → "300 mm" (WYSIWYG, as in Properties palette)
-wall.GetInt("Count")           → 4 (yes/no → 1/0)
-wall.SetVal("Mark", "101")     → auto-transact setter
-wall.SetNum("Offset", -150, "cm") → unit-aware numeric setter
+## ACCESSORS (on elements)
+wall.GetStr("Level")→"Level 1"  wall.GetNum("Area","m2")→25.46
+wall.GetVal("Width")→"300 mm"   wall.GetInt("Count")→4
+wall.SetVal("Mark","101")  wall.SetNum("Offset",-150,"cm")
+wall.Delete()  wall.Hide()  wall.Unhide()  wall.Isolate()
+Native: el.Id  el.Name  el.Symbol  el.Location
 
-Native props work directly: el.Id, el.Name, el.Symbol, el.Location
-NEVER use: .IntegerValue, .AsString(), .AsDouble(), LookupParameter,
-  get_Parameter, BuiltInParameter, FilteredElementCollector
-
-## COLLECTION EXTENSIONS (fluent, on IEnumerable<Element>)
-.WhereParam("Level", "Level 1")        .WhereParam("Area", ">", 25, "m2")
-.WhereMatches("Single-Flush")
+## COLLECTION EXTENSIONS
+.WhereParam("Level","Level 1")  .WhereParam("Area",">",25,"m2")
+.WhereMatches("Single-Flush")   .StandardOnly()
 .OrderByParam("Area")   .OrderByParamDesc("Area")
-.GroupByParam("Level")   .GroupByParam("Level", "Area", "m2")
-.SumParam("Area", "m2")
+.GroupByParam("Level")  .GroupByParam("Level","Area","m2")
+.SumParam("Area","m2")
+.SetParam("Comments","Done") — bulk write, ONE transaction
+.Delete() — BIM-safe bulk delete  .Hide()  .Unhide()  .Isolate()
 
-## FLUENT ENDERS (zero arguments)
-.Select(x => new { x.Id, Name = x.GetStr("Name") }).Table()
-.Select(...).BarGraph()   .PieGraph()   .LineGraph()
+## FLUENT ENDERS
+.Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()
+.ToNotebook("Name") — Jupyter export
+
+## DISCOVERY & DEBUG
+.CombinedParams().Table() — EVERY param (Instance+Type+Native) with exact names
+.Peek()  .BuiltInParams().Table()  .InstanceParams().Table()
+.TypeParams().Table()  .NativeProperties().Table()  .GeometrySummary().Table()
+el.ReflectionProperties()  el.ReflectionMethods()  el.ParamsDict()
+
+## COORDINATION
+.AuditClashes("TargetCategory")  .AuditClashes("Pipes","5mm")
+.AuditClashes(...).Table() — interactive clash grid with 3D helpers
+Doc.ClearClashHelpers()
+
+## MATERIALS & ECO
+el.Materials()  el.MaterialNames()  el.GetMaterialNames()
+Eco.GetCarbon(el) — kgCO2e   Eco.GetUValue(el) — W/m²K   Eco.GetWeather()
+
+## NUMERIC HELPERS (on double)
+.InputUnit("mm")  .OutputUnit("m2",2)  .RoundTo("mm",0)
+.IsAlmostEqualTo(v)  .AlmostZero()  .IsGreaterThan(v)  .IsLessThan(v)
+.IsPositive()  .IsNegative()  .FormatValueOnly("mm",2)
+
+## DOOR ORIENTATION
+fi.RoomAccess()  fi.RoomDestination()  fi.RoomFrom()  fi.RoomTo()
+fi.Handing()→"LH"/"RH"  fi.HingeSide()→"Left"/"Right"
+fi.IsHandFlipped()  fi.IsFacingFlipped()  fi.IsStandardDoor()
 
 ## MODIFICATION
-element.SetVal("Comments", "Done")    element.SetNum("Offset", -150, "cm")
-Transact("name", () => { foreach(var w in walls) { w.SetVal(...); } })
-## STANDARD LINQ
-.Where() .Select() .GroupBy() .OrderBy() .ThenBy()
-.Count() .Sum() .First() .FirstOrDefault() .ToList()
+Fluent chain (no Transact needed): GetElements("Walls").SetParam("Comments","Done")
+Delete chain: GetElements("Generic Models").WhereMatches("TEMP").Delete()
+Manual foreach: Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.Delete();}})
+
+## PARAMETER DISCOVERY — CRITICAL
+Diff categories use DIFF param names. No universal "Level":
+  Walls→"Base Constraint"  Structural Columns→"Base Level"  Rooms→"Level"
+ALWAYS: GetElements("Cat").First().CombinedParams().Table() before using any param name.
 
 ## COMMON PATTERNS
-Query: GetElements("Walls").WhereParam("Level","Level 1").Select(w => new { w.Id, Name = w.GetStr("Name") }).Table()
-Write: Transact("Update", () => { foreach(var w in walls) { w.SetVal("Comments","Done"); } })
-Simple: Doc.Title   ActiveView.Name   Selection.Count   GetElements<Wall>().Count()
+Group:  GetElements("Doors").GroupByParam("Level").Table()
+Query:  GetElements("Walls").WhereParam("Base Constraint","Level 1").Select(w => new { w.Id, Name = w.GetStr("Name") }).Table()
+Write:  GetElements("Walls").WhereParam(...).SetParam("Comments","Done")
+Delete: GetElements("Generic Models").WhereMatches("TEMP").Delete()
+Loop:   Transact("Update",()=>{foreach(var w in walls){w.SetVal("Comments","Done");}})
+Clash:  GetElements("Walls").AuditClashes("StructuralColumns").Table()
 """
 
 @mcp.resource("paracore://repl-guide")

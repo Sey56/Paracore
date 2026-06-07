@@ -97,12 +97,14 @@ async def get_current_user(
             )
 
         # STANDARD CLOUD VALIDATION
+        # leeway=60 allows 1 minute of clock skew between auth server and local machine
         payload = jwt.decode(
             token,
             settings.JWT_PUBLIC_KEY,
             algorithms=[settings.JWT_ALGORITHM],
             audience=None,
-            issuer=None
+            issuer=None,
+            options={"leeway": 60}
         )
 
         user_id = payload.get("user_id")

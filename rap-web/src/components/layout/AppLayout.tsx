@@ -159,8 +159,8 @@ export const AppLayout: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Deploy Sentinels</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">for BIM Quality at the Source.</p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Setting Up Paracore</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Getting everything ready for you.</p>
             </div>
             <div className="flex items-center space-x-2 text-blue-500 dark:text-blue-400 text-xs justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Preparing environment...</span></div>
           </div>
@@ -194,62 +194,45 @@ export const AppLayout: React.FC = () => {
               {/* Main Content Area */}
               <div id="main-content-area" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
                 <div className="flex flex-1 overflow-hidden w-full max-w-full">
-                  {isLayoutSwapped ? (
-                    <>
-                      {activeMainView !== 'playlists' && (
-                        <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block bg-transparent shadow-lg overflow-hidden min-w-0 border-r border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
-                      )}
-                      {activeMainView !== 'playlists' && (
-                        <div 
-                          className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
-                            ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`} 
-                          onMouseDown={handleMouseDown}
-                        >
-                          {/* The Prominent Grip Handle */}
-                          <div className={`w-1 rounded-full transition-all duration-500 
-                            ${isResizing 
-                              ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]' 
-                              : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`} 
-                          />
-                        </div>
-                      )}
-                      <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden ${isMobile ? 'pt-4' : ''}`}>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0">
-                          {activeMainView === 'scripts' && <ScriptGallery />}
-                          {activeMainView === 'agent' && <AgentView />}
-                          {activeMainView === 'playlists' && <PlaylistsTab />}
-                        </div>
-                        {activeMainView !== 'playlists' && <BottomPanel />}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden ${isMobile ? 'pt-4' : ''}`}>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0">
-                          {activeMainView === 'scripts' && <ScriptGallery />}
-                          {activeMainView === 'agent' && <AgentView />}
-                          {activeMainView === 'playlists' && <PlaylistsTab />}
-                        </div>
-                        {activeMainView !== 'playlists' && <BottomPanel />}
-                      </div>
-                      {activeMainView !== 'playlists' && (
-                        <div 
-                          className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
-                            ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`} 
-                          onMouseDown={handleMouseDown}
-                        >
-                          {/* The Prominent Grip Handle */}
-                          <div className={`w-1 rounded-full transition-all duration-500 
-                            ${isResizing 
-                              ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]' 
-                              : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`} 
-                          />
-                        </div>
-                      )}
-                      {activeMainView !== 'playlists' && (
-                        <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block bg-transparent shadow-lg overflow-hidden min-w-0 border-l border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
-                      )}
-                    </>
+                  {/* Main panel (Gallery/Agent/Playlists + BottomPanel) */}
+                  <div style={{
+                    width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`,
+                    flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`,
+                    maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`,
+                    order: isLayoutSwapped ? 2 : 0  // visual swap via CSS order
+                  }} className={`flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden ${isMobile ? 'pt-4' : ''}`}>
+                    <div className="flex-1 relative">
+                      <div className={`absolute inset-0 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0 transition-opacity duration-150 ${activeMainView === 'scripts' ? 'z-10 opacity-100 visible' : 'z-0 opacity-0 invisible pointer-events-none'}`}><ScriptGallery /></div>
+                      <div className={`absolute inset-0 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0 transition-opacity duration-150 ${activeMainView === 'agent' ? 'z-10 opacity-100 visible' : 'z-0 opacity-0 invisible pointer-events-none'}`}><AgentView /></div>
+                      <div className={`absolute inset-0 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0 transition-opacity duration-150 ${activeMainView === 'playlists' ? 'z-10 opacity-100 visible' : 'z-0 opacity-0 invisible pointer-events-none'}`}><PlaylistsTab /></div>
+                    </div>
+                    {activeMainView !== 'playlists' && <BottomPanel />}
+                  </div>
+
+                  {/* Resizer */}
+                  {activeMainView !== 'playlists' && (
+                    <div
+                      className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
+                        ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`}
+                      onMouseDown={handleMouseDown}
+                      style={{ order: 1 }}
+                    >
+                      <div className={`w-1 rounded-full transition-all duration-500
+                        ${isResizing
+                          ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                          : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`}
+                      />
+                    </div>
+                  )}
+
+                  {/* Inspector panel */}
+                  {activeMainView !== 'playlists' && (
+                    <div style={{
+                      width: `calc(${inspectorWidth * 100}% - 4px)`,
+                      flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
+                      maxWidth: `calc(${inspectorWidth * 100}% - 4px)`,
+                      order: isLayoutSwapped ? 0 : 2  // visual swap via CSS order
+                    }} className={`hidden lg:block bg-transparent shadow-lg overflow-hidden min-w-0 ${isLayoutSwapped ? 'border-r' : 'border-l'} border-slate-200 dark:border-gray-700`}><ScriptInspector /></div>
                   )}
                 </div>
                 {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />}

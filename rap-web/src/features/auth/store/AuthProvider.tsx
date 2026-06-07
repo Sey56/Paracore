@@ -73,8 +73,61 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       console.warn("Auth token expired! Logging out gracefully.");
       logout();
     };
+
+    const handleAuthExpiring = async () => {
+      console.warn("Auth token expiring — attempting silent refresh via Google OAuth...");
+      try {
+        // Re-run the Google OAuth login to get a fresh token
+        const [authorizationCode, redirectUri]: [string, string] = await invoke('google_oauth_login');
+
+        if (!authorizationCode) {
+          throw new Error('No authorization code received from Tauri.');
+        }
+
+        const cloudAuthResponse = await axios.post('https://rap-auth-server-production.up.railway.app/auth/verify-google-code', {
+          code: authorizationCode,
+          redirect_uri: redirectUri,
+        });
+        const { access_token: newCloudToken, user: cloudUserData }: { access_token: string; user: CloudUserResponse } = cloudAuthResponse.data;
+
+        if (!newCloudToken || !cloudUserData) {
+          throw new Error('Cloud authentication failed: No token or user data returned.');
+        }
+
+        // Update localStorage with fresh token
+        localStorage.setItem('rap_cloud_token', newCloudToken);
+        // Keep existing user data and active team — don't re-prompt for team selection
+        const existingUserStr = localStorage.getItem('rap_user');
+        if (!existingUserStr) {
+          // If somehow user data is gone, reconstruct it
+          const appUser: User = {
+            id: String(cloudUserData.id),
+            email: cloudUserData.email,
+            name: cloudUserData.name,
+            picture_url: cloudUserData.picture_url,
+            memberships: cloudUserData.memberships.map(m => ({ ...m, owner_id: m.owner_id || 0 })),
+          };
+          localStorage.setItem('rap_user', JSON.stringify(appUser));
+        }
+
+        setCloudToken(newCloudToken);
+        console.log("Token refreshed successfully.");
+
+        // Notify axios interceptor that refresh succeeded
+        window.dispatchEvent(new Event('paracore-auth-refreshed'));
+      } catch (refreshError) {
+        console.error("Token refresh failed:", refreshError);
+        // Let the axios interceptor know refresh failed — it will then trigger the hard logout
+        window.dispatchEvent(new Event('paracore-auth-expired'));
+      }
+    };
+
     window.addEventListener('paracore-auth-expired', handleAuthExpired);
-    return () => window.removeEventListener('paracore-auth-expired', handleAuthExpired);
+    window.addEventListener('paracore-auth-expiring', handleAuthExpiring);
+    return () => {
+      window.removeEventListener('paracore-auth-expired', handleAuthExpired);
+      window.removeEventListener('paracore-auth-expiring', handleAuthExpiring);
+    };
   }, [logout]);
 
   useEffect(() => {

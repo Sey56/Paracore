@@ -31,8 +31,14 @@ export const ExecutionHistory: React.FC = () => {
   const syntaxStyle = theme === 'eclipse' ? atomDark : (theme === 'light' ? vs : vscDarkPlus);
   const isRunning = !!runningScriptPath;
 
+  const didMountRef = useRef(false);
   useEffect(() => {
     if (consoleEndRef.current) {
+      if (!didMountRef.current) {
+        didMountRef.current = true;
+        consoleEndRef.current.scrollIntoView({ behavior: "auto" });
+        return;
+      }
       consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [localHistory.length, isRunning, isReplLoading]);

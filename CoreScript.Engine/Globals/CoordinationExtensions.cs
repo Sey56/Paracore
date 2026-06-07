@@ -382,8 +382,8 @@ namespace CoreScript.Engine.Globals
             }
 
             var doc = resList.First().SourceElement.Document;
-            
-            Tx.Transact(doc, "Create Clash Helpers", () =>
+
+            void CreateHelpers()
             {
                 // Remove previous clash helpers
                 var oldHelpers = new FilteredElementCollector(doc)
@@ -460,7 +460,9 @@ namespace CoreScript.Engine.Globals
                         // Ignore edge cases where geometry cannot be placed
                     }
                 }
-            });
+            }
+            if (doc.IsModifiable) CreateHelpers();
+            else Tx.Transact(doc, "Create Clash Helpers", CreateHelpers);
 
             // React UI Output formatting
             var firstDoc = resList.FirstOrDefault()?.SourceElement?.Document;
@@ -497,10 +499,9 @@ namespace CoreScript.Engine.Globals
 
             if (oldHelpers.Any())
             {
-                Tx.Transact(doc, "Clear Clash Helpers", () =>
-                {
-                    doc.Delete(oldHelpers);
-                });
+                void Action() { doc.Delete(oldHelpers); }
+                if (doc.IsModifiable) Action();
+                else Tx.Transact(doc, "Clear Clash Helpers", Action);
                 ExecutionGlobals.Current.Value?.Println($"✅ Cleared {oldHelpers.Count} clash helpers.");
             }
             else

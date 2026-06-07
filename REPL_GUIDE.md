@@ -1,4 +1,4 @@
-# 🚀 Paracore REPL Reference Guide (V4.4.0)
+# 🚀 Paracore REPL Reference Guide (V4.5.0)
 
 The Paracore REPL is a persistent C# scratchpad with direct, real-time access to the Revit API and Paracore's high-level automation helpers.
 
@@ -168,6 +168,19 @@ wall.GetElementType()           // → returns the WallType Element
 
 ## ✏️ Smart Write Methods
 
+All write methods share the same `IsModifiable` transaction logic:
+
+| Method | Single | Collection | Description |
+|:---|:---|:---|:---|
+| `SetVal` / `SetNum` | ✅ | via `SetParam` | Smart parameter setters |
+| `Delete` | ✅ | ✅ | BIM-Safe Delete (skips Pinned/Curtain) |
+| `Hide` / `Unhide` | ✅ | ✅ | Hide/Unhide in active view |
+| `Isolate` | ✅ | ✅ | Temporarily isolate in view |
+
+- **No active transaction?** → An auto-transaction is created.
+- **Active transaction?** (inside a `Transact()` block) → Runs directly, no sub-transaction.
+- **Collection methods** (`.Delete()`, `.SetParam()`, `.Hide()`, `.Unhide()`, `.Isolate()`) batch everything into **one** transaction.
+
 ### `element.SetVal(name, value)`
 **The Smart Setter.** Handles all common scenarios automatically.
 
@@ -186,7 +199,7 @@ wall.SetVal("Level", "Level 2")       // resolves to ElementId
 ```
 
 > [!NOTE]
-> `SetVal` auto-wraps in a transaction if none is active.
+> `SetVal` (and all write/UI methods) auto-wraps in a transaction if none is active. Inside a `Transact()` block, methods detect the active transaction and run directly.
 
 ### `element.SetNum(name, value, unit)`
 **Explicit Unit-Aware Numeric Setter.**
@@ -269,22 +282,25 @@ Println($"Total area: {total:F2} m²");
 
 ---
 
-## ✏️ Collection Extensions: Bulk Write
+## ✏️ Collection Extensions: Bulk Write & Delete
 
 ### `.SetParam(name, value)`
 Sets a parameter on **every element** in the collection inside a **single transaction**.
 Returns the collection (chainable).
 ```csharp
-// Flag all unmarked walls
-GetElements<Wall>()
-    .WhereParam("Mark", "")
-    .SetParam("Mark", "UNTAGGED")
-
-// Bulk update comments
-GetElements("Doors")
-    .WhereParam("Level", "Level 1")
-    .SetParam("Comments", "Level 1 Review")
+GetElements<Wall>().WhereParam("Mark", "").SetParam("Mark", "UNTAGGED")
+GetElements("Doors").WhereParam("Level", "Level 1").SetParam("Comments", "Level 1 Review")
 ```
+
+### `.Delete()` — BIM-Safe Bulk Delete
+Deletes an entire collection in a **single transaction**. Automatically skips Pinned elements, Curtain Wall Panels, and hosted Curtain Doors to prevent Revit exceptions.
+```csharp
+GetElements("Generic Models").WhereMatches("TEMP").Delete()
+GetElements("Doors").WhereParam("Level", "Level 4").Delete()
+```
+
+> [!NOTE]
+> Collection methods (`.SetParam()`, `.Delete()`, `.Hide()`, `.Unhide()`, `.Isolate()`) batch all changes into **one transaction** — no `Transact()` needed for fluent chains. Inside an outer `Transact()`, they detect the active transaction and run directly.
 
 ---
 
@@ -317,7 +333,7 @@ All return `IEnumerable<T>` (fully chainable).
 | `.Select()` | ✅ | ✅ | Select all in Revit UI |
 | `.Zoom()` | ✅ | ✅ | Zoom to elements |
 | `.Isolate()` | ✅ | ✅ | Temporarily isolate in view |
-| `.Delete()` | ✅ | ✅ | Delete (auto-transaction) |
+| `.Delete()` | ✅ | ✅ | BIM-Safe Delete (auto-transaction) |
 | `.Peek()` | ✅ | ✅ | Forensic param audit |
 | `.Hide()` | ✅ | ✅ | Hide in active view |
 | `.Unhide()` | ✅ | ✅ | Unhide in active view |
@@ -427,15 +443,49 @@ Println(wall.GetNum("Length").FormatUnit("mm"));  // → "3600.0 mm"
 
 ## 🛠️ Model Modification
 
-### Transactions
-Paracore auto-transactions simple one-liners. For multi-step changes, wrap explicitly:
+### Transaction Behavior — Consistent Across All Write Methods
+
+ALL write and UI methods (`SetVal`, `SetNum`, `Delete`, `Hide`, `Unhide`, `Isolate`, `SetParam`) share the same `IsModifiable` transaction logic:
+
+| Scenario | Behavior |
+|:---|:---|
+| **Single element** (no outer transaction) | Auto-transact — one mini-transaction |
+| **Collection method** (no outer transaction) | Auto-transact — ONE transaction for all elements |
+| **Inside `Transact()` block** | Runs directly — no sub-transaction |
+
+### Fluent-Chain Modifications (No Transact Needed)
+
+```csharp
+// Bulk write — one transaction for all matching walls
+GetElements<Wall>().WhereParam("Mark", "").SetParam("Mark", "UNTAGGED")
+
+// Bulk delete — one transaction, BIM-safe
+GetElements("Generic Models").WhereMatches("TEMP").Delete()
+
+// Hide/Isolate — one transaction
+GetElements("Walls").WhereParam("Mark", "").Isolate()
+```
+
+### Manual `foreach` Loops (Transact REQUIRED)
+
+When you need custom logic per element, wrap in `Transact()`. Each method detects the active transaction and runs directly:
+
 ```csharp
 Transact("Standardize Marks", () => {
     int i = 1;
     foreach (var r in GetElements<Room>())
         r.SetVal("Mark", $"R-{i++:000}");
 });
+
+// Conditional deletes inside a loop — Transact keeps undo stack clean
+Transact("Remove overlapping columns", () => {
+    foreach (var col in toDelete)
+        col.Delete();  // detects active transaction, runs directly
+});
 ```
+
+> [!IMPORTANT]
+> Without a `Transact()` wrapper, each iteration of a `foreach` loop creates its own mini-transaction — cluttering the Undo stack and hurting performance.
 
 ### Execution Timeout
 Default is 10 seconds. Extend for long operations:
@@ -471,6 +521,10 @@ Selection.Count     // Prints selection count
 | Count per group | `.GroupByParam("Level")` |
 | Count + sum per group | `.GroupByParam("Level", "Area", "m2")` |
 | Set same value on many | `.SetParam("Comments", "Done")` |
+| Delete elements safely | `.Delete()` (single or collection) |
+| Hide/Unhide elements | `.Hide()` / `.Unhide()` (single or collection) |
+| Isolate quickly | `.Isolate()` on any collection |
+| Conditional deletes in a loop | `Transact("name", () => { foreach(...) { el.Delete(); } })` |
 | Get raw feet for calculation | `.GetNum("Length")` |
 | Get mm for calculation | `.GetNum("Length", "mm")` |
 | Export data to Pandas/Python | `.ToNotebook("Analytics")` |
@@ -516,6 +570,18 @@ GetElements("Doors").WhereParam("HandFlipped", "True").Table()
 
 // Mark all un-tagged walls
 GetElements<Wall>().WhereParam("Mark", "").SetParam("Mark", "UNTAGGED")
+
+// Delete temporary elements
+GetElements("Generic Models").WhereMatches("TEMP").Delete()
+
+// Delete all doors on a specific level (BIM-safe — skips Curtain Wall doors)
+GetElements("Doors").WhereParam("Level", "Level 4").Delete()
+
+// Conditional deletes in a loop (Transact keeps undo stack clean)
+Transact("Remove overlapping columns", () => {
+    foreach (var col in toDelete)
+        col.Delete();
+});
 
 // Isolate walls without a mark
 GetElements<Wall>().WhereParam("Mark", "").Isolate()

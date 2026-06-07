@@ -102,13 +102,13 @@ door.GetStr("HandFlipped") // → "True" (via reflection)
 
 ---
 
-### `element.GetStr(name, unit)`
+### `element.GetStr(name, unit, decimals)`
 
-> **Unit-Converted String Getter.** Returns the value converted to the given unit as a plain number string (no suffix).
+> **Unit-Converted String Getter.** Returns the value converted to the given unit as a plain number string (no suffix). Supports an optional `decimals` parameter (default: 2).
 
 ```csharp
-wall.GetStr("Length", "mm")   // → "3600"
-room.GetStr("Area", "m2")     // → "25.46"
+wall.GetStr("Length", "mm")      // → "3600"
+room.GetStr("Area", "m2", 4)     // → "25.4578" (specified decimals)
 ```
 
 ---
@@ -128,9 +128,9 @@ room.GetNum("Area")      // → 18.4 (sq.ft)
 
 ---
 
-### `element.GetNum(name, unit)`
+### `element.GetNum(name, unit, decimals)`
 
-> **Unit-Converted Numeric Getter.** Returns the value converted to the specified unit.
+> **Unit-Converted Numeric Getter.** Returns the value converted to the specified unit. Supports an optional `decimals` parameter (default: 2).
 
 | Unit String | Meaning |
 |---|---|
@@ -139,9 +139,9 @@ room.GetNum("Area")      // → 18.4 (sq.ft)
 | `m3`, `cum`, `ft3`, `cuft` | Volume |
 
 ```csharp
-wall.GetNum("Length", "m")     // → 3.6
-room.GetNum("Area", "m2")      // → 25.46
-floor.GetNum("Volume", "m3")   // → 0.72
+wall.GetNum("Length", "m")       // → 3.6
+room.GetNum("Area", "m2", 4)     // → 25.4578 (specified decimals)
+floor.GetNum("Volume", "m3")     // → 0.72
 ```
 
 ---
@@ -162,12 +162,13 @@ wall.GetVal("Level")  // → "Level 1"
 
 ---
 
-### `element.GetVal(name, unit)`
+### `element.GetVal(name, unit, decimals)`
 
-> **Unit-Formatted WYSIWYG Getter.** Returns a value string with the specified unit suffix.
+> **Unit-Formatted WYSIWYG Getter.** Returns a value string with the specified unit suffix. Supports an optional `decimals` parameter (default: 2).
 
 ```csharp
-wall.GetVal("Length", "mm")   // → "3600.0 mm"
+wall.GetVal("Length", "mm")      // → "3600.0 mm"
+room.GetVal("Area", "m2", 3)     // → "25.458 m²"
 ```
 
 ---
@@ -193,12 +194,12 @@ Same as instance accessors but target the element's **ElementType** (e.g., Wall 
 |---|---|
 | `element.GetElementType()` | Returns the ElementType element |
 | `element.GetTypeStr(name)` | Type-level `GetStr` |
-| `element.GetTypeStr(name, unit)` | Type-level `GetStr` with unit |
+| `element.GetTypeStr(name, unit, decimals)` | Type-level `GetStr` with unit & optional decimals |
 | `element.GetTypeNum(name)` | Type-level `GetNum` |
-| `element.GetTypeNum(name, unit)` | Type-level `GetNum` with unit |
+| `element.GetTypeNum(name, unit, decimals)` | Type-level `GetNum` with unit & optional decimals |
 | `element.GetTypeInt(name)` | Type-level `GetInt` |
 | `element.GetTypeVal(name)` | Type-level `GetVal` |
-| `element.GetTypeVal(name, unit)` | Type-level `GetVal` with unit |
+| `element.GetTypeVal(name, unit, decimals)` | Type-level `GetVal` with unit & optional decimals |
 
 ```csharp
 wall.GetTypeStr("Wrapping at Inserts")  // → "Do not wrap"
@@ -209,21 +210,36 @@ door.GetTypeNum("Width", "mm")          // → 900.0 (type width)
 
 ## ✏️ Element: Smart Write Methods
 
-### The Transaction Behavior (`IsModifiable` Check)
-Both `SetVal` and `SetNum` contain built-in transaction intelligence. Before applying a change, the engine checks `e.Document.IsModifiable`:
-* **If `false` (No Active Transaction):** A new, isolated "mini-transaction" is created. Ideal for REPL one-liners.
-* **If `true` (Active Transaction Exists):** The engine bypasses creating a transaction and applies the change instantly.
+### Consistent Transaction Behavior (`IsModifiable` Check)
+
+**All write and UI-action methods** share the same transaction intelligence. Before applying a change, the engine checks `e.Document.IsModifiable`:
+
+| Method | Single | Collection | Behavior |
+|---|---|---|---|
+| `SetVal` | ✅ | via `SetParam` | Write parameter values |
+| `SetNum` | ✅ | via `SetParam` | Write numeric values with unit conversion |
+| `Delete` | ✅ | ✅ | BIM-Smart Delete |
+| `Hide` | ✅ | ✅ | Hide in active view |
+| `Unhide` | ✅ | ✅ | Unhide in active view |
+| `Isolate` | ✅ | ✅ | Temporarily isolate in view |
+
+* **If `false` (No Active Transaction):** A new, isolated transaction is created automatically. Ideal for REPL one-liners and fluent chains.
+* **If `true` (Active Transaction Exists):** The engine bypasses creating a transaction and applies the change instantly. This is what happens when you wrap operations in a `Transact()` block.
+
 > [!IMPORTANT]
-> **Mass Edits:** When modifying multiple elements in a loop, **always** wrap the loop in a `Transact()` block. This ensures Revit only opens one transaction, dramatically improving performance and keeping the Undo stack clean.
+> **Mass Edits in `foreach` loops:** When modifying multiple elements in a manual `foreach` loop, **always** wrap the loop in a `Transact()` block. Without it, each iteration creates its own mini-transaction — cluttering the Undo stack and hurting performance. With a `Transact()` wrapper, each method detects the active transaction and runs directly.
+>
+> **Collection-level methods** (`.Delete()`, `.SetParam()`, `.Hide()`, etc.) already batch all changes into a single transaction automatically — no `Transact()` wrapper needed for fluent chains.
 
 ---
 
-### `element.SetVal(name, value)`
+### `element.SetVal(name, value, unit)`
 
-> **The Smart Setter.** Automatically determines how to write the value based on parameter type. Uses Reflection to locate Native C# properties if no parameter matches.
+> **The Smart Setter.** Automatically determines how to write the value based on parameter type. Uses Reflection to locate Native C# properties if no parameter matches. Can optionally take a `unit` parameter to convert numeric values/strings from the specified unit before setting.
 
 **Overloads:**
 *   `public static void SetVal(this Element e, string name, object value)`
+*   `public static void SetVal(this Element e, string name, object value, string unit)`
 
 | Input type | Behavior |
 |---|---|
@@ -232,12 +248,14 @@ Both `SetVal` and `SetNum` contain built-in transaction intelligence. Before app
 | `string "Updated"` | Standard string set |
 | `double 3.5` | Direct numeric set (internal units) |
 | `bool true` | Native C# Property set via Reflection (e.g. "Pinned") |
+| `double 200, string "mm"` | Converts from the unit to internal units, then sets |
 
 ```csharp
-wall.SetVal("Comments", "Reviewed")    // string
-wall.SetVal("Base Offset", "500 mm")   // value string — unit parsed
-wall.SetVal("Level", "Level 2")        // ElementId resolved by name
-wall.SetVal("Pinned", true)            // Native C# property
+wall.SetVal("Comments", "Reviewed")          // string
+wall.SetVal("Base Offset", "500 mm")         // value string — unit parsed
+wall.SetVal("Base Offset", -150, "cm")       // converts -150cm to internal feet
+wall.SetVal("Level", "Level 2")              // ElementId resolved by name
+wall.SetVal("Pinned", true)                  // Native C# property
 ```
 
 ---
@@ -657,9 +675,9 @@ Println($"Total wall length: {totalLength:F2} m");
 
 ## ✏️ Collection: Bulk Write
 
-### `.SetParam(name, value)`
+### `.SetParam(name, value, unit)`
 
-> Sets a parameter on **every element** in the collection inside a single transaction.
+> Sets a parameter on **every element** in the collection inside a single transaction. Can optionally take a `unit` parameter to convert numeric values from the specified unit before setting.
 > Returns the collection (chainable).
 
 ```csharp
@@ -668,14 +686,15 @@ GetElements("Doors")
     .WhereParam("Comments", "")
     .SetParam("Comments", "Pending Review")
 
-// Update all Level 1 walls
+// Set top constraint and offset with unit conversion in a single chain
 GetElements<Wall>()
-    .WhereParam("Level", "Level 1")
-    .SetParam("Mark", "L1-W")
+    .WhereParam("Base Constraint", "Level 01")
+    .SetParam("Top Constraint", "Level 02")
+    .SetParam("Top Offset", -150, "cm")
 ```
 
 > [!NOTE]
-> All updates are wrapped in a single `Transact` call — one undo step in Revit.
+> All updates are wrapped in a single transaction — one undo step in Revit. When called inside an outer `Transact()`, `.SetParam` detects the active transaction and runs directly without creating a new one.
 
 ---
 
@@ -995,17 +1014,26 @@ int i = 1;
 GetElements("Doors")
     .WhereParam("Level", "Level 2")
     .OrderByParam("Mark")
-    .SetParam("Mark", $"D2-{i++:000}")
+    .SetParam("Mark", e => $"D2-{i++:000}")
 ```
 
 ---
 
 ### Bulk Delete: BIM-Smart & Safe
-The `.Delete()` extension method is now **BIM-Aware**. It automatically skips Pinned elements, Curtain Wall Panels, and hosted Curtain Doors to prevent Revit exceptions and model corruption.
+The `.Delete()` extension method is **BIM-Aware** and follows the same `IsModifiable` transaction pattern as all other write methods. It automatically skips Pinned elements, Curtain Wall Panels, and hosted Curtain Doors to prevent Revit exceptions and model corruption.
 
+**Collection-level** (single transaction for the whole group):
 ```csharp
 // Deletes ALL doors safely. No manual filtering needed for Curtain Walls!
 GetElements("Doors").Delete();
+```
+
+**Inside a `Transact()` wrapper** (skips auto-transaction, uses the outer one):
+```csharp
+Transact("Delete overlapping columns", () => {
+    foreach (var col in toDelete)
+        col.Delete();  // detects active transaction, runs directly
+});
 ```
 
 ---
