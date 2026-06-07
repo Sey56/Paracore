@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-MAX_TABLE_ROWS = 5
+MAX_TABLE_ROWS = 10
 MAX_TEXT_LINES = 10
 
 
@@ -86,7 +86,13 @@ def summarize(output_raw: Dict[str, Any]) -> str:
         total_lines = len(lines)
         shown_lines = lines[:MAX_TEXT_LINES]
 
-        if total_lines <= MAX_TEXT_LINES:
+        # Short conversational output (e.g. "✅ Modified 19 walls") — render as plain
+        # text, NOT in a code block, so the frontend doesn't box it with a scrollbar.
+        if total_lines <= 3 and not any(
+            keyword in text.lower() for keyword in ("error", "exception", "traceback", " at ", "debug", "warning")
+        ):
+            parts.insert(0, text)
+        elif total_lines <= MAX_TEXT_LINES:
             parts.insert(0, f"**Text Output** ({total_lines} lines):\n```\n{text}\n```")
         else:
             parts.insert(0, f"**Text Output** ({total_lines} lines total, showing first {MAX_TEXT_LINES}):\n```\n" + "\n".join(shown_lines) + f"\n... and {total_lines - MAX_TEXT_LINES} more lines\n```")
@@ -107,10 +113,10 @@ def summarize(output_raw: Dict[str, Any]) -> str:
 
 def shield_tool_return(text: str, tool_name: str) -> str:
     """
-    Legacy-compatible shield for tool returns during history reconstruction.
-    Used when raw_output_for_summary is NOT available.
+    Compresses large tool returns during history reconstruction.
+    Prevents stale execution results from inflating the context window.
     """
-    if tool_name != "execute_dynamic_query" or len(text) <= 1000:
+    if len(text) <= 1000:
         return text
 
     try:
@@ -122,7 +128,4 @@ def shield_tool_return(text: str, tool_name: str) -> str:
         pass
 
     # Plain text too large: show first 300 chars
-    if len(text) > 1000:
-        return text[:300] + f"\n... [TRUNCATED: {len(text)} total chars.]"
-
-    return text
+    return text[:300] + f"\n... [TRUNCATED: {len(text)} total chars.]"

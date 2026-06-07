@@ -1,5 +1,4 @@
 import os
-import json
 from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext
 from pydantic import BaseModel, Field
@@ -10,7 +9,6 @@ try:
     from grpc_client import execute_script
 except ImportError:
     import sys
-    import os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from grpc_client import execute_script
 
@@ -34,18 +32,6 @@ v4_repl_agent = Agent(
     system_prompt=SYSTEM_PROMPT
 )
 
-# Lightweight agent with NO tools — only formats summaries conversationally
-summary_agent = Agent(
-    deps_type=AgentDeps,
-    system_prompt="""You format Paracore REPL execution results in natural language.
-Keep it brief — 2-4 sentences max. Use the sample data and totals from the summary.
-
-If the summary shows data with a table:
-  "Here are the N items. [Key observation from data]."
-If the summary says "no structured output":
-  "No matching elements were found. [Suggest refining]."
-Never add code blocks. Never mention tools or formatting instructions. Just natural language."""
-)
 class DynamicQueryArgs(BaseModel):
     csharp_code: str = Field(description="The C# snippet to execute in the Paracore REPL.")
     justification: str = Field(description="A short explanation of why you are running this code.")
@@ -80,18 +66,11 @@ async def explore_revit_data(ctx: RunContext[AgentDeps], args: ExploreQueryArgs)
         result = execute_script(args.csharp_code, "{}")
         
         if result["is_success"]:
-            output_str = ""
-            if result.get("structured_output"):
-                output_str = json.dumps(result["structured_output"])
-            else:
-                output_str = str(result.get("output", "Execution succeeded with no output."))
-            
-            # The Shield: Truncate massive outputs to prevent context flooding
-            if len(output_str) > 8000:
-                output_str = output_str[:8000] + "\n... [TRUNCATED: Result exceeded 8000 characters. Refine your query, e.g., use .Take(10) or filter further.]"
-            return output_str
+            from agent.tool_helpers import summarize_execution_result
+            return summarize_execution_result(result)
         else:
-            return f"Execution Failed: {result['error_message']}\nDetails: {result['error_details']}"
+            from agent.tool_helpers import format_execution_error
+            return format_execution_error(result)
             
     except Exception as e:
         return f"Error executing exploration script: {str(e)}"
@@ -217,6 +196,7 @@ Revit internal = decimal feet. Sum internals first, then convert:
 NOT: g.Sum(w => w.GetNum("Volume").OutputUnit("m3")) — floating-point noise
 
 ## Standard C# LINQ (works everywhere)
+CRITICAL: Always check Paracore extension methods first. ONLY fallback to LINQ (e.g. .Where(), .Select(), .GroupBy()) if a simpler Paracore extension method (e.g. .WhereParam(), .GroupByParam()) does not exist. Do not overcomplicate queries.
 .Where() .Select() .GroupBy() .OrderBy() .ThenBy()
 .Count() .Sum() .First() .FirstOrDefault() .Distinct() .ToList()
 
@@ -300,58 +280,15 @@ async def read_extension_methods(ctx: RunContext[AgentDeps], args: ExtensionMeth
     - Visualization: Table, BarGraph, PieGraph, LineGraph, Peek
     - Diagnostics: CombinedParams, BuiltInParams, InstanceParams, TypeParams, NativeProperties
     - Geometry: GeometrySummary
-    - Coordination: AuditClashes
     - Units: InputUnit, OutputUnit, IsAlmostEqualTo, AlmostZero
     - Element identity: Matches, FamilyName, ToElement
     - Door/Window: RoomAccess, RoomDestination, Handing, IsStandardDoor
-    - Materials: Materials, MaterialNames, Eco.GetCarbon, Eco.GetUValue
     If a specific method name is provided in 'query', only the relevant section is returned.
     This is your PRIMARY reference for correct Paracore syntax. Use it whenever you're
     unsure about a method name, argument order, or whether something exists in Paracore.
     """
     doc = _load_extension_methods_doc()
     if args.query:
-        words = [w.strip().lower() for w in args.query.split() if len(w.strip()) > 1]
-        lines = doc.split("\n")
-        results = []
-
-        # Try 1: match section headers containing any word
-        for word in words:
-            in_section = False
-            for line in lines:
-                if line.startswith("## ") or line.startswith("# "):
-                    in_section = word in line.lower()
-                if in_section:
-                    results.append(line)
-                    if len(results) > 200:
-                        break
-            if results:
-                return "\n".join(results)
-
-        # Try 2: keyword search with context
-        match_indices = {i for i, line in enumerate(lines) if any(word in line.lower() for word in words)}
-        if match_indices:
-            expanded = set()
-            for i in match_indices:
-                for j in range(max(0, i - 2), min(len(lines), i + 3)):
-                    expanded.add(j)
-            blocks = []
-            block = []
-            for i in sorted(expanded):
-                if block and i > block[-1] + 1:
-                    blocks.append(block)
-                    block = []
-                block.append(i)
-            if block:
-                blocks.append(block)
-            out = []
-            for b in blocks:
-                if out:
-                    out.append("---")
-                for i in b:
-                    out.append(lines[i])
-                if len(out) > 80:
-                    break
-            return f"Found references to '{args.query}':\n" + "\n".join(out)
-        return f"No matches for '{args.query}'. Full reference start:\n\n{doc[:3000]}"
+        from agent.tool_helpers import search_extension_methods
+        return search_extension_methods(args.query, doc)
     return doc[:8000]
