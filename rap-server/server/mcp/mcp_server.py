@@ -190,6 +190,8 @@ def search_schema(category_name: str) -> str:
     Results are cached in memory after first call per category.
     Example categories: "Rooms", "Walls", "Doors", "Structural Columns", "Floors", "Ceilings".
     Use GetMagicNames() to discover available category names if unsure.
+    CRITICAL: Only copy the parameter NAME (first column). NEVER include storage type
+    annotations like [String] or [Double] in your code. e.g. use "Level" not "Level [String]".
     """
     logger.info(f"MCP Searching schema for: {category_name}")
     try:
@@ -285,18 +287,28 @@ wall.SetVal("Mark","101")  wall.SetNum("Offset",-150,"cm")
 wall.Delete()  wall.Hide()  wall.Unhide()  wall.Isolate()
 Native: el.Id  el.Name  el.Symbol  el.Location
 
+## ELEMENT CREATION — Full Revit API inside Transact()
+Wall.Create  Floor.Create  Doc.Create.NewFamilyInstance  XYZ  Line.CreateBound  CurveLoop
+  var lvl = GetElements<Level>().FirstOrDefault(l => l.Name == "Level 1");
+  var typ = GetElements<WallType>().FirstOrDefault(t => t.Name == "Generic - 200mm");
+  Transact("Create Wall", () => { Wall w = Wall.Create(Doc, Line.CreateBound(p1,p2), lvl.Id, false); w.WallType = typ; });
+
 ## COLLECTION EXTENSIONS
 .WhereParam("Level","Level 1")  .WhereParam("Area",">",25,"m2")
 .WhereMatches("Single-Flush")   .StandardOnly()
 .OrderByParam("Area")   .OrderByParamDesc("Area")
-.GroupByParam("Level")  .GroupByParam("Level","Area","m2")
-.SumParam("Area","m2")
+.GroupByParam("Level")→Group|Count  .GroupByParam("Level","Area","m2")→Group|Count|Total
+.SumParam("Area","m2")  // GroupByParam args: (groupBy, sumParam?, unit?)
 .SetParam("Comments","Done") — bulk write, ONE transaction
 .Delete() — BIM-safe bulk delete  .Hide()  .Unhide()  .Isolate()
 
 ## FLUENT ENDERS
 .Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()
 .ToNotebook("Name") — Jupyter export
+CHARTS: BarGraph after GroupByParam picks Total column automatically. Short form works:
+  GetElements("Rooms").GroupByParam("Level","Area","m2").BarGraph()
+For custom axis labels, reshape:
+  .Select(g => new { Level=((dynamic)g).Group, TotalArea_m2=((dynamic)g).Total }).BarGraph()
 
 ## DISCOVERY & DEBUG
 .CombinedParams().Table() — EVERY param (Instance+Type+Native) with exact names

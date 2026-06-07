@@ -59,13 +59,14 @@ def search_schema(category_name: str) -> str:
     if not params:
         return f"No parameters found for category '{category_name}'. Try GetMagicNames() to list valid category names."
 
-    # Format as compact LLM-friendly list — keep names CLEAN, no decoration inside code spans
-    lines = [f"**{category_name}** — {len(params)} parameters (use the parameter NAME, not the metadata):\n"]
+    # Format as compact LLM-friendly list
+    # CRITICAL: only the name inside backticks is the parameter name. Storage/scope are metadata ONLY.
+    lines = [f"**{category_name}** — {len(params)} parameters:\n"]
+    lines.append("COPY THE EXACT NAME (first column). The rest is metadata — DO NOT include it in your code.\n")
     for p in params:
         storage = p.get("storage_type", "?")
         scope = "Type" if p.get("is_type") else "Instance"
-        builtin = f" [{p.get('builtin_name', '')}]" if p.get("builtin_name") else ""
-        lines.append(f"- `{p['name']}` — {storage}, {scope}{builtin}")
+        lines.append(f"- `{p['name']}` | {storage} | {scope}")
     return "\n".join(lines)
 
 

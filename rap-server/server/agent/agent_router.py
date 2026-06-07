@@ -222,37 +222,39 @@ async def _run_conversational_summary(
     model,
     user_query: str = "",
 ) -> str:
-    """Format execution results conversationally via LLM.
+    """Format execution results conversationally.
 
-    The prompt is kept minimal (no verbose system prompt) so the LLM responds
-    quickly — typically under 2 seconds for a short formatting task.
-
-    Falls back to template-based formatting if the LLM call fails.
+    Uses template-based lead-in for reliability — the LLM formatting step
+    was producing generic responses ("items", "Group") instead of using the
+    actual element type from the user's query. The template is deterministic.
     """
     topic = _extract_topic(user_query) if user_query else ""
-    topic_hint = f' The user asked about "{topic}".' if topic else ""
 
-    prompt = (
-        f"Rewrite this execution result as a single friendly, conversational sentence "
-        f"(2-3 sentences max). Include the specific counts and category names.{topic_hint}\n\n"
-        f"If there's a table, include it after your sentence in clean markdown format.\n"
-        f"If there's a short message like '✅ Modified N walls...', just restate it conversationally.\n\n"
-        f"Result to format:\n{summary_text}"
-    )
+    # Build a natural lead-in from the user's query context
+    if topic:
+        # Strip summarizer boilerplate — we'll add our own lead-in
+        body = summary_text
+        for prefix in ["EXECUTION SUCCESSFUL. Summarized result:\n\n", "EXECUTION SUCCESSFUL\n\n"]:
+            if body.startswith(prefix):
+                body = body[len(prefix):]
+                break
+        # Strip "Table with N rows (showing first N):\n" line
+        lines = body.split("\n")
+        if lines and lines[0].startswith("Table with") and "rows" in lines[0]:
+            body = "\n".join(lines[1:]).lstrip("\n")
 
-    try:
-        from pydantic_ai import Agent
-        # Minimal agent with no system prompt overhead — just the formatting instruction
-        fmt_agent = Agent(deps_type=type(deps), system_prompt=(
-            "You format execution results into friendly conversational responses. "
-            "Always mention the specific element type (walls, doors, rooms, etc.) — never use generic terms. "
-            "Keep it concise. Include markdown tables when present in the data."
-        ))
-        result = await fmt_agent.run(prompt, deps=deps, model=model)
-        return str(result.output)
-    except Exception as e:
-        logger.warning(f"[V4] LLM summary formatting failed ({e}), using template fallback.")
-        return _format_fallback_response(summary_text, user_query)
+        # Detect what kind of result this is from the body
+        if "| Group" in body and "| Count" in body:
+            lead = f"Here's the breakdown of **{topic}** by level:\n\n"
+        elif "modified" in body.lower() or "set " in body.lower():
+            lead = f"Updated **{topic}** successfully.\n\n"
+        elif "deleted" in body.lower():
+            lead = f"Deleted **{topic}** successfully.\n\n"
+        else:
+            lead = f"Here are the **{topic}**:\n\n"
+        return lead + body
+
+    return summary_text
 
 
 def _build_sovereign_handoff(
@@ -414,7 +416,28 @@ async def chat_with_agent(request: ChatRequest):
                 summary = "Execution completed."
 
             logger.info(f"[V4] Script-summarized: {len(summary)} chars.")
-            agent_response = await _run_conversational_summary(summary, deps, model, request.message)
+            # Extract topic from history (original user query may not be in request.message)
+            topic_query = request.message or ""
+            # Try legacy history first (human messages have type: "human")
+            if request.history:
+                for h in reversed(request.history):
+                    if isinstance(h, dict) and h.get("type") == "human":
+                        topic_query = str(h.get("content", ""))
+                        break
+            # Fallback: try raw_history (PydanticAI format — UserPromptPart)
+            if topic_query == (request.message or "") and request.raw_history:
+                try:
+                    history_msgs = json.loads(request.raw_history)
+                    for msg in reversed(history_msgs):
+                        if isinstance(msg, dict):
+                            parts = msg.get("parts", [])
+                            for p in parts:
+                                if isinstance(p, dict) and p.get("part_kind") == "user-prompt":
+                                    topic_query = str(p.get("content", ""))
+                                    break
+                except Exception:
+                    pass
+            agent_response = await _run_conversational_summary(summary, deps, model, topic_query)
             response_data["message"] = agent_response
 
             # Inject summary into history for follow-up turns
@@ -468,7 +491,12 @@ async def chat_with_agent(request: ChatRequest):
                     summary = summarize(request.raw_output_for_summary)
                 except Exception:
                     summary = "The results are in the Analytics tab."
-                response_data["message"] = await _run_conversational_summary(summary, deps, model, request.message)
+                topic_query2 = request.message or ""
+                if request.history:
+                    for h in reversed(request.history):
+                        if isinstance(h, dict) and h.get("type") == "human":
+                            topic_query2 = str(h.get("content", "")); break
+                response_data["message"] = await _run_conversational_summary(summary, deps, model, topic_query2)
                 return Response(content=json.dumps(response_data), media_type="application/json")
 
             response_data["status"] = "interrupted"

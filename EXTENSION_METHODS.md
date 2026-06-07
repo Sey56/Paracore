@@ -644,19 +644,23 @@ GetElements("Doors").GroupByParam("HandFlipped").Table()
 
 ---
 
-### `.GroupByParam(groupBy, sum, unit)` → `Group | Count | Total`
+### `.GroupByParam(groupByParam, sumParam, unit)` → `Group | Count | Total`
 
-> Groups by one parameter and sums a second numeric parameter per group.
+> **groupByParam**: parameter to group by (e.g. "Level"). Elements with the same value become one group.
+> **sumParam**: numeric parameter to SUM per group (e.g. "Area", "Length"). Groups by the first, sums the second.
+> **unit**: unit to display the summed total in (e.g. "m2", "m"). Optional.
 
 ```csharp
+// Group rooms by Level, sum their Area in m² per level
+GetElements("Rooms").GroupByParam("Level", "Area", "m2").Table()
+// Group   | Count | Total
+// Level 1 | 12    | 892.3
+
+// Group walls by Base Constraint, sum their Length in meters
 GetElements("Walls").GroupByParam("Base Constraint", "Length", "m").Table()
 // Group   | Count | Total
 // Level 1 | 23    | 284.5
 // Level 2 | 18    | 201.3
-
-GetElements("Rooms").GroupByParam("Level", "Area", "m2").Table()
-// Group   | Count | Total
-// Level 1 | 12    | 892.3
 ```
 
 ---

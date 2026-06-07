@@ -266,8 +266,15 @@ GetElements("Doors").GroupByParam("Level").Table()
 // Level 2  | 9
 ```
 
-### `.GroupByParam(groupName, sumName, unit)` → `Group | Count | Total`
+### `.GroupByParam(groupByParam, sumParam, unit)` → `Group | Count | Total`
+
+Groups by the first parameter, SUMS the second numeric parameter per group in the given unit.
+
 ```csharp
+// Sum of room Area per Level in m²
+GetElements("Rooms").GroupByParam("Level", "Area", "m2").Table()
+
+// Sum of wall Length per Level in meters
 GetElements("Walls").GroupByParam("Level", "Length", "m").Table()
 // Group    | Count | Total
 // Level 1  | 23    | 284.5

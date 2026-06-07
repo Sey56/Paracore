@@ -358,8 +358,15 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
   const chartKeys = useMemo(() => {
     if (!parsedData || !Array.isArray(parsedData) || parsedData.length === 0) return { xAxisKey: 'name', yAxisKey: 'value' };
     const firstRow = parsedData[0]; const keys = Object.keys(firstRow);
-    const yAxisKey = keys.find(k => typeof firstRow[k] === 'number') || 'value';
-    const xAxisKey = keys.find(k => k !== yAxisKey) || 'name';
+    const numericKeys = keys.filter(k => typeof firstRow[k] === 'number');
+    // Prefer "Total" over "Count" so GroupByParam(name, sum, unit) charts show the sum
+    const yAxisKey = numericKeys.find(k => /total/i.test(k))
+        || numericKeys.find(k => !/count/i.test(k))
+        || numericKeys[0]
+        || 'value';
+    const xAxisKey = keys.find(k => k !== yAxisKey && typeof firstRow[k] !== 'number')
+        || keys.find(k => k !== yAxisKey)
+        || 'name';
     return { xAxisKey, yAxisKey };
   }, [parsedData]);
 

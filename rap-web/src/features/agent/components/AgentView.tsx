@@ -8,6 +8,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useScriptExecution } from '@/features/automation';
 import { useScripts } from '@/features/automation';
 import { useConsole } from '@/features/automation/store/ConsoleContext';
+import type { ConsoleItemType } from '@/features/automation/store/ConsoleContext';
 import { filterVisibleParameters } from '@/utils/parameterVisibility';
 
 import { Modal } from '@/components/common/Modal';
@@ -392,7 +393,7 @@ export const AgentView: React.FC = () => {
             const textOutput = (res.data.output || '').trim();
             if (textOutput) {
               setLocalHistory(prev => [...prev, {
-                type: 'output',
+                type: 'output' as ConsoleItemType,
                 text: textOutput,
                 timestamp: new Date(),
               }].slice(-100));

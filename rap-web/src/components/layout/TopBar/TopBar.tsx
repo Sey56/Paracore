@@ -124,27 +124,21 @@ export const TopBar: React.FC = () => {
           { id: 'agent', label: 'Agent', icon: faRobot },
           { id: 'playlists', label: 'Playlists', icon: faListUl }
         ].map(nav => {
-          const isLocked = nav.needsCloud && (!activeTeam || activeTeam.team_id === 0);
           const isActive = activeMainView === nav.id;
 
           return (
             <button
               key={nav.id}
               onClick={() => {
-                if (!isLocked) {
-                  if (nav.id === 'agent') handleAgentModeClick();
-                  else setActiveMainView(nav.id as 'scripts' | 'agent' | 'playlists');
-                }
+                if (nav.id === 'agent') handleAgentModeClick();
+                else setActiveMainView(nav.id as 'scripts' | 'agent' | 'playlists');
               }}
-              disabled={isLocked}
               className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300
                 ${isActive
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]'
-                  : isLocked
-                    ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-40'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
-              title={isLocked ? `${nav.label} (Team/Cloud Required)` : `${nav.label} Mode`}
+              title={`${nav.label} Mode`}
             >
               <FontAwesomeIcon icon={nav.icon} className={isActive ? 'text-blue-500' : ''} />
               {nav.label}
