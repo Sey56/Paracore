@@ -760,26 +760,19 @@ export const AgentView: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-transparent overflow-hidden relative font-sans">
-      {/* ── GROUNDED HEADER ── */}
-      <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 z-20 mt-3 mb-2 mx-4 bg-[var(--bg-ground)] rounded-2xl border border-[var(--border-divider)] shadow-sm">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-full bg-[var(--bg-panel)] flex items-center justify-center shadow-md border border-[var(--border-divider)]">
-             <FontAwesomeIcon icon={faAsterisk} size="sm" className="text-[var(--accent)]" />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-[13px] font-black text-[var(--text-main)] tracking-tight uppercase leading-tight">Paracore</h1>
-            <span className="text-[10px] font-bold text-[var(--text-muted)] tracking-wider uppercase leading-none">Agent</span>
-          </div>
+      {/* ── HEADER ── */}
+      <div className="flex-shrink-0 flex justify-between items-center px-5 py-2 border-b border-[var(--border-divider)]/50">
+        <div className="flex items-center gap-2.5">
+          <FontAwesomeIcon icon={faAsterisk} size="sm" className="text-[var(--accent)]" />
+          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-main)]">Paracore Agent</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <button 
-            onClick={() => setIsClearChatModalOpen(true)} 
-            title="Clear Session" 
-            className="p-1.5 text-[var(--text-muted)] hover:text-red-500 transition-colors"
-          >
-            <FontAwesomeIcon icon={faTrash} className="text-xs" />
-          </button>
-        </div>
+        <button
+          onClick={() => setIsClearChatModalOpen(true)}
+          title="Clear Session"
+          className="text-[var(--text-muted)] hover:text-red-500 transition-colors"
+        >
+          <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+        </button>
       </div>
 
       {/* ── MESSAGES CANAL ── */}
