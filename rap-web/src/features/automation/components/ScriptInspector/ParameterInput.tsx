@@ -519,7 +519,6 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
               }}
               className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
               disabled={disabled}
-              inputMode="decimal"
             />
           )}
           {param.selectionType && param.selectionType !== "None" && onPickObject && (
