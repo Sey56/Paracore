@@ -701,7 +701,7 @@ namespace CoreScript.Engine.Globals
             where T : Element
         {
             var list = elements.ToList();
-            if (!list.Any()) return elements;
+            if (!list.Any()) { ExecutionGlobals.TrackPipeline(0); return elements; }
 
             var doc = list.First().Document;
             void Action()
@@ -725,8 +725,13 @@ namespace CoreScript.Engine.Globals
                     try { doc.Delete(e.Id); } catch { }
                 }
             }
-            if (doc.IsModifiable) Action();
-            else Tx.Transact(doc, "Delete Elements", Action);
+            try
+            {
+                if (doc.IsModifiable) Action();
+                else Tx.Transact(doc, "Delete Elements", Action);
+                ExecutionGlobals.TrackPipeline(-3); // ✓
+            }
+            catch { ExecutionGlobals.TrackPipeline(-4); throw; } // ✗
             return elements;
         }
 
@@ -1034,7 +1039,9 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static IEnumerable<FamilyInstance> StandardOnly(this IEnumerable<FamilyInstance> elements)
         {
-            return elements.Where(fi => fi.IsStandardDoor());
+            var list = elements.Where(fi => fi.IsStandardDoor()).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
         }
     }
 
@@ -1054,7 +1061,9 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string value)
             where T : Element
         {
-            return elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase));
+            var list = elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
         }
 
         /// <summary>
@@ -1063,7 +1072,9 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, double value, string unit = "")
             where T : Element
         {
-            return elements.Where(e => Math.Abs(e.GetNum(name, string.IsNullOrEmpty(unit) ? "ft" : unit) - value) < 0.001);
+            var list = elements.Where(e => Math.Abs(e.GetNum(name, string.IsNullOrEmpty(unit) ? "ft" : unit) - value) < 0.001).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
         }
 
         /// <summary>
@@ -1073,14 +1084,16 @@ namespace CoreScript.Engine.Globals
             where T : Element
         {
             var u = string.IsNullOrEmpty(unit) ? "ft" : unit;
-            return op.ToLower() switch
+            var list = (op.ToLower() switch
             {
                 ">" => elements.Where(e => e.GetNum(name, u) > value),
                 "<" => elements.Where(e => e.GetNum(name, u) < value),
                 ">=" => elements.Where(e => e.GetNum(name, u) >= value),
                 "<=" => elements.Where(e => e.GetNum(name, u) <= value),
                 _ => elements.Where(e => Math.Abs(e.GetNum(name, u) - value) < 0.001),
-            };
+            }).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
         }
 
         /// <summary>
@@ -1089,13 +1102,15 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, string value)
             where T : Element
         {
-            return op.ToLower() switch
+            var list = (op.ToLower() switch
             {
                 "contains" => elements.Where(e => e.GetStr(name).Contains(value, StringComparison.OrdinalIgnoreCase)),
                 "starts" or "startswith" => elements.Where(e => e.GetStr(name).StartsWith(value, StringComparison.OrdinalIgnoreCase)),
                 "ends" or "endswith" => elements.Where(e => e.GetStr(name).EndsWith(value, StringComparison.OrdinalIgnoreCase)),
                 _ => elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)),
-            };
+            }).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
         }
 
         /// <summary>
@@ -1105,7 +1120,9 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereMatches<T>(this IEnumerable<T> elements, string pattern)
             where T : Element
         {
-            return elements.Where(e => e.Matches(pattern));
+            var list = elements.Where(e => e.Matches(pattern)).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
         }
 
         /// <summary>
@@ -1130,6 +1147,7 @@ namespace CoreScript.Engine.Globals
                 var uidoc = new UIApplication(doc.Application).ActiveUIDocument;
                 if (uidoc != null) uidoc.Selection.SetElementIds(list.Select(e => e.Id).ToList());
             }
+            ExecutionGlobals.TrackPipeline(list.Count);
             return list;
         }
 
@@ -1146,6 +1164,7 @@ namespace CoreScript.Engine.Globals
                 var uidoc = new UIApplication(doc.Application).ActiveUIDocument;
                 if (uidoc != null) uidoc.ShowElements(list.Select(e => e.Id).ToList());
             }
+            ExecutionGlobals.TrackPipeline(list.Count);
             return list;
         }
 
@@ -1163,10 +1182,16 @@ namespace CoreScript.Engine.Globals
                 if (view != null && view.CanEnableTemporaryViewPropertiesMode())
                 {
                     void Action() => view.IsolateElementsTemporary(list.Select(e => e.Id).ToList());
-                    if (doc.IsModifiable) Action();
-                    else Tx.Transact(doc, "Isolate Elements", Action);
+                    try
+                    {
+                        if (doc.IsModifiable) Action();
+                        else Tx.Transact(doc, "Isolate Elements", Action);
+                        ExecutionGlobals.TrackPipeline(-3); // ✓
+                    }
+                    catch { ExecutionGlobals.TrackPipeline(-4); throw; } // ✗
                 }
             }
+            ExecutionGlobals.TrackPipeline(list.Count);
             return list;
         }
 
@@ -1187,11 +1212,17 @@ namespace CoreScript.Engine.Globals
                     {
                         var doc = view.Document;
                         void Action() => view.HideElements(hideable);
-                        if (doc.IsModifiable) Action();
-                        else Tx.Transact(doc, "Hide Elements", Action);
+                        try
+                        {
+                            if (doc.IsModifiable) Action();
+                            else Tx.Transact(doc, "Hide Elements", Action);
+                            ExecutionGlobals.TrackPipeline(-3); // ✓
+                        }
+                        catch { ExecutionGlobals.TrackPipeline(-4); throw; } // ✗
                     }
                 }
             }
+            ExecutionGlobals.TrackPipeline(list.Count);
             return list;
         }
 
@@ -1209,10 +1240,16 @@ namespace CoreScript.Engine.Globals
                 {
                     var doc = view.Document;
                     void Action() => view.UnhideElements(list.Select(e => e.Id).ToList());
-                    if (doc.IsModifiable) Action();
-                    else Tx.Transact(doc, "Unhide Elements", Action);
+                    try
+                    {
+                        if (doc.IsModifiable) Action();
+                        else Tx.Transact(doc, "Unhide Elements", Action);
+                        ExecutionGlobals.TrackPipeline(-3); // ✓
+                    }
+                    catch { ExecutionGlobals.TrackPipeline(-4); throw; } // ✗
                 }
             }
+            ExecutionGlobals.TrackPipeline(list.Count);
             return list;
         }
 
@@ -1227,11 +1264,16 @@ namespace CoreScript.Engine.Globals
             where T : Element
         {
             var list = elements.ToList();
-            if (!list.Any()) return list;
+            if (!list.Any()) { ExecutionGlobals.TrackPipeline(0); return list; }
             var doc = list.First().Document;
             void Action() { foreach (var e in list) e.SetVal(name, value); }
-            if (doc.IsModifiable) Action();
-            else Tx.Transact(doc, $"Set {name}", Action);
+            try
+            {
+                if (doc.IsModifiable) Action();
+                else Tx.Transact(doc, $"Set {name}", Action);
+                ExecutionGlobals.TrackPipeline(-3); // ✓
+            }
+            catch { ExecutionGlobals.TrackPipeline(-4); throw; } // ✗
             return list;
         }
 
@@ -1242,11 +1284,16 @@ namespace CoreScript.Engine.Globals
             where T : Element
         {
             var list = elements.ToList();
-            if (!list.Any()) return list;
+            if (!list.Any()) { ExecutionGlobals.TrackPipeline(0); return list; }
             var doc = list.First().Document;
             void Action() { foreach (var e in list) e.SetVal(name, value, unit); }
-            if (doc.IsModifiable) Action();
-            else Tx.Transact(doc, $"Set {name}", Action);
+            try
+            {
+                if (doc.IsModifiable) Action();
+                else Tx.Transact(doc, $"Set {name}", Action);
+                ExecutionGlobals.TrackPipeline(-3); // ✓
+            }
+            catch { ExecutionGlobals.TrackPipeline(-4); throw; } // ✗
             return list;
         }
 
@@ -1257,11 +1304,16 @@ namespace CoreScript.Engine.Globals
             where T : Element
         {
             var list = elements.ToList();
-            if (!list.Any()) return list;
+            if (!list.Any()) { ExecutionGlobals.TrackPipeline(0); return list; }
             var doc = list.First().Document;
             void Action() { foreach (var e in list) e.SetVal(name, valueFactory(e)); }
-            if (doc.IsModifiable) Action();
-            else Tx.Transact(doc, $"Set {name}", Action);
+            try
+            {
+                if (doc.IsModifiable) Action();
+                else Tx.Transact(doc, $"Set {name}", Action);
+                ExecutionGlobals.TrackPipeline(-3); // ✓
+            }
+            catch { ExecutionGlobals.TrackPipeline(-4); throw; } // ✗
             return list;
         }
 
@@ -1272,7 +1324,7 @@ namespace CoreScript.Engine.Globals
             where T : Element
         {
             var list = elements.ToList();
-            if (!list.Any()) return list;
+            if (!list.Any()) { ExecutionGlobals.TrackPipeline(0); return list; }
             var doc = list.First().Document;
             void Action()
             {
@@ -1282,8 +1334,13 @@ namespace CoreScript.Engine.Globals
                     e.SetVal(name, valueFactory(e, idx));
                 }
             }
-            if (doc.IsModifiable) Action();
-            else Tx.Transact(doc, $"Set {name}", Action);
+            try
+            {
+                if (doc.IsModifiable) Action();
+                else Tx.Transact(doc, $"Set {name}", Action);
+                ExecutionGlobals.TrackPipeline(-3); // ✓
+            }
+            catch { ExecutionGlobals.TrackPipeline(-4); throw; } // ✗
             return list;
         }
 
@@ -1301,8 +1358,9 @@ namespace CoreScript.Engine.Globals
             where T : class
         {
             var list = elements.ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
             bool isNumeric = IsNumericParamGeneric(list, name);
-            
+
             return isNumeric
                 ? list.OrderBy(e => GetNumGeneric(e, name))
                 : list.OrderBy(e => GetStrGeneric(e, name));
@@ -1318,8 +1376,9 @@ namespace CoreScript.Engine.Globals
             where T : class
         {
             var list = elements.ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
             bool isNumeric = IsNumericParamGeneric(list, name);
-            
+
             return isNumeric
                 ? list.OrderByDescending(e => GetNumGeneric(e, name))
                 : list.OrderByDescending(e => GetStrGeneric(e, name));
@@ -1389,7 +1448,7 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy)
             where T : class
         {
-            return elements
+            var results = elements
                 .GroupBy(e => GetStrGeneric(e, groupBy))
                 .OrderBy(g => g.Key)
                 .Select(g =>
@@ -1398,7 +1457,9 @@ namespace CoreScript.Engine.Globals
                     obj.Group = g.Key;
                     obj.Count = g.Count();
                     return (object)obj;
-                });
+                }).ToList();
+            ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(results.Count);
+            return results;
         }
 
         /// <summary>
@@ -1408,7 +1469,7 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy, string sum, string unit = "")
             where T : class
         {
-            return elements
+            var results = elements
                 .GroupBy(e => GetStrGeneric(e, groupBy))
                 .OrderBy(g => g.Key)
                 .Select(g =>
@@ -1421,7 +1482,9 @@ namespace CoreScript.Engine.Globals
                         return GetNumGeneric(e, sum);
                     }), 3);
                     return (object)obj;
-                });
+                }).ToList();
+            ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(results.Count);
+            return results;
         }
     }
 }

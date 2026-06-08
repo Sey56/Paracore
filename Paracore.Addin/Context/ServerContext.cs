@@ -27,6 +27,7 @@ namespace Paracore.Addin.Context
         public IReadOnlyList<string> PrintLog => _printMessages;
         public IReadOnlyList<string> ErrorLog => _errorMessages;
         public IReadOnlyList<StructuredOutputItem> StructuredOutputLog => _structuredOutputItems; // New property
+        public List<int> PipelineDiagnostics { get; set; } = new();
         public bool IsReadOnly { get; }
 
         // ✅ Backing delegate for script printing

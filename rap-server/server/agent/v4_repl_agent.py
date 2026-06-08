@@ -44,7 +44,8 @@ async def execute_dynamic_query(ctx: RunContext[AgentDeps], args: DynamicQueryAr
     """
     # SOVEREIGN HANDOFF: We interrupt the agent's flow by raising this custom exception.
     # The agent_router.py will catch this exception, extract the code, and send it to the UI.
-    raise InterruptedException(args.csharp_code, args.justification)
+    from agent.tool_helpers import sanitize_csharp_code
+    raise InterruptedException(sanitize_csharp_code(args.csharp_code), args.justification)
 
 class ExploreQueryArgs(BaseModel):
     csharp_code: str = Field(description="The C# snippet to execute silently for schema and parameter discovery ONLY.")
@@ -62,8 +63,9 @@ async def explore_revit_data(ctx: RunContext[AgentDeps], args: ExploreQueryArgs)
         # We auto-inject Take(20) at the end if Table() or CombinedParams is used to prevent token flooding
         # But for now we trust the LLM or handle the shield in the router.
         logger.info(f"Agent Exploring Data: {args.justification}")
-        
-        result = execute_script(args.csharp_code, "{}")
+        from agent.tool_helpers import sanitize_csharp_code
+        code = sanitize_csharp_code(args.csharp_code)
+        result = execute_script(code, "{}")
         
         if result["is_success"]:
             from agent.tool_helpers import summarize_execution_result

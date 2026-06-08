@@ -6,7 +6,35 @@ Extracted to eliminate ~45 lines of duplicated search logic and ~20 lines
 of duplicated result-wrapping logic.
 """
 
+import re
 from typing import Any, Dict
+
+# Known Revit storage types that LLMs sometimes append to parameter names
+_TYPE_SUFFIXES = [
+    'String', 'Double', 'Integer', 'ElementId', 'Length', 'Area', 'Volume',
+    'Boolean', 'YesNo', 'Number', 'Text', 'Enum',
+]
+
+
+def sanitize_csharp_code(code: str) -> str:
+    """
+    Strip [Type] annotations from quoted strings in C# code.
+    LLMs sometimes write "Level [String]" instead of just "Level".
+    This runs automatically before every execution so the agent can't get it wrong.
+
+    Examples:
+        .GroupByParam("Level [String]")  →  .GroupByParam("Level")
+        .WhereParam("Area [Double]", ">", 25, "m2")  →  .WhereParam("Area", ">", 25, "m2")
+    """
+    for suffix in _TYPE_SUFFIXES:
+        # Match " [Suffix]" or " (Suffix)" inside double quotes
+        code = re.sub(
+            rf'"([^"]*?)\s*[\[(]\s*{re.escape(suffix)}\s*[\])]\s*"',
+            r'"\1"',
+            code,
+            flags=re.IGNORECASE
+        )
+    return code
 
 
 def search_extension_methods(query: str, doc: str) -> str:
@@ -92,6 +120,7 @@ def summarize_execution_result(result: Dict[str, Any]) -> str:
         "structuredOutput": result.get("structured_output", result.get("structuredOutput", [])),
         "output": result.get("output", ""),
         "internal_data": result.get("internal_data", result.get("internalData", "")),
+        "pipeline_diagnostics": result.get("pipeline_diagnostics", []),
     }
     return summarize(output_raw)
 

@@ -58,11 +58,11 @@ Other parameters like "Top Constraint", "Top Offset", "Base Offset", "Unconnecte
 are also category-specific. NEVER assume a parameter name — DIFFERENT categories use
 DIFFERENT names for the same concept.
 
-THE ONLY WAY TO KNOW THE CORRECT PARAMETER NAME: Discovery.
+USE THE TABLE ABOVE FIRST. If the category and parameter you need are listed above, use
+the name directly — no discovery needed. The table IS authoritative for those categories.
 
-MANDATORY: Before ANY query that uses a parameter name (WhereParam, GroupByParam,
-GetStr, GetNum, GetVal, etc.), you MUST discover the correct parameter names.
-Use explore_revit_data with this pattern OR search_schema:
+ONLY discover when the parameter is NOT listed above or you are unsure. To discover,
+use explore_revit_data (SILENT — the user never sees these):
 
   GetElements("CategoryName").First().CombinedParams().Table()
 
@@ -72,9 +72,6 @@ ONLY copy the parameter name (first column). NEVER include [String], [Double],
   Schema shows:  `Level` | String | Instance
   CORRECT code:  .GroupByParam("Level")
   WRONG code:    .GroupByParam("Level [String]")
-
-If you use the wrong parameter name, your query WILL fail or produce wrong results.
-This discovery step is NOT optional. It takes ONE call and prevents guessing.
 </parameter_discovery>
 
 <critical_rules>
@@ -90,7 +87,9 @@ This discovery step is NOT optional. It takes ONE call and prevents guessing.
      The output text feeds your conversational response. Without it you have nothing to say.
 6. .Table() takes NO arguments. Use it for ALL data display. NEVER foreach+Println.
 7. AVOID .ToList() — Paracore collections are materialized. Only OK on GroupBy results.
-8. NEVER guess category names — use GetMagicNames() or GetCategories() first.
+8. Standard Revit categories (Walls, Doors, Rooms, Floors, Ceilings, Windows, etc.) are KNOWN.
+   Use them directly: GetElements("Rooms") or GetElements<Room>(). Only use GetMagicNames()
+   or GetCategories() when the user's category name is ambiguous or non-standard.
 9. Type-safe: GetElements<Room>() = typed (r.Area), GetElements("Rooms") = generic (r.GetNum("Area")).
 </critical_rules>
 
@@ -114,6 +113,9 @@ el.GetVal(name) / GetVal(name, unit, dec)  el.GetInt(name)
 Unit conversion: value.OutputUnit("m2", 2) converts internal feet to target unit.
 Unit strings: "m" "cm" "mm" "ft" "in" | "m2" "sqm" "ft2" "sqft" | "m3" "cum" "ft3" "cuft"
 BANNED: OutputUnit.SquareMeters, "Square Meters", "Cubic Meters", UnitType.UT_Area
+BANNED: Manual unit conversion. NEVER convert cm→ft or mm→m yourself.
+  ALWAYS pass the unit as the last argument: .SetNum("Offset", -150, "cm")
+  The engine handles conversion. Wrong: .SetNum("Offset", -1.5)  // what unit is this?
 
 ## TYPE-LEVEL & WRITE
 el.GetTypeStr/Num/Val/Int(name, unit, dec)  el.GetElementType()
@@ -232,11 +234,14 @@ Modifications use TWO kinds of tool calls. Know the difference:
     → This is what the user actually asked you to do.
 
 STEP 1 — DISCOVER & VALIDATE (silent, use explore_revit_data):
+  - For QUERIES (GroupByParam, Table, BarGraph, etc.): skip discovery. Just execute.
+    If the query returns empty, the summarizer will say "No results found" — that's fine.
+    Do NOT pre-check with GetMagicNames() or GetElements().Count().
   - If you don't know the parameter name for a category, discover it:
     explore_revit_data: GetElements("Walls").First().CombinedParams().Table()
   - If the user mentioned specific level names, verify they exist:
     explore_revit_data: GetElements("Levels").Select(l => new { Name = l.GetStr("Name") }).Table()
-  - If the catalog already tells you the exact parameter name, skip discovery.
+  - If the catalog or the parameter table above already tells you the exact parameter name, skip discovery.
 
 STEP 2 — MODIFY (user-facing, use execute_dynamic_query):
   Generate the final modification code. Examples:

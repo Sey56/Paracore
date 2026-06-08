@@ -48,5 +48,6 @@ namespace Paracore.Addin.Services
         }
 
         public void AddStructuredOutput(string type, string jsonData) { }
+        public List<int> PipelineDiagnostics { get; set; } = new();
     }
 }

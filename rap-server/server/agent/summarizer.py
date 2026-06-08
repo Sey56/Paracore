@@ -67,10 +67,11 @@ def summarize(output_raw: Dict[str, Any]) -> str:
                     parts.append(f"Table **{title}** has {total_rows} rows (data available in UI).")
 
             elif item_type == "table" and isinstance(data, list) and len(data) == 0:
-                parts.append(f"Table **{title}** is empty (no data).")
+                label = f"**{title}**" if title else "The query"
+                parts.append(f"{label} returned no results.")
 
             elif any(t in item_type for t in ("bar", "pie", "line", "graph", "chart")):
-                parts.append("CHART RENDERED — visible in the Analytics tab. Tell the user to check the Analytics tab.")
+                parts.append("Chart rendered — check the Analytics tab.")
 
             elif item_type == "image":
                 parts.append(f"An image **{title}** was rendered.")
@@ -81,7 +82,12 @@ def summarize(output_raw: Dict[str, Any]) -> str:
     # ── Plain text output (Println lines, etc.) ──
     if plain_output and str(plain_output).strip():
         text = str(plain_output).strip()
-        lines = text.split("\n")
+        # Strip pipeline diagnostic lines — they're for the History tab, not the agent
+        text = "\n".join(l for l in text.split("\n") if not l.startswith("Pipeline: [")).strip()
+        if not text:
+            plain_output = ""
+            text = ""
+        lines = text.split("\n") if text else []
         total_lines = len(lines)
         shown_lines = lines[:MAX_TEXT_LINES]
 
@@ -103,11 +109,58 @@ def summarize(output_raw: Dict[str, Any]) -> str:
             internal_str = internal_str[:500] + "... [truncated]"
         parts.append(f"**Internal Data:** {internal_str}")
 
-    # ── Fallback if nothing parsed ──
-    if not parts:
-        return "EXECUTION SUCCESSFUL — no structured output to summarize."
+    # ── Pipeline diagnostics (precise stage-by-stage info) ──
+    diags = output_raw.get("pipeline_diagnostics", [])
+    if not parts and diags:
+        parts.append(_decode_pipeline(diags))
+    elif not parts:
+        return "No output was produced."
 
-    return "EXECUTION SUCCESSFUL. Summarized result:\n\n" + "\n\n".join(parts)
+    return "\n\n".join(parts)
+
+
+def _decode_pipeline(diags: List[int]) -> str:
+    """Decode a pipeline diagnostics array into a human-readable stage summary.
+
+    Encoding:
+      > 0 = item count at this stage
+        0 = empty result
+       -1 = chart rendered
+       -2 = table rendered
+       -3 = write succeeded (✓)
+       -4 = write failed (✗)
+    """
+    tokens: List[str] = []
+    for d in diags:
+        if d > 0:
+            tokens.append(str(d))
+        elif d == 0:
+            tokens.append("0")
+        elif d == -1:
+            tokens.append("chart rendered")
+        elif d == -2:
+            tokens.append("table rendered")
+        elif d == -3:
+            tokens.append("✓")
+        elif d == -4:
+            tokens.append("✗")
+        else:
+            tokens.append(str(d))
+
+    if not tokens:
+        return "No output was produced."
+
+    stages = " → ".join(tokens)
+
+    # Produce a narrative based on the first stage (GetElements)
+    if len(diags) >= 1 and diags[0] == 0:
+        return f"Pipeline [0]: GetElements returned 0 elements — no matching items exist in the document."
+    elif len(diags) >= 2 and diags[0] > 0 and diags[1] == 0:
+        return f"Pipeline [{stages}]: found {diags[0]} elements, but the next stage returned 0."
+    elif any(d < 0 for d in diags):
+        return f"Pipeline [{stages}] completed."
+    else:
+        return f"Pipeline stages: {stages}"
 
 
 def shield_tool_return(text: str, tool_name: str) -> str:
@@ -122,7 +175,7 @@ def shield_tool_return(text: str, tool_name: str) -> str:
         data = json.loads(text)
         if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
             row_count = len(data["data"])
-            return f"EXECUTION SUCCESSFUL. Returned a {data.get('type', 'table')} with {row_count} rows."
+            return f"Returned a {data.get('type', 'table')} with {row_count} rows."
     except (json.JSONDecodeError, TypeError):
         pass
 

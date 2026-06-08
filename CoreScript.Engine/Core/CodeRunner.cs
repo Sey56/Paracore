@@ -186,6 +186,7 @@ namespace CoreScript.Engine.Core
 
                 result.PrintLog = context.PrintLog.ToList();
                 result.ScriptName = topLevelScriptName;
+                result.PipelineDiagnostics = ExecutionGlobals.Current.Value?.PipelineDiagnostics?.ToList() ?? new List<int>();
 
                 // Structured output handling...
                 var contextType = context.GetType();

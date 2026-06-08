@@ -18,6 +18,7 @@ namespace CoreScript.Engine.Globals
             try
             {
                 var list = elements.ToList();
+                ExecutionGlobals.TrackPipeline(list.Count);
                 if (!list.Any())
                 {
                     ScriptApi.Println($"[INFO] The collection is empty. Notebook '{notebookName}' was not created.");

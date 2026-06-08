@@ -170,6 +170,11 @@ namespace CoreScript.Engine.Globals
             }
             var json = JsonSerializer.Serialize(toSerialize, ExecutionGlobals.SerializerOptions);
             _context.AddStructuredOutput(type, json);
+
+            // Pipeline diagnostic: mark visualization as rendered
+            // -1 = chart-type, -2 = table
+            int marker = type.StartsWith("chart") ? -1 : -2;
+            ExecutionGlobals.TrackPipeline(marker);
         }
 
         /// <summary>
@@ -342,6 +347,24 @@ namespace CoreScript.Engine.Globals
                 new JsonStringEnumConverter()
             }
         };
+
+        /// <summary>
+        /// Pipeline stage diagnostics — each stage of a fluent chain appends its item count.
+        /// Positive N = N items at this stage. 0 = empty. -1 = chart, -2 = table.
+        /// -3 = write success (✓), -4 = write failure (✗).
+        /// E.g. [0] means GetElements returned 0. [5, 3, -1] = 5 elements, 3 groups, chart.
+        /// [500, 50, -3, -3] = 500 walls, 50 filtered, two successful SetParams.
+        /// </summary>
+        public List<int> PipelineDiagnostics { get; } = new List<int>();
+
+        /// <summary>
+        /// Appends a diagnostic value to the pipeline diagnostics list.
+        /// Thread-safe via AsyncLocal. Call from any extension method.
+        /// </summary>
+        public static void TrackPipeline(int diagnostic)
+        {
+            Current.Value?.PipelineDiagnostics.Add(diagnostic);
+        }
 
         // Timeout mechanism
         private static DateTime _executionDeadline;

@@ -5,6 +5,7 @@ import api from '@/api/axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faAsterisk, faUser, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt, faCopy } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useScriptExecution } from '@/features/automation';
 import { useScripts } from '@/features/automation';
 import { useConsole } from '@/features/automation/store/ConsoleContext';
@@ -35,11 +36,13 @@ export const AgentView: React.FC = () => {
     setThreadId,
     setActiveInspectorTab,
     setAgentReplResults,
+    setAgentCapturedDocTitle,
   } = useUI();
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
 
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
+  const { revitStatus } = useRevitStatus();
   const { selectedScript, setSelectedScript, runScript, executionResult, clearExecutionResult, userEditedScriptParameters } = useScriptExecution();
   const { scripts, toolLibraryPath } = useScripts();
   const { setLocalHistory } = useConsole();
@@ -383,9 +386,14 @@ export const AgentView: React.FC = () => {
             const hasVisual = res.data.structured_output?.some((item: Record<string, unknown>) =>
                 ['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(String(item.type))
             );
+            const capturedDoc = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
             if (hasVisual) {
               setAgentReplResults(res.data.structured_output);
+              setAgentCapturedDocTitle(capturedDoc);
               setActiveInspectorTab('table');
+            } else {
+              setAgentReplResults([]);
+              setAgentCapturedDocTitle(null);
             }
 
             // Push Println / text output to the History tab so it's visible

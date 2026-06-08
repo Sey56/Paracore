@@ -163,57 +163,22 @@ def _reconstruct_history(
     return pydantic_history
 
 
-# ── Known Revit category patterns for extracting context from user queries ──
-# Used by _extract_topic() to provide category-aware lead-in text without an LLM call.
-_CATEGORY_PATTERNS = [
-    "structural columns", "architectural columns", "columns",
-    "structural framing", "beams", "braces", "trusses",
-    "walls", "curtain walls", "wall types",
-    "floors", "floor types", "ceilings", "roofs",
-    "doors", "door types", "windows", "window types",
-    "rooms", "spaces", "areas",
-    "mechanical equipment", "electrical equipment", "plumbing equipment",
-    "ducts", "pipes", "cable trays", "conduits",
-    "lighting fixtures", "lighting devices", "electrical fixtures",
-    "plumbing fixtures", "sprinklers", "air terminals",
-    "furniture", "casework", "specialty equipment",
-    "grids", "levels", "views", "sheets", "schedules",
-    "family instances", "families", "family types",
-    "text notes", "dimensions", "tags",
-    "railings", "stairs", "ramps",
-    "topography", "toposolid", "site",
-    "assemblies", "groups", "parts",
-]
-
-
-def _extract_topic(user_query: str) -> str:
-    """Extract a Revit category/element topic from the user's query.
-
-    Uses simple substring matching against known Revit category names.
-    Returns the matched category string, or empty string if no match.
-    Fast — no LLM call needed.
-    """
-    lower = user_query.lower()
-    # Sort by length descending so "structural columns" matches before "columns"
-    for pattern in sorted(_CATEGORY_PATTERNS, key=len, reverse=True):
-        if pattern in lower:
-            return pattern
-    return ""
-
-
-def _format_fallback_response(summary_text: str, user_query: str = "") -> str:
-    """Instant template fallback — used when the LLM call times out or fails."""
-    topic = _extract_topic(user_query) if user_query else ""
-
-    if topic:
-        lead = f"Here are the **{topic}** from your query:\n\n"
-    else:
-        lead = "Here are the results:\n\n"
-
-    result = lead + summary_text
-    if "more rows" in summary_text.lower() or "more lines" in summary_text.lower():
-        result += "\n\n*Full results are available in the **Analytics** tab.*"
-    return result
+def _extract_csharp_from_history(pydantic_history: list) -> str:
+    """Extract the most recent execute_dynamic_query C# code from agent history."""
+    for msg in reversed(pydantic_history):
+        parts = getattr(msg, 'parts', [])
+        for p in reversed(parts):
+            if hasattr(p, 'tool_name') and getattr(p, 'tool_name', '') == 'execute_dynamic_query':
+                args = getattr(p, 'args', None)
+                if isinstance(args, dict):
+                    return args.get('csharp_code', '')
+                try:
+                    args_dict = json.loads(str(args)) if isinstance(args, str) else args
+                    if isinstance(args_dict, dict):
+                        return args_dict.get('csharp_code', '')
+                except Exception:
+                    pass
+    return ''
 
 
 async def _run_conversational_summary(
@@ -221,46 +186,62 @@ async def _run_conversational_summary(
     deps,
     model,
     user_query: str = "",
+    csharp_code: str = "",
 ) -> str:
-    """Format execution results conversationally.
+    """Use the LLM to produce a contextual one-sentence response that connects
+    the user's query to the execution result, using the user's own terminology.
 
-    Uses template-based lead-in for reliability — the LLM formatting step
-    was producing generic responses ("items", "Group") instead of using the
-    actual element type from the user's query. The template is deterministic.
+    Falls back to template logic if the LLM call fails.
     """
-    topic = _extract_topic(user_query) if user_query else ""
+    # ── Chart result — template is always correct and fast ──
+    if "CHART" in summary_text or "Analytics tab" in summary_text:
+        return summary_text
 
-    # Build a natural lead-in from the user's query context
-    if topic:
-        # Strip summarizer boilerplate — we'll add our own lead-in
-        body = summary_text
-        for prefix in ["EXECUTION SUCCESSFUL. Summarized result:\n\n", "EXECUTION SUCCESSFUL\n\n"]:
-            if body.startswith(prefix):
-                body = body[len(prefix):]
-                break
-        # Strip "Table with N rows (showing first N):\n" line
-        lines = body.split("\n")
-        if lines and lines[0].startswith("Table with") and "rows" in lines[0]:
-            body = "\n".join(lines[1:]).lstrip("\n")
+    if not user_query:
+        if "GetElements returned 0 elements" in summary_text:
+            return "No matching elements found in the document."
+        if "no output was produced" in summary_text.lower():
+            return "The query returned no results — the document may not contain any matching elements."
+        if "no results" in summary_text.lower():
+            return "No matching elements found in the document."
+        return summary_text
 
-        # Detect what kind of result this is from the body
-        if "CHART" in body or "Analytics tab" in body:
-            chart_type = "chart"
-            if "bar" in body.lower(): chart_type = "bar chart"
-            elif "pie" in body.lower(): chart_type = "pie chart"
-            elif "line" in body.lower(): chart_type = "line chart"
-            return f"The **{topic}** {chart_type} is ready — check the **Analytics** tab.\n\n"
-        elif "| Group" in body and "| Count" in body:
-            lead = f"Here's the breakdown of **{topic}** by level:\n\n"
-        elif "modified" in body.lower() or "set " in body.lower():
-            lead = f"Updated **{topic}** successfully.\n\n"
-        elif "deleted" in body.lower():
-            lead = f"Deleted **{topic}** successfully.\n\n"
-        else:
-            lead = f"Here are the **{topic}**:\n\n"
-        return lead + body
+    # ── Use LLM for contextual response ──
+    code_context = f'\nThe executed C# code was:\n```csharp\n{csharp_code}\n```\n' if csharp_code else ''
+    prompt = (
+        f'The user asked: "{user_query}"\n'
+        f'{code_context}'
+        f"Result summary: {summary_text}\n\n"
+        f"Respond in ONE short sentence. Be specific about what was found or not found.\n"
+        f'CRITICAL: If the result says "GetElements returned 0 elements", '
+        f'look at the C# code to find what element type was queried (e.g. '
+        f'GetElements("Rooms") means rooms). Say "No [that element type] '
+        f'found in the document." — NOT a paraphrase of the user query.\n'
+        f'Use the exact element type from the CODE or query. Never say '
+        f'"items", "elements", or paraphrase the entire user request.\n'
+        f"If a chart/image was produced, say so and mention the Analytics tab."
+    )
 
-    return summary_text
+    try:
+        from pydantic_ai import Agent as PydanticAgent
+        summary_bot = PydanticAgent(
+            model=model,
+            system_prompt=(
+                "You write one-sentence summaries of code execution results. "
+                "Always use the exact terminology from the user's query. "
+                "Never use generic terms like 'items', 'elements', or 'objects'. "
+                "Never mention internal details like 'Group', 'Count', or column names."
+            ),
+        )
+        result = await summary_bot.run(prompt)
+        return str(result.output).strip()
+    except Exception:
+        logger.exception("LLM conversational summary failed, using fallback.")
+        if "no output was produced" in summary_text.lower():
+            return "The query returned no results — the document may not contain any matching elements."
+        if "no results" in summary_text.lower():
+            return "No matching elements found in the document."
+        return summary_text
 
 
 def _build_sovereign_handoff(
@@ -422,6 +403,8 @@ async def chat_with_agent(request: ChatRequest):
                 summary = "Execution completed."
 
             logger.info(f"[V4] Script-summarized: {len(summary)} chars.")
+            # Extract C# code from history for pipeline diagnostic context
+            csharp_code = _extract_csharp_from_history(pydantic_history)
             # Extract topic from history (original user query may not be in request.message)
             topic_query = request.message or ""
             # Try legacy history first (human messages have type: "human")
@@ -443,18 +426,9 @@ async def chat_with_agent(request: ChatRequest):
                                     break
                 except Exception:
                     pass
-            agent_response = await _run_conversational_summary(summary, deps, model, topic_query)
+            agent_response = await _run_conversational_summary(summary, deps, model, topic_query, csharp_code)
             response_data["message"] = agent_response
-
-            # Inject summary into history for follow-up turns
-            try:
-                pydantic_history.append(ModelRequest(parts=[
-                    UserPromptPart(content=f"[Execution Result]\n{summary}")
-                ]))
-                response_data["raw_history_json"] = _serialize_history(pydantic_history)
-            except Exception as hist_err:
-                logger.warning(f"[V4] History update after summary failed: {hist_err}")
-
+            response_data["raw_history_json"] = _serialize_history(pydantic_history)
             return Response(content=json.dumps(response_data), media_type="application/json")
 
         # ── 5. Main agent run ─────────────────────────────────────────────
@@ -504,7 +478,7 @@ async def chat_with_agent(request: ChatRequest):
                     for h in reversed(request.history):
                         if isinstance(h, dict) and h.get("type") == "human":
                             topic_query2 = str(h.get("content", "")); break
-                response_data["message"] = await _run_conversational_summary(summary, deps, model, topic_query2)
+                response_data["message"] = await _run_conversational_summary(summary, deps, model, topic_query2, getattr(e, 'csharp_code', ''))
                 return Response(content=json.dumps(response_data), media_type="application/json")
 
             response_data["status"] = "interrupted"

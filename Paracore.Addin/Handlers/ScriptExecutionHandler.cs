@@ -536,6 +536,13 @@ namespace Paracore.Addin.Handlers
                 }
             }
 
+            // Pipeline diagnostics: prefer from CodeRunner result, fallback to context
+            var diags = finalResult.PipelineDiagnostics?.Count > 0
+                ? finalResult.PipelineDiagnostics
+                : serverContext?.PipelineDiagnostics;
+            if (diags != null)
+                response.PipelineDiagnostics.AddRange(diags);
+
             response.InternalData = "";
             return response;
         }

@@ -43,6 +43,9 @@ namespace Paracore.Addin.Handlers
                     ErrorMessage = error
                 };
 
+                if (context.PipelineDiagnostics != null)
+                    response.PipelineDiagnostics.AddRange(context.PipelineDiagnostics);
+
                 foreach (var item in structuredOutput)
                 {
                     try

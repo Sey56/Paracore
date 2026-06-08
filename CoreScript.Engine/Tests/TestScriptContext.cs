@@ -68,5 +68,7 @@ namespace CoreScript.Engine.Tests
             Console.WriteLine($"Structured Output - Type: {type}, Data: {jsonData}");
         }
 
+        public List<int> PipelineDiagnostics { get; set; } = new();
+
     }
 }

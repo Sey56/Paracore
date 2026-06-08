@@ -84,6 +84,8 @@ export interface UIContextProps {
   // Agent REPL execution results (for Analytics tab rendering)
   agentReplResults: StructuredOutput[] | null;
   setAgentReplResults: (results: StructuredOutput[] | null) => void;
+  agentCapturedDocTitle: string | null;
+  setAgentCapturedDocTitle: (title: string | null) => void;
 
   // Global InfoModal
   infoModalState: { isOpen: boolean; title: string; message: string };

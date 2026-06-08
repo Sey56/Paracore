@@ -45,13 +45,13 @@ check("Contains all 3 rows", result.count("|") >= 3 * 3)
 check("No 'more rows' message", "more rows" not in result.lower())
 check("No UI reference", "in the UI" not in result and "analytics tab" not in result.lower())
 
-# 1b: Large table (10,000 rows) — 5 shown + total
+# 1b: Large table (10,000 rows) — 10 shown + total
 print("\n  1b: Large table (10K rows)")
 data = [{"Id": i, "Name": f"Wall_{i}", "Length_m": 2.5 + i * 0.1} for i in range(10000)]
 result = summarize({"structuredOutput": [
     {"type": "table", "data": json.dumps(data), "title": "All Walls"}
 ]})
-check("Shows 5 rows", result.count("| Wall_") == 5)
+check("Shows 10 rows", result.count("| Wall_") == 10)
 check("Total count visible", "10000 rows" in result)
 check("More rows message", "more rows" in result.lower())
 check("Under 500 chars", len(result) < 500, f"got {len(result)}")
@@ -110,10 +110,40 @@ check("Text output present", "Processed" in result)
 # 1i: Completely empty result
 print("\n  1i: Empty result")
 result = summarize({})
-check("Fallback message", "no structured output" in result.lower() or "EXECUTION SUCCESSFUL" in result)
+check("Fallback message", result == "No output was produced.")
 
-# 1j: CamelCase key (structuredOutput vs structured_output)
-print("\n  1j: snake_case keys")
+# 1j: Pipeline diagnostics — GetElements returned 0
+print("\n  1j: Pipeline diagnostics [0] (no elements)")
+result = summarize({"pipeline_diagnostics": [0]})
+check("Zero elements diagnostic", "GetElements returned 0 elements" in result)
+
+# 1k: Pipeline diagnostics — elements found but filter emptied
+print("\n  1k: Pipeline diagnostics [500, 0] (elements but filter emptied)")
+result = summarize({"pipeline_diagnostics": [500, 0]})
+check("Filter emptied", "found 500 elements" in result and "next stage returned 0" in result)
+
+# 1l: Pipeline diagnostics — full write chain
+print("\n  1l: Pipeline diagnostics [500, 50, -3, -3] (walls modified)")
+result = summarize({"pipeline_diagnostics": [500, 50, -3, -3]})
+check("Write chain", "completed" in result and "✓" in result)
+
+# 1m: Pipeline diagnostics — mixed success/failure
+print("\n  1m: Pipeline diagnostics [500, 50, -3, -4] (partial failure)")
+result = summarize({"pipeline_diagnostics": [500, 50, -3, -4]})
+check("Partial failure", "✓" in result and "✗" in result)
+
+# 1n: Pipeline diagnostics — chart
+print("\n  1n: Pipeline diagnostics [5, 3, -1] (chart)")
+result = summarize({"pipeline_diagnostics": [5, 3, -1]})
+check("Chart via diags", "chart rendered" in result)
+
+# 1o: Pipeline diagnostics — table
+print("\n  1o: Pipeline diagnostics [5, 3, -2] (table)")
+result = summarize({"pipeline_diagnostics": [5, 3, -2]})
+check("Table via diags", "table rendered" in result)
+
+# 1p: CamelCase key (structuredOutput vs structured_output)
+print("\n  1p: snake_case keys")
 result = summarize({"structured_output": [
     {"type": "table", "data": json.dumps([{"X": 1}]), "title": "Test"}
 ]})
@@ -276,28 +306,23 @@ print("=" * 60)
 
 # Simulate: GetElements<Room>().Select(...).Table() → summarizer → final text
 rooms = [
-    {"Id": 743405, "Name": "Circulation 39", "Area_m2": 35.87, "Level": "Level 0"},
-    {"Id": 743412, "Name": "Reception 40", "Area_m2": 44.26, "Level": "Level 0"},
-    {"Id": 743436, "Name": "Cafe 41", "Area_m2": 98.11, "Level": "Level 0"},
-    {"Id": 743939, "Name": "Toilets 42", "Area_m2": 34.95, "Level": "Level 0"},
-    {"Id": 744299, "Name": "Kitchen 43", "Area_m2": 36.84, "Level": "Level 0"},
-    {"Id": 744300, "Name": "Office 44", "Area_m2": 22.10, "Level": "Level 0"},
+    {"Id": i, "Name": f"Room {i}", "Area_m2": 20.0 + i, "Level": "Level 0"} for i in range(12)
 ]
 # Simulate what the frontend sends as raw_output_for_summary
 payload = {
     "structuredOutput": [{"type": "table", "data": json.dumps(rooms), "title": "All Rooms"}],
-    "output": "Found 6 rooms."
+    "output": "Found 12 rooms."
 }
 summary = summarize(payload)
 print(f"  Summary ({len(summary)} chars):")
 for line in summary.split("\n")[:6]:
     print(f"    {line}")
 
-check("First room visible", "Circulation 39" in summary)
-check("Last room NOT visible", "Office 44" not in summary, f"unexpected: {summary[:50]}")
-check("Total count", "6 rows" in summary)
-check("5 shown", "first 5" in summary)
-check("More rows message", "1 more rows" in summary)
+check("First room visible", "Room 0" in summary)
+check("11th room NOT visible", "Room 10" not in summary, f"unexpected: {summary[:50]}")
+check("Total count", "12 rows" in summary)
+check("10 shown", "first 10" in summary)
+check("More rows message", "2 more rows" in summary)
 
 # ─────────────────────────────────────────────────────────────
 # SUMMARY

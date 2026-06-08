@@ -183,6 +183,7 @@ namespace CoreScript.Engine.Core
                     }
                     finally
                     {
+                        context.PipelineDiagnostics = new List<int>(globals.PipelineDiagnostics);
                         ExecutionGlobals.ClearContext();
                     }
 
@@ -247,6 +248,7 @@ namespace CoreScript.Engine.Core
 
                     // Continue existing session
                     session.Globals.UpdateContext(context);
+                    session.Globals.PipelineDiagnostics.Clear();
                     ExecutionGlobals.SetContext(session.Globals);
 
                     try
@@ -255,6 +257,7 @@ namespace CoreScript.Engine.Core
                     }
                     finally
                     {
+                        context.PipelineDiagnostics = new List<int>(session.Globals.PipelineDiagnostics);
                         ExecutionGlobals.ClearContext();
                     }
                 }
@@ -282,6 +285,23 @@ namespace CoreScript.Engine.Core
 
                 // If the script printed anything (e.g. via Println), return that as the main output
                 var printLog = string.Join(Environment.NewLine, context.PrintLog);
+
+                // Append pipeline diagnostics to output so they're visible in the REPL
+                var diags = context.PipelineDiagnostics;
+                if (diags != null && diags.Count > 0)
+                {
+                    var diagTokens = diags.Select(d => d switch
+                    {
+                        -1 => "chart",
+                        -2 => "table",
+                        -3 => "✓",
+                        -4 => "✗",
+                        _ => d.ToString()
+                    });
+                    var diagLine = "Pipeline: [" + string.Join(" → ", diagTokens) + "]";
+                    printLog = string.IsNullOrEmpty(printLog) ? diagLine : printLog + Environment.NewLine + diagLine;
+                }
+
                 if (!string.IsNullOrEmpty(printLog))
                 {
                     return (true, printLog, string.Empty, structuredOutput);

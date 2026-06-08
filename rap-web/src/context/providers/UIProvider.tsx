@@ -127,6 +127,7 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Agent REPL execution results (for Analytics tab rendering)
   const [agentReplResults, setAgentReplResults] = useState<StructuredOutput[] | null>(null);
+  const [agentCapturedDocTitle, setAgentCapturedDocTitle] = useState<string | null>(null);
 
   // Global InfoModal state
   const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
@@ -291,6 +292,8 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     closeWelcomeGate,
     agentReplResults,
     setAgentReplResults,
+    agentCapturedDocTitle,
+    setAgentCapturedDocTitle,
   }), [
     isSidebarOpen,
     toggleSidebar,

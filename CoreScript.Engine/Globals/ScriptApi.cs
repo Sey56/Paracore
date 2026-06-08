@@ -417,11 +417,13 @@ namespace CoreScript.Engine.Globals
         public static List<T> GetElements<T>() where T : Element
         {
             var collector = Core.ParameterOptionsComputer.CreateResilientCollector(Doc, typeof(T));
-            return collector
+            var results = collector
                 .Cast<Element>()
                 .Where(e => e is T)
                 .Cast<T>()
                 .ToList();
+            TrackElements(results);
+            return results;
         }
 
         /// <summary>
@@ -431,9 +433,11 @@ namespace CoreScript.Engine.Globals
         public static List<T> GetElements<T>(string categoryName) where T : Element
         {
             var computer = new Core.ParameterOptionsComputer(Doc);
-            return computer.ComputeElementOptions(typeof(T).Name, categoryName)
+            var results = computer.ComputeElementOptions(typeof(T).Name, categoryName)
                 .Cast<T>()
                 .ToList();
+            TrackElements(results);
+            return results;
         }
 
 
@@ -444,10 +448,12 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static List<Element> GetElements(BuiltInCategory category)
         {
-            return new FilteredElementCollector(Doc)
+            var results = new FilteredElementCollector(Doc)
                 .OfCategory(category)
                 .WhereElementIsNotElementType()
                 .ToList();
+            TrackElements(results);
+            return results;
         }
 
         /// <summary>
@@ -479,6 +485,7 @@ namespace CoreScript.Engine.Globals
                 // Return an empty list — don't throw.
                 if (allValidTerms.Any(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase)))
                 {
+                    TrackElements(results);
                     return results; // Empty list
                 }
 
@@ -496,7 +503,17 @@ namespace CoreScript.Engine.Globals
                 throw new ArgumentException($"'{cleanName}' is not a valid Class or Category. For a list of supported Hydrations run GetMagicNames().");
             }
 
+            TrackElements(results);
             return results;
+        }
+
+        /// <summary>
+        /// Appends the element count to the pipeline diagnostics for precise
+        /// error reporting (e.g. "No rooms found" vs "Grouping produced no results").
+        /// </summary>
+        private static void TrackElements<T>(List<T> elements)
+        {
+            ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(elements.Count);
         }
 
         /// <summary>

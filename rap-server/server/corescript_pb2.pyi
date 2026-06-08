@@ -279,7 +279,7 @@ class StructuredOutputItem(_message.Message):
     def __init__(self, type: _Optional[str] = ..., data: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
 
 class ExecuteScriptResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "internal_data", "agent_summary")
+    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "internal_data", "agent_summary", "pipeline_diagnostics")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -287,6 +287,7 @@ class ExecuteScriptResponse(_message.Message):
     STRUCTURED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
     INTERNAL_DATA_FIELD_NUMBER: _ClassVar[int]
     AGENT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    PIPELINE_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
@@ -294,7 +295,8 @@ class ExecuteScriptResponse(_message.Message):
     structured_output: _containers.RepeatedCompositeFieldContainer[StructuredOutputItem]
     internal_data: str
     agent_summary: str
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., internal_data: _Optional[str] = ..., agent_summary: _Optional[str] = ...) -> None: ...
+    pipeline_diagnostics: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., internal_data: _Optional[str] = ..., agent_summary: _Optional[str] = ..., pipeline_diagnostics: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ()
@@ -691,13 +693,15 @@ class ExecuteReplRequest(_message.Message):
     def __init__(self, code: _Optional[str] = ..., session_id: _Optional[str] = ..., license_tier: _Optional[str] = ...) -> None: ...
 
 class ExecuteReplResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "structured_output")
+    __slots__ = ("is_success", "output", "error_message", "structured_output", "pipeline_diagnostics")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     STRUCTURED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    PIPELINE_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
     structured_output: _containers.RepeatedCompositeFieldContainer[StructuredOutputItem]
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ...) -> None: ...
+    pipeline_diagnostics: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., pipeline_diagnostics: _Optional[_Iterable[int]] = ...) -> None: ...

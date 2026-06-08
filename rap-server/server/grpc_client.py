@@ -259,6 +259,7 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
             # logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
             structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in response.structured_output]
+            pipeline_diags = list(getattr(response, 'pipeline_diagnostics', []))
 
             return {
                 "is_success": response.is_success,
@@ -267,6 +268,7 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
                 "error_details": list(response.error_details),
                 "structured_output": structured_output_data,
                 "internal_data": response.internal_data,
+                "pipeline_diagnostics": pipeline_diags,
             }
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.UNAVAILABLE:
@@ -791,11 +793,13 @@ def execute_repl(code: str, session_id: str, license_tier: str = "free"):
             )
             response = stub.ExecuteRepl(request)
             structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in getattr(response, 'structured_output', [])]
+            pipeline_diags = list(getattr(response, 'pipeline_diagnostics', []))
             return {
                 "is_success": response.is_success,
                 "output": response.output,
                 "error_message": response.error_message,
                 "structured_output": structured_output_data,
+                "pipeline_diagnostics": pipeline_diags,
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:

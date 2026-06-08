@@ -135,7 +135,7 @@ export const ExecutionHistory: React.FC = () => {
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto custom-scrollbar bg-slate-50/50 dark:bg-slate-900/40 p-3 pl-5 pr-0 font-mono text-sm select-text cursor-text relative" style={{ scrollbarGutter: 'stable' }}>
+    <div className="h-full w-full overflow-y-auto custom-scrollbar bg-slate-50/50 dark:bg-slate-900/40 p-3 pl-5 pr-0 font-mono text-sm select-text cursor-text relative">
       <div className="min-h-full pb-16">
         {localHistory.map((item: ConsoleItem, i: number) => (
           <div key={i} className={`mb-1 px-3 break-words whitespace-pre-wrap ${

@@ -14,7 +14,7 @@ export const BottomPanel: React.FC = () => {
   const { executionResult, clearExecutionResult, selectedScript } = useScriptExecution();
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
-  const { agentReplResults, setAgentReplResults } = useUI();
+  const { agentReplResults, setAgentReplResults, agentCapturedDocTitle } = useUI();
   
   const [activeTab, setActiveTab] = useState<'history' | 'analytics'>('history');
   const activeTabRef = useRef(activeTab);
@@ -279,11 +279,11 @@ export const BottomPanel: React.FC = () => {
           <ExecutionHistory />
         </div>
         <div className={`h-full w-full ${activeTab !== 'analytics' ? 'hidden' : ''}`}>
-          <TableTabContent 
-            executionResult={executionResult} 
-            capturedDocTitle={executionResult?.capturedDocTitle || null} 
-            currentDocTitle={currentDocTitle} 
-            selectedScript={selectedScript} 
+          <TableTabContent
+            executionResult={agentReplResults ? { ...executionResult, scriptName: 'Agent' } as any : executionResult}
+            capturedDocTitle={agentReplResults ? agentCapturedDocTitle : (executionResult?.capturedDocTitle || null)}
+            currentDocTitle={currentDocTitle}
+            selectedScript={selectedScript}
             isHeaderPortalTarget={activeTab === 'analytics'}
             structuredOutputOverride={agentReplResults}
           />
