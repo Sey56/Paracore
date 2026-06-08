@@ -12,7 +12,6 @@ interface SliderInputProps {
 }
 
 export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value, onChange, disabled, suffix, isDecimal }) => {
-    // V5 PRECISION FIX: Use string for localValue to preserve trailing zeros (6.0)
     const [localValue, setLocalValue] = useState(String(value));
     const [isDragging, setIsDragging] = useState(false);
     const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -20,17 +19,12 @@ export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value,
     // Sync with prop changes (e.g. preset selection) only if NOT dragging
     useEffect(() => {
         if (!isDragging) {
-            let incoming = String(value);
-            // If it's a decimal and we got a whole number string, format it
-            if (isDecimal && !incoming.includes(".")) {
-                incoming = value.toFixed(1);
-            }
-            
+            const incoming = String(value);
             if (incoming !== localValue && parseFloat(incoming) !== parseFloat(localValue)) {
                 setLocalValue(incoming);
             }
         }
-    }, [value, isDragging, isDecimal, localValue]);
+    }, [value, isDragging, localValue]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -40,18 +34,10 @@ export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value,
     }, []);
 
     const handleChange = (newVal: number, rawString?: string) => {
-        let stringVal = rawString ?? String(newVal);
-        
-        // V5: If we are in decimal mode and the value is an integer, force the .0
-        if (isDecimal && !stringVal.includes(".")) {
-            stringVal = newVal.toFixed(1);
-        }
-
+        const stringVal = rawString ?? String(newVal);
         setLocalValue(stringVal);
 
         if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-
-        // Throttle/Debounce the parent update to 16ms (60fps) to prevent heavy re-renders
         debounceTimeout.current = setTimeout(() => {
             onChange(newVal);
         }, 16);
@@ -96,15 +82,10 @@ export const SliderInput: React.FC<SliderInputProps> = ({ min, max, step, value,
                             }
                         }}
                         onBlur={() => {
-                            // V5 PRECISION FORMATTER: Ensure at least one decimal for non-integers or precision needs
-                            if (localValue !== "") {
+                            if (localValue !== "" && localValue !== "-") {
                                 const parsed = parseFloat(localValue);
                                 if (!isNaN(parsed)) {
-                                    let formatted = String(parsed);
-                                    if (isDecimal && !formatted.includes(".")) {
-                                        formatted = parsed.toFixed(1);
-                                    }
-                                    setLocalValue(formatted);
+                                    setLocalValue(String(parsed));
                                     onChange(parsed);
                                 }
                             }
