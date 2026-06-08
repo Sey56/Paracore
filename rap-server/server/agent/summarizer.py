@@ -89,7 +89,7 @@ def summarize(output_raw: Dict[str, Any]) -> str:
         # Short conversational output (e.g. "✅ Modified 19 walls") — render as plain
         # text, NOT in a code block, so the frontend doesn't box it with a scrollbar.
         if total_lines <= 3 and not any(
-            keyword in text.lower() for keyword in ("error", "exception", "traceback", " at ", "debug", "warning")
+            keyword in text.lower() for keyword in ("error", "exception", "traceback", "debug", "warning")
         ):
             parts.insert(0, text)
         elif total_lines <= MAX_TEXT_LINES:

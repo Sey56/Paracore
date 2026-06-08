@@ -303,12 +303,13 @@ Wall.Create  Floor.Create  Doc.Create.NewFamilyInstance  XYZ  Line.CreateBound  
 .Delete() — BIM-safe bulk delete  .Hide()  .Unhide()  .Isolate()
 
 ## FLUENT ENDERS
-.Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()
-.ToNotebook("Name") — Jupyter export
-CHARTS: BarGraph after GroupByParam picks Total column automatically. Short form works:
-  GetElements("Rooms").GroupByParam("Level","Area","m2").BarGraph()
-For custom axis labels, reshape:
-  .Select(g => new { Level=((dynamic)g).Group, TotalArea_m2=((dynamic)g).Total }).BarGraph()
+.Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()  .ToNotebook("Name")
+.Table() rules: GroupByParam→chain directly. Raw collection→.Select() first with explicit columns.
+  ✓ .GroupByParam("Level").Table()
+  ✗ GetElements("Walls").Table() — dumps hundreds of columns
+  ✗ .SetParam(...).Table() — same issue
+  ✓ .Select(x => new { x.Id, Name = x.GetStr("Name") }).Table()
+CHARTS: .GroupByParam("Level","Area","m2").BarGraph() picks Total automatically.
 
 ## DISCOVERY & DEBUG
 .CombinedParams().Table() — EVERY param (Instance+Type+Native) with exact names

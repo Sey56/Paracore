@@ -75,12 +75,21 @@ const VALID_UNITS = ['mm', 'cm', 'm', 'ft', 'in', 'm2', 'sqm', 'ft2', 'sqft', 'm
 
 const beautifyHeader = (header: string) => {
   let cleaned = header.replace(/_/g, ' ');
+  // Check for bracketed units: "Length (cm)" or "Area [m2]"
   const match = cleaned.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
   if (match) {
     const possibleName = match[1].replace(/[_([]$/, '').trim();
     const possibleUnit = match[2].trim();
     if (VALID_UNITS.includes(possibleUnit.toLowerCase())) {
       return possibleName;
+    }
+  }
+  // Strip trailing unit word from underscore suffix (e.g. Top_Offset_cm → "Top Offset cm" → "Top Offset")
+  const words = cleaned.split(' ');
+  if (words.length > 1) {
+    const lastWord = words[words.length - 1].toLowerCase();
+    if (VALID_UNITS.includes(lastWord)) {
+      return words.slice(0, -1).join(' ');
     }
   }
   return cleaned;
