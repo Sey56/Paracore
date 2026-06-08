@@ -31,9 +31,9 @@ export const UnifiedStepInspector: React.FC<UnifiedStepInspectorProps> = ({
     const [activeTab, setActiveTab] = useState<TabType>('config');
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-gray-900 overflow-hidden">
+        <div className="flex flex-col h-full bg-white dark:bg-slate-900 overflow-hidden">
             {/* Fixed Header */}
-            <div className="shrink-0 px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900 z-10">
+            <div className="shrink-0 px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between z-10">
                 <div className="flex items-center space-x-4">
                     <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
                         Step {stepIndex + 1}
@@ -87,7 +87,7 @@ export const UnifiedStepInspector: React.FC<UnifiedStepInspectorProps> = ({
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-hidden relative bg-gray-50/50 dark:bg-gray-800/20">
+            <div className="flex-1 overflow-hidden relative">
                 <div className="h-full overflow-y-auto custom-scrollbar p-6">
                     <div className="max-w-4xl max-w-full"> {/* Allow wider content for charts */}
                         {activeTab === 'config' && (

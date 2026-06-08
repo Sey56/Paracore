@@ -242,7 +242,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
     };
 
     return (
-        <div className="h-full flex text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 font-sans">
+        <div className="h-full flex text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-[var(--bg-ground)] font-sans">
             <EditPlaylistModal
                 isOpen={isEditDetailsModalOpen}
                 onClose={() => setIsEditDetailsModalOpen(false)}
@@ -277,7 +277,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
             </div>
 
             {/* RIGHT: Unified Inspector (60%) */}
-            <div style={{ order: isLayoutSwapped ? 0 : 2 }} className="w-[60%] bg-slate-50 dark:bg-slate-950 flex flex-col">
+            <div style={{ order: isLayoutSwapped ? 0 : 2 }} className="w-[60%] bg-slate-50 dark:bg-[var(--bg-ground)] flex flex-col">
                 {selectedItemIndex !== null && editedPlaylist.items[selectedItemIndex] ? (
                     (() => {
                         const currentScriptPath = editedPlaylist.items[selectedItemIndex].scriptPath;
