@@ -1087,12 +1087,13 @@ namespace CoreScript.Engine.Globals
             // Convert comparison value to internal feet so we compare raw values.
             // NEVER use GetNum(name, unit) — it rounds via OutputUnit and introduces error.
             var internalValue = string.IsNullOrEmpty(unit) ? value : value.InputUnit(unit);
+            const double eps = 1e-9; // ~0.0003mm — guards against floating-point noise at boundaries
             var list = (op.ToLower() switch
             {
-                ">" => elements.Where(e => e.GetNum(name) > internalValue),
-                "<" => elements.Where(e => e.GetNum(name) < internalValue),
-                ">=" => elements.Where(e => e.GetNum(name) >= internalValue),
-                "<=" => elements.Where(e => e.GetNum(name) <= internalValue),
+                ">" => elements.Where(e => e.GetNum(name) > internalValue + eps),
+                "<" => elements.Where(e => e.GetNum(name) < internalValue - eps),
+                ">=" => elements.Where(e => e.GetNum(name) >= internalValue - eps),
+                "<=" => elements.Where(e => e.GetNum(name) <= internalValue + eps),
                 _ => elements.Where(e => Math.Abs(e.GetNum(name) - internalValue) < 0.001),
             }).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
