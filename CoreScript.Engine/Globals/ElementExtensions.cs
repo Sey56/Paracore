@@ -1072,7 +1072,8 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, double value, string unit = "")
             where T : Element
         {
-            var list = elements.Where(e => Math.Abs(e.GetNum(name, string.IsNullOrEmpty(unit) ? "ft" : unit) - value) < 0.001).ToList();
+            var internalValue = string.IsNullOrEmpty(unit) ? value : value.InputUnit(unit);
+            var list = elements.Where(e => Math.Abs(e.GetNum(name) - internalValue) < 0.001).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
             return list;
         }
@@ -1083,14 +1084,16 @@ namespace CoreScript.Engine.Globals
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, double value, string unit = "")
             where T : Element
         {
-            var u = string.IsNullOrEmpty(unit) ? "ft" : unit;
+            // Convert comparison value to internal feet so we compare raw values.
+            // NEVER use GetNum(name, unit) — it rounds via OutputUnit and introduces error.
+            var internalValue = string.IsNullOrEmpty(unit) ? value : value.InputUnit(unit);
             var list = (op.ToLower() switch
             {
-                ">" => elements.Where(e => e.GetNum(name, u) > value),
-                "<" => elements.Where(e => e.GetNum(name, u) < value),
-                ">=" => elements.Where(e => e.GetNum(name, u) >= value),
-                "<=" => elements.Where(e => e.GetNum(name, u) <= value),
-                _ => elements.Where(e => Math.Abs(e.GetNum(name, u) - value) < 0.001),
+                ">" => elements.Where(e => e.GetNum(name) > internalValue),
+                "<" => elements.Where(e => e.GetNum(name) < internalValue),
+                ">=" => elements.Where(e => e.GetNum(name) >= internalValue),
+                "<=" => elements.Where(e => e.GetNum(name) <= internalValue),
+                _ => elements.Where(e => Math.Abs(e.GetNum(name) - internalValue) < 0.001),
             }).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
             return list;
