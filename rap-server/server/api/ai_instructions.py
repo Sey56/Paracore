@@ -95,9 +95,25 @@ var areaM2 = value.OutputUnit("m2", 2);  // internal feet → display
 var input = 5000.InputUnit("mm");        // user unit → internal feet
 
 // Unit strings: "m" "cm" "mm" "ft" "in" | "m2" "sqm" "ft2" "sqft" | "m3" "cum" "ft3" "cuft"
-// BANNED: Manual unit conversion math (3.28084, 0.3048) — ALWAYS use unit arguments
-// BANNED: OutputUnit.SquareMeters, UnitType.UT_Area, "Square Meters", "Cubic Meters"
 ```
+
+**CRITICAL — [Unit] params and double conversion:**
+When a `Params` property has `[Unit("mm")]`, the value is ALREADY converted to
+internal feet by the time the script runs. Do NOT pass a unit argument again —
+that would convert it twice:
+
+```csharp
+// CORRECT — p.LengthThreshold is already internal feet (thanks to [Unit])
+walls.WhereParam("Length", "<", p.LengthThreshold)
+walls.SetNum("Length", p.LengthThreshold)
+
+// WRONG — double-converts (first [Unit], then "mm" argument)
+walls.WhereParam("Length", "<", p.LengthThreshold, "mm")
+```
+
+**BANNED:**
+- Manual unit conversion math (3.28084, 0.3048) — use unit arguments
+- `OutputUnit.SquareMeters`, `UnitType.UT_Area`, "Square Meters", "Cubic Meters"
 
 ## Filtering & Sorting
 
@@ -378,17 +394,17 @@ var p = new Params();
 
 GetElements<Room>()
     .WhereParam("Level", p.TargetLevel.Name)
-    .WhereParam("Area", ">", p.MinArea, "m2")
+    .WhereParam("Area", ">", p.MinArea)        // [Unit("m2")] already converted — no unit arg
     .OrderByParamDesc("Area")
     .Select(r => new {
         Id = r.Id.Value,
         Name = r.Name,
         Level = r.GetStr("Level"),
-        Area = r.GetNum("Area", "m2")
+        Area = r.GetNum("Area", "m2")          // GetNum converts to display unit here
     })
     .Table();
 
-Println($"Rooms on {p.TargetLevel.Name} above {p.MinArea} m².");
+Println($"Rooms on {p.TargetLevel.Name} above {p.MinArea.OutputUnit("m2", 1)} m².");
 
 public class Params
 {
@@ -407,9 +423,9 @@ var walls = GetElements("Walls")
     .WhereParam("Base Constraint", p.SourceLevel.Name);
 
 walls.SetParam("Top Constraint", p.TargetLevel.Name)
-     .SetParam("Top Offset", p.TopOffset, "cm");
+     .SetParam("Top Offset", p.TopOffset);    // [Unit("cm")] already converted — no unit arg
 
-Println($"Updated {walls.Count()} walls — Top Constraint → {p.TargetLevel.Name}, Offset → {p.TopOffset} cm.");
+Println($"Updated {walls.Count()} walls — Top Constraint → {p.TargetLevel.Name}, Offset → {p.TopOffset.OutputUnit("cm", 0)} cm.");
 
 public class Params
 {
@@ -431,10 +447,10 @@ XYZ end = new XYZ(p.Length.InputUnit("mm"), 0, 0);
 Transact("Create Wall", () => {
     var wall = Wall.Create(Doc, Line.CreateBound(start, end), lvl.Id, false);
     wall.WallType = p.WallType;
-    wall.SetVal("Unconnected Height", p.Height, "cm");
+    wall.SetVal("Unconnected Height", p.Height);  // [Unit("cm")] already converted
 });
 
-Println($"Created wall: {p.WallType.Name}, {p.Length}mm long, {p.Height}cm high.");
+Println($"Created wall: {p.WallType.Name}, {p.Length.OutputUnit("mm", 0)}mm long, {p.Height.OutputUnit("cm", 0)}cm high.");
 
 public class Params
 {
