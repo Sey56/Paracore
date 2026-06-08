@@ -251,7 +251,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
                 initialDescription={editedPlaylist.description}
             />
             {/* LEFT: Timeline & Actions (40%) */}
-            <div style={{ order: isLayoutSwapped ? 2 : 0 }} className={`w-[40%] flex flex-col ${isLayoutSwapped ? 'border-l' : 'border-r'} border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-lg overflow-hidden`}>
+            <div style={{ order: isLayoutSwapped ? 2 : 0 }} className={`w-[40%] flex flex-col ${isLayoutSwapped ? 'border-l' : 'border-r'} border-slate-200 dark:border-slate-800`}>
                 <PlaylistScriptPicker
                     isOpen={isScriptPickerOpen}
                     onClose={() => setIsScriptPickerOpen(false)}
@@ -277,7 +277,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
             </div>
 
             {/* RIGHT: Unified Inspector (60%) */}
-            <div style={{ order: isLayoutSwapped ? 0 : 2 }} className="w-[60%] bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
+            <div style={{ order: isLayoutSwapped ? 0 : 2 }} className="w-[60%] bg-slate-50 dark:bg-slate-950 flex flex-col">
                 {selectedItemIndex !== null && editedPlaylist.items[selectedItemIndex] ? (
                     (() => {
                         const currentScriptPath = editedPlaylist.items[selectedItemIndex].scriptPath;

@@ -38,9 +38,9 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
     const isAnyRunning = Object.values(executionStatus).some(s => s === 'running');
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+        <div className="flex flex-col h-full bg-transparent">
             {/* Fixed Header — stays in place, never scrolls */}
-            <div className="shrink-0 p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-20 shadow-sm">
+            <div className="shrink-0 p-4 border-b border-slate-200 dark:border-slate-800 z-20">
                 {/* Top Row: Back & Name */}
                 <div className="flex items-center space-x-3 mb-4">
                     <button
