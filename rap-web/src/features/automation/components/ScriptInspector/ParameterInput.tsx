@@ -391,21 +391,15 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   const [localValue, setLocalValue] = useState<string>(
     param.value !== null && param.value !== undefined ? String(param.value) : ""
   );
+  const [isFocused, setIsFocused] = useState(false);
 
   React.useEffect(() => {
+    if (isFocused) return; // Never overwrite while user is typing
     const incomingValue = param.value !== null && param.value !== undefined ? String(param.value) : "";
-    // V5 PRECISION FIX: Use strict string comparison to preserve .00 precision
-    // We only update local state if the string representation has actually diverged.
     if (incomingValue !== localValue) {
-      // Additional check: if they represent the same numerical value but localValue is more precise (has trailing zeros)
-      // and the user is currently focused, we preserve the localValue.
-      const isFocused = document.activeElement?.tagName === 'INPUT' && (document.activeElement as HTMLInputElement).value === localValue;
-      if (isFocused && parseFloat(incomingValue) === parseFloat(localValue)) {
-        return;
-      }
       setLocalValue(incomingValue);
     }
-  }, [param.value, localValue]);
+  }, [param.value, isFocused]);
 
   const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() : null;
   const isContextMismatch = param.computedInDocument && currentDocTitle && param.computedInDocument !== currentDocTitle;
@@ -503,6 +497,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             <input
               type="text"
               value={localValue}
+              onFocus={() => setIsFocused(true)}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
@@ -516,6 +511,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
                 }
               }}
               onBlur={() => {
+                setIsFocused(false);
                 if (localValue !== "" && localValue !== "-") {
                   const parsed = parseFloat(localValue);
                   if (!isNaN(parsed)) onChange(index, parsed);
