@@ -20,6 +20,10 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
     const [isLoading, setIsLoading] = React.useState(false);
     const [expandedGroups, setExpandedGroups] = React.useState<Record<string, boolean>>({});
 
+    // Locally cached computed options — independent from global script state.
+    // This ensures compute in the playlist doesn't affect the gallery, and vice versa.
+    const [computedOptionsMap, setComputedOptionsMap] = React.useState<Record<string, string[]>>({});
+
     // Track which script paths we've already attempted to fetch parameters for,
     // preventing infinite reload loops when a script genuinely has no parameters.
     const fetchedRef = React.useRef<Set<string>>(new Set());
@@ -70,9 +74,11 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
             const savedValue = savedParameters[p.name];
             // Use saved value if present, otherwise default
             const value = savedValue !== undefined ? savedValue : p.value;
-            return { ...p, value };
+            // Merge locally computed options (independent from gallery)
+            const localOptions = computedOptionsMap[p.name];
+            return { ...p, value, options: localOptions || p.options };
         });
-    }, [script, savedParameters]);
+    }, [script, savedParameters, computedOptionsMap]);
 
     const visibleParameters = useMemo(() => {
         return filterVisibleParameters(mergedParameters);
@@ -100,35 +106,20 @@ export const PlaylistItemConfig: React.FC<PlaylistItemConfigProps> = ({ scriptPa
 
     const handleCompute = async (_s: Script, paramName: string) => {
         if (!script) return;
+        // false = don't update global script — keeps gallery and playlist independent
         const result = await computeParameterOptions(script, paramName, false);
 
-        if (result && result.is_success) {
-            // If it's a range update, we don't necessarily have a new 'value' to save,
-            // but the UI (ParameterInput) will need the new min/max.
-            // However, PlaylistItemConfig gets its 'baseParams' from the global script object.
-            // If we don't update the global script, the next render will still have old min/max.
-            // USER REQUEST: "one should not affect the other".
-            // BUT: Available options (metadata) are usually okay to share.
-            // Let's re-run the compute WITH global update for the METADATA part if needed,
-            // OR just accept that for now, 'Compute' in Playlist mode might not update the UI
-            // available options unless we store them in PlaylistItem too (overkill?).
+        if (result && result.is_success && result.options && result.options.length > 0) {
+            // Cache options locally so the dropdown populates without touching global state
+            setComputedOptionsMap(prev => ({ ...prev, [paramName]: result.options! }));
 
-            // Actually, let's just update the value if the compute forced a value change (e.g. current invalid).
-            // computeParameterOptions currently returns { options, ... }.
-
-            // For now, let's at least handle the value sync if the compute returned a specific reset value.
-            // Note: computeParameterOptions (global) does auto-selection.
-            // Our local version (false) just returns the data.
-
-            if (result.options && result.options.length > 0) {
-                const param = mergedParameters.find(p => p.name === paramName);
-                if (param && !param.multiSelect) {
-                    const currentValueStr = String(param.value || "");
-                    if (!currentValueStr || !result.options.includes(currentValueStr)) {
-                        const nextValue = result.options[0];
-                        const newParams = { ...savedParameters, [param.name]: nextValue };
-                        onUpdateParameters(newParams);
-                    }
+            // Auto-select first option if current value is invalid or empty
+            const param = mergedParameters.find(p => p.name === paramName);
+            if (param && !param.multiSelect) {
+                const currentValueStr = String(param.value || "");
+                if (!currentValueStr || !result.options.includes(currentValueStr)) {
+                    const newParams = { ...savedParameters, [param.name]: result.options[0] };
+                    onUpdateParameters(newParams);
                 }
             }
         }

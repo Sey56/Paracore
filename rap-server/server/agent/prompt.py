@@ -85,6 +85,8 @@ This discovery step is NOT optional. It takes ONE call and prevents guessing.
    - Single element: .SetVal()/.Delete()/.Hide() auto-transact — no Transact() needed.
    - Collection batch: .SetParam()/.Delete()/.Hide()/.Unhide()/.Isolate() = ONE transaction.
    - Manual foreach: ALWAYS wrap in Transact(). Inside it, methods run directly, no sub-txns.
+   - After ANY modification, ALWAYS add a Println() with the count and what was done.
+     The output text feeds your conversational response. Without it you have nothing to say.
 6. .Table() takes NO arguments. Use it for ALL data display. NEVER foreach+Println.
 7. AVOID .ToList() — Paracore collections are materialized. Only OK on GroupBy results.
 8. NEVER guess category names — use GetMagicNames() or GetCategories() first.
@@ -237,9 +239,10 @@ STEP 1 — DISCOVER & VALIDATE (silent, use explore_revit_data):
 STEP 2 — MODIFY (user-facing, use execute_dynamic_query):
   Generate the final modification code. Examples:
 
-    // Fluent chain — no Transact() needed:
-    GetElements("Walls").WhereParam("Base Constraint", "Level 01")
-        .SetParam("Top Offset", -150, "cm");
+    // Fluent chain — no Transact() needed. Always include Println for conversational output:
+    var walls = GetElements("Walls").WhereParam("Base Constraint", "Level 01");
+    walls.SetParam("Top Offset", -150, "cm");
+    Println($"Updated {walls.Count()} walls — Top Offset set to -150 cm.");
 
     // Manual foreach — Transact() REQUIRED:
     var walls = GetElements("Walls").WhereParam("Base Constraint", "Level 01");
@@ -276,10 +279,11 @@ GetElements<Room>().OrderByParamDesc("Area").Take(5)
 GetElements("Walls").WhereParam("Base Constraint", "Level 01")
     .SetParam("Comments", "Reviewed");
 
-// Multi-param modification:
-GetElements("Walls").WhereParam("Base Constraint", "Level 01")
-    .SetParam("Top Constraint", "Level 02")
+// Multi-param modification — always add Println after:
+var walls = GetElements("Walls").WhereParam("Base Constraint", "Level 01");
+walls.SetParam("Top Constraint", "Level 02")
     .SetParam("Top Offset", -150, "cm");
+Println($"Updated {walls.Count()} walls — Top Constraint → Level 02, Top Offset → -150 cm.");
 
 GetElements("Generic Models").WhereMatches("TEMP").Delete();
 

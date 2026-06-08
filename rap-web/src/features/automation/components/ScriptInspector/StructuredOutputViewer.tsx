@@ -387,7 +387,23 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
     try {
       const cleanSearch = parameterName.replace(/[\s_]+/g, '').toLowerCase(); const meta = paramMetadataMap.get(parameterName.toLowerCase()) || paramMetadataMap.get(cleanSearch);
       let realName = meta?.name || parameterName.replace(/_/g, ' '); let unit = meta?.unit || "";
-      if (!unit) { const match = realName.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/); if (match) { const possibleName = match[1].replace(/[_([]$/, '').trim(); const possibleUnit = match[2].trim(); if (VALID_UNITS.includes(possibleUnit.toLowerCase())) { realName = possibleName; unit = possibleUnit; } } }
+      if (!unit) {
+        // Strip bracketed unit: "Area (m2)" → "Area", unit="m2"
+        const match = realName.match(/^(.*?)?\s*[[(_](.*?)[\])]?$/);
+        if (match) {
+          const possibleName = match[1].replace(/[_([]$/, '').trim();
+          const possibleUnit = match[2].trim();
+          if (VALID_UNITS.includes(possibleUnit.toLowerCase())) { realName = possibleName; unit = possibleUnit; }
+        }
+        // Strip trailing unit word: "Top Offset cm" → "Top Offset"
+        if (!unit) {
+          const words = realName.split(' ');
+          if (words.length > 1) {
+            const lastWord = words[words.length - 1].toLowerCase();
+            if (VALID_UNITS.includes(lastWord)) { realName = words.slice(0, -1).join(' '); unit = lastWord; }
+          }
+        }
+      }
       const response = await api.post('/api/update-element-parameter', { element_id: elementId, parameter_name: realName, new_value_string: newValue, unit });
       if (response.data?.is_success) { showNotification(`Updated ${realName}`, "success"); return true; }
       else { showNotification(`Update failed: ${response.data?.error_message || 'Unknown error'}`, "error"); return false; }

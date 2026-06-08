@@ -489,7 +489,24 @@ namespace Paracore.Addin.Handlers
                         t.Start();
                         if (targetParam.StorageType == StorageType.String) targetParam.Set(request.NewValueString ?? "");
                         else if (targetParam.StorageType == StorageType.Integer) targetParam.Set(int.Parse(request.NewValueString));
-                        else if (targetParam.StorageType == StorageType.ElementId) targetParam.Set(new ElementId(long.Parse(request.NewValueString)));
+                        else if (targetParam.StorageType == StorageType.ElementId)
+                        {
+                            // Try numeric ID first, then resolve by name (like SetVal does for Level names)
+                            if (long.TryParse(request.NewValueString, out long id))
+                            {
+                                targetParam.Set(new ElementId(id));
+                            }
+                            else
+                            {
+                                // Resolve by name: search for a matching Level, Type, or other element
+                                var collector = new FilteredElementCollector(doc);
+                                var match = collector.WhereElementIsNotElementType()
+                                    .FirstOrDefault(e => e.Name.Equals(request.NewValueString, StringComparison.OrdinalIgnoreCase));
+                                if (match == null)
+                                    throw new Exception($"Could not resolve '{request.NewValueString}' to an element ID. Check the name.");
+                                targetParam.Set(match.Id);
+                            }
+                        }
                         else if (targetParam.StorageType == StorageType.Double)
                         {
                             double val = double.Parse(request.NewValueString);
@@ -543,7 +560,17 @@ namespace Paracore.Addin.Handlers
                             {
                                 if (targetParam.StorageType == StorageType.String) targetParam.Set(update.NewValueString ?? "");
                                 else if (targetParam.StorageType == StorageType.Integer) targetParam.Set(int.Parse(update.NewValueString));
-                                else if (targetParam.StorageType == StorageType.ElementId) targetParam.Set(new ElementId(long.Parse(update.NewValueString)));
+                                else if (targetParam.StorageType == StorageType.ElementId)
+                                {
+                                    if (long.TryParse(update.NewValueString, out long bid))
+                                        targetParam.Set(new ElementId(bid));
+                                    else
+                                    {
+                                        var match = new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                                            .FirstOrDefault(e => e.Name.Equals(update.NewValueString, StringComparison.OrdinalIgnoreCase));
+                                        if (match != null) targetParam.Set(match.Id);
+                                    }
+                                }
                                 else if (targetParam.StorageType == StorageType.Double)
                                 {
                                     double val = double.Parse(update.NewValueString);
