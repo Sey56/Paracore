@@ -500,21 +500,21 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
               onFocus={() => setIsFocused(true)}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
+                // Allow free typing: digits, optional minus, optional single decimal
+                if (val === "" || val === "-" || /^-?\d*\.?\d*$/.test(val)) {
                   setLocalValue(val);
-                  if (val !== "" && !val.endsWith(".") && !val.endsWith(".0")) {
-                    const parsed = parseFloat(val);
-                    if (!isNaN(parsed)) onChange(index, parsed);
-                  } else if (val === "") {
-                    onChange(index, 0);
-                  }
                 }
               }}
               onBlur={() => {
                 setIsFocused(false);
-                if (localValue !== "" && localValue !== "-") {
-                  const parsed = parseFloat(localValue);
-                  if (!isNaN(parsed)) onChange(index, parsed);
+                const cleaned = localValue.replace(/\.$/, ''); // strip trailing dot
+                const parsed = parseFloat(cleaned);
+                if (!isNaN(parsed)) {
+                  setLocalValue(String(parsed));
+                  onChange(index, parsed);
+                } else if (cleaned === "" || cleaned === "-") {
+                  setLocalValue("0");
+                  onChange(index, 0);
                 }
               }}
               className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
