@@ -43,11 +43,6 @@ interface ConsoleContextType {
   activeSnippetName: string | null;
   setActiveSnippetName: (val: string | null) => void;
 
-  aiResult: any | null;
-  setAiResult: (val: any | null) => void;
-  isExplaining: boolean;
-  setIsExplaining: (val: boolean) => void;
-
   // Snippet Handlers
   handleNewSnippet: () => void;
   handleLoadSnippet: () => Promise<void>;
@@ -105,9 +100,6 @@ export const ConsoleProvider: React.FC<{
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [aiResult, setAiResult] = useState<any | null>(null);
-  const [isExplaining, setIsExplaining] = useState(false);
-
   useEffect(() => { localStorage.setItem('paracore_console_history', JSON.stringify(localHistory)); }, [localHistory]);
   useEffect(() => { localStorage.setItem('paracore_repl_single_history', JSON.stringify(singleCommandHistory)); }, [singleCommandHistory]);
   useEffect(() => { localStorage.setItem('paracore_repl_multi_history', JSON.stringify(multiCommandHistory)); }, [multiCommandHistory]);
@@ -127,7 +119,6 @@ export const ConsoleProvider: React.FC<{
 
   const handleClear = useCallback(() => {
     setLocalHistory([]);
-    setAiResult(null);
     setExecutionResult(null);
     localStorage.removeItem('paracore_console_history');
     localStorage.removeItem('paracore_console_last_timestamp');
@@ -138,7 +129,6 @@ export const ConsoleProvider: React.FC<{
     const command = isMulti ? multiLineValue.trim() : singleLineValue.trim();
     if (!command || isReplLoading) return;
 
-    setAiResult(null);
     const currentReplType = (isMulti ? 'multi' : 'single') as 'multi' | 'single';
 
     if (command.toLowerCase() === 'help' || command === '?') {
@@ -360,8 +350,6 @@ export const ConsoleProvider: React.FC<{
       singleCommandHistory, multiCommandHistory,
       activeSnippetPath, setActiveSnippetPath,
       activeSnippetName, setActiveSnippetName,
-      aiResult, setAiResult,
-      isExplaining, setIsExplaining,
       handleNewSnippet, handleLoadSnippet, handleSaveSnippet
     }}>
       {children}

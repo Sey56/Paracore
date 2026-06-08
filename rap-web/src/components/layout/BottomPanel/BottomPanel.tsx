@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTerminal, faChartLine, faTrash, faCopy, faMagicWandSparkles, faExpandAlt, faCompressAlt } from '@fortawesome/free-solid-svg-icons';
+import { faTerminal, faChartLine, faTrash, faCopy, faExpandAlt, faCompressAlt } from '@fortawesome/free-solid-svg-icons';
 import { useConsole } from '@/features/automation/store/ConsoleContext';
 import { useScriptExecution } from '@/features/automation';
 import { ExecutionHistory } from '@/features/automation/components/ScriptInspector/ExecutionHistory';
@@ -10,7 +10,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useUI } from '@/hooks/useUI';
 
 export const BottomPanel: React.FC = () => {
-  const { localHistory, setLocalHistory, aiResult, isExplaining, setAiResult } = useConsole();
+  const { localHistory, setLocalHistory } = useConsole();
   const { executionResult, clearExecutionResult, selectedScript } = useScriptExecution();
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
@@ -130,7 +130,6 @@ export const BottomPanel: React.FC = () => {
 
   const handleHistoryClear = () => {
     setLocalHistory([]);
-    setAiResult(null);
     localStorage.removeItem('paracore_console_history');
     showNotification("History cleared", "info");
   };
@@ -289,12 +288,6 @@ export const BottomPanel: React.FC = () => {
           />
         </div>
 
-        {isExplaining && (
-          <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-50">
-             <FontAwesomeIcon icon={faMagicWandSparkles} spin className="text-blue-500 text-4xl mb-4" />
-             <p className="text-lg font-bold text-slate-700 dark:text-slate-200 animate-pulse tracking-widest uppercase">AI ANALYZING</p>
-          </div>
-        )}
       </div>
     </div>
   );
