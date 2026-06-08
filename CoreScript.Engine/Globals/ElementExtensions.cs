@@ -1392,7 +1392,13 @@ namespace CoreScript.Engine.Globals
             return elements
                 .GroupBy(e => GetStrGeneric(e, groupBy))
                 .OrderBy(g => g.Key)
-                .Select(g => new { Group = g.Key, Count = g.Count() } as object);
+                .Select(g =>
+                {
+                    dynamic obj = new System.Dynamic.ExpandoObject();
+                    obj.Group = g.Key;
+                    obj.Count = g.Count();
+                    return (object)obj;
+                });
         }
 
         /// <summary>
@@ -1405,15 +1411,17 @@ namespace CoreScript.Engine.Globals
             return elements
                 .GroupBy(e => GetStrGeneric(e, groupBy))
                 .OrderBy(g => g.Key)
-                .Select(g => new
+                .Select(g =>
                 {
-                    Group = g.Key,
-                    Count = g.Count(),
-                    Total = Math.Round(g.Sum(e => {
+                    dynamic obj = new System.Dynamic.ExpandoObject();
+                    obj.Group = g.Key;
+                    obj.Count = g.Count();
+                    obj.Total = Math.Round(g.Sum(e => {
                         if (e is Element el) return el.GetNum(sum, string.IsNullOrEmpty(unit) ? "ft" : unit);
                         return GetNumGeneric(e, sum);
-                    }), 3)
-                } as object);
+                    }), 3);
+                    return (object)obj;
+                });
         }
     }
 }

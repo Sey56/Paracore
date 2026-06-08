@@ -244,7 +244,13 @@ async def _run_conversational_summary(
             body = "\n".join(lines[1:]).lstrip("\n")
 
         # Detect what kind of result this is from the body
-        if "| Group" in body and "| Count" in body:
+        if "CHART" in body or "Analytics tab" in body:
+            chart_type = "chart"
+            if "bar" in body.lower(): chart_type = "bar chart"
+            elif "pie" in body.lower(): chart_type = "pie chart"
+            elif "line" in body.lower(): chart_type = "line chart"
+            return f"The **{topic}** {chart_type} is ready — check the **Analytics** tab.\n\n"
+        elif "| Group" in body and "| Count" in body:
             lead = f"Here's the breakdown of **{topic}** by level:\n\n"
         elif "modified" in body.lower() or "set " in body.lower():
             lead = f"Updated **{topic}** successfully.\n\n"
@@ -472,6 +478,8 @@ async def chat_with_agent(request: ChatRequest):
             if parsed_tool and parsed_tool.tool_name == "execute_dynamic_query":
                 csharp_code = parsed_tool.arguments.get("csharp_code", "")
                 justification = parsed_tool.arguments.get("justification", "Agent-generated query")
+                from agent.tool_helpers import sanitize_csharp_code
+                csharp_code = sanitize_csharp_code(csharp_code)
                 logger.info(f"[V4] Sanitizer recovered raw execute_dynamic_query — triggering handoff.")
                 raise InterruptedException(csharp_code, justification)
 

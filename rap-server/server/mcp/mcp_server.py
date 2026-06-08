@@ -34,7 +34,7 @@ from grpc_client import close_channel, execute_repl, execute_script, get_context
 
 # Shared tool helpers (summarize, extension method search, etc.)
 try:
-    from agent.tool_helpers import summarize_execution_result, format_execution_error, search_extension_methods
+    from agent.tool_helpers import summarize_execution_result, format_execution_error, search_extension_methods, sanitize_csharp_code
 except ImportError:
     # Fallback for when agent package isn't available
     def summarize_execution_result(x):
@@ -132,6 +132,7 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     LookupParameter, get_Parameter, .AsString(), ElementId, doc.GetElement).
     Parameters are STRINGS. Units are BUILT-IN. No unit conversion math.
     """
+    csharp_code = sanitize_csharp_code(csharp_code)
     logger.info(f"MCP Exploring Data: {justification}")
     try:
         result = execute_repl(csharp_code, "mcp-session")
@@ -170,6 +171,7 @@ def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     not GetVal (which adds "Up to level:" prefix).
     For .Select() tables: ALWAYS include Id=c.Id as the first column.
     """
+    csharp_code = sanitize_csharp_code(csharp_code)
     logger.info(f"MCP Executing Query: {justification}")
     try:
         result = execute_repl(csharp_code, "mcp-session")
@@ -309,7 +311,7 @@ Wall.Create  Floor.Create  Doc.Create.NewFamilyInstance  XYZ  Line.CreateBound  
   ✗ GetElements("Walls").Table() — dumps hundreds of columns
   ✗ .SetParam(...).Table() — same issue
   ✓ .Select(x => new { x.Id, Name = x.GetStr("Name") }).Table()
-CHARTS: .GroupByParam("Level","Area","m2").BarGraph() picks Total automatically.
+CHARTS: ONLY chain directly — .GroupByParam("Level","Area","m2").BarGraph(). NO .Select().
 
 ## DISCOVERY & DEBUG
 .CombinedParams().Table() — EVERY param (Instance+Type+Native) with exact names

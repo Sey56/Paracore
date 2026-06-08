@@ -69,9 +69,8 @@ def summarize(output_raw: Dict[str, Any]) -> str:
             elif item_type == "table" and isinstance(data, list) and len(data) == 0:
                 parts.append(f"Table **{title}** is empty (no data).")
 
-            elif item_type in ("bargraph", "piegraph", "linegraph", "chart", "graph"):
-                count = len(data) if isinstance(data, list) else 0
-                parts.append(f"A {item_type} **{title}** with {count} data points was rendered.")
+            elif any(t in item_type for t in ("bar", "pie", "line", "graph", "chart")):
+                parts.append("CHART RENDERED — visible in the Analytics tab. Tell the user to check the Analytics tab.")
 
             elif item_type == "image":
                 parts.append(f"An image **{title}** was rendered.")
