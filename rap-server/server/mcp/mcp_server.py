@@ -305,7 +305,7 @@ Wall.Create  Floor.Create  Doc.Create.NewFamilyInstance  XYZ  Line.CreateBound  
 .Delete() — BIM-safe bulk delete  .Hide()  .Unhide()  .Isolate()
 
 ## FLUENT ENDERS
-.Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()  .ToNotebook("Name")
+.Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()
 .Table() rules: GroupByParam→chain directly. Raw collection→.Select() first with explicit columns.
   ✓ .GroupByParam("Level").Table()
   ✗ GetElements("Walls").Table() — dumps hundreds of columns
@@ -319,14 +319,8 @@ CHARTS: ONLY chain directly — .GroupByParam("Level","Area","m2").BarGraph(). N
 .TypeParams().Table()  .NativeProperties().Table()  .GeometrySummary().Table()
 el.ReflectionProperties()  el.ReflectionMethods()  el.ParamsDict()
 
-## COORDINATION
-.AuditClashes("TargetCategory")  .AuditClashes("Pipes","5mm")
-.AuditClashes(...).Table() — interactive clash grid with 3D helpers
-Doc.ClearClashHelpers()
-
-## MATERIALS & ECO
+## MATERIALS
 el.Materials()  el.MaterialNames()  el.GetMaterialNames()
-Eco.GetCarbon(el) — kgCO2e   Eco.GetUValue(el) — W/m²K   Eco.GetWeather()
 
 ## NUMERIC HELPERS (on double)
 .InputUnit("mm")  .OutputUnit("m2",2)  .RoundTo("mm",0)
@@ -354,7 +348,6 @@ Query:  GetElements("Walls").WhereParam("Base Constraint","Level 1").Select(w =>
 Write:  GetElements("Walls").WhereParam(...).SetParam("Comments","Done")
 Delete: GetElements("Generic Models").WhereMatches("TEMP").Delete()
 Loop:   Transact("Update",()=>{foreach(var w in walls){w.SetVal("Comments","Done");}})
-Clash:  GetElements("Walls").AuditClashes("StructuralColumns").Table()
 """
 
 @mcp.resource("paracore://repl-guide")

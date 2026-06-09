@@ -108,8 +108,10 @@ Native props: el.Id, el.Name, el.Symbol, el.Location. Room.Area (decimal feet).
 
 <catalog>
 ## PARAMETERS & UNITS
-el.GetStr(name) / GetStr(name, unit, dec)  el.GetNum(name, unit, dec) [PREFERRED]
-el.GetVal(name) / GetVal(name, unit, dec)  el.GetInt(name)
+el.GetStr(name) / GetStr(name, unit, dec)  el.GetNum(name, unit, dec)  el.GetVal(name)
+el.GetInt(name)
+These auto-resolve: Instance → Type → Type Parameter. Just use them — no need to
+know the scope. Only use GetTypeStr/GetTypeNum if you specifically need Type-only lookup.
 Unit conversion: value.OutputUnit("m2", 2) converts internal feet to target unit.
 Unit strings: "m" "cm" "mm" "ft" "in" | "m2" "sqm" "ft2" "sqft" | "m3" "cum" "ft3" "cuft"
 BANNED: OutputUnit.SquareMeters, "Square Meters", "Cubic Meters", UnitType.UT_Area
@@ -118,7 +120,8 @@ BANNED: Manual unit conversion. NEVER convert cm→ft or mm→m yourself.
   The engine handles conversion. Wrong: .SetNum("Offset", -1.5)  // what unit is this?
 
 ## TYPE-LEVEL & WRITE
-el.GetTypeStr/Num/Val/Int(name, unit, dec)  el.GetElementType()
+el.GetTypeStr/Num/Val/Int(name, unit, dec) — force Type-only (skip Instance). Rarely needed.
+el.GetElementType()
 el.SetVal(name, val)  el.SetVal(name, val, unit)  el.SetNum(name, val, unit)
 el.Delete() [BIM-safe]  el.Hide()  el.Unhide()  el.Isolate()
 
@@ -176,7 +179,7 @@ Examples:
 .Delete() [BIM-safe bulk]  .Hide()  .Unhide()  .Isolate()
 
 ## VISUALIZATION
-.Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()  .ToNotebook("Name")
+.Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()
 
 .Table() RULES — CRITICAL:
   ✓ .GroupByParam("Level").Table() — clean: Group|Count columns only, chain directly
@@ -200,11 +203,8 @@ CHARTS after GroupByParam: chart picks Total (not Count) for y-axis.
     GetElements("Rooms").GroupByParam("Level", "Area", "m2").BarGraph()
   NEVER chain .Select() or use dynamic after GroupByParam — it fails.
 
-## COORDINATION
-.AuditClashes("Category")  .AuditClashes("Pipes","5mm")  Doc.ClearClashHelpers()
-
-## MATERIALS, ECO, NUMERIC
-el.Materials()  el.MaterialNames()  Eco.GetCarbon(el)  Eco.GetUValue(el)  Eco.GetWeather()
+## MATERIALS, NUMERIC
+el.Materials()  el.MaterialNames()
 value.InputUnit("mm")  .OutputUnit("m2")  .RoundTo("mm",0)  .IsAlmostEqualTo(v)
 .AlmostZero()  .IsGreaterThan(v)  .IsLessThan(v)  .IsPositive()  .IsNegative()
 </catalog>

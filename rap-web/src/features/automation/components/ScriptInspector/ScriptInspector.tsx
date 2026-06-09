@@ -59,7 +59,10 @@ export const ScriptInspector: React.FC = () => {
           {script ? (
             <>
               <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] flex-shrink-0" />
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">
+              <span
+                className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate"
+                title={script.metadata?.displayName || script.name}
+              >
                 {script.metadata?.displayName || script.name}
               </span>
             </>
@@ -72,7 +75,12 @@ export const ScriptInspector: React.FC = () => {
               {activeSnippetName && (
                 <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 border-l border-slate-200 dark:border-slate-700 ml-2 pl-3">
                   <FontAwesomeIcon icon={faCode} className="text-[10px]" />
-                  <span className="text-[10px] font-bold tracking-wider italic truncate max-w-[120px]">{activeSnippetName}</span>
+                  <span
+                    className="text-[10px] font-bold tracking-wider italic truncate max-w-[320px]"
+                    title={activeSnippetName}
+                  >
+                    {activeSnippetName}
+                  </span>
                 </div>
               )}
             </div>
