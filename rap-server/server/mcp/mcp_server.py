@@ -111,7 +111,7 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
     DISPLAY: ALWAYS use .Table(). NEVER foreach+Println+string.Join for data display.
     NEVER chain `.Select()` after `.GroupByParam()`. Simply chain `.Table()` directly.
 
-    CRITICAL SYNTAX (the ONLY valid Paracore methods):
+    PARACORE EXTENSION METHODS (preferred shortcuts on top of Revit API):
       GetElements<Room>()   GetElements("Walls")   GetElement("name")
       x.GetStr("Level") → "Level 1"    x.GetNum("Area","m2") → 25.46
       x.GetVal("Width") → "300 mm"     x.GetInt("Count") → 4
@@ -128,9 +128,10 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
       Println($"text") — output (capital P — NOT println, NOT Print, NOT Console.WriteLine)
       x.Id (NOT .IntegerValue)  x.Name  x.Symbol — native props work directly
 
-    CRITICAL: NO raw Revit API (FilteredElementCollector, BuiltInParameter,
-    LookupParameter, get_Parameter, .AsString(), ElementId, doc.GetElement).
-    Parameters are STRINGS. Units are BUILT-IN. No unit conversion math.
+    RAW REVIT API: Fully available everywhere — this IS the Revit API.
+    Wall.Create, Floor.Create, Line.CreateBound, XYZ, FilteredElementCollector, etc.
+    all work. Transact() REQUIRED for foreach loops (clean undo). Single-element/collection auto-transacts. For parameter ACCESS, prefer
+    .GetStr/.GetNum/.SetVal over raw LookupParameter/get_Parameter (shorter, Pipeline-friendly).
     """
     csharp_code = sanitize_csharp_code(csharp_code)
     logger.info(f"MCP Exploring Data: {justification}")
@@ -170,6 +171,11 @@ def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     For verification: use GetStr for clean names (e.g. "Level 02"),
     not GetVal (which adds "Up to level:" prefix).
     For .Select() tables: ALWAYS include Id=c.Id as the first column.
+
+    RAW REVIT API: Fully available everywhere — Wall.Create, Floor.Create,
+    Doc.Create.NewFamilyInstance, XYZ, Line.CreateBound, FilteredElementCollector, etc.
+    Transact() REQUIRED for foreach loops (clean undo). Single-element/collection-bulk
+    auto-transacts. For parameter access, prefer Paracore extensions (.GetStr/.SetVal).
     """
     csharp_code = sanitize_csharp_code(csharp_code)
     logger.info(f"MCP Executing Query: {justification}")
@@ -246,6 +252,10 @@ def read_system_prompt() -> str:
 
 MCP_SYSTEM_PROMPT = """# PARACORE REPL — COMPLETE METHOD CATALOG
 You are generating C# code for the Paracore REPL engine in Revit.
+This IS the Revit API — Autodesk.Revit.DB, UI, Architecture — all namespaces available.
+Paracore extensions = convenient shortcuts for queries. Raw Revit API (Wall.Create, XYZ,
+FilteredElementCollector, Line.CreateBound, etc.) = always available everywhere.
+Transact() = REQUIRED for foreach loops. Single-element/collection-bulk auto-transacts.
 
 ## LINQ RULES — PARACORE FIRST — CHECK THIS TABLE BEFORE WRITING CODE
   ┌──────────────────────────────┬──────────────────────────────────┐
@@ -289,8 +299,12 @@ wall.SetVal("Mark","101")  wall.SetNum("Offset",-150,"cm")
 wall.Delete()  wall.Hide()  wall.Unhide()  wall.Isolate()
 Native: el.Id  el.Name  el.Symbol  el.Location
 
-## ELEMENT CREATION — Full Revit API inside Transact()
+## ELEMENT CREATION — Raw Revit API, foreach MUST wrap in Transact()
 Wall.Create  Floor.Create  Doc.Create.NewFamilyInstance  XYZ  Line.CreateBound  CurveLoop
+FilteredElementCollector  ElementId  Arc.Create  Transform  Solid  -- all available everywhere.
+Full namespaces: Autodesk.Revit.DB, Autodesk.Revit.UI, Autodesk.Revit.DB.Architecture, etc.
+Transact() REQUIRED for foreach loops and raw API writes — one clean undo entry.
+Single-element (.SetVal/.SetNum) and collection bulk (.SetParam) auto-transact — no Transact() needed.
   var lvl = GetElements<Level>().FirstOrDefault(l => l.Name == "Level 1");
   var typ = GetElements<WallType>().FirstOrDefault(t => t.Name == "Generic - 200mm");
   Transact("Create Wall", () => { Wall w = Wall.Create(Doc, Line.CreateBound(p1,p2), lvl.Id, false); w.WallType = typ; });
@@ -308,8 +322,8 @@ Wall.Create  Floor.Create  Doc.Create.NewFamilyInstance  XYZ  Line.CreateBound  
 .Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()
 .Table() rules: GroupByParam→chain directly. Raw collection→.Select() first with explicit columns.
   ✓ .GroupByParam("Level").Table()
-  ✗ GetElements("Walls").Table() — dumps hundreds of columns
-  ✗ .SetParam(...).Table() — same issue
+  �--- GetElements("Walls").Table() — dumps hundreds of columns
+  �--- .SetParam(...).Table() — same issue
   ✓ .Select(x => new { x.Id, Name = x.GetStr("Name") }).Table()
 CHARTS: ONLY chain directly — .GroupByParam("Level","Area","m2").BarGraph(). NO .Select().
 

@@ -109,6 +109,11 @@ _ext_methods_cache: str | None = None
 # Condensed but complete — covers every method and important usage patterns.
 _FALLBACK_REFERENCE = """# PARACORE EXTENSION METHODS REFERENCE
 
+Full Revit API available: Autodesk.Revit.DB, UI, Architecture — all namespaces.
+Wall.Create, Floor.Create, FilteredElementCollector, XYZ, Line.CreateBound, etc. work.
+This IS the Revit API. Transact() REQUIRED for foreach loops (clean undo). Single-element (.SetVal/.Delete) and collection bulk (.SetParam) auto-transact. Reads work everywhere.
+For parameter access and data queries, prefer the Paracore extensions below.
+
 ## Globals (C# PascalCase)
 Doc, Uidoc, UIApp, ActiveView, Selection, Println(text)
 Doc.Title → project name. ActiveView.Name → view name. Selection.Count → selection count.
