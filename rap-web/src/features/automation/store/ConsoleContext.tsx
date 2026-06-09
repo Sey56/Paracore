@@ -42,11 +42,12 @@ interface ConsoleContextType {
   setActiveSnippetPath: (val: string | null) => void;
   activeSnippetName: string | null;
   setActiveSnippetName: (val: string | null) => void;
+  isDirty: boolean;
 
   // Snippet Handlers
   handleNewSnippet: () => void;
   handleLoadSnippet: () => Promise<void>;
-  handleSaveSnippet: (forceSaveAs?: boolean) => Promise<void>;
+  handleSaveSnippet: (forceSaveAs?: boolean) => Promise<boolean>;
 }
 
 const ConsoleContext = createContext<ConsoleContextType | undefined>(undefined);
@@ -89,6 +90,7 @@ export const ConsoleProvider: React.FC<{
     const saved = localStorage.getItem('paracore_repl_active_name');
     return saved === "Multi-Line REPL" ? null : saved;
   });
+  const [lastSavedValue, setLastSavedValue] = useState<string>(() => localStorage.getItem('paracore_repl_multi_value') || "");
 
   const [singleCommandHistory, setSingleCommandHistory] = useState<string[]>(() => {
     const saved = localStorage.getItem('paracore_repl_single_history');
@@ -267,28 +269,32 @@ export const ConsoleProvider: React.FC<{
     }
   };
 
-  const handleSaveSnippet = async (forceSaveAs: boolean = false) => {
-    if (!multiLineValue.trim()) return;
+  const handleSaveSnippet = async (forceSaveAs: boolean = false): Promise<boolean> => {
+    if (!multiLineValue.trim()) return false;
     try {
       let targetPath = activeSnippetPath;
       if (forceSaveAs || !targetPath) {
-        targetPath = await save({ 
-          filters: [{ name: 'C# Script', extensions: ['cs'] }], 
-          defaultPath: activeSnippetName ? `${activeSnippetName}.cs` : 'MyReplSnippet.cs' 
+        targetPath = await save({
+          filters: [{ name: 'C# Script', extensions: ['cs'] }],
+          defaultPath: activeSnippetName ? `${activeSnippetName}.cs` : 'MyReplSnippet.cs'
         });
       }
       if (targetPath) {
-        await writeTextFile(targetPath, multiLineValue);
         setActiveSnippetPath(targetPath);
+        setLastSavedValue(multiLineValue);
         const filename = targetPath.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
         setActiveSnippetName(filename);
+        await writeTextFile(targetPath, multiLineValue);
         showNotification(forceSaveAs ? "Saved As" : "Saved", "success");
+        return true;
       }
-    } catch (err: any) { showNotification(err.message, "error"); }
+      return false;
+    } catch (err: any) { showNotification(err.message, "error"); return false; }
   };
 
   const handleNewSnippet = () => {
     setMultiLineValue("");
+    setLastSavedValue("");
     setActiveSnippetPath(null);
     setActiveSnippetName(null);
     showNotification("New snippet created", "info");
@@ -300,6 +306,7 @@ export const ConsoleProvider: React.FC<{
       if (sel && typeof sel === 'string') {
         const content = await readTextFile(sel);
         setMultiLineValue(content);
+        setLastSavedValue(content);
         setActiveSnippetPath(sel);
         const filename = sel.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
         setActiveSnippetName(filename);
@@ -340,6 +347,8 @@ export const ConsoleProvider: React.FC<{
     }
   }, [executionResult]);
 
+  const isDirty = multiLineValue !== lastSavedValue;
+
   return (
     <ConsoleContext.Provider value={{
       localHistory, setLocalHistory, handleClear,
@@ -350,6 +359,7 @@ export const ConsoleProvider: React.FC<{
       singleCommandHistory, multiCommandHistory,
       activeSnippetPath, setActiveSnippetPath,
       activeSnippetName, setActiveSnippetName,
+      isDirty,
       handleNewSnippet, handleLoadSnippet, handleSaveSnippet
     }}>
       {children}

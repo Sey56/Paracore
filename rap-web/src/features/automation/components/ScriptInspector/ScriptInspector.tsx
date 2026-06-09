@@ -10,6 +10,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTerminal, faInfoCircle, faChevronUp, faFile, faFolderOpen, faSave, faCode, faFileExport } from '@fortawesome/free-solid-svg-icons';
 import { MetadataTabContent } from './MetadataTabContent';
 import { useConsole } from '../../store/ConsoleContext';
+import { Modal } from '@/components/common/Modal';
 
 export const ScriptInspector: React.FC = () => {
   const { selectedScript, runningScriptPath, setSelectedScript } = useScriptExecution();
@@ -17,9 +18,18 @@ export const ScriptInspector: React.FC = () => {
   const { agentSelectedScriptPath, toggleFloatingCodeViewer } = useUI();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
   const { isAuthenticated } = useAuth();
-  const { activeSnippetName, multiLineValue, handleNewSnippet, handleLoadSnippet, handleSaveSnippet } = useConsole();
-  
+  const { activeSnippetName, multiLineValue, isDirty, handleNewSnippet, handleLoadSnippet, handleSaveSnippet } = useConsole();
+
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const onNewSnippet = () => {
+    if (multiLineValue.trim() && isDirty) {
+      setShowClearConfirm(true);
+    } else {
+      handleNewSnippet();
+    }
+  };
 
   useEffect(() => {
     if (agentSelectedScriptPath && scripts.length > 0) {
@@ -92,7 +102,7 @@ export const ScriptInspector: React.FC = () => {
             </>
           ) : (
             <div className="flex items-center gap-2">
-              <button onClick={handleNewSnippet} title="New / Clear" className="p-1.5 text-slate-400 hover:text-green-500 transition-colors">
+              <button onClick={onNewSnippet} title="New / Clear" className="p-1.5 text-slate-400 hover:text-green-500 transition-colors">
                 <FontAwesomeIcon icon={faFile} className="text-xs" />
               </button>
               <button onClick={handleLoadSnippet} title="Open" className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
@@ -146,6 +156,41 @@ export const ScriptInspector: React.FC = () => {
           <ReplModeContent />
         )}
       </div>
+
+      {/* Confirm Clear Modal */}
+      <Modal isOpen={showClearConfirm} onClose={() => setShowClearConfirm(false)} title="Clear REPL" size="sm">
+        <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
+          {activeSnippetName
+            ? `You have unsaved changes to "${activeSnippetName}". Save before clearing?`
+            : "You have unsaved code in the editor. Save before clearing?"}
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setShowClearConfirm(false)}
+            className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { setShowClearConfirm(false); handleNewSnippet(); }}
+            className="px-4 py-2 text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium transition-colors"
+          >
+            Discard Changes
+          </button>
+          <button
+            onClick={async () => {
+              const saved = await handleSaveSnippet(false);
+              if (saved) {
+                setShowClearConfirm(false);
+                handleNewSnippet();
+              }
+            }}
+            className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Save First
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };

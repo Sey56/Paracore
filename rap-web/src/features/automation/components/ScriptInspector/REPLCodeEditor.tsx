@@ -173,7 +173,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         padding: '12px 16px',
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
+                        overflowWrap: 'break-word',
                         width: '100%',
                     }}
                 >
@@ -194,7 +194,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                             border: 'none',
                             boxShadow: 'none'
                         }}
-                        codeTagProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'inherit', lineHeight: 'inherit' } }}
+                        codeTagProps={{ style: { whiteSpace: 'pre-wrap', overflowWrap: 'break-word', fontFamily: 'inherit', lineHeight: 'inherit' } }}
                     >
                         {value + (value.endsWith('\n') ? ' ' : '')}
                     </SyntaxHighlighter>
@@ -224,7 +224,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         margin: 0,
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
+                        overflowWrap: 'break-word',
                         zIndex: 10,
                         overflowX: 'hidden',
                         overflowY: 'auto',

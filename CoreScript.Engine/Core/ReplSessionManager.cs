@@ -283,31 +283,10 @@ namespace CoreScript.Engine.Core
                     }
                 }
 
-                // If the script printed anything (e.g. via Println), return that as the main output
+                // Collect Println output (e.g. from Println calls in the script)
                 var printLog = string.Join(Environment.NewLine, context.PrintLog);
 
-                // Append pipeline diagnostics to output so they're visible in the REPL
-                var diags = context.PipelineDiagnostics;
-                if (diags != null && diags.Count > 0)
-                {
-                    var diagTokens = diags.Select(d => d switch
-                    {
-                        -1 => "chart",
-                        -2 => "table",
-                        -3 => "✓",
-                        -4 => "✗",
-                        _ => d.ToString()
-                    });
-                    var diagLine = "Pipeline: [" + string.Join(" → ", diagTokens) + "]";
-                    printLog = string.IsNullOrEmpty(printLog) ? diagLine : printLog + Environment.NewLine + diagLine;
-                }
-
-                if (!string.IsNullOrEmpty(printLog))
-                {
-                    return (true, printLog, string.Empty, structuredOutput);
-                }
-
-                // Otherwise, fall back to the return value of the expression
+                // Process the return value of the expression
                 var retVal = session.State.ReturnValue;
                 var output = string.Empty;
 
@@ -345,13 +324,13 @@ namespace CoreScript.Engine.Core
                                 else if (item != null)
                                 {
                                     string str = item.ToString().Trim();
-                                    
+
                                     // Remove ugly curly braces from anonymous types
                                     if (str.StartsWith("{") && str.EndsWith("}"))
                                     {
                                         str = str.Substring(1, str.Length - 2).Trim();
                                     }
-                                    
+
                                     list.Add($"{count:D2} - {str}");
                                 }
                                 else
@@ -375,7 +354,34 @@ namespace CoreScript.Engine.Core
                     }
                 }
 
-                return (true, output, string.Empty, structuredOutput);
+                // Build the pipeline diagnostics line (appended after the main output)
+                var diags = context.PipelineDiagnostics;
+                var pipelineLine = string.Empty;
+                if (diags != null && diags.Count > 0)
+                {
+                    var diagTokens = diags.Select(d => d switch
+                    {
+                        -1 => "chart",
+                        -2 => "table",
+                        -3 => "✓",
+                        -4 => "✗",
+                        _ => d.ToString()
+                    });
+                    pipelineLine = "Pipeline: [" + string.Join(" → ", diagTokens) + "]";
+                }
+
+                // Combine: printLog, return value, pipeline diagnostics
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(printLog))
+                    parts.Add(printLog);
+                if (!string.IsNullOrEmpty(output))
+                    parts.Add(output);
+                if (!string.IsNullOrEmpty(pipelineLine))
+                    parts.Add(pipelineLine);
+
+                var finalOutput = string.Join(Environment.NewLine, parts);
+
+                return (true, finalOutput, string.Empty, structuredOutput);
             }
             catch (Exception ex)
             {
