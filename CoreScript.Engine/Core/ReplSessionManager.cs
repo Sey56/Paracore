@@ -112,7 +112,34 @@ namespace CoreScript.Engine.Core
                     typeof(System.Linq.Expressions.Expression),
                     typeof(System.Dynamic.DynamicObject)
                 };
-                var coreRefs = coreTypes.Select(t => MetadataReference.CreateFromFile(t.Assembly.Location)).ToList();
+                var coreRefs = coreTypes
+                    .Select(t => {
+                        try
+                        {
+                            var loc = t.Assembly.Location;
+                            if (!string.IsNullOrEmpty(loc) && File.Exists(loc))
+                                return MetadataReference.CreateFromFile(loc);
+                        }
+                        catch { }
+                        // Fallback: resolve by simple name (handles shared framework
+                        // churn after .NET runtime updates — e.g. 8.0.27 → 8.0.28).
+                        string asmName = t.Assembly.GetName().Name;
+                        if (!string.IsNullOrEmpty(asmName))
+                        {
+                            try
+                            {
+                                var resolved = Assembly.Load(asmName);
+                                if (!string.IsNullOrEmpty(resolved.Location) && File.Exists(resolved.Location))
+                                    return MetadataReference.CreateFromFile(resolved.Location);
+                            }
+                            catch { }
+                        }
+                        FileLogger.LogWarning($"[ReplSessionManager] Could not resolve reference for {t.FullName}");
+                        return null;
+                    })
+                    .Where(r => r != null)
+                    .Cast<MetadataReference>()
+                    .ToList();
 
                 string engineDir = Path.GetDirectoryName(typeof(ReplSessionManager).Assembly.Location) ?? "";
                 string[] extraDlls = { "SixLabors.ImageSharp.dll", "RestSharp.dll", "MiniExcel.dll", "MathNet.Numerics.dll" };

@@ -71,5 +71,10 @@ namespace CoreScript.Engine.Logging
         {
             Log("[ERROR] " + message, LogLevel.Error);
         }
+
+        public static void LogWarning(string message)
+        {
+            Log("[WARN] " + message, LogLevel.Warning);
+        }
     }
 }
