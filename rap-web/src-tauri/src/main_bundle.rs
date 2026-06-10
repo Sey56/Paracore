@@ -164,6 +164,9 @@ fn launch_main_app(handle: AppHandle, state: State<AppState>) -> Result<(), Stri
     let mut command = std::process::Command::new(exe_path);
     command.current_dir(&working_dir);
     command.env("RAP_DATABASE_PATH", db_path);
+    // Prevent embedded Python from discovering system/user Python packages
+    command.env("PYTHONNOUSERSITE", "1");
+    command.env_remove("PYTHONPATH");
 
     // ALWAYS add the script argument since we are now using python.exe in all modes
     command.arg("run_server.py");

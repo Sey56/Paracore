@@ -105,11 +105,11 @@ try {
 
     
 
-            # 2. Configure .pth file to enable site-packages
+            # 2. Configure .pth file to add bundled site-packages (no import site — keep embedded Python isolated)
 
             $pthFile = Join-Path -Path $serverReleaseDir -ChildPath 'python312._pth'
 
-            $pthContent = "python312.zip`n.`nLib/site-packages`nimport site"
+            $pthContent = "python312.zip`n.`nLib/site-packages"
 
             Set-Content -Path $pthFile -Value $pthContent -Force
 
@@ -126,11 +126,37 @@ try {
             uv sync --no-dev
             Pop-Location
 
+            # Patch logfire_api to be resilient: don't blindly trust a stray logfire module.
+            # If logfire is a stale namespace package (empty directory from old install),
+            # logfire_api would replace itself with it and crash. Verify the API exists first.
+            $logfireApiInit = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages\logfire_api\__init__.py"
+            $original = @'
+    logfire_module = importlib.import_module('logfire')
+    sys.modules[__name__] = logfire_module
+'@
+            $patched = @'
+    logfire_module = importlib.import_module('logfire')
+    # Verify it is the real logfire package, not a stale namespace shell
+    if hasattr(logfire_module, 'Logfire') and hasattr(logfire_module, 'LogfireSpan'):
+        sys.modules[__name__] = logfire_module
+    else:
+        raise ImportError('Found logfire module but it lacks the expected API (stale install?)')
+'@
+            (Get-Content -Path $logfireApiInit -Raw).Replace($original, $patched) | Set-Content -Path $logfireApiInit -NoNewline
+            Write-Host "Patched logfire_api to reject incomplete logfire modules." -ForegroundColor Gray
+
             Write-Host "Bundling runtime dependencies from clean environment..." -ForegroundColor Cyan
 
             $venvSitePackages = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages"
 
             $destSitePackages = Join-Path -Path $serverReleaseDir -ChildPath "Lib\site-packages"
+
+            # Purge stale logfire/ directory before copying (survives MSI uninstall from old builds)
+            $staleLogfire = Join-Path -Path $venvSitePackages -ChildPath "logfire"
+            if (Test-Path $staleLogfire) {
+                Remove-Item -Recurse -Force $staleLogfire
+                Write-Host "Removed stale logfire/ directory from venv site-packages." -ForegroundColor Yellow
+            }
 
             New-Item -ItemType Directory -Path $destSitePackages -Force | Out-Null
 
@@ -141,6 +167,13 @@ try {
                     # use importlib.metadata to check versions at runtime.
 
                     robocopy $venvSitePackages $destSitePackages /E /XD "__pycache__" "tests" "docs" "examples" /NJH /NJS /NDL /NC /NS /NP | Out-Null
+
+            # Also purge stale logfire/ from destination (belt and suspenders)
+            $destLogfire = Join-Path -Path $destSitePackages -ChildPath "logfire"
+            if (Test-Path $destLogfire) {
+                Remove-Item -Recurse -Force $destLogfire
+                Write-Host "Removed stale logfire/ directory from bundled site-packages." -ForegroundColor Yellow
+            }
 
             # Restore dev packages so the developer's venv is whole again
             Write-Host "Restoring dev packages..." -ForegroundColor Gray
@@ -211,14 +244,13 @@ try {
         Write-Host "Unzipping $embeddableZip to create a portable Python environment..."
         Expand-Archive -Path $embeddableZip -DestinationPath $bundleDir -Force
 
-        # 2. Enable site-packages in the embeddable distribution by uncommenting 'import site'.
+        # 2. Add bundled site-packages to the embedded Python's path (no import site — keep it isolated).
         $pthFile = Join-Path -Path $bundleDir -ChildPath 'python312._pth'
         $correctPthContent = @"
 python312.zip
 .
 Lib
 Lib/site-packages
-import site
 "@
         Set-Content -Path $pthFile -Value $correctPthContent -Force
 
