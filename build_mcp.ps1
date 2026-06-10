@@ -5,25 +5,45 @@ param(
 Write-Host "--- Building Paracore MCP Standalone Server ---" -ForegroundColor Cyan
 
 $ServerDir = Join-Path $PSScriptRoot "rap-server\server"
-Set-Location $ServerDir
-
-# 1. Check for PyInstaller inside the virtual environment
-$VenvPyInstaller = Join-Path $ServerDir ".venv\Scripts\pyinstaller.exe"
-
-if (!(Test-Path $VenvPyInstaller)) {
-    Write-Host "PyInstaller not found in the virtual environment. Installing via uv..." -ForegroundColor Yellow
-    uv pip install pyinstaller
-}
-
-# 2. Build the executable using the virtual environment's PyInstaller
-Write-Host "Compiling mcp_server.py into standalone executable..." -ForegroundColor Yellow
+$BuildProjectDir = Join-Path $PSScriptRoot "rap-server\mcp-build"
 $RepoRoot = $PSScriptRoot
-& $VenvPyInstaller --onefile --name paracore-mcp --paths . --exclude-module logfire --hidden-import mcp --hidden-import mcp.server.fastmcp --hidden-import grpc --add-data "$RepoRoot\REPL_GUIDE.md;." --add-data "$RepoRoot\EXTENSION_METHODS.md;." mcp/mcp_server.py
+
+# 1. Sync the isolated build project (its own pyproject.toml, own venv)
+# fastmcp is isolated here so its griffelib dep never touches the rap-server venv.
+Write-Host "Syncing MCP build environment..." -ForegroundColor Yellow
+Push-Location $BuildProjectDir
+uv sync 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "uv sync failed!" -ForegroundColor Red
+    Pop-Location
+    exit $LASTEXITCODE
+}
+$BuildPyInstaller = Join-Path $BuildProjectDir ".venv\Scripts\pyinstaller.exe"
+Pop-Location
+
+# 2. Build the executable using the build project's PyInstaller
+Write-Host "Compiling mcp_server.py into standalone executable..." -ForegroundColor Yellow
+Push-Location $ServerDir
+& $BuildPyInstaller --onefile --name paracore-mcp --paths . `
+    --exclude-module logfire `
+    --hidden-import mcp `
+    --hidden-import mcp.server.fastmcp `
+    --hidden-import grpc `
+    --hidden-import google.protobuf `
+    --hidden-import google.protobuf.descriptor_pool `
+    --hidden-import google.protobuf.runtime_version `
+    --hidden-import google.protobuf.symbol_database `
+    --hidden-import google.protobuf.internal.builder `
+    --add-data "$RepoRoot\REPL_GUIDE.md;." `
+    --add-data "$RepoRoot\EXTENSION_METHODS.md;." `
+    mcp/mcp_server.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red
+    Pop-Location
     exit $LASTEXITCODE
 }
+Pop-Location
 
 # 3. Move to installers directory
 $DistDir = Join-Path $PSScriptRoot "installers"

@@ -6,11 +6,11 @@ a = Analysis(
     pathex=['.'],
     binaries=[],
     datas=[('C:\\Users\\seyou\\Paracore\\REPL_GUIDE.md', '.'), ('C:\\Users\\seyou\\Paracore\\EXTENSION_METHODS.md', '.')],
-    hiddenimports=['mcp', 'mcp.server.fastmcp', 'grpc'],
+    hiddenimports=['mcp', 'mcp.server.fastmcp', 'grpc', 'google.protobuf', 'google.protobuf.descriptor_pool', 'google.protobuf.runtime_version', 'google.protobuf.symbol_database', 'google.protobuf.internal.builder'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['logfire'],
     noarchive=False,
     optimize=0,
 )

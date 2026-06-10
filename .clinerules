@@ -1,0 +1,59 @@
+# Paracore MCP Rules
+
+## MANDATORY: Before using ANY Paracore MCP tool, you MUST:
+1. Read `paracore://system-prompt` — this defines your entire workflow.
+2. Read `paracore://extension-methods` — this is the complete API reference with ALL available methods.
+3. Read `paracore://repl-guide` — this has discovery patterns and recipes.
+
+## PARACORE DSL (PREFERRED for query, filter, sort, group, display)
+Paracore extension methods are the cleanest way to work with Revit data. Use them whenever possible:
+
+- Use `GetElements<T>()` or `GetElements("CategoryName")` for element retrieval
+- Use `.GetStr()`, `.GetNum()`, `.GetVal()` for parameter access (NOT LookupParameter / get_Parameter)
+- Use `.WhereParam()`, `.WhereMatches()`, `.OrderByParam()` for filtering/sorting
+- Use `.GroupByParam()`, `.SumParam()` for aggregation
+- Use `.Table()` with `.Select()` projections for rich output
+- Use `.CombinedParams().Table()` to discover parameters when unsure
+- Chain methods fluently: `GetElements<Room>().OrderByParamDesc("Area").Select(r => new { r.Id, Name = r.GetStr("Name"), Area_m2 = r.GetNum("Area", "m2") }).Table()`
+
+## RAW REVIT API (FULLY AVAILABLE — use when needed)
+Paracore is NOT just a DSL. It is a full Roslyn C# REPL with access to the ENTIRE Revit API.
+**Autodesk.Revit.DB**, **Autodesk.Revit.UI**, **Autodesk.Revit.DB.Architecture**, etc. are ALL available.
+
+Use raw Revit API for:
+- **Element creation**: `Wall.Create(Doc, ...)`, `Floor.Create(Doc, ...)`, `Doc.Create.NewFamilyInstance(...)`
+- **Geometry**: `Line.CreateBound(p1, p2)`, `XYZ`, `CurveLoop`, `Arc.Create(...)`, etc.
+- **Anything the Paracore DSL cannot express**
+- **Advanced queries** where LINQ + raw API is clearer than extension methods
+
+All raw API code that modifies the model MUST be wrapped in `Transact()`:
+```
+Transact("description", () => {
+    // Full Revit API here — Wall.Create, Doc.Delete, etc.
+    var line = Line.CreateBound(new XYZ(0,0,0), new XYZ(5000.InputUnit("mm"),0,0));
+    Wall.Create(Doc, line, level.Id, false);
+});
+```
+`Transact()` is a global — writes auto-commit, reads work directly.
+
+## PARAMETER ACCESS — ALWAYS use extensions, NEVER raw API
+For reading/writing element PARAMETERS, always use extension methods — they handle name resolution,
+unit conversion, and ElementId→name automatically:
+- `el.GetStr("Level")` → "Level 1" (NOT `el.LookupParameter("Level").AsString()`)
+- `el.GetNum("Area", "m2")` → 25.64 (NOT `el.get_Parameter(BuiltInParameter.ROOM_AREA).AsDouble()`)
+- `el.SetVal("Comments", "Done")` — auto-transacts, resolves IDs (NOT `el.get_Parameter(...).Set(...)`)
+- `el.SetNum("Offset", -150, "cm")` — unit-aware (NOT manual conversion math)
+
+This is the ONE area where raw API should NEVER be used — parameter access via `LookupParameter`, `get_Parameter`,
+`BuiltInParameter`, `.AsString()`, `.AsDouble()` is banned. Use `.GetStr()`, `.GetNum()`, `.GetVal()`, `.SetVal()`, `.SetNum()` instead.
+
+## DATA DISPLAY
+- Use `.Table()` for presenting structured data to the user
+- `Println()` is for status messages only ("Done.", "Updated 5 walls.")
+- `foreach` + `Println` loops for data display are banned — use `.Table()` instead
+- `.BarGraph()`, `.PieGraph()`, `.LineGraph()` for charts
+
+## REPL BEHAVIOR
+- The last expression is auto-displayed — no need for `return` or `Println()` at the end
+- Variables survive between runs in the same session
+- `.Count` for simple lists, `.Count()` for LINQ chains

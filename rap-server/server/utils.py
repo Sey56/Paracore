@@ -3,11 +3,6 @@ import os
 import re
 import grpc
 
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
-
-import models
-
 def launch_vscode(project_path: str):
     """
     Robustly launches VS Code for a given project path.
@@ -82,11 +77,14 @@ def resolve_script_path(relative_or_absolute_path: str) -> str:
     # The caller should handle missing files if they need to read them.
     return safe_path
 
-def get_or_create_script(db: Session, script_path: str, owner_id: int) -> models.Script:
+def get_or_create_script(db: "Session", script_path: str, owner_id: int) -> "models.Script":
     """
     Retrieves a script from the database by its path, creating it if it doesn't exist.
     The script_path provided should be the already resolved and normalized path.
     """
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import Session
+    import models
     # Ensure the path is normalized and consistent before querying
     normalized_path = resolve_script_path(script_path) # Use the centralized resolver
 

@@ -115,11 +115,18 @@ try {
 
     
 
-            # 3. Copy site-packages from the active 'uv' environment
+            # 3. Strip dev packages, then copy site-packages
 
-            # This is the 'Secret Sauce' - it takes exactly what works in dev and bundles it.
+            # We strip build-only tools (pyinstaller, fastmcp, grpcio-tools) so they
+            # don't bloat the installed Paracore desktop app. dev packages are restored after.
 
-            Write-Host "Bundling dependencies from local environment..." -ForegroundColor Cyan
+            Write-Host "Stripping dev packages for release..." -ForegroundColor Cyan
+            $serverProjectDir = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server"
+            Push-Location $serverProjectDir
+            uv sync --no-dev
+            Pop-Location
+
+            Write-Host "Bundling runtime dependencies from clean environment..." -ForegroundColor Cyan
 
             $venvSitePackages = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages"
 
@@ -127,21 +134,19 @@ try {
 
             New-Item -ItemType Directory -Path $destSitePackages -Force | Out-Null
 
-            
-
                     # Use robocopy for speed and to exclude bloat (pycache, tests, etc.)
 
-            
-
-                    # We MUST include *.dist-info because many libraries (FastAPI, Pydantic) 
-
-            
+                    # We MUST include *.dist-info because many libraries (FastAPI, Pydantic)
 
                     # use importlib.metadata to check versions at runtime.
 
-            
-
                     robocopy $venvSitePackages $destSitePackages /E /XD "__pycache__" "tests" "docs" "examples" /NJH /NJS /NDL /NC /NS /NP | Out-Null
+
+            # Restore dev packages so the developer's venv is whole again
+            Write-Host "Restoring dev packages..." -ForegroundColor Gray
+            Push-Location $serverProjectDir
+            uv sync
+            Pop-Location
 
             
 

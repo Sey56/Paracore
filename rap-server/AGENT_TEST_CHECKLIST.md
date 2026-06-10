@@ -15,7 +15,7 @@
 - [ ] In Agent tab, type: `List all rooms`
 - [ ] Agent generates `GetElements<Room>()` code
 - [ ] Click "Approve & Run"
-- [ ] Chat shows preview: first 5 rooms with total count
+- [ ] Chat shows preview: first 10 rooms with total count
 - [ ] Agent's final response includes sample rows + count
 - [ ] Analytics tab shows `[table]` flash badge
 
@@ -26,8 +26,8 @@
 - [ ] Agent generates `.Select(...).Table()` code
 - [ ] Approve & Run
 - [ ] Chat shows **properly formatted table** with cell spacing, headers, row dividers
-- [ ] Preview shows first 5 rows + total count
-- [ ] Agent's message: "Here are the first 5 of N rooms..."
+- [ ] Preview shows first 10 rows + total count
+- [ ] Agent's message: "Here are the first 10 of N rooms..."
 - [ ] Full table visible in **Analytics tab**
 
 ---
@@ -68,7 +68,7 @@
 ### A7: Large Dataset (10+ elements → summarizer)
 - [ ] Type: `List ALL elements in the model`
 - [ ] Agent generates code → returns thousands of items
-- [ ] Chat preview: **5 rows max** + total count
+- [ ] Chat preview: **10 rows max** + total count
 - [ ] No raw JSON dumps in chat
 - [ ] Agent response uses summarized data, not raw output
 
@@ -142,7 +142,7 @@
 ### B4: explore_revit_data — Large Result
 - [ ] Ask: `List ALL elements in the model`
 - [ ] Claude calls MCP tool
-- [ ] Returns **summarized output** (first 5 rows + total count if table, first 10 lines if text)
+- [ ] Returns **summarized output** (first 10 rows + total count if table, first 10 lines if text)
 - [ ] No raw JSON arrays in response
 - [ ] Claude presents data as numbered list with totals
 
@@ -151,7 +151,7 @@
 ### B5: execute_dynamic_query — Table
 - [ ] Ask: `Show all rooms with Id, Name, Area (m2), and Level in a table`
 - [ ] Claude generates `.Select(...).Table()` code
-- [ ] Returns summarized table (first 5 rows + total)
+- [ ] Returns summarized table (first 10 rows + total)
 - [ ] Claude notes total count and says "full data requires Paracore native app"
 
 ---
