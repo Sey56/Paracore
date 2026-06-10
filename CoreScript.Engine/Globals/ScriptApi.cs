@@ -106,13 +106,6 @@ namespace CoreScript.Engine.Globals
             Globals.Print(message);
         }
 
-        /// <summary>
-        /// Internal use only. Sets data to be passed back to the host application.
-        /// </summary>
-        public static void SetInternalData(string data)
-        {
-            Globals.SetInternalData(data);
-        }
 
         /// <summary>
         /// Starts a new Revit transaction with the specified name.
@@ -297,6 +290,7 @@ namespace CoreScript.Engine.Globals
         /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
         public static void Watchdog(Action<Document> callback, int intervalSeconds = 5)
         {
+            LicenseContext.RequireEnterprise("Sentinels");
             bool isRegistration = Parameters.TryGetValue("__is_watchdog_registration__", out var isReg) && isReg is bool b && b;
 
             if (isRegistration)
@@ -327,6 +321,7 @@ namespace CoreScript.Engine.Globals
         /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
         public static void Watchdog(Action callback, int intervalSeconds = 5)
         {
+            LicenseContext.RequireEnterprise("Sentinels");
             bool isRegistration = Parameters.TryGetValue("__is_watchdog_registration__", out var isReg) && isReg is bool b && b;
 
             if (isRegistration)
@@ -357,6 +352,7 @@ namespace CoreScript.Engine.Globals
         /// <param name="data">Optional list of elements or objects for details</param>
         public static void WatchdogReport(string summary, string status = "success", object? data = null)
         {
+            LicenseContext.RequireEnterprise("Sentinels");
             string? path = null;
 
             // Priority 1: Current execution context (when running via UI)
@@ -421,11 +417,13 @@ namespace CoreScript.Engine.Globals
         public static List<T> GetElements<T>() where T : Element
         {
             var collector = Core.ParameterOptionsComputer.CreateResilientCollector(Doc, typeof(T));
-            return collector
+            var results = collector
                 .Cast<Element>()
                 .Where(e => e is T)
                 .Cast<T>()
                 .ToList();
+            TrackElements(results);
+            return results;
         }
 
         /// <summary>
@@ -435,9 +433,11 @@ namespace CoreScript.Engine.Globals
         public static List<T> GetElements<T>(string categoryName) where T : Element
         {
             var computer = new Core.ParameterOptionsComputer(Doc);
-            return computer.ComputeElementOptions(typeof(T).Name, categoryName)
+            var results = computer.ComputeElementOptions(typeof(T).Name, categoryName)
                 .Cast<T>()
                 .ToList();
+            TrackElements(results);
+            return results;
         }
 
 
@@ -448,15 +448,17 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static List<Element> GetElements(BuiltInCategory category)
         {
-            return new FilteredElementCollector(Doc)
+            var results = new FilteredElementCollector(Doc)
                 .OfCategory(category)
                 .WhereElementIsNotElementType()
                 .ToList();
+            TrackElements(results);
+            return results;
         }
 
         /// <summary>
         /// Discovery helper for the REPL. Targets categories or classes automatically.
-        /// <para>Example: <c>GetElements("Doors")</c> or <c>GetElements("WallType")</c></para>
+        /// <para>Example: <c>GetElements("Doors")</c></para>
         /// </summary>
         public static List<Element> GetElements(string categoryOrClass)
         {
@@ -483,6 +485,7 @@ namespace CoreScript.Engine.Globals
                 // Return an empty list — don't throw.
                 if (allValidTerms.Any(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase)))
                 {
+                    TrackElements(results);
                     return results; // Empty list
                 }
 
@@ -500,7 +503,17 @@ namespace CoreScript.Engine.Globals
                 throw new ArgumentException($"'{cleanName}' is not a valid Class or Category. For a list of supported Hydrations run GetMagicNames().");
             }
 
+            TrackElements(results);
             return results;
+        }
+
+        /// <summary>
+        /// Appends the element count to the pipeline diagnostics for precise
+        /// error reporting (e.g. "No rooms found" vs "Grouping produced no results").
+        /// </summary>
+        private static void TrackElements<T>(List<T> elements)
+        {
+            ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(elements.Count);
         }
 
         /// <summary>

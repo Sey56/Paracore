@@ -11,11 +11,9 @@ namespace CoreScript.Engine.Tests
     {
         private readonly List<string> _printMessages = new();
         private readonly List<string> _showOutputMessages = new();
-        private string? _internalData;
 
         public IReadOnlyList<string> PrintLog => _printMessages;
         public IReadOnlyList<string> ShowOutputLog => _showOutputMessages;
-        public string? InternalDataLog => _internalData;
         public UIApplication UIApp { get; }
         public UIDocument UIDoc => UIApp?.ActiveUIDocument;
         public Document Doc => UIDoc?.Document;
@@ -70,10 +68,7 @@ namespace CoreScript.Engine.Tests
             Console.WriteLine($"Structured Output - Type: {type}, Data: {jsonData}");
         }
 
-        public void SetInternalData(string data)
-        {
-            _internalData = data;
-            Console.WriteLine($"InternalData set: {data}");
-        }
+        public List<int> PipelineDiagnostics { get; set; } = new();
+
     }
 }

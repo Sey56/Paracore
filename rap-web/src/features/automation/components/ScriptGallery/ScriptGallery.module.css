@@ -70,59 +70,7 @@
     inset: 0;
     z-index: 1000;
     display: block;
-    /* Removed flex centering to avoid clipping and allow margin:auto scrolling */
     background: transparent;
-    /* Removed overflow:hidden to prevent clipping of floating card buttons */
-}
-
-.inlineFocusEffects {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    overflow: hidden;
-}
-
-/* Base grid for focus card */
-.heroGrid {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    margin: auto;
-    max-width: 700px;
-    padding: 4rem;
-    min-height: calc(100% + 160px);
-    /* Enable vertical scrolling breathing room */
-    /* V2.5: High padding to allow card buttons to overflow freely */
-    box-sizing: border-box;
-    z-index: 10;
-    /* Removed overflow:hidden to prevent clipping of floating exit controls */
-}
-
-.animatedBackdrop {
-    position: absolute;
-    inset: -100%;
-    z-index: -2;
-    pointer-events: none;
-    background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.02) 0%, transparent 60%);
-    animation: rotateBackdrop 40s linear infinite;
-}
-
-@keyframes rotateBackdrop {
-    0% {
-        transform: rotate(0deg) scale(1);
-    }
-
-    50% {
-        transform: rotate(180deg) scale(1.1);
-    }
-
-    100% {
-        transform: rotate(360deg) scale(1);
-    }
 }
 
 @keyframes fadeIn {

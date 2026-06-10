@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session  # Added Session
 import models
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 class Membership(BaseModel): # Define Membership here as it's part of CurrentUser
     team_id: int
@@ -25,6 +26,26 @@ class CurrentUser(BaseModel):
     activeTeam: Optional[int] = None
     activeRole: Optional[str] = None
 
+async def get_optional_current_user(
+    token: Optional[str] = Depends(optional_oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> CurrentUser:
+    local_fallback = CurrentUser(
+        id=0,
+        email="local@paracore.app",
+        memberships=[Membership(team_id=0, team_name="Local Team", role="owner")],
+        activeTeam=0,
+        activeRole="owner"
+    )
+    if not token:
+        return local_fallback
+        
+    try:
+        return await get_current_user(token, db)
+    except Exception:
+        # If the token is expired or invalid, silently fall back to local user
+        # so that local-only features like the REPL do not break.
+        return local_fallback
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db) # Add db dependency
@@ -76,12 +97,14 @@ async def get_current_user(
             )
 
         # STANDARD CLOUD VALIDATION
+        # leeway=60 allows 1 minute of clock skew between auth server and local machine
         payload = jwt.decode(
             token,
             settings.JWT_PUBLIC_KEY,
             algorithms=[settings.JWT_ALGORITHM],
             audience=None,
-            issuer=None
+            issuer=None,
+            options={"leeway": 60}
         )
 
         user_id = payload.get("user_id")

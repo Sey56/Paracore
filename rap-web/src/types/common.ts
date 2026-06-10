@@ -6,6 +6,7 @@ export interface ExecutionResult {
   internalData?: string;
   timestamp?: number;
   scriptName?: string;
+  capturedDocTitle?: string | null;
 }
 
 import { StructuredOutput, ScriptParameter } from './scriptModel';

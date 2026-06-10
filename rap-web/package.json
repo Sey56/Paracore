@@ -1,7 +1,7 @@
 {
   "name": "rap",
   "private": true,
-  "version": "4.3.1",
+  "version": "4.5.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -31,10 +31,12 @@
     "primereact": "^10.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
     "react-rnd": "^10.5.2",
     "react-syntax-highlighter": "^15.6.6",
     "react-toastify": "^9.0.0",
     "recharts": "^3.6.0",
+    "remark-gfm": "^4.0.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

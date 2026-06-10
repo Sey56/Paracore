@@ -2,7 +2,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from auth import CurrentUser, get_current_user
+from auth import CurrentUser, get_current_user, get_optional_current_user
 from database_config import get_db
 from pydantic import BaseModel
 from services import execution_service
@@ -20,7 +20,7 @@ async def pick_object_endpoint(request: PickObjectRequest):
 @router.post("/run-script", tags=["Script Execution"])
 async def run_script(
     request: Request,
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     data = await request.json()
@@ -71,8 +71,16 @@ async def batch_update_element_parameters_endpoint(request: BatchUpdateElementPa
 class ReplRequestModel(BaseModel):
     code: str
     session_id: str
+    license_tier: Optional[str] = None
 
 @router.post("/api/repl", tags=["Script Execution"])
-async def execute_repl_endpoint(request: ReplRequestModel):
-    response = await execution_service.execute_repl_logic(request.code, request.session_id)
+async def execute_repl_endpoint(
+    request: ReplRequestModel,
+    current_user: CurrentUser = Depends(get_optional_current_user)
+):
+    # Derive tier: if frontend sent it, use it; otherwise derive from auth token
+    tier = request.license_tier
+    if not tier:
+        tier = "enterprise" if current_user.id != 0 else "free"
+    response = await execution_service.execute_repl_logic(request.code, request.session_id, tier)
     return JSONResponse(content=response)

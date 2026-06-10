@@ -30,7 +30,7 @@ namespace Paracore.Addin.Handlers
                 // Use the dispatcher to run the REPL command on the Revit UI thread
                 var result = await CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext(async () =>
                 {
-                    return await ReplSessionManager.ExecuteAsync(request.Code, request.SessionId, context);
+                    return await ReplSessionManager.ExecuteAsync(request.Code, request.SessionId, context, request.LicenseTier);
                 });
 
                 // Unwrap the nested task result
@@ -42,6 +42,9 @@ namespace Paracore.Addin.Handlers
                     Output = output,
                     ErrorMessage = error
                 };
+
+                if (context.PipelineDiagnostics != null)
+                    response.PipelineDiagnostics.AddRange(context.PipelineDiagnostics);
 
                 foreach (var item in structuredOutput)
                 {

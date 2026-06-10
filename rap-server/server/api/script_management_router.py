@@ -214,11 +214,6 @@ async def save_script(request: SaveScriptRequest, current_user: CurrentUser = De
 async def compute_options(request: ComputeOptionsRequest):
     return await script_service.compute_parameter_options_logic(request.scriptPath, request.parameterName, request.parameters)
 
-@router.get("/api/scripts/manifest", tags=["Script Management"])
-async def get_manifest(path: str):
-    if not path or not os.path.isabs(path):
-        raise HTTPException(status_code=400, detail="A valid, absolute path is required.")
-    return script_service.get_script_manifest_logic(path)
 
 @router.post("/api/rename-script", tags=["Script Management"])
 async def rename_script(request: RenameRequest, current_user: CurrentUser = Depends(get_current_user)):

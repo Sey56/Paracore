@@ -66,6 +66,14 @@ export const ScriptGallery: React.FC = () => {
   const savedScrollTop = useRef(0);
   const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
 
+  // If selected script becomes null, we exit focus mode automatically
+  useEffect(() => {
+    if (!selectedScript && isFocusMode) {
+      setFocusMode(false);
+      setSourceRect(null);
+    }
+  }, [selectedScript, isFocusMode, setFocusMode]);
+
   // Ref to always hold latest scripts for closure-safe access in timers
   const scriptsRef = useRef(scripts);
   useEffect(() => { scriptsRef.current = scripts; }, [scripts]);

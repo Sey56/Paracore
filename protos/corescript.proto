@@ -195,6 +195,7 @@ message ExecuteScriptRequest {
   bytes parameters_json = 2;
   string source = 3;
   bytes compiled_assembly = 4; 
+  string license_tier = 5;
 }
 
 message StructuredOutputItem {
@@ -211,6 +212,7 @@ message ExecuteScriptResponse {
   repeated StructuredOutputItem structured_output = 5;
   string internal_data = 6;
   string agent_summary = 7;
+  repeated int32 pipeline_diagnostics = 8;
 }
 
 message GetStatusRequest {
@@ -445,6 +447,7 @@ message UpdateElementParameterResponse {
 message ExecuteReplRequest {
   string code = 1;
   string session_id = 2;
+  string license_tier = 3;
 }
 
 message ExecuteReplResponse {
@@ -452,4 +455,5 @@ message ExecuteReplResponse {
   string output = 2;
   string error_message = 3;
   repeated StructuredOutputItem structured_output = 4;
+  repeated int32 pipeline_diagnostics = 5;
 }

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBolt, faTrash, faSpinner, faCheckCircle, faInfoCircle, faShieldHalved, faChartPie } from '@fortawesome/free-solid-svg-icons';
+import { faBolt, faTrash, faSpinner, faCheckCircle, faInfoCircle, faShieldHalved, faChartPie, faDisplay } from '@fortawesome/free-solid-svg-icons';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { isTelemetryEnabled, setTelemetryEnabled } from '@/utils/telemetry';
+import { useUI } from '@/hooks/useUI';
+import { AuthContext } from '@/features/auth/store/AuthContext';
 
 export const AutomationSettings: React.FC = () => {
   const { showNotification } = useNotifications();
   const [isClearing, setIsClearing] = useState(false);
-  const [telemetryOptIn, setTelemetryOptIn] = useState(true);
+  const [telemetryOptIn, setTelemetryOptIn] = useState(false);
 
   React.useEffect(() => {
     setTelemetryOptIn(isTelemetryEnabled());
@@ -145,3 +147,4 @@ export const AutomationSettings: React.FC = () => {
     </div>
   );
 };
+

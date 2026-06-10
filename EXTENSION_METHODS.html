@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+
+<style>
+body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; line-height: 1.6; padding: 40px; max-width: 900px; margin: 0 auto; color: #333; }
+h1, h2, h3 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+code { background-color: #f6f8fa; border-radius: 3px; padding: 0.2em 0.4em; font-family: SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace; font-size: 85%; }
+pre { background-color: #f6f8fa; padding: 16px; overflow: auto; border-radius: 3px; }
+pre code { background-color: transparent; padding: 0; }
+blockquote { border-left: 0.25em solid #dfe2e5; color: #6a737d; padding: 0 1em; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+table th, table td { border: 1px solid #dfe2e5; padding: 6px 13px; }
+table tr:nth-child(2n) { background-color: #f6f8fa; }
+</style>
+
+</head>
+<body>
+<h1>🧩 Paracore Extension Methods Reference</h1>
+<p>A comprehensive guide to every extension method available on Revit elements and collections in Paracore scripts. All methods are defined in <code>ElementExtensions.cs</code>, <code>UnitExtensions.cs</code>, <code>CoordinationExtensions.cs</code>, and <code>NotebookExtensions.cs</code> and are globally available in the REPL and in all scripts.</p>
+<blockquote>
+<p>[!NOTE]
+All extension methods work identically in the <strong>REPL</strong> (single-line and multi-line) and in <strong>Gallery scripts</strong> (full C# project structure). They were designed as shortcuts to simplify the verbose Revit API, but they are standard C# extension methods available everywhere the engine runs.</p>
+<p>[!TIP]
+All collection extension methods are <strong>fully generic</strong> — they preserve the specific element type (<code>Wall</code>, <code>FamilyInstance</code>, etc.) throughout the entire fluent chain. You never lose type information.</p>
+</blockquote>
+<hr />
+<h2>📖 Table of Contents</h2>
+<ol>
+<li><a href="#-two-query-modes">Two Query Modes</a></li>
+<li><a href="#-element-parameter--property-accessors-read">Element: Parameter &amp; Property Accessors (Read)</a></li>
+<li><a href="#-element-type-level-accessors">Element: Type-Level Accessors</a></li>
+<li><a href="#-element-smart-write-methods">Element: Smart Write Methods</a></li>
+<li><a href="#-element-identity--discovery">Element: Identity &amp; Discovery</a></li>
+<li><a href="#-element-specialized-doorwindow-orientation">Element: Specialized Door/Window Orientation</a></li>
+<li><a href="#-element-diagnostics--inspection">Element: Diagnostics &amp; Inspection</a></li>
+<li><a href="#-element-geometry">Element: Geometry</a></li>
+<li><a href="#-element-revit-ui-actions">Element: Revit UI Actions</a></li>
+<li><a href="#-collection-filtering">Collection: Filtering</a></li>
+<li><a href="#-collection-sorting">Collection: Sorting</a></li>
+<li><a href="#-collection-grouping--aggregation">Collection: Grouping &amp; Aggregation</a></li>
+<li><a href="#-collection-bulk-write">Collection: Bulk Write</a></li>
+<li><a href="#-collection-visualization">Collection: Visualization</a></li>
+<li><a href="#-collection-revit-ui-actions">Collection: Revit UI Actions</a></li>
+<li><a href="#-element-materials--sustainability">Element: Materials &amp; Sustainability</a></li>
+<li><a href="#-collection-coordination--geometric-auditing">Collection: Coordination &amp; Geometric Auditing</a></li>
+<li><a href="#-numeric--unit-comparison-helpers">Numeric &amp; Unit Comparison Helpers</a></li>
+<li><a href="#-complete-fluent-chain-examples">Complete Fluent Chain Examples</a></li>
+<li><a href="#-quick-reference-card">Quick Reference Card</a></li>
+</ol>
+<hr />
+<h2>🔀 Two Query Modes</h2>
+<p>Paracore's collection extensions support two styles, each with trade-offs:</p>
+<h3>Mode 1: String / Parameter Mode (Generic Elements)</h3>
+<pre><code class="language-csharp">GetElements(&quot;Doors&quot;)
+    .WhereParam(&quot;Level&quot;, &quot;Level 1&quot;)
+    .WhereParam(&quot;HandFlipped&quot;, &quot;True&quot;)   // Uses reflection for C# properties
+    .OrderByParam(&quot;Mark&quot;)
+    .Table()
+</code></pre>
+<ul>
+<li>Works on <code>List&lt;Element&gt;</code> — the most permissive mode.</li>
+<li><code>.WhereParam</code> uses <code>GetStr()</code> internally, which falls back to <strong>Reflection</strong> for C# native properties (<code>HandFlipped</code>, <code>Area</code>, <code>Volume</code>, etc.).</li>
+<li>No type casting needed. Works for any param name or native C# property name.</li>
+</ul>
+<h3>Mode 2: Typed / Lambda Mode (Specific Types)</h3>
+<pre><code class="language-csharp">GetElements&lt;FamilyInstance&gt;(&quot;Doors&quot;)
+    .WhereParam(&quot;Level&quot;, &quot;Level 1&quot;)
+    .Where(dr =&gt; !dr.HandFlipped &amp;&amp; dr.Symbol.FamilyName.Contains(&quot;Single&quot;))
+    .OrderByParam(&quot;Mark&quot;)
+    .Table()
+</code></pre>
+<ul>
+<li>Works on <code>List&lt;T&gt;</code> — preserves the specific type throughout the chain.</li>
+<li>Enables strongly-typed lambda expressions with IntelliSense.</li>
+<li>Use when you need direct access to type-specific C# properties or methods.</li>
+</ul>
+<blockquote>
+<p>[!IMPORTANT]
+<code>WhereParam("HandFlipped", "True")</code> ← string mode — works via reflection.
+<code>.Where(dr =&gt; dr.HandFlipped)</code> ← typed mode — requires <code>GetElements&lt;FamilyInstance&gt;</code>.
+Both are valid. Use whichever is cleaner for your task.</p>
+</blockquote>
+<hr />
+<h2>📥 Element: Parameter &amp; Property Accessors (Read)</h2>
+<p>All methods on <code>Element</code>. Automatically handle:
+- <code>BuiltInParameter</code> name lookups
+- <code>ElementId</code> → Element Name resolution
+- C# native property fallback via Reflection
+- Type parameter fallback (Automatically checks the element's Type if the instance parameter is missing)
+- Unit conversion (where applicable)</p>
+<hr />
+<h3><code>element.GetStr(name)</code></h3>
+<blockquote>
+<p><strong>Smart String Getter.</strong> Returns a human-readable string value.</p>
+</blockquote>
+<ul>
+<li>If parameter is an <code>ElementId</code> (Level, Type, Room), returns the <strong>element name</strong> (e.g., <code>"Level 1"</code>).</li>
+<li>Falls back to Revit's formatted value string for numbers.</li>
+<li>Falls back to C# property via Reflection (e.g., <code>"HandFlipped"</code> → <code>"True"</code>).</li>
+<li>Falls back to Type parameter if not found on the instance (e.g., standard door <code>"Width"</code>).</li>
+<li>Returns <code>""</code> if not found.</li>
+</ul>
+<pre><code class="language-csharp">wall.GetStr(&quot;Level&quot;)       // → &quot;Level 1&quot;
+door.GetStr(&quot;Mark&quot;)        // → &quot;D-101&quot;
+door.GetStr(&quot;HandFlipped&quot;) // → &quot;True&quot; (via reflection)
+</code></pre>
+<hr />
+<h3><code>element.GetStr(name, unit, decimals)</code></h3>
+<blockquote>
+<p><strong>Unit-Converted String Getter.</strong> Returns the value converted to the given unit as a plain number string (no suffix). Supports an optional <code>decimals</code> parameter (default: 2).</p>
+</blockquote>
+<pre><code class="language-csharp">wall.GetStr(&quot;Length&quot;, &quot;mm&quot;)      // → &quot;3600&quot;
+room.GetStr(&quot;Area&quot;, &quot;m2&quot;, 4)     // → &quot;25.4578&quot; (specified decimals)
+</code></pre>
+<hr />
+<h3><code>element.GetNum(name)</code></h3>
+<blockquote>
+<p><strong>Raw Numeric Getter.</strong> Returns the raw <code>double</code> value in Revit internal units (feet / sq.ft / cu.ft).</p>
+</blockquote>
+<ul>
+<li>Returns <code>0.0</code> if not found.</li>
+<li>Falls back to C# property via Reflection for native doubles (<code>Width</code>, <code>Volume</code>, etc.).</li>
+<li>Falls back to Type parameter if not found on the instance.</li>
+</ul>
+<pre><code class="language-csharp">wall.GetNum(&quot;Length&quot;)    // → 11.811 (feet)
+room.GetNum(&quot;Area&quot;)      // → 18.4 (sq.ft)
+</code></pre>
+<hr />
+<h3><code>element.GetNum(name, unit, decimals)</code></h3>
+<blockquote>
+<p><strong>Unit-Converted Numeric Getter.</strong> Returns the value converted to the specified unit. Supports an optional <code>decimals</code> parameter (default: 2).</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Unit String</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mm</code>, <code>cm</code>, <code>m</code>, <code>ft</code>, <code>in</code></td>
+<td>Length</td>
+</tr>
+<tr>
+<td><code>m2</code>, <code>sqm</code>, <code>ft2</code>, <code>sqft</code></td>
+<td>Area</td>
+</tr>
+<tr>
+<td><code>m3</code>, <code>cum</code>, <code>ft3</code>, <code>cuft</code></td>
+<td>Volume</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">wall.GetNum(&quot;Length&quot;, &quot;m&quot;)       // → 3.6
+room.GetNum(&quot;Area&quot;, &quot;m2&quot;, 4)     // → 25.4578 (specified decimals)
+floor.GetNum(&quot;Volume&quot;, &quot;m3&quot;)     // → 0.72
+</code></pre>
+<hr />
+<h3><code>element.GetVal(name)</code></h3>
+<blockquote>
+<p><strong>WYSIWYG Getter.</strong> Returns the formatted string exactly as seen in Revit's Properties palette.</p>
+</blockquote>
+<ul>
+<li>Returns values like <code>"3600.0 mm"</code>, <code>"1.25 m³"</code>, <code>"Level 1"</code>.</li>
+<li>Falls back to <code>GetStr</code> if Revit doesn't provide a formatted string.</li>
+<li>Automatically falls back to Type parameters if an instance parameter is not found.</li>
+<li>Returns <code>"-"</code> if not found.</li>
+</ul>
+<pre><code class="language-csharp">room.GetVal(&quot;Area&quot;)   // → &quot;25.46 m²&quot;
+wall.GetVal(&quot;Level&quot;)  // → &quot;Level 1&quot;
+</code></pre>
+<hr />
+<h3><code>element.GetVal(name, unit, decimals)</code></h3>
+<blockquote>
+<p><strong>Unit-Formatted WYSIWYG Getter.</strong> Returns a value string with the specified unit suffix. Supports an optional <code>decimals</code> parameter (default: 2).</p>
+</blockquote>
+<pre><code class="language-csharp">wall.GetVal(&quot;Length&quot;, &quot;mm&quot;)      // → &quot;3600.0 mm&quot;
+room.GetVal(&quot;Area&quot;, &quot;m2&quot;, 3)     // → &quot;25.458 m²&quot;
+</code></pre>
+<hr />
+<h3><code>element.GetInt(name)</code></h3>
+<blockquote>
+<p><strong>Integer Getter.</strong> Returns the integer value — also works for yes/no (boolean) parameters.</p>
+</blockquote>
+<ul>
+<li>Returns <code>0</code> (false) if not found.</li>
+</ul>
+<pre><code class="language-csharp">wall.GetInt(&quot;Is External&quot;)   // → 1 (true) or 0 (false)
+element.GetInt(&quot;Count&quot;)      // → 4
+</code></pre>
+<hr />
+<h2>📤 Element: Type-Level Accessors</h2>
+<p>Same as instance accessors but target the element's <strong>ElementType</strong> (e.g., Wall Type, Door Type).</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>element.GetElementType()</code></td>
+<td>Returns the ElementType element</td>
+</tr>
+<tr>
+<td><code>element.GetTypeStr(name)</code></td>
+<td>Type-level <code>GetStr</code></td>
+</tr>
+<tr>
+<td><code>element.GetTypeStr(name, unit, decimals)</code></td>
+<td>Type-level <code>GetStr</code> with unit &amp; optional decimals</td>
+</tr>
+<tr>
+<td><code>element.GetTypeNum(name)</code></td>
+<td>Type-level <code>GetNum</code></td>
+</tr>
+<tr>
+<td><code>element.GetTypeNum(name, unit, decimals)</code></td>
+<td>Type-level <code>GetNum</code> with unit &amp; optional decimals</td>
+</tr>
+<tr>
+<td><code>element.GetTypeInt(name)</code></td>
+<td>Type-level <code>GetInt</code></td>
+</tr>
+<tr>
+<td><code>element.GetTypeVal(name)</code></td>
+<td>Type-level <code>GetVal</code></td>
+</tr>
+<tr>
+<td><code>element.GetTypeVal(name, unit, decimals)</code></td>
+<td>Type-level <code>GetVal</code> with unit &amp; optional decimals</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">wall.GetTypeStr(&quot;Wrapping at Inserts&quot;)  // → &quot;Do not wrap&quot;
+door.GetTypeNum(&quot;Width&quot;, &quot;mm&quot;)          // → 900.0 (type width)
+</code></pre>
+<hr />
+<h2>✏️ Element: Smart Write Methods</h2>
+<h3>Consistent Transaction Behavior (<code>IsModifiable</code> Check)</h3>
+<p><strong>All write and UI-action methods</strong> share the same transaction intelligence. Before applying a change, the engine checks <code>e.Document.IsModifiable</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Single</th>
+<th>Collection</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SetVal</code></td>
+<td>✅</td>
+<td>via <code>SetParam</code></td>
+<td>Write parameter values</td>
+</tr>
+<tr>
+<td><code>SetNum</code></td>
+<td>✅</td>
+<td>via <code>SetParam</code></td>
+<td>Write numeric values with unit conversion</td>
+</tr>
+<tr>
+<td><code>Delete</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>BIM-Smart Delete</td>
+</tr>
+<tr>
+<td><code>Hide</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Hide in active view</td>
+</tr>
+<tr>
+<td><code>Unhide</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Unhide in active view</td>
+</tr>
+<tr>
+<td><code>Isolate</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Temporarily isolate in view</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>If <code>false</code> (No Active Transaction):</strong> A new, isolated transaction is created automatically. Ideal for REPL one-liners and fluent chains.</li>
+<li><strong>If <code>true</code> (Active Transaction Exists):</strong> The engine bypasses creating a transaction and applies the change instantly. This is what happens when you wrap operations in a <code>Transact()</code> block.</li>
+</ul>
+<blockquote>
+<p>[!IMPORTANT]
+<strong>Mass Edits in <code>foreach</code> loops:</strong> When modifying multiple elements in a manual <code>foreach</code> loop, <strong>always</strong> wrap the loop in a <code>Transact()</code> block. Without it, each iteration creates its own mini-transaction — cluttering the Undo stack and hurting performance. With a <code>Transact()</code> wrapper, each method detects the active transaction and runs directly.</p>
+<p><strong>Collection-level methods</strong> (<code>.Delete()</code>, <code>.SetParam()</code>, <code>.Hide()</code>, etc.) already batch all changes into a single transaction automatically — no <code>Transact()</code> wrapper needed for fluent chains.</p>
+</blockquote>
+<hr />
+<h3><code>element.SetVal(name, value, unit)</code></h3>
+<blockquote>
+<p><strong>The Smart Setter.</strong> Automatically determines how to write the value based on parameter type. Uses Reflection to locate Native C# properties if no parameter matches. Can optionally take a <code>unit</code> parameter to convert numeric values/strings from the specified unit before setting.</p>
+</blockquote>
+<p><strong>Overloads:</strong>
+*   <code>public static void SetVal(this Element e, string name, object value)</code>
+*   <code>public static void SetVal(this Element e, string name, object value, string unit)</code></p>
+<table>
+<thead>
+<tr>
+<th>Input type</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>string "500 mm"</code></td>
+<td>Calls <code>SetValueString</code> — parses value + unit</td>
+</tr>
+<tr>
+<td><code>string "Level 1"</code></td>
+<td>Resolves name to <code>ElementId</code> automatically</td>
+</tr>
+<tr>
+<td><code>string "Updated"</code></td>
+<td>Standard string set</td>
+</tr>
+<tr>
+<td><code>double 3.5</code></td>
+<td>Direct numeric set (internal units)</td>
+</tr>
+<tr>
+<td><code>bool true</code></td>
+<td>Native C# Property set via Reflection (e.g. "Pinned")</td>
+</tr>
+<tr>
+<td><code>double 200, string "mm"</code></td>
+<td>Converts from the unit to internal units, then sets</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">wall.SetVal(&quot;Comments&quot;, &quot;Reviewed&quot;)          // string
+wall.SetVal(&quot;Base Offset&quot;, &quot;500 mm&quot;)         // value string — unit parsed
+wall.SetVal(&quot;Base Offset&quot;, -150, &quot;cm&quot;)       // converts -150cm to internal feet
+wall.SetVal(&quot;Level&quot;, &quot;Level 2&quot;)              // ElementId resolved by name
+wall.SetVal(&quot;Pinned&quot;, true)                  // Native C# property
+</code></pre>
+<hr />
+<h3><code>element.SetNum(name, value, unit)</code></h3>
+<blockquote>
+<p><strong>The Math Setter.</strong> Specifically designed to take raw mathematical doubles and convert them FROM the specified unit INTO Revit's internal decimal feet before setting.</p>
+</blockquote>
+<p><strong>Overloads:</strong>
+*   <code>public static void SetNum(this Element e, string name, double value)</code> <em>(Assumes value is already internal Decimal Feet)</em>
+*   <code>public static void SetNum(this Element e, string name, double value, string unit)</code> <em>(Converts from specified unit)</em></p>
+<pre><code class="language-csharp">double calculatedHeight = 3.0; // Assume we calculated this in Meters
+
+// CORRECT: Converts 3.0 from Meters into Internal Feet, then sets it.
+wall.SetNum(&quot;Unconnected Height&quot;, calculatedHeight, &quot;m&quot;); 
+
+// DANGEROUS: Revit will assume 3.0 means 3 Feet!
+wall.SetVal(&quot;Unconnected Height&quot;, calculatedHeight); 
+</code></pre>
+<hr />
+<h2>🔍 Element: Identity &amp; Discovery</h2>
+<h3><code>id.ToElement(doc)</code></h3>
+<blockquote>
+<p><strong>Identity Resolver.</strong> Converts an <code>ElementId</code>, <code>int</code>, or <code>long</code> directly to a Revit <code>Element</code>.
+Available on <code>ElementId</code>, <code>int</code>, and <code>long</code>.</p>
+</blockquote>
+<pre><code class="language-csharp">var el = 123456L.ToElement(Doc);
+var wall = someId.ToElement(Doc) as Wall;
+</code></pre>
+<hr />
+<h3><code>element.FamilyName()</code></h3>
+<blockquote>
+<p>Returns the true Family Name for both Loadable and System families.</p>
+</blockquote>
+<pre><code class="language-csharp">door.FamilyName()   // → &quot;M_Single-Flush&quot;
+wall.FamilyName()   // → &quot;Basic Wall&quot; (via ELEM_FAMILY_PARAM fallback)
+</code></pre>
+<hr />
+<h3><code>element.Matches(pattern)</code></h3>
+<blockquote>
+<p><strong>Fuzzy Name Matcher.</strong> Returns <code>true</code> if the pattern is found in the element's Type Name OR Family Name (case-insensitive).</p>
+</blockquote>
+<pre><code class="language-csharp">door.Matches(&quot;Single&quot;)        // → true (Family Name contains &quot;Single&quot;)
+door.Matches(&quot;Flush&quot;)         // → true (Type Name contains &quot;Flush&quot;)
+door.Matches(&quot;NonExistent&quot;)   // → false
+</code></pre>
+<hr />
+<h3><code>element.ReflectionProperties()</code></h3>
+<blockquote>
+<p>Returns a list of all native C# properties on the element's runtime type (via Reflection).</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements&lt;Wall&gt;().First().ReflectionProperties().Table()
+// Columns: Name | Type
+</code></pre>
+<hr />
+<h3><code>element.ReflectionMethods()</code></h3>
+<blockquote>
+<p>Returns a list of all public C# methods available on the element's runtime type (via Reflection), excluding standard System.Object methods. Details the method name, return type, parameters, and declaring type.</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements&lt;FamilyInstance&gt;(&quot;Doors&quot;).First().ReflectionMethods().Table()
+// Columns: Method | ReturnType | Parameters | DeclaringType
+</code></pre>
+<hr />
+<h2>🚪 Element: Specialized Door/Window Orientation</h2>
+<p>Revit's native <code>ToRoom</code>/<code>FromRoom</code> properties swap when a door is flipped. These helpers are stable regardless of flip state.</p>
+<blockquote>
+<p>[!WARNING]
+<strong>Swing-Based Detection:</strong> <code>RoomTo()</code> and <code>RoomFrom()</code> determine room relationships based on the <strong>physical swing arc geometry</strong> — the room the arc swings into is the "To" room. This is the most reliable geometric approach, but it may not always match the <strong>architectural intent</strong>. For example, in egress situations where code requires the door to swing toward the exit, the swing direction is opposite to the logical "entry" direction. In such cases, consider adding a shared parameter to explicitly tag the intended direction.</p>
+</blockquote>
+<hr />
+<h3><code>fi.RoomAccess()</code> / <code>fi.RoomFrom()</code></h3>
+<blockquote>
+<p>Returns the room on the <strong>non-swing side</strong> — the side the door swings away from. Stable regardless of flips.</p>
+</blockquote>
+<pre><code class="language-csharp">door.RoomAccess()   // → &quot;Corridor&quot;
+</code></pre>
+<hr />
+<h3><code>fi.RoomDestination()</code> / <code>fi.RoomTo()</code></h3>
+<blockquote>
+<p>Returns the room the door <strong>swings into</strong>. Immutable.</p>
+</blockquote>
+<pre><code class="language-csharp">door.RoomDestination()  // → &quot;Office 101&quot;
+</code></pre>
+<hr />
+<h3><code>fi.Handing()</code></h3>
+<blockquote>
+<p>Returns the handing code as seen from <code>RoomFrom()</code> — the non-swing side.
+Since <code>RoomFrom()</code> is always the side the door swings <strong>away from</strong>, the observer always sees a Push door. <code>Handing()</code> will always return <code>LH</code> or <code>RH</code>.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LH</code></td>
+<td>Left Hand — hinges on the left as seen from <code>RoomFrom()</code></td>
+</tr>
+<tr>
+<td><code>RH</code></td>
+<td>Right Hand — hinges on the right as seen from <code>RoomFrom()</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">door.Handing()    // → &quot;LH&quot; or &quot;RH&quot;
+</code></pre>
+<hr />
+<h3><code>fi.HingeSide()</code></h3>
+<blockquote>
+<p>Returns <code>"Left"</code> or <code>"Right"</code> as seen from the Access Room.</p>
+</blockquote>
+<pre><code class="language-csharp">door.HingeSide()  // → &quot;Right&quot;
+</code></pre>
+<hr />
+<h3><code>fi.IsHandFlipped()</code> / <code>fi.IsFacingFlipped()</code></h3>
+<blockquote>
+<p>Direct wrappers for Revit's <code>FamilyInstance.HandFlipped</code> and <code>FamilyInstance.FacingFlipped</code>.</p>
+</blockquote>
+<pre><code class="language-csharp">door.IsHandFlipped()    // → true / false
+door.IsFacingFlipped()  // → true / false
+</code></pre>
+<blockquote>
+<p>[!TIP]
+In string mode, use <code>WhereParam("HandFlipped", "True")</code> instead. This uses reflection and works even on <code>List&lt;Element&gt;</code>.</p>
+</blockquote>
+<hr />
+<h3><code>fi.FindSwingArc()</code></h3>
+<blockquote>
+<p>Returns the largest <code>Arc</code> found in the door's geometry — the physical swing arc in World Space.</p>
+</blockquote>
+<pre><code class="language-csharp">var arc = door.FindSwingArc();
+// arc.Radius, arc.Center, arc.GetEndPoint(0)
+</code></pre>
+<hr />
+<h3><code>fi.IsStandardDoor()</code></h3>
+<blockquote>
+<p>Returns <code>true</code> if the door is hosted in a standard wall (Basic/Stacked), <code>false</code> if it’s a Curtain Wall panel.</p>
+</blockquote>
+<pre><code class="language-csharp">door.IsStandardDoor()  // → true for standard doors
+// false for curtain wall glass doors
+</code></pre>
+<hr />
+<h3><code>.StandardOnly()</code> — Collection Filter</h3>
+<blockquote>
+<p>Filters a <code>FamilyInstance</code> collection to exclude Curtain Wall hosted panels. Curtain wall doors don’t carry standard properties like Level, Width, Height, Room, or swing geometry.</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements&lt;FamilyInstance&gt;(&quot;Doors&quot;)
+    .StandardOnly()
+    .Table();
+</code></pre>
+<hr />
+<h2>🔎 Element: Diagnostics &amp; Inspection</h2>
+<h3><code>element.Peek()</code></h3>
+<blockquote>
+<p>Side-by-side parameter audit: <code>Parameter | Storage | GetStr | GetNum | UI Value</code>.
+Returns the element (chainable).</p>
+</blockquote>
+<h3><code>elements.Peek()</code></h3>
+<blockquote>
+<p>Executes <code>.Peek()</code> on every element in a collection.</p>
+</blockquote>
+<pre><code class="language-csharp">Selection.Peek();
+GetElements(&quot;Walls&quot;).Peek();
+</code></pre>
+<hr />
+<h3><code>element.InstanceParams()</code></h3>
+<blockquote>
+<p>Returns all instance parameters as <code>Name | Storage | Value</code>.</p>
+</blockquote>
+<pre><code class="language-csharp">wall.InstanceParams().Table()
+</code></pre>
+<hr />
+<h3><code>element.TypeParams()</code></h3>
+<blockquote>
+<p>Returns all type parameters as <code>Name | Storage | Value</code>.</p>
+</blockquote>
+<pre><code class="language-csharp">wall.TypeParams().Table()
+</code></pre>
+<hr />
+<h3><code>element.CombinedParams()</code></h3>
+<blockquote>
+<p>Returns instance + type parameters together with a <code>Scope</code> column (<code>"Instance"</code> or <code>"Type"</code>).</p>
+</blockquote>
+<pre><code class="language-csharp">wall.CombinedParams().Table()
+</code></pre>
+<hr />
+<h3><code>element.BuiltInParams()</code></h3>
+<blockquote>
+<p>Returns all <code>BuiltInParameter</code> identifiers for the element: <code>Name | BIP | Value</code>.</p>
+</blockquote>
+<pre><code class="language-csharp">wall.BuiltInParams().Table()
+// Use to find the BIP string for language-independent code
+</code></pre>
+<hr />
+<h3><code>element.NativeProperties()</code></h3>
+<blockquote>
+<p>Returns key Revit API properties not in the parameter dict: Name, Id, Category, Level, Workset, Design Option, Owner, Location, Pinned.</p>
+</blockquote>
+<pre><code class="language-csharp">wall.NativeProperties().Table()
+</code></pre>
+<hr />
+<h3><code>element.ParamsDict()</code></h3>
+<blockquote>
+<p>Returns all parameter values as a <code>Dictionary&lt;string, string&gt;</code>.</p>
+</blockquote>
+<pre><code class="language-csharp">var dict = wall.ParamsDict();
+Println(dict[&quot;Mark&quot;]);
+</code></pre>
+<hr />
+<h2>🔷 Element: Geometry</h2>
+<h3><code>element.GeometrySummary()</code></h3>
+<blockquote>
+<p>Returns a table of all geometry objects in the element: Solids (Volume, Area, Faces), Curves (Arc, Line), PolyLines.</p>
+</blockquote>
+<pre><code class="language-csharp">wall.GeometrySummary().Table()
+// Columns: Type | Source | Material | Volume | Area | Faces | Edges
+</code></pre>
+<hr />
+<h2>🖱️ Element: Revit UI Actions</h2>
+<p>These return the element (chainable).</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Single</th>
+<th>Collection</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.Select()</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Selects in Revit UI</td>
+</tr>
+<tr>
+<td><code>.Zoom()</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Zooms/shows in active view</td>
+</tr>
+<tr>
+<td><code>.Isolate()</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Temporarily isolates in active view</td>
+</tr>
+<tr>
+<td><code>.Hide()</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Hides from active view</td>
+</tr>
+<tr>
+<td><code>.Unhide()</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Unhides in active view</td>
+</tr>
+<tr>
+<td><code>.Delete()</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>BIM-Smart Delete (auto-transaction)</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">Selection[0].Select().Zoom()
+GetElements(&quot;Walls&quot;).Isolate()
+</code></pre>
+<hr />
+<h2>🗂️ Collection: Filtering</h2>
+<p>All methods are <strong>generic</strong> (<code>where T : Element</code>) and preserve the input type throughout the chain.</p>
+<hr />
+<h3><code>.WhereParam(name, value)</code> — String filter</h3>
+<blockquote>
+<p>Filters elements where the named parameter/property equals the value (case-insensitive).
+Works via <code>GetStr()</code>, which covers Revit parameters AND native C# properties via Reflection.</p>
+</blockquote>
+<h3><code>.WhereParam(name, op, value)</code> — String predicate filter</h3>
+<blockquote>
+<p>Filters using string operations: <code>"contains"</code>, <code>"starts"</code>, <code>"ends"</code>.</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements(&quot;Doors&quot;).WhereParam(&quot;Level&quot;, &quot;Level 1&quot;)
+GetElements(&quot;Doors&quot;).WhereParam(&quot;Mark&quot;, &quot;starts&quot;, &quot;D-10&quot;)
+GetElements(&quot;Rooms&quot;).WhereParam(&quot;Name&quot;, &quot;contains&quot;, &quot;Laundry&quot;)
+</code></pre>
+<hr />
+<h3><code>.WhereParam(name, value, unit)</code> — Numeric filter</h3>
+<blockquote>
+<p>Filters elements where the named numeric parameter equals the value (tolerance: 0.001 in the specified unit).</p>
+</blockquote>
+<h3><code>.WhereParam(name, op, value, unit)</code> — Numeric comparison filter</h3>
+<blockquote>
+<p>Filters using comparison operators: <code>"&gt;"</code>, <code>"&lt;"</code>, <code>"&gt;="</code>, <code>"&lt;="</code>.</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements&lt;Wall&gt;().WhereParam(&quot;Width&quot;, 200, &quot;mm&quot;)        // exactly 200mm
+GetElements&lt;Room&gt;().WhereParam(&quot;Area&quot;, &quot;&gt;&quot;, 25.0, &quot;m2&quot;)   // larger than 25sqm
+GetElements&lt;Wall&gt;().WhereParam(&quot;Length&quot;, &quot;&lt;&quot;, 10.0, &quot;m&quot;)  // shorter than 10m
+</code></pre>
+<hr />
+<h3><code>.WhereMatches(pattern)</code> — Fuzzy name filter</h3>
+<blockquote>
+<p>Filters to elements whose Type Name OR Family Name contains the substring (case-insensitive).</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements(&quot;Doors&quot;).WhereMatches(&quot;Single-Flush&quot;)
+GetElements(&quot;Windows&quot;).WhereMatches(&quot;Fixed&quot;)
+</code></pre>
+<hr />
+<h2>🔼 Collection: Sorting</h2>
+<h3><code>.OrderByParam(name)</code> — Ascending</h3>
+<blockquote>
+<p>Sorts the collection ascending by any parameter or C# property.
+<strong>Automatically uses numeric sort</strong> for <code>Double</code>/<code>Integer</code> parameters, string sort for text.</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements(&quot;Rooms&quot;).OrderByParam(&quot;Area&quot;).Table()       // smallest first
+GetElements(&quot;Doors&quot;).OrderByParam(&quot;Mark&quot;).Table()       // alphabetical A→Z
+GetElements(&quot;Walls&quot;).OrderByParam(&quot;Width&quot;).Table()      // thinnest first
+</code></pre>
+<hr />
+<h3><code>.OrderByParamDesc(name)</code> — Descending</h3>
+<blockquote>
+<p>Sorts the collection descending. Same auto-numeric detection.</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements(&quot;Rooms&quot;).OrderByParamDesc(&quot;Area&quot;).Table()   // largest first
+GetElements(&quot;Walls&quot;).OrderByParamDesc(&quot;Length&quot;).Table() // longest first
+</code></pre>
+<hr />
+<h2>📊 Collection: Grouping &amp; Aggregation</h2>
+<h3><code>.GroupByParam(groupBy)</code> → <code>Group | Count</code></h3>
+<blockquote>
+<p>Groups the collection by a parameter value and returns a summary table.</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements(&quot;Doors&quot;).GroupByParam(&quot;Level&quot;).Table()
+// Group        | Count
+// Level 1      | 14
+// Level 2      | 9
+
+GetElements(&quot;Doors&quot;).GroupByParam(&quot;HandFlipped&quot;).Table()
+// Group        | Count
+// True         | 6
+// False        | 17
+</code></pre>
+<hr />
+<h3><code>.GroupByParam(groupByParam, sumParam, unit)</code> → <code>Group | Count | Total</code></h3>
+<blockquote>
+<p><strong>groupByParam</strong>: parameter to group by (e.g. "Level"). Elements with the same value become one group.
+<strong>sumParam</strong>: numeric parameter to SUM per group (e.g. "Area", "Length"). Groups by the first, sums the second.
+<strong>unit</strong>: unit to display the summed total in (e.g. "m2", "m"). Optional.</p>
+</blockquote>
+<pre><code class="language-csharp">// Group rooms by Level, sum their Area in m² per level
+GetElements(&quot;Rooms&quot;).GroupByParam(&quot;Level&quot;, &quot;Area&quot;, &quot;m2&quot;).Table()
+// Group   | Count | Total
+// Level 1 | 12    | 892.3
+
+// Group walls by Base Constraint, sum their Length in meters
+GetElements(&quot;Walls&quot;).GroupByParam(&quot;Base Constraint&quot;, &quot;Length&quot;, &quot;m&quot;).Table()
+// Group   | Count | Total
+// Level 1 | 23    | 284.5
+// Level 2 | 18    | 201.3
+</code></pre>
+<hr />
+<h3><code>.SumParam(name, unit)</code></h3>
+<blockquote>
+<p>Returns the sum of a numeric parameter across the collection.</p>
+</blockquote>
+<pre><code class="language-csharp">double totalLength = GetElements(&quot;Walls&quot;).SumParam(&quot;Length&quot;, &quot;m&quot;);
+double totalArea   = GetElements(&quot;Rooms&quot;).SumParam(&quot;Area&quot;, &quot;m2&quot;);
+Println($&quot;Total wall length: {totalLength:F2} m&quot;);
+</code></pre>
+<hr />
+<h2>✏️ Collection: Bulk Write</h2>
+<h3><code>.SetParam(name, value, unit)</code></h3>
+<blockquote>
+<p>Sets a parameter on <strong>every element</strong> in the collection inside a single transaction. Can optionally take a <code>unit</code> parameter to convert numeric values from the specified unit before setting.
+Returns the collection (chainable).</p>
+</blockquote>
+<pre><code class="language-csharp">// Mark all unreviewed doors
+GetElements(&quot;Doors&quot;)
+    .WhereParam(&quot;Comments&quot;, &quot;&quot;)
+    .SetParam(&quot;Comments&quot;, &quot;Pending Review&quot;)
+
+// Set top constraint and offset with unit conversion in a single chain
+GetElements&lt;Wall&gt;()
+    .WhereParam(&quot;Base Constraint&quot;, &quot;Level 01&quot;)
+    .SetParam(&quot;Top Constraint&quot;, &quot;Level 02&quot;)
+    .SetParam(&quot;Top Offset&quot;, -150, &quot;cm&quot;)
+</code></pre>
+<blockquote>
+<p>[!NOTE]
+All updates are wrapped in a single transaction — one undo step in Revit. When called inside an outer <code>Transact()</code>, <code>.SetParam</code> detects the active transaction and runs directly without creating a new one.</p>
+</blockquote>
+<hr />
+<h2>🗃️ Collection: Data Science &amp; Analytics</h2>
+<h3><code>.ToNotebook(string notebookName)</code></h3>
+<blockquote>
+<p>The ultimate bridge to Pandas and AI analysis.
+Takes any collection (elements or anonymous objects), serializes it to a highly compressed JSON file, and <strong>automatically generates and opens a Jupyter Notebook</strong> in VS Code to analyze the data.</p>
+</blockquote>
+<pre><code class="language-csharp">// Export complex scheduling data straight to a new Jupyter Notebook
+GetElements&lt;Room&gt;()
+    .Select(r =&gt; new {
+        Number = r.GetStr(&quot;Number&quot;),
+        Name = r.Name,
+        Level = r.GetStr(&quot;Level&quot;),
+        Area = r.Area.OutputUnit(&quot;m2&quot;, 2)
+    })
+    .ToNotebook(&quot;Room_Analysis&quot;);
+</code></pre>
+<p><strong>How it works (Scratch &amp; Save):</strong>
+1. Generates <code>data.json</code> and <code>&lt;notebookName&gt;.ipynb</code> in a temporary scratch folder.
+2. The notebook is pre-populated with Python code specifically mapped to load your <code>data.json</code> straight into a <code>pandas.DataFrame</code>.
+3. Auto-launches VS Code. Click "Save As" in VS Code to keep the analysis permanently.</p>
+<hr />
+<h2>📈 Collection: Visualization</h2>
+<p>These come from <code>VisualizationExtensions</code> and work on <strong>any</strong> <code>IEnumerable&lt;T&gt;</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.Table()</code></td>
+<td>Renders as an interactive data grid. Automatically extracts <strong>both</strong> Instance and Type parameters into columns.</td>
+</tr>
+<tr>
+<td><code>.BarChart()</code> / <code>.BarGraph()</code></td>
+<td>Bar chart (needs <code>name</code> + <code>value</code> properties)</td>
+</tr>
+<tr>
+<td><code>.PieChart()</code> / <code>.PieGraph()</code></td>
+<td>Pie chart</td>
+</tr>
+<tr>
+<td><code>.LineChart()</code> / <code>.LineGraph()</code></td>
+<td>Line chart</td>
+</tr>
+<tr>
+<td><code>.Show()</code></td>
+<td><strong>Pro Output</strong>: Smart data grid + automated 3D geometric focus</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">// Count doors per level as pie chart
+GetElements(&quot;Doors&quot;)
+    .GroupByParam(&quot;Level&quot;)
+    .Select(g =&gt; new { name = ((dynamic)g).Group, value = ((dynamic)g).Count })
+    .PieChart()
+</code></pre>
+<hr />
+<h2>🖱️ Collection: Revit UI Actions</h2>
+<p>All return <code>IEnumerable&lt;T&gt;</code> (chainable).</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.Select()</code></td>
+<td>Selects all elements in the Revit UI</td>
+</tr>
+<tr>
+<td><code>.Zoom()</code></td>
+<td>Zooms the active view to fit the elements</td>
+</tr>
+<tr>
+<td><code>.Isolate()</code></td>
+<td>Temporarily isolates in the active view</td>
+</tr>
+<tr>
+<td><code>.Hide()</code></td>
+<td>Hides all elements in the active view</td>
+</tr>
+<tr>
+<td><code>.Unhide()</code></td>
+<td>Unhides all elements in the active view</td>
+</tr>
+<tr>
+<td><code>.Delete()</code></td>
+<td><strong>BIM-Smart Delete</strong> (Safe for Pinned/Curtain elements)</td>
+</tr>
+<tr>
+<td><code>.Peek()</code></td>
+<td>Forensic audit of every element in the collection</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">// Find and isolate all walls without a Mark
+GetElements&lt;Wall&gt;()
+    .WhereParam(&quot;Mark&quot;, &quot;&quot;)
+    .Isolate()
+
+// Find and delete temporary elements
+GetElements(&quot;Generic Models&quot;)
+    .WhereMatches(&quot;TEMP&quot;)
+    .Delete()
+</code></pre>
+<hr />
+<h2>🌿 Element: Materials &amp; Sustainability</h2>
+<p>Specialized methods for BIM 6.0 auditing and material discovery.</p>
+<h3><code>element.Materials()</code></h3>
+<blockquote>
+<p>Returns a list of all <code>Material</code> objects assigned to the element. Works on both Instances and Types.</p>
+</blockquote>
+<h3><code>element.MaterialNames()</code></h3>
+<blockquote>
+<p>Returns a list of strings containing material names.</p>
+</blockquote>
+<h3><code>element.GetMaterialNames()</code></h3>
+<blockquote>
+<p>Returns a comma-separated string of material names (ideal for <code>Table()</code> output).</p>
+</blockquote>
+<pre><code class="language-csharp">Selection[0].GetMaterialNames() // → &quot;Glass, Aluminum, Concrete&quot;
+</code></pre>
+<hr />
+<h3><code>Eco.GetCarbon(element)</code></h3>
+<blockquote>
+<p><strong>BIM 6.0 Carbon Engine.</strong> Calculates embodied carbon (kgCO2e) using a resilient multi-tier audit:
+1. Layer-by-layer material audit (Compound Structure).
+2. Curtain system traversal (Panels + Mullions).
+3. Volume-based fallback with industry-standard intensity defaults.</p>
+</blockquote>
+<h3><code>Eco.GetUValue(element)</code></h3>
+<blockquote>
+<p><strong>BIM 6.0 Thermal Engine.</strong> Calculates thermal transmittance (W/m²K):
+- Solves multi-layer resistance for host objects.
+- Performs area-weighted averaging for Curtain Walls.
+- Falls back to Type-level thermal assets if instance data is missing.</p>
+</blockquote>
+<pre><code class="language-csharp">var carbon = Eco.GetCarbon(wall);
+var uValue = Eco.GetUValue(wall);
+</code></pre>
+<hr />
+<h3><code>Eco.GetWeather()</code></h3>
+<blockquote>
+<p><strong>Live Project Weather.</strong> Fetches current meteorological data for the project's exact Latitude/Longitude using the Open-Meteo API.</p>
+</blockquote>
+<pre><code class="language-csharp">var weather = Eco.GetWeather();
+Println($&quot;Current Temp: {weather.Temperature}°C&quot;);
+Println($&quot;Wind Speed: {weather.WindSpeed} km/h&quot;);
+</code></pre>
+<hr />
+<h2>🛡️ Collection: Coordination &amp; Geometric Auditing</h2>
+<p>High-performance interference detection and unit-aware coordination reporting. These methods leverage the optimized spatial query engine for "DirectShape First" coordination.</p>
+<h3><code>.AuditClashes(targetCategory)</code></h3>
+<blockquote>
+<p><strong>Surgical Interference Check.</strong> Detects every intersection between elements in the source collection and the target category.</p>
+</blockquote>
+<h3><code>.AuditClashes(target, tolerance)</code></h3>
+<blockquote>
+<p><strong>Advanced Coordination Audit.</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>target</code></td>
+<td><code>string</code></td>
+<td>The interference category (e.g. "StructuralColumns")</td>
+</tr>
+<tr>
+<td><code>tolerance</code></td>
+<td><code>double</code></td>
+<td>Geometric tolerance (e.g. <code>5.0</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3><code>.AuditClashes(target, tolerance)</code> — Unit-Aware String Tolerance</h3>
+<blockquote>
+<p>Accepts a unit-aware string tolerance like <code>"5mm"</code>, <code>"0.5in"</code>, <code>"2cm"</code>. Internally parses and converts to Revit internal units.</p>
+</blockquote>
+<pre><code class="language-csharp">// Numeric tolerance (internal units)
+GetElements(&quot;Walls&quot;)
+    .AuditClashes(&quot;StructuralColumns&quot;, tolerance: 2.0)
+    .Table();
+
+// Unit-aware string tolerance
+GetElements(&quot;Walls&quot;)
+    .AuditClashes(&quot;Pipes&quot;, &quot;5mm&quot;)
+    .Table();
+</code></pre>
+<hr />
+<h3><code>.Table()</code></h3>
+<blockquote>
+<p><strong>Professional Output.</strong> The definitive method for coordination scripts.
+1. Renders an interactive <strong>Coordination Grid</strong> in the Summary tab.
+2. Automatically links rows to <strong>3D intersection helpers</strong> — click a row to focus Revit on the exact clash point.</p>
+</blockquote>
+<pre><code class="language-csharp">GetElements(&quot;Walls&quot;).AuditClashes(&quot;Pipes&quot;).Table();
+</code></pre>
+<hr />
+<h3><code>doc.ClearClashHelpers()</code></h3>
+<blockquote>
+<p><strong>Cleanup Utility.</strong> Clears all visual clash helper geometry (DirectShapes named <code>"CORE_CLASH"</code>) from the document. Useful when you want to reset the view manually.</p>
+</blockquote>
+<pre><code class="language-csharp">Doc.ClearClashHelpers();
+</code></pre>
+<hr />
+<hr />
+<h2>🔢 Numeric &amp; Unit Comparison Helpers</h2>
+<p>Available on <code>double</code>. These methods handle floating-point noise and Revit's internal unit precision automatically.</p>
+<h3>Precision Comparisons (Fuzzy Equality)</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.IsAlmostEqualTo(val)</code></td>
+<td>True if within 1e-9 tolerance</td>
+</tr>
+<tr>
+<td><code>.AlmostZero()</code></td>
+<td>True if essentially zero</td>
+</tr>
+<tr>
+<td><code>.IsPositive()</code></td>
+<td>Strictly positive (&gt; 1e-9)</td>
+</tr>
+<tr>
+<td><code>.IsNegative()</code></td>
+<td>Strictly negative (&lt; -1e-9)</td>
+</tr>
+<tr>
+<td><code>.IsGreaterThan(val)</code></td>
+<td>Strictly greater than (outside tolerance)</td>
+</tr>
+<tr>
+<td><code>.IsLessThan(val)</code></td>
+<td>Strictly less than (outside tolerance)</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">if (wall.GetNum(&quot;Length&quot;).AlmostZero()) { /* ... */ }
+if (room.Area.IsGreaterThan(25.0.InputUnit(&quot;m2&quot;))) { /* ... */ }
+</code></pre>
+<hr />
+<h3><code>value.RoundTo(unit, decimals)</code></h3>
+<blockquote>
+<p><strong>Unit-Snapping Rounding.</strong> Rounds the internal Revit value so that it matches a clean decimal in the target unit.</p>
+</blockquote>
+<pre><code class="language-csharp">// Snaps a raw length (e.g. 6.56167...) to the internal feet for exactly 2000mm
+double snapped = wall.GetNum(&quot;Length&quot;).RoundTo(&quot;mm&quot;, 0);
+</code></pre>
+<hr />
+<h3><code>value.FormatValueOnly(unit, decimals)</code></h3>
+<blockquote>
+<p>Returns only the numeric value converted to the target unit as a string, <strong>without</strong> the unit suffix.</p>
+</blockquote>
+<pre><code class="language-csharp">wall.GetNum(&quot;Length&quot;).FormatValueOnly(&quot;mm&quot;)  // → &quot;3600&quot;
+room.GetNum(&quot;Area&quot;).FormatValueOnly(&quot;m2&quot;)   // → &quot;25.46&quot;
+</code></pre>
+<hr />
+<h3><code>"dimensionString".ToMeters()</code></h3>
+<blockquote>
+<p><strong>Dimension Parser.</strong> Parses a dimension string with a unit suffix and returns the value in meters. Supports <code>mm</code>, <code>cm</code>, <code>m</code>, <code>ft</code>, <code>in</code>, etc. Defaults to meters if no unit suffix is found.</p>
+</blockquote>
+<pre><code class="language-csharp">&quot;500mm&quot;.ToMeters()     // → 0.5
+&quot;2ft&quot;.ToMeters()       // → 0.6096
+&quot;0.1m&quot;.ToMeters()      // → 0.1
+&quot;10&quot;.ToMeters()        // → 10.0 (defaults to meters)
+</code></pre>
+<hr />
+<h3>Precision-Aware Comparison Extensions (Complete)</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.IsAlmostEqualTo(val)</code></td>
+<td>True if within 1e-9 tolerance</td>
+</tr>
+<tr>
+<td><code>.AlmostZero()</code></td>
+<td>True if essentially zero</td>
+</tr>
+<tr>
+<td><code>.IsPositive()</code></td>
+<td>Strictly positive (&gt; 1e-9)</td>
+</tr>
+<tr>
+<td><code>.IsNegative()</code></td>
+<td>Strictly negative (&lt; -1e-9)</td>
+</tr>
+<tr>
+<td><code>.IsGreaterThan(val)</code></td>
+<td>Strictly greater than (outside tolerance)</td>
+</tr>
+<tr>
+<td><code>.IsLessThan(val)</code></td>
+<td>Strictly less than (outside tolerance)</td>
+</tr>
+<tr>
+<td><code>.IsGreaterThanOrEqual(val)</code></td>
+<td>Greater than or approximately equal to</td>
+</tr>
+<tr>
+<td><code>.IsLessThanOrEqual(val)</code></td>
+<td>Less than or approximately equal to</td>
+</tr>
+</tbody>
+</table>
+<h3>Report: All doors sorted by level, then mark</h3>
+<pre><code class="language-csharp">GetElements(&quot;Doors&quot;)
+    .WhereParam(&quot;Phase Created&quot;, &quot;New Construction&quot;)
+    .OrderByParam(&quot;Level&quot;)
+    .Table()
+</code></pre>
+<hr />
+<h3>Audit: Find hand-flipped doors and mark them</h3>
+<pre><code class="language-csharp">GetElements(&quot;Doors&quot;)
+    .WhereParam(&quot;HandFlipped&quot;, &quot;True&quot;)
+    .SetParam(&quot;Comments&quot;, &quot;Check Handing&quot;)
+</code></pre>
+<hr />
+<h3>Dashboard: Room area breakdown by level</h3>
+<pre><code class="language-csharp">GetElements(&quot;Rooms&quot;)
+    .GroupByParam(&quot;Level&quot;, &quot;Area&quot;, &quot;m2&quot;)
+    .Table()
+</code></pre>
+<hr />
+<h3>Analysis: Largest rooms on Level 1</h3>
+<pre><code class="language-csharp">GetElements(&quot;Rooms&quot;)
+    .WhereParam(&quot;Level&quot;, &quot;Level 1&quot;)
+    .OrderByParamDesc(&quot;Area&quot;)
+    .Table()
+</code></pre>
+<hr />
+<h3>Typed: Structural walls wider than 300mm</h3>
+<pre><code class="language-csharp">GetElements&lt;Wall&gt;()
+    .Where(w =&gt; w.GetNum(&quot;Width&quot;, &quot;mm&quot;) &gt;= 300)
+    .OrderByParamDesc(&quot;Width&quot;)
+    .Table()
+</code></pre>
+<hr />
+<h3>Batch update: Standardize marks on Level 2 doors</h3>
+<pre><code class="language-csharp">int i = 1;
+GetElements(&quot;Doors&quot;)
+    .WhereParam(&quot;Level&quot;, &quot;Level 2&quot;)
+    .OrderByParam(&quot;Mark&quot;)
+    .SetParam(&quot;Mark&quot;, e =&gt; $&quot;D2-{i++:000}&quot;)
+</code></pre>
+<hr />
+<h3>Bulk Delete: BIM-Smart &amp; Safe</h3>
+<p>The <code>.Delete()</code> extension method is <strong>BIM-Aware</strong> and follows the same <code>IsModifiable</code> transaction pattern as all other write methods. It automatically skips Pinned elements, Curtain Wall Panels, and hosted Curtain Doors to prevent Revit exceptions and model corruption.</p>
+<p><strong>Collection-level</strong> (single transaction for the whole group):</p>
+<pre><code class="language-csharp">// Deletes ALL doors safely. No manual filtering needed for Curtain Walls!
+GetElements(&quot;Doors&quot;).Delete();
+</code></pre>
+<p><strong>Inside a <code>Transact()</code> wrapper</strong> (skips auto-transaction, uses the outer one):</p>
+<pre><code class="language-csharp">Transact(&quot;Delete overlapping columns&quot;, () =&gt; {
+    foreach (var col in toDelete)
+        col.Delete();  // detects active transaction, runs directly
+});
+</code></pre>
+<hr />
+<h2>📚 Quick Reference Card</h2>
+<table>
+<thead>
+<tr>
+<th>What I want</th>
+<th>Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Filter by param string</td>
+<td><code>.WhereParam("Level", "Level 1")</code></td>
+</tr>
+<tr>
+<td>Filter by string op</td>
+<td><code>.WhereParam("Mark", "starts", "A")</code></td>
+</tr>
+<tr>
+<td>Filter by C# property</td>
+<td><code>.WhereParam("HandFlipped", "True")</code></td>
+</tr>
+<tr>
+<td>Filter by numeric value</td>
+<td><code>.WhereParam("Width", 200, "mm")</code></td>
+</tr>
+<tr>
+<td>Filter by numeric op</td>
+<td><code>.WhereParam("Area", "&gt;", 25, "m2")</code></td>
+</tr>
+<tr>
+<td>Filter by name/family</td>
+<td><code>.WhereMatches("Single-Flush")</code></td>
+</tr>
+<tr>
+<td>Sort ascending (auto numeric)</td>
+<td><code>.OrderByParam("Area")</code></td>
+</tr>
+<tr>
+<td>Sort descending (auto numeric)</td>
+<td><code>.OrderByParamDesc("Area")</code></td>
+</tr>
+<tr>
+<td>Group by → Count</td>
+<td><code>.GroupByParam("Level")</code></td>
+</tr>
+<tr>
+<td>Group by → Count + Sum</td>
+<td><code>.GroupByParam("Level", "Length", "m")</code></td>
+</tr>
+<tr>
+<td>Total a numeric param</td>
+<td><code>.SumParam("Area", "m2")</code></td>
+</tr>
+<tr>
+<td>Set same value on all</td>
+<td><code>.SetParam("Comments", "Done")</code></td>
+</tr>
+<tr>
+<td>Show table</td>
+<td><code>.Table()</code></td>
+</tr>
+<tr>
+<td>Select in Revit</td>
+<td><code>.Select()</code></td>
+</tr>
+<tr>
+<td>Zoom to elements</td>
+<td><code>.Zoom()</code></td>
+</tr>
+<tr>
+<td>Isolate in view</td>
+<td><code>.Isolate()</code></td>
+</tr>
+<tr>
+<td>Hide in view</td>
+<td><code>.Hide()</code></td>
+</tr>
+<tr>
+<td>Unhide in view</td>
+<td><code>.Unhide()</code></td>
+</tr>
+<tr>
+<td>Delete all (BIM-Safe)</td>
+<td><code>.Delete()</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>🔧 Global Script Functions</h2>
+<p>These are <strong>static methods</strong> from <code>ScriptApi</code> that are globally available in every script and REPL session, <strong>not</strong> extension methods.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Transact(name, action)</code></td>
+<td>Wrap model edits in a single undo-step transaction</td>
+</tr>
+<tr>
+<td><code>Transact(name, Action&lt;Document&gt;)</code></td>
+<td>Transaction with <code>Document</code> parameter</td>
+</tr>
+<tr>
+<td><code>Watchdog(callback, interval)</code></td>
+<td>Register a background sentinel validation <em>(Sentinel Scripts Only - Not for REPL)</em></td>
+</tr>
+<tr>
+<td><code>Watchdog(Action, interval)</code></td>
+<td>Simplified watchdog <em>(Sentinel Scripts Only - Not for REPL)</em></td>
+</tr>
+<tr>
+<td><code>WatchdogReport(summary, status, data?)</code></td>
+<td>Send status report from a sentinel <em>(Sentinel Scripts Only - Not for REPL)</em></td>
+</tr>
+<tr>
+<td><code>SetExecutionTimeout(seconds)</code></td>
+<td>Extend script timeout beyond default 10s</td>
+</tr>
+<tr>
+<td><code>GetElements(BuiltInCategory)</code></td>
+<td>Query by <code>BuiltInCategory</code> enum</td>
+</tr>
+<tr>
+<td><code>Show(type, data)</code></td>
+<td>Low-level structured output</td>
+</tr>
+<tr>
+<td><code>Table(data)</code></td>
+<td>Global table render</td>
+</tr>
+<tr>
+<td><code>BarChart(data)</code> / <code>BarGraph(data)</code></td>
+<td>Global bar chart</td>
+</tr>
+<tr>
+<td><code>PieChart(data)</code> / <code>PieGraph(data)</code></td>
+<td>Global pie chart</td>
+</tr>
+<tr>
+<td><code>LineChart(data)</code> / <code>LineGraph(data)</code></td>
+<td>Global line chart</td>
+</tr>
+<tr>
+<td><code>Select(elements)</code></td>
+<td>Select + zoom in Revit UI</td>
+</tr>
+<tr>
+<td><code>Isolate(elements)</code></td>
+<td>Temporarily isolate in active view</td>
+</tr>
+<tr>
+<td><code>Zoom(elements)</code></td>
+<td>Zoom active view to fit elements</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">// Extend timeout for heavy scripts
+SetExecutionTimeout(120);
+
+// Query by BuiltInCategory (useful with hydrated enum parameters)
+var doors = GetElements(BuiltInCategory.OST_Doors);
+</code></pre>
+</body>
+</html>

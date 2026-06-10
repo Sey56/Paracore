@@ -22,6 +22,11 @@ using System.Globalization;
 
 namespace CoreScript.Engine.Core
 {
+    public class OptionsGlobals
+    {
+        public ExecutionGlobals Context { get; set; }
+    }
+
     public class ParameterOptionsExecutor : IParameterOptionsExecutor
     {
         private readonly ILogger _logger;
@@ -178,13 +183,17 @@ namespace CoreScript.Engine.Core
                 var scriptOptions = GetScriptOptions();
 
                 var executionGlobals = new ExecutionGlobals(context, parameters);
+                // Set the async local for the current pre-execution thread just in case
                 ExecutionGlobals.SetContext(executionGlobals);
 
                 var sb = new StringBuilder();
                 sb.AppendLine("using Autodesk.Revit.DB; using Autodesk.Revit.DB.Architecture; using Autodesk.Revit.UI; using System; using System.Collections.Generic; using System.Linq; using CoreScript.Engine.Globals; using CoreScript.Engine.Core; using static CoreScript.Engine.Globals.ScriptApi;");
                 sb.AppendLine("using Microsoft.CSharp; using Autodesk.Revit.DB.Structure; using Autodesk.Revit.DB.Mechanical; using Autodesk.Revit.DB.Plumbing; using Autodesk.Revit.DB.Electrical;");
-
-                sb.AppendLine("var wrapper = new ParamsWrapper();");
+                    
+                    // Bulletproof context injection using Roslyn's globals object
+                    sb.AppendLine("ExecutionGlobals.SetContext(Context);");
+                    
+                    sb.AppendLine("var wrapper = new ParamsWrapper();");
 
                 var properties = paramsClass?.Members
                     .OfType<PropertyDeclarationSyntax>()
@@ -239,7 +248,21 @@ namespace CoreScript.Engine.Core
                 sb.AppendLine("return result;");
                 sb.AppendLine("public class ParamsWrapper { " + membersSource + " }");
 
-                return await CSharpScript.EvaluateAsync<object>(sb.ToString(), scriptOptions);
+                var globalsObj = new OptionsGlobals { Context = executionGlobals };
+
+                var loader = new Microsoft.CodeAnalysis.Scripting.Hosting.InteractiveAssemblyLoader();
+                var currentAlc = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(typeof(ParameterOptionsExecutor).Assembly);
+                if (currentAlc != null)
+                {
+                    foreach (var asm in currentAlc.Assemblies)
+                    {
+                        try { loader.RegisterDependency(asm); } catch { }
+                    }
+                }
+
+                var script = CSharpScript.Create<object>(sb.ToString(), scriptOptions, globalsType: typeof(OptionsGlobals), assemblyLoader: loader);
+                var resultState = await script.RunAsync(globalsObj);
+                return resultState.ReturnValue;
             }
             catch (Exception ex)
             {

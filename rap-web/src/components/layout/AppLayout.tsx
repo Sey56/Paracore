@@ -23,9 +23,11 @@ import SettingsModal from '@/features/settings/components/SettingsModal';
 import TeamManagementModal from '@/features/settings/components/TeamManagementModal';
 import { AgentView } from "@/features/agent/components/AgentView";
 import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
+import { BottomPanel } from "@/components/layout/BottomPanel/BottomPanel";
+import { WelcomeGate } from "@/features/auth/components/WelcomeGate";
 
 export const AppLayout: React.FC = () => {
-  const { isAuthenticated, user, activeRole } = useAuth();
+  const { isAuthenticated, isEnterprise, user, activeRole, login, loginLocal } = useAuth();
   const { selectedScript, setSelectedScript, runScript, userEditedScriptParameters } = useScriptExecution();
   const { isArmingWatchdogs, watchdogs } = useWatchdog();
   const [gateVisible, setGateVisible] = useState(true);
@@ -83,11 +85,14 @@ export const AppLayout: React.FC = () => {
     activeScriptSource,
     infoModalState,
     closeInfoModal,
-    isLayoutSwapped
+    isLayoutSwapped,
+    showSentinelFAB,
+    isWelcomeGateOpen,
+    closeWelcomeGate
   } = useUI();
 
   const isMobile = useBreakpoint();
-  const showGate = gateVisible;
+  const showGate = isEnterprise && gateVisible;
 
   // Global Reflow Trigger: 
   // Helps resolve a known Webview2/Tauri issue where scrollbars don't 
@@ -154,93 +159,95 @@ export const AppLayout: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Deploy Sentinels</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">for BIM Quality at the Source.</p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Setting Up Paracore</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Getting everything ready for you.</p>
             </div>
             <div className="flex items-center space-x-2 text-blue-500 dark:text-blue-400 text-xs justify-center"><FontAwesomeIcon icon={faSpinner} spin /><span>Preparing environment...</span></div>
           </div>
         </div>
       )}
 
+      {/* Welcome Gate Overlay (accessible from main UI when authenticated) */}
+      {isAuthenticated && isWelcomeGateOpen && (
+        <div className="fixed inset-0 z-[9998] bg-white/95 dark:bg-black/60 backdrop-blur-[100px] transition-all duration-300">
+          <WelcomeGate login={login} loginLocal={loginLocal} isAuthenticated onDismiss={closeWelcomeGate} />
+        </div>
+      )}
+
       <SettingsModal />
       <TeamManagementModal />
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
-      <FloatingActionButton />
+      {isEnterprise && showSentinelFAB && <FloatingActionButton />}
 
       {selectedScript && <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />}
 
       <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0' : 'opacity-100'}`}>
-        <TopBar />
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <div className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} semantic-bg-panel shadow-xl z-30 border-r border-slate-200 dark:border-gray-700`}><Sidebar /></div>
+        {!isAuthenticated ? (
+          <WelcomeGate login={login} loginLocal={loginLocal} />
+        ) : (
+          <>
+            <TopBar />
+            <div className="flex flex-1 overflow-hidden">
+              {/* Sidebar */}
+              <div className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} semantic-bg-panel shadow-xl z-30 border-r border-slate-200 dark:border-gray-700`}><Sidebar /></div>
 
-          {/* Main Content Area */}
-          <div id="main-content-area" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
-            <div className="flex flex-1 overflow-hidden w-full max-w-full">
-              {isLayoutSwapped ? (
-                <>
+              {/* Main Content Area */}
+              <div id="main-content-area" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
+                <div className="flex flex-1 overflow-hidden w-full max-w-full">
+                  {/* Main panel (Gallery/Agent/Playlists + BottomPanel) */}
+                  <div style={{
+                    width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`,
+                    flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`,
+                    maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`,
+                    order: isLayoutSwapped ? 2 : 0  // visual swap via CSS order
+                  }} className={`flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden ${isMobile ? 'pt-4' : ''}`}>
+                    <div className="flex-1 relative">
+                      <div className={`absolute inset-0 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0 transition-opacity duration-150 ${activeMainView === 'scripts' ? 'z-10 opacity-100 visible' : 'z-0 opacity-0 invisible pointer-events-none'}`}><ScriptGallery /></div>
+                      <div className={`absolute inset-0 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0 transition-opacity duration-150 ${activeMainView === 'agent' ? 'z-10 opacity-100 visible' : 'z-0 opacity-0 invisible pointer-events-none'}`}><AgentView /></div>
+                      <div className={`absolute inset-0 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-0 transition-opacity duration-150 ${activeMainView === 'playlists' ? 'z-10 opacity-100 visible' : 'z-0 opacity-0 invisible pointer-events-none'}`}><PlaylistsTab /></div>
+                    </div>
+                    {activeMainView !== 'playlists' && <BottomPanel />}
+                  </div>
+
+                  {/* Resizer */}
                   {activeMainView !== 'playlists' && (
-                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block bg-transparent shadow-lg overflow-hidden min-w-0 border-r border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
-                  )}
-                  {activeMainView !== 'playlists' && (
-                    <div 
+                    <div
                       className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
-                        ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`} 
+                        ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`}
                       onMouseDown={handleMouseDown}
+                      style={{ order: 1 }}
                     >
-                      {/* The Prominent Grip Handle */}
-                      <div className={`w-1 rounded-full transition-all duration-500 
-                        ${isResizing 
-                          ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]' 
-                          : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`} 
+                      <div className={`w-1 rounded-full transition-all duration-500
+                        ${isResizing
+                          ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                          : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`}
                       />
                     </div>
                   )}
-                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto custom-scrollbar p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
-                    {activeMainView === 'scripts' && <ScriptGallery />}
-                    {activeMainView === 'agent' && <AgentView />}
-                    {activeMainView === 'playlists' && <PlaylistsTab />}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ width: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)`, flex: activeMainView === 'playlists' ? '1 1 0%' : `0 0 calc(${galleryWidth * 100}% - 4px)`, maxWidth: activeMainView === 'playlists' ? '100%' : `calc(${galleryWidth * 100}% - 4px)` }} className={`overflow-y-auto custom-scrollbar p-4 lg:p-6 min-w-0 semantic-bg-ground ${isMobile ? 'pt-4' : ''}`}>
-                    {activeMainView === 'scripts' && <ScriptGallery />}
-                    {activeMainView === 'agent' && <AgentView />}
-                    {activeMainView === 'playlists' && <PlaylistsTab />}
-                  </div>
+
+                  {/* Inspector panel */}
                   {activeMainView !== 'playlists' && (
-                    <div 
-                      className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
-                        ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`} 
-                      onMouseDown={handleMouseDown}
-                    >
-                      {/* The Prominent Grip Handle */}
-                      <div className={`w-1 rounded-full transition-all duration-500 
-                        ${isResizing 
-                          ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]' 
-                          : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`} 
-                      />
-                    </div>
+                    <div style={{
+                      width: `calc(${inspectorWidth * 100}% - 4px)`,
+                      flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
+                      maxWidth: `calc(${inspectorWidth * 100}% - 4px)`,
+                      order: isLayoutSwapped ? 0 : 2  // visual swap via CSS order
+                    }} className={`hidden lg:block bg-transparent shadow-lg overflow-hidden min-w-0 ${isLayoutSwapped ? 'border-r' : 'border-l'} border-slate-200 dark:border-gray-700`}><ScriptInspector /></div>
                   )}
-                  {activeMainView !== 'playlists' && (
-                    <div style={{ width: `calc(${inspectorWidth * 100}% - 4px)`, flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`, maxWidth: `calc(${inspectorWidth * 100}% - 4px)` }} className="hidden lg:block bg-transparent shadow-lg overflow-hidden min-w-0 border-l border-slate-200 dark:border-gray-700"><ScriptInspector /></div>
-                  )}
-                </>
+                </div>
+                {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />}
+              </div>
+              {isMobile && selectedScript && (
+                <div className={`fixed bottom-0 left-0 right-0 semantic-bg-panel border-t border-slate-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ height: '70vh' }}>
+                  <div className="h-full flex flex-col relative">
+                    <button onClick={toggleInspector} className="absolute top-2 right-2 semantic-text-muted hover:text-blue-500"><FontAwesomeIcon icon={faTimes} size="lg" /></button>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar"><div className="p-4 pt-8"><ScriptInspector /></div></div>
+                  </div>
+                </div>
               )}
             </div>
-            {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />}
-          </div>
-          {isMobile && selectedScript && (
-            <div className={`fixed bottom-0 left-0 right-0 semantic-bg-panel border-t border-slate-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ height: '70vh' }}>
-              <div className="h-full flex flex-col relative">
-                <button onClick={toggleInspector} className="absolute top-2 right-2 semantic-text-muted hover:text-blue-500"><FontAwesomeIcon icon={faTimes} size="lg" /></button>
-                <div className="flex-1 overflow-y-auto custom-scrollbar"><div className="p-4 pt-8"><ScriptInspector /></div></div>
-              </div>
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

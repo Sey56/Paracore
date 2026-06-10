@@ -75,4 +75,16 @@ List their `Id`, `Name`, and `Width_mm` in a table.
 
 ---
 
+### 🛡️ Level 6: Geometric Intelligence
+
+**Challenge 11: The Pipe Penetration Audit**
+Find all **Walls** that intersect with **Pipes** and display the coordination results in a table.
+*   *Hint: Use `.AuditClashes("Pipes")` and `.Table()`.*
+
+**Challenge 12: The Visual Coordination Sweep**
+Perform a high-precision audit to find all **Structural Columns** that clash with **Walls** with a **2mm** tolerance. The audit creates **Red 3D Helpers** automatically and displays the results in a Coordination Grid.
+*   *Hint: Use `.AuditClashes("Walls", "2mm").Table()` to see the results with 3D helpers in the model.*
+
+---
+
 🚀 **Ready to check your work?** If you get stuck on a specific number, just ask me for the "Solution path"!

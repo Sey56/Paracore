@@ -198,17 +198,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
     }
   };
 
-  const handleStatusIconClick = () => {
-    if (activeInspectorTab === 'console') {
-      setActiveInspectorTab('parameters');
-    } else {
-      setActiveInspectorTab('console');
-    }
-  };
-
   const isDefaultPreset = selectedPreset === "<Default Parameters>";
-  const showStatusIcon = !isRunning && executionResult;
-  const runSucceeded = showStatusIcon && !executionResult?.error;
 
   const validationErrors = validateParameters(filterVisibleParameters(editedParameters));
   const isParamsValid = validationErrors.length === 0;
@@ -229,7 +219,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="flex flex-col space-y-4">
 
-            <div className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
+            <div className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-inner tooltip-bottom">
               <div className="relative flex-1 group">
                 <select
                   className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-transparent rounded-lg px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer shadow-sm"
@@ -350,9 +340,11 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 <Tooltip text={finalTooltipMessage}>
                   <button
                     className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-2xl active:scale-95
-                      ${isRunDisabled
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
-                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30 hover:shadow-blue-500/40 ring-4 ring-blue-500/5'
+                      ${isRunning
+                        ? 'bg-blue-600 text-white cursor-wait opacity-90'
+                        : isRunDisabled
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30 hover:shadow-blue-500/40 ring-4 ring-blue-500/5'
                       }`}
                     onClick={handleRunScript}
                     disabled={isRunDisabled}
@@ -361,17 +353,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                     {isRunning ? "Running..." : "Run"}
                   </button>
                 </Tooltip>
-
-                {showStatusIcon && (
-                  <button
-                    className={`absolute -right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all animate-in zoom-in duration-300 shadow-lg
-                      ${runSucceeded ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}
-                    onClick={handleStatusIconClick}
-                    title={activeInspectorTab === 'console' ? "Return to Parameters" : "View Console"}
-                  >
-                    <FontAwesomeIcon icon={runSucceeded ? faCheckCircle : faTimesCircle} className="text-lg" />
-                  </button>
-                )}
               </div>
 
               {activeRole !== Role.User && !isProtectedTool && (

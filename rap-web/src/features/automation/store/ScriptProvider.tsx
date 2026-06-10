@@ -7,7 +7,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { Role } from '@/features/auth/types/authTypes';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
-import { getRemoteSources } from '@/features/auth/services/rapAuthApiClient';
+import { getRemoteSources, registerRemoteSource, deleteRemoteSource, updateRemoteSource } from '@/features/auth/services/rapAuthApiClient';
 import api from '@/api/axios';
 import { ScriptContext } from './ScriptContext';
 import { useUI } from '@/hooks/useUI';
@@ -309,12 +309,24 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setCustomScriptFolders, activeScriptSource, setActiveScriptSource, setScripts]);
 
   const addRemoteScriptSource = useCallback(async (teamId: number, source: TeamScriptSource) => {
-    await fetchRemoteScriptSources();
-  }, [fetchRemoteScriptSources]);
+    if (!cloudToken) return;
+    try {
+      await registerRemoteSource(teamId, source.name, source.repo_url, cloudToken);
+      await fetchRemoteScriptSources();
+    } catch (err) {
+      throw err;
+    }
+  }, [fetchRemoteScriptSources, cloudToken]);
 
   const removeRemoteScriptSource = useCallback(async (teamId: number, sourceId: number) => {
-    await fetchRemoteScriptSources();
-  }, [fetchRemoteScriptSources]);
+    if (!cloudToken) return;
+    try {
+      await deleteRemoteSource(sourceId, cloudToken);
+      await fetchRemoteScriptSources();
+    } catch (err) {
+      throw err;
+    }
+  }, [fetchRemoteScriptSources, cloudToken]);
 
   const removeSourcePath = useCallback(async (sourceId: string) => {
     // Clear active source if it matches the one being removed
@@ -331,8 +343,14 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [activeScriptSource, setActiveScriptSource, setScripts, setUserSourcePaths]);
 
   const updateRemoteScriptSource = useCallback(async (teamId: number, sourceId: number, name: string | undefined, repoUrl: string | undefined) => {
-    await fetchRemoteScriptSources();
-  }, [fetchRemoteScriptSources]);
+    if (!cloudToken) return;
+    try {
+      await updateRemoteSource(sourceId, name, repoUrl, cloudToken);
+      await fetchRemoteScriptSources();
+    } catch (err) {
+      throw err;
+    }
+  }, [fetchRemoteScriptSources, cloudToken]);
 
   const pullAllTeamSources = useCallback(async () => {
     showNotification("Pulling all sources...", "info");

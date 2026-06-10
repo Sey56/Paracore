@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { Script, ScriptParameter } from '@/types/scriptModel';
 import { ExecutionResult } from '@/types/common';
 import { trackEvent } from '@/utils/telemetry';
@@ -11,6 +12,7 @@ export const useExecutionRunner = (
   updateScriptLastRunTime: (id: string) => void
 ) => {
   const { showNotification } = useNotifications();
+  const { revitStatus } = useRevitStatus();
   const [runningScriptPath, setRunningScriptPath] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
 
@@ -28,6 +30,9 @@ export const useExecutionRunner = (
     updateScriptLastRunTime(script.id);
     setRunningScriptPath(script.id);
     
+    // Capture current doc title at start of execution
+    const capturedDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
+
     // TELEMETRY: Track script or REPL execution
     const eventName = script.id === 'repl' || (script.name && script.name.toLowerCase().includes('repl')) ? 'repl_executed' : 'script_executed';
     trackEvent(eventName, { has_parameters: parameters.length > 0 });
@@ -49,7 +54,8 @@ export const useExecutionRunner = (
         structuredOutput: result.structured_output || [],
         internalData: result.internal_data,
         timestamp: Date.now(),
-        scriptName: script.metadata?.displayName || script.name
+        scriptName: script.metadata?.displayName || script.name,
+        capturedDocTitle
       };
 
       if (shouldUpdateGlobalState) {
@@ -65,7 +71,8 @@ export const useExecutionRunner = (
         output: "", 
         isSuccess: false, 
         error: msg, 
-        timestamp: Date.now() 
+        timestamp: Date.now(),
+        capturedDocTitle
       };
       if (shouldUpdateGlobalState) {
         setExecutionResult(errRes);
@@ -74,7 +81,7 @@ export const useExecutionRunner = (
     } finally {
       setRunningScriptPath(null);
     }
-  }, [runningScriptPath, threadId, addRecentScript, updateScriptLastRunTime, showNotification]);
+  }, [runningScriptPath, threadId, addRecentScript, updateScriptLastRunTime, showNotification, revitStatus.document]);
 
   return {
     runningScriptPath,

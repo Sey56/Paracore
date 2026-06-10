@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # 🔑 JWT Settings
     JWT_ALGORITHM: str = "RS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8  # 8 hours session
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30  # 30 days session
 
     JWT_PRIVATE_KEY: str
     JWT_PUBLIC_KEY: str

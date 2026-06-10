@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 // Force TS re-index
 import { Playlist, PlaylistItem } from '@/types/playlistModel';
 import { ScriptParameter } from '@/types/scriptModel';
@@ -17,9 +17,10 @@ import { UnifiedStepInspector } from './UnifiedStepInspector';
 interface PlaylistEditorProps {
     playlist: Playlist;
     onBack: () => void;
+    isLayoutSwapped?: boolean;
 }
 
-export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack }) => {
+export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack, isLayoutSwapped = false }) => {
     const { updatePlaylist } = usePlaylist();
     const { scripts } = useScripts();
 
@@ -35,14 +36,20 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
 
     const { setSelectedScript, runScript } = useScriptExecution();
 
-    // ISOLATION FIX: Clear global inspector on mount AND unmount to prevent state leakage
+    // ISOLATION FIX: Clear global inspector on mount to prevent state leakage
     useEffect(() => {
         setSelectedScript(null);
-        return () => {
-            // Reset global state on unmount
-            // setSelectedScript(null); // Already covered
-        };
     }, [setSelectedScript]);
+
+    // Auto-select first item on mount or when playlist identity changes
+    const prevPlaylistIdRef = useRef<string | null>(null);
+    useEffect(() => {
+        const currentId = playlist.filePath || playlist.name;
+        if (editedPlaylist.items.length > 0 && (selectedItemIndex === null || prevPlaylistIdRef.current !== currentId)) {
+            setSelectedItemIndex(0);
+        }
+        prevPlaylistIdRef.current = currentId;
+    }, [editedPlaylist.items.length, selectedItemIndex, playlist.filePath, playlist.name]);
 
     // Sync state if prop changes
     useEffect(() => {
@@ -235,7 +242,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
     };
 
     return (
-        <div className="h-full flex text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 font-sans">
+        <div className="h-full flex text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-[var(--bg-ground)] font-sans">
             <EditPlaylistModal
                 isOpen={isEditDetailsModalOpen}
                 onClose={() => setIsEditDetailsModalOpen(false)}
@@ -244,7 +251,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
                 initialDescription={editedPlaylist.description}
             />
             {/* LEFT: Timeline & Actions (40%) */}
-            <div className="w-[40%] flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-lg">
+            <div style={{ order: isLayoutSwapped ? 2 : 0 }} className={`w-[40%] flex flex-col ${isLayoutSwapped ? 'border-l' : 'border-r'} border-slate-200 dark:border-slate-800`}>
                 <PlaylistScriptPicker
                     isOpen={isScriptPickerOpen}
                     onClose={() => setIsScriptPickerOpen(false)}
@@ -270,7 +277,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
             </div>
 
             {/* RIGHT: Unified Inspector (60%) */}
-            <div className="w-[60%] bg-slate-50 dark:bg-slate-950 flex flex-col">
+            <div style={{ order: isLayoutSwapped ? 0 : 2 }} className="w-[60%] bg-slate-50 dark:bg-[var(--bg-ground)] flex flex-col">
                 {selectedItemIndex !== null && editedPlaylist.items[selectedItemIndex] ? (
                     (() => {
                         const currentScriptPath = editedPlaylist.items[selectedItemIndex].scriptPath;

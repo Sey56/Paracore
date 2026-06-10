@@ -26,15 +26,17 @@ interface TabItem {
 
 const SettingsModal: React.FC = () => {
   const { isSettingsModalOpen, closeSettingsModal, openTeamManagementModal } = useUI();
-  const { isAuthenticated, user, activeRole, activeTeam } = useAuth();
+  const { isAuthenticated, isEnterprise, user, activeRole, activeTeam } = useAuth();
 
   const coreFeaturesTabs = useMemo(() => {
     const tabs: TabItem[] = [];
 
-    tabs.push({
-      name: 'Sentinels',
-      component: WatchdogSettings,
-    });
+    if (isEnterprise) {
+      tabs.push({
+        name: 'Sentinels',
+        component: WatchdogSettings,
+      });
+    }
 
     tabs.push({
       name: 'Automation',
@@ -65,7 +67,7 @@ const SettingsModal: React.FC = () => {
     });
 
     return tabs;
-  }, [activeRole, openTeamManagementModal, activeTeam]);
+  }, [isEnterprise, activeRole, openTeamManagementModal, activeTeam]);
 
   const [activeTab, setActiveTab] = useState<string | null>(null);
 

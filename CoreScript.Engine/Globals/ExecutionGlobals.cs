@@ -170,6 +170,11 @@ namespace CoreScript.Engine.Globals
             }
             var json = JsonSerializer.Serialize(toSerialize, ExecutionGlobals.SerializerOptions);
             _context.AddStructuredOutput(type, json);
+
+            // Pipeline diagnostic: mark visualization as rendered
+            // -1 = chart-type, -2 = table
+            int marker = type.StartsWith("chart") ? -1 : -2;
+            ExecutionGlobals.TrackPipeline(marker);
         }
 
         /// <summary>
@@ -199,9 +204,11 @@ namespace CoreScript.Engine.Globals
                 // 2. Try Smart Expansion for Revit Elements
                 if (expandElements)
                 {
-                    var elements = items.OfType<Element>().ToList();
-                    // Only expand if the WHOLE collection is Revit elements
-                    if (elements.Count > 0 && elements.Count == items.Count)
+                    // Filter out deleted/invalid elements to prevent serialization crashes
+                    var elements = items.OfType<Element>().Where(e => e.IsValidObject).ToList();
+                    
+                    // Only expand if the WHOLE collection is Revit elements (ignoring invalid ones)
+                    if (elements.Count > 0 && elements.Count == items.OfType<Element>().Count())
                     {
                         var first = elements[0];
                         var firstCatId = first.Category?.Id?.Value;
@@ -211,11 +218,26 @@ namespace CoreScript.Engine.Globals
 
                         if (isHomogeneous)
                         {
-                            // DYNAMIC DISCOVERY: Extract ALL parameter names from the first element.
+                            // DYNAMIC DISCOVERY: Extract ALL parameter names from the first element and its Type.
                             // Since all elements share the same category, they share the same parameter set.
-                            var schema = first.Parameters.Cast<Parameter>()
+                            var paramNames = first.Parameters.Cast<Parameter>()
                                 .Where(p => p.HasValue)
                                 .Select(p => p.Definition.Name)
+                                .ToList();
+
+                            var typeId = first.GetTypeId();
+                            if (typeId != null && typeId != ElementId.InvalidElementId)
+                            {
+                                var elementType = first.Document.GetElement(typeId);
+                                if (elementType != null)
+                                {
+                                    paramNames.AddRange(elementType.Parameters.Cast<Parameter>()
+                                        .Where(p => p.HasValue)
+                                        .Select(p => p.Definition.Name));
+                                }
+                            }
+
+                            var schema = paramNames
                                 .Distinct()
                                 .OrderBy(n => n)
                                 .ToList();
@@ -249,7 +271,20 @@ namespace CoreScript.Engine.Globals
                 var list = new List<object>();
                 foreach (var item in items)
                 {
+                    // Skip deleted elements
+                    if (item is Element el && !el.IsValidObject) continue;
+
                     var itemType = item.GetType();
+
+                    // BIM-FIX: If we are rendering a table (expandElements=true) and the data is a 
+                    // simple primitive (string, enum, int), wrap it in an object so the UI 
+                    // shows a "Value" column instead of splitting the string into letters.
+                    if (expandElements && (itemType.IsPrimitive || itemType == typeof(string) || itemType.IsEnum))
+                    {
+                        list.Add(new Dictionary<string, object> { ["Value"] = item.ToString() });
+                        continue;
+                    }
+
                     bool isAnonymous = itemType.Name.StartsWith("<>") &&
                                        itemType.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false);
 
@@ -313,6 +348,24 @@ namespace CoreScript.Engine.Globals
             }
         };
 
+        /// <summary>
+        /// Pipeline stage diagnostics — each stage of a fluent chain appends its item count.
+        /// Positive N = N items at this stage. 0 = empty. -1 = chart, -2 = table.
+        /// -3 = write success (✓), -4 = write failure (✗).
+        /// E.g. [0] means GetElements returned 0. [5, 3, -1] = 5 elements, 3 groups, chart.
+        /// [500, 50, -3, -3] = 500 walls, 50 filtered, two successful SetParams.
+        /// </summary>
+        public List<int> PipelineDiagnostics { get; } = new List<int>();
+
+        /// <summary>
+        /// Appends a diagnostic value to the pipeline diagnostics list.
+        /// Thread-safe via AsyncLocal. Call from any extension method.
+        /// </summary>
+        public static void TrackPipeline(int diagnostic)
+        {
+            Current.Value?.PipelineDiagnostics.Add(diagnostic);
+        }
+
         // Timeout mechanism
         private static DateTime _executionDeadline;
         private static int _timeoutSeconds = 10; // Default 10 seconds
@@ -352,6 +405,7 @@ namespace CoreScript.Engine.Globals
 
         public Output Output { get; private set; }
         public IParameterHydrator Hydrator { get; }
+        public Guid ExecutionId { get; } = Guid.NewGuid();
 
         public ExecutionGlobals(ICoreScriptContext context, Dictionary<string, object> parameters, Dictionary<string, object>? rawParameters = null)
         {
@@ -416,12 +470,13 @@ namespace CoreScript.Engine.Globals
             _context.LogError(message);
         }
 
-        public void SetInternalData(string data)
-        {
-            _context.SetInternalData(data);
-        }
 
         // Visualization Globals
+        public void Show(object data)
+        {
+            Output.Table(data);
+        }
+
         public void Table(object data)
         {
             Output.Table(data);
@@ -514,22 +569,12 @@ namespace CoreScript.Engine.Globals
             return data;
         }
 
-        public static Element Delete(this Element e)
+        public static IEnumerable<T> Show<T>(this IEnumerable<T> data)
         {
-            if (e != null) ExecutionGlobals.Current.Value?.Transact("Delete Element", () => e.Document.Delete(e.Id));
-            return e;
-        }
-
-        public static IEnumerable<Element> Delete(this IEnumerable<Element> data)
-        {
-            if (data == null) return data;
-            var elements = data.Where(e => e != null).ToList();
-            var first = elements.FirstOrDefault();
-            if (first != null) ExecutionGlobals.Current.Value?.Transact("Delete Elements", () => {
-                foreach (var e in elements) first.Document.Delete(e.Id);
-            });
+            ExecutionGlobals.Current.Value?.Table(data);
             return data;
         }
+
         public static IEnumerable<T> Table<T>(this IEnumerable<T> data)
         {
             ExecutionGlobals.Current.Value?.Table(data);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { SidebarSection } from '../SidebarSection';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGlobe, faSync, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { faGlobe, faSync, faChevronDown, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { TeamScriptSource } from '@/types/index';
 
 interface TeamRegistryManagerProps {
@@ -11,6 +11,7 @@ interface TeamRegistryManagerProps {
   userSourcePaths: Record<string, { path: string; repo_url?: string }>;
   onClone: () => void;
   onRefresh: () => void;
+  onRegister: () => void;
 }
 
 export const TeamRegistryManager: React.FC<TeamRegistryManagerProps> = ({
@@ -19,7 +20,8 @@ export const TeamRegistryManager: React.FC<TeamRegistryManagerProps> = ({
   currentTeamSources,
   userSourcePaths,
   onClone,
-  onRefresh
+  onRefresh,
+  onRegister
 }) => {
   return (
     <SidebarSection
@@ -28,7 +30,17 @@ export const TeamRegistryManager: React.FC<TeamRegistryManagerProps> = ({
       iconColor="text-slate-400"
       defaultExpanded={false}
       actions={
-        <div className="tooltip-left">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRegister();
+            }}
+            className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+            title="Register TeamSource"
+          >
+            <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();

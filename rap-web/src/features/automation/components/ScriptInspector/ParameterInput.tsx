@@ -391,21 +391,15 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   const [localValue, setLocalValue] = useState<string>(
     param.value !== null && param.value !== undefined ? String(param.value) : ""
   );
+  const [isFocused, setIsFocused] = useState(false);
 
   React.useEffect(() => {
+    if (isFocused) return; // Never overwrite while user is typing
     const incomingValue = param.value !== null && param.value !== undefined ? String(param.value) : "";
-    // V5 PRECISION FIX: Use strict string comparison to preserve .00 precision
-    // We only update local state if the string representation has actually diverged.
     if (incomingValue !== localValue) {
-      // Additional check: if they represent the same numerical value but localValue is more precise (has trailing zeros)
-      // and the user is currently focused, we preserve the localValue.
-      const isFocused = document.activeElement?.tagName === 'INPUT' && (document.activeElement as HTMLInputElement).value === localValue;
-      if (isFocused && parseFloat(incomingValue) === parseFloat(localValue)) {
-        return;
-      }
       setLocalValue(incomingValue);
     }
-  }, [param.value, localValue]);
+  }, [param.value, isFocused]);
 
   const currentDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() : null;
   const isContextMismatch = param.computedInDocument && currentDocTitle && param.computedInDocument !== currentDocTitle;
@@ -503,34 +497,28 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             <input
               type="text"
               value={localValue}
+              onFocus={() => setIsFocused(true)}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
+                // Allow free typing: digits, optional minus, optional single decimal
+                if (val === "" || val === "-" || /^-?\d*\.?\d*$/.test(val)) {
                   setLocalValue(val);
-                  if (val !== "" && !val.endsWith(".") && !val.endsWith(".0")) {
-                    const parsed = parseFloat(val);
-                    if (!isNaN(parsed)) onChange(index, parsed);
-                  } else if (val === "") {
-                    onChange(index, 0);
-                  }
                 }
               }}
               onBlur={() => {
-                if (param.numericType === 'double' && localValue !== "") {
-                  const parsed = parseFloat(localValue);
-                  if (!isNaN(parsed)) {
-                    let formatted = String(parsed);
-                    if (!formatted.includes(".")) {
-                      formatted = parsed.toFixed(1);
-                    }
-                    setLocalValue(formatted);
-                    onChange(index, parsed);
-                  }
+                setIsFocused(false);
+                const cleaned = localValue.replace(/\.$/, ''); // strip trailing dot
+                const parsed = parseFloat(cleaned);
+                if (!isNaN(parsed)) {
+                  setLocalValue(String(parsed));
+                  onChange(index, parsed);
+                } else if (cleaned === "" || cleaned === "-") {
+                  setLocalValue("0");
+                  onChange(index, 0);
                 }
               }}
               className="flex-grow h-10 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 text-xs font-semibold bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-200 focus:outline-none focus:border-blue-500/30 transition-all shadow-sm"
               disabled={disabled}
-              inputMode="decimal"
             />
           )}
           {param.selectionType && param.selectionType !== "None" && onPickObject && (

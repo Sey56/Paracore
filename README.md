@@ -42,6 +42,8 @@ Development is ongoing for the following advanced features:
 
 ---
 
+---
+
 ## 📄 License
 This project is licensed under the **MIT License**.
 

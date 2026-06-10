@@ -3,6 +3,7 @@ import { User, TeamMembership, Role } from '../types/authTypes';
 
 export interface AuthContextType {
   isAuthenticated: boolean;
+  isEnterprise: boolean;
   user: User | null;
   cloudToken: string | null;
   localToken: string | null;

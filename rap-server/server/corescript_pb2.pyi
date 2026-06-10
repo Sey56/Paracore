@@ -255,16 +255,18 @@ class ScriptFile(_message.Message):
     def __init__(self, file_name: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
 
 class ExecuteScriptRequest(_message.Message):
-    __slots__ = ("script_content", "parameters_json", "source", "compiled_assembly")
+    __slots__ = ("script_content", "parameters_json", "source", "compiled_assembly", "license_tier")
     SCRIPT_CONTENT_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_JSON_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     COMPILED_ASSEMBLY_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_TIER_FIELD_NUMBER: _ClassVar[int]
     script_content: str
     parameters_json: bytes
     source: str
     compiled_assembly: bytes
-    def __init__(self, script_content: _Optional[str] = ..., parameters_json: _Optional[bytes] = ..., source: _Optional[str] = ..., compiled_assembly: _Optional[bytes] = ...) -> None: ...
+    license_tier: str
+    def __init__(self, script_content: _Optional[str] = ..., parameters_json: _Optional[bytes] = ..., source: _Optional[str] = ..., compiled_assembly: _Optional[bytes] = ..., license_tier: _Optional[str] = ...) -> None: ...
 
 class StructuredOutputItem(_message.Message):
     __slots__ = ("type", "data", "title")
@@ -277,7 +279,7 @@ class StructuredOutputItem(_message.Message):
     def __init__(self, type: _Optional[str] = ..., data: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
 
 class ExecuteScriptResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "internal_data", "agent_summary")
+    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "internal_data", "agent_summary", "pipeline_diagnostics")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -285,6 +287,7 @@ class ExecuteScriptResponse(_message.Message):
     STRUCTURED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
     INTERNAL_DATA_FIELD_NUMBER: _ClassVar[int]
     AGENT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    PIPELINE_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
@@ -292,7 +295,8 @@ class ExecuteScriptResponse(_message.Message):
     structured_output: _containers.RepeatedCompositeFieldContainer[StructuredOutputItem]
     internal_data: str
     agent_summary: str
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., internal_data: _Optional[str] = ..., agent_summary: _Optional[str] = ...) -> None: ...
+    pipeline_diagnostics: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., internal_data: _Optional[str] = ..., agent_summary: _Optional[str] = ..., pipeline_diagnostics: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ()
@@ -679,21 +683,25 @@ class UpdateElementParameterResponse(_message.Message):
     def __init__(self, is_success: bool = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class ExecuteReplRequest(_message.Message):
-    __slots__ = ("code", "session_id")
+    __slots__ = ("code", "session_id", "license_tier")
     CODE_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_TIER_FIELD_NUMBER: _ClassVar[int]
     code: str
     session_id: str
-    def __init__(self, code: _Optional[str] = ..., session_id: _Optional[str] = ...) -> None: ...
+    license_tier: str
+    def __init__(self, code: _Optional[str] = ..., session_id: _Optional[str] = ..., license_tier: _Optional[str] = ...) -> None: ...
 
 class ExecuteReplResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "structured_output")
+    __slots__ = ("is_success", "output", "error_message", "structured_output", "pipeline_diagnostics")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     STRUCTURED_OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    PIPELINE_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
     structured_output: _containers.RepeatedCompositeFieldContainer[StructuredOutputItem]
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ...) -> None: ...
+    pipeline_diagnostics: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., pipeline_diagnostics: _Optional[_Iterable[int]] = ...) -> None: ...

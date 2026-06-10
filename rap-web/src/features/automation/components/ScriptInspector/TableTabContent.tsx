@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { StructuredOutputViewer } from './StructuredOutputViewer';
 import type { ExecutionResult } from "@/types/common";
-import { Script } from "@/types/scriptModel";
+import { Script, StructuredOutput } from "@/types/scriptModel";
 import { useUI } from "@/hooks/useUI";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
@@ -11,6 +11,8 @@ interface TableTabContentProps {
   capturedDocTitle: string | null;
   currentDocTitle: string | null;
   selectedScript: Script | null;
+  isHeaderPortalTarget?: boolean;
+  structuredOutputOverride?: StructuredOutput[] | null;
 }
 
 export const TableTabContent: React.FC<TableTabContentProps> = React.memo(({
@@ -18,8 +20,10 @@ export const TableTabContent: React.FC<TableTabContentProps> = React.memo(({
   capturedDocTitle,
   currentDocTitle,
   selectedScript,
+  isHeaderPortalTarget = false,
+  structuredOutputOverride,
 }) => {
-  const items = executionResult?.structuredOutput;
+  const items = structuredOutputOverride ?? executionResult?.structuredOutput;
   const { activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex } = useUI();
 
   // Reset tab index when new execution results arrive
@@ -55,6 +59,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = React.memo(({
             currentDocTitle={currentDocTitle}
             selectedScript={selectedScript}
             executionResult={executionResult}
+            isHeaderPortalTarget={isHeaderPortalTarget}
           />
         ) : (
           <StructuredOutputViewer 
@@ -64,6 +69,7 @@ export const TableTabContent: React.FC<TableTabContentProps> = React.memo(({
             currentDocTitle={currentDocTitle}
             selectedScript={selectedScript}
             executionResult={executionResult}
+            isHeaderPortalTarget={isHeaderPortalTarget}
           />
         )}
       </div>

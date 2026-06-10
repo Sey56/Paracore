@@ -1,6 +1,6 @@
 # corescript-vscode - VS Code Extension for Revit
 
-This Visual Studio Code extension provides a seamless development environment for writing, testing, and executing **CoreScript** (C# Revit API scripts with custom global helpers) directly in Revit. It's designed for developers who want to create and automate Revit workflows using the CoreScript scripting language.
+This Visual Studio Code extension provides a seamless development environment for writing, testing, and executing **C# Top-level scripts** (C# Revit API scripts with custom global helpers) directly in Revit. It's designed for developers who want to quickly automate Revit workflows using pure C#.
 
 ## Features
 
@@ -9,15 +9,15 @@ This Visual Studio Code extension provides a seamless development environment fo
 -   **Direct Script Execution**: Enables direct execution of the currently open C# script by sending it to a running instance of Revit.
 -   **Immediate Feedback**: Displays the output and any errors from the script execution directly within the VS Code output channel.
 
-## A Powerful, Standalone Scripting Tool
+## A Powerful, Agile Scripting Environment
 
-**CoreScript** is a powerful scripting language built on C# with custom global helpers (like `Print`, `Println`, `Show`, `Transact`, `Doc`, etc.) that simplifies Revit API automation. The **corescript-vscode** extension allows you to write and execute CoreScript directly against the Revit API, offering a complete, standalone solution for automating Revit tasks with immediate execution and feedback without leaving your code editor.
+Instead of being a separate language, this extension simply brings **C# Top-level scripting** to Revit. With custom global helpers (like `Print`, `Println`, `Show`, `Transact`, `Doc`, etc.), it simplifies Revit API automation. The **corescript-vscode** extension allows you to write and execute robust C# scripts directly against the Revit API, offering an agile solution for automating Revit tasks with immediate execution and feedback.
 
 ### Key Benefits:
 
-*   **Full Revit API Access:** Utilize the full power of the Revit API to create sophisticated automation workflows.
-*   **Immediate Execution:** Run your CoreScript scripts and see the results instantly in the VS Code output channel, enabling a rapid and interactive development cycle.
-*   **No Overhead:** Focus purely on your automation logic. CoreScript removes the need for boilerplate code (`IExternalApplication`, `IExternalCommand`), `.addin` manifests, and manual DLL management.
+*   **Full Revit API Access:** Utilize the full power of the Revit API to create sophisticated automation workflows using pure C#.
+*   **Immediate Execution:** Run your C# scripts and see the results instantly in the VS Code output channel, enabling a rapid and interactive development cycle.
+*   **No Overhead:** Focus purely on your automation logic. The engine removes the need for boilerplate code (`IExternalApplication`, `IExternalCommand`), `.addin` manifests, and manual DLL management.
 
 While **corescript-vscode** is a powerful tool on its own, it also serves as an excellent companion for traditional add-in development. You can:
 
@@ -28,21 +28,21 @@ Whether you're looking for a fast and direct way to automate Revit tasks or a wa
 
 ## Requirements
 
-Before using this extension, you must have the `RServer.Addin` for Revit installed.
+Before using this extension, you must have the `Paracore.Addin` installed in Revit.
 
-1.  Run the `RServer_Installer.exe` to install the add-in.
+1.  Run the Paracore Installer to install the add-in.
 2.  Launch Revit.
 3.  Go to the "Paracore" tab in the Revit ribbon.
-4.  Click the "RServer" toggle button to start the server.
+4.  Click the Server toggle button (it will initially say "Off"). Once toggled, it will show "ON", indicating the background server is ready to receive commands from this extension.
 
 ## Usage
 
-1.  **Create Workspace**: Create an empty folder (e.g., `TestWorkspace`) and run VS Code in it.
-2.  **Initialize**: Open the Command Palette and select **CoreScript: Initialize Workspace** (or press `Ctrl+Shift+S`).
+1.  **Create Workspace**: Create an empty folder (e.g., `TestWorkspace`), then open it in VS Code (e.g., right-click the folder and select "Open with Code").
+2.  **Initialize**: Press `Ctrl+Shift+S` (or use the Command Palette: **CoreScript: Initialize Workspace**) to set up the workspace.
     *   This will scaffold the workspace with necessary files for Revit API IntelliSense and custom globals.
     *   **Important**: Wait for the workspace to be fully generated. It is complete when the `obj` and `bin` folders are created.
-3.  **Write Scripts**: Navigate to the `Scripts` folder. The entry point is `Main.cs`. You can create additional scripts in this folder and reference them in `Main.cs`.
-4.  **Run**: To execute your script, use the command **CoreScript: Run in Revit** (or press `Ctrl+Shift+R`).
+3.  **Write Scripts**: Navigate to the new `Scripts` folder. The entry point is `Main.cs`. You can write code directly here, or create other `.cs` files inside the `Scripts` folder and reference them in `Main.cs`.
+4.  **Run**: To execute your script, press `Ctrl+Shift+R`. All outputs will stream directly to the VS Code Output tab.
 
 ## Execution Output
 
@@ -68,4 +68,4 @@ If an error occurs, the output will show the failure status and the exception de
 
 ## Architecture
 
-This extension functions as a gRPC client that establishes a direct connection with the `RServer.Addin` running within Revit. This provides a convenient and efficient workflow for developers to write and test scripts without leaving the VS Code environment.
+This extension functions as a gRPC client that establishes a direct connection with the `Paracore.Addin` running within Revit. This provides a convenient and efficient workflow for developers to write and test C# scripts without leaving the VS Code environment.

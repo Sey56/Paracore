@@ -26,10 +26,11 @@ namespace CoreScript.Engine.Core
         private static readonly Dictionary<string, ReplSession> _sessions = new Dictionary<string, ReplSession>();
         private static readonly object _lock = new object();
 
-        public static async Task<(bool isSuccess, string output, string error, List<string> structuredOutput)> ExecuteAsync(string code, string sessionId, ICoreScriptContext context)
+        public static async Task<(bool isSuccess, string output, string error, List<string> structuredOutput)> ExecuteAsync(string code, string sessionId, ICoreScriptContext context, string licenseTier = "free")
         {
             try
             {
+                LicenseContext.Tier = licenseTier;
                 var lowerCode = code.Trim().ToLowerInvariant();
 
                 // 1. Intercept Meta-Commands BEFORE any wrapping or session logic
@@ -182,6 +183,7 @@ namespace CoreScript.Engine.Core
                     }
                     finally
                     {
+                        context.PipelineDiagnostics = new List<int>(globals.PipelineDiagnostics);
                         ExecutionGlobals.ClearContext();
                     }
 
@@ -246,6 +248,7 @@ namespace CoreScript.Engine.Core
 
                     // Continue existing session
                     session.Globals.UpdateContext(context);
+                    session.Globals.PipelineDiagnostics.Clear();
                     ExecutionGlobals.SetContext(session.Globals);
 
                     try
@@ -254,6 +257,7 @@ namespace CoreScript.Engine.Core
                     }
                     finally
                     {
+                        context.PipelineDiagnostics = new List<int>(session.Globals.PipelineDiagnostics);
                         ExecutionGlobals.ClearContext();
                     }
                 }
@@ -279,19 +283,109 @@ namespace CoreScript.Engine.Core
                     }
                 }
 
-                // If the script printed anything (e.g. via Println), return that as the main output
+                // Collect Println output (e.g. from Println calls in the script)
                 var printLog = string.Join(Environment.NewLine, context.PrintLog);
-                if (!string.IsNullOrEmpty(printLog))
+
+                // Process the return value of the expression
+                var retVal = session.State.ReturnValue;
+                var output = string.Empty;
+
+                if (retVal != null)
                 {
-                    return (true, printLog, string.Empty, structuredOutput);
+                    bool hasStructuredOutput = structuredOutput.Count > 0;
+                    bool isEnumerable = retVal is System.Collections.IEnumerable && !(retVal is string);
+
+                    // If a UI component like .Table() was generated, don't dump the raw data to the console too
+                    if (hasStructuredOutput && isEnumerable)
+                    {
+                        output = string.Empty;
+                    }
+                    // If it's a raw collection, print a truncated list instead of massive JSON blocks.
+                    else if (isEnumerable)
+                    {
+                        try
+                        {
+                            var list = new List<string>();
+                            int count = 1;
+                            int maxItems = 50;
+
+                            foreach (var item in (System.Collections.IEnumerable)retVal)
+                            {
+                                if (count > maxItems)
+                                {
+                                    list.Add($"... (output truncated. Use .Table() for full inspection)");
+                                    break;
+                                }
+
+                                if (item is Autodesk.Revit.DB.Element el)
+                                {
+                                    list.Add($"{count:D2} - {el.Name} ({el.Id.Value})");
+                                }
+                                else if (item != null)
+                                {
+                                    string str = item.ToString().Trim();
+
+                                    // Remove ugly curly braces from anonymous types
+                                    if (str.StartsWith("{") && str.EndsWith("}"))
+                                    {
+                                        str = str.Substring(1, str.Length - 2).Trim();
+                                    }
+
+                                    list.Add($"{count:D2} - {str}");
+                                }
+                                else
+                                {
+                                    list.Add($"{count:D2} - null");
+                                }
+                                count++;
+                            }
+
+                            output = string.Join("\n", list);
+                        }
+                        catch
+                        {
+                            output = retVal.ToString();
+                        }
+                    }
+                    // For primitives, strings, and standard objects, use default ToString
+                    else
+                    {
+                        output = retVal.ToString();
+                    }
                 }
 
-                // Otherwise, fall back to the return value of the expression
-                var output = session.State.ReturnValue?.ToString() ?? string.Empty;
-                return (true, output, string.Empty, structuredOutput);
+                // Build the pipeline diagnostics line (appended after the main output)
+                var diags = context.PipelineDiagnostics;
+                var pipelineLine = string.Empty;
+                if (diags != null && diags.Count > 0)
+                {
+                    var diagTokens = diags.Select(d => d switch
+                    {
+                        -1 => "chart",
+                        -2 => "table",
+                        -3 => "✓",
+                        -4 => "✗",
+                        _ => d.ToString()
+                    });
+                    pipelineLine = "Pipeline: [" + string.Join(" → ", diagTokens) + "]";
+                }
+
+                // Combine: printLog, return value, pipeline diagnostics
+                var parts = new List<string>();
+                if (!string.IsNullOrEmpty(printLog))
+                    parts.Add(printLog);
+                if (!string.IsNullOrEmpty(output))
+                    parts.Add(output);
+                if (!string.IsNullOrEmpty(pipelineLine))
+                    parts.Add(pipelineLine);
+
+                var finalOutput = string.Join(Environment.NewLine, parts);
+
+                return (true, finalOutput, string.Empty, structuredOutput);
             }
             catch (Exception ex)
             {
+                LicenseContext.Reset();
                 FileLogger.LogError($"[REPL] Error: {ex.Message}");
                 return (false, string.Empty, ex.Message, new List<string>());
             }

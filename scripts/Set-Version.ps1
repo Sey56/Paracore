@@ -92,7 +92,18 @@ if (Test-Path $TopBarPath) {
     }
 }
 
-# 6. Update Primary Scripts or Docs
+# 6. Update C# Client Bridge Subscription Version
+$ClientPath = Join-Path $RootDir "Paracore.Addin/Services/CoreScriptClient.cs"
+if (Test-Path $ClientPath) {
+    $content = Get-Content $ClientPath -Raw
+    $newContent = $content -replace 'AddinVersion\s*=\s*"[^"]+"', "AddinVersion = `"$Version`""
+    if ($content -ne $newContent) {
+        $newContent | Set-Content $ClientPath -NoNewline
+        Write-Host "Updated CoreScriptClient.cs (Bridge Subscription)"
+    }
+}
+
+# 7. Update Primary Scripts or Docs
 $MiscFiles = @(
     "RAP-installer.ps1",
     "README.md",

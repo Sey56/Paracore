@@ -8,6 +8,7 @@ import { AuthProvider } from '@/features/auth/store/AuthProvider';
 import { TeamSourceProvider } from '@/features/team-sources/store/TeamSourceProvider';
 import { PlaylistProvider } from '@/features/automation/store/PlaylistProvider';
 import { WatchdogProvider } from '@/context/providers/WatchdogProvider';
+import { ConsoleProviderWrapper } from '@/features/automation/store/ConsoleProviderWrapper';
 
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -20,9 +21,11 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
                 <UIProvider>
                   <ScriptProvider>
                     <ScriptExecutionProvider>
-                      <PlaylistProvider>
-                        {children}
-                      </PlaylistProvider>
+                      <ConsoleProviderWrapper>
+                        <PlaylistProvider>
+                          {children}
+                        </PlaylistProvider>
+                      </ConsoleProviderWrapper>
                     </ScriptExecutionProvider>
                   </ScriptProvider>
                 </UIProvider>

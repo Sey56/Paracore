@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faCircleHalfStroke, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faCircleHalfStroke, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt, faHouse } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -14,7 +14,7 @@ import { shell } from '@tauri-apps/api';
 import packageJson from '../../../../package.json';
 
 export const TopBar: React.FC = () => {
-  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap } = useUI();
+  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap, openWelcomeGate } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
@@ -24,30 +24,9 @@ export const TopBar: React.FC = () => {
   const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const helpDropdownRef = useRef<HTMLDivElement>(null);
-  const [hasGeneratedManifest, setHasGeneratedManifest] = useState(false);
 
-  const handleAgentModeClick = async () => {
+  const handleAgentModeClick = () => {
     setActiveMainView('agent');
-
-    // Trigger manifest generation only once per session when entering Agent Mode
-    if (!hasGeneratedManifest && toolLibraryPath) {
-      try {
-        console.log("Triggering manifest generation...");
-        showNotification("Generating script manifest...", "info");
-        const response = await fetch('http://localhost:8000/api/manifest/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agent_scripts_path: toolLibraryPath })
-        });
-        const data = await response.json();
-        console.log("Manifest generation triggered successfully.");
-        showNotification(`Script manifest generated successfully! Found ${data.count} scripts.`, "success");
-        setHasGeneratedManifest(true);
-      } catch (error) {
-        console.error("Failed to trigger manifest generation:", error);
-        showNotification("Failed to generate manifest.", "error");
-      }
-    }
   };
 
   useEffect(() => {
@@ -142,30 +121,24 @@ export const TopBar: React.FC = () => {
       <div className="hidden lg:flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
         {[
           { id: 'scripts', label: 'Automations', icon: faRectangleList },
-          { id: 'agent', label: 'Agent', icon: faRobot, needsCloud: true },
-          { id: 'playlists', label: 'Playlists', icon: faListUl, needsCloud: true }
+          { id: 'agent', label: 'Agent', icon: faRobot },
+          { id: 'playlists', label: 'Playlists', icon: faListUl }
         ].map(nav => {
-          const isLocked = nav.needsCloud && (!activeTeam || activeTeam.team_id === 0);
           const isActive = activeMainView === nav.id;
 
           return (
             <button
               key={nav.id}
               onClick={() => {
-                if (!isLocked) {
-                  if (nav.id === 'agent') handleAgentModeClick();
-                  else setActiveMainView(nav.id as 'scripts' | 'agent' | 'playlists');
-                }
+                if (nav.id === 'agent') handleAgentModeClick();
+                else setActiveMainView(nav.id as 'scripts' | 'agent' | 'playlists');
               }}
-              disabled={isLocked}
               className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300
                 ${isActive
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]'
-                  : isLocked
-                    ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-40'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
-              title={isLocked ? `${nav.label} (Team/Cloud Required)` : `${nav.label} Mode`}
+              title={`${nav.label} Mode`}
             >
               <FontAwesomeIcon icon={nav.icon} className={isActive ? 'text-blue-500' : ''} />
               {nav.label}
@@ -208,6 +181,14 @@ export const TopBar: React.FC = () => {
             title="Swap Panels"
           >
             <FontAwesomeIcon icon={faExchangeAlt} className={isLayoutSwapped ? "rotate-180 transition-transform duration-500" : "transition-transform duration-500"} />
+          </button>
+
+          <button
+            onClick={openWelcomeGate}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+            title="Home"
+          >
+            <FontAwesomeIcon icon={faHouse} className="text-sm" />
           </button>
 
           <div className="relative" ref={helpDropdownRef}>

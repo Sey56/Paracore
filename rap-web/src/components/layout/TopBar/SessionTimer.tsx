@@ -3,20 +3,17 @@ import { useAuth } from '@/features/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock } from '@fortawesome/free-solid-svg-icons';
 
-const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+const SESSION_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
 
 export const SessionTimer: React.FC = () => {
-  const { sessionStartTime, logout, localToken } = useAuth();
+  const { sessionStartTime, logout, cloudToken } = useAuth();
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
 
-  useEffect(() => {
-    // If we are in "Offline Mode" (localToken is present), do not enforce expiration.
-    if (localToken) {
-      setRemainingTime(null);
-      return;
-    }
+  // Offline mode ("Continue Offline") uses "rap-local-token" as cloudToken — never expires
+  const isOffline = cloudToken === "rap-local-token";
 
-    if (!sessionStartTime) {
+  useEffect(() => {
+    if (isOffline || !sessionStartTime) {
       setRemainingTime(null);
       return;
     }
@@ -37,21 +34,23 @@ export const SessionTimer: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [sessionStartTime, logout, localToken]);
+  }, [sessionStartTime, logout, isOffline]);
 
   if (remainingTime === null) {
     return null;
   }
 
+  const days = Math.floor(remainingTime / (1000 * 60 * 60 * 24));
   const hours = Math.floor((remainingTime / (1000 * 60 * 60)) % 24);
   const minutes = Math.floor((remainingTime / (1000 * 60)) % 60);
-  const seconds = Math.floor((remainingTime / 1000) % 60);
 
-  const formattedTime = [
-    hours.toString().padStart(2, '0'),
-    minutes.toString().padStart(2, '0'),
-    seconds.toString().padStart(2, '0'),
-  ].join(':');
+  let formattedTime = "";
+  if (days > 0) {
+    formattedTime = `${days}d ${hours}h ${minutes}m`;
+  } else {
+    const seconds = Math.floor((remainingTime / 1000) % 60);
+    formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
 
   return (
     <div className="flex items-center px-4 py-2 text-sm text-gray-600 dark:text-gray-300">

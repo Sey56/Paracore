@@ -4,8 +4,8 @@ const TELEMETRY_KEY = 'paracore_telemetry_optin';
 const ANON_ID_KEY = 'paracore_anonymous_id';
 
 export const isTelemetryEnabled = (): boolean => {
-  // Default to true for open source metrics. Users can opt-out.
-  return localStorage.getItem(TELEMETRY_KEY) !== 'false';
+  // Default to false for privacy. Users can opt-in.
+  return localStorage.getItem(TELEMETRY_KEY) === 'true';
 };
 
 export const setTelemetryEnabled = (enabled: boolean) => {

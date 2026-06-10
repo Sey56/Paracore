@@ -9,6 +9,14 @@ import corescript_pb2_grpc
 import grpc
 from utils import format_grpc_error
 
+# ── Constants ──────────────────────────────────────────────────────────────────
+GRPC_UNAVAILABLE_MSG = "Revit is closed or Paracore server is unavailable."
+_GRPC_RECONNECT_OPTIONS = [
+    ('grpc.initial_reconnect_backoff_ms', 500),
+    ('grpc.max_reconnect_backoff_ms', 2000),
+    ('grpc.min_reconnect_backoff_ms', 500),
+]
+
 # Global channel variable
 _channel = None
 
@@ -28,14 +36,7 @@ def init_channel():
     if _channel is None:
         grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
         logging.debug(f"Initializing gRPC channel to {grpc_server_address}")
-        # Force gRPC to cap its exponential reconnect backoff at 2 seconds
-        # instead of the native 120-second default, so sidecar reboots connect instantly.
-        options = [
-            ('grpc.initial_reconnect_backoff_ms', 500),
-            ('grpc.max_reconnect_backoff_ms', 2000),
-            ('grpc.min_reconnect_backoff_ms', 500)
-        ]
-        _channel = grpc.insecure_channel(grpc_server_address, options=options)
+        _channel = grpc.insecure_channel(grpc_server_address, options=_GRPC_RECONNECT_OPTIONS)
 
 def close_channel():
     """Closes the global gRPC channel."""
@@ -56,12 +57,7 @@ def get_corescript_runner_stub():
         if _channel is None:
             logging.debug("Global gRPC channel not initialized. Creating temporary channel.")
             grpc_server_address = os.environ.get('GRPC_SERVER_ADDRESS', 'localhost:50051')
-            options = [
-                ('grpc.initial_reconnect_backoff_ms', 500),
-                ('grpc.max_reconnect_backoff_ms', 2000),
-                ('grpc.min_reconnect_backoff_ms', 500)
-            ]
-            local_channel = grpc.insecure_channel(grpc_server_address, options=options)
+            local_channel = grpc.insecure_channel(grpc_server_address, options=_GRPC_RECONNECT_OPTIONS)
             stub = corescript_pb2_grpc.CoreScriptRunnerStub(local_channel)
             yield stub
         else:
@@ -93,7 +89,7 @@ def register_watchdog_source(path: str, parameters_json: Optional[str] = None):
         if e.code() == grpc.StatusCode.UNAVAILABLE:
             return {
                 "is_success": False,
-                "error_message": "Revit is closed or Paracore server is unavailable.",
+                "error_message": GRPC_UNAVAILABLE_MSG,
                 "watchdogs_registered": 0,
                 "load_details": []
             }
@@ -154,7 +150,7 @@ def get_model_categories():
             }
     except Exception as e:
         if isinstance(e, grpc.RpcError) and e.code() == grpc.StatusCode.UNAVAILABLE:
-            return {"categories": [], "error_message": "Revit is closed or Paracore server is unavailable."}
+            return {"categories": [], "error_message": GRPC_UNAVAILABLE_MSG}
         logging.error(f"Error calling GetModelCategories gRPC: {e}")
         return {"categories": [], "error_message": str(e)}
 
@@ -195,13 +191,59 @@ def get_watchdog_statuses():
         # Handle connection errors gracefully when Revit is closed
         if e.code() == grpc.StatusCode.UNAVAILABLE:
             # We don't log the full stack trace for a simple unavailable state (usually just Revit closed)
-            return {"watchdogs": [], "failed_watchdogs": [], "error_message": "Revit is closed or Paracore server is unavailable."}
+            return {"watchdogs": [], "failed_watchdogs": [], "error_message": GRPC_UNAVAILABLE_MSG}
         
         logging.error(f"gRPC Error in GetWatchdogStatus: {e.details()}")
         return {"watchdogs": [], "failed_watchdogs": [], "error_message": str(e)}
     except Exception as e:
         logging.error(f"Error calling GetWatchdogStatus gRPC: {e}")
         return {"watchdogs": [], "failed_watchdogs": [], "error_message": str(e)}
+
+def _build_parameter_dict(p, parse_value: bool = False) -> dict:
+    """Build a parameter dict from a protobuf Parameter message.
+
+    Extracted to deduplicate the ~25-field construction that appears in
+    both get_script_parameters() and get_bulk_metadata().
+    """
+    val = p.default_value_json
+    if parse_value:
+        try:
+            val = json.loads(val)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    result = {
+        "name": p.name,
+        "type": p.type,
+        "description": p.description,
+        "options": list(p.options),
+        "multiSelect": p.multi_select,
+        "visibleWhen": p.visible_when,
+        "numericType": p.numeric_type,
+        "min": p.min if p.HasField('min') else None,
+        "max": p.max if p.HasField('max') else None,
+        "step": p.step if p.HasField('step') else None,
+        "isRevitElement": p.is_revit_element,
+        "revitElementType": p.revit_element_type,
+        "revitElementCategory": p.revit_element_category,
+        "requiresCompute": p.requires_compute,
+        "group": p.group,
+        "inputType": p.input_type,
+        "required": p.required,
+        "suffix": p.suffix,
+        "pattern": p.pattern,
+        "enabledWhenParam": p.enabled_when_param,
+        "enabledWhenValue": p.enabled_when_value,
+        "unit": p.unit,
+        "selectionType": p.selection_type,
+    }
+    if parse_value:
+        result["defaultValue"] = val
+        result["value"] = val
+    else:
+        result["defaultValueJson"] = val
+    return result
+
 
 def execute_script(script_content, parameters_json, compiled_assembly=None):
     # logging.info("Attempting to execute script via gRPC.")
@@ -217,6 +259,7 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
             # logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
             structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in response.structured_output]
+            pipeline_diags = list(getattr(response, 'pipeline_diagnostics', []))
 
             return {
                 "is_success": response.is_success,
@@ -225,13 +268,14 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
                 "error_details": list(response.error_details),
                 "structured_output": structured_output_data,
                 "internal_data": response.internal_data,
+                "pipeline_diagnostics": pipeline_diags,
             }
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.UNAVAILABLE:
                 return {
                     "is_success": False,
                     "output": "",
-                    "error_message": "Revit is closed or Paracore server is unavailable.",
+                    "error_message": GRPC_UNAVAILABLE_MSG,
                     "error_details": [],
                     "structured_output": [],
                     "internal_data": "",
@@ -275,36 +319,7 @@ def get_script_parameters(script_files):
         request = corescript_pb2.GetScriptParametersRequest(script_files=grpc_script_files)
         response = stub.GetScriptParameters(request)
 
-    # Manually construct the dictionary to avoid potential issues with MessageToDict
-    params_to_return = []
-    for p in response.parameters:
-        param_dict = {
-            "name": p.name,
-            "type": p.type,
-            "defaultValueJson": p.default_value_json,
-            "description": p.description,
-            "options": list(p.options),
-            "multiSelect": p.multi_select,
-            "visibleWhen": p.visible_when,
-            "numericType": p.numeric_type,
-            "min": p.min if p.HasField('min') else None,
-            "max": p.max if p.HasField('max') else None,
-            "step": p.step if p.HasField('step') else None,
-            "isRevitElement": p.is_revit_element,
-            "revitElementType": p.revit_element_type,
-            "revitElementCategory": p.revit_element_category,
-            "requiresCompute": p.requires_compute,
-            "group": p.group,
-            "inputType": p.input_type,
-            "required": p.required,
-            "suffix": p.suffix,
-            "pattern": p.pattern,
-            "enabledWhenParam": p.enabled_when_param,
-            "enabledWhenValue": p.enabled_when_value,
-            "unit": p.unit,
-            "selectionType": p.selection_type
-        }
-        params_to_return.append(param_dict)
+    params_to_return = [_build_parameter_dict(p) for p in response.parameters]
 
     return {
         "parameters": params_to_return,
@@ -360,41 +375,7 @@ def get_bulk_metadata(projects_data: list):
             "isWatchdog": m.is_watchdog
         }
         
-        params_list = []
-        for p in pm.parameters:
-            val = p.default_value_json
-            try:
-                real_val = json.loads(val)
-            except:
-                real_val = val
-
-            params_list.append({
-                "name": p.name,
-                "type": p.type,
-                "defaultValue": real_val,
-                "value": real_val,
-                "description": p.description,
-                "options": list(p.options),
-                "multiSelect": p.multi_select,
-                "inputType": p.input_type,
-                "group": p.group,
-                "visibleWhen": p.visible_when,
-                "numericType": p.numeric_type,
-                "min": p.min if p.HasField('min') else None,
-                "max": p.max if p.HasField('max') else None,
-                "step": p.step if p.HasField('step') else None,
-                "isRevitElement": p.is_revit_element,
-                "revitElementType": p.revit_element_type,
-                "revitElementCategory": p.revit_element_category,
-                "requiresCompute": p.requires_compute,
-                "required": p.required,
-                "suffix": p.suffix,
-                "pattern": p.pattern,
-                "enabledWhenParam": p.enabled_when_param,
-                "enabledWhenValue": p.enabled_when_value,
-                "unit": p.unit,
-                "selectionType": p.selection_type
-            })
+        params_list = [_build_parameter_dict(p, parse_value=True) for p in pm.parameters]
 
         results.append({
             "project_name": pm.project_name,
@@ -422,7 +403,7 @@ def create_and_open_workspace(tool_path: str):
         }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:
-            return {"workspace_path": "", "error_message": "Revit is closed or Paracore server is unavailable."}
+            return {"workspace_path": "", "error_message": GRPC_UNAVAILABLE_MSG}
         return {"workspace_path": "", "error_message": str(e)}
     except Exception as e:
         return {"workspace_path": "", "error_message": str(e)}
@@ -443,21 +424,6 @@ def stop_sync_session(script_path: str):
         logging.error(f"Error calling StopSyncSession gRPC: {e}")
         return {"is_success": False, "error_message": str(e)}
 
-def get_script_manifest(script_path: str) -> str:
-    """
-    Calls the gRPC service to get a JSON manifest of scripts from a given path.
-    """
-    try:
-        with get_corescript_runner_stub() as stub:
-            request = corescript_pb2.GetScriptManifestRequest(script_path=script_path)
-            response = stub.GetScriptManifest(request)
-            return response.manifest_json
-    except grpc.RpcError as e:
-        if e.code() == grpc.StatusCode.UNAVAILABLE:
-            return json.dumps({"scripts": [], "error": "Revit is closed or Paracore server is unavailable."})
-        return json.dumps({"scripts": [], "error": str(e)})
-    except Exception as e:
-        return json.dumps({"scripts": [], "error": str(e)})
 
 def get_context():
     """
@@ -495,24 +461,6 @@ def get_context():
     except Exception as e:
         raise e
 
-def validate_working_set_grpc(element_ids: list[int]) -> list[int]:
-    """
-    Calls the gRPC service to validate a list of element IDs against the active Revit document.
-    """
-    logging.info(f"Attempting to validate {len(element_ids)} element IDs via gRPC.")
-    try:
-        with get_corescript_runner_stub() as stub:
-            request = corescript_pb2.ValidateWorkingSetRequest(element_ids=element_ids)
-            response = stub.ValidateWorkingSet(request)
-            valid_ids = list(response.valid_element_ids)
-            logging.info(f"gRPC ValidateWorkingSet call successful. {len(valid_ids)} IDs are valid.")
-            return valid_ids
-    except grpc.RpcError as e:
-        logging.error(format_grpc_error(e))
-        return [] # Return empty list on error
-    except Exception as e:
-        logging.error(f"An unexpected error occurred during gRPC ValidateWorkingSet call: {e}")
-        return [] # Return empty list on error
 
 def compute_parameter_options(script_content: str, parameter_name: str, parameters: dict = None):
     """
@@ -668,7 +616,7 @@ def pick_object(selection_type: str, category_filter: str = None):
                 "value": "",
                 "is_success": False,
                 "cancelled": False,
-                "error_message": "Revit is closed or Paracore server is unavailable."
+                "error_message": GRPC_UNAVAILABLE_MSG
             }
         logging.error(format_grpc_error(e))
         return {
@@ -828,11 +776,11 @@ def clear_assembly_cache():
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:
-            return {"is_success": False, "message": "Revit is closed or Paracore server is unavailable."}
+            return {"is_success": False, "message": GRPC_UNAVAILABLE_MSG}
         logging.error(format_grpc_error(e))
         return {"is_success": False, "message": f"gRPC Error: {e.details()}"}
 
-def execute_repl(code: str, session_id: str):
+def execute_repl(code: str, session_id: str, license_tier: str = "free"):
     """
     Calls the gRPC service to execute a REPL command in Revit.
     """
@@ -840,24 +788,24 @@ def execute_repl(code: str, session_id: str):
         with get_corescript_runner_stub() as stub:
             request = corescript_pb2.ExecuteReplRequest(
                 code=code,
-                session_id=session_id
+                session_id=session_id,
+                license_tier=license_tier
             )
             response = stub.ExecuteRepl(request)
             structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in getattr(response, 'structured_output', [])]
+            pipeline_diags = list(getattr(response, 'pipeline_diagnostics', []))
             return {
                 "is_success": response.is_success,
                 "output": response.output,
                 "error_message": response.error_message,
                 "structured_output": structured_output_data,
+                "pipeline_diagnostics": pipeline_diags,
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:
-            return {"is_success": False, "output": "", "error_message": "Revit is closed or Paracore server is unavailable."}
+            return {"is_success": False, "output": "", "error_message": GRPC_UNAVAILABLE_MSG}
         logging.error(format_grpc_error(e))
         return {"is_success": False, "output": "", "error_message": f"gRPC Error: {e.details()}"}
     except Exception as e:
         logging.error(f"Error calling ExecuteRepl gRPC: {e}")
         return {"is_success": False, "output": "", "error_message": str(e)}
-        return {"is_success": False, "message": str(e)}
-    except Exception as e:
-        return {"is_success": False, "message": str(e)}

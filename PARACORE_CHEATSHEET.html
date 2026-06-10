@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paracore Master Cheat Sheet V4.2.0</title>
+    <title>Paracore Master Cheat Sheet V4.4.0</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -167,7 +167,7 @@
     <div class="container">
         <header>
             <h1>Paracore API Master Cheat Sheet</h1>
-            <span class="version">ELITE DEPLOYMENT • VERSION 4.2.0</span>
+            <span class="version">ELITE DEPLOYMENT • VERSION 4.4.0</span>
         </header>
 
         <div class="section-grid">
@@ -218,7 +218,7 @@
 
             <!-- Accessors -->
             <section>
-                <h2>🪄 Element Accessors (Read/Write)</h2>
+                <h2>🪄 Parameter & Property Accessors (Read/Write)</h2>
                 <table>
                     <thead>
                         <tr>
@@ -229,15 +229,26 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td><code>.GetStr(name)</code></td><td class="type">string</td><td class="desc">Smart Name/String getter.</td><td class="example"><code>e.GetStr("Level")</code></td></tr>
-                        <tr><td><code>.GetNum(name)</code></td><td class="type">double</td><td class="desc">Raw numeric (Internal Feet).</td><td class="example"><code>e.GetNum("Length")</code></td></tr>
-                        <tr><td><code>.GetVal(name)</code></td><td class="type">string</td><td class="desc">WYSIWYG (UI Formatted).</td><td class="example"><code>e.GetVal("Width")</code></td></tr>
-                        <tr><td><code>.GetInt(name)</code></td><td class="type">int</td><td class="desc">Integer/Boolean getter.</td><td class="example"><code>e.GetInt("Is External")</code></td></tr>
+                        <tr><td><code>.GetStr(name)</code></td><td class="type">string</td><td class="desc"><b>Instance</b> String getter.</td><td class="example"><code>e.GetStr("Mark")</code></td></tr>
+                        <tr><td><code>.GetNum(name)</code></td><td class="type">double</td><td class="desc"><b>Instance</b> Raw numeric.</td><td class="example"><code>e.GetNum("Offset")</code></td></tr>
+                        <tr><td><code>.GetVal(name)</code></td><td class="type">string</td><td class="desc"><b>Instance</b> WYSIWYG Formatted.</td><td class="example"><code>e.GetVal("Phase")</code></td></tr>
+                        <tr><td><code>.GetInt(name)</code></td><td class="type">int</td><td class="desc"><b>Instance</b> Integer/Bool.</td><td class="example"><code>e.GetInt("Is External")</code></td></tr>
+                        <tr><td><code>.GetTypeStr(n)</code></td><td class="type">string</td><td class="desc"><b>Type</b> String getter.</td><td class="example"><code>e.GetTypeStr("Model")</code></td></tr>
+                        <tr><td><code>.GetTypeNum(n)</code></td><td class="type">double</td><td class="desc"><b>Type</b> Raw numeric.</td><td class="example"><code>e.GetTypeNum("Width")</code></td></tr>
+                        <tr><td><code>.GetTypeVal(n)</code></td><td class="type">string</td><td class="desc"><b>Type</b> WYSIWYG Formatted.</td><td class="example"><code>e.GetTypeVal("Height")</code></td></tr>
+                        <tr><td><code>.GetTypeInt(n)</code></td><td class="type">int</td><td class="desc"><b>Type</b> Integer/Bool.</td><td class="example"><code>e.GetTypeInt("Cost")</code></td></tr>
                         <tr><td><code>.FamilyName()</code></td><td class="type">string</td><td class="desc">True Family Name getter.</td><td class="example"><code>e.FamilyName()</code></td></tr>
+                        <tr><td><code>.RoomTo()</code></td><td class="type">string</td><td class="desc"><b>Door</b> Room Name (Into).</td><td class="example"><code>e.RoomTo()</code></td></tr>
+                        <tr><td><code>.RoomFrom()</code></td><td class="type">string</td><td class="desc"><b>Door</b> Room Name (From).</td><td class="example"><code>e.RoomFrom()</code></td></tr>
+                        <tr><td><code>.HingeSide()</code></td><td class="type">string</td><td class="desc"><b>Door</b> Hinge (Left/Right).</td><td class="example"><code>e.HingeSide()</code></td></tr>
+                        <tr><td><code>.Handing()</code></td><td class="type">string</td><td class="desc"><b>Door</b> Handing (LH,RH,etc).</td><td class="example"><code>e.Handing()</code></td></tr>
                         <tr><td><code>.Matches("p")</code></td><td class="type">bool</td><td class="desc">Fuzzy Type/Family matcher.</td><td class="example"><code>e.Matches("Flush")</code></td></tr>
                         <tr><td><code>.SetVal(n, v)</code></td><td class="type">void</td><td class="desc"><b>Smart Setter</b> (Auto-ID/Unit).</td><td class="example"><code>e.SetVal("Mark", "101")</code></td></tr>
                         <tr><td><code>.SetNum(n, v, u)</code></td><td class="type">void</td><td class="desc">Explicit Unit Setter.</td><td class="example"><code>e.SetNum("L", 1.5, "m")</code></td></tr>
                         <tr><td><code>.TypeParams()</code></td><td class="type">List</td><td class="desc">Access all Type parameters.</td><td class="example"><code>e.TypeParams().Table()</code></td></tr>
+                        <tr><td><code>.GetElementType()</code></td><td class="type">Element</td><td class="desc">Returns the ElementType.</td><td class="example"><code>e.GetElementType()</code></td></tr>
+                        <tr><td><code>.GetMaterialNames()</code></td><td class="type">string</td><td class="desc">Comma-separated materials.</td><td class="example"><code>e.GetMaterialNames()</code></td></tr>
+                        <tr><td><code>.IsStandardDoor()</code></td><td class="type">bool</td><td class="desc">True if not curtain wall.</td><td class="example"><code>e.IsStandardDoor()</code></td></tr>
                     </tbody>
                 </table>
             </section>
@@ -263,6 +274,8 @@
                         <tr><td><code>.Isolate()</code></td><td class="desc">Isolates in the active view.</td><td class="example"><code>walls.Isolate()</code></td></tr>
                         <tr><td><code>.Delete()</code></td><td class="desc">Deletes with transaction.</td><td class="example"><code>walls.Delete()</code></td></tr>
                         <tr><td><code>.Hide() / .Unhide()</code></td><td class="desc">Visibility control in view.</td><td class="example"><code>walls.Hide()</code></td></tr>
+                        <tr><td><code>.StandardOnly()</code></td><td class="desc">Filters out curtain wall doors.</td><td class="example"><code>doors.StandardOnly()</code></td></tr>
+                        <tr><td><code>.ToNotebook(name)</code></td><td class="desc">Export to Jupyter Notebook.</td><td class="example"><code>data.ToNotebook("Rooms")</code></td></tr>
                     </tbody>
                 </table>
             </section>
@@ -287,6 +300,26 @@
                 </table>
             </section>
 
+            <!-- Coordination -->
+            <section>
+                <h2>🛡️ Coordination & Clash Audit</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 25%;">Method</th>
+                            <th style="width: 35%;">Description</th>
+                            <th style="width: 40%;">Example</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>.AuditClashes(target)</code></td><td class="desc">Detect clashes with target category.</td><td class="example"><code>.AuditClashes("Pipes")</code></td></tr>
+                        <tr><td><code>.AuditClashes(target, tol)</code></td><td class="desc">Audit with numeric tolerance.</td><td class="example"><code>.AuditClashes("Walls", 5.0)</code></td></tr>
+                        <tr><td><code>.AuditClashes(target, "unit")</code></td><td class="desc">Audit with unit-aware tolerance.</td><td class="example"><code>.AuditClashes("Walls", "5mm")</code></td></tr>
+                        <tr><td><code>.Table()</code></td><td class="desc">Coordination Grid + 3D Helpers.</td><td class="example"><code>.Table()</code></td></tr>
+                    </tbody>
+                </table>
+            </section>
+
             <!-- Precision -->
             <section>
                 <h2>⚖️ Precision & Units</h2>
@@ -307,6 +340,10 @@
                         <tr><td><code>.IsLessThan(limit)</code></td><td class="desc">Precision comparison.</td><td class="example"><code>val.IsLessThan(target)</code></td></tr>
                         <tr><td><code>.IsGreaterThan(limit)</code></td><td class="desc">Precision comparison.</td><td class="example"><code>val.IsGreaterThan(target)</code></td></tr>
                         <tr><td><code>.AlmostZero()</code></td><td class="desc">Effectively zero detection.</td><td class="example"><code>val.AlmostZero()</code></td></tr>
+                        <tr><td><code>.IsPositive()</code></td><td class="desc">Strictly positive (>1e-9).</td><td class="example"><code>val.IsPositive()</code></td></tr>
+                        <tr><td><code>.IsNegative()</code></td><td class="desc">Strictly negative (<-1e-9).</td><td class="example"><code>val.IsNegative()</code></td></tr>
+                        <tr><td><code>.ToMeters()</code></td><td class="desc">Parse dim string to meters.</td><td class="example"><code>"500mm".ToMeters()</code></td></tr>
+                        <tr><td><code>.FormatValueOnly("u")</code></td><td class="desc">Number string without suffix.</td><td class="example"><code>val.FormatValueOnly("mm")</code></td></tr>
                     </tbody>
                 </table>
             </section>

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, vs, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '@/context/ThemeContext';
 
 interface REPLCodeEditorProps {
@@ -21,7 +21,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
 }, ref) => {
     const highlighterRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
-    const syntaxStyle = theme === 'light' ? vs : vscDarkPlus;
+    const syntaxStyle = theme === 'eclipse' ? atomDark : (theme === 'midnight' || theme === 'dark' ? vscDarkPlus : vs);
 
     // Sync scrolling
     const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -45,6 +45,76 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
             // Use execCommand to preserve undo stack
             document.execCommand('insertText', false, "    ");
             return;
+        }
+
+        // Bracket & Quote Auto-Closing Logic
+        const pairs: Record<string, string> = {
+            '{': '}',
+            '[': ']',
+            '(': ')',
+            '"': '"',
+            "'": "'",
+            "`": "`",
+            "<": ">"
+        };
+
+        // 1. Delete empty pairs with Backspace (e.g., cursor inside {} -> press Backspace -> deletes both)
+        if (e.key === 'Backspace' && selectionStart === selectionEnd && selectionStart > 0) {
+            const prevChar = value.slice(selectionStart - 1, selectionStart);
+            const nextChar = value.slice(selectionStart, selectionStart + 1);
+            if (pairs[prevChar] === nextChar) {
+                e.preventDefault();
+                textarea.selectionStart = selectionStart - 1;
+                textarea.selectionEnd = selectionStart + 1;
+                document.execCommand('delete', false);
+                return;
+            }
+        }
+
+        // 2. Auto-skip closing character if it is already right in front of the cursor
+        if (['}', ']', ')', '"', "'", "`", ">"].includes(e.key) && selectionStart === selectionEnd) {
+            const nextChar = value.slice(selectionStart, selectionStart + 1);
+            if (nextChar === e.key) {
+                e.preventDefault();
+                textarea.selectionStart = textarea.selectionEnd = selectionStart + 1;
+                return;
+            }
+        }
+
+        // 3. Auto-close brackets or surround selected text
+        if (e.key in pairs) {
+            const char = e.key;
+            const wrapChar = pairs[char];
+
+            // Special explicit logic for '<' to not ruin standard less-than math comparisons
+            if (char === '<') {
+                if (selectionStart === selectionEnd) {
+                    const beforeCursor = value.slice(0, selectionStart);
+                    // Only auto-close for explicit generic methods requested by the user
+                    if (!beforeCursor.match(/(GetElements|OfType|Cast)$/)) {
+                        return; // Let the browser just type '<' normally
+                    }
+                }
+            }
+
+            if (selectionStart !== selectionEnd) {
+                e.preventDefault();
+                const selectedText = value.slice(selectionStart, selectionEnd);
+                document.execCommand('insertText', false, char + selectedText + wrapChar);
+                textarea.selectionStart = selectionStart + 1;
+                textarea.selectionEnd = selectionStart + selectedText.length + 1;
+                return;
+            }
+
+            const nextChar = value.slice(selectionStart, selectionStart + 1);
+            const shouldAutoClose = !nextChar || /[\s\}\]\)]/.test(nextChar);
+
+            if (shouldAutoClose) {
+                e.preventDefault();
+                document.execCommand('insertText', false, char + wrapChar);
+                textarea.selectionStart = textarea.selectionEnd = selectionStart + 1;
+                return;
+            }
         }
 
         if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
@@ -77,6 +147,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
             document.execCommand('insertText', false, insertion);
             return;
         }
+        
         onKeyDown(e);
     };
 
@@ -92,7 +163,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     };
 
     return (
-        <div className="relative w-full h-[300px] bg-slate-50/30 dark:bg-slate-900/30 border-t border-b border-slate-200 dark:border-slate-800 overflow-hidden" style={{ borderColor: 'var(--border-divider)' }}>
+        <div className="relative w-full h-full bg-transparent overflow-hidden">
             <div className="grid w-full h-full p-0">
                 <div
                     ref={highlighterRef}
@@ -102,11 +173,12 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         padding: '12px 16px',
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
+                        overflowWrap: 'break-word',
                         width: '100%',
                     }}
                 >
                     <SyntaxHighlighter
+                        key={theme}
                         language="csharp"
                         style={syntaxStyle}
                         PreTag="div"
@@ -122,7 +194,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                             border: 'none',
                             boxShadow: 'none'
                         }}
-                        codeTagProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'inherit', lineHeight: 'inherit' } }}
+                        codeTagProps={{ style: { whiteSpace: 'pre-wrap', overflowWrap: 'break-word', fontFamily: 'inherit', lineHeight: 'inherit' } }}
                     >
                         {value + (value.endsWith('\n') ? ' ' : '')}
                     </SyntaxHighlighter>
@@ -152,7 +224,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
                         margin: 0,
                         boxSizing: 'border-box',
                         whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
+                        overflowWrap: 'break-word',
                         zIndex: 10,
                         overflowX: 'hidden',
                         overflowY: 'auto',

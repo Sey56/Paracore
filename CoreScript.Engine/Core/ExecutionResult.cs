@@ -17,14 +17,15 @@ namespace CoreScript.Engine.Core
         public bool IsSilent { get; set; }
         public List<string> StructuredOutput { get; set; } = new();
 
+        /// <summary>
+        /// Pipeline stage diagnostics — item counts at each fluent-chain stage.
+        /// Positive N = count, 0 = empty, -1 = chart, -2 = table.
+        /// </summary>
+        public List<int> PipelineDiagnostics { get; set; } = new();
+
         // ✅ Added: log buffer for Print(...) output
         public List<string> PrintLog { get; set; } = new();
 
-        /// <summary>
-        /// Stores internal, structured data (e.g., working set updates) for agent processing,
-        /// not intended for direct user display in the console.
-        /// </summary>
-        public string? InternalData { get; set; }
 
         /// <summary>
         /// Factory for failed execution result.

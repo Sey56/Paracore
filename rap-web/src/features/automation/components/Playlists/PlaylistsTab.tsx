@@ -11,7 +11,7 @@ import { Playlist } from '@/types/playlistModel';
 
 export const PlaylistsTab: React.FC = () => {
     const { playlists, isLoading, loadPlaylists, selectPlaylist, selectedPlaylist, runPlaylist, createPlaylist, deletePlaylist, updatePlaylist } = usePlaylist();
-    const { activeScriptSource } = useUI();
+    const { activeScriptSource, isLayoutSwapped } = useUI();
     const [isNewPlaylistModalOpen, setIsNewPlaylistModalOpen] = useState(false);
 
     // Deletion State
@@ -79,6 +79,7 @@ export const PlaylistsTab: React.FC = () => {
             <PlaylistEditor
                 playlist={selectedPlaylist}
                 onBack={() => selectPlaylist(null)}
+                isLayoutSwapped={isLayoutSwapped}
             />
         );
     }

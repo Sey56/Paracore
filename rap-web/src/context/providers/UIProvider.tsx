@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall } from "./UIContext";
+import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall, StructuredOutput } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useUserTeamSources } from "@/features/team-sources"; 
@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth";
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
+const LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW = 'paracore_active_main_view';
 
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
@@ -29,6 +30,9 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLayoutSwapped, setIsLayoutSwapped] = useState(() => {
     return localStorage.getItem('isLayoutSwapped') === 'true';
   });
+  const [showSentinelFAB, setShowSentinelFAB] = useState(() => {
+    return localStorage.getItem('showSentinelFAB') === 'true';
+  });
 
   const [activeScriptSource, setActiveScriptSource] = useState<ActiveScriptSource | null>(null);
   const [activeAnalyticsSubTabIndex, setActiveAnalyticsSubTabIndex] = useState(0);
@@ -49,6 +53,14 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLayoutSwapped(prev => {
       const newValue = !prev;
       localStorage.setItem('isLayoutSwapped', String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  const toggleSentinelFAB = useCallback(() => {
+    setShowSentinelFAB(prev => {
+      const newValue = !prev;
+      localStorage.setItem('showSentinelFAB', String(newValue));
       return newValue;
     });
   }, []);
@@ -98,7 +110,24 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   }, [threadId]);
 
   // Main View Toggle
-  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'playlists'>('scripts'); // Default to 'scripts'
+  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'playlists'>(() => {
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW);
+    if (stored === 'scripts' || stored === 'agent' || stored === 'playlists') return stored;
+    return 'scripts';
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW, activeMainView);
+  }, [activeMainView]);
+
+  // Welcome Gate overlay
+  const [isWelcomeGateOpen, setIsWelcomeGateOpen] = useState(false);
+  const openWelcomeGate = useCallback(() => setIsWelcomeGateOpen(true), []);
+  const closeWelcomeGate = useCallback(() => setIsWelcomeGateOpen(false), []);
+
+  // Agent REPL execution results (for Analytics tab rendering)
+  const [agentReplResults, setAgentReplResults] = useState<StructuredOutput[] | null>(null);
+  const [agentCapturedDocTitle, setAgentCapturedDocTitle] = useState<string | null>(null);
 
   // Global InfoModal state
   const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
@@ -181,10 +210,10 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [showNotification]);
 
-  // Effect to reset Focus Mode when user logs out or source changes
+  // Effect to reset Focus Mode when user logs out, source changes, or view changes
   useEffect(() => {
     setFocusMode(false);
-  }, [user, activeScriptSource]);
+  }, [user, activeScriptSource, activeMainView]);
 
   // Effect to save activeScriptSource to localStorage whenever it changes
   useEffect(() => {
@@ -256,6 +285,15 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     toggleLayoutSwap,
     activeAnalyticsSubTabIndex,
     setActiveAnalyticsSubTabIndex,
+    showSentinelFAB,
+    toggleSentinelFAB,
+    isWelcomeGateOpen,
+    openWelcomeGate,
+    closeWelcomeGate,
+    agentReplResults,
+    setAgentReplResults,
+    agentCapturedDocTitle,
+    setAgentCapturedDocTitle,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -296,6 +334,12 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isLayoutSwapped,
     toggleLayoutSwap,
     activeAnalyticsSubTabIndex,
+    showSentinelFAB,
+    toggleSentinelFAB,
+    isWelcomeGateOpen,
+    openWelcomeGate,
+    closeWelcomeGate,
+    agentReplResults,
   ]);
 
   return (

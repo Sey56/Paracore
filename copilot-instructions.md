@@ -33,7 +33,9 @@ Scripts use **Top-Level Statements**. The order is mandatory:
 | `BarChart(data)` | void | Render a bar chart in the Summary tab |
 | `PieChart(data)` | void | Render a pie chart in the Summary tab |
 | `LineChart(data)` | void | Render a line chart in the Summary tab |
+| `WatchdogReport(msg, status, ids)` | void | Report health to the Watchdog UI (`"success"/"warning"/"error"`) |
 | `SetExecutionTimeout(seconds)` | void | Extend the default 10s timeout |
+| `First().CombinedParams().Table()` | void | **Discovery**: List all type/instance parameters for an element |
 
 ## Implicit Using Statements
 
@@ -108,6 +110,22 @@ public BuiltInCategory TargetCategory { get; set; }
 | `[Color]` | Color swatch picker | `[Color] public string HighlightColor { get; set; } = "#3B82F6";` |
 | `[Stepper]` | +/- buttons for integers | `[Stepper] public int Iterations { get; set; } = 10;` |
 | `[Segmented]` | Horizontal button group | `[Segmented] public string Mode { get; set; } = "Preview";` |
+
+### 🛡️ Coordination & Clash Audit (Fluent Extension)
+
+High-performance geometric interference detection.
+
+| Method | Description |
+|---|---|
+| `.AuditClashes(targetCat)` | Detect intersections with category |
+| `.AuditClashes(cat, tol)`| **Pro**: `tol` double (e.g., `5.0`) |
+| `.AuditClashes(cat, "5mm")`| Unit-aware string tolerance |
+| `.Table()` | **Preferred**: Renders Coordination Table + Visual Helpers focus |
+
+#### 5. Output rendering
+```csharp
+GetElements("Walls").AuditClashes("StructuralColumns").Table();
+```
 
 **STRICT UNIT REALITY (IMPORTANT):**
 Revit's internal units are ALWAYS **Feet** (Decimal Feet, Square Feet, Cubic Feet).

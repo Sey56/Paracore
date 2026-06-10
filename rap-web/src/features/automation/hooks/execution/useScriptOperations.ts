@@ -44,9 +44,10 @@ export const useScriptOperations = (
         if (updateScriptModificationTime) updateScriptModificationTime(script.id);
         return { success: true, message: response.data.message };
       } else throw new Error(response.data.detail);
-    } catch (error: unknown) {
-      showNotification((error as Error).message || "Failed to compile script.", "error");
-      return { success: false, message: (error as Error).message };
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || error.message || "Failed to compile script.";
+      showNotification(errorMsg, "error");
+      return { success: false, message: errorMsg };
     }
   }, [showNotification, selectedFolder, loadScriptsFromPath, updateScriptModificationTime]);
 

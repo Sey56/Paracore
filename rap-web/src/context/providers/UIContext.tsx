@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { Script } from "@/types/scriptModel";
+import { Script, StructuredOutput } from "@/types/scriptModel";
 import { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/agentTypes";
 
 export type InspectorTab = "parameters" | "console" | "table" | "metadata";
@@ -11,6 +11,7 @@ export type ActiveScriptSource =
   | null;
 
 export type { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/agentTypes";
+export type { StructuredOutput } from "@/types/scriptModel";
 
 
 
@@ -75,6 +76,17 @@ export interface UIContextProps {
   activeMainView: 'scripts' | 'agent' | 'playlists';
   setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'playlists'>>;
 
+  // Welcome Gate overlay (accessible from main UI after auth)
+  isWelcomeGateOpen: boolean;
+  openWelcomeGate: () => void;
+  closeWelcomeGate: () => void;
+
+  // Agent REPL execution results (for Analytics tab rendering)
+  agentReplResults: StructuredOutput[] | null;
+  setAgentReplResults: (results: StructuredOutput[] | null) => void;
+  agentCapturedDocTitle: string | null;
+  setAgentCapturedDocTitle: (title: string | null) => void;
+
   // Global InfoModal
   infoModalState: { isOpen: boolean; title: string; message: string };
   showInfoModal: (title: string, message: string) => void;
@@ -87,6 +99,10 @@ export interface UIContextProps {
   // Layout Swap
   isLayoutSwapped: boolean;
   toggleLayoutSwap: () => void;
+
+  // Sentinel FAB Visibility
+  showSentinelFAB: boolean;
+  toggleSentinelFAB: () => void;
 }
 
 export const UIContext = createContext<UIContextProps | undefined>(undefined);

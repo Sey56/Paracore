@@ -20,14 +20,14 @@ namespace Paracore.Addin.Context
         private readonly List<StructuredOutputItem> _structuredOutputItems = new(); // New list
 
         public UIApplication UIApp { get; }
-        public UIDocument UIDoc => UIApp.ActiveUIDocument!;
-        public Document Doc => UIApp.ActiveUIDocument?.Document!;
+        public UIDocument UIDoc { get; }
+        public Document Doc { get; }
 
         // 🎯 Expose log buffer for output
         public IReadOnlyList<string> PrintLog => _printMessages;
         public IReadOnlyList<string> ErrorLog => _errorMessages;
         public IReadOnlyList<StructuredOutputItem> StructuredOutputLog => _structuredOutputItems; // New property
-        public string? InternalDataLog { get; private set; } // Property for CodeRunner to access via reflection
+        public List<int> PipelineDiagnostics { get; set; } = new();
         public bool IsReadOnly { get; }
 
         // ✅ Backing delegate for script printing
@@ -43,6 +43,8 @@ namespace Paracore.Addin.Context
         public ServerContext(UIApplication uiApp, bool isReadOnly = false)
         {
             UIApp = uiApp;
+            UIDoc = uiApp.ActiveUIDocument!;
+            Doc = uiApp.ActiveUIDocument?.Document!;
             IsReadOnly = isReadOnly;
             PrintCallback = msg =>
             {
@@ -54,10 +56,6 @@ namespace Paracore.Addin.Context
             };
         }
 
-        public void SetInternalData(string data)
-        {
-            InternalDataLog = data;
-        }
 
         public void Println(string message)
         {

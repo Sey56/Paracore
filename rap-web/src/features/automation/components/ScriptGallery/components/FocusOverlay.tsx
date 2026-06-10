@@ -52,13 +52,7 @@ export const FocusOverlay: React.FC<FocusOverlayProps> = ({
     };
   }, [targetElement]);
 
-  // 2. Scroll Initialization (Center content)
-  useLayoutEffect(() => {
-    if (!overlayRef.current) return;
-    overlayRef.current.scrollTop = 80;
-  }, []);
-
-  // 3. FLIP Animation
+  // 2. FLIP Animation
   useLayoutEffect(() => {
     if (!containerRef.current || !sourceRect) return;
 
@@ -97,23 +91,14 @@ export const FocusOverlay: React.FC<FocusOverlayProps> = ({
       ref={wrapperRef}
       style={{
         position: 'fixed',
-        zIndex: 1000,
+        zIndex: 50,
       }}
     >
-      <div className={styles.inlineFocusEffects}>
-        <div className={styles.animatedBackdrop}></div>
-      </div>
-
       <div
         ref={overlayRef}
-        className={styles.focusOverlayContainer}
-        style={{
-          width: '100%',
-          height: '100%',
-          overflowY: 'auto'
-        }}
+        className="w-full h-full flex items-center justify-center p-8 overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl"
       >
-        <div ref={containerRef} className={styles.heroGrid}>
+        <div ref={containerRef} className="w-full max-w-sm">
           <ScriptCard
             script={script}
             isSelected={isSelected}

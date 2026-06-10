@@ -79,6 +79,19 @@ GetElements<Room>()
 *   Need to do Math? 👉 **`GetNum`**
 *   Need to export clean data to Excel? 👉 **`GetStr`**
 *   Need the exact text users see in Revit UI? 👉 **`GetVal`**
+*   Need stable Door scheduling (Handing/Rooms)? 👉 **`RoomAccess()`, `Handing()`**
+
+---
+
+## 4. Specialized Door/Window Accessors
+Beyond raw data, Paracore provides "Smart" accessors for high-level architectural scheduling. These methods are **handing-invariant**, meaning they remain stable even if you flip the door's face in Revit.
+
+| Method Signature | Core Behavior | Output Example |
+| :--- | :--- | :--- |
+| **`.RoomAccess()`** | Returns the room on the **non-swing side** (The source). | `"Bedroom 101"` |
+| **`.RoomDestination()`** | Returns the room the door **swings into**. | `"Shower"` |
+| **`.Handing()`** | Returns the industry standard handing code (LH or RH). | `"RH"` |
+| **`.HingeSide()`** | Returns `"Left"` or `"Right"` as seen from the `RoomAccess`. | `"Left"` |
 
 ---
 
@@ -94,3 +107,47 @@ Paracore provides tools to help you discover what data is available on elements 
 Selection.First().ReflectionProperties().Table();
 // Output: Table with columns 'Name' (e.g. Width) and 'Type' (e.g. Double)
 ```
+
+### `ReflectionMethods()`
+**Returns a table**. Lists all public C# methods available on the Revit element type (e.g. `.flipFacing()`, `.flipHand()`, `.Duplicate()`, etc.), excluding common `System.Object` methods (like `.ToString()`) to avoid noise. It details return types and parameter signatures so you know exactly how to call them.
+
+```csharp
+// "Show me all public API methods available for this door"
+Selection.First().ReflectionMethods().Table();
+// Output: Table with columns 'Method', 'ReturnType', 'Parameters', 'DeclaringType'
+```
+
+---
+
+## 5. Coordination Data Accessors
+
+When performing geometric clash audits using `.AuditClashes()`, Paracore returns a collection of `ClashResult` objects. These contain specialized geometric and element data for coordination reporting.
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| **`.SourceElement`** | `Element` | The source element (from the primary collection). |
+| **`.TargetElement`** | `Element` | The colliding element (from the target category). |
+| **`.OverlapVolume`** | `double` | The raw volume of the intersection solid. |
+| **`.ClashCenter`** | `XYZ` | The 3D center point of the intersection. |
+| **`.OverlapSolid`** | `Solid` | The actual intersection solid geometry. |
+| **`.HelperId`** | `long` | The ID of the red 3D DirectShape helper. |
+| **`.ClashType`** | `string` | Detection method used (e.g., "Geom (Direct)"). |
+
+### 💡 Pro Usage
+Use these accessors in a `.Select()` projection to generate professional coordination reports:
+
+```csharp
+// Detect clashes and display in UI with 3D Helpers
+GetElements("Walls")
+    .AuditClashes("Pipes")
+    .Table();
+
+// Or project custom columns for detailed reporting
+var clashes = GetElements("Walls").AuditClashes("Pipes").ToList();
+clashes.Select(c => new {
+    Wall = c.SourceElement.GetStr("Mark"),
+    Pipe = c.TargetElement.GetStr("System Name"),
+    Volume = c.OverlapVolume,
+    X = c.ClashCenter.X,
+    Y = c.ClashCenter.Y
+}).Table();
