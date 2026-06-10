@@ -11,6 +11,7 @@ using System.Runtime.Loader;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using CoreScript.Engine.Logging;
 
 namespace CoreScript.Engine.Core
 {
