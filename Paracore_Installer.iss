@@ -77,7 +77,7 @@ Source: "{#PublishDir}\*"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2026\
 Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2026"; Tasks: Revit2026; Flags: replacesameversion
 
 ; Install MCP Server
-Source: "installers\paracore-mcp.exe"; DestDir: "{commonappdata}\Paracore\MCP"; Tasks: InstallMCP; Flags: ignoreversion
+Source: "installers\paracore-mcp.exe"; DestDir: "{commonappdata}\Paracore\MCP"; Tasks: InstallMCP; Flags: ignoreversion restartreplace
 
 [UninstallDelete]
 ; Clean up the Add-in folders and manifests
