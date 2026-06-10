@@ -702,8 +702,9 @@ export const StructuredOutputViewer: React.FC<StructuredOutputViewerProps> = Rea
 
   return (
     <div className={`bg-white dark:bg-slate-900 group relative overflow-hidden flex flex-col ${isDashboard ? 'h-full rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm' : 'h-full'}`}>
-      {!isHeaderPortalTarget && <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]">{headerControls}</div>}
-      {isHeaderPortalTarget && portalEl && createPortal(headerControls, portalEl)}
+      {isHeaderPortalTarget && portalEl
+        ? createPortal(headerControls, portalEl)
+        : <div className="flex items-center gap-2 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 min-h-[48px]">{headerControls}</div>}
       
       <div className="flex-1 overflow-hidden relative flex flex-col">
         {effectiveType === 'table' ? (

@@ -212,7 +212,9 @@ async def _run_conversational_summary(
         f'The user asked: "{user_query}"\n'
         f'{code_context}'
         f"Result summary: {summary_text}\n\n"
-        f"Respond in ONE short sentence. Be specific about what was found or not found.\n"
+        f"Summarize what was found. Be specific.\n"
+        f"If the result has 3+ values or rows, use bold labels on separate lines, like **Name:** value.\n"
+        f"For a single value or count, one sentence is fine.\n"
         f'CRITICAL: If the result says "GetElements returned 0 elements", '
         f'look at the C# code to find what element type was queried (e.g. '
         f'GetElements("Rooms") means rooms). Say "No [that element type] '
@@ -227,7 +229,7 @@ async def _run_conversational_summary(
         summary_bot = PydanticAgent(
             model=model,
             system_prompt=(
-                "You write one-sentence summaries of code execution results. "
+                "You write concise summaries of code execution results. When listing 3+ values, use bold labels on separate lines. "
                 "Always use the exact terminology from the user's query. "
                 "Never use generic terms like 'items', 'elements', or 'objects'. "
                 "Never mention internal details like 'Group', 'Count', or column names."
