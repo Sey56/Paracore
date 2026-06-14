@@ -47,9 +47,14 @@ export const ScriptGallery: React.FC = () => {
   const [configuredScript, setConfiguredScript] = useState<Script | null>(null);
 
   const handleScriptSelect = useCallback((script: Script) => {
-    setSelectedScript(script);
-    // Don't auto-navigate to parameters — stay in gallery, show action bar
-  }, [setSelectedScript]);
+    // Toggle: clicking the selected script deselects it
+    const normalized = (p: string) => p.replace(/\\/g, '/').toLowerCase();
+    if (selectedScript && normalized(selectedScript.absolutePath || selectedScript.id) === normalized(script.absolutePath || script.id)) {
+      setSelectedScript(null);
+    } else {
+      setSelectedScript(script);
+    }
+  }, [setSelectedScript, selectedScript]);
 
   const handleConfigureScript = useCallback((script: Script) => {
     setConfiguredScript(script);
@@ -209,7 +214,7 @@ export const ScriptGallery: React.FC = () => {
         ) : (
           <>
             {/* Sticky controls block */}
-            <div className="sticky top-0 z-10 bg-[var(--bg-ground)]">
+            <div className="sticky top-0 z-10 bg-[var(--bg-ground)] pb-4">
               <GalleryInfoBar
                 isAuthenticated={isAuthenticated}
                 selectedDefaultCategories={selectedDefaultCategories}

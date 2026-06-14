@@ -196,71 +196,67 @@ export const AppLayout: React.FC = () => {
               {/* Main Content Area */}
               <div id="main-content-area" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
                 <div className="flex flex-1 overflow-hidden w-full max-w-full">
-                  {/* ── Playlists Mode (full width, no OutputPanel) ── */}
-                  {activeMainView === 'playlists' ? (
-                    <div className="flex-1 overflow-hidden">
-                      <div className="h-full overflow-y-auto custom-scrollbar p-4 lg:p-6">
-                        <PlaylistsTab />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* ── Main Content Area (left side) ── */}
-                      <div style={{
-                        width: `calc(${galleryWidth * 100}% - 4px)`,
-                        flex: `0 0 calc(${galleryWidth * 100}% - 4px)`,
-                        maxWidth: `calc(${galleryWidth * 100}% - 4px)`,
-                        order: isLayoutSwapped ? 2 : 0
-                      }} className="flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden">
-                        <div className="flex-1 relative">
-                          {/* Automation: Gallery sub-mode */}
-                          {activeMainView === 'scripts' && automationSubMode === 'gallery' && (
-                            <div className="absolute inset-0 overflow-y-auto custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
-                              <ScriptGallery />
-                            </div>
-                          )}
-
-                          {/* Automation: REPL sub-mode */}
-                          {activeMainView === 'scripts' && automationSubMode === 'repl' && (
-                            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
-                              <ReplModeContent />
-                            </div>
-                          )}
-
-                          {/* Agent mode */}
-                          {activeMainView === 'agent' && (
-                            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
-                              <AgentView />
-                            </div>
-                          )}
+                  {/* ── Main Content Area (left side) ── */}
+                  <div style={{
+                    width: `calc(${galleryWidth * 100}% - 4px)`,
+                    flex: `0 0 calc(${galleryWidth * 100}% - 4px)`,
+                    maxWidth: `calc(${galleryWidth * 100}% - 4px)`,
+                    order: isLayoutSwapped ? 2 : 0
+                  }} className="flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden">
+                    <div className="flex-1 relative">
+                      {/* Playlists mode */}
+                      {activeMainView === 'playlists' && (
+                        <div className="absolute inset-0 overflow-y-auto custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
+                          <PlaylistsTab />
                         </div>
-                      </div>
+                      )}
 
-                      {/* Resizer */}
-                      <div
-                        className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
-                          ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`}
-                        onMouseDown={handleMouseDown}
-                        style={{ order: 1 }}
-                      >
-                        <div className={`w-1 rounded-full transition-all duration-500
-                          ${isResizing
-                            ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
-                            : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`}
-                        />
-                      </div>
+                      {/* Automation: Gallery sub-mode */}
+                      {activeMainView === 'scripts' && automationSubMode === 'gallery' && (
+                        <div className="absolute inset-0 overflow-y-auto custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
+                          <ScriptGallery />
+                        </div>
+                      )}
 
-                      {/* ── OutputPanel (right side, full height) ── */}
-                      <div style={{
-                        width: `calc(${inspectorWidth * 100}% - 4px)`,
-                        flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
-                        maxWidth: `calc(${inspectorWidth * 100}% - 4px)`,
-                        order: isLayoutSwapped ? 0 : 2
-                      }} className="hidden lg:block overflow-hidden min-w-0">
-                        <OutputPanel />
-                      </div>
-                    </>
-                  )}
+                      {/* Automation: REPL sub-mode */}
+                      {activeMainView === 'scripts' && automationSubMode === 'repl' && (
+                        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
+                          <ReplModeContent />
+                        </div>
+                      )}
+
+                      {/* Agent mode */}
+                      {activeMainView === 'agent' && (
+                        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
+                          <AgentView />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Resizer */}
+                  <div
+                    className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
+                      ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`}
+                    onMouseDown={handleMouseDown}
+                    style={{ order: 1 }}
+                  >
+                    <div className={`w-1 rounded-full transition-all duration-500
+                      ${isResizing
+                        ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                        : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`}
+                    />
+                  </div>
+
+                  {/* ── OutputPanel (right side, full height) ── */}
+                  <div style={{
+                    width: `calc(${inspectorWidth * 100}% - 4px)`,
+                    flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
+                    maxWidth: `calc(${inspectorWidth * 100}% - 4px)`,
+                    order: isLayoutSwapped ? 0 : 2
+                  }} className={`hidden lg:block overflow-hidden min-w-0 ${isLayoutSwapped ? 'border-r border-slate-200 dark:border-gray-700' : 'border-l border-slate-200 dark:border-gray-700'}`}>
+                    <OutputPanel />
+                  </div>
                 </div>
                 {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />}
               </div>

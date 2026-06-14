@@ -35,7 +35,7 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
   };
 
   return (
-    <div className="relative flex flex-col">
+    <div className="relative flex flex-col pt-1">
       {/* Favorites Section */}
       {favoriteScripts.length > 0 && (
         <div className="mb-8 w-full order-1">

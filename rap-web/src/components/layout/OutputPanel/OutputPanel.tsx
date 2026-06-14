@@ -116,7 +116,7 @@ export const OutputPanel: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-gray-700 overflow-hidden">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0 gap-2">
         <div className="flex items-center gap-1 shrink-0">

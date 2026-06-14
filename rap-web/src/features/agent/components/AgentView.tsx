@@ -4,7 +4,7 @@ import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
 import api from '@/api/axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faAsterisk, faUser, faRobot, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt, faCopy } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faAsterisk, faUser, faRobot, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt, faCopy, faPlus, faComments, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useScriptExecution } from '@/features/automation';
@@ -25,21 +25,143 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '@/context/ThemeContext';
 
-const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
-const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
+const SESSIONS_KEY = 'paracore_agent_sessions';
+const ACTIVE_SESSION_KEY = 'paracore_agent_active_session';
+
+interface AgentSession {
+  id: string;
+  name: string;
+  threadId: string | null;
+  messageCount: number;
+  updatedAt: number;
+}
+
+function loadSessions(): AgentSession[] {
+  try {
+    const raw = localStorage.getItem(SESSIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSessions(sessions: AgentSession[]) {
+  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+}
+
+function loadSessionMessages(sessionId: string): Message[] {
+  try {
+    const raw = localStorage.getItem(`agent_session_${sessionId}_msgs`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSessionMessages(sessionId: string, msgs: Message[]) {
+  localStorage.setItem(`agent_session_${sessionId}_msgs`, JSON.stringify(msgs));
+}
+
+function loadSessionThreadId(sessionId: string): string | null {
+  return localStorage.getItem(`agent_session_${sessionId}_thread`) || null;
+}
+
+function saveSessionThreadId(sessionId: string, tid: string | null) {
+  if (tid) localStorage.setItem(`agent_session_${sessionId}_thread`, tid);
+  else localStorage.removeItem(`agent_session_${sessionId}_thread`);
+}
 
 export const AgentView: React.FC = () => {
   const {
     activeScriptSource,
-    messages,
-    setMessages,
-    threadId,
-    setThreadId,
     setActiveInspectorTab,
     setAgentReplResults,
     setAgentCapturedDocTitle,
   } = useUI();
   const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
+
+  // ── Session state ──
+  const [sessions, setSessions] = useState<AgentSession[]>(() => {
+    const existing = loadSessions();
+    if (existing.length > 0) return existing;
+    // Try old format migration
+    try {
+      const old = localStorage.getItem('agent_chat_messages');
+      if (old) {
+        const parsed = JSON.parse(old);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const activeId = localStorage.getItem(ACTIVE_SESSION_KEY) || crypto.randomUUID();
+          const session: AgentSession = { id: activeId, name: 'Previous Chat', threadId: null, messageCount: parsed.length, updatedAt: Date.now() };
+          const list = [session];
+          saveSessions(list);
+          localStorage.setItem(ACTIVE_SESSION_KEY, activeId);
+          return list;
+        }
+      }
+    } catch {}
+    const id = crypto.randomUUID();
+    const session: AgentSession = { id, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: Date.now() };
+    const list = [session];
+    saveSessions(list);
+    localStorage.setItem(ACTIVE_SESSION_KEY, id);
+    return list;
+  });
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    const saved = localStorage.getItem(ACTIVE_SESSION_KEY);
+    if (saved) return saved;
+    const id = crypto.randomUUID();
+    localStorage.setItem(ACTIVE_SESSION_KEY, id);
+    return id;
+  });
+
+  // Migrate old-format messages on first load
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const msgs = loadSessionMessages(activeSessionId);
+    if (msgs.length > 0) return msgs;
+    // Try old format
+    try {
+      const old = localStorage.getItem('agent_chat_messages');
+      if (old) {
+        const parsed = JSON.parse(old);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Also migrate threadId
+          const oldTid = localStorage.getItem('agent_chat_thread_id');
+          saveSessionMessages(activeSessionId, parsed);
+          if (oldTid) saveSessionThreadId(activeSessionId, oldTid);
+          // Clean up old keys
+          localStorage.removeItem('agent_chat_messages');
+          localStorage.removeItem('agent_chat_thread_id');
+          return parsed;
+        }
+      }
+    } catch {}
+    return [];
+  });
+  const [threadId, setThreadId] = useState<string | null>(() => {
+    const tid = loadSessionThreadId(activeSessionId);
+    if (tid) return tid;
+    try {
+      const old = localStorage.getItem('agent_chat_thread_id');
+      return old || null;
+    } catch { return null; }
+  });
+
+  // Persist messages to session
+  useEffect(() => {
+    saveSessionMessages(activeSessionId, messages);
+    // Update session metadata
+    setSessions(prev => {
+      const updated = prev.map(s => s.id === activeSessionId ? { ...s, messageCount: messages.length, updatedAt: Date.now() } : s);
+      saveSessions(updated);
+      return updated;
+    });
+  }, [messages, activeSessionId]);
+
+  // Persist threadId to session
+  useEffect(() => {
+    saveSessionThreadId(activeSessionId, threadId);
+    setSessions(prev => {
+      const updated = prev.map(s => s.id === activeSessionId ? { ...s, threadId, updatedAt: Date.now() } : s);
+      saveSessions(updated);
+      return updated;
+    });
+  }, [threadId, activeSessionId]);
 
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
@@ -54,8 +176,11 @@ export const AgentView: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const agentRunTriggeredRef = useRef<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showSessionMenu, setShowSessionMenu] = useState(false);
+  const sessionMenuRef = useRef<HTMLDivElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -90,6 +215,10 @@ export const AgentView: React.FC = () => {
   }, [messages, isLoading]);
 
   const invokeAgent = useCallback(async (newMessages: Message[], options?: { isInternal?: boolean; summary?: string | null; raw_output?: Record<string, unknown> | null }) => {
+    // Abort any in-progress stream so the new message takes over
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setIsLoading(true);
 
     if (!options?.isInternal && newMessages.some(m => m.type === 'human')) {
@@ -148,6 +277,7 @@ export const AgentView: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       if (!streamResponse.ok) {
@@ -304,8 +434,12 @@ export const AgentView: React.FC = () => {
         }));
       }
     } catch (error: unknown) {
-      console.error("Agent invoke error:", error);
-      showNotification("Failed to communicate with the agent.", "error");
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        // User sent a new message — intentionally cancelled, no error
+      } else {
+        console.error("Agent invoke error:", error);
+        showNotification("Failed to communicate with the agent.", "error");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -531,14 +665,113 @@ export const AgentView: React.FC = () => {
     }
   };
 
+  // ── Session actions ──
+  const handleNewSession = useCallback(() => {
+    // Save current session first
+    saveSessionMessages(activeSessionId, messages);
+    saveSessionThreadId(activeSessionId, threadId);
+    // Read fresh from localStorage to avoid stale closure
+    const current = loadSessions();
+    const updated_current = current.map(s =>
+      s.id === activeSessionId ? { ...s, messageCount: messages.length, threadId, updatedAt: Date.now() } : s
+    );
+    // Ensure current session is in the list
+    if (!updated_current.find(s => s.id === activeSessionId)) {
+      updated_current.push({ id: activeSessionId, name: 'Previous Chat', threadId, messageCount: messages.length, updatedAt: Date.now() });
+    }
+    const id = crypto.randomUUID();
+    const newSession: AgentSession = { id, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: Date.now() };
+    const updated = [newSession, ...updated_current];
+    setSessions(updated);
+    saveSessions(updated);
+    localStorage.setItem(ACTIVE_SESSION_KEY, id);
+    setActiveSessionId(id);
+    setMessages([]);
+    setThreadId(null);
+    setInput('');
+  }, [activeSessionId, messages, threadId]);
+
+  const handleSwitchSession = useCallback((sessionId: string) => {
+    if (sessionId === activeSessionId) return;
+    // Save current
+    saveSessionMessages(activeSessionId, messages);
+    saveSessionThreadId(activeSessionId, threadId);
+    // Load new
+    localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
+    setActiveSessionId(sessionId);
+    setMessages(loadSessionMessages(sessionId));
+    setThreadId(loadSessionThreadId(sessionId));
+    setInput('');
+  }, [activeSessionId, messages, threadId]);
+
+  const handleDeleteSession = useCallback((sessionId: string) => {
+    localStorage.removeItem(`agent_session_${sessionId}_msgs`);
+    localStorage.removeItem(`agent_session_${sessionId}_thread`);
+    const current = loadSessions();
+    const remaining = current.filter(s => s.id !== sessionId);
+    setSessions(remaining);
+    saveSessions(remaining);
+    if (sessionId === activeSessionId) {
+      if (remaining.length > 0) {
+        const next = remaining[0];
+        localStorage.setItem(ACTIVE_SESSION_KEY, next.id);
+        setActiveSessionId(next.id);
+        setMessages(loadSessionMessages(next.id));
+        setThreadId(loadSessionThreadId(next.id));
+      } else {
+        // No sessions left — create a fresh one
+        const id = crypto.randomUUID();
+        const fresh: AgentSession = { id, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: Date.now() };
+        setSessions([fresh]);
+        saveSessions([fresh]);
+        localStorage.setItem(ACTIVE_SESSION_KEY, id);
+        setActiveSessionId(id);
+        setMessages([]);
+        setThreadId(null);
+      }
+    }
+    setInput('');
+  }, [sessions, activeSessionId]);
+
+  // Auto-name session from first human message
+  const didAutoNameRef = useRef(false);
+  useEffect(() => {
+    if (didAutoNameRef.current) return;
+    const firstHuman = messages.find(m => m.type === 'human' && !m.content?.toString().startsWith('System:'));
+    if (firstHuman) {
+      const name = String(firstHuman.content).slice(0, 40) + (String(firstHuman.content).length > 40 ? '…' : '');
+      setSessions(prev => {
+        const updated = prev.map(s => s.id === activeSessionId && s.name === 'New Chat' ? { ...s, name } : s);
+        saveSessions(updated);
+        return updated;
+      });
+      didAutoNameRef.current = true;
+    }
+  }, [messages, activeSessionId]);
+
+  // Reset auto-name when switching sessions
+  useEffect(() => {
+    didAutoNameRef.current = false;
+  }, [activeSessionId]);
+
+  // Click-outside for session menu
+  useEffect(() => {
+    if (!showSessionMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (sessionMenuRef.current && !sessionMenuRef.current.contains(e.target as Node)) setShowSessionMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSessionMenu]);
+
   const handleClearChat = useCallback(() => {
     setMessages([]);
     setThreadId(null);
     setInput('');
     setIsClearChatModalOpen(false);
-    localStorage.removeItem(LOCAL_STORAGE_KEY_MESSAGES);
-    localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
-  }, [setMessages, setThreadId]);
+  }, []);
+
+  const activeSession = sessions.find(s => s.id === activeSessionId);
 
   const { activePendingToolCall } = useMemo(() => {
     const resolvedIds = new Set(messages.filter(m => m.type === 'tool').map(m => m.tool_call_id));
@@ -975,25 +1208,43 @@ export const AgentView: React.FC = () => {
                     {children}
                   </code>
                 ) : (
-                  <div className="my-3 rounded-lg overflow-hidden border border-[var(--border)]/30 shadow-sm text-[12.5px] custom-scrollbar bg-[var(--bg-card)] code-viewer-override">
-                    <SyntaxHighlighter
-                      key={theme}
-                      style={syntaxStyle as any}
-                      language={match ? match[1] : 'csharp'}
-                      PreTag="div"
-                      customStyle={{ 
-                        margin: 0, 
-                        padding: '14px', 
-                        backgroundColor: 'transparent',
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                      }}
-                      codeTagProps={{ style: { fontFamily: 'inherit' } }}
-                      showLineNumbers
-                      wrapLines={true}
-                      {...props}
-                    >
-                      {String(children).replace(/\n$/, '')}
-                    </SyntaxHighlighter>
+                  <div className="my-3 rounded-lg overflow-hidden border border-[var(--border)]/30 shadow-sm">
+                    <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--bg-card)] border-b border-[var(--border)]/20">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        {match ? match[1] : 'code'}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+                          showNotification('Code copied!', 'success');
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors bg-[var(--bg-hover)] border border-[var(--border)]/30 hover:border-[var(--accent)] rounded-md"
+                      >
+                        <FontAwesomeIcon icon={faCopy} className="text-[9px]" />
+                        Copy
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto custom-scrollbar text-[12.5px] leading-relaxed bg-[var(--bg-card)] code-viewer-override">
+                      <SyntaxHighlighter
+                        key={theme}
+                        style={syntaxStyle as any}
+                        language={match ? match[1] : 'csharp'}
+                        PreTag="div"
+                        customStyle={{
+                          margin: 0,
+                          padding: '14px',
+                          backgroundColor: 'transparent',
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                        }}
+                        codeTagProps={{ style: { fontFamily: 'inherit' } }}
+                        showLineNumbers
+                        wrapLines={true}
+                        {...props}
+                      >
+                        {String(children).replace(/\n$/, '')}
+                      </SyntaxHighlighter>
+                    </div>
                   </div>
                 )
               }
@@ -1012,18 +1263,72 @@ export const AgentView: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-transparent overflow-hidden relative font-sans">
       {/* ── HEADER ── */}
-      <div className="flex-shrink-0 flex justify-between items-center px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700">
-        <div className="flex items-center gap-3 overflow-hidden">
+      <div className="flex-shrink-0 flex justify-between items-center px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 gap-2">
+        <div className="flex items-center gap-2 overflow-hidden min-w-0">
           <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] flex-shrink-0" />
-          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Paracore Agent</span>
+          {/* Session dropdown */}
+          <div className="relative" ref={sessionMenuRef}>
+            <button
+              onClick={() => setShowSessionMenu(!showSessionMenu)}
+              className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate max-w-[200px]"
+              title={activeSession?.name || 'Sessions'}
+            >
+              <FontAwesomeIcon icon={faComments} className="text-[10px] text-slate-400 shrink-0" />
+              <span className="truncate">{activeSession?.name || 'Chat'}</span>
+              <FontAwesomeIcon icon={faChevronDown} className={`text-[7px] text-slate-400 transition-transform ${showSessionMenu ? 'rotate-180' : ''}`} />
+            </button>
+            {showSessionMenu && (
+              <div className="absolute left-0 top-full mt-1 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[60] border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="max-h-64 overflow-y-auto custom-scrollbar py-1">
+                  {sessions.slice().sort((a, b) => b.updatedAt - a.updatedAt).map(s => (
+                    <div key={s.id} className="flex items-center group">
+                      <button
+                        onClick={() => { handleSwitchSession(s.id); setShowSessionMenu(false); }}
+                        className={`flex-1 text-left px-4 py-2 flex items-center gap-2 min-w-0 ${s.id === activeSessionId ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.id === activeSessionId ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">{s.name}</span>
+                        <span className="text-[9px] text-slate-400 ml-auto shrink-0">{s.messageCount}</span>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id); setShowSessionMenu(false); }}
+                        className="px-2 py-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                        title="Delete session"
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="text-[9px]" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={() => { handleNewSession(); setShowSessionMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2 transition-colors"
+                  >
+                    <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
+                    New Session
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <button
-          onClick={() => setIsClearChatModalOpen(true)}
-          title="Clear Session"
-          className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
-        >
-          <FontAwesomeIcon icon={faTrash} className="text-xs" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={handleNewSession}
+            className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+            title="New Session"
+          >
+            <FontAwesomeIcon icon={faPlus} className="text-xs" />
+          </button>
+          <button
+            onClick={() => setIsClearChatModalOpen(true)}
+            title="Clear Session"
+            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+          >
+            <FontAwesomeIcon icon={faTrash} className="text-xs" />
+          </button>
+        </div>
       </div>
 
       {/* ── MESSAGES CANAL ── */}
@@ -1103,13 +1408,13 @@ export const AgentView: React.FC = () => {
                onKeyDown={handleKeyDown}
                placeholder="What do you want to automate today?"
                className="w-full bg-transparent px-4 py-3 text-[13.5px] focus:outline-none text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 font-medium resize-none min-h-[44px] max-h-[250px] custom-scrollbar leading-relaxed"
-               disabled={isLoading}
+               disabled={false}
                rows={1}
              />
           </div>
           <button 
             type="submit" 
-            disabled={isLoading || !input.trim()} 
+            disabled={!input.trim()} 
             className="w-[46px] h-[46px] shrink-0 bg-[var(--accent)] text-white rounded-[14px] hover:opacity-90 transition-all disabled:opacity-30 disabled:hover:opacity-30 flex items-center justify-center shadow-lg active:scale-95"
           >
             <FontAwesomeIcon icon={faPaperPlane} className="text-sm shadow-sm" />

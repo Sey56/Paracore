@@ -120,7 +120,7 @@ export const TopBar: React.FC = () => {
       {/* 2. Central Navigation Center (Segmented Switcher) */}
       <div className="hidden lg:flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
         {[
-          { id: 'scripts', label: 'Automations', icon: faRectangleList },
+          { id: 'scripts', label: 'Scripts', icon: faRectangleList },
           { id: 'agent', label: 'Agent', icon: faRobot },
           { id: 'playlists', label: 'Playlists', icon: faListUl }
         ].map(nav => {
