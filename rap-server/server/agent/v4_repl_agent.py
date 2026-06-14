@@ -1,9 +1,21 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional, TypedDict
 from pydantic_ai import Agent, RunContext
 from pydantic import BaseModel, Field
 from agent.prompt import SYSTEM_PROMPT
 import logging
+
+
+class ThinkingStep(TypedDict):
+    """A record of one intermediate agent tool call (explore, search, or read)."""
+    tool_name: str
+    justification: str
+    status: str               # "running" | "completed" | "error"
+    csharp_code: Optional[str]
+    category_name: Optional[str]
+    query: Optional[str]
+    result_summary: Optional[str]
 
 try:
     from grpc_client import execute_script
@@ -26,6 +38,9 @@ class InterruptedException(Exception):
 class AgentDeps:
     user_id: str
     thread_id: str
+    thinking_steps: list[ThinkingStep] = field(default_factory=list)
+    _searched_categories: set[str] = field(default_factory=set)
+    _read_queries: set[str] = field(default_factory=set)
 
 v4_repl_agent = Agent(
     deps_type=AgentDeps,
@@ -39,13 +54,26 @@ class DynamicQueryArgs(BaseModel):
 @v4_repl_agent.tool
 async def execute_dynamic_query(ctx: RunContext[AgentDeps], args: DynamicQueryArgs) -> str:
     """
-    Executes a dynamic C# snippet in the Revit Paracore Engine.
-    Calling this tool will pause the agent and prompt the human for approval.
+    Execute C# in Revit (read or modify). The user's final action.
+    Calling this tool pauses the agent and prompts the human for approval.
+
+    BEFORE WRITING ANY C#: read the system prompt for the complete Paracore
+    method catalog. Use extension methods (.GetStr, .GetNum, .WhereParam,
+    .OrderByParam, .GroupByParam, .SumParam, .Table, etc.) instead of raw
+    LINQ, FilteredElementCollector, LookupParameter, or foreach+Println.
+    For syntax help, call read_extension_methods("name").
     """
+    from agent.tool_helpers import sanitize_csharp_code, check_paracore_compliance
+    code = sanitize_csharp_code(args.csharp_code)
+
+    # Anti-pattern guard: catch raw Revit API before human sees bad code
+    compliance = check_paracore_compliance(code)
+    if compliance:
+        return compliance  # agent self-corrects; human never sees bad code
+
     # SOVEREIGN HANDOFF: We interrupt the agent's flow by raising this custom exception.
     # The agent_router.py will catch this exception, extract the code, and send it to the UI.
-    from agent.tool_helpers import sanitize_csharp_code
-    raise InterruptedException(sanitize_csharp_code(args.csharp_code), args.justification)
+    raise InterruptedException(code, args.justification)
 
 class ExploreQueryArgs(BaseModel):
     csharp_code: str = Field(description="The C# snippet to execute silently for schema and parameter discovery ONLY.")
@@ -54,27 +82,59 @@ class ExploreQueryArgs(BaseModel):
 @v4_repl_agent.tool
 async def explore_revit_data(ctx: RunContext[AgentDeps], args: ExploreQueryArgs) -> str:
     """
-    Executes a dynamic C# snippet SILENTLY in Revit and returns the output to you immediately.
-    CRITICAL: This tool is STRICTLY for schema discovery (e.g., inspecting `.CombinedParams().Take(1)`). 
-    DO NOT use this tool to fetch the final data the user asked for. 
-    You MUST use `execute_dynamic_query` to fetch the actual user data so it runs through the UI approval process!
+    Execute a READ-ONLY C# snippet SILENTLY in Revit for schema/data discovery.
+    Returns summarized output to you immediately — the user does NOT see this.
+    STRICTLY for discovery (e.g., .CombinedParams().Table(), .Peek()).
+    Use execute_dynamic_query for the final user-facing result.
+
+    BEFORE WRITING ANY C#: read the system prompt for the complete Paracore
+    method catalog. Use extension methods (.GetStr, .GetNum, .WhereParam,
+    .OrderByParam, .GroupByParam, .SumParam, .Table, etc.) instead of raw
+    LINQ, FilteredElementCollector, LookupParameter, or foreach+Println.
     """
     try:
-        # We auto-inject Take(20) at the end if Table() or CombinedParams is used to prevent token flooding
-        # But for now we trust the LLM or handle the shield in the router.
         logger.info(f"Agent Exploring Data: {args.justification}")
-        from agent.tool_helpers import sanitize_csharp_code
+        from agent.tool_helpers import sanitize_csharp_code, check_paracore_compliance
         code = sanitize_csharp_code(args.csharp_code)
+
+        # Record thinking step for UI visibility
+        step: ThinkingStep = {
+            "tool_name": "explore_revit_data",
+            "justification": args.justification,
+            "csharp_code": code,
+            "category_name": None,
+            "query": None,
+            "status": "running",
+            "result_summary": None,
+        }
+        ctx.deps.thinking_steps.append(step)
+
+        # Anti-pattern guard: catch raw Revit API before execution
+        compliance = check_paracore_compliance(code)
+        if compliance:
+            step["status"] = "completed"
+            step["result_summary"] = compliance[:300]
+            return compliance
+
         result = execute_script(code, "{}")
-        
+
         if result["is_success"]:
             from agent.tool_helpers import summarize_execution_result
-            return summarize_execution_result(result)
+            summary = summarize_execution_result(result)
+            step["status"] = "completed"
+            step["result_summary"] = summary[:500]
+            return summary
         else:
             from agent.tool_helpers import format_execution_error
-            return format_execution_error(result)
-            
+            error_msg = format_execution_error(result)
+            step["status"] = "error"
+            step["result_summary"] = error_msg[:500]
+            return error_msg
+
     except Exception as e:
+        if step:
+            step["status"] = "error"
+            step["result_summary"] = str(e)[:300]
         return f"Error executing exploration script: {str(e)}"
 
 
@@ -94,11 +154,34 @@ async def search_schema(ctx: RunContext[AgentDeps], args: SchemaSearchArgs) -> s
     running .CombinedParams().Table().
     """
     logger.info(f"Agent searching schema for: {args.category_name} — {args.justification}")
+    step: ThinkingStep = {
+        "tool_name": "search_schema",
+        "justification": args.justification,
+        "csharp_code": None,
+        "category_name": args.category_name,
+        "query": None,
+        "status": "running",
+        "result_summary": None,
+    }
+    ctx.deps.thinking_steps.append(step)
+
+    # Deduplication: refuse to re-fetch the same category
+    cat_lower = args.category_name.lower()
+    if cat_lower in ctx.deps._searched_categories:
+        step["status"] = "completed"
+        step["result_summary"] = f"Already searched for '{args.category_name}' — use the data from your previous call."
+        return f"[DUPLICATE] Schema for '{args.category_name}' was already retrieved. Use the parameter names from the earlier result — do NOT search for the same category again."
+    ctx.deps._searched_categories.add(cat_lower)
     try:
         from services.schema_cache import search_schema as do_search
-        return do_search(args.category_name)
+        result = do_search(args.category_name)
+        step["status"] = "completed"
+        step["result_summary"] = result[:300]
+        return result
     except Exception as e:
         logger.error(f"Schema search failed for {args.category_name}: {e}")
+        step["status"] = "error"
+        step["result_summary"] = str(e)[:300]
         return f"Schema search failed: {str(e)}. Try using explore_revit_data with .CombinedParams().Table() instead."
 
 
@@ -152,7 +235,8 @@ NEVER use: el.LookupParameter(), el.get_Parameter(), el.AsString(), el.IntegerVa
 
 ## Collection Extensions (on IEnumerable<Element>, fluent, no foreach needed)
 .WhereParam("Level", "Level 1")        → filter by parameter string (case-insensitive)
-.WhereParam("Mark", "starts", "A")     → string comparison: starts/ends/contains
+.WhereParam("Mark", "starts", "A")     → string: starts/ends/contains, !=/not/notcontains/notstarts/notends
+.WhereParam("Width", "!=", 200, "mm")  → numeric: >, <, >=, <=, !=/not
 .WhereParam("Area", ">", 25, "m2")     → numeric comparison: >, <, >=, <=
 .WhereParam("Width", 200, "mm")        → exact numeric filter (tolerance 0.001)
 .WhereMatches("Single-Flush")          → fuzzy name/family filter (case-insensitive)
@@ -176,9 +260,12 @@ NEVER use: el.LookupParameter(), el.get_Parameter(), el.AsString(), el.IntegerVa
   Magic header suffixes: name properties Area_m2 or Length_mm for auto-formatting.
 
 ## Diagnostics (on elements)
-el.CombinedParams()    → instance + type params with Scope column
+## Diagnostics (on single elements — NO arguments, fluent-chained)
+el.CombinedParams()    → Native + Instance + Type params with Scope column. ZERO args.
 el.CombinedParams().Table() → BEST for discovering all element parameters
-el.Peek()              → forensic side-by-side parameter audit (Parameter|Storage|GetStr|GetNum|UI Value)
+el.CombinedParams().Peek() → forensic Parameter|Storage|GetStr|GetNum|UI Value audit
+NATIVE properties: use dot accessor directly (rm.Area.OutputUnit("m2")), no GetStr/GetNum needed.
+INSTANCE/TYPE params: use .GetStr("Name") or .GetNum("Name", "unit").
 el.BuiltInParams()     → BuiltInParameter identifiers (Name|BIP|Value)
 el.InstanceParams()    → instance parameters only (Name|Storage|Value)
 el.TypeParams()        → type parameters only
@@ -295,7 +382,32 @@ async def read_extension_methods(ctx: RunContext[AgentDeps], args: ExtensionMeth
     unsure about a method name, argument order, or whether something exists in Paracore.
     """
     doc = _load_extension_methods_doc()
+    step: ThinkingStep = {
+        "tool_name": "read_extension_methods",
+        "justification": f"Looking up: {args.query or 'full reference'}",
+        "csharp_code": None,
+        "category_name": None,
+        "query": args.query or "(full reference)",
+        "status": "running",
+        "result_summary": None,
+    }
+    ctx.deps.thinking_steps.append(step)
+
+    # Deduplication: refuse to re-fetch the same query
+    query_key = (args.query or "").strip().lower()
+    if query_key and query_key in ctx.deps._read_queries:
+        step["status"] = "completed"
+        step["result_summary"] = f"Already looked up '{args.query}' — use the docs from your previous call."
+        return f"[DUPLICATE] Documentation for '{args.query}' was already retrieved. Use the method signatures from the earlier result — do NOT call read_extension_methods for the same query again."
+    if query_key:
+        ctx.deps._read_queries.add(query_key)
+
     if args.query:
         from agent.tool_helpers import search_extension_methods
-        return search_extension_methods(args.query, doc)
+        result = search_extension_methods(args.query, doc)
+        step["status"] = "completed"
+        step["result_summary"] = f"Found {len(result)} chars of documentation for '{args.query}'"
+        return result
+    step["status"] = "completed"
+    step["result_summary"] = f"Returned full reference ({len(doc[:8000])} chars)"
     return doc[:8000]

@@ -92,3 +92,18 @@ html {
 .semantic-text-muted {
   color: var(--text-muted);
 }
+
+/* ── Agent UI variable aliases (refine-ux naming convention) ── */
+:root,
+.dark:not(.eclipse),
+.dark.eclipse {
+  --border: var(--border-main);
+  --text-primary: var(--text-main);
+  --text-secondary: var(--text-muted);
+  --bg-hover: var(--bg-card);
+  --accent-hover: color-mix(in srgb, var(--accent) 80%, black);
+  --success: #22c55e;
+  --success-muted: rgba(34, 197, 94, 0.1);
+  --danger: #ef4444;
+  --danger-muted: rgba(239, 68, 68, 0.1);
+}

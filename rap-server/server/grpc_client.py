@@ -245,14 +245,14 @@ def _build_parameter_dict(p, parse_value: bool = False) -> dict:
     return result
 
 
-def execute_script(script_content, parameters_json, compiled_assembly=None):
+def execute_script(script_content, parameters_json, compiled_assembly=None, source="Paracore"):
     # logging.info("Attempting to execute script via gRPC.")
     with get_corescript_runner_stub() as stub:
         request = corescript_pb2.ExecuteScriptRequest(
             script_content=script_content.encode('utf-8') if script_content else b"",
             parameters_json=parameters_json.encode('utf-8'),
             compiled_assembly=compiled_assembly if compiled_assembly else b"",
-            source="Paracore"
+            source=source
         )
         try:
             response = stub.ExecuteScript(request)
@@ -269,6 +269,7 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
                 "structured_output": structured_output_data,
                 "internal_data": response.internal_data,
                 "pipeline_diagnostics": pipeline_diags,
+                "user_rejected": getattr(response, 'user_rejected', False),
             }
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.UNAVAILABLE:
@@ -279,6 +280,7 @@ def execute_script(script_content, parameters_json, compiled_assembly=None):
                     "error_details": [],
                     "structured_output": [],
                     "internal_data": "",
+                    "user_rejected": False,
                 }
             logging.error(format_grpc_error(e))
             raise # Re-raise the gRPC error
@@ -780,16 +782,26 @@ def clear_assembly_cache():
         logging.error(format_grpc_error(e))
         return {"is_success": False, "message": f"gRPC Error: {e.details()}"}
 
-def execute_repl(code: str, session_id: str, license_tier: str = "free"):
+def execute_repl(code: str, session_id: str, license_tier: str = "free",
+                 execution_mode: str = "read_write", source: str = "paracore"):
     """
     Calls the gRPC service to execute a REPL command in Revit.
+
+    Args:
+        code: The C# code to execute.
+        session_id: Session identifier for REPL state persistence.
+        license_tier: License tier string.
+        execution_mode: "read_only" or "read_write" (default).
+        source: Caller identifier — "mcp_agent", "paracore_agent", "paracore_ui", "paracore".
     """
     try:
         with get_corescript_runner_stub() as stub:
             request = corescript_pb2.ExecuteReplRequest(
                 code=code,
                 session_id=session_id,
-                license_tier=license_tier
+                license_tier=license_tier,
+                execution_mode=execution_mode,
+                source=source
             )
             response = stub.ExecuteRepl(request)
             structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in getattr(response, 'structured_output', [])]
@@ -800,12 +812,17 @@ def execute_repl(code: str, session_id: str, license_tier: str = "free"):
                 "error_message": response.error_message,
                 "structured_output": structured_output_data,
                 "pipeline_diagnostics": pipeline_diags,
+                "user_rejected": getattr(response, 'user_rejected', False),
+                "read_only_violation": getattr(response, 'read_only_violation', False),
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:
-            return {"is_success": False, "output": "", "error_message": GRPC_UNAVAILABLE_MSG}
+            return {"is_success": False, "output": "", "error_message": GRPC_UNAVAILABLE_MSG,
+                    "user_rejected": False, "read_only_violation": False}
         logging.error(format_grpc_error(e))
-        return {"is_success": False, "output": "", "error_message": f"gRPC Error: {e.details()}"}
+        return {"is_success": False, "output": "", "error_message": f"gRPC Error: {e.details()}",
+                "user_rejected": False, "read_only_violation": False}
     except Exception as e:
         logging.error(f"Error calling ExecuteRepl gRPC: {e}")
-        return {"is_success": False, "output": "", "error_message": str(e)}
+        return {"is_success": False, "output": "", "error_message": str(e),
+                "user_rejected": False, "read_only_violation": False}

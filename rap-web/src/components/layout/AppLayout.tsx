@@ -229,7 +229,7 @@ export const AppLayout: React.FC = () => {
 
                           {/* Agent mode */}
                           {activeMainView === 'agent' && (
-                            <div className="absolute inset-0 overflow-y-auto custom-scrollbar p-4 lg:p-6 transition-opacity duration-150 z-10 opacity-100 visible">
+                            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
                               <AgentView />
                             </div>
                           )}

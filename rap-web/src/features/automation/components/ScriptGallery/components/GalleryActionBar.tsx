@@ -12,18 +12,15 @@ import { useScriptExecution, useScripts } from '@/features/automation';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
-import { useNotifications } from '@/hooks/useNotifications';
-import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import { Tooltip } from '@/components/common/Tooltip';
 import { Modal } from '@/components/common/Modal';
+import { EditMetadataModal } from '@/features/automation/components/ScriptCard/components/EditMetadataModal';
 
 interface GalleryActionBarProps {
   script: Script;
   onFocus?: (rect: DOMRect) => void;
   onReplace?: (script: Script) => void;
   onConfigure?: (script: Script) => void;
-  onRenameStart?: () => void;
-  onMetadataEdit?: () => void;
 }
 
 export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
@@ -31,22 +28,22 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   onFocus,
   onReplace,
   onConfigure,
-  onRenameStart,
-  onMetadataEdit,
 }) => {
-  const { runScript, runningScriptPath, selectedScript } = useScriptExecution();
+  const { runScript, runningScriptPath, renameScript } = useScriptExecution();
   const { toggleFavoriteScript, editScript, deleteScript: deleteScriptApi, reloadScript } = useScripts();
-  const { toggleFloatingCodeViewer, setActiveInspectorTab } = useUI();
+  const { toggleFloatingCodeViewer } = useUI();
   const { ParacoreConnected } = useRevitStatus();
   const { isAuthenticated, activeRole } = useAuth();
-  const { showNotification } = useNotifications();
-  const { watchdogs } = useWatchdog();
 
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [showMetadataModal, setShowMetadataModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const isRunning = runningScriptPath === script.absolutePath;
   const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
@@ -89,6 +86,28 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     editScript(script);
+  };
+
+  const handleStartRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenameValue(script.metadata?.displayName || script.name);
+    setIsRenaming(true);
+    setTimeout(() => renameInputRef.current?.focus(), 50);
+  };
+
+  const handleRenameSubmit = async () => {
+    const currentName = script.metadata?.displayName || script.name;
+    if (!renameValue.trim() || renameValue === currentName) {
+      setIsRenaming(false);
+      return;
+    }
+    await renameScript(script, renameValue.trim());
+    setIsRenaming(false);
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleRenameSubmit(); }
+    else if (e.key === 'Escape') setIsRenaming(false);
   };
 
   const handleDelete = async () => {
@@ -192,14 +211,28 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               </button>
             )}
 
-            {canCreateScripts && (
+            {canCreateScripts && !isRenaming && (
               <button
-                onClick={(e) => { e.stopPropagation(); if (onRenameStart) onRenameStart(); }}
+                onClick={handleStartRename}
                 className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                 title="Rename"
               >
                 <FontAwesomeIcon icon={faICursor} className="text-xs" />
               </button>
+            )}
+
+            {isRenaming && (
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value.replace(/\s+/g, ''))}
+                onKeyDown={handleRenameKeyDown}
+                onBlur={handleRenameSubmit}
+                onClick={(e) => e.stopPropagation()}
+                className="w-32 px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-600 rounded-lg outline-none text-slate-800 dark:text-slate-200"
+                autoFocus
+              />
             )}
 
             {/* More menu */}
@@ -251,7 +284,7 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
                     {!isProtectedTool && (
                       <button
                         className="w-full text-left px-4 py-2.5 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors"
-                        onClick={(e) => { e.stopPropagation(); if (onMetadataEdit) onMetadataEdit(); setShowMenu(false); }}
+                        onClick={(e) => { e.stopPropagation(); setShowMetadataModal(true); setShowMenu(false); }}
                       >
                         <FontAwesomeIcon icon={faTags} className="text-[10px] w-3" /> Edit Metadata
                       </button>
@@ -304,6 +337,19 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* Edit Metadata Modal */}
+      {showMetadataModal && (
+        <EditMetadataModal
+          isOpen={showMetadataModal}
+          onClose={() => setShowMetadataModal(false)}
+          script={script}
+          onSaved={() => {
+            reloadScript(script);
+            setShowMetadataModal(false);
+          }}
+        />
+      )}
     </>
   );
 };

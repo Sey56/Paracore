@@ -34,7 +34,7 @@ from grpc_client import close_channel, execute_repl, execute_script, get_context
 
 # Shared tool helpers (summarize, extension method search, etc.)
 try:
-    from agent.tool_helpers import summarize_execution_result, format_execution_error, search_extension_methods, sanitize_csharp_code
+    from agent.tool_helpers import summarize_execution_result, format_execution_error, search_extension_methods, sanitize_csharp_code, check_paracore_compliance
 except ImportError:
     # Fallback for when agent package isn't available
     def summarize_execution_result(x):
@@ -43,9 +43,17 @@ except ImportError:
     def format_execution_error(result):
         err = result.get('error_message', 'Unknown error')
         det = result.get('error_details', '')
-        return f"Execution Failed: {err}" + (f"\nDetails: {det}" if det else "")
+        msg = f"Execution Failed: {err}"
+        if det:
+            msg += f"\nDetails: {det}"
+        msg += "\n\n💡 Check paracore://system-prompt for correct method syntax. Call read_extension_methods(\"method-name\") for signatures."
+        return msg
     def search_extension_methods(query, doc):
         return doc[:8000] if doc else "No reference available."
+    def sanitize_csharp_code(code):
+        return code
+    def check_paracore_compliance(code):
+        return None  # skip check when helpers unavailable
 
 # Configure logging
 if getattr(sys, 'frozen', False):
@@ -100,44 +108,38 @@ def ping() -> str:
 @mcp.tool()
 def explore_revit_data(csharp_code: str, justification: str) -> str:
     """
-    Silent read-only C# execution in Revit. For discovery/validation only.
-    Results summarized: first 5 rows of tables, first 10 lines of text, + totals.
-    SELF-CORRECTION: retry up to 3 times on errors. Use paracore://extension-methods.
+    Execute a READ-ONLY C# snippet in Revit for schema/data discovery.
+    Results are summarized: first 5 table rows, first 10 text lines, + totals.
 
-    PARACORE-FIRST: Use Paracore extensions for filter/sort/group/display. BANNED LINQ:
-    .Where(), .OrderBy(), .OrderByDescending(), .Sum() on collections. Use .WhereParam,
-    .OrderByParam, .OrderByParamDesc, .SumParam instead. ALLOWED: .GroupBy(lambda) for
-    multi-key grouping, .Select(x=>new{...}) for projection, .Take/.Skip/.First/.FirstOrDefault.
-    DISPLAY: ALWAYS use .Table(). NEVER foreach+Println+string.Join for data display.
-    NEVER chain `.Select()` after `.GroupByParam()`. Simply chain `.Table()` directly.
+    BEFORE WRITING ANY C#: read paracore://system-prompt for the complete
+    Paracore method catalog and syntax rules.
 
-    PARACORE EXTENSION METHODS (preferred shortcuts on top of Revit API):
-      GetElements<Room>()   GetElements("Walls")   GetElement("name")
-      x.GetStr("Level") → "Level 1"    x.GetNum("Area","m2") → 25.46
-      x.GetVal("Width") → "300 mm"     x.GetInt("Count") → 4
-      .WhereParam("Level","Level 1")  .WhereMatches("Single")
-      .OrderByParam("Area")  .OrderByParamDesc("Area")
-      .GroupByParam("Level")  .GroupByParam("Level","Area","m2")
-      .SumParam("Area","m2")  .Select(x=>new{x.Id,Name=x.GetStr("Name")}).Table()
-      x.SetVal("Mark","101")  x.SetNum("Offset",-150,"cm")
-      x.Delete() — BIM-safe (skips Pinned/Curtain)  x.Hide()  x.Unhide()  x.Isolate()
-      .SetParam("Comments","Done") — bulk write, ONE transaction
-      .Delete() — bulk delete on collection, ONE transaction
-      .BarGraph() .PieGraph() .LineGraph() — zero arguments
-      Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.Delete();}})
-      Println($"text") — output (capital P — NOT println, NOT Print, NOT Console.WriteLine)
-      x.Id (NOT .IntegerValue)  x.Name  x.Symbol — native props work directly
-
-    RAW REVIT API: Fully available everywhere — this IS the Revit API.
-    Wall.Create, Floor.Create, Line.CreateBound, XYZ, FilteredElementCollector, etc.
-    all work. Transact() REQUIRED for foreach loops (clean undo). Single-element/collection auto-transacts. For parameter ACCESS, prefer
-    .GetStr/.GetNum/.SetVal over raw LookupParameter/get_Parameter (shorter, Pipeline-friendly).
+    PARACORE-FIRST: Use extension methods (.GetStr, .GetNum, .WhereParam,
+    .OrderByParam, .GroupByParam, .SumParam, .Table, etc.) instead of raw
+    LINQ, FilteredElementCollector, LookupParameter, or foreach+Println.
+    For syntax help on a specific method, call read_extension_methods("name").
     """
     csharp_code = sanitize_csharp_code(csharp_code)
+
+    # Anti-pattern guard: catch raw Revit API before execution
+    compliance = check_paracore_compliance(csharp_code)
+    if compliance:
+        logger.info(f"MCP Anti-Pattern Blocked: {compliance[:200]}")
+        return compliance
+
     logger.info(f"MCP Exploring Data: {justification}")
     try:
-        result = execute_repl(csharp_code, "mcp-session")
-        
+        result = execute_repl(csharp_code, "mcp-session",
+                              execution_mode="read_only", source="mcp_agent")
+
+        if result.get("user_rejected"):
+            return ("❌ Code execution denied for this Revit session. "
+                    "Open Revit and approve the one-time session dialog, or restart Revit to reset.")
+        if result.get("read_only_violation"):
+            return ("❌ Read-only violation: exploration code contains write operations "
+                    f"(SetVal, Delete, Transact, etc.). Use execute_dynamic_query for writes.\n\n"
+                    f"Error: {result['error_message']}")
+
         if result["is_success"]:
             return summarize_execution_result(result)
         else:
@@ -149,38 +151,45 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
 @mcp.tool()
 def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     """
-    Execute C# in Revit (read or modify). User's final action.
-    Same syntax as explore_revit_data. Results summarized.
-    SELF-CORRECTION: retry up to 3 times on errors.
+    Execute C# in Revit (read or modify). The user's final action.
+    Results are summarized. SELF-CORRECTION: retry up to 3 times on errors.
 
-    PARACORE-FIRST: Use Paracore extensions. BANNED LINQ: .Where(), .OrderBy(),
-    .OrderByDescending(), .Sum() on collections. Use .WhereParam, .OrderByParam, etc.
-    ALLOWED: .GroupBy(lambda) multi-key, .Select(x=>new{...}) projection, .Take/.Skip/.First.
-    DISPLAY: ALWAYS use .Table(). NEVER foreach+Println+string.Join loops.
-    NEVER chain `.Select()` after `.GroupByParam()`. Chain `.Table()` directly.
+    BEFORE WRITING ANY C#: read paracore://system-prompt for the complete
+    Paracore method catalog and syntax rules.
 
-    WRITES (all auto-transact when no outer Transact exists):
-    el.SetVal("Comments","Done"), el.SetNum("Offset",-150,"cm"),
-    el.Delete(), el.Hide(), el.Unhide(), el.Isolate().
-    Collection batch writes (ONE transaction for all):
-    .SetParam("Comments","Done"), .Delete(), .Hide(), .Unhide(), .Isolate().
+    PARACORE-FIRST: Use extension methods (.GetStr, .GetNum, .WhereParam,
+    .OrderByParam, .GroupByParam, .SumParam, .Table, etc.) instead of raw
+    LINQ, FilteredElementCollector, LookupParameter, or foreach+Println.
+    For syntax help on a specific method, call read_extension_methods("name").
+
+    WRITES: el.SetVal("Comments","Done"), el.SetNum("Offset",-150,"cm"),
+    el.Delete(), el.Hide(), el.Unhide(), el.Isolate() — auto-transact.
+    Collection batch writes (ONE transaction): .SetParam("Comments","Done"),
+    .Delete(), .Hide(), .Unhide(), .Isolate().
     Manual foreach loops: ALWAYS wrap in Transact():
-    Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.Delete();}}).
+      Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.Delete();}});
     Inside Transact, all methods detect the active transaction — no sub-transactions.
 
-    For verification: use GetStr for clean names (e.g. "Level 02"),
-    not GetVal (which adds "Up to level:" prefix).
+    DISPLAY: ALWAYS use .Table(). NEVER foreach+Println loops.
     For .Select() tables: ALWAYS include Id=c.Id as the first column.
-
-    RAW REVIT API: Fully available everywhere — Wall.Create, Floor.Create,
-    Doc.Create.NewFamilyInstance, XYZ, Line.CreateBound, FilteredElementCollector, etc.
-    Transact() REQUIRED for foreach loops (clean undo). Single-element/collection-bulk
-    auto-transacts. For parameter access, prefer Paracore extensions (.GetStr/.SetVal).
+    NEVER chain .Select() after .GroupByParam(). Chain .Table() directly.
     """
     csharp_code = sanitize_csharp_code(csharp_code)
+
+    # Anti-pattern guard: catch raw Revit API before execution
+    compliance = check_paracore_compliance(csharp_code)
+    if compliance:
+        logger.info(f"MCP Anti-Pattern Blocked: {compliance[:200]}")
+        return compliance
+
     logger.info(f"MCP Executing Query: {justification}")
     try:
-        result = execute_repl(csharp_code, "mcp-session")
+        result = execute_repl(csharp_code, "mcp-session", source="mcp_agent")
+
+        if result.get("user_rejected"):
+            return ("❌ Code execution denied for this Revit session. "
+                    "Open Revit and approve the one-time session dialog, or restart Revit to reset.")
+
         if result["is_success"]:
             return summarize_execution_result(result)
         else:
@@ -252,10 +261,28 @@ def read_system_prompt() -> str:
 
 MCP_SYSTEM_PROMPT = """# PARACORE REPL — COMPLETE METHOD CATALOG
 You are generating C# code for the Paracore REPL engine in Revit.
-This IS the Revit API — Autodesk.Revit.DB, UI, Architecture — all namespaces available.
-Paracore extensions = convenient shortcuts for queries. Raw Revit API (Wall.Create, XYZ,
-FilteredElementCollector, Line.CreateBound, etc.) = always available everywhere.
+This IS the Revit API. Paracore extensions = convenient shortcuts on top.
 Transact() = REQUIRED for foreach loops. Single-element/collection-bulk auto-transacts.
+
+## SCRIPT RULES
+Top-level statements only. No namespace, class Program, or Main() — the script IS the entry.
+Classes/interfaces go at the BOTTOM after all top-level code.
+ALL namespaces pre-imported — NEVER write `using` or fully-qualified names:
+  CORRECT: XYZ p = new XYZ(0,0,0);  Wall.Create(...);  GetElements<Room>();
+  WRONG:   using Autodesk.Revit.DB;  Autodesk.Revit.DB.XYZ p = ...;
+NO IExternalApplication, IExternalCommand — this is dynamic execution, not an add-in.
+NO FilteredElementCollector — use GetElements<T>() or GetElements("Category") instead.
+
+## ELEMENT RETRIEVAL
+SYSTEM FAMILIES (Wall, Floor, Room, Ceiling):
+  GetElements<Wall>()      → typed instances
+  GetElements<WallType>()  → typed type definitions
+  GetElements("Walls")     → untyped Element list
+LOADABLE FAMILIES (Doors, Windows, Furniture):
+  GetElements<FamilyInstance>("Doors")  → typed instances
+  GetElements<FamilySymbol>("Doors")    → typed type symbols
+  GetElements("Doors")                 → untyped Element list
+GetElement("name")  GetMagicNames()  GetCategories()
 
 ## LINQ RULES — PARACORE FIRST — CHECK THIS TABLE BEFORE WRITING CODE
   ┌──────────────────────────────┬──────────────────────────────────┐

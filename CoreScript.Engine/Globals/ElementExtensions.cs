@@ -1079,7 +1079,7 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Filters a collection by a Revit parameter using a comparison operator (>, <, >=, <=).
+        /// Filters a collection by a Revit parameter using a comparison operator (>, <, >=, <=, !=).
         /// </summary>
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, double value, string unit = "")
             where T : Element
@@ -1094,6 +1094,7 @@ namespace CoreScript.Engine.Globals
                 "<" => elements.Where(e => e.GetNum(name) < internalValue - eps),
                 ">=" => elements.Where(e => e.GetNum(name) >= internalValue - eps),
                 "<=" => elements.Where(e => e.GetNum(name) <= internalValue + eps),
+                "!=" or "not" or "notequal" => elements.Where(e => Math.Abs(e.GetNum(name) - internalValue) >= 0.001),
                 _ => elements.Where(e => Math.Abs(e.GetNum(name) - internalValue) < 0.001),
             }).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
@@ -1101,7 +1102,8 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Filters a collection by a Revit parameter using a string comparison (contains, starts, ends).
+        /// Filters a collection by a Revit parameter using a string comparison
+        /// (contains, starts, ends, notcontains, notstarts, notends, !=).
         /// </summary>
         public static IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, string value)
             where T : Element
@@ -1111,6 +1113,10 @@ namespace CoreScript.Engine.Globals
                 "contains" => elements.Where(e => e.GetStr(name).Contains(value, StringComparison.OrdinalIgnoreCase)),
                 "starts" or "startswith" => elements.Where(e => e.GetStr(name).StartsWith(value, StringComparison.OrdinalIgnoreCase)),
                 "ends" or "endswith" => elements.Where(e => e.GetStr(name).EndsWith(value, StringComparison.OrdinalIgnoreCase)),
+                "!=" or "not" or "notequal" => elements.Where(e => !e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)),
+                "notcontains" => elements.Where(e => !e.GetStr(name).Contains(value, StringComparison.OrdinalIgnoreCase)),
+                "notstarts" => elements.Where(e => !e.GetStr(name).StartsWith(value, StringComparison.OrdinalIgnoreCase)),
+                "notends" => elements.Where(e => !e.GetStr(name).EndsWith(value, StringComparison.OrdinalIgnoreCase)),
                 _ => elements.Where(e => e.GetStr(name).Equals(value, StringComparison.OrdinalIgnoreCase)),
             }).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
