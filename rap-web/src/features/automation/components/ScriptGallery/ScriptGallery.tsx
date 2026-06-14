@@ -246,6 +246,8 @@ export const ScriptGallery: React.FC = () => {
                 setSortOrder={setSortOrder}
                 isCompactView={isCompactView}
                 setIsCompactView={setIsCompactView}
+                totalUnits={scripts.length}
+                filteredCount={favoriteScripts.length + otherScripts.length}
               />
 
               {selectedScript && (

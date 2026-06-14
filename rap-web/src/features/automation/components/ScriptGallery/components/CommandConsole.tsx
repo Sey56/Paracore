@@ -13,6 +13,8 @@ interface CommandConsoleProps {
   setSortOrder: (order: string) => void;
   isCompactView: boolean;
   setIsCompactView: (compact: boolean) => void;
+  totalUnits: number;
+  filteredCount: number;
 }
 
 const SORT_OPTIONS = [
@@ -37,7 +39,9 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
   sortOrder,
   setSortOrder,
   isCompactView,
-  setIsCompactView
+  setIsCompactView,
+  totalUnits,
+  filteredCount
 }) => {
   const [isSortOpen, setIsSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
@@ -66,11 +70,21 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           <input
             type="text"
             placeholder="Search..."
-            className="w-full pl-8 pr-3 py-1.5 bg-transparent rounded-lg text-[12px] font-medium text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 transition-colors border border-transparent focus:border-blue-300/50 dark:focus:border-blue-600/50 focus:bg-white/60 dark:focus:bg-slate-800/80"
+            className="w-full pl-8 py-1.5 bg-transparent rounded-lg text-[12px] font-medium text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 transition-colors border border-transparent focus:border-blue-300/50 dark:focus:border-blue-600/50 focus:bg-white/60 dark:focus:bg-slate-800/80"
+            style={{ paddingRight: totalUnits > 0 ? '3.5rem' : '0.75rem' }}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             disabled={!isAuthenticated}
           />
+          {totalUnits > 0 && (
+            <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-medium tabular-nums select-none pointer-events-none
+              ${filteredCount !== totalUnits
+                ? 'text-blue-500 dark:text-blue-400'
+                : 'text-slate-300 dark:text-slate-600'
+              }`}>
+              {filteredCount}/{totalUnits}
+            </span>
+          )}
         </div>
 
         {/* Type Filter */}

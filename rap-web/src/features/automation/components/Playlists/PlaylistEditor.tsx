@@ -74,7 +74,14 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
     }, [playlist]);
 
     const handleSave = async () => {
+        console.log('[PlaylistEditor] handleSave called', {
+            name: editedPlaylist.name,
+            filePath: editedPlaylist.filePath,
+            itemCount: editedPlaylist.items.length,
+            items: editedPlaylist.items.map(i => i.scriptPath),
+        });
         const success = await updatePlaylist(editedPlaylist);
+        console.log('[PlaylistEditor] handleSave result:', success);
         if (success) {
             setIsDirty(false);
         }

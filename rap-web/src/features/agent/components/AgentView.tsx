@@ -4,7 +4,7 @@ import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
 import api from '@/api/axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faAsterisk, faUser, faRobot, faCheckCircle, faTimesCircle, faSpinner, faTrash, faSyncAlt, faCopy, faPlus, faComments, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faAsterisk, faUser, faRobot, faCheckCircle, faTimesCircle, faSpinner, faTrash, faCopy, faPlus, faComments, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useScriptExecution } from '@/features/automation';
@@ -74,27 +74,13 @@ export const AgentView: React.FC = () => {
     setAgentReplResults,
     setAgentCapturedDocTitle,
   } = useUI();
-  const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
+  const [isDeleteSessionModalOpen, setIsDeleteSessionModalOpen] = useState(false);
 
   // ── Session state ──
   const [sessions, setSessions] = useState<AgentSession[]>(() => {
     const existing = loadSessions();
     if (existing.length > 0) return existing;
-    // Try old format migration
-    try {
-      const old = localStorage.getItem('agent_chat_messages');
-      if (old) {
-        const parsed = JSON.parse(old);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const activeId = localStorage.getItem(ACTIVE_SESSION_KEY) || crypto.randomUUID();
-          const session: AgentSession = { id: activeId, name: 'Previous Chat', threadId: null, messageCount: parsed.length, updatedAt: Date.now() };
-          const list = [session];
-          saveSessions(list);
-          localStorage.setItem(ACTIVE_SESSION_KEY, activeId);
-          return list;
-        }
-      }
-    } catch {}
+    // No sessions yet — create a default one
     const id = crypto.randomUUID();
     const session: AgentSession = { id, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: Date.now() };
     const list = [session];
@@ -103,49 +89,19 @@ export const AgentView: React.FC = () => {
     return list;
   });
   const [activeSessionId, setActiveSessionId] = useState<string>(() => {
-    const saved = localStorage.getItem(ACTIVE_SESSION_KEY);
-    if (saved) return saved;
-    const id = crypto.randomUUID();
-    localStorage.setItem(ACTIVE_SESSION_KEY, id);
-    return id;
+    return localStorage.getItem(ACTIVE_SESSION_KEY) || sessions[0]?.id || crypto.randomUUID();
   });
 
-  // Migrate old-format messages on first load
   const [messages, setMessages] = useState<Message[]>(() => {
-    const msgs = loadSessionMessages(activeSessionId);
-    if (msgs.length > 0) return msgs;
-    // Try old format
-    try {
-      const old = localStorage.getItem('agent_chat_messages');
-      if (old) {
-        const parsed = JSON.parse(old);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Also migrate threadId
-          const oldTid = localStorage.getItem('agent_chat_thread_id');
-          saveSessionMessages(activeSessionId, parsed);
-          if (oldTid) saveSessionThreadId(activeSessionId, oldTid);
-          // Clean up old keys
-          localStorage.removeItem('agent_chat_messages');
-          localStorage.removeItem('agent_chat_thread_id');
-          return parsed;
-        }
-      }
-    } catch {}
-    return [];
+    return loadSessionMessages(activeSessionId);
   });
   const [threadId, setThreadId] = useState<string | null>(() => {
-    const tid = loadSessionThreadId(activeSessionId);
-    if (tid) return tid;
-    try {
-      const old = localStorage.getItem('agent_chat_thread_id');
-      return old || null;
-    } catch { return null; }
+    return loadSessionThreadId(activeSessionId);
   });
 
-  // Persist messages to session
+  // Persist messages to session (always — no gating)
   useEffect(() => {
     saveSessionMessages(activeSessionId, messages);
-    // Update session metadata
     setSessions(prev => {
       const updated = prev.map(s => s.id === activeSessionId ? { ...s, messageCount: messages.length, updatedAt: Date.now() } : s);
       saveSessions(updated);
@@ -156,11 +112,6 @@ export const AgentView: React.FC = () => {
   // Persist threadId to session
   useEffect(() => {
     saveSessionThreadId(activeSessionId, threadId);
-    setSessions(prev => {
-      const updated = prev.map(s => s.id === activeSessionId ? { ...s, threadId, updatedAt: Date.now() } : s);
-      saveSessions(updated);
-      return updated;
-    });
   }, [threadId, activeSessionId]);
 
   const { cloudToken } = useAuth();
@@ -666,72 +617,94 @@ export const AgentView: React.FC = () => {
   };
 
   // ── Session actions ──
+
+  const hasHumanMessages = useCallback((msgs: Message[]) => {
+    return msgs.some(m => m.type === 'human' && !m.content?.toString().startsWith('System:'));
+  }, []);
+
   const handleNewSession = useCallback(() => {
-    // Save current session first
+    // If current session is still empty (no human messages), don't create a
+    // duplicate — just stay on the existing blank session.
+    if (!hasHumanMessages(messages) && threadId === null) return;
+    // 1. Explicitly persist current session before switching
     saveSessionMessages(activeSessionId, messages);
     saveSessionThreadId(activeSessionId, threadId);
-    // Read fresh from localStorage to avoid stale closure
-    const current = loadSessions();
-    const updated_current = current.map(s =>
-      s.id === activeSessionId ? { ...s, messageCount: messages.length, threadId, updatedAt: Date.now() } : s
+    // 2. Compute updated sessions from React state
+    const now = Date.now();
+    const updatedSessions = sessions.map(s =>
+      s.id === activeSessionId ? { ...s, messageCount: messages.length, threadId, updatedAt: now } : s
     );
-    // Ensure current session is in the list
-    if (!updated_current.find(s => s.id === activeSessionId)) {
-      updated_current.push({ id: activeSessionId, name: 'Previous Chat', threadId, messageCount: messages.length, updatedAt: Date.now() });
-    }
-    const id = crypto.randomUUID();
-    const newSession: AgentSession = { id, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: Date.now() };
-    const updated = [newSession, ...updated_current];
-    setSessions(updated);
-    saveSessions(updated);
-    localStorage.setItem(ACTIVE_SESSION_KEY, id);
-    setActiveSessionId(id);
+    // 3. Create new session
+    const newId = crypto.randomUUID();
+    const newSession: AgentSession = { id: newId, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: now };
+    const list = [...updatedSessions, newSession].sort((a, b) => b.updatedAt - a.updatedAt);
+    // 4. Persist
+    saveSessions(list);
+    localStorage.setItem(ACTIVE_SESSION_KEY, newId);
+    // 5. Update React state
+    setSessions(list);
+    setActiveSessionId(newId);
     setMessages([]);
     setThreadId(null);
     setInput('');
-  }, [activeSessionId, messages, threadId]);
+  }, [activeSessionId, messages, threadId, sessions, hasHumanMessages]);
 
   const handleSwitchSession = useCallback((sessionId: string) => {
     if (sessionId === activeSessionId) return;
-    // Save current
+    // Save current session
     saveSessionMessages(activeSessionId, messages);
     saveSessionThreadId(activeSessionId, threadId);
-    // Load new
+    // Update current session metadata from React state
+    const now = Date.now();
+    const updatedSessions = sessions.map(s =>
+      s.id === activeSessionId ? { ...s, messageCount: messages.length, threadId, updatedAt: now } : s
+    );
+    saveSessions(updatedSessions);
+    setSessions(updatedSessions);
+    // Switch to target session
     localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
     setActiveSessionId(sessionId);
     setMessages(loadSessionMessages(sessionId));
     setThreadId(loadSessionThreadId(sessionId));
     setInput('');
-  }, [activeSessionId, messages, threadId]);
+  }, [activeSessionId, messages, threadId, sessions]);
 
   const handleDeleteSession = useCallback((sessionId: string) => {
-    localStorage.removeItem(`agent_session_${sessionId}_msgs`);
-    localStorage.removeItem(`agent_session_${sessionId}_thread`);
-    const current = loadSessions();
-    const remaining = current.filter(s => s.id !== sessionId);
-    setSessions(remaining);
-    saveSessions(remaining);
-    if (sessionId === activeSessionId) {
-      if (remaining.length > 0) {
-        const next = remaining[0];
+    // Use the updater form so we see the latest sessions state
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== sessionId);
+      // If this is the last session, don't delete it — just clear it in place.
+      // This avoids the ID-mismatch bug where activeSessionId points to a
+      // session that no longer exists, causing the header to show "Chat".
+      if (remaining.length === 0) {
+        localStorage.removeItem(`agent_session_${sessionId}_msgs`);
+        localStorage.removeItem(`agent_session_${sessionId}_thread`);
+        const cleared: AgentSession = { ...prev.find(s => s.id === sessionId)!, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: Date.now() };
+        saveSessions([cleared]);
+        setMessages([]);
+        setThreadId(null);
+        setInput('');
+        return [cleared];
+      }
+      // Multiple sessions — safe to actually delete
+      saveSessionMessages(activeSessionId, messages);
+      saveSessionThreadId(activeSessionId, threadId);
+      localStorage.removeItem(`agent_session_${sessionId}_msgs`);
+      localStorage.removeItem(`agent_session_${sessionId}_thread`);
+      saveSessions(remaining);
+      if (sessionId === activeSessionId) {
+        // Switch to the most recent remaining session
+        const sorted = [...remaining].sort((a, b) => b.updatedAt - a.updatedAt);
+        const next = sorted[0];
         localStorage.setItem(ACTIVE_SESSION_KEY, next.id);
         setActiveSessionId(next.id);
         setMessages(loadSessionMessages(next.id));
         setThreadId(loadSessionThreadId(next.id));
-      } else {
-        // No sessions left — create a fresh one
-        const id = crypto.randomUUID();
-        const fresh: AgentSession = { id, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: Date.now() };
-        setSessions([fresh]);
-        saveSessions([fresh]);
-        localStorage.setItem(ACTIVE_SESSION_KEY, id);
-        setActiveSessionId(id);
-        setMessages([]);
-        setThreadId(null);
       }
-    }
-    setInput('');
-  }, [sessions, activeSessionId]);
+      setInput('');
+      return remaining;
+    });
+  }, [activeSessionId, messages, threadId]);
 
   // Auto-name session from first human message
   const didAutoNameRef = useRef(false);
@@ -763,13 +736,6 @@ export const AgentView: React.FC = () => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showSessionMenu]);
-
-  const handleClearChat = useCallback(() => {
-    setMessages([]);
-    setThreadId(null);
-    setInput('');
-    setIsClearChatModalOpen(false);
-  }, []);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
@@ -1264,8 +1230,9 @@ export const AgentView: React.FC = () => {
     <div className="flex flex-col h-full bg-transparent overflow-hidden relative font-sans">
       {/* ── HEADER ── */}
       <div className="flex-shrink-0 flex justify-between items-center px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 gap-2">
-        <div className="flex items-center gap-2 overflow-hidden min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] flex-shrink-0" />
+          <span className="text-[9px] font-medium text-slate-300 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded tabular-nums">{sessions.length}</span>
           {/* Session dropdown */}
           <div className="relative" ref={sessionMenuRef}>
             <button
@@ -1278,25 +1245,27 @@ export const AgentView: React.FC = () => {
               <FontAwesomeIcon icon={faChevronDown} className={`text-[7px] text-slate-400 transition-transform ${showSessionMenu ? 'rotate-180' : ''}`} />
             </button>
             {showSessionMenu && (
-              <div className="absolute left-0 top-full mt-1 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[60] border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="max-h-64 overflow-y-auto custom-scrollbar py-1">
-                  {sessions.slice().sort((a, b) => b.updatedAt - a.updatedAt).map(s => (
-                    <div key={s.id} className="flex items-center group">
+              <div className="absolute left-0 top-full mt-1 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[60] border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                  {sessions.slice().sort((a, b) => b.updatedAt - a.updatedAt).map((s, i) => (
+                    <div key={s.id} className="flex items-center group border-b border-slate-50 dark:border-slate-800/50 last:border-0">
                       <button
                         onClick={() => { handleSwitchSession(s.id); setShowSessionMenu(false); }}
-                        className={`flex-1 text-left px-4 py-2 flex items-center gap-2 min-w-0 ${s.id === activeSessionId ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                        className={`flex-1 text-left px-4 py-2.5 flex items-center gap-2 min-w-0 ${s.id === activeSessionId ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.id === activeSessionId ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">{s.name}</span>
-                        <span className="text-[9px] text-slate-400 ml-auto shrink-0">{s.messageCount}</span>
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">{s.name || `Session ${i+1}`}</span>
+                        <span className="text-[9px] text-slate-400 ml-auto shrink-0 tabular-nums">{s.messageCount}</span>
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id); setShowSessionMenu(false); }}
-                        className="px-2 py-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
-                        title="Delete session"
-                      >
-                        <FontAwesomeIcon icon={faTrash} className="text-[9px]" />
-                      </button>
+                      {sessions.length > 1 && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id); }}
+                          className="px-2 py-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                          title="Delete session"
+                        >
+                          <FontAwesomeIcon icon={faTrash} className="text-[9px]" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1306,7 +1275,7 @@ export const AgentView: React.FC = () => {
                     className="w-full text-left px-4 py-2.5 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2 transition-colors"
                   >
                     <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
-                    New Session
+                    New Chat
                   </button>
                 </div>
               </div>
@@ -1317,13 +1286,13 @@ export const AgentView: React.FC = () => {
           <button
             onClick={handleNewSession}
             className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
-            title="New Session"
+            title="New Chat"
           >
             <FontAwesomeIcon icon={faPlus} className="text-xs" />
           </button>
           <button
-            onClick={() => setIsClearChatModalOpen(true)}
-            title="Clear Session"
+            onClick={() => setIsDeleteSessionModalOpen(true)}
+            title="Delete Session"
             className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
           >
             <FontAwesomeIcon icon={faTrash} className="text-xs" />
@@ -1426,12 +1395,28 @@ export const AgentView: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <Modal isOpen={isClearChatModalOpen} onClose={() => setIsClearChatModalOpen(false)} title="Clear Session">
+      <Modal
+        isOpen={isDeleteSessionModalOpen}
+        onClose={() => setIsDeleteSessionModalOpen(false)}
+        title={sessions.length > 1 ? 'Delete Session' : 'Clear Chat'}
+      >
         <div className="p-6 text-center space-y-4">
-          <p className="text-sm font-medium text-[var(--text-primary)] opacity-80">This will permanently delete your conversation history for this session. Continue?</p>
+          <p className="text-sm font-medium text-[var(--text-primary)] opacity-80">
+            {sessions.length > 1
+              ? 'This will permanently delete this session and all its messages. Continue?'
+              : 'This will clear all messages in the current chat. Continue?'}
+          </p>
           <div className="flex justify-center space-x-3">
-            <button onClick={() => setIsClearChatModalOpen(false)} className="px-6 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg font-bold text-[11px] uppercase tracking-widest">Cancel</button>
-            <button onClick={handleClearChat} className="px-6 py-2 bg-danger text-white rounded-lg font-bold text-[11px] uppercase tracking-widest hover:opacity-90">Clear All</button>
+            <button onClick={() => setIsDeleteSessionModalOpen(false)} className="px-6 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg font-bold text-[11px] uppercase tracking-widest">Cancel</button>
+            <button
+              onClick={() => {
+                setIsDeleteSessionModalOpen(false);
+                handleDeleteSession(activeSessionId);
+              }}
+              className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold text-[11px] uppercase tracking-widest"
+            >
+              {sessions.length > 1 ? 'Delete' : 'Clear'}
+            </button>
           </div>
         </div>
       </Modal>
