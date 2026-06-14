@@ -2,6 +2,7 @@ import React from 'react';
 import { PlaylistItem } from '@/types/playlistModel';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faTrash, faArrowUp, faArrowDown, faArrowLeft, faPlay, faSave, faCheck, faTimes, faSpinner, faPen } from '@fortawesome/free-solid-svg-icons';
+import { Tooltip } from '@/components/common/Tooltip';
 
 interface PlaylistTimelineProps {
     items: PlaylistItem[];
@@ -43,23 +44,25 @@ export const PlaylistTimeline: React.FC<PlaylistTimelineProps> = ({
             <div className="shrink-0 p-4 border-b border-slate-200 dark:border-slate-800 z-20">
                 {/* Top Row: Back & Name */}
                 <div className="flex items-center space-x-3 mb-4">
-                    <button
-                        onClick={onBack}
-                        className="p-1.5 -ml-1.5 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
-                        title="Back to Playlists"
-                    >
-                        <FontAwesomeIcon icon={faArrowLeft} />
-                    </button>
+                    <Tooltip text="Back to Playlists" position="bottom">
+                        <button
+                            onClick={onBack}
+                            className="p-1.5 -ml-1.5 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                        >
+                            <FontAwesomeIcon icon={faArrowLeft} />
+                        </button>
+                    </Tooltip>
                     <div>
                         <div className="flex items-center space-x-2">
                             <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight">{playlistName}</h1>
-                            <button
-                                onClick={onEditDetails}
-                                className="text-slate-400 hover:text-blue-500 text-xs p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                title="Edit Name & Description"
-                            >
-                                <FontAwesomeIcon icon={faPen} />
-                            </button>
+                            <Tooltip text="Edit Name & Description" position="bottom">
+                                <button
+                                    onClick={onEditDetails}
+                                    className="text-slate-400 hover:text-blue-500 text-xs p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    <FontAwesomeIcon icon={faPen} />
+                                </button>
+                            </Tooltip>
                         </div>
                         <p className="text-[10px] text-slate-500 font-mono mt-0.5">{items.length} STEPS</p>
                     </div>
