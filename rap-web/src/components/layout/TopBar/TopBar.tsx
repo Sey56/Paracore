@@ -138,7 +138,6 @@ export const TopBar: React.FC = () => {
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]'
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
-              title={`${nav.label} Mode`}
             >
               <FontAwesomeIcon icon={nav.icon} className={isActive ? 'text-blue-500' : ''} />
               {nav.label}

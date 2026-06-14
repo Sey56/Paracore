@@ -17,14 +17,23 @@ export const Tooltip: React.FC<TooltipProps> = ({ text, children, position = 'to
         if (!triggerRef.current || !text) return;
         const rect = triggerRef.current.getBoundingClientRect();
         if (position === 'top') {
+            // Centered above the trigger
+            const centerX = rect.left + rect.width / 2;
+            const margin = 133; // half max-width (125px) + 8px padding
             setCoords({
                 top: rect.top - 8,
-                left: rect.left + rect.width / 2,
+                left: Math.max(margin, Math.min(window.innerWidth - margin, centerX)),
             });
         } else {
+            // Left-aligned below the trigger — clamp right edge from overflowing
+            const estimatedWidth = Math.min(text.length * 8 + 48, 250);
+            const rightEdge = rect.left + estimatedWidth;
+            const left = rightEdge > window.innerWidth - 8
+                ? Math.max(8, window.innerWidth - estimatedWidth - 8)
+                : rect.left;
             setCoords({
                 top: rect.bottom + 8,
-                left: rect.left + rect.width / 2,
+                left,
             });
         }
         setVisible(true);
@@ -50,7 +59,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ text, children, position = 'to
                         left: coords.left,
                         transform: position === 'top'
                             ? 'translate(-50%, -100%)'
-                            : 'translate(-50%, 0)',
+                            : 'translate(0, 0)',
                         zIndex: 99999,
                         pointerEvents: 'none',
                     }}

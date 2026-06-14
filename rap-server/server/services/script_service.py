@@ -737,8 +737,12 @@ def initialize_source_logic(path: str, description: str = ""):
     with open(marker, "w", encoding="utf-8") as f: json.dump(source_data, f, indent=4)
     return {"success": True, "message": f"Source '{os.path.basename(path)}' initialized successfully."}
 
-def register_watchdog_source_logic(path: str, parameters: Optional[List[Dict[str, Any]]] = None):
-    # If parameters were provided, serialize them to JSON. Otherwise pass None.
+def register_watchdog_source_logic(path: str, parameters: Optional[List[Dict[str, Any]]] = None, license_tier: str = "free"):
+    # Inject license tier into parameters so the C# engine can gate enterprise features
+    if parameters is None:
+        parameters = []
+    if not any(p.get("name") == "__license_tier__" for p in parameters):
+        parameters.append({"name": "__license_tier__", "value": license_tier})
     parameters_json = json.dumps(parameters) if parameters is not None else None
     return grpc_client.register_watchdog_source(path, parameters_json)
 

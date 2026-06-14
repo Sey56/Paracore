@@ -290,6 +290,11 @@ namespace CoreScript.Engine.Globals
         /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
         public static void Watchdog(Action<Document> callback, int intervalSeconds = 5)
         {
+            // Allow Python backend to pass license tier through parameters during registration
+            if (Parameters.TryGetValue("__license_tier__", out var tier) && tier is string tierStr)
+            {
+                LicenseContext.Tier = tierStr;
+            }
             LicenseContext.RequireEnterprise("Sentinels");
             bool isRegistration = Parameters.TryGetValue("__is_watchdog_registration__", out var isReg) && isReg is bool b && b;
 
@@ -321,6 +326,11 @@ namespace CoreScript.Engine.Globals
         /// <param name="intervalSeconds">Minimum seconds between executions. Default is 5s.</param>
         public static void Watchdog(Action callback, int intervalSeconds = 5)
         {
+            // Allow Python backend to pass license tier through parameters during registration
+            if (Parameters.TryGetValue("__license_tier__", out var tier) && tier is string tierStr)
+            {
+                LicenseContext.Tier = tierStr;
+            }
             LicenseContext.RequireEnterprise("Sentinels");
             bool isRegistration = Parameters.TryGetValue("__is_watchdog_registration__", out var isReg) && isReg is bool b && b;
 
@@ -352,6 +362,11 @@ namespace CoreScript.Engine.Globals
         /// <param name="data">Optional list of elements or objects for details</param>
         public static void WatchdogReport(string summary, string status = "success", object? data = null)
         {
+            // Allow Python backend to pass license tier through parameters during registration
+            if (Parameters.TryGetValue("__license_tier__", out var tier) && tier is string tierStr)
+            {
+                LicenseContext.Tier = tierStr;
+            }
             LicenseContext.RequireEnterprise("Sentinels");
             string? path = null;
 

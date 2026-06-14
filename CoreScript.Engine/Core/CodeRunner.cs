@@ -64,6 +64,13 @@ namespace CoreScript.Engine.Core
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
 
+                // Apply license tier from parameters (set by Python backend for enterprise users)
+                if (parameters.TryGetValue("__license_tier__", out var tierObj) && tierObj is string tierStr)
+                {
+                    LicenseContext.Tier = tierStr;
+                    FileLogger.Log($"[CodeRunner] License tier set to: {tierStr}");
+                }
+
                 if (parameters.ContainsKey("__script_name__"))
                 {
                     var forcedName = parameters["__script_name__"]?.ToString();
@@ -271,6 +278,13 @@ namespace CoreScript.Engine.Core
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
+
+                // Apply license tier from parameters (set by Python backend for enterprise users)
+                if (parameters.TryGetValue("__license_tier__", out var tierObj) && tierObj is string tierStr)
+                {
+                    LicenseContext.Tier = tierStr;
+                    FileLogger.Log($"[CodeRunner] License tier set to: {tierStr}");
+                }
 
                 // DEBUG: Log all parameters
                 FileLogger.Log($"[CodeRunner] Final Parameters Dictionary Keys: {string.Join(", ", parameters.Keys)}");

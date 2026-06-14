@@ -57,9 +57,15 @@ async def run_script_logic(
                         found = True; break
                 if not found: params_payload.append({"name": "__script_name__", "value": script_name})
             
+            # Inject license tier for enterprise feature gating
+            license_tier = "enterprise" if current_user_id != 0 else "free"
+            if isinstance(params_payload, list):
+                if not any(p.get("name") == "__license_tier__" for p in params_payload):
+                    params_payload.append({"name": "__license_tier__", "value": license_tier})
+
             parameters_json = json.dumps(params_payload)
             compiled_assembly = base64.b64decode(package.get("assembly", ""))
-            
+
             response_data = execute_script(None, parameters_json, compiled_assembly)
             return response_data
 
@@ -104,6 +110,11 @@ async def run_script_logic(
             # Inject Absolute Path
             if not any(p.get("name") == "__absolute_path__" for p in rich_params):
                 rich_params.append({"name": "__absolute_path__", "value": resolved_path})
+
+            # Inject license tier for enterprise feature gating
+            license_tier = "enterprise" if current_user_id != 0 else "free"
+            if not any(p.get("name") == "__license_tier__" for p in rich_params):
+                rich_params.append({"name": "__license_tier__", "value": license_tier})
 
         # Execute with the FULL JSON list
         response_data = execute_script(json.dumps(script_files_payload), json.dumps(rich_params))

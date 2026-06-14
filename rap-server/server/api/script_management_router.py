@@ -114,7 +114,8 @@ async def register_watchdog_source(request: RegisterWatchdogSourceRequest, curre
     Tells the Addin to scan a folder and arm all watchdogs found within.
     """
     try:
-        result = script_service.register_watchdog_source_logic(request.path, request.parameters)
+        license_tier = "enterprise" if current_user.id != 0 else "free"
+        result = script_service.register_watchdog_source_logic(request.path, request.parameters, license_tier)
         return JSONResponse(content=result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
