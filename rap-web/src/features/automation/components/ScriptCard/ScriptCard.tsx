@@ -1,13 +1,12 @@
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCompressAlt } from '@fortawesome/free-solid-svg-icons';
 import { Script } from "@/types/scriptModel";
-import { useAuth } from '@/features/auth';
-import { useRevitStatus } from "@/hooks/useRevitStatus";
 import styles from './ScriptCard.module.css';
 
 // Components
 import { CardHeader } from './components/CardHeader';
 import { CardBody } from './components/CardBody';
-import { CardActions } from './components/CardActions';
 import { DeleteScriptModal } from './components/DeleteScriptModal';
 import { EditMetadataModal } from './components/EditMetadataModal';
 
@@ -40,8 +39,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
   onReplace
 }) => {
   const cardRef = React.useRef<HTMLDivElement>(null);
-  const { ParacoreConnected } = useRevitStatus();
-  const { user } = useAuth();
 
   const {
     isRunning,
@@ -49,10 +46,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
     isProtectedTool,
     isArmed,
     isActiveInIDE,
-    isRunButtonDisabled,
-    tooltipMessage,
-    showMenu,
-    setShowMenu,
     isRenaming,
     renameValue,
     setRenameValue,
@@ -61,32 +54,18 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
     isDeleting,
     deleteError,
     setDeleteError,
-    menuRef,
     getDisplayName,
-    handleRunClick,
     handleFavoriteClick,
     handleSelect,
     handleStartRename,
     handleRenameSubmit,
     handleRenameKeyDown,
     handleDelete,
-    editScript,
     isAuthenticated,
-    activeRole,
-    toggleFloatingCodeViewer,
     showMetadataModal,
     setShowMetadataModal,
     reloadScript
   } = useScriptCard(script, onSelect, isSelected);
-
-  const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
-
-  const getEditTitleMessage = () => {
-    if (!user) return "You must be signed in to edit scripts";
-    if (!ParacoreConnected) return "Paracore is disconnected. Please connect to Revit.";
-    if (script.metadata.isProtected) return "Source code for this tool is protected and cannot be edited.";
-    return "Edit Script";
-  };
 
   return (
     <div
@@ -96,8 +75,8 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
         backgroundColor: isSelected ? 'var(--bg-card-focus)' : 'var(--bg-card)',
         borderColor: isSelected ? 'var(--accent)' : 'var(--border-main)',
       }}
-      className={`${styles.scriptCard} script-card group rounded-xl shadow-sm transition-all duration-200 cursor-pointer flex flex-col ${isSelected ? styles.selectedCard : "border"
-        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${isGuard ? styles.guardCard : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""} ${showMenu ? styles.menuOpen : ""}`}
+      className={`${styles.scriptCard} script-card group rounded-xl shadow-sm transition-all duration-200 cursor-pointer flex flex-col relative ${isSelected ? styles.selectedCard : "border"
+        } ${isRunning ? "opacity-70" : ""} ${!isAuthenticated ? "opacity-60 grayscale-[0.3]" : ""} ${isCompact ? "min-h-0" : ""} ${isProtectedTool ? styles.toolFile : ""} ${isGuard ? styles.guardCard : ""} ${showExitFocus ? styles.focusHero : ""} ${isHidden ? "opacity-0 pointer-events-none" : ""}`}
       onClick={handleSelect}
     >
       <DeleteScriptModal
@@ -145,34 +124,16 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
         {!isCompact && <CardBody script={script} />}
       </div>
 
-      <CardActions
-        script={script}
-        isRunning={isRunning}
-        isRunButtonDisabled={isRunButtonDisabled}
-        tooltipMessage={tooltipMessage}
-        handleRunClick={handleRunClick}
-        onFocus={onFocus}
-        onExitFocus={onExitFocus}
-        showExitFocus={showExitFocus}
-        cardRef={cardRef}
-        onSelect={handleSelect}
-        isProtectedTool={isProtectedTool}
-        isGuard={isGuard}
-        showMenu={showMenu}
-        setShowMenu={setShowMenu}
-        menuRef={menuRef}
-        canCreateScripts={canCreateScripts}
-        editScript={editScript}
-        onDelete={handleDelete}
-        handleStartRename={handleStartRename}
-        onReplace={onReplace}
-        setShowDeleteModal={setShowDeleteModal}
-        setDeleteError={setDeleteError}
-        editTooltipMessage={getEditTitleMessage()}
-        toggleFloatingCodeViewer={toggleFloatingCodeViewer}
-        setShowMetadataModal={setShowMetadataModal}
-        isSelected={isSelected}
-      />
+      {/* Exit Focus button — subtle icon, only shown in focus mode */}
+      {showExitFocus && onExitFocus && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onExitFocus(); }}
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors z-10"
+          title="Exit Focus"
+        >
+          <FontAwesomeIcon icon={faCompressAlt} className="text-xs" />
+        </button>
+      )}
     </div>
   );
 });

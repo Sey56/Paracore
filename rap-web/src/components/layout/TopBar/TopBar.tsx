@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faCircleHalfStroke, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt, faHouse } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faCircleHalfStroke, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt, faHouse, faThLarge } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -14,7 +14,7 @@ import { shell } from '@tauri-apps/api';
 import packageJson from '../../../../package.json';
 
 export const TopBar: React.FC = () => {
-  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap, openWelcomeGate } = useUI();
+  const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap, openWelcomeGate, automationSubMode, setAutomationSubMode } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
   const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
@@ -145,6 +145,21 @@ export const TopBar: React.FC = () => {
             </button>
           );
         })}
+
+        {/* Automation Sub-mode Toggle — only visible when Automation is active */}
+        {activeMainView === 'scripts' && (
+          <button
+            onClick={() => setAutomationSubMode(automationSubMode === 'gallery' ? 'repl' : 'gallery')}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 border-l border-slate-200 dark:border-slate-700/50 ml-1 pl-5"
+            title={automationSubMode === 'gallery' ? 'Switch to REPL Playground' : 'Switch to Script Gallery'}
+          >
+            <FontAwesomeIcon
+              icon={automationSubMode === 'gallery' ? faCode : faThLarge}
+              className="text-purple-500"
+            />
+            {automationSubMode === 'gallery' ? 'REPL' : 'Gallery'}
+          </button>
+        )}
       </div>
 
       {/* 3. Status & System Cluster */}

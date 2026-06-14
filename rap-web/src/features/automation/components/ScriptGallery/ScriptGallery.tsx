@@ -10,10 +10,12 @@ import { Script } from '@/types/scriptModel';
 
 // Components
 import { NewScriptModal } from '@/features/automation/components/NewScriptModal';
+import { ScriptInspector } from '@/features/automation/components/ScriptInspector/ScriptInspector';
 import { FilterPills } from '@/components/common/FilterPills';
 import { FocusOverlay } from './components/FocusOverlay';
 import { GalleryHeader } from './components/GalleryHeader';
 import { CommandConsole } from './components/CommandConsole';
+import { GalleryActionBar } from './components/GalleryActionBar';
 import { ScriptGrid } from './components/ScriptGrid';
 import { NoActiveSource } from './components/NoActiveSource';
 
@@ -42,11 +44,23 @@ export const ScriptGallery: React.FC = () => {
   const { isAuthenticated, activeRole } = useAuth();
   const isMobile = useBreakpoint();
   
+  const [configuredScript, setConfiguredScript] = useState<Script | null>(null);
+
   const handleScriptSelect = useCallback((script: Script) => {
+    setSelectedScript(script);
+    // Don't auto-navigate to parameters — stay in gallery, show action bar
+  }, [setSelectedScript]);
+
+  const handleConfigureScript = useCallback((script: Script) => {
+    setConfiguredScript(script);
     setSelectedScript(script);
     setActiveInspectorTab('parameters');
     if (isMobile) setInspectorOpen(true);
   }, [setSelectedScript, setActiveInspectorTab, isMobile, setInspectorOpen]);
+
+  const handleBackFromConfigure = useCallback(() => {
+    setConfiguredScript(null);
+  }, []);
 
   // 1. Filtering Logic
   const {
@@ -178,6 +192,15 @@ export const ScriptGallery: React.FC = () => {
     return false;
   }, [activeScriptSource]);
 
+  // When configuring a script, show the parameters view inline
+  if (configuredScript) {
+    return (
+      <div className="h-full">
+        <ScriptInspector onBack={handleBackFromConfigure} />
+      </div>
+    );
+  }
+
   return (
     <div ref={galleryRef} className={`relative min-h-full min-w-0 ${isFocusMode || isArmingWatchdogs ? 'overflow-hidden' : ''}`}>
       <div className={`p-4 transition-opacity duration-300 ${(isFocusMode || isArmingWatchdogs) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
@@ -218,6 +241,15 @@ export const ScriptGallery: React.FC = () => {
               isCompactView={isCompactView}
               setIsCompactView={setIsCompactView}
             />
+
+            {selectedScript && (
+              <GalleryActionBar
+                script={selectedScript}
+                onFocus={handleEnterFocusMode}
+                onReplace={handleReplaceScript}
+                onConfigure={handleConfigureScript}
+              />
+            )}
 
             <ScriptGrid
               favoriteScripts={favoriteScripts}
