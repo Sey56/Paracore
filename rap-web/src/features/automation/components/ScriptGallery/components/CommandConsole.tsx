@@ -54,7 +54,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
   const activeSortLabel = SORT_OPTIONS.find(opt => opt.value === sortOrder)?.label || 'Sort';
 
   return (
-    <div className="w-full mb-4 relative z-20">
+    <div className="w-full mb-1 relative z-20">
       <div className={`w-full flex flex-wrap items-center gap-2.5 px-3 py-2 rounded-xl bg-white/70 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
 
         {/* Search */}

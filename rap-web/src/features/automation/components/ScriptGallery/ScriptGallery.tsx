@@ -13,7 +13,7 @@ import { NewScriptModal } from '@/features/automation/components/NewScriptModal'
 import { ScriptInspector } from '@/features/automation/components/ScriptInspector/ScriptInspector';
 import { FilterPills } from '@/components/common/FilterPills';
 import { FocusOverlay } from './components/FocusOverlay';
-import { GalleryHeader } from './components/GalleryHeader';
+import { GalleryInfoBar } from './components/GalleryInfoBar';
 import { CommandConsole } from './components/CommandConsole';
 import { GalleryActionBar } from './components/GalleryActionBar';
 import { ScriptGrid } from './components/ScriptGrid';
@@ -208,48 +208,50 @@ export const ScriptGallery: React.FC = () => {
           <NoActiveSource />
         ) : (
           <>
-            <GalleryHeader
-              isAuthenticated={isAuthenticated}
-              selectedDefaultCategories={selectedDefaultCategories}
-              handleDefaultCategoryChange={handleDefaultCategoryChange}
-              activeScriptSource={activeScriptSource}
-              selectedFolder={selectedFolder}
-              totalUnits={favoriteScripts.length + otherScripts.length}
-              onRefresh={() => {
-                const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
-                if (path) loadScriptsForFolder(path);
-              }}
-              canCreateScripts={canCreateScripts}
-              onNewScript={openNewScriptModal}
-              onNewSentinel={openNewSentinelModal}
-            />
-
-            {pillFilters.length > 0 && (
-              <div className="mb-6">
-                <FilterPills filters={pillFilters} onRemoveFilter={handleRemoveFilter} />
-              </div>
-            )}
-
-            <CommandConsole
-              isAuthenticated={isAuthenticated}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              typeFilter={typeFilter}
-              setTypeFilter={setTypeFilter}
-              sortOrder={sortOrder}
-              setSortOrder={setSortOrder}
-              isCompactView={isCompactView}
-              setIsCompactView={setIsCompactView}
-            />
-
-            {selectedScript && (
-              <GalleryActionBar
-                script={selectedScript}
-                onFocus={handleEnterFocusMode}
-                onReplace={handleReplaceScript}
-                onConfigure={handleConfigureScript}
+            {/* Sticky controls block */}
+            <div className="sticky top-0 z-10 bg-[var(--bg-ground)]">
+              <GalleryInfoBar
+                isAuthenticated={isAuthenticated}
+                selectedDefaultCategories={selectedDefaultCategories}
+                handleDefaultCategoryChange={handleDefaultCategoryChange}
+                activeScriptSource={activeScriptSource}
+                selectedFolder={selectedFolder}
+                onRefresh={() => {
+                  const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
+                  if (path) loadScriptsForFolder(path);
+                }}
+                canCreateScripts={canCreateScripts}
+                onNewScript={openNewScriptModal}
+                onNewSentinel={openNewSentinelModal}
               />
-            )}
+
+              {pillFilters.length > 0 && (
+                <div className="px-3 pb-1">
+                  <FilterPills filters={pillFilters} onRemoveFilter={handleRemoveFilter} />
+                </div>
+              )}
+
+              <CommandConsole
+                isAuthenticated={isAuthenticated}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                typeFilter={typeFilter}
+                setTypeFilter={setTypeFilter}
+                sortOrder={sortOrder}
+                setSortOrder={setSortOrder}
+                isCompactView={isCompactView}
+                setIsCompactView={setIsCompactView}
+              />
+
+              {selectedScript && (
+                <GalleryActionBar
+                  script={selectedScript}
+                  onFocus={handleEnterFocusMode}
+                  onReplace={handleReplaceScript}
+                  onConfigure={handleConfigureScript}
+                />
+              )}
+            </div>
 
             <ScriptGrid
               favoriteScripts={favoriteScripts}
