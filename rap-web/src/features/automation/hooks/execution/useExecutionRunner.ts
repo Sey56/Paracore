@@ -9,7 +9,8 @@ import { trackEvent } from '@/utils/telemetry';
 export const useExecutionRunner = (
   threadId: string | null,
   addRecentScript: (id: string) => void,
-  updateScriptLastRunTime: (id: string) => void
+  updateScriptLastRunTime: (id: string) => void,
+  isEnterprise: boolean = false
 ) => {
   const { showNotification } = useNotifications();
   const { revitStatus } = useRevitStatus();
@@ -43,7 +44,8 @@ export const useExecutionRunner = (
       const response = await api.post("/run-script", {
         path: script.absolutePath,
         parameters: JSON.stringify(parameters),
-        thread_id: threadId
+        thread_id: threadId,
+        license_tier: isEnterprise ? "enterprise" : "free"
       });
 
       const result = response.data;
@@ -81,7 +83,7 @@ export const useExecutionRunner = (
     } finally {
       setRunningScriptPath(null);
     }
-  }, [runningScriptPath, threadId, addRecentScript, updateScriptLastRunTime, showNotification, revitStatus.document]);
+  }, [runningScriptPath, threadId, addRecentScript, updateScriptLastRunTime, showNotification, revitStatus.document, isEnterprise]);
 
   return {
     runningScriptPath,

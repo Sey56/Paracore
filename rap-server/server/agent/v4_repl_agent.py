@@ -65,13 +65,18 @@ async def execute_dynamic_query(ctx: RunContext[AgentDeps], args: DynamicQueryAr
     LINQ, FilteredElementCollector, LookupParameter, or foreach+Println.
     For syntax help, call read_extension_methods("name").
     """
-    from agent.tool_helpers import sanitize_csharp_code, check_paracore_compliance
+    from agent.tool_helpers import sanitize_csharp_code, check_paracore_compliance, check_dangerous_patterns
     code = sanitize_csharp_code(args.csharp_code)
 
     # Anti-pattern guard: catch raw Revit API before human sees bad code
     compliance = check_paracore_compliance(code)
     if compliance:
         return compliance  # agent self-corrects; human never sees bad code
+
+    # Dangerous pattern guard: catch process spawn, registry, file deletion, etc.
+    danger = check_dangerous_patterns(code, agent_only=True)
+    if danger:
+        return danger
 
     # SOVEREIGN HANDOFF: We interrupt the agent's flow by raising this custom exception.
     # The agent_router.py will catch this exception, extract the code, and send it to the UI.
@@ -96,7 +101,7 @@ async def explore_revit_data(ctx: RunContext[AgentDeps], args: ExploreQueryArgs)
     """
     try:
         logger.info(f"Agent Exploring Data: {args.justification}")
-        from agent.tool_helpers import sanitize_csharp_code, check_paracore_compliance
+        from agent.tool_helpers import sanitize_csharp_code, check_paracore_compliance, check_dangerous_patterns
         code = sanitize_csharp_code(args.csharp_code)
 
         # Record thinking step for UI visibility
@@ -117,6 +122,13 @@ async def explore_revit_data(ctx: RunContext[AgentDeps], args: ExploreQueryArgs)
             step["status"] = "completed"
             step["result_summary"] = compliance[:300]
             return compliance
+
+        # Dangerous pattern guard
+        danger = check_dangerous_patterns(code, agent_only=True)
+        if danger:
+            step["status"] = "completed"
+            step["result_summary"] = danger[:300]
+            return danger
 
         result = execute_script(code, "{}")
 

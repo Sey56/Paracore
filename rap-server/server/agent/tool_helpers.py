@@ -126,6 +126,91 @@ _ANTI_PATTERNS: list[tuple[str, str]] = [
     ),
 ]
 
+# ── Dangerous Pattern Detection ──────────────────────────────────────────────
+# Two-tier security guard: BlockedAlways patterns have no legitimate use in any
+# Paracore execution context (process spawn, registry, destructive I/O).
+# BlockedAgentOnly patterns are blocked for AI agent / MCP execution but
+# permitted for user-triggered console/gallery REPL.
+# Each tuple: (regex, human-readable violation description).
+
+_BLOCKED_ALWAYS: list[tuple[str, str]] = [
+    (r'Process\.Start\s*\(',       "Process.Start() — spawning external processes"),
+    (r'Environment\.Exit\s*\(',     "Environment.Exit() — killing the Revit process"),
+    (r'Environment\.FailFast\s*\(', "Environment.FailFast() — killing the Revit process"),
+    (r'Microsoft\.Win32\.Registry', "Windows Registry access"),
+    (r'\bRegistryKey\b',            "Windows Registry access"),
+    (r'Assembly\.Load\s*\(',        "Runtime assembly loading"),
+    (r'Assembly\.LoadFrom\s*\(',    "Runtime assembly loading"),
+    (r'Assembly\.LoadFile\s*\(',    "Runtime assembly loading"),
+    (r'File\.Delete\s*\(',         "File.Delete() — destructive file deletion"),
+    (r'Directory\.Delete\s*\(',    "Directory.Delete() — destructive directory deletion"),
+]
+
+_BLOCKED_AGENT_ONLY: list[tuple[str, str]] = [
+    (r'new\s+HttpClient\s*\(',     "HttpClient — use the pre-imported RestSharp instead"),
+    (r'HttpClient\s*\.',           "HttpClient — use the pre-imported RestSharp instead"),
+    (r'new\s+WebClient\s*\(',      "WebClient — use the pre-imported RestSharp instead"),
+    (r'WebClient\s*\.',            "WebClient — use the pre-imported RestSharp instead"),
+    (r'\bHttpWebRequest\b',        "HttpWebRequest — use the pre-imported RestSharp instead"),
+    (r'new\s+Socket\s*\(',         "Raw socket — no Paracore use case"),
+    (r'new\s+TcpClient\s*\(',      "Raw TCP socket — no Paracore use case"),
+    (r'new\s+UdpClient\s*\(',      "Raw UDP socket — no Paracore use case"),
+]
+
+
+def check_dangerous_patterns(code: str, agent_only: bool = True) -> Optional[str]:
+    """
+    Scan C# code for dangerous/insecure patterns.
+
+    Two-tier detection:
+      Tier 1 (always): Security-critical patterns blocked for ALL execution
+                       paths — process spawning, registry access, assembly
+                       loading, destructive file/directory deletion.
+      Tier 2 (agent_only=True): Patterns blocked only for AI agent / MCP
+                       execution. Console/gallery REPL users may have
+                       legitimate use for HttpClient, raw sockets, etc.,
+                       so these are permitted when the user directly
+                       triggers execution.
+
+    Args:
+        code: The C# source code to scan.
+        agent_only: If True (default), applies Tier 2 restrictions for
+                    agent/MCP execution. If False, only Tier 1 applies.
+
+    Returns:
+        None if the code passes all checks, or a formatted error message
+        starting with the cross-mark emoji and listing each violation.
+    """
+    issues: list[str] = []
+    seen: set[str] = set()
+
+    # Tier 1: Always blocked — no legitimate use case in any context
+    for pattern, suggestion in _BLOCKED_ALWAYS:
+        if suggestion in seen:
+            continue
+        if re.search(pattern, code, re.IGNORECASE | re.DOTALL):
+            issues.append(suggestion)
+            seen.add(suggestion)
+
+    # Tier 2: Blocked for agent/MCP execution only
+    if agent_only:
+        for pattern, suggestion in _BLOCKED_AGENT_ONLY:
+            if suggestion in seen:
+                continue
+            if re.search(pattern, code, re.IGNORECASE | re.DOTALL):
+                issues.append(suggestion)
+                seen.add(suggestion)
+
+    if not issues:
+        return None
+
+    msg = "❌ Dangerous pattern detected:\n\n"
+    for i, issue in enumerate(issues, 1):
+        msg += f"{i}. {issue}\n"
+    msg += ("\nThese patterns have no legitimate use in Paracore scripts. "
+            "Remove them before re-submitting.")
+    return msg
+
 
 def check_paracore_compliance(code: str) -> Optional[str]:
     """

@@ -439,6 +439,37 @@ async def chat_with_agent(request: ChatRequest):
                 except Exception:
                     pass
             agent_response = await _run_conversational_summary(summary, deps, model, topic_query, csharp_code)
+
+            # ── Patch the dummy ToolReturnPart with real results ──────────
+            # The Protocol Shield injected a placeholder ToolReturnPart with
+            # "Execution output provided in next system message." — but the
+            # real execution just completed.  Replace the dummy with the
+            # actual summary so the agent remembers what its code produced on
+            # the next turn.
+            for i in range(len(pydantic_history) - 1, -1, -1):
+                msg = pydantic_history[i]
+                if isinstance(msg, ModelRequest):
+                    new_parts = []
+                    replaced = False
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart) and part.content == "Execution output provided in next system message.":
+                            new_parts.append(ToolReturnPart(
+                                tool_name=part.tool_name,
+                                content=summary,
+                                tool_call_id=part.tool_call_id,
+                            ))
+                            replaced = True
+                        else:
+                            new_parts.append(part)
+                    if replaced:
+                        pydantic_history[i] = ModelRequest(parts=new_parts)
+                        break
+
+            # Append the agent's summary response + the system prompt that
+            # triggered it so the full turn is captured.
+            pydantic_history.append(ModelRequest(parts=[UserPromptPart(content=request.message)]))
+            pydantic_history.append(ModelResponse(parts=[TextPart(content=agent_response)]))
+
             response_data["message"] = agent_response
             response_data["raw_history_json"] = _serialize_history(pydantic_history)
             return Response(content=json.dumps(response_data), media_type="application/json")
@@ -596,6 +627,34 @@ async def chat_with_agent_stream(request: ChatRequest):
                 summary = summarize(request.raw_output_for_summary)
             except Exception:
                 summary = "Execution completed."
+
+            # ── Patch the dummy ToolReturnPart with real results ──────────
+            # Same fix as the non-streaming path: replace the Protocol Shield's
+            # placeholder with the actual execution summary so the agent
+            # remembers what its code produced on the next turn.
+            for i in range(len(pydantic_history) - 1, -1, -1):
+                msg = pydantic_history[i]
+                if isinstance(msg, ModelRequest):
+                    new_parts = []
+                    replaced = False
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart) and part.content == "Execution output provided in next system message.":
+                            new_parts.append(ToolReturnPart(
+                                tool_name=part.tool_name,
+                                content=summary,
+                                tool_call_id=part.tool_call_id,
+                            ))
+                            replaced = True
+                        else:
+                            new_parts.append(part)
+                    if replaced:
+                        pydantic_history[i] = ModelRequest(parts=new_parts)
+                        break
+
+            # Append this turn to history so the full cycle is preserved
+            pydantic_history.append(ModelRequest(parts=[UserPromptPart(content=request.message)]))
+            pydantic_history.append(ModelResponse(parts=[TextPart(content=summary)]))
+
             yield _format_sse("complete", {
                 "message": summary,
                 "raw_history_json": _serialize_history(pydantic_history),

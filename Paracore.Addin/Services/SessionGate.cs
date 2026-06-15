@@ -42,15 +42,21 @@ namespace Paracore.Addin.Services
                     : "Paracore — Code Execution";
 
                 string mainInstruction = isAgent
-                    ? "An AI agent wants to execute code."
-                    : "Paracore wants to execute code.";
+                    ? "An AI agent wants to execute code in Revit."
+                    : "Paracore needs to execute code in Revit.";
 
                 string mainContent = isAgent
-                    ? "An AI agent is requesting to execute C# code in this Revit document.\n\n"
-                      + "This code can read and modify the Revit model, access files, and run system commands.\n\n"
+                    ? "An AI agent (the built-in Paracore Agent, an MCP server, Claude Desktop, "
+                      + "Cursor, or another LLM-powered tool) is requesting to execute C# code "
+                      + "in this Revit document.\n\n"
+                      + "This code can read and modify the Revit model. "
+                      + "Only allow this if you trust the AI agent and the instructions you gave it.\n\n"
                       + "Allow for this Revit session?"
-                    : "Paracore needs to execute C# code in this Revit document.\n\n"
-                      + "This includes scripts, REPL commands, and automation.\n\n"
+                    : "Code execution in this Revit document may be triggered by scripts, "
+                      + "the REPL console, automations, or AI agents (Paracore Agent, MCP server, "
+                      + "Claude Desktop, Cursor, etc.).\n\n"
+                      + "Executed code can read and modify the Revit model. "
+                      + "Only allow this if you know and trust the source of the execution.\n\n"
                       + "Allow for this Revit session?";
 
                 var dialog = new TaskDialog(title)

@@ -140,7 +140,7 @@ export const AgentView: React.FC = () => {
     };
   }, []);
 
-  const { cloudToken } = useAuth();
+  const { cloudToken, isEnterprise } = useAuth();
   const { showNotification } = useNotifications();
   const { revitStatus } = useRevitStatus();
   const { selectedScript, setSelectedScript, runScript, executionResult, clearExecutionResult, userEditedScriptParameters } = useScriptExecution();
@@ -218,8 +218,20 @@ export const AgentView: React.FC = () => {
       const lastHumanMessage = newMessages.findLast(m => m.type === 'human');
       const messageContent = lastHumanMessage ? lastHumanMessage.content : '';
 
-      // Get latest raw history for high-fidelity persistence
-      const latestRawHistory = messages.findLast(m => m.raw_history)?.raw_history;
+      // Get latest raw history for high-fidelity persistence.
+      // CRITICAL: if the user interrupted a mid-generation stream, messages
+      // after the raw_history source (e.g. the original "columns" query) are
+      // NOT captured in raw_history.  Detect staleness and fall back to the
+      // full messages array so the backend sees the complete conversation.
+      const lastRawHistoryMsg = [...messages].reverse().find(m => m.raw_history);
+      const lastRawHistoryIdx = lastRawHistoryMsg ? messages.indexOf(lastRawHistoryMsg) : -1;
+      const orphanedHumanMessages = lastRawHistoryIdx >= 0
+        ? messages.slice(lastRawHistoryIdx + 1).filter(
+            m => m.type === 'human' && !(typeof m.content === 'string' && m.content.startsWith('System:'))
+          )
+        : [];
+      const rawHistoryIsStale = orphanedHumanMessages.length > 0;
+      const latestRawHistory = lastRawHistoryMsg?.raw_history;
 
       const currentParamsArray = selectedScript ? userEditedScriptParameters[selectedScript.id] : undefined;
       const currentParamsDict = currentParamsArray ?
@@ -233,8 +245,10 @@ export const AgentView: React.FC = () => {
       const payload = {
         thread_id: threadId,
         message: messageContent,
-        history: latestRawHistory ? undefined : messages,
-        raw_history: latestRawHistory,
+        // When raw_history is stale (missing recent human messages), fall
+        // back to the full messages array so the backend has complete context.
+        history: (latestRawHistory && !rawHistoryIsStale) ? undefined : messages,
+        raw_history: (latestRawHistory && !rawHistoryIsStale) ? latestRawHistory : undefined,
         agent_scripts_path: toolLibraryPath,
         token: cloudToken,
         llm_provider: llmProvider,
@@ -553,7 +567,8 @@ export const AgentView: React.FC = () => {
             const effectiveUrl = rapServerUrl ? `${rapServerUrl}/api/repl` : "/api/repl";
             const res = await api.post(effectiveUrl, {
                 code: toolCall.args.csharp_code,
-                session_id: threadId || "temp_session"
+                session_id: threadId || "temp_session",
+                license_tier: isEnterprise ? "enterprise" : "free"
             });
             
             if (!res.data.is_success) {
@@ -815,6 +830,27 @@ export const AgentView: React.FC = () => {
     return new Set(messages.filter(m => m.type === 'tool' && typeof m.content === 'string' && m.content.startsWith('REJECTED')).map(m => m.tool_call_id));
   }, [messages]);
 
+  // Tool calls whose parent AI message is followed by a new human message —
+  // the user implicitly skipped the HITL by sending another query.
+  const staleToolCallIds = useMemo(() => {
+    const stale = new Set<string>();
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg.type === 'ai' && msg.tool_calls) {
+        // Check if there is a subsequent non-system human message
+        const hasSubsequentHuman = messages.slice(i + 1).some(
+          m => m.type === 'human' && !m.content?.toString().startsWith('System:')
+        );
+        if (hasSubsequentHuman) {
+          for (const tc of msg.tool_calls) {
+            stale.add(tc.id);
+          }
+        }
+      }
+    }
+    return stale;
+  }, [messages]);
+
   // ── Thinking Step open state (persists across re-renders) ──────────
   const [openThinkingSteps, setOpenThinkingSteps] = useState<Set<string>>(new Set());
 
@@ -861,6 +897,7 @@ export const AgentView: React.FC = () => {
       const isDynamicQuery = toolCall.name === 'execute_dynamic_query';
       const isResolved = toolCall.id ? resolvedToolCallIds.has(toolCall.id) : false;
       const isRejected = toolCall.id ? rejectedToolCallIds.has(toolCall.id) : false;
+      const isStale = toolCall.id ? staleToolCallIds.has(toolCall.id) : false;
 
       const toolCompletedSteps = hasThinkingSteps
         ? msg.thinking_steps!.filter(s => s.status !== 'running' && s.tool_name !== '__pending__')
@@ -928,19 +965,19 @@ export const AgentView: React.FC = () => {
           )}
 
           {csharp_code ? (
-              <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border)]/30 shadow-sm overflow-hidden mt-2">
+              <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border)]/30 shadow-sm overflow-hidden mt-2 min-w-0 w-full">
                   <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)]/30">
-                     <div className="flex items-center space-x-2">
+                     <div className="flex items-center space-x-2 shrink-0">
                         <FontAwesomeIcon icon={faRobot} className="text-[var(--accent)] text-[14px]" />
                         <span className="text-[12px] font-medium text-[var(--text-primary)]">Action Proposed</span>
                      </div>
                      {isRejected ? (
-                        <div className="flex items-center space-x-1.5 bg-[var(--danger-muted)] px-2.5 py-1 rounded-md border border-[var(--danger)]/20">
+                        <div className="flex items-center space-x-1.5 bg-[var(--danger-muted)] px-2.5 py-1 rounded-md border border-[var(--danger)]/20 shrink-0 ml-4">
                            <FontAwesomeIcon icon={faTimesCircle} className="text-[10px] text-[var(--danger)]" />
                            <span className="text-[10px] font-bold tracking-wide text-[var(--danger)] uppercase">Rejected</span>
                         </div>
                      ) : isResolved ? (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 shrink-0 ml-4">
                            <div className="flex items-center space-x-1.5 bg-[var(--success-muted)] px-2.5 py-1 rounded-md border border-[var(--success)]/20">
                               <FontAwesomeIcon icon={faCheckCircle} className="text-[10px] text-[var(--success)]" />
                               <span className="text-[10px] font-bold tracking-wide text-green-500 uppercase">Executed</span>
@@ -951,7 +988,24 @@ export const AgentView: React.FC = () => {
                                navigator.clipboard.writeText(csharp_code as string);
                                showNotification("Code copied to clipboard!", "success");
                              }}
-                             title="Copy code for manual execution in the REPL Playground"
+
+                             className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors bg-[var(--bg-hover)] border border-[var(--border)] hover:border-[var(--accent)] rounded-md shadow-sm"
+                           >
+                             <FontAwesomeIcon icon={faCopy} className="mr-1.5" />
+                             Copy
+                           </button>
+                        </div>
+                     ) : isStale ? (
+                        <div className="flex items-center space-x-2 shrink-0 ml-4">
+                           <div className="flex items-center space-x-1.5 bg-gray-100 dark:bg-gray-700/30 px-2.5 py-1 rounded-md border border-gray-300/50 dark:border-gray-600/50">
+                              <span className="text-[10px] font-bold tracking-wide text-gray-400 dark:text-gray-500 uppercase">Skipped</span>
+                           </div>
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               navigator.clipboard.writeText(csharp_code as string);
+                               showNotification("Code copied to clipboard!", "success");
+                             }}
                              className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors bg-[var(--bg-hover)] border border-[var(--border)] hover:border-[var(--accent)] rounded-md shadow-sm"
                            >
                              <FontAwesomeIcon icon={faCopy} className="mr-1.5" />
@@ -959,7 +1013,7 @@ export const AgentView: React.FC = () => {
                            </button>
                         </div>
                      ) : (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 shrink-0 ml-4">
                            <button
                              onClick={() => handleToolResponse(toolCall, 'reject')}
                              className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors bg-transparent border border-transparent hover:border-[var(--danger)]/20 rounded-md"
@@ -972,7 +1026,7 @@ export const AgentView: React.FC = () => {
                                navigator.clipboard.writeText(csharp_code as string);
                                showNotification("Code copied to clipboard!", "success");
                              }}
-                             title="Copy code for manual execution in the REPL Playground"                             className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors bg-[var(--bg-hover)] border border-[var(--border)] hover:border-[var(--accent)] rounded-md shadow-sm"
+                                                         className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors bg-[var(--bg-hover)] border border-[var(--border)] hover:border-[var(--accent)] rounded-md shadow-sm"
                            >
                              <FontAwesomeIcon icon={faCopy} className="mr-1.5" />
                              Copy
@@ -987,7 +1041,7 @@ export const AgentView: React.FC = () => {
                      )}
                   </div>
                   
-                  <details className="group">
+                  <details className="group w-full overflow-hidden [contain:inline-size]">
                     <summary className="px-4 py-2.5 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer hover:bg-[var(--bg-hover)] transition-colors list-none flex items-center select-none">
                       <span className="mr-2 opacity-50 group-open:rotate-90 transition-transform">▶</span>
                       View Source Code
@@ -1014,26 +1068,32 @@ export const AgentView: React.FC = () => {
                   </details>
               </div>
           ) : Object.keys(displayArgs).length > 0 && (
-             <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border)]/30 shadow-sm overflow-hidden mt-2">
+             <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border)]/30 shadow-sm overflow-hidden mt-2 min-w-0 w-full">
                  <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)]/30">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 shrink-0">
                        <FontAwesomeIcon icon={faRobot} className="text-[var(--accent)] text-[14px]" />
                        <span className="text-[12px] font-medium text-[var(--text-primary)]">Tool Invoked: {toolCall.name}</span>
                     </div>
                      {isRejected ? (
-                        <div className="flex items-center space-x-1.5 bg-[var(--danger-muted)] px-2.5 py-1 rounded-md border border-[var(--danger)]/20">
+                        <div className="flex items-center space-x-1.5 bg-[var(--danger-muted)] px-2.5 py-1 rounded-md border border-[var(--danger)]/20 shrink-0 ml-4">
                            <FontAwesomeIcon icon={faTimesCircle} className="text-[10px] text-[var(--danger)]" />
                            <span className="text-[10px] font-bold tracking-wide text-[var(--danger)] uppercase">Rejected</span>
                         </div>
                      ) : isResolved ? (
-                       <div className="flex items-center space-x-2">
+                       <div className="flex items-center space-x-2 shrink-0 ml-4">
                           <div className="flex items-center space-x-1.5 bg-[var(--success-muted)] px-2.5 py-1 rounded-md border border-[var(--success)]/20">
                              <FontAwesomeIcon icon={faCheckCircle} className="text-[10px] text-[var(--success)]" />
                              <span className="text-[10px] font-bold tracking-wide text-green-500 uppercase">Resolved</span>
                           </div>
                        </div>
+                     ) : isStale ? (
+                       <div className="flex items-center space-x-2 shrink-0 ml-4">
+                          <div className="flex items-center space-x-1.5 bg-gray-100 dark:bg-gray-700/30 px-2.5 py-1 rounded-md border border-gray-300/50 dark:border-gray-600/50">
+                             <span className="text-[10px] font-bold tracking-wide text-gray-400 dark:text-gray-500 uppercase">Skipped</span>
+                          </div>
+                       </div>
                     ) : (
-                       <div className="flex items-center space-x-2">
+                       <div className="flex items-center space-x-2 shrink-0 ml-4">
                           <button
                             onClick={() => handleToolResponse(toolCall, 'reject')}
                             className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors bg-transparent border border-transparent hover:border-[var(--danger)]/20 rounded-md"

@@ -322,7 +322,9 @@ namespace CoreScript.Engine.Core
             }
             catch (Exception ex)
             {
-                var failureResult = ExecutionResult.Failure($"❌ Binary error: {ex.Message}", context.PrintLog.ToArray());
+                // Pass the error message through without a prefix — user-facing
+                // exceptions like LicenseException already carry their own emoji.
+                var failureResult = ExecutionResult.Failure(ex.Message, context.PrintLog.ToArray());
                 failureResult.ScriptName = topLevelScriptName;
                 return failureResult;
             }

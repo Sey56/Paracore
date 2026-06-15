@@ -34,7 +34,7 @@ from grpc_client import close_channel, execute_repl, execute_script, get_context
 
 # Shared tool helpers (summarize, extension method search, etc.)
 try:
-    from agent.tool_helpers import summarize_execution_result, format_execution_error, search_extension_methods, sanitize_csharp_code, check_paracore_compliance
+    from agent.tool_helpers import summarize_execution_result, format_execution_error, search_extension_methods, sanitize_csharp_code, check_paracore_compliance, check_dangerous_patterns
 except ImportError:
     # Fallback for when agent package isn't available
     def summarize_execution_result(x):
@@ -53,6 +53,8 @@ except ImportError:
     def sanitize_csharp_code(code):
         return code
     def check_paracore_compliance(code):
+        return None  # skip check when helpers unavailable
+    def check_dangerous_patterns(code, agent_only=True):
         return None  # skip check when helpers unavailable
 
 # Configure logging
@@ -127,6 +129,12 @@ def explore_revit_data(csharp_code: str, justification: str) -> str:
         logger.info(f"MCP Anti-Pattern Blocked: {compliance[:200]}")
         return compliance
 
+    # Dangerous pattern guard
+    danger = check_dangerous_patterns(csharp_code, agent_only=True)
+    if danger:
+        logger.info(f"MCP Dangerous Pattern Blocked: {danger[:200]}")
+        return danger
+
     logger.info(f"MCP Exploring Data: {justification}")
     try:
         result = execute_repl(csharp_code, "mcp-session",
@@ -181,6 +189,12 @@ def execute_dynamic_query(csharp_code: str, justification: str) -> str:
     if compliance:
         logger.info(f"MCP Anti-Pattern Blocked: {compliance[:200]}")
         return compliance
+
+    # Dangerous pattern guard
+    danger = check_dangerous_patterns(csharp_code, agent_only=True)
+    if danger:
+        logger.info(f"MCP Dangerous Pattern Blocked: {danger[:200]}")
+        return danger
 
     logger.info(f"MCP Executing Query: {justification}")
     try:

@@ -18,7 +18,8 @@ async def run_script_logic(
     current_user_id: int,
     active_team: int,
     active_role: str,
-    db: Session
+    license_tier: str = "free",
+    db: Session = None
 ):
     if not path:
         raise HTTPException(status_code=400, detail="No script path provided")
@@ -57,7 +58,6 @@ async def run_script_logic(
                 if not found: params_payload.append({"name": "__script_name__", "value": script_name})
             
             # Inject license tier for enterprise feature gating
-            license_tier = "enterprise" if current_user_id != 0 else "free"
             if isinstance(params_payload, list):
                 if not any(p.get("name") == "__license_tier__" for p in params_payload):
                     params_payload.append({"name": "__license_tier__", "value": license_tier})
@@ -108,7 +108,6 @@ async def run_script_logic(
                 rich_params.append({"name": "__absolute_path__", "value": resolved_path})
 
             # Inject license tier for enterprise feature gating
-            license_tier = "enterprise" if current_user_id != 0 else "free"
             if not any(p.get("name") == "__license_tier__" for p in rich_params):
                 rich_params.append({"name": "__license_tier__", "value": license_tier})
 

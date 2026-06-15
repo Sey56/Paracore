@@ -43,7 +43,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     activeSyncSessions,
     editScript: editScriptFromContext
   } = useScripts();
-  const { isAuthenticated, activeTeam, user, cloudToken } = useAuth();
+  const { isAuthenticated, activeTeam, user, cloudToken, isEnterprise } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, setActiveInspectorTab, threadId } = useUI();
   const { revitStatus } = useRevitStatus();
 
@@ -100,7 +100,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     executionResult,
     setExecutionResult,
     runScript
-  } = useExecutionRunner(threadId, addRecentScript, updateScriptLastRunTime);
+  } = useExecutionRunner(threadId, addRecentScript, updateScriptLastRunTime, isEnterprise);
 
   // 6. Parameter Computations
   const {
