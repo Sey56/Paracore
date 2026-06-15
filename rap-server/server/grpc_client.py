@@ -460,8 +460,9 @@ def get_context():
                 "username": response.project_info.username
             } if response.HasField("project_info") else None
         }
-    except Exception as e:
-        raise e
+    except Exception:
+        logging.error("Error calling GetContext gRPC", exc_info=True)
+        raise
 
 
 def compute_parameter_options(script_content: str, parameter_name: str, parameters: dict = None):

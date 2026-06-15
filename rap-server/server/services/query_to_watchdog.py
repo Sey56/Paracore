@@ -1,7 +1,10 @@
+import logging
 import os
 from typing import Dict, Any, List, Optional
 from services import query_service
 from services import script_service
+
+logger = logging.getLogger(__name__)
 
 async def generate_watchdog_script_content(
     name: str,
@@ -148,12 +151,6 @@ async def generate_watchdog_script(
             }
     except Exception as e:
         logger.error(f"[QueryToWatchdog] Failed to fetch script metadata: {e}")
-
-    return {
-        "success": True,
-        "path": script_path.replace('\\', '/'),
-        "file_path": file_path.replace('\\', '/')
-    }
 
     return {
         "success": True,

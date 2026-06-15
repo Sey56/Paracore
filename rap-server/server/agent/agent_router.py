@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import logging
 import uuid
@@ -227,6 +228,7 @@ async def _run_conversational_summary(
 
     try:
         from pydantic_ai import Agent as PydanticAgent
+        from pydantic_ai.usage import RunUsage
         summary_bot = PydanticAgent(
             model=model,
             system_prompt=(
@@ -236,7 +238,13 @@ async def _run_conversational_summary(
                 "Never mention internal details like 'Group', 'Count', or column names."
             ),
         )
-        result = await summary_bot.run(prompt)
+        summary_usage = RunUsage()
+        result = await summary_bot.run(prompt, usage=summary_usage)
+        # Accumulate summary usage into deps so both agent + summary tokens are tracked
+        try:
+            deps.turn_usage.incr(summary_usage)
+        except Exception:
+            pass
         return str(result.output).strip()
     except Exception:
         logger.exception("LLM conversational summary failed, using fallback.")
@@ -438,14 +446,28 @@ async def chat_with_agent(request: ChatRequest):
         # ── 5. Main agent run ─────────────────────────────────────────────
         try:
             from pydantic_ai.settings import ModelSettings
+            from pydantic_ai.usage import RunUsage
 
+            deps.turn_usage = RunUsage()
             result = await v4_repl_agent.run(
                 request.message,
                 message_history=pydantic_history,
                 deps=deps,
                 model=model,
                 model_settings=ModelSettings(max_tokens=2048),
+                usage=deps.turn_usage,
             )
+
+            # Capture usage EARLY — survives sanitizer raising InterruptedException below
+            try:
+                response_data["usage"] = {
+                    "input_tokens": deps.turn_usage.input_tokens,
+                    "output_tokens": deps.turn_usage.output_tokens,
+                    "total_tokens": deps.turn_usage.total_tokens,
+                    "requests": deps.turn_usage.requests,
+                }
+            except Exception:
+                pass
 
             raw_output = str(result.output) if isinstance(result.output, str) else ""
 
@@ -471,6 +493,17 @@ async def chat_with_agent(request: ChatRequest):
 
         except InterruptedException as e:
             # ── 5b. Sovereign Handoff ─────────────────────────────────────
+            # Include partial usage from the interrupted agent run
+            try:
+                response_data["usage"] = {
+                    "input_tokens": deps.turn_usage.input_tokens,
+                    "output_tokens": deps.turn_usage.output_tokens,
+                    "total_tokens": deps.turn_usage.total_tokens,
+                    "requests": deps.turn_usage.requests,
+                }
+            except Exception:
+                pass
+
             # Block retry if results were already delivered (follow-up after execution)
             if request.raw_output_for_summary:
                 logger.info(f"[V4] Blocked agent retry after results already delivered.")
@@ -594,6 +627,8 @@ async def chat_with_agent_stream(request: ChatRequest):
                     pass  # handled by deps.thinking_steps inspection below
 
         # ── Start agent run in background ──────────────────────────────────
+        from pydantic_ai.usage import RunUsage
+        deps.turn_usage = RunUsage()
         agent_task = asyncio.create_task(
             v4_repl_agent.run(
                 request.message,
@@ -602,6 +637,7 @@ async def chat_with_agent_stream(request: ChatRequest):
                 model=model,
                 model_settings=ModelSettings(max_tokens=2048),
                 event_stream_handler=stream_handler,
+                usage=deps.turn_usage,
             )
         )
 
@@ -687,10 +723,21 @@ async def chat_with_agent_stream(request: ChatRequest):
                 tool_call, history_json = _build_sovereign_handoff(
                     e, request.message, pydantic_history
                 )
+                usage_data_interrupted = None
+                try:
+                    usage_data_interrupted = {
+                        "input_tokens": deps.turn_usage.input_tokens,
+                        "output_tokens": deps.turn_usage.output_tokens,
+                        "total_tokens": deps.turn_usage.total_tokens,
+                        "requests": deps.turn_usage.requests,
+                    }
+                except Exception:
+                    pass
                 yield _format_sse("interrupted", {
                     "tool_call": tool_call,
                     "raw_history_json": history_json,
                     "thinking_steps": deps.thinking_steps,
+                    "usage": usage_data_interrupted,
                 })
                 return
 
@@ -698,10 +745,21 @@ async def chat_with_agent_stream(request: ChatRequest):
             output = str(result.output) if result and result.output else ""
             from agent.response_sanitizer import sanitize_response
             cleaned_text, _parsed_tool = sanitize_response(output)
+            usage_data = None
+            try:
+                usage_data = {
+                    "input_tokens": deps.turn_usage.input_tokens,
+                    "output_tokens": deps.turn_usage.output_tokens,
+                    "total_tokens": deps.turn_usage.total_tokens,
+                    "requests": deps.turn_usage.requests,
+                }
+            except Exception:
+                pass
             yield _format_sse("complete", {
                 "message": cleaned_text or "Processing complete.",
                 "raw_history_json": _serialize_history(pydantic_history),
                 "thinking_steps": deps.thinking_steps,
+                "usage": usage_data,
             })
 
         except Exception as e:

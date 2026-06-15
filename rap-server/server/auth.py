@@ -91,7 +91,7 @@ async def get_current_user(
             return CurrentUser(
                 id=local_user.id,
                 email=local_email,
-                memberships=[Membership(team_id=0, team_name="Local Team", role="owner", owner_id=0)],
+                memberships=[Membership(team_id=0, team_name="Local Team", role="owner")],
                 activeTeam=0,
                 activeRole="owner"
             )

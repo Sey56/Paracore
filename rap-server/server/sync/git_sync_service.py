@@ -54,7 +54,8 @@ async def sync_all_team_sources():
                 for folder in folders:
                     if os.path.isdir(folder):
                         all_paths.add(folder)
-            except:
+            except Exception:
+                logger.warning(f"Failed to parse script folders setting: {s.setting_value[:100]}")
                 continue
 
         for path in all_paths:

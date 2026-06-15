@@ -1,6 +1,5 @@
 import json
 import os
-import glob
 import grpc
 from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
@@ -8,7 +7,7 @@ from fastapi import HTTPException
 
 import models
 from grpc_client import execute_script, pick_object, select_elements, update_element_parameter, batch_update_element_parameters
-from utils import get_or_create_script, resolve_script_path
+from utils import get_or_create_script, resolve_script_path, read_script_files
 
 async def run_script_logic(
     path: str,
@@ -70,12 +69,9 @@ async def run_script_logic(
             return response_data
 
         # 2. Unified Tool Loading: Always look in Scripts/ subfolder
-        scripts_dir = os.path.join(resolved_path, "Scripts")
-        if os.path.isdir(scripts_dir):
-            for fpath in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fpath).lower() == "globals.cs": continue
-                with open(fpath, 'r', encoding='utf-8-sig') as f:
-                    script_files_payload.append({"file_name": os.path.basename(fpath), "content": f.read()})
+        folder_scripts = read_script_files(resolved_path)
+        if folder_scripts:
+            script_files_payload.extend(folder_scripts)
         else:
             # Fallback for non-folder scripts (Legacy/Migration)
             if os.path.isfile(resolved_path):

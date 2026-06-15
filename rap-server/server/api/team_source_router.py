@@ -16,8 +16,6 @@ import schemas
 from grpc_client import stop_sync_session
 from ide_manager import ACTIVE_IDE_SESSIONS, remove_active_ide_session, cleanup_stale_sessions
 
-logging.basicConfig(level=logging.INFO)
-
 if os.name == 'nt':
     CREATE_NO_WINDOW = 0x08000000
 else:

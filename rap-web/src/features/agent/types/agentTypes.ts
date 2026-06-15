@@ -24,12 +24,20 @@ export interface ThinkingStep {
   result_summary?: string;
 }
 
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  requests: number;
+}
+
 export interface ChatResponse {
   status: 'interrupted' | 'complete';
   message?: string;
   tool_call?: PendingToolCall;
   thinking_steps?: ThinkingStep[];
   raw_history_json?: string;
+  usage?: TokenUsage;
 }
 
 export type ToolCall = {

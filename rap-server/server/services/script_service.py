@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Any
 from fastapi import HTTPException
 import grpc_client
 from ide_manager import set_active_ide_session, remove_active_ide_session
-from utils import resolve_script_path, launch_vscode
+from utils import resolve_script_path, launch_vscode, read_script_files
 from api.script_templates import ARCHETYPES
 
 def recover_true_path(path: str) -> str:
@@ -137,15 +137,7 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             item_path = os.path.join(pack_path, item)
             if not os.path.isdir(item_path) or item.startswith('.'): continue
             
-            scripts_dir = os.path.join(item_path, "Scripts")
-            script_files = []
-            if os.path.isdir(scripts_dir):
-                for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                    if os.path.basename(fp).lower() == "globals.cs": continue
-                    try:
-                        with open(fp, 'r', encoding='utf-8-sig') as f:
-                            script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
-                    except: continue
+            script_files = read_script_files(item_path)
 
             projects_to_fetch.append({
                 "project_name": item,
@@ -240,17 +232,8 @@ async def get_single_script_logic(script_path: str):
         # 2. Handle standard folder scripts
         script_files = []
         project_name = os.path.basename(abs_p)
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                try:
-                    with open(fp, 'r', encoding='utf-8-sig') as f:
-                        script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
-                except Exception:
-                    pass
-                    
+        script_files = read_script_files(abs_p)
+
         # Request full metadata + parameters extraction from the backend Engine
         projects_to_fetch = [{
             "project_name": project_name,
@@ -287,14 +270,7 @@ async def get_script_parameters_logic(script_path: str):
             with open(abs_p, 'r', encoding='utf-8') as f: pkg = json.load(f)
             return {"parameters": _hydrate_params_for_frontend(pkg.get("parameters", []))}
 
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        script_files = []
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, 'r', encoding='utf-8-sig') as f:
-                    script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
-
+        script_files = read_script_files(abs_p)
         if not script_files: return {"parameters": []}
         res = grpc_client.get_script_parameters(script_files)
         return {"parameters": _hydrate_params_for_frontend(res.get("parameters", []))}
@@ -330,14 +306,7 @@ async def compute_parameter_options_logic(script_path: str, parameter_name: str,
             return {"options": [], "is_success": True}
 
         # Standard script logic
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        script_files = []
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, 'r', encoding='utf-8-sig') as f:
-                    script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
-        
+        script_files = read_script_files(abs_p)
         if not script_files: return {"options": [], "is_success": True}
         combined_result = grpc_client.get_combined_script(script_files)
         combined_code = combined_result.get("combined_script", "")
@@ -512,12 +481,7 @@ async def get_script_metadata_logic(script_path: str):
             m = pkg.get("metadata", {})
             m.update({"isProtected": True, "isCompiled": True, "isWatchdog": abs_p.lower().endswith('.wtool')})
             return {"metadata": m}
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        script_files = []
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, 'r', encoding='utf-8-sig') as f: script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
+        script_files = read_script_files(abs_p)
         if not script_files: return {"metadata": {"displayName": os.path.basename(abs_p)}}
         
         # Use bulk_metadata even for single scripts to ensure we get file-system timestamps (which require a path)
@@ -532,12 +496,7 @@ async def get_script_metadata_logic(script_path: str):
 async def get_script_content_logic(script_path: str):
     try:
         abs_p = resolve_script_path(script_path)
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        script_files = []
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, 'r', encoding='utf-8-sig') as f: script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
+        script_files = read_script_files(abs_p)
         if not script_files: return {"sourceCode": "// No scripts found."}
         res = grpc_client.get_combined_script(script_files)
         clean_code = re.sub(r'^#line\s+\d+.*(?:\r?\n|$)', '', res.get("combined_script", ""), flags=re.MULTILINE)

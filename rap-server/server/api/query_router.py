@@ -1,14 +1,15 @@
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, Literal
 import traceback
 from grpc_client import get_model_categories
 from services import query_service, script_service
 from services.query_to_watchdog import generate_watchdog_script
 
-router = APIRouter(prefix="/api/query", tags=["Query Builder"])
+logger = logging.getLogger(__name__)
 
-from typing import List, Dict, Any, Optional, Union, Literal
+router = APIRouter(prefix="/api/query", tags=["Query Builder"])
 
 class QueryRule(BaseModel):
     type: Literal["rule"] = "rule"

@@ -18,7 +18,7 @@ import { useRapServerUrl } from '@/hooks/useRapServerUrl';
 import OrchestrationPlanCard from './OrchestrationPlanCard';
 import { buildReplPreview } from './ReplPreview';
 import { Script, ScriptParameter } from '@/types/scriptModel';
-import { Message, ToolCall, OrchestrationPlan, ThinkingStep } from '../types/agentTypes';
+import { Message, ToolCall, OrchestrationPlan, ThinkingStep, TokenUsage } from '../types/agentTypes';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -67,6 +67,17 @@ function saveSessionThreadId(sessionId: string, tid: string | null) {
   else localStorage.removeItem(`agent_session_${sessionId}_thread`);
 }
 
+function loadSessionUsage(sessionId: string): TokenUsage {
+  try {
+    const raw = localStorage.getItem(`agent_session_${sessionId}_usage`);
+    return raw ? JSON.parse(raw) : { input_tokens: 0, output_tokens: 0, total_tokens: 0, requests: 0 };
+  } catch { return { input_tokens: 0, output_tokens: 0, total_tokens: 0, requests: 0 }; }
+}
+
+function saveSessionUsage(sessionId: string, usage: TokenUsage) {
+  localStorage.setItem(`agent_session_${sessionId}_usage`, JSON.stringify(usage));
+}
+
 export const AgentView: React.FC = () => {
   const {
     activeScriptSource,
@@ -98,6 +109,9 @@ export const AgentView: React.FC = () => {
   const [threadId, setThreadId] = useState<string | null>(() => {
     return loadSessionThreadId(activeSessionId);
   });
+  const [cumulativeUsage, setCumulativeUsage] = useState<TokenUsage>(() => {
+    return loadSessionUsage(activeSessionId);
+  });
 
   // Persist messages to session (always — no gating)
   useEffect(() => {
@@ -113,6 +127,11 @@ export const AgentView: React.FC = () => {
   useEffect(() => {
     saveSessionThreadId(activeSessionId, threadId);
   }, [threadId, activeSessionId]);
+
+  // Persist token usage to session
+  useEffect(() => {
+    saveSessionUsage(activeSessionId, cumulativeUsage);
+  }, [cumulativeUsage, activeSessionId]);
 
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
@@ -333,6 +352,15 @@ export const AgentView: React.FC = () => {
                 accumulatedSteps.length = 0;
                 accumulatedSteps.push(...(data.thinking_steps as ThinkingStep[]));
               }
+              if (data.usage) {
+                const turnUsage = data.usage as TokenUsage;
+                setCumulativeUsage(prev => ({
+                  input_tokens: prev.input_tokens + turnUsage.input_tokens,
+                  output_tokens: prev.output_tokens + turnUsage.output_tokens,
+                  total_tokens: prev.total_tokens + turnUsage.total_tokens,
+                  requests: prev.requests + turnUsage.requests,
+                }));
+              }
             } else if (currentEvent === 'complete') {
               finalStatus = 'complete';
               finalMessage = (data.message as string) || '';
@@ -341,6 +369,15 @@ export const AgentView: React.FC = () => {
               if (data.thinking_steps) {
                 accumulatedSteps.length = 0;
                 accumulatedSteps.push(...(data.thinking_steps as ThinkingStep[]));
+              }
+              if (data.usage) {
+                const turnUsage = data.usage as TokenUsage;
+                setCumulativeUsage(prev => ({
+                  input_tokens: prev.input_tokens + turnUsage.input_tokens,
+                  output_tokens: prev.output_tokens + turnUsage.output_tokens,
+                  total_tokens: prev.total_tokens + turnUsage.total_tokens,
+                  requests: prev.requests + turnUsage.requests,
+                }));
               }
             } else if (currentEvent === 'error') {
               finalStatus = 'error';
@@ -566,6 +603,10 @@ export const AgentView: React.FC = () => {
             const textOutput = (res.data.output || '').trim();
             if (textOutput) {
               setLocalHistory(prev => [...prev, {
+                type: 'status' as ConsoleItemType,
+                text: '> Agent',
+                timestamp: new Date(),
+              }, {
                 type: 'output' as ConsoleItemType,
                 text: textOutput,
                 timestamp: new Date(),
@@ -647,6 +688,8 @@ export const AgentView: React.FC = () => {
     setMessages([]);
     setThreadId(null);
     setInput('');
+    setCumulativeUsage({ input_tokens: 0, output_tokens: 0, total_tokens: 0, requests: 0 });
+    saveSessionUsage(newId, { input_tokens: 0, output_tokens: 0, total_tokens: 0, requests: 0 });
   }, [activeSessionId, messages, threadId, sessions, hasHumanMessages]);
 
   const handleSwitchSession = useCallback((sessionId: string) => {
@@ -667,6 +710,7 @@ export const AgentView: React.FC = () => {
     setMessages(loadSessionMessages(sessionId));
     setThreadId(loadSessionThreadId(sessionId));
     setInput('');
+    setCumulativeUsage(loadSessionUsage(sessionId));
   }, [activeSessionId, messages, threadId, sessions]);
 
   const handleDeleteSession = useCallback((sessionId: string) => {
@@ -679,11 +723,13 @@ export const AgentView: React.FC = () => {
       if (remaining.length === 0) {
         localStorage.removeItem(`agent_session_${sessionId}_msgs`);
         localStorage.removeItem(`agent_session_${sessionId}_thread`);
+        localStorage.removeItem(`agent_session_${sessionId}_usage`);
         const cleared: AgentSession = { ...prev.find(s => s.id === sessionId)!, name: 'New Chat', threadId: null, messageCount: 0, updatedAt: Date.now() };
         saveSessions([cleared]);
         setMessages([]);
         setThreadId(null);
         setInput('');
+        setCumulativeUsage({ input_tokens: 0, output_tokens: 0, total_tokens: 0, requests: 0 });
         return [cleared];
       }
       // Multiple sessions — safe to actually delete
@@ -691,6 +737,7 @@ export const AgentView: React.FC = () => {
       saveSessionThreadId(activeSessionId, threadId);
       localStorage.removeItem(`agent_session_${sessionId}_msgs`);
       localStorage.removeItem(`agent_session_${sessionId}_thread`);
+      localStorage.removeItem(`agent_session_${sessionId}_usage`);
       saveSessions(remaining);
       if (sessionId === activeSessionId) {
         // Switch to the most recent remaining session
@@ -700,6 +747,7 @@ export const AgentView: React.FC = () => {
         setActiveSessionId(next.id);
         setMessages(loadSessionMessages(next.id));
         setThreadId(loadSessionThreadId(next.id));
+        setCumulativeUsage(loadSessionUsage(next.id));
       }
       setInput('');
       return remaining;
@@ -1282,6 +1330,17 @@ export const AgentView: React.FC = () => {
             )}
           </div>
         </div>
+        {cumulativeUsage.total_tokens > 0 && (
+          <div className="relative group/tokens flex items-center gap-2 text-[10px] font-mono text-slate-400 dark:text-slate-500 shrink-0 cursor-default">
+            <span className="tabular-nums">↑{cumulativeUsage.input_tokens >= 1000 ? `${(cumulativeUsage.input_tokens / 1000).toFixed(1)}k` : cumulativeUsage.input_tokens}</span>
+            <span className="tabular-nums">↓{cumulativeUsage.output_tokens >= 1000 ? `${(cumulativeUsage.output_tokens / 1000).toFixed(1)}k` : cumulativeUsage.output_tokens}</span>
+            <div className="absolute z-[130] left-1/2 -translate-x-1/2 top-full mt-2 p-2 rounded-lg shadow-xl bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-[10px] font-sans font-medium leading-relaxed w-48 opacity-0 invisible group-hover/tokens:opacity-100 group-hover/tokens:visible transition-all duration-200 pointer-events-none border border-slate-200 dark:border-slate-700 text-center">
+              ↑ {cumulativeUsage.input_tokens.toLocaleString()} input<br />
+              ↓ {cumulativeUsage.output_tokens.toLocaleString()} output<br />
+              {cumulativeUsage.requests} request{cumulativeUsage.requests !== 1 ? 's' : ''}
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={handleNewSession}

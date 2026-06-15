@@ -2,11 +2,10 @@ import logging
 import os
 import json
 import base64
-import glob
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import grpc_client
-from utils import resolve_script_path
+from utils import resolve_script_path, read_script_files
 
 router = APIRouter(prefix="/api/scripts", tags=["scripts"])
 
@@ -26,14 +25,9 @@ async def build_tool_endpoint(request: BuildToolRequest):
         script_files = []
         if is_dir:
             # Look strictly in Scripts/
-            scripts_dir = os.path.join(project_path, "Scripts")
-            if not os.path.isdir(scripts_dir):
+            script_files = read_script_files(project_path)
+            if not script_files:
                 raise HTTPException(status_code=400, detail="Scripts folder missing in project")
-                
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, "r", encoding="utf-8-sig") as file:
-                    script_files.append({"file_name": os.path.basename(fp), "content": file.read()})
         else:
             # Legacy/Single file support
             with open(project_path, "r", encoding="utf-8-sig") as f:

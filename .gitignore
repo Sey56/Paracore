@@ -3,6 +3,7 @@
 *.suo
 *.db
 *.lock
+.env
 
 # IDE & OS
 .DS_Store

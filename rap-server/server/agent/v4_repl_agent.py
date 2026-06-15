@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional, TypedDict
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.usage import RunUsage
 from pydantic import BaseModel, Field
 from agent.prompt import SYSTEM_PROMPT
 import logging
@@ -26,7 +27,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# The Sovereign Handoff signal class. 
+# The Sovereign Handoff signal class.
 # This tells the router to pause execution and ask the human.
 class InterruptedException(Exception):
     def __init__(self, csharp_code: str, justification: str):
@@ -41,6 +42,7 @@ class AgentDeps:
     thinking_steps: list[ThinkingStep] = field(default_factory=list)
     _searched_categories: set[str] = field(default_factory=set)
     _read_queries: set[str] = field(default_factory=set)
+    turn_usage: RunUsage = field(default_factory=RunUsage)
 
 v4_repl_agent = Agent(
     deps_type=AgentDeps,

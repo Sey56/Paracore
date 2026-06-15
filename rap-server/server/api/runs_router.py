@@ -18,7 +18,7 @@ def get_runs(db: Session = Depends(get_db), current_user: CurrentUser = Depends(
     """
     Retrieves all script runs for the current user.
     """
-    return db.query(models.ScriptRun).filter(models.ScriptRun.user_id == str(current_user.id)).order_by(models.ScriptRun.timestamp.desc()).all()
+    return db.query(models.Run).filter(models.Run.user_id == str(current_user.id)).order_by(models.Run.timestamp.desc()).all()
 
 @router.get("/api/runs/latest", response_model=Dict[str, datetime], tags=["runs"])
 def get_latest_runs(db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
@@ -27,18 +27,18 @@ def get_latest_runs(db: Session = Depends(get_db), current_user: CurrentUser = D
     """
     # Subquery to get the latest timestamp for each script_id
     subquery = db.query(
-        models.ScriptRun.script_id,
-        func.max(models.ScriptRun.timestamp).label('max_timestamp')
-    ).group_by(models.ScriptRun.script_id).subquery()
+        models.Run.script_id,
+        func.max(models.Run.timestamp).label('max_timestamp')
+    ).group_by(models.Run.script_id).subquery()
 
     # Join ScriptRun with the subquery to filter for the latest runs
     latest_runs_query = db.query(
-        models.ScriptRun.script_id,
-        models.ScriptRun.timestamp
+        models.Run.script_id,
+        models.Run.timestamp
     ).join(
         subquery,
-        (models.ScriptRun.script_id == subquery.c.script_id) &
-        (models.ScriptRun.timestamp == subquery.c.max_timestamp)
+        (models.Run.script_id == subquery.c.script_id) &
+        (models.Run.timestamp == subquery.c.max_timestamp)
     ).subquery() # Make this a subquery as well to join with scripts
 
     # Join with the Script table to get the script path
@@ -78,9 +78,9 @@ def get_last_run(script_path: str, db: Session = Depends(get_db), current_user: 
         return None
 
     # Query for the most recent run for that script.
-    last_run = db.query(models.ScriptRun)\
-        .filter(models.ScriptRun.script_id == script.id)\
-        .order_by(models.ScriptRun.timestamp.desc())\
+    last_run = db.query(models.Run)\
+        .filter(models.Run.script_id == script.id)\
+        .order_by(models.Run.timestamp.desc())\
         .first()
 
     return last_run
