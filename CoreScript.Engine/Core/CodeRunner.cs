@@ -14,7 +14,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Loader;
 using System.Text.Json;
 using Autodesk.Revit.DB;
 
@@ -50,7 +49,6 @@ namespace CoreScript.Engine.Core
 
         public ExecutionResult Execute(string scriptContent, string parametersJson, ICoreScriptContext context)
         {
-            var alc = new AssemblyLoadContext("RevitScript", isCollectible: true);
             string timestamp = DateTime.Now.ToString("dddd dd, MMMM yyyy | hh:mm:ss tt", CultureInfo.InvariantCulture);
 
             FileLogger.Log("🟢 Starting CodeRunner.Execute");
@@ -136,7 +134,7 @@ namespace CoreScript.Engine.Core
                     {
                         try
                         {
-                            var pool = _optionsExecutor.ExecuteElementOptionsFunction(scriptContent, p.Name, context, parametersJson, richParams).Result;
+                            var pool = _optionsExecutor.ExecuteElementOptionsFunction(scriptContent, p.Name, context, parametersJson, richParams).GetAwaiter().GetResult();
                             if (pool != null && pool.Any())
                             {
                                 executionGlobals.ResolutionPools[p.Name] = pool;
@@ -174,7 +172,7 @@ namespace CoreScript.Engine.Core
                     // Compile fresh (Slow path)
                     FileLogger.Log($"[CodeRunner] 🐢 CACHE MISS: Compiling {topLevelScriptName}...");
                     var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
-                    var state = _scriptExecutor.ExecuteAsync(script).Result;
+                    var state = _scriptExecutor.ExecuteAsync(script).GetAwaiter().GetResult();
 
                     result = ExecutionResult.Success("Success", state.ReturnValue);
 
@@ -252,16 +250,6 @@ namespace CoreScript.Engine.Core
             finally
             {
                 ExecutionGlobals.ClearContext();
-
-                // V3.1 ELITE: Only unload if NO watchdog is registered for this path
-                if (!string.IsNullOrEmpty(scriptPath) && WatchdogRegistry.GetActiveWatchdogs().Any(w => w.ScriptPath == scriptPath))
-                {
-                    FileLogger.Log($"[CodeRunner] Preserving ALC for background watcher: {topLevelScriptName}");
-                }
-                else
-                {
-                    alc.Unload();
-                }
             }
         }
 

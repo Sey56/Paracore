@@ -127,7 +127,7 @@ namespace CoreScript.Engine.Globals
             double lat = site.Latitude * 180 / Math.PI;
             double lon = site.Longitude * 180 / Math.PI;
 
-            var client = new RestClient("https://api.open-meteo.com/v1");
+            using var client = new RestClient("https://api.open-meteo.com/v1");
             var request = new RestRequest("forecast");
             request.AddParameter("latitude", lat);
             request.AddParameter("longitude", lon);

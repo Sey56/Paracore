@@ -43,8 +43,11 @@ namespace Paracore.Addin.Context
         public ServerContext(UIApplication uiApp, bool isReadOnly = false)
         {
             UIApp = uiApp;
-            UIDoc = uiApp.ActiveUIDocument!;
-            Doc = uiApp.ActiveUIDocument?.Document!;
+            var activeDoc = uiApp.ActiveUIDocument;
+            if (activeDoc == null)
+                throw new InvalidOperationException("No active Revit document. Open a project or family to run scripts.");
+            UIDoc = activeDoc;
+            Doc = activeDoc.Document;
             IsReadOnly = isReadOnly;
             PrintCallback = msg =>
             {

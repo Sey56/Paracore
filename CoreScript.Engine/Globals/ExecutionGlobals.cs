@@ -366,35 +366,36 @@ namespace CoreScript.Engine.Globals
             Current.Value?.PipelineDiagnostics.Add(diagnostic);
         }
 
-        // Timeout mechanism
-        private static DateTime _executionDeadline;
-        private static int _timeoutSeconds = 10; // Default 10 seconds
+        // Timeout mechanism — per-execution instance fields, accessed via Current.Value
+        private DateTime _executionDeadline = DateTime.MaxValue;
+        private int _timeoutSeconds = 10; // Default 10 seconds
 
         public static void SetContext(ExecutionGlobals context)
         {
             Current.Value = context;
             // Initialize deadline when execution starts
-            _executionDeadline = DateTime.Now.AddSeconds(_timeoutSeconds);
+            context._executionDeadline = DateTime.Now.AddSeconds(context._timeoutSeconds);
         }
 
         public static void ClearContext()
         {
             Current.Value = null;
-            // Reset timeout to default
-            _timeoutSeconds = 10;
         }
 
         public static void SetExecutionTimeout(int seconds)
         {
-            _timeoutSeconds = seconds;
-            _executionDeadline = DateTime.Now.AddSeconds(seconds);
+            var ctx = Current.Value;
+            if (ctx == null) return;
+            ctx._timeoutSeconds = seconds;
+            ctx._executionDeadline = DateTime.Now.AddSeconds(seconds);
         }
 
         public static void CheckTimeout()
         {
-            if (DateTime.Now > _executionDeadline)
+            var ctx = Current.Value;
+            if (ctx != null && DateTime.Now > ctx._executionDeadline)
             {
-                throw new TimeoutException($"🛑 Script execution timed out after {_timeoutSeconds} seconds. If this script needs more time, add SetExecutionTimeout(seconds) at the start of your script.");
+                throw new TimeoutException($"🛑 Script execution timed out after {ctx._timeoutSeconds} seconds. If this script needs more time, add SetExecutionTimeout(seconds) at the start of your script.");
             }
         }
 

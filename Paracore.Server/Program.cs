@@ -44,7 +44,7 @@ try
         {
             try
             {
-                var parent = System.Diagnostics.Process.GetProcessById(parentPid);
+                using var parent = System.Diagnostics.Process.GetProcessById(parentPid);
                 Log($"Monitoring parent process: {parent.ProcessName} (PID: {parentPid})");
                 await parent.WaitForExitAsync();
                 Log("Parent process exited. Shutting down sidecar...");
@@ -52,7 +52,7 @@ try
             }
             catch (Exception ex)
             {
-                Log($"Watcher error: {ex.Message}");
+                Log($"Watcher error: {ex}");
             }
         });
     }
@@ -70,7 +70,7 @@ try
     builder.Services.AddGrpc();
     builder.Services.AddSingleton<AddinBridgeService>();
 
-    var app = builder.Build();
+    using var app = builder.Build();
 
     _ = Task.Run(() => {
         try {
@@ -84,7 +84,7 @@ try
                 }
                 if (line == null) break;
             }
-        } catch {}
+        } catch (Exception ex) { Log($"STDIN reader error: {ex.Message}"); }
     });
 
     // Configure the HTTP request pipeline.

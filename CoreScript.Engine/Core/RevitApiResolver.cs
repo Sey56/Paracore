@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 
 namespace CoreScript.Engine.Core
 {
@@ -26,7 +25,7 @@ namespace CoreScript.Engine.Core
 
                     var revitDllPaths = Directory.GetFiles(revitInstallPath, "RevitAPI*.dll");
                     _revitReferences = revitDllPaths
-                        .Where(IsManagedAssembly)
+                        .Where(Parsers.ExtractionUtils.IsManagedAssembly)
                         .Select(path => MetadataReference.CreateFromFile(path))
                         .Cast<MetadataReference>()
                         .ToList();
@@ -37,19 +36,6 @@ namespace CoreScript.Engine.Core
                 }
             }
             return _revitReferences;
-        }
-
-        private static bool IsManagedAssembly(string path)
-        {
-            try
-            {
-                AssemblyName.GetAssemblyName(path);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
         }
     }
 }

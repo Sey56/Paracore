@@ -33,6 +33,12 @@ namespace Paracore.Server.Services
             finally
             {
                 _addinStream = null;
+                // Fail all pending tasks so nothing waits forever
+                foreach (var kvp in _pendingTasks)
+                {
+                    kvp.Value.TrySetException(new RpcException(new Status(StatusCode.Unavailable, "Revit Add-in disconnected.")));
+                }
+                _pendingTasks.Clear();
                 Console.WriteLine("[Bridge] Revit Add-in disconnected.");
             }
         }
@@ -61,23 +67,31 @@ namespace Paracore.Server.Services
             }
 
             var taskId = Guid.NewGuid().ToString();
-            var tcs = new TaskCompletionSource<TaskResult>();
+            var tcs = new TaskCompletionSource<TaskResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             _pendingTasks[taskId] = tcs;
 
-            // USE PROTOBUF JSON FORMATTER for 100% protocol fidelity (fixes ByteString/bytes issues)
-            var payloadJson = _formatter.Format(request as Google.Protobuf.IMessage);
-
-            var envelope = new TaskEnvelope
+            TaskResult result;
+            try
             {
-                TaskId = taskId,
-                MethodName = methodName,
-                PayloadJson = Google.Protobuf.ByteString.CopyFromUtf8(payloadJson)
-            };
+                // USE PROTOBUF JSON FORMATTER for 100% protocol fidelity (fixes ByteString/bytes issues)
+                var payloadJson = _formatter.Format(request as Google.Protobuf.IMessage);
 
-            await _addinStream.WriteAsync(envelope);
+                var envelope = new TaskEnvelope
+                {
+                    TaskId = taskId,
+                    MethodName = methodName,
+                    PayloadJson = Google.Protobuf.ByteString.CopyFromUtf8(payloadJson)
+                };
 
-            // Wait for the result from the add-in
-            var result = await tcs.Task;
+                await _addinStream.WriteAsync(envelope);
+
+                // Wait for the result from the add-in
+                result = await tcs.Task;
+            }
+            finally
+            {
+                _pendingTasks.TryRemove(taskId, out _);
+            }
 
             if (!result.IsSuccess)
             {

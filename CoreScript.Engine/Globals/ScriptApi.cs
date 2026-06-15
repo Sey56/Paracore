@@ -429,7 +429,7 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Finds all elements of type T in the document.
         /// </summary>
-        public static List<T> GetElements<T>() where T : Element
+        public static PipelineEnumerable<T> GetElements<T>() where T : Element
         {
             var collector = Core.ParameterOptionsComputer.CreateResilientCollector(Doc, typeof(T));
             var results = collector
@@ -437,22 +437,20 @@ namespace CoreScript.Engine.Globals
                 .Where(e => e is T)
                 .Cast<T>()
                 .ToList();
-            TrackElements(results);
-            return results;
+            return new PipelineEnumerable<T>(results, track: true);
         }
 
         /// <summary>
         /// Finds all elements of type T belonging to a specific category.
         /// <para>Example: <c>GetElements&lt;FamilyInstance&gt;("Doors")</c></para>
         /// </summary>
-        public static List<T> GetElements<T>(string categoryName) where T : Element
+        public static PipelineEnumerable<T> GetElements<T>(string categoryName) where T : Element
         {
             var computer = new Core.ParameterOptionsComputer(Doc);
             var results = computer.ComputeElementOptions(typeof(T).Name, categoryName)
                 .Cast<T>()
                 .ToList();
-            TrackElements(results);
-            return results;
+            return new PipelineEnumerable<T>(results, track: true);
         }
 
 
@@ -461,21 +459,20 @@ namespace CoreScript.Engine.Globals
         /// <para>Example: <c>GetElements(BuiltInCategory.OST_Doors)</c></para>
         /// <para>Works seamlessly with Params hydrated BuiltInCategory properties.</para>
         /// </summary>
-        public static List<Element> GetElements(BuiltInCategory category)
+        public static PipelineEnumerable<Element> GetElements(BuiltInCategory category)
         {
             var results = new FilteredElementCollector(Doc)
                 .OfCategory(category)
                 .WhereElementIsNotElementType()
                 .ToList();
-            TrackElements(results);
-            return results;
+            return new PipelineEnumerable<Element>(results, track: true);
         }
 
         /// <summary>
         /// Discovery helper for the REPL. Targets categories or classes automatically.
         /// <para>Example: <c>GetElements("Doors")</c></para>
         /// </summary>
-        public static List<Element> GetElements(string categoryOrClass)
+        public static PipelineEnumerable<Element> GetElements(string categoryOrClass)
         {
             var computer = new Core.ParameterOptionsComputer(Doc);
             var results = computer.ComputeElementOptions(categoryOrClass);
@@ -484,7 +481,7 @@ namespace CoreScript.Engine.Globals
             {
                 // TRANSPARENCY: Inform the user if we had to fall back to Types (e.g. for Grid Heads)
                 var isTypeRequested = categoryOrClass.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
-                
+
                 // If the user didn't ask for Types, but we only found ElementTypes, it's a fallback.
                 if (!isTypeRequested && results.All(e => e is ElementType))
                 {
@@ -500,8 +497,7 @@ namespace CoreScript.Engine.Globals
                 // Return an empty list — don't throw.
                 if (allValidTerms.Any(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    TrackElements(results);
-                    return results; // Empty list
+                    return new PipelineEnumerable<Element>(results, track: true); // Empty list
                 }
 
                 // --- SUGGESTION ENGINE (for genuine typos only) ---
@@ -518,17 +514,7 @@ namespace CoreScript.Engine.Globals
                 throw new ArgumentException($"'{cleanName}' is not a valid Class or Category. For a list of supported Hydrations run GetMagicNames().");
             }
 
-            TrackElements(results);
-            return results;
-        }
-
-        /// <summary>
-        /// Appends the element count to the pipeline diagnostics for precise
-        /// error reporting (e.g. "No rooms found" vs "Grouping produced no results").
-        /// </summary>
-        private static void TrackElements<T>(List<T> elements)
-        {
-            ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(elements.Count);
+            return new PipelineEnumerable<Element>(results, track: true);
         }
 
         /// <summary>
