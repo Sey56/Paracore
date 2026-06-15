@@ -24,10 +24,8 @@ export const StepperInput: React.FC<StepperInputProps> = ({ value, min, max, ste
         if (disabled) return;
 
         const newValue = parseFloat((currentNumValue - step).toFixed(10));
-        console.log(`[Stepper] DECREMENT: ${currentNumValue} - ${step} = ${newValue}. Min limit: ${min}`);
 
         if (min !== undefined && min !== null && newValue < min) {
-            console.warn(`[Stepper] Min limit reached.`);
             return;
         }
 
@@ -40,10 +38,8 @@ export const StepperInput: React.FC<StepperInputProps> = ({ value, min, max, ste
         if (disabled) return;
 
         const newValue = parseFloat((currentNumValue + step).toFixed(10));
-        console.log(`[Stepper] INCREMENT: ${currentNumValue} + ${step} = ${newValue}. Max limit: ${max}`);
 
         if (max !== undefined && max !== null && newValue > max) {
-            console.warn(`[Stepper] Max limit reached.`);
             return;
         }
 

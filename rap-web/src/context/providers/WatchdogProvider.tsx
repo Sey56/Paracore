@@ -106,7 +106,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             await new Promise(r => setTimeout(r, 1200));
 
             for (const path of watchdogSources) {
-                try { await api.post("/api/watchdogs/register-source", { path: normalize(path) }); } catch (e) { /* ignore */ }
+                try { await api.post("/api/watchdogs/register-source", { path: normalize(path) }); } catch (e) { /* best-effort: registration may fail if server not ready */ }
                 await new Promise(r => setTimeout(r, 200));
             }
 
@@ -173,11 +173,11 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (isArmed) {
             setWatchdogSources(prev => prev.filter(s => normalize(s) !== path));
             setDeployedDocumentMap(prev => { const next = { ...prev }; delete next[path]; return next; });
-            try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { /* ignore */ }
+            try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { /* best-effort: registration may fail if server not ready */ }
         } else {
             setWatchdogSources(prev => Array.from(new Set([...prev, path])));
             setDeployedDocumentMap(prev => ({ ...prev, [path]: currentDocTitle || 'Unknown' }));
-            try { await api.post("/api/watchdogs/register-source", { path: scriptPath, parameters }); } catch (e) { /* ignore */ }
+            try { await api.post("/api/watchdogs/register-source", { path: scriptPath, parameters }); } catch (e) { /* best-effort: registration may fail if server not ready */ }
         }
     };
 
@@ -202,7 +202,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
 
         for (const script of toArm) {
-            try { await api.post("/api/watchdogs/register-source", { path: script.path, parameters: script.parameters }); } catch (e) { /* ignore */ }
+            try { await api.post("/api/watchdogs/register-source", { path: script.path, parameters: script.parameters }); } catch (e) { /* best-effort: registration may fail if server not ready */ }
             await new Promise(r => setTimeout(r, 300));
         }
         showNotification("Sentinel deployment complete.", "success");
@@ -217,7 +217,7 @@ export const WatchdogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             ...watchdogSources.map(normalize)
         ]);
         for (const path of allPaths) {
-            try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { /* ignore */ }
+            try { await api.post("/api/watchdogs/unregister-source", { path }); } catch (e) { /* best-effort: registration may fail if server not ready */ }
         }
         setWatchdogSources([]);
         setDeployedDocumentMap({});

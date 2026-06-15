@@ -133,6 +133,13 @@ export const AgentView: React.FC = () => {
     saveSessionUsage(activeSessionId, cumulativeUsage);
   }, [cumulativeUsage, activeSessionId]);
 
+  // Abort any in-flight stream on unmount
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
+
   const { cloudToken } = useAuth();
   const { showNotification } = useNotifications();
   const { revitStatus } = useRevitStatus();

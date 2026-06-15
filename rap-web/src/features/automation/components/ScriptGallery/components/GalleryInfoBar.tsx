@@ -93,7 +93,7 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
                 <>
                   <div className="border-t border-slate-100 dark:border-slate-800" />
                   <button
-                    onClick={() => { defaultCategories.forEach(c => handleDefaultCategoryChange(c.name)); setCatOpen(false); }}
+                    onClick={() => { [...selectedDefaultCategories].forEach(c => handleDefaultCategoryChange(c)); setCatOpen(false); }}
                     className="w-full text-left px-4 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors uppercase tracking-wider"
                   >
                     Clear All

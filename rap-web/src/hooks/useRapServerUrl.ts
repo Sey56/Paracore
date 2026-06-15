@@ -20,7 +20,7 @@ export const useRapServerUrl = () => {
         }
       } else {
         // Fallback for browser development
-        console.log('Running in browser mode, using default RAP server URL.');
+        // Browser dev mode — using default localhost URL
         setRapServerUrl('http://localhost:8000');
       }
     };
