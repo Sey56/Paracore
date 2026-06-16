@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTerminal, faChartLine, faTrash, faCopy } from '@fortawesome/free-solid-svg-icons';
+import { faTrash, faCopy } from '@fortawesome/free-solid-svg-icons';
+import { Tooltip } from '@/components/common/Tooltip';
 import { useConsole } from '@/features/automation/store/ConsoleContext';
 import { useScriptExecution } from '@/features/automation';
 import { ExecutionHistory } from '@/features/automation/components/ScriptInspector/ExecutionHistory';
@@ -122,15 +123,11 @@ export const OutputPanel: React.FC = () => {
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => setActiveTab('history')}
-            className={`w-12 h-12 flex items-center justify-center border-b-2 transition-all relative ${activeTab === 'history' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 shadow-[inset_0_-2px_0_rgba(59,130,246,1)]' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-            title="Execution History"
+            className={`px-3 h-12 flex items-center border-b-2 transition-all relative text-sm font-medium ${activeTab === 'history' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
           >
-            <FontAwesomeIcon
-              icon={faTerminal}
-              className={`text-sm transition-all duration-300 ${isFlashingHistory ? 'scale-150 text-blue-500' : ''}`}
-            />
+            History
             {hasUnviewedHistory && (
-              <span className="absolute top-2 right-1.5 flex h-2.5 w-2.5">
+              <span className="absolute top-2 -right-0.5 flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 border border-white dark:border-slate-800"></span>
               </span>
@@ -138,15 +135,11 @@ export const OutputPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`w-12 h-12 flex items-center justify-center border-b-2 transition-all relative ${activeTab === 'analytics' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 shadow-[inset_0_-2px_0_rgba(59,130,246,1)]' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-            title="Analytics & Tables"
+            className={`px-3 h-12 flex items-center border-b-2 transition-all relative text-sm font-medium ${activeTab === 'analytics' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
           >
-            <FontAwesomeIcon
-              icon={faChartLine}
-              className={`text-sm transition-all duration-300 ${isFlashingAnalytics ? 'scale-150 text-blue-500' : ''}`}
-            />
+            Analytics
             {hasUnviewedAnalytics && (
-              <span className="absolute top-2 right-1.5 flex h-2.5 w-2.5">
+              <span className="absolute top-2 -right-0.5 flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 border border-white dark:border-slate-800"></span>
               </span>
@@ -161,24 +154,32 @@ export const OutputPanel: React.FC = () => {
           {/* History tab buttons — only when there's data */}
           {activeTab === 'history' && hasHistoryData && (
             <div className="flex items-center gap-2 animate-in fade-in duration-300">
-              <button onClick={handleHistoryClear} title="Clear History" className="text-slate-400 hover:text-red-500 transition-colors p-1">
-                <FontAwesomeIcon icon={faTrash} className="text-xs" />
-              </button>
-              <button onClick={handleHistoryCopy} title="Copy History" className="text-slate-400 hover:text-blue-500 transition-colors p-1">
-                <FontAwesomeIcon icon={faCopy} className="text-xs" />
-              </button>
+              <Tooltip text="Clear" position="bottom">
+                <button onClick={handleHistoryClear} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                  <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                </button>
+              </Tooltip>
+              <Tooltip text="Copy" position="bottom">
+                <button onClick={handleHistoryCopy} className="text-slate-400 hover:text-blue-500 transition-colors p-1">
+                  <FontAwesomeIcon icon={faCopy} className="text-xs" />
+                </button>
+              </Tooltip>
             </div>
           )}
 
           {/* Analytics tab buttons — only when there's data */}
           {activeTab === 'analytics' && hasAnalyticsData && (
             <div className="flex items-center gap-2 animate-in fade-in duration-300">
-              <button onClick={handleAnalyticsClear} title="Clear Analytics" className="text-slate-400 hover:text-red-500 transition-colors p-1">
-                <FontAwesomeIcon icon={faTrash} className="text-xs" />
-              </button>
-              <button onClick={handleAnalyticsCopy} title="Copy Analytics" className="text-slate-400 hover:text-blue-500 transition-colors p-1">
-                <FontAwesomeIcon icon={faCopy} className="text-xs" />
-              </button>
+              <Tooltip text="Clear" position="bottom">
+                <button onClick={handleAnalyticsClear} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                  <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                </button>
+              </Tooltip>
+              <Tooltip text="Copy" position="bottom">
+                <button onClick={handleAnalyticsCopy} className="text-slate-400 hover:text-blue-500 transition-colors p-1">
+                  <FontAwesomeIcon icon={faCopy} className="text-xs" />
+                </button>
+              </Tooltip>
             </div>
           )}
         </div>

@@ -67,7 +67,7 @@ PARACORE FIRST. Before writing ANY C# code, check this table:
   Instead of raw LINQ:              Use Paracore:
   .Where(e => e.Property)           .WhereParam("Name", "value")
   .Where(e => name.Contains(...))   .WhereMatches("pattern")
-  .Where(fi => !IsCurtainDoor...)   .StandardOnly()
+  .Where(fi => !IsCurtainDoor...)   .StandardDoor()
   .OrderBy(e => e.GetNum(...))      .OrderByParam("Name")
   .OrderByDescending(e => ...)      .OrderByParamDesc("Name")
   .GroupBy(e => singleKey)          .GroupByParam("Name")
@@ -220,7 +220,7 @@ Examples:
 ## COLLECTION: FILTER & SORT
 .WhereParam("Name", "value")  .WhereParam("Name", "starts", "D-10")  .WhereParam("Name", "!=", "X")
 .WhereParam("Name", 200, "mm")  .WhereParam("Name", ">", 25, "m2")
-.WhereMatches("pattern")  .StandardOnly()
+.WhereMatches("pattern")  .StandardDoor()
 .OrderByParam("Name")  .OrderByParamDesc("Name")
 
 ## COLLECTION: GROUP, WRITE, UI

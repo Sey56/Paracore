@@ -1035,9 +1035,9 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Filters a collection of FamilyInstance elements to only standard doors,
         /// excluding Curtain Wall hosted panels (glass doors).
-        /// <para>Example: GetElements&lt;FamilyInstance&gt;("Doors").StandardOnly().Table()</para>
+        /// <para>Example: GetElements&lt;FamilyInstance&gt;("Doors").StandardDoor().Table()</para>
         /// </summary>
-        public static IEnumerable<FamilyInstance> StandardOnly(this IEnumerable<FamilyInstance> elements)
+        public static IEnumerable<FamilyInstance> StandardDoor(this IEnumerable<FamilyInstance> elements)
         {
             var list = elements.Where(fi => fi.IsStandardDoor()).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);

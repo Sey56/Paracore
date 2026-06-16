@@ -451,13 +451,13 @@ door.IsStandardDoor()  // → true for standard doors
 
 ---
 
-### `.StandardOnly()` — Collection Filter
+### `.StandardDoor()` — Collection Filter
 
 > Filters a `FamilyInstance` collection to exclude Curtain Wall hosted panels. Curtain wall doors don’t carry standard properties like Level, Width, Height, Room, or swing geometry.
 
 ```csharp
 GetElements<FamilyInstance>("Doors")
-    .StandardOnly()
+    .StandardDoor()
     .Table();
 ```
 

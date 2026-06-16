@@ -304,7 +304,7 @@ GetElement("name")  GetMagicNames()  GetCategories()
   ├──────────────────────────────┼──────────────────────────────────┤
   │ .Where(e => e.Property)      │ .WhereParam("Name", "value")     │
   │ .Where(e => name.Contains)   │ .WhereMatches("pattern")         │
-  │ .Where(fi => !IsCurtain...)  │ .StandardOnly()                  │
+  │ .Where(fi => !IsCurtain...)  │ .StandardDoor()                  │
   │ .OrderBy(e => e.GetNum(...)) │ .OrderByParam("Name")            │
   │ .OrderByDescending(...)      │ .OrderByParamDesc("Name")        │
   │ .GroupBy(e => "Name")        │ .GroupByParam("Name")            │
@@ -352,7 +352,7 @@ Single-element (.SetVal/.SetNum) and collection bulk (.SetParam) auto-transact �
 
 ## COLLECTION EXTENSIONS
 .WhereParam("Level","Level 1")  .WhereParam("Area",">",25,"m2")
-.WhereMatches("Single-Flush")   .StandardOnly()
+.WhereMatches("Single-Flush")   .StandardDoor()
 .OrderByParam("Area")   .OrderByParamDesc("Area")
 .GroupByParam("Level")→Group|Count  .GroupByParam("Level","Area","m2")→Group|Count|Total
 .SumParam("Area","m2")  // GroupByParam args: (groupBy, sumParam?, unit?)

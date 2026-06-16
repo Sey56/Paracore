@@ -43,28 +43,34 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
   };
 
   return (
-    <Rnd
-      default={{
-        x: 100,
-        y: 100,
-        width: 600,
-        height: 400,
-      }}
-      minWidth={300}
-      minHeight={200}
-      bounds="window"
-      className={`
-        rounded-lg border
-        ${theme === 'dark' || theme === 'midnight' || theme === 'eclipse' ? 'dark bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}
-        ${theme === 'eclipse' ? 'shadow-[0_0_40px_rgba(0,0,0,0.6)] border-slate-700/40' : 'shadow-2xl'}
-      `}
-      style={{ zIndex: 1000 }}
-      dragHandleClassName="handle"
-      onDragStart={onDragResizeStart}
-      onDragStop={onDragResizeStop}
-      onResizeStart={onDragResizeStart}
-      onResizeStop={onDragResizeStop}
-    >
+    <>
+      {/* Backdrop overlay — click outside to close */}
+      <div
+        className="fixed inset-0 z-[999] bg-black/20 backdrop-blur-sm transition-opacity duration-200"
+        onClick={onClose}
+      />
+      <Rnd
+        default={{
+          x: 100,
+          y: 100,
+          width: 600,
+          height: 400,
+        }}
+        minWidth={300}
+        minHeight={200}
+        bounds="window"
+        className={`
+          rounded-lg border
+          ${theme === 'dark' || theme === 'midnight' || theme === 'eclipse' ? 'dark bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}
+          ${theme === 'eclipse' ? 'shadow-[0_0_40px_rgba(0,0,0,0.6)] border-slate-700/40' : 'shadow-2xl'}
+        `}
+        style={{ zIndex: 1000 }}
+        dragHandleClassName="handle"
+        onDragStart={onDragResizeStart}
+        onDragStop={onDragResizeStop}
+        onResizeStart={onDragResizeStart}
+        onResizeStop={onDragResizeStop}
+      >
       <div
         className="handle absolute top-0 left-0 right-0 h-11 flex items-center justify-between px-4 cursor-move bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/60 rounded-t-lg"
       >
@@ -108,6 +114,7 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
           </button>
         )}
       </div>
-    </Rnd>
+      </Rnd>
+    </>
   );
 };

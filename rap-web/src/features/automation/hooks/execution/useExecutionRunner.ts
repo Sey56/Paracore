@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
@@ -15,7 +15,13 @@ export const useExecutionRunner = (
   const { showNotification } = useNotifications();
   const { revitStatus } = useRevitStatus();
   const [runningScriptPath, setRunningScriptPath] = useState<string | null>(null);
-  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(() => {
+    const saved = localStorage.getItem('paracore_analytics_result');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { return null; }
+    }
+    return null;
+  });
 
   const runScript = useCallback(async (
     script: Script, 
@@ -84,6 +90,14 @@ export const useExecutionRunner = (
       setRunningScriptPath(null);
     }
   }, [runningScriptPath, threadId, addRecentScript, updateScriptLastRunTime, showNotification, revitStatus.document, isEnterprise]);
+
+  useEffect(() => {
+    if (executionResult) {
+      localStorage.setItem('paracore_analytics_result', JSON.stringify(executionResult));
+    } else {
+      localStorage.removeItem('paracore_analytics_result');
+    }
+  }, [executionResult]);
 
   return {
     runningScriptPath,

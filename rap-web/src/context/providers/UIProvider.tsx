@@ -9,6 +9,7 @@ const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
 const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
 const LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW = 'paracore_active_main_view';
 const LOCAL_STORAGE_KEY_AUTOMATION_SUB_MODE = 'paracore_automation_sub_mode';
+const LOCAL_STORAGE_KEY_AGENT_REPL_RESULTS = 'paracore_agent_repl_results';
 
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
@@ -138,8 +139,22 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const closeWelcomeGate = useCallback(() => setIsWelcomeGateOpen(false), []);
 
   // Agent REPL execution results (for Analytics tab rendering)
-  const [agentReplResults, setAgentReplResults] = useState<StructuredOutput[] | null>(null);
+  const [agentReplResults, setAgentReplResults] = useState<StructuredOutput[] | null>(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_AGENT_REPL_RESULTS);
+    if (saved) {
+      try { return JSON.parse(saved); } catch { return null; }
+    }
+    return null;
+  });
   const [agentCapturedDocTitle, setAgentCapturedDocTitle] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (agentReplResults) {
+      localStorage.setItem(LOCAL_STORAGE_KEY_AGENT_REPL_RESULTS, JSON.stringify(agentReplResults));
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_KEY_AGENT_REPL_RESULTS);
+    }
+  }, [agentReplResults]);
 
   // Global InfoModal state
   const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
