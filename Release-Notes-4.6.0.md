@@ -14,10 +14,8 @@ The agent now shows what it's doing *before* producing code. When it explores th
 Per-session token usage (input + output tokens, request count) is now tracked and persisted. Users can see how much each session has consumed.
 
 ### Other Agent Improvements
-- **Mid-stream abort:** Interrupting a running generation now properly aborts the stream and preserves the interrupting message in chat history.
-- **Orchestration plan cards:** When the agent proposes a multi-step plan, each step shows satisfied and missing parameters inline, with direct Configure buttons for the unresolved ones.
+**Mid-stream abort:** Interrupting a running generation now properly aborts the stream and preserves the interrupting message in chat history.
 
----
 
 ## Security
 
@@ -48,9 +46,3 @@ Playlists now use the same card-based gallery layout as scripts, with inline ste
 
 ### LINQ Pipeline Diagnostics
 `GetElements<T>()` now reports element counts at every stage of a LINQ chain. Users can see how many elements survive each `.Where()`, `.GroupBy()`, or `.Select()`.
-
----
-
-## Upgrading
-
-Run the installer. Restart Revit. All existing scripts and playlists are compatible — no migration needed.

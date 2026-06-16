@@ -329,7 +329,7 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({ param, index, onCha
             >
               <FontAwesomeIcon
                 icon={isComputing ? faSpinner : (isContextMismatch ? faExclamationTriangle : faSync)}
-                className={`${isComputing ? 'animate-spin' : ''}`}
+                className={`${isComputing ? 'animate-spin' : ''} ${isContextMismatch ? 'text-amber-500' : ''}`}
               />
             </button>
 

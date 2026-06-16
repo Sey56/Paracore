@@ -77,16 +77,17 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
               </button>
             </Tooltip>
           )}
-          <button
-            onClick={() => setIsMetadataOpen(!isMetadataOpen)}
-            className={`p-1.5 rounded transition-all duration-200 ${isMetadataOpen
-              ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
-              : "text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400"
-              }`}
-            title="Script Info"
-          >
-            <FontAwesomeIcon icon={faInfoCircle} />
-          </button>
+          <Tooltip text="Script Info" position="bottom-center">
+            <button
+              onClick={() => setIsMetadataOpen(!isMetadataOpen)}
+              className={`p-1.5 rounded transition-all duration-200 ${isMetadataOpen
+                ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
+                : "text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400"
+                }`}
+            >
+              <FontAwesomeIcon icon={faInfoCircle} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

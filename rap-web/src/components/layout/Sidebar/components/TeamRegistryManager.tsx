@@ -36,7 +36,7 @@ export const TeamRegistryManager: React.FC<TeamRegistryManagerProps> = ({
               e.stopPropagation();
               onRegister();
             }}
-            className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+            className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors tooltip-left"
             title="Register TeamSource"
           >
             <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
@@ -46,7 +46,7 @@ export const TeamRegistryManager: React.FC<TeamRegistryManagerProps> = ({
               e.stopPropagation();
               onRefresh();
             }}
-            className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+            className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors tooltip-left"
             title="Refresh Team Sources"
           >
             <FontAwesomeIcon icon={faSync} className="w-3 h-3" />
