@@ -3,6 +3,7 @@
 *.suo
 *.db
 *.lock
+.env
 
 # IDE & OS
 .DS_Store
@@ -110,3 +111,4 @@ NewShTool/
 # External projects (separate repos, must not be tracked here)
 SH_Tools/
 training/
+rap-auth-server/

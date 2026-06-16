@@ -7,26 +7,25 @@ import { usePlaylist } from '../../index';
 import { useScriptExecution } from '../../index';
 import { useScripts } from '../../index';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faSave, faPlay } from '@fortawesome/free-solid-svg-icons';
-import { useNotifications } from '@/hooks/useNotifications';
+import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { PlaylistScriptPicker } from './PlaylistScriptPicker';
 import { PlaylistTimeline } from './PlaylistTimeline';
 import { EditPlaylistModal } from './EditPlaylistModal';
-import { UnifiedStepInspector } from './UnifiedStepInspector';
+import { PlaylistStepConfig } from './PlaylistStepConfig';
 
 interface PlaylistEditorProps {
     playlist: Playlist;
     onBack: () => void;
-    isLayoutSwapped?: boolean;
 }
 
-export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack, isLayoutSwapped = false }) => {
+export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack }) => {
     const { updatePlaylist } = usePlaylist();
     const { scripts } = useScripts();
 
     // Local state for editing - we don't want to modify the context state directly until save
     const [editedPlaylist, setEditedPlaylist] = useState<Playlist>(() => JSON.parse(JSON.stringify(playlist)));
     const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+    const [configuringStepIndex, setConfiguringStepIndex] = useState<number | null>(null);
     const [isScriptPickerOpen, setIsScriptPickerOpen] = useState(false);
     const [isEditDetailsModalOpen, setIsEditDetailsModalOpen] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
@@ -57,6 +56,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
         setEditedPlaylist(cloned);
         setIsDirty(false);
         setSelectedItemIndex(null);
+        setConfiguringStepIndex(null);
 
         // Restore previous execution results and statuses if they exist
         if (playlist.lastExecutionResults) {
@@ -74,7 +74,14 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
     }, [playlist]);
 
     const handleSave = async () => {
+        console.log('[PlaylistEditor] handleSave called', {
+            name: editedPlaylist.name,
+            filePath: editedPlaylist.filePath,
+            itemCount: editedPlaylist.items.length,
+            items: editedPlaylist.items.map(i => i.scriptPath),
+        });
         const success = await updatePlaylist(editedPlaylist);
+        console.log('[PlaylistEditor] handleSave result:', success);
         if (success) {
             setIsDirty(false);
         }
@@ -120,7 +127,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
             });
 
             try {
-                const result = await runScript(script, finalParams, false);
+                const result = await runScript(script, finalParams, true);
                 if (result) {
                     setExecutionResults(prev => ({ ...prev, [i]: result }));
                     newResults[i] = result;
@@ -155,7 +162,9 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
         newItems.splice(index, 1);
         setEditedPlaylist({ ...editedPlaylist, items: newItems });
         if (selectedItemIndex === index) setSelectedItemIndex(null);
+        if (configuringStepIndex === index) setConfiguringStepIndex(null);
         if (selectedItemIndex !== null && selectedItemIndex > index) setSelectedItemIndex(selectedItemIndex - 1);
+        if (configuringStepIndex !== null && configuringStepIndex > index) setConfiguringStepIndex(configuringStepIndex - 1);
         setIsDirty(true);
     };
 
@@ -172,6 +181,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
         setEditedPlaylist({ ...editedPlaylist, items: newItems });
         // Follow the selection
         if (selectedItemIndex === index) setSelectedItemIndex(targetIndex);
+        if (configuringStepIndex === index) setConfiguringStepIndex(targetIndex);
         setIsDirty(true);
     };
 
@@ -180,51 +190,39 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
             scriptPath: scriptPath,
             parameters: {} // Empty initial parameters
         };
+        const newIndex = editedPlaylist.items.length;
         setEditedPlaylist({
             ...editedPlaylist,
             items: [...editedPlaylist.items, newItem]
         });
-        setSelectedItemIndex(editedPlaylist.items.length); // Select the new item
+        setSelectedItemIndex(newIndex);
+        setConfiguringStepIndex(newIndex); // Auto-navigate to config for the new step
         setIsDirty(true);
         setIsScriptPickerOpen(false);
     };
 
-    // Find the current script object based on selection
-    const currentScript = useMemo(() => {
-        if (selectedItemIndex === null) return null;
-        const item = editedPlaylist.items[selectedItemIndex];
-        const normalizedPath = item.scriptPath.replace(/\\/g, '/').toLowerCase();
+    // Step selection — highlight in timeline and navigate to config
+    const handleStepSelect = (index: number) => {
+        setSelectedItemIndex(index);
+        setConfiguringStepIndex(index);
+    };
 
-        return scripts.find(s => {
-            const normalizedScriptPath = s.absolutePath.replace(/\\/g, '/').toLowerCase();
-            return normalizedScriptPath === normalizedPath ||
-                s.absolutePath === item.scriptPath ||
-                normalizedScriptPath.endsWith(normalizedPath) ||
-                normalizedPath.endsWith(normalizedScriptPath);
-        });
-    }, [selectedItemIndex, editedPlaylist.items, scripts]);
+    // Back from config view to timeline
+    const handleBackFromConfig = () => {
+        setConfiguringStepIndex(null);
+    };
 
-    // Compute the global execution report for the Output tab
-    // This allows the Inspector to show the history of the entire playlist run, irrespective of selection.
-    const executionReport = useMemo(() => {
-        return Object.entries(executionResults)
-            .sort(([indexA], [indexB]) => Number(indexA) - Number(indexB))
-            .map(([indexStr, result]) => {
-                const index = Number(indexStr);
-                const item = editedPlaylist.items[index];
-                if (!item) return null;
-
-                // Try to find display name
-                const scriptName = item.scriptPath.split(/[\\/]/).pop()?.replace('.cs', '') || `Step ${index + 1}`;
-
-                return {
-                    stepIndex: index,
-                    scriptName,
-                    result
-                };
-            })
-            .filter((x): x is { stepIndex: number; scriptName: string; result: ExecutionResult } => x !== null);
-    }, [executionResults, editedPlaylist.items]);
+    // Update parameters for a specific step
+    const handleStepParameterUpdate = (newParams: Record<string, string | number | boolean>) => {
+        if (configuringStepIndex === null) return;
+        const newItems = [...editedPlaylist.items];
+        newItems[configuringStepIndex] = {
+            ...newItems[configuringStepIndex],
+            parameters: newParams
+        };
+        setEditedPlaylist({ ...editedPlaylist, items: newItems });
+        setIsDirty(true);
+    };
 
     const handleUpdateDetails = async (name: string, description: string) => {
         const updatedPlaylist = {
@@ -241,8 +239,23 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
         }
     };
 
+    // Find the script for the currently configuring step
+    const configuringItem = configuringStepIndex !== null ? editedPlaylist.items[configuringStepIndex] : null;
+    const configuringScript = useMemo(() => {
+        if (configuringItem === null) return null;
+        const normalizedPath = configuringItem.scriptPath.replace(/\\/g, '/').toLowerCase();
+
+        return scripts.find(s => {
+            const normalizedScriptPath = s.absolutePath.replace(/\\/g, '/').toLowerCase();
+            return normalizedScriptPath === normalizedPath ||
+                s.absolutePath === configuringItem.scriptPath ||
+                normalizedScriptPath.endsWith(normalizedPath) ||
+                normalizedPath.endsWith(normalizedScriptPath);
+        }) || null;
+    }, [configuringItem, scripts]);
+
     return (
-        <div className="h-full flex text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-[var(--bg-ground)] font-sans">
+        <div className="h-full flex flex-col text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-[var(--bg-ground)] font-sans">
             <EditPlaylistModal
                 isOpen={isEditDetailsModalOpen}
                 onClose={() => setIsEditDetailsModalOpen(false)}
@@ -250,20 +263,43 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
                 initialName={editedPlaylist.name}
                 initialDescription={editedPlaylist.description}
             />
-            {/* LEFT: Timeline & Actions (40%) */}
-            <div style={{ order: isLayoutSwapped ? 2 : 0 }} className={`w-[40%] flex flex-col ${isLayoutSwapped ? 'border-l' : 'border-r'} border-slate-200 dark:border-slate-800`}>
-                <PlaylistScriptPicker
-                    isOpen={isScriptPickerOpen}
-                    onClose={() => setIsScriptPickerOpen(false)}
-                    onSelect={handleAddScript}
-                />
+            <PlaylistScriptPicker
+                isOpen={isScriptPickerOpen}
+                onClose={() => setIsScriptPickerOpen(false)}
+                onSelect={handleAddScript}
+            />
 
-                {/* Timeline Component */}
+            {configuringStepIndex !== null && configuringItem && configuringScript ? (
+                /* Inline Step Config View */
+                <PlaylistStepConfig
+                    key={`config-${configuringStepIndex}`}
+                    script={configuringScript}
+                    scriptPath={configuringItem.scriptPath}
+                    savedParameters={configuringItem.parameters || {}}
+                    onUpdateParameters={handleStepParameterUpdate}
+                    onBack={handleBackFromConfig}
+                    stepIndex={configuringStepIndex}
+                />
+            ) : configuringStepIndex !== null && !configuringScript ? (
+                /* Script not found fallback */
+                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+                    <p className="text-sm font-medium">Script not found</p>
+                    <p className="text-xs text-gray-300 dark:text-gray-600">{configuringItem?.scriptPath}</p>
+                    <button
+                        onClick={handleBackFromConfig}
+                        className="mt-2 px-4 py-2 text-xs font-bold text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    >
+                        <FontAwesomeIcon icon={faArrowLeft} className="mr-2" />
+                        Back to Steps
+                    </button>
+                </div>
+            ) : (
+                /* Playlist Timeline (full width, no right panel) */
                 <PlaylistTimeline
                     items={editedPlaylist.items}
                     playlistName={editedPlaylist.name}
                     selectedIndex={selectedItemIndex}
-                    onSelect={setSelectedItemIndex}
+                    onSelect={handleStepSelect}
                     onDelete={handleDeleteItem}
                     onReorder={handleMoveItem}
                     onAdd={() => setIsScriptPickerOpen(true)}
@@ -274,52 +310,7 @@ export const PlaylistEditor: React.FC<PlaylistEditorProps> = ({ playlist, onBack
                     isDirty={isDirty}
                     executionStatus={executionStatus}
                 />
-            </div>
-
-            {/* RIGHT: Unified Inspector (60%) */}
-            <div style={{ order: isLayoutSwapped ? 0 : 2 }} className="w-[60%] bg-slate-50 dark:bg-[var(--bg-ground)] flex flex-col">
-                {selectedItemIndex !== null && editedPlaylist.items[selectedItemIndex] ? (
-                    (() => {
-                        const currentScriptPath = editedPlaylist.items[selectedItemIndex].scriptPath;
-                        // Find the full script object from context
-                        const currentScript = scripts.find(s => {
-                            const normalizedScriptPath = s.absolutePath.replace(/\\/g, '/').toLowerCase();
-                            const normalizedItemPath = currentScriptPath.replace(/\\/g, '/').toLowerCase();
-                            return normalizedScriptPath === normalizedItemPath ||
-                                s.absolutePath === currentScriptPath ||
-                                normalizedScriptPath.endsWith(normalizedItemPath) ||
-                                normalizedItemPath.endsWith(normalizedScriptPath);
-                        });
-
-                        return currentScript ? (
-                            <UnifiedStepInspector
-                                key={`${selectedItemIndex}-${currentScript.absolutePath}`}
-                                script={currentScript}
-                                scriptPath={editedPlaylist.items[selectedItemIndex].scriptPath}
-                                savedParameters={editedPlaylist.items[selectedItemIndex].parameters || {}}
-                                onUpdateParameters={(newParams) => {
-                                    const newItems = [...editedPlaylist.items];
-                                    newItems[selectedItemIndex] = {
-                                        ...newItems[selectedItemIndex],
-                                        parameters: newParams
-                                    };
-                                    setEditedPlaylist({ ...editedPlaylist, items: newItems });
-                                    setIsDirty(true);
-                                }}
-                                executionReport={executionReport}
-                                stepIndex={selectedItemIndex}
-                            />
-                        ) : null;
-                    })()
-                ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-300 dark:text-gray-700">
-                        <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-                            <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-                        </div>
-                        <p className="text-sm font-medium">Select a step to configure</p>
-                    </div>
-                )}
-            </div>
+            )}
         </div>
     );
 };

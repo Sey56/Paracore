@@ -58,29 +58,61 @@ export const PlaylistProvider = ({ children }: { children: React.ReactNode }) =>
         setIsLoading(true);
         try {
             if (!playlist.filePath) {
+                console.error('[updatePlaylist] playlist has no filePath — cannot save', playlist);
                 showNotification("Playlist has no file path, cannot update.", "error");
                 return false;
             }
-            // We use the same /save endpoint, but we pass the folder containing the file
-            // Actually, my backend logical split was: folderPath + playlist object. 
-            // If I have filePath, I can derive folderPath. 
-            // Let's check backend implementation.
-            // Backend takes { playlist: ..., folderPath: ... } and constructs path as folderPath/filename.
-            // If checking backend code: `full_path = os.path.join(req.folderPath, filename)`
 
-            // So if I want to update, I need to pass the FOLDER it is in.
-            // I can extract directory from filePath if available.
-            // However, JS doesn't have path.dirname easily without node.
-            // But filePath comes from backend which is absolute.
-            // Let's assume for now I can pass the folder path if I know it, OR I can modify backend to accept absolute `filePath` inside playlist object as override.
+            // Extract the parent directory from the playlist's absolute filePath.
+            const lastBackslash = playlist.filePath.lastIndexOf('\\');
+            const lastSlash = playlist.filePath.lastIndexOf('/');
+            const lastSep = Math.max(lastBackslash, lastSlash);
+            if (lastSep < 0) {
+                console.error('[updatePlaylist] could not extract folder from filePath:', playlist.filePath);
+                showNotification('Could not determine save location from file path.', 'error');
+                return false;
+            }
+            const folderPath = playlist.filePath.substring(0, lastSep);
 
-            // Let's just modify the backend to be smarter or extract folderPath from filePath.
-            // Wait, I can just substring string manipulation.
-            const folderPath = playlist.filePath.substring(0, playlist.filePath.lastIndexOf('\\')) || playlist.filePath.substring(0, playlist.filePath.lastIndexOf('/'));
+            console.log('[updatePlaylist] saving playlist', {
+                name: playlist.name,
+                filePath: playlist.filePath,
+                folderPath,
+                itemCount: playlist.items.length,
+            });
 
-            await api.post('/playlists/save', { playlist, folderPath });
+            const response = await api.post('/playlists/save', { playlist, folderPath });
+            // Use the backend response (which has the canonical filePath) to update state
+            const saved: Playlist = response.data;
 
-            setPlaylists(prev => prev.map(p => p.filePath === playlist.filePath ? playlist : p));
+            console.log('[updatePlaylist] save succeeded, backend returned filePath:', saved.filePath);
+
+            setPlaylists(prev => {
+                const updated = prev.map(p => {
+                    // Match by filePath first, then by name as fallback
+                    if (p.filePath && saved.filePath && p.filePath === saved.filePath) return saved;
+                    if (p.filePath && playlist.filePath && p.filePath === playlist.filePath) return saved;
+                    if (!p.filePath && !saved.filePath && p.name === saved.name) return saved;
+                    return p;
+                });
+                // If nothing was updated, the playlist might be new — add it
+                const wasUpdated = updated.some(p =>
+                    (p.filePath && saved.filePath && p.filePath === saved.filePath) ||
+                    (p.name === saved.name && !p.filePath && !saved.filePath)
+                );
+                console.log('[updatePlaylist] playlists updated, wasFound:', wasUpdated, 'count:', updated.length);
+                return wasUpdated ? updated : [...updated, saved];
+            });
+
+            // Keep selectedPlaylist in sync if it's the one being saved
+            setSelectedPlaylist(prev => {
+                if (!prev) return prev;
+                if (prev.filePath && saved.filePath && prev.filePath === saved.filePath) return saved;
+                if (prev.filePath && playlist.filePath && prev.filePath === playlist.filePath) return saved;
+                if (prev.name === saved.name) return saved;
+                return prev;
+            });
+
             showNotification(`Playlist '${playlist.name}' updated successfully`, "success");
             return true;
         } catch (error) {

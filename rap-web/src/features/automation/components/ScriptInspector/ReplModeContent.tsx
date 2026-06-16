@@ -2,18 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useConsole } from '../../store/ConsoleContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport } from '@fortawesome/free-solid-svg-icons';
 import { REPLCodeEditor } from './REPLCodeEditor';
+import { Modal } from '@/components/common/Modal';
+import { Tooltip } from '@/components/common/Tooltip';
 
 export const ReplModeContent: React.FC = () => {
-  const { 
+  const {
     singleLineValue, setSingleLineValue,
     multiLineValue, setMultiLineValue,
     isReplLoading, handleReplSubmit,
     activeSnippetName, handleSaveSnippet,
-    singleCommandHistory
+    singleCommandHistory, isDirty,
+    handleNewSnippet, handleLoadSnippet
   } = useConsole();
-  
+
   const { runningScriptPath } = useScriptExecution();
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -21,6 +24,15 @@ export const ReplModeContent: React.FC = () => {
 
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [currentValueBeforeHistory, setCurrentValueBeforeHistory] = useState<string>("");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const onNewSnippet = () => {
+    if (multiLineValue.trim() && isDirty) {
+      setShowClearConfirm(true);
+    } else {
+      handleNewSnippet();
+    }
+  };
 
   // Re-focus the single-line input after loading finishes
   const wasLoadingRef = useRef(false);
@@ -134,33 +146,82 @@ export const ReplModeContent: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 overflow-x-hidden">
+      {/* Header — REPL file management, flush against top */}
+      <div className="flex items-center justify-between px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
+            <FontAwesomeIcon icon={faTerminal} className="text-[10px]" />
+            <span className="text-[11px] font-bold whitespace-nowrap">REPL Playground</span>
+          </div>
+          {activeSnippetName && (
+            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 border-l border-slate-200 dark:border-slate-700 ml-2 pl-3">
+              <FontAwesomeIcon icon={faCode} className="text-[10px]" />
+              <span className="text-[10px] font-bold tracking-wider italic truncate max-w-[320px]" title={activeSnippetName}>
+                {activeSnippetName}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Tooltip text="New / Clear" position="bottom-center">
+            <button onClick={onNewSnippet} className="p-1.5 text-slate-400 hover:text-green-500 transition-colors">
+              <FontAwesomeIcon icon={faFile} className="text-xs" />
+            </button>
+          </Tooltip>
+          <Tooltip text="Open" position="bottom-center">
+            <button onClick={handleLoadSnippet} className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
+              <FontAwesomeIcon icon={faFolderOpen} className="text-xs" />
+            </button>
+          </Tooltip>
+          <Tooltip text="Save" position="bottom-center">
+            <button
+              onClick={() => handleSaveSnippet(false)}
+              disabled={!multiLineValue.trim()}
+              className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
+            >
+              <FontAwesomeIcon icon={faSave} className="text-xs" />
+            </button>
+          </Tooltip>
+          <Tooltip text="Save As" position="bottom-center">
+            <button
+              onClick={() => handleSaveSnippet(true)}
+              disabled={!multiLineValue.trim()}
+              className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
+            >
+              <FontAwesomeIcon icon={faFileExport} className="text-xs" />
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+
       {/* Multi-line REPL Editor */}
       <div className="flex-1 min-h-0 flex flex-col pt-2">
-        <REPLCodeEditor 
-          ref={textareaRef} 
-          value={multiLineValue} 
-          onChange={setMultiLineValue} 
-          onKeyDown={(e) => { 
-            if (e.key === 's' && (e.ctrlKey || e.metaKey)) { 
-              e.preventDefault(); 
-              handleSaveSnippet(false); 
+        <REPLCodeEditor
+          ref={textareaRef}
+          value={multiLineValue}
+          onChange={setMultiLineValue}
+          onKeyDown={(e) => {
+            if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              handleSaveSnippet(false);
             } else {
               handleKeyDown(e);
             }
-          }} 
-          disabled={isReplLoading || isRunning} 
-          placeholder="C# Playground... (Ctrl+Enter to run)" 
+          }}
+          disabled={isReplLoading || isRunning}
+          placeholder="C# Playground... (Ctrl+Enter to run)"
         />
       </div>
-      
+
       {/* Controls & Single-line REPL Area */}
       <div className="p-4 flex flex-col gap-4 border-t border-slate-200 dark:border-slate-800">
         {/* RUN Button */}
         <div className="flex justify-end">
-          <button 
-            disabled={isReplLoading || isRunning || !multiLineValue.trim()} 
-            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-bold flex items-center shadow-lg transition-all active:scale-95 disabled:opacity-50 text-sm" 
+          <button
+            disabled={isReplLoading || isRunning || !multiLineValue.trim()}
+            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-bold flex items-center shadow-lg transition-all active:scale-95 disabled:opacity-50 text-sm"
             onClick={() => handleReplSubmit(true, activeSnippetName)}
           >
             {isReplLoading ? (
@@ -175,10 +236,10 @@ export const ReplModeContent: React.FC = () => {
         {/* Single-line Input */}
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-bold opacity-50 pointer-events-none select-none text-sm">{'>'}</span>
-          <input 
-            ref={inputRef} 
-            type="text" 
-            value={singleLineValue} 
+          <input
+            ref={inputRef}
+            type="text"
+            value={singleLineValue}
             spellCheck={false}
             autoComplete="off"
             autoCorrect="off"
@@ -187,14 +248,49 @@ export const ReplModeContent: React.FC = () => {
               setSingleLineValue(e.target.value);
               setHistoryIndex(-1);
               setCurrentValueBeforeHistory("");
-            }} 
-            onKeyDown={handleSingleLineKeyDown} 
-            placeholder="Single command..." 
-            disabled={isReplLoading || isRunning} 
-            className="w-full pl-7 pr-4 py-2.5 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white transition-all font-mono" 
+            }}
+            onKeyDown={handleSingleLineKeyDown}
+            placeholder="Single command..."
+            disabled={isReplLoading || isRunning}
+            className="w-full pl-7 pr-4 py-2.5 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white transition-all font-mono"
           />
         </div>
       </div>
+
+      {/* Confirm Clear Modal */}
+      <Modal isOpen={showClearConfirm} onClose={() => setShowClearConfirm(false)} title="Clear REPL" size="sm">
+        <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
+          {activeSnippetName
+            ? `You have unsaved changes to "${activeSnippetName}". Save before clearing?`
+            : "You have unsaved code in the editor. Save before clearing?"}
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setShowClearConfirm(false)}
+            className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { setShowClearConfirm(false); handleNewSnippet(); }}
+            className="px-4 py-2 text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium transition-colors"
+          >
+            Discard Changes
+          </button>
+          <button
+            onClick={async () => {
+              const saved = await handleSaveSnippet(false);
+              if (saved) {
+                setShowClearConfirm(false);
+                handleNewSnippet();
+              }
+            }}
+            className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Save First
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };

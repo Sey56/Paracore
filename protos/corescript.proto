@@ -213,6 +213,7 @@ message ExecuteScriptResponse {
   string internal_data = 6;
   string agent_summary = 7;
   repeated int32 pipeline_diagnostics = 8;
+  bool user_rejected = 9;        // session gate: user clicked Reject
 }
 
 message GetStatusRequest {
@@ -448,6 +449,8 @@ message ExecuteReplRequest {
   string code = 1;
   string session_id = 2;
   string license_tier = 3;
+  string execution_mode = 4;  // "read_only" or "read_write" (default)
+  string source = 5;          // "mcp_agent", "paracore_agent", "paracore_ui"
 }
 
 message ExecuteReplResponse {
@@ -456,4 +459,6 @@ message ExecuteReplResponse {
   string error_message = 3;
   repeated StructuredOutputItem structured_output = 4;
   repeated int32 pipeline_diagnostics = 5;
+  bool user_rejected = 6;        // session gate: user clicked Reject
+  bool read_only_violation = 7;  // read_only code contained write operations
 }

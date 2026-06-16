@@ -102,7 +102,7 @@ namespace CoreScript.Engine.Core
                 // --- Path-based Reference Gathering (Matches ScriptCompiler.cs) ---
                 string revitInstallPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? string.Empty;
                 var revitDllPaths = Directory.GetFiles(revitInstallPath, "RevitAPI*.dll");
-                var revitRefs = revitDllPaths.Where(IsManagedAssembly).Select(path => MetadataReference.CreateFromFile(path)).ToList();
+                var revitRefs = revitDllPaths.Where(Parsers.ExtractionUtils.IsManagedAssembly).Select(path => MetadataReference.CreateFromFile(path)).ToList();
 
                 var coreTypes = new[] {
                     typeof(object), typeof(Enumerable), typeof(Assembly), typeof(List<>),
@@ -430,17 +430,6 @@ namespace CoreScript.Engine.Core
             }
         }
 
-        private static bool IsManagedAssembly(string path)
-        {
-            try
-            {
-                AssemblyName.GetAssemblyName(path);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+
     }
 }

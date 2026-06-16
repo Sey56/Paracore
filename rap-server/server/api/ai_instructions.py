@@ -133,7 +133,7 @@ walls.WhereParam("Type Name", "contains", "Fire")
 elements.WhereMatches("Single-Flush")
 
 // Exclude curtain-wall doors
-doors.StandardOnly()
+doors.StandardDoor()
 
 // Sort
 .OrderByParam("Length")

@@ -13,6 +13,8 @@ interface CommandConsoleProps {
   setSortOrder: (order: string) => void;
   isCompactView: boolean;
   setIsCompactView: (compact: boolean) => void;
+  totalUnits: number;
+  filteredCount: number;
 }
 
 const SORT_OPTIONS = [
@@ -37,7 +39,9 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
   sortOrder,
   setSortOrder,
   isCompactView,
-  setIsCompactView
+  setIsCompactView,
+  totalUnits,
+  filteredCount
 }) => {
   const [isSortOpen, setIsSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
@@ -51,30 +55,40 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isSortOpen]);
 
-  const activeSortLabel = SORT_OPTIONS.find(opt => opt.value === sortOrder)?.label || 'Sort By';
+  const activeSortLabel = SORT_OPTIONS.find(opt => opt.value === sortOrder)?.label || 'Sort';
 
   return (
-    <div className="w-full mb-8 relative z-20">
-      <div className={`w-full flex flex-wrap items-center justify-center lg:justify-between gap-4 px-4 py-3 rounded-2xl bg-white/60 dark:bg-slate-800/40 backdrop-blur-md border border-slate-200/50 dark:border-slate-600/50 shadow-sm ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div className="w-full mb-1 relative z-20">
+      <div className={`w-full flex flex-wrap items-center gap-2.5 px-3 py-2 rounded-xl bg-white/70 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
 
-        {/* Unit 1: Search (Flexible, hits floor at 170px) */}
-        <div className="flex-1 min-w-[170px] relative group max-w-2xl">
+        {/* Search */}
+        <div className="flex-1 min-w-[140px] relative">
           <FontAwesomeIcon
             icon={faSearch}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors text-xs"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"
           />
           <input
             type="text"
-            placeholder="Search gallery..."
-            className="w-full pl-9 pr-4 py-2 bg-white/40 dark:bg-slate-800/80 rounded-xl text-[13px] font-bold text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all border border-slate-200/50 dark:border-slate-600/60 focus:border-blue-500/50 focus:bg-white dark:focus:bg-slate-800 shadow-inner"
+            placeholder="Search..."
+            className="w-full pl-8 py-1.5 bg-transparent rounded-lg text-[12px] font-medium text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 transition-colors border border-transparent focus:border-blue-300/50 dark:focus:border-blue-600/50 focus:bg-white/60 dark:focus:bg-slate-800/80"
+            style={{ paddingRight: totalUnits > 0 ? '3.5rem' : '0.75rem' }}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             disabled={!isAuthenticated}
           />
+          {totalUnits > 0 && (
+            <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-medium tabular-nums select-none pointer-events-none
+              ${filteredCount !== totalUnits
+                ? 'text-blue-500 dark:text-blue-400'
+                : 'text-slate-300 dark:text-slate-600'
+              }`}>
+              {filteredCount}/{totalUnits}
+            </span>
+          )}
         </div>
 
-        {/* Unit 2: Type Filter (Wraps independently) */}
-        <div className="flex items-center gap-1 bg-white/40 dark:bg-slate-800/80 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-600/60 shadow-inner shrink-0">
+        {/* Type Filter */}
+        <div className="flex items-center gap-0.5 bg-slate-100/60 dark:bg-slate-800/80 p-0.5 rounded-lg shrink-0">
           {[
             { id: 'all', label: 'All' },
             { id: 'scripts', label: 'Scripts' },
@@ -83,10 +97,10 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
             <button
               key={t.id}
               onClick={() => setTypeFilter(t.id as 'all' | 'scripts' | 'guards')}
-              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all
                 ${typeFilter === t.id
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-400'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                 }`}
             >
               {t.label}
@@ -94,53 +108,46 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           ))}
         </div>
 
-        {/* Unit 3: Sort + View Toggle (Wraps independently) */}
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Custom High-Contrast Sort Dropdown */}
-          <div className="relative min-w-[170px]" ref={sortRef}>
-            <div
+        {/* Sort + View Toggle */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="relative" ref={sortRef}>
+            <button
               onClick={() => setIsSortOpen(!isSortOpen)}
-              className="flex items-center justify-between w-full bg-white/40 hover:bg-white/60 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase text-slate-500 dark:text-slate-300 cursor-pointer transition-all border border-slate-200/50 dark:border-slate-600/60 shadow-sm"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faSortAmountDown} className="text-slate-400" />
-                <span>{activeSortLabel}</span>
-              </div>
-              <FontAwesomeIcon icon={faChevronDown} className={`text-[8px] text-slate-400 transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
-            </div>
+              <FontAwesomeIcon icon={faSortAmountDown} className="text-[10px]" />
+              <span className="hidden sm:inline">{activeSortLabel}</span>
+              <FontAwesomeIcon icon={faChevronDown} className={`text-[7px] transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
+            </button>
 
             {isSortOpen && (
-              <div className="absolute top-full right-0 mt-2 min-w-[200px] bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 overflow-hidden">
-                <div className="max-h-64 overflow-y-auto custom-scrollbar">
+              <div className="absolute top-full right-0 mt-1.5 min-w-[180px] bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[110] border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+                <div className="max-h-56 overflow-y-auto custom-scrollbar py-1">
                   {SORT_OPTIONS.map(opt => (
-                    <div
+                    <button
                       key={opt.value}
-                      onClick={() => {
-                        setSortOrder(opt.value);
-                        setIsSortOpen(false);
-                      }}
-                      className={`px-4 py-2.5 text-[11px] font-bold cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors border-b border-slate-50 dark:border-slate-800/50 last:border-0 flex items-center justify-between ${sortOrder === opt.value ? 'text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/20' : 'text-slate-600 dark:text-slate-300'}`}
+                      onClick={() => { setSortOrder(opt.value); setIsSortOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-[11px] font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${sortOrder === opt.value ? 'text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10' : 'text-slate-600 dark:text-slate-300'}`}
                     >
                       {opt.label}
-                      {sortOrder === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                    </div>
+                      {sortOrder === opt.value && <div className="w-1 h-1 rounded-full bg-blue-500" />}
+                    </button>
                   ))}
                 </div>
               </div>
             )}
           </div>
 
-          {/* View Toggle */}
           <button
             onClick={() => setIsCompactView(!isCompactView)}
-            className={`w-9 h-9 rounded-xl border transition-all flex items-center justify-center shrink-0
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all
               ${isCompactView
-                ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400'
-                : 'bg-transparent border-transparent text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
               }`}
             title={isCompactView ? "Standard Grid" : "Compact Grid"}
           >
-            <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} className="text-xs" />
+            <FontAwesomeIcon icon={isCompactView ? faExpandAlt : faCompressAlt} className="text-[10px]" />
           </button>
         </div>
       </div>

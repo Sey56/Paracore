@@ -427,7 +427,10 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     } catch (error: unknown) {
       const err = error as { response?: { status: number } };
-      if (err.response?.status !== 401) {
+      if (err.response?.status === 401) {
+        // Token expired — back off to 30s to stop flooding
+        setPollingInterval(30000);
+      } else {
         console.error("Failed to fetch active sessions:", err);
       }
     }

@@ -93,7 +93,7 @@ Stable orientation helpers that don't swap when doors are flipped.
 | `.IsFacingFlipped()` | `bool` | `FamilyInstance.FacingFlipped` |
 | `.FindSwingArc()` | `Arc?` | Largest arc in door geometry |
 | `.IsStandardDoor()` | `bool` | `true` if not curtain wall panel |
-| `.StandardOnly()` | `IEnumerable` | Filters out curtain wall doors |
+| `.StandardDoor()` | `IEnumerable` | Filters out curtain wall doors |
 
 ---
 

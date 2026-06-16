@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import api from '@/api/axios';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
@@ -9,12 +9,19 @@ import { trackEvent } from '@/utils/telemetry';
 export const useExecutionRunner = (
   threadId: string | null,
   addRecentScript: (id: string) => void,
-  updateScriptLastRunTime: (id: string) => void
+  updateScriptLastRunTime: (id: string) => void,
+  isEnterprise: boolean = false
 ) => {
   const { showNotification } = useNotifications();
   const { revitStatus } = useRevitStatus();
   const [runningScriptPath, setRunningScriptPath] = useState<string | null>(null);
-  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(() => {
+    const saved = localStorage.getItem('paracore_analytics_result');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { return null; }
+    }
+    return null;
+  });
 
   const runScript = useCallback(async (
     script: Script, 
@@ -43,7 +50,8 @@ export const useExecutionRunner = (
       const response = await api.post("/run-script", {
         path: script.absolutePath,
         parameters: JSON.stringify(parameters),
-        thread_id: threadId
+        thread_id: threadId,
+        license_tier: isEnterprise ? "enterprise" : "free"
       });
 
       const result = response.data;
@@ -81,7 +89,15 @@ export const useExecutionRunner = (
     } finally {
       setRunningScriptPath(null);
     }
-  }, [runningScriptPath, threadId, addRecentScript, updateScriptLastRunTime, showNotification, revitStatus.document]);
+  }, [runningScriptPath, threadId, addRecentScript, updateScriptLastRunTime, showNotification, revitStatus.document, isEnterprise]);
+
+  useEffect(() => {
+    if (executionResult) {
+      localStorage.setItem('paracore_analytics_result', JSON.stringify(executionResult));
+    } else {
+      localStorage.removeItem('paracore_analytics_result');
+    }
+  }, [executionResult]);
 
   return {
     runningScriptPath,

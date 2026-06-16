@@ -24,6 +24,12 @@ async def run_script(
     db: Session = Depends(get_db)
 ):
     data = await request.json()
+    # Prefer explicit license_tier from the frontend over the auth-derived
+    # fallback — get_optional_current_user silently returns id=0 (free) when
+    # token validation fails transiently.
+    license_tier = data.get("license_tier")
+    if not license_tier:
+        license_tier = "enterprise" if current_user.id != 0 else "free"
     response_data = await execution_service.run_script_logic(
         path=data.get("path"),
         parameters=data.get("parameters"),
@@ -33,6 +39,7 @@ async def run_script(
         current_user_id=current_user.id,
         active_team=current_user.activeTeam,
         active_role=current_user.activeRole,
+        license_tier=license_tier,
         db=db
     )
     return JSONResponse(content=response_data)

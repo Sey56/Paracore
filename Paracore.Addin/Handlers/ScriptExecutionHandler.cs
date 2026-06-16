@@ -6,6 +6,7 @@ using CoreScript.Engine.Runtime;
 using Grpc.Core;
 using Paracore.Addin.Context;
 using Paracore.Addin.Models;
+using Paracore.Addin.Services;
 using Paracore.Addin.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -399,6 +400,21 @@ namespace Paracore.Addin.Handlers
             {
                 return new ExecuteScriptResponse { IsSuccess = false, ErrorMessage = "Revit UI Application is not available." };
             }
+
+            // ── Session gate (one-time per Revit session) ──
+            bool approved = await CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext<bool>(() =>
+            {
+                return SessionGate.EnsureApproved(request.Source ?? "paracore");
+            });
+
+            if (!approved)
+                return new ExecuteScriptResponse
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "Code execution denied for this Revit session. Restart Revit to reset.",
+                    UserRejected = true
+                };
+
             var serverContext = new ServerContext(_uiApp);
             _logger.Log("[ScriptExecutionHandler] ServerContext created.", LogLevel.Debug);
             string scriptContentStr = request.ScriptContent;

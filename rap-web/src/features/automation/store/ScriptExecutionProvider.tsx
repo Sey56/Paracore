@@ -8,6 +8,14 @@ import { useScripts } from '../hooks/useScripts';
 import { useAuth } from '@/features/auth';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
+
+function isSameScript(s1: Script | null | undefined, s2: Script | null | undefined): boolean {
+  if (!s1 || !s2) return false;
+  if (s1.id === s2.id) return true;
+  const p1 = (s1.absolutePath || s1.id).replace(/\\/g, '/').toLowerCase();
+  const p2 = (s2.absolutePath || s2.id).replace(/\\/g, '/').toLowerCase();
+  return p1 === p2;
+}
 import api from '@/api/axios';
 
 // Hooks
@@ -35,7 +43,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     activeSyncSessions,
     editScript: editScriptFromContext
   } = useScripts();
-  const { isAuthenticated, activeTeam, user, cloudToken } = useAuth();
+  const { isAuthenticated, activeTeam, user, cloudToken, isEnterprise } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, setActiveInspectorTab, threadId } = useUI();
   const { revitStatus } = useRevitStatus();
 
@@ -92,7 +100,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     executionResult,
     setExecutionResult,
     runScript
-  } = useExecutionRunner(threadId, addRecentScript, updateScriptLastRunTime);
+  } = useExecutionRunner(threadId, addRecentScript, updateScriptLastRunTime, isEnterprise);
 
   // 6. Parameter Computations
   const {
@@ -150,15 +158,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
 
     const currentSelected = selectedScriptRef.current;
 
-    // V5 ROBUST COMPARISON: Check both ID and Path normalization
-    const isSameScript = (s1: Script, s2: Script) => {
-      if (!s1 || !s2) return false;
-      if (s1.id === s2.id) return true;
-      if (s1.absolutePath && s2.absolutePath) {
-        return s1.absolutePath.replace(/\\/g, '/').toLowerCase() === s2.absolutePath.replace(/\\/g, '/').toLowerCase();
-      }
-      return false;
-    };
+    // V5 ROBUST COMPARISON: uses shared isSameScript below
 
     if (source !== 'refresh' && source !== 'hard_reset' && source !== 'replace' && currentSelected && isSameScript(script, currentSelected)) {
       if (source === 'agent') setAgentSelectedScriptPath(script.absolutePath);
@@ -287,14 +287,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     if (selectedScript) {
       // V5 FIX: If we are currently renaming, ignore existence checks to avoid premature deselection
       if (isRenamingRef.current) return;
-
-      const isSameScript = (s1: Script, s2: Script) => {
-        if (!s1 || !s2) return false;
-        if (s1.id === s2.id) return true;
-        const p1 = (s1.absolutePath || s1.id).replace(/\\/g, '/').toLowerCase();
-        const p2 = (s2.absolutePath || s2.id).replace(/\\/g, '/').toLowerCase();
-        return p1 === p2;
-      };
 
       const globalScript = scripts.find(s => isSameScript(s, selectedScript));
 

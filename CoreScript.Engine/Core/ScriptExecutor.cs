@@ -1,4 +1,5 @@
 using CoreScript.Engine.Context;
+using CoreScript.Engine.Globals;
 using CoreScript.Engine.Models;
 using Microsoft.CodeAnalysis.Scripting;
 using System;
@@ -51,14 +52,18 @@ namespace CoreScript.Engine.Core
                 {
                     targetEx = tie.InnerException;
                 }
-                
-                string errorMsg = $"❌ Binary error: {targetEx.Message}";
-                // Include partial stack trace for better debugging of cached errors
-                if (targetEx.StackTrace != null)
+
+                // Keep the original error message intact — user-facing exceptions
+                // like LicenseException already have a clear emoji-prefixed message.
+                string errorMsg = targetEx.Message;
+
+                // Append first stack frame only for unexpected system errors
+                // (not for intentional business-logic exceptions like LicenseException).
+                if (!(targetEx is LicenseException) && targetEx.StackTrace != null)
                 {
                     errorMsg += $"\n{targetEx.StackTrace.Split('\n').FirstOrDefault()}";
                 }
-                
+
                 return ExecutionResult.Failure(errorMsg, context.PrintLog.ToArray());
             }
             finally

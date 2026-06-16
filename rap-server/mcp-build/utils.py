@@ -1,10 +1,7 @@
-import logging
 import subprocess
 import os
 import re
 import grpc
-
-logger = logging.getLogger(__name__)
 
 def launch_vscode(project_path: str):
     """
@@ -22,27 +19,6 @@ def launch_vscode(project_path: str):
     except Exception as e:
         logger.error(f"[Utils] Failed to launch VS Code via 'code' command: {e}")
         return False
-
-def read_script_files(project_path: str) -> list:
-    """
-    Read all .cs files from a project's Scripts/ subdirectory.
-    Skips globals.cs. Returns a list of {"file_name", "content"} dicts.
-    """
-    import glob as glob_module
-    scripts_dir = os.path.join(project_path, "Scripts")
-    if not os.path.isdir(scripts_dir):
-        return []
-    files = []
-    for fp in sorted(glob_module.glob(os.path.join(scripts_dir, "*.cs"))):
-        if os.path.basename(fp).lower() == "globals.cs":
-            continue
-        try:
-            with open(fp, 'r', encoding='utf-8-sig') as f:
-                files.append({"file_name": os.path.basename(fp), "content": f.read()})
-        except Exception:
-            continue
-    return files
-
 
 def format_grpc_error(e: grpc.RpcError) -> str:
     """
@@ -121,7 +97,7 @@ def get_or_create_script(db: "Session", script_path: str, owner_id: int) -> "mod
     script = models.Script(
         name=script_name,
         path=normalized_path,
-        owner_id=owner_id
+        owner_id=str(owner_id)
     )
     db.add(script)
     try:

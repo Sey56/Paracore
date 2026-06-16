@@ -1,9 +1,11 @@
+import dataclasses
 import json
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, TypeAdapter
 from pydantic_ai.messages import (
     ModelMessage, ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolReturnPart, UserPromptPart
@@ -226,6 +228,7 @@ async def _run_conversational_summary(
 
     try:
         from pydantic_ai import Agent as PydanticAgent
+        from pydantic_ai.usage import RunUsage
         summary_bot = PydanticAgent(
             model=model,
             system_prompt=(
@@ -235,7 +238,13 @@ async def _run_conversational_summary(
                 "Never mention internal details like 'Group', 'Count', or column names."
             ),
         )
-        result = await summary_bot.run(prompt)
+        summary_usage = RunUsage()
+        result = await summary_bot.run(prompt, usage=summary_usage)
+        # Accumulate summary usage into deps so both agent + summary tokens are tracked
+        try:
+            deps.turn_usage.incr(summary_usage)
+        except Exception:
+            pass
         return str(result.output).strip()
     except Exception:
         logger.exception("LLM conversational summary failed, using fallback.")
@@ -395,6 +404,7 @@ async def chat_with_agent(request: ChatRequest):
             "message": "",
             "tool_call": None,
             "raw_history_json": None,
+            "thinking_steps": [],
         }
 
         # ── 4. Conversational summary (tool-result follow-up) ─────────────
@@ -429,6 +439,37 @@ async def chat_with_agent(request: ChatRequest):
                 except Exception:
                     pass
             agent_response = await _run_conversational_summary(summary, deps, model, topic_query, csharp_code)
+
+            # ── Patch the dummy ToolReturnPart with real results ──────────
+            # The Protocol Shield injected a placeholder ToolReturnPart with
+            # "Execution output provided in next system message." — but the
+            # real execution just completed.  Replace the dummy with the
+            # actual summary so the agent remembers what its code produced on
+            # the next turn.
+            for i in range(len(pydantic_history) - 1, -1, -1):
+                msg = pydantic_history[i]
+                if isinstance(msg, ModelRequest):
+                    new_parts = []
+                    replaced = False
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart) and part.content == "Execution output provided in next system message.":
+                            new_parts.append(ToolReturnPart(
+                                tool_name=part.tool_name,
+                                content=summary,
+                                tool_call_id=part.tool_call_id,
+                            ))
+                            replaced = True
+                        else:
+                            new_parts.append(part)
+                    if replaced:
+                        pydantic_history[i] = ModelRequest(parts=new_parts)
+                        break
+
+            # Append the agent's summary response + the system prompt that
+            # triggered it so the full turn is captured.
+            pydantic_history.append(ModelRequest(parts=[UserPromptPart(content=request.message)]))
+            pydantic_history.append(ModelResponse(parts=[TextPart(content=agent_response)]))
+
             response_data["message"] = agent_response
             response_data["raw_history_json"] = _serialize_history(pydantic_history)
             return Response(content=json.dumps(response_data), media_type="application/json")
@@ -436,14 +477,28 @@ async def chat_with_agent(request: ChatRequest):
         # ── 5. Main agent run ─────────────────────────────────────────────
         try:
             from pydantic_ai.settings import ModelSettings
+            from pydantic_ai.usage import RunUsage
 
+            deps.turn_usage = RunUsage()
             result = await v4_repl_agent.run(
                 request.message,
                 message_history=pydantic_history,
                 deps=deps,
                 model=model,
                 model_settings=ModelSettings(max_tokens=2048),
+                usage=deps.turn_usage,
             )
+
+            # Capture usage EARLY — survives sanitizer raising InterruptedException below
+            try:
+                response_data["usage"] = {
+                    "input_tokens": deps.turn_usage.input_tokens,
+                    "output_tokens": deps.turn_usage.output_tokens,
+                    "total_tokens": deps.turn_usage.total_tokens,
+                    "requests": deps.turn_usage.requests,
+                }
+            except Exception:
+                pass
 
             raw_output = str(result.output) if isinstance(result.output, str) else ""
 
@@ -464,10 +519,22 @@ async def chat_with_agent(request: ChatRequest):
 
             response_data["message"] = cleaned_text or "Processing complete."
             response_data["raw_history_json"] = _serialize_history(pydantic_history)
+            response_data["thinking_steps"] = deps.thinking_steps
             logger.info(f"[V4] Finalizing turnaround: history preserved.")
 
         except InterruptedException as e:
             # ── 5b. Sovereign Handoff ─────────────────────────────────────
+            # Include partial usage from the interrupted agent run
+            try:
+                response_data["usage"] = {
+                    "input_tokens": deps.turn_usage.input_tokens,
+                    "output_tokens": deps.turn_usage.output_tokens,
+                    "total_tokens": deps.turn_usage.total_tokens,
+                    "requests": deps.turn_usage.requests,
+                }
+            except Exception:
+                pass
+
             # Block retry if results were already delivered (follow-up after execution)
             if request.raw_output_for_summary:
                 logger.info(f"[V4] Blocked agent retry after results already delivered.")
@@ -489,11 +556,13 @@ async def chat_with_agent(request: ChatRequest):
             )
             response_data["tool_call"] = tool_call
             response_data["raw_history_json"] = history_json
+            response_data["thinking_steps"] = deps.thinking_steps
 
         except Exception as run_err:
             # ── 5c. Classified error → user-friendly alert ────────────────
             try:
                 response_data["message"] = _classify_run_error(run_err, model_name)
+                response_data["thinking_steps"] = deps.thinking_steps
             except Exception:
                 # Not a classified error — bubble up
                 logger.exception(f"[V4] Agent Run Error: {run_err}")
@@ -504,3 +573,258 @@ async def chat_with_agent(request: ChatRequest):
     except Exception as e:
         logger.exception(f"[V4] Global Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Streaming Agent Chat Endpoint (SSE — Server-Sent Events)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _format_sse(event: str, data: dict) -> str:
+    """Format a dict as an SSE event string."""
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+@router.post("/agent/chat/stream")
+async def chat_with_agent_stream(request: ChatRequest):
+    """Stream the agent's thinking process via Server-Sent Events.
+
+    Uses PydanticAI's event_stream_handler to capture per-tool events
+    (FunctionToolCallEvent / FunctionToolResultEvent) as they happen,
+    pushing them onto an asyncio.Queue that the SSE generator reads from.
+    This gives true per-tool streaming — each explore/schema/read call
+    appears in the UI as it starts and completes, not all at once.
+    """
+    import asyncio
+    from agent.v4_repl_agent import v4_repl_agent, AgentDeps, InterruptedException
+    from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.messages import FunctionToolCallEvent, FunctionToolResultEvent
+
+    logger.info(f"[V4-Stream] Request (Model: {request.llm_model}, Provider: {request.llm_provider})")
+
+    if not request.llm_api_key_value:
+        raise HTTPException(status_code=400, detail="Missing API Key.")
+
+    deps = AgentDeps(
+        user_id=request.token or "unknown",
+        thread_id=request.thread_id or "unknown",
+    )
+    model_name = request.llm_model or 'gemini-1.5-flash'
+    model = _build_llm_model(
+        request.llm_provider or "Google",
+        model_name,
+        request.llm_api_key_value,
+    )
+    pydantic_history = _reconstruct_history(request.raw_history, request.history)
+
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def event_generator():
+        # ── Conversational summary shortcut ────────────────────────────────
+        if request.raw_output_for_summary:
+            from agent.summarizer import summarize
+            try:
+                summary = summarize(request.raw_output_for_summary)
+            except Exception:
+                summary = "Execution completed."
+
+            # ── Patch the dummy ToolReturnPart with real results ──────────
+            # Same fix as the non-streaming path: replace the Protocol Shield's
+            # placeholder with the actual execution summary so the agent
+            # remembers what its code produced on the next turn.
+            for i in range(len(pydantic_history) - 1, -1, -1):
+                msg = pydantic_history[i]
+                if isinstance(msg, ModelRequest):
+                    new_parts = []
+                    replaced = False
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart) and part.content == "Execution output provided in next system message.":
+                            new_parts.append(ToolReturnPart(
+                                tool_name=part.tool_name,
+                                content=summary,
+                                tool_call_id=part.tool_call_id,
+                            ))
+                            replaced = True
+                        else:
+                            new_parts.append(part)
+                    if replaced:
+                        pydantic_history[i] = ModelRequest(parts=new_parts)
+                        break
+
+            # Append this turn to history so the full cycle is preserved
+            pydantic_history.append(ModelRequest(parts=[UserPromptPart(content=request.message)]))
+            pydantic_history.append(ModelResponse(parts=[TextPart(content=summary)]))
+
+            yield _format_sse("complete", {
+                "message": summary,
+                "raw_history_json": _serialize_history(pydantic_history),
+                "thinking_steps": [],
+            })
+            return
+
+        # ── Per-tool event stream handler ──────────────────────────────────
+        # PydanticAI calls this concurrently with the agent run. We push
+        # each tool-call start/end event onto the queue so the SSE loop
+        # can yield them to the client in real time.
+        async def stream_handler(ctx, events):
+            async for event in events:
+                if isinstance(event, FunctionToolCallEvent):
+                    tool_name = event.part.tool_name
+                    if tool_name in ('explore_revit_data', 'search_schema', 'read_extension_methods'):
+                        args = event.part.args_as_dict()
+                        await queue.put({
+                            "type": "tool_start",
+                            "tool_name": tool_name,
+                            "tool_call_id": event.part.tool_call_id,
+                            "justification": args.get("justification", ""),
+                            "csharp_code": args.get("csharp_code"),
+                            "category_name": args.get("category_name"),
+                            "query": args.get("query"),
+                        })
+                elif isinstance(event, FunctionToolResultEvent):
+                    # Results fire for ALL tools, including execute_dynamic_query
+                    pass  # handled by deps.thinking_steps inspection below
+
+        # ── Start agent run in background ──────────────────────────────────
+        from pydantic_ai.usage import RunUsage
+        deps.turn_usage = RunUsage()
+        agent_task = asyncio.create_task(
+            v4_repl_agent.run(
+                request.message,
+                message_history=pydantic_history,
+                deps=deps,
+                model=model,
+                model_settings=ModelSettings(max_tokens=2048),
+                event_stream_handler=stream_handler,
+                usage=deps.turn_usage,
+            )
+        )
+
+        # ── Read queue and emit SSE events ─────────────────────────────────
+        last_step_count = 0
+        try:
+            while not agent_task.done() or not queue.empty():
+                flushed = False
+
+                # Check for new thinking steps (completed/error)
+                for i in range(last_step_count, len(deps.thinking_steps)):
+                    step = deps.thinking_steps[i]
+                    yield _format_sse("thinking_step", {
+                        "step_index": i,
+                        "tool_name": step.get("tool_name", ""),
+                        "justification": step.get("justification", ""),
+                        "status": step.get("status", "running"),
+                        "csharp_code": step.get("csharp_code"),
+                        "category_name": step.get("category_name"),
+                        "query": step.get("query"),
+                        "result_summary": step.get("result_summary"),
+                    })
+                    flushed = True
+                last_step_count = len(deps.thinking_steps)
+
+                # Emit pending tool-start events from the queue
+                try:
+                    tool_event = await asyncio.wait_for(queue.get(), timeout=0.2)
+                    if tool_event["type"] == "tool_start":
+                        step_index = len(deps.thinking_steps)
+                        yield _format_sse("thinking_step", {
+                            "step_index": step_index,
+                            "tool_name": tool_event["tool_name"],
+                            "justification": tool_event["justification"],
+                            "status": "running",
+                            "csharp_code": tool_event.get("csharp_code"),
+                            "category_name": tool_event.get("category_name"),
+                            "query": tool_event.get("query"),
+                            "result_summary": None,
+                        })
+                        flushed = True
+                except asyncio.TimeoutError:
+                    pass  # no new tool events yet, loop back to check steps
+
+                # Force TCP flush — give the ASGI server a chance to send the
+                # chunk before the tool completes and the next event arrives.
+                if flushed:
+                    await asyncio.sleep(0.01)
+
+            # ── Finalize: handle agent result ──────────────────────────────
+            try:
+                result = agent_task.result()
+            except InterruptedException as e:
+                # Tool-start events may still be in queue
+                while not queue.empty():
+                    tool_event = queue.get_nowait()
+                    step_index = len(deps.thinking_steps)
+                    yield _format_sse("thinking_step", {
+                        "step_index": step_index,
+                        "tool_name": tool_event["tool_name"],
+                        "justification": tool_event["justification"],
+                        "status": "running",
+                        "csharp_code": tool_event.get("csharp_code"),
+                        "category_name": tool_event.get("category_name"),
+                        "query": tool_event.get("query"),
+                        "result_summary": None,
+                    })
+
+                # Flush any remaining thinking steps
+                for i in range(last_step_count, len(deps.thinking_steps)):
+                    step = deps.thinking_steps[i]
+                    yield _format_sse("thinking_step", {
+                        "step_index": i,
+                        "tool_name": step.get("tool_name", ""),
+                        "justification": step.get("justification", ""),
+                        "status": step.get("status", "running"),
+                        "csharp_code": step.get("csharp_code"),
+                        "category_name": step.get("category_name"),
+                        "query": step.get("query"),
+                        "result_summary": step.get("result_summary"),
+                    })
+
+                tool_call, history_json = _build_sovereign_handoff(
+                    e, request.message, pydantic_history
+                )
+                usage_data_interrupted = None
+                try:
+                    usage_data_interrupted = {
+                        "input_tokens": deps.turn_usage.input_tokens,
+                        "output_tokens": deps.turn_usage.output_tokens,
+                        "total_tokens": deps.turn_usage.total_tokens,
+                        "requests": deps.turn_usage.requests,
+                    }
+                except Exception:
+                    pass
+                yield _format_sse("interrupted", {
+                    "tool_call": tool_call,
+                    "raw_history_json": history_json,
+                    "thinking_steps": deps.thinking_steps,
+                    "usage": usage_data_interrupted,
+                })
+                return
+
+            # Normal completion
+            output = str(result.output) if result and result.output else ""
+            from agent.response_sanitizer import sanitize_response
+            cleaned_text, _parsed_tool = sanitize_response(output)
+            usage_data = None
+            try:
+                usage_data = {
+                    "input_tokens": deps.turn_usage.input_tokens,
+                    "output_tokens": deps.turn_usage.output_tokens,
+                    "total_tokens": deps.turn_usage.total_tokens,
+                    "requests": deps.turn_usage.requests,
+                }
+            except Exception:
+                pass
+            yield _format_sse("complete", {
+                "message": cleaned_text or "Processing complete.",
+                "raw_history_json": _serialize_history(pydantic_history),
+                "thinking_steps": deps.thinking_steps,
+                "usage": usage_data,
+            })
+
+        except Exception as e:
+            yield _format_sse("error", {
+                "message": str(e),
+                "thinking_steps": deps.thinking_steps,
+            })
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

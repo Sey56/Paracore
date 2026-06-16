@@ -62,7 +62,7 @@ namespace Paracore.Addin.Services
                     using var channel = GrpcChannel.ForAddress("http://localhost:50051");
                     var bridgeClient = new AddinBridge.AddinBridgeClient(channel);
 
-                    using var call = bridgeClient.Subscribe(new SubscribeRequest { AddinVersion = "4.5.2" }, cancellationToken: token);
+                    using var call = bridgeClient.Subscribe(new SubscribeRequest { AddinVersion = "4.6.0" }, cancellationToken: token);
 
                     _logger.Log("Connected to Paracore Sidecar.", LogLevel.Info);
 

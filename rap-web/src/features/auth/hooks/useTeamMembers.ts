@@ -26,11 +26,33 @@ export const useTeamMembers = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getTeamMembers(activeTeam.team_id, cloudToken);
+      // Retry once for Railway cold-start (server wakes from sleep)
+      let data: TeamMemberOut[];
+      try {
+        data = await getTeamMembers(activeTeam.team_id, cloudToken);
+      } catch (firstErr: any) {
+        if (firstErr?.response?.status === 503 || firstErr?.code === 'ECONNABORTED' || !firstErr?.response) {
+          // Cold start — wait 3s and retry
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          data = await getTeamMembers(activeTeam.team_id, cloudToken);
+        } else {
+          throw firstErr;
+        }
+      }
       setMembers(data);
-    } catch (err) {
-      console.error("Failed to fetch team members:", err);
-      setError("Failed to load team members.");
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail || err?.message || String(err);
+      console.error("Failed to fetch team members:", { status, detail, err });
+      if (status === 401) {
+        setError("Session expired. Please sign out and sign in again.");
+      } else if (status === 403) {
+        setError("You no longer have admin access to this team.");
+      } else if (status === 404) {
+        setError("Team not found. It may have been deleted or the server database was reset.");
+      } else {
+        setError(`Failed to load team members (${status || 'network error'}). ${detail}`);
+      }
     } finally {
       setLoading(false);
     }

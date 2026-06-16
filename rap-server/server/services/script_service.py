@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Any
 from fastapi import HTTPException
 import grpc_client
 from ide_manager import set_active_ide_session, remove_active_ide_session
-from utils import resolve_script_path, launch_vscode
+from utils import resolve_script_path, launch_vscode, read_script_files
 from api.script_templates import ARCHETYPES
 
 def recover_true_path(path: str) -> str:
@@ -137,15 +137,7 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             item_path = os.path.join(pack_path, item)
             if not os.path.isdir(item_path) or item.startswith('.'): continue
             
-            scripts_dir = os.path.join(item_path, "Scripts")
-            script_files = []
-            if os.path.isdir(scripts_dir):
-                for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                    if os.path.basename(fp).lower() == "globals.cs": continue
-                    try:
-                        with open(fp, 'r', encoding='utf-8-sig') as f:
-                            script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
-                    except: continue
+            script_files = read_script_files(item_path)
 
             projects_to_fetch.append({
                 "project_name": item,
@@ -182,11 +174,15 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             # V5: Pre-extract VQB graph data for the "Template Gallery"
             extracted_query = _extract_query_data(project["files"])
 
+            # Check if this script has a Docs/ folder with index.md
+            has_doc = os.path.isfile(os.path.join(p_path, "Docs", "index.md"))
+
             tools.append({
                 "id": p_path, "name": project["project_name"], "absolutePath": p_path,
                 "metadata": _hydrate_metadata_for_frontend(raw_meta),
                 "parameters": _hydrate_params_for_frontend(raw_params),
-                "queryData": extracted_query
+                "queryData": extracted_query,
+                "hasDoc": has_doc
             })
 
         # Load Binaries (.ptool, .wtool)
@@ -240,17 +236,8 @@ async def get_single_script_logic(script_path: str):
         # 2. Handle standard folder scripts
         script_files = []
         project_name = os.path.basename(abs_p)
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                try:
-                    with open(fp, 'r', encoding='utf-8-sig') as f:
-                        script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
-                except Exception:
-                    pass
-                    
+        script_files = read_script_files(abs_p)
+
         # Request full metadata + parameters extraction from the backend Engine
         projects_to_fetch = [{
             "project_name": project_name,
@@ -287,14 +274,7 @@ async def get_script_parameters_logic(script_path: str):
             with open(abs_p, 'r', encoding='utf-8') as f: pkg = json.load(f)
             return {"parameters": _hydrate_params_for_frontend(pkg.get("parameters", []))}
 
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        script_files = []
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, 'r', encoding='utf-8-sig') as f:
-                    script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
-
+        script_files = read_script_files(abs_p)
         if not script_files: return {"parameters": []}
         res = grpc_client.get_script_parameters(script_files)
         return {"parameters": _hydrate_params_for_frontend(res.get("parameters", []))}
@@ -330,14 +310,7 @@ async def compute_parameter_options_logic(script_path: str, parameter_name: str,
             return {"options": [], "is_success": True}
 
         # Standard script logic
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        script_files = []
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, 'r', encoding='utf-8-sig') as f:
-                    script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
-        
+        script_files = read_script_files(abs_p)
         if not script_files: return {"options": [], "is_success": True}
         combined_result = grpc_client.get_combined_script(script_files)
         combined_code = combined_result.get("combined_script", "")
@@ -365,23 +338,41 @@ async def edit_script_logic(tool_path: str, force_scaffold: bool = False):
                 with open(entry_file, 'w', encoding='utf-8') as f:
                     f.write(ARCHETYPES.get(template_id, ARCHETYPES["blank"]))
 
-        # 3. Perform FULL Scaffolding in Python ONLY if needed (Idempotent)
+        # 3. Ensure Docs/ folder with starter index.md (idempotent — never overwrites)
+        docs_dir = os.path.join(project_root, "Docs")
+        if not os.path.isdir(docs_dir):
+            os.makedirs(docs_dir, exist_ok=True)
+        doc_index = os.path.join(docs_dir, "index.md")
+        if not os.path.exists(doc_index):
+            with open(doc_index, 'w', encoding='utf-8') as f:
+                f.write(f"# {project_name}\n\n"
+                        "## Overview\n\n"
+                        "Brief description of what this tool does.\n\n"
+                        "## Parameters\n\n"
+                        "| Parameter | Type | Description |\n"
+                        "|-----------|------|-------------|\n"
+                        "| — | — | — |\n\n"
+                        "## Usage\n\n"
+                        "How to use this tool.\n\n"
+                        "## Notes\n\n")
+
+        # 4. Perform FULL Scaffolding in Python ONLY if needed (Idempotent)
         # We skip this if .csproj already exists, making "Edit Script" instant for existing projects.
         has_csproj = any(f.endswith('.csproj') for f in os.listdir(project_root))
         if force_scaffold or not has_csproj:
             scaffold_project_full(project_root)
 
-        # 4. Trigger VS Code Launch from Python (Robust & Non-blocking)
+        # 5. Trigger VS Code Launch from Python (Robust & Non-blocking)
         launch_vscode(project_root)
 
-        # 5. gRPC call — C# handles its own internal sync/scaffolding if needed
+        # 6. gRPC call — C# handles its own internal sync/scaffolding if needed
         # We don't wait for this; it's fire-and-forget for the Addin
         try:
             grpc_client.create_and_open_workspace(project_root)
         except:
             pass
 
-        # 6. Track IDE session
+        # 7. Track IDE session
         try:
             set_active_ide_session(project_root)
             _ensure_pack_gitignore(os.path.dirname(project_root))
@@ -512,12 +503,7 @@ async def get_script_metadata_logic(script_path: str):
             m = pkg.get("metadata", {})
             m.update({"isProtected": True, "isCompiled": True, "isWatchdog": abs_p.lower().endswith('.wtool')})
             return {"metadata": m}
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        script_files = []
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, 'r', encoding='utf-8-sig') as f: script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
+        script_files = read_script_files(abs_p)
         if not script_files: return {"metadata": {"displayName": os.path.basename(abs_p)}}
         
         # Use bulk_metadata even for single scripts to ensure we get file-system timestamps (which require a path)
@@ -532,12 +518,7 @@ async def get_script_metadata_logic(script_path: str):
 async def get_script_content_logic(script_path: str):
     try:
         abs_p = resolve_script_path(script_path)
-        scripts_dir = os.path.join(abs_p, "Scripts")
-        script_files = []
-        if os.path.isdir(scripts_dir):
-            for fp in glob.glob(os.path.join(scripts_dir, "*.cs")):
-                if os.path.basename(fp).lower() == "globals.cs": continue
-                with open(fp, 'r', encoding='utf-8-sig') as f: script_files.append({"file_name": os.path.basename(fp), "content": f.read()})
+        script_files = read_script_files(abs_p)
         if not script_files: return {"sourceCode": "// No scripts found."}
         res = grpc_client.get_combined_script(script_files)
         clean_code = re.sub(r'^#line\s+\d+.*(?:\r?\n|$)', '', res.get("combined_script", ""), flags=re.MULTILINE)
@@ -737,8 +718,12 @@ def initialize_source_logic(path: str, description: str = ""):
     with open(marker, "w", encoding="utf-8") as f: json.dump(source_data, f, indent=4)
     return {"success": True, "message": f"Source '{os.path.basename(path)}' initialized successfully."}
 
-def register_watchdog_source_logic(path: str, parameters: Optional[List[Dict[str, Any]]] = None):
-    # If parameters were provided, serialize them to JSON. Otherwise pass None.
+def register_watchdog_source_logic(path: str, parameters: Optional[List[Dict[str, Any]]] = None, license_tier: str = "free"):
+    # Inject license tier into parameters so the C# engine can gate enterprise features
+    if parameters is None:
+        parameters = []
+    if not any(p.get("name") == "__license_tier__" for p in parameters):
+        parameters.append({"name": "__license_tier__", "value": license_tier})
     parameters_json = json.dumps(parameters) if parameters is not None else None
     return grpc_client.register_watchdog_source(path, parameters_json)
 

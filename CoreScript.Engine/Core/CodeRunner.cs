@@ -14,7 +14,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Loader;
 using System.Text.Json;
 using Autodesk.Revit.DB;
 
@@ -50,7 +49,6 @@ namespace CoreScript.Engine.Core
 
         public ExecutionResult Execute(string scriptContent, string parametersJson, ICoreScriptContext context)
         {
-            var alc = new AssemblyLoadContext("RevitScript", isCollectible: true);
             string timestamp = DateTime.Now.ToString("dddd dd, MMMM yyyy | hh:mm:ss tt", CultureInfo.InvariantCulture);
 
             FileLogger.Log("🟢 Starting CodeRunner.Execute");
@@ -63,6 +61,13 @@ namespace CoreScript.Engine.Core
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
+
+                // Apply license tier from parameters (set by Python backend for enterprise users)
+                if (parameters.TryGetValue("__license_tier__", out var tierObj) && tierObj is string tierStr)
+                {
+                    LicenseContext.Tier = tierStr;
+                    FileLogger.Log($"[CodeRunner] License tier set to: {tierStr}");
+                }
 
                 if (parameters.ContainsKey("__script_name__"))
                 {
@@ -129,7 +134,7 @@ namespace CoreScript.Engine.Core
                     {
                         try
                         {
-                            var pool = _optionsExecutor.ExecuteElementOptionsFunction(scriptContent, p.Name, context, parametersJson, richParams).Result;
+                            var pool = _optionsExecutor.ExecuteElementOptionsFunction(scriptContent, p.Name, context, parametersJson, richParams).GetAwaiter().GetResult();
                             if (pool != null && pool.Any())
                             {
                                 executionGlobals.ResolutionPools[p.Name] = pool;
@@ -167,7 +172,7 @@ namespace CoreScript.Engine.Core
                     // Compile fresh (Slow path)
                     FileLogger.Log($"[CodeRunner] 🐢 CACHE MISS: Compiling {topLevelScriptName}...");
                     var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
-                    var state = _scriptExecutor.ExecuteAsync(script).Result;
+                    var state = _scriptExecutor.ExecuteAsync(script).GetAwaiter().GetResult();
 
                     result = ExecutionResult.Success("Success", state.ReturnValue);
 
@@ -245,16 +250,6 @@ namespace CoreScript.Engine.Core
             finally
             {
                 ExecutionGlobals.ClearContext();
-
-                // V3.1 ELITE: Only unload if NO watchdog is registered for this path
-                if (!string.IsNullOrEmpty(scriptPath) && WatchdogRegistry.GetActiveWatchdogs().Any(w => w.ScriptPath == scriptPath))
-                {
-                    FileLogger.Log($"[CodeRunner] Preserving ALC for background watcher: {topLevelScriptName}");
-                }
-                else
-                {
-                    alc.Unload();
-                }
             }
         }
 
@@ -271,6 +266,13 @@ namespace CoreScript.Engine.Core
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
+
+                // Apply license tier from parameters (set by Python backend for enterprise users)
+                if (parameters.TryGetValue("__license_tier__", out var tierObj) && tierObj is string tierStr)
+                {
+                    LicenseContext.Tier = tierStr;
+                    FileLogger.Log($"[CodeRunner] License tier set to: {tierStr}");
+                }
 
                 // DEBUG: Log all parameters
                 FileLogger.Log($"[CodeRunner] Final Parameters Dictionary Keys: {string.Join(", ", parameters.Keys)}");
@@ -320,7 +322,9 @@ namespace CoreScript.Engine.Core
             }
             catch (Exception ex)
             {
-                var failureResult = ExecutionResult.Failure($"❌ Binary error: {ex.Message}", context.PrintLog.ToArray());
+                // Pass the error message through without a prefix — user-facing
+                // exceptions like LicenseException already carry their own emoji.
+                var failureResult = ExecutionResult.Failure(ex.Message, context.PrintLog.ToArray());
                 failureResult.ScriptName = topLevelScriptName;
                 return failureResult;
             }

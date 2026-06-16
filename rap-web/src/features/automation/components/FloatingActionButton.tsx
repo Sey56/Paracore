@@ -239,7 +239,6 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ disa
           onClick={handleFabClick}
           disabled={disabled || isArmingWatchdogs || !isWatchdogInitialized}
           style={{ animationDuration: '4s' }}
-          title={isArmingWatchdogs || !isWatchdogInitialized ? "Sentinels Initializing..." : "Sentinel System Status (Drag to move)"}
         >
           <div className="relative">
             <FontAwesomeIcon icon={fabIcon} className={`text-base text-white ${isArmingWatchdogs || !isWatchdogInitialized ? 'animate-spin' : ''}`} />

@@ -38,11 +38,7 @@ namespace CoreScript.Engine.Globals
 
                 // 1. Serialize Data
                 // Serialize any collection (anonymous types, specific objects) to JSON
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                };
-                string json = JsonSerializer.Serialize(list, options);
+                string json = JsonSerializer.Serialize(list, ExecutionGlobals.SerializerOptions);
                 File.WriteAllText(dataFile, json);
 
                 // 2. Generate Notebook JSON Schema

@@ -11,12 +11,33 @@ export interface AgentMessage {
 export interface PendingToolCall {
   name: string;
   arguments: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  id?: string;
+}
+
+export interface ThinkingStep {
+  tool_name: string;
+  justification: string;
+  status: 'running' | 'completed' | 'error';
+  csharp_code?: string;
+  category_name?: string;
+  query?: string;
+  result_summary?: string;
+}
+
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  requests: number;
 }
 
 export interface ChatResponse {
   status: 'interrupted' | 'complete';
   message?: string;
   tool_call?: PendingToolCall;
+  thinking_steps?: ThinkingStep[];
+  raw_history_json?: string;
+  usage?: TokenUsage;
 }
 
 export type ToolCall = {
@@ -59,4 +80,5 @@ export type Message = {
   id?: string; // Langchain message ID
   plan?: OrchestrationPlan;
   raw_history?: string; // High-fidelity PydanticAI history blob
+  thinking_steps?: ThinkingStep[]; // Agent exploration/search steps
 };

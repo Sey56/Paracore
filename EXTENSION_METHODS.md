@@ -8,11 +8,33 @@ A comprehensive guide to every extension method available on Revit elements and 
 > [!TIP]
 > All collection extension methods are **fully generic** — they preserve the specific element type (`Wall`, `FamilyInstance`, etc.) throughout the entire fluent chain. You never lose type information.
 
+> [!IMPORTANT]
+> **Script Rules:** Top-level statements only — no `namespace`, `class Program`, or `Main()`. All namespaces pre-imported — never write `using` or fully-qualified names (`Autodesk.Revit.DB.XYZ`). No `FilteredElementCollector` — use `GetElements<T>()` or `GetElements("Category")` instead. No `IExternalApplication`/`IExternalCommand`.
+
+## 📦 Element Retrieval (System Families vs Loadable Families)
+
+SYSTEM FAMILIES (C# classes: Wall, Floor, Room, Ceiling, etc.):
+```
+GetElements<Wall>()      → typed Wall instances
+GetElements<WallType>()  → typed wall type definitions
+GetElements("Walls")     → untyped Element list
+```
+
+LOADABLE FAMILIES (Doors, Windows, Furniture, Columns, etc.):
+```
+GetElements<FamilyInstance>("Doors")  → typed FamilyInstance, door category
+GetElements<FamilySymbol>("Doors")    → typed type symbols (door family types)
+GetElements("Doors")                 → untyped Element list
+```
+
+Single-element lookup: `GetElement("name-or-id")` | Discovery: `GetMagicNames()`, `GetCategories()`
+
 ---
 ## 📖 Table of Contents
 
-1. [Two Query Modes](#-two-query-modes)
-2. [Element: Parameter & Property Accessors (Read)](#-element-parameter--property-accessors-read)
+1. [Element Retrieval](#-element-retrieval-system-families-vs-loadable-families)
+2. [Two Query Modes](#-two-query-modes)
+3. [Element: Parameter & Property Accessors (Read)](#-element-parameter--property-accessors-read)
 3. [Element: Type-Level Accessors](#-element-type-level-accessors)
 4. [Element: Smart Write Methods](#-element-smart-write-methods)
 5. [Element: Identity & Discovery](#-element-identity--discovery)
@@ -429,13 +451,13 @@ door.IsStandardDoor()  // → true for standard doors
 
 ---
 
-### `.StandardOnly()` — Collection Filter
+### `.StandardDoor()` — Collection Filter
 
 > Filters a `FamilyInstance` collection to exclude Curtain Wall hosted panels. Curtain wall doors don’t carry standard properties like Level, Width, Height, Room, or swing geometry.
 
 ```csharp
 GetElements<FamilyInstance>("Doors")
-    .StandardOnly()
+    .StandardDoor()
     .Table();
 ```
 
@@ -563,12 +585,13 @@ All methods are **generic** (`where T : Element`) and preserve the input type th
 > Works via `GetStr()`, which covers Revit parameters AND native C# properties via Reflection.
 
 ### `.WhereParam(name, op, value)` — String predicate filter
-> Filters using string operations: `"contains"`, `"starts"`, `"ends"`.
+> Filters using string operations: `"contains"`, `"starts"`, `"ends"`, `"!="` / `"not"`, `"notcontains"`, `"notstarts"`, `"notends"`.
 
 ```csharp
 GetElements("Doors").WhereParam("Level", "Level 1")
 GetElements("Doors").WhereParam("Mark", "starts", "D-10")
 GetElements("Rooms").WhereParam("Name", "contains", "Laundry")
+GetElements("Walls").WhereParam("Type Name", "!=", "Generic - 200mm")
 ```
 
 ---
@@ -577,12 +600,13 @@ GetElements("Rooms").WhereParam("Name", "contains", "Laundry")
 > Filters elements where the named numeric parameter equals the value (tolerance: 0.001 in the specified unit).
 
 ### `.WhereParam(name, op, value, unit)` — Numeric comparison filter
-> Filters using comparison operators: `">"`, `"<"`, `">="`, `"<="`.
+> Filters using comparison operators: `">"`, `"<"`, `">="`, `"<="`, `"!="` / `"not"`.
 
 ```csharp
 GetElements<Wall>().WhereParam("Width", 200, "mm")        // exactly 200mm
 GetElements<Room>().WhereParam("Area", ">", 25.0, "m2")   // larger than 25sqm
 GetElements<Wall>().WhereParam("Length", "<", 10.0, "m")  // shorter than 10m
+GetElements<Wall>().WhereParam("Width", "!=", 200, "mm")  // not 200mm wide
 ```
 
 ---
@@ -1046,6 +1070,12 @@ Transact("Delete overlapping columns", () => {
 
 | What I want | Method |
 |---|---|
+| Get typed wall instances | `GetElements<Wall>()` |
+| Get typed wall types | `GetElements<WallType>()` |
+| Get typed door instances | `GetElements<FamilyInstance>("Doors")` |
+| Get typed door types | `GetElements<FamilySymbol>("Doors")` |
+| Get untyped by category | `GetElements("Walls")` |
+| Get single element | `GetElement("name-or-id")` |
 | Filter by param string | `.WhereParam("Level", "Level 1")` |
 | Filter by string op | `.WhereParam("Mark", "starts", "A")` |
 | Filter by C# property | `.WhereParam("HandFlipped", "True")` |

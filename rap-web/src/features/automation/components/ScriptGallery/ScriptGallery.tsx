@@ -10,10 +10,12 @@ import { Script } from '@/types/scriptModel';
 
 // Components
 import { NewScriptModal } from '@/features/automation/components/NewScriptModal';
+import { ScriptInspector } from '@/features/automation/components/ScriptInspector/ScriptInspector';
 import { FilterPills } from '@/components/common/FilterPills';
 import { FocusOverlay } from './components/FocusOverlay';
-import { GalleryHeader } from './components/GalleryHeader';
+import { GalleryInfoBar } from './components/GalleryInfoBar';
 import { CommandConsole } from './components/CommandConsole';
+import { GalleryActionBar } from './components/GalleryActionBar';
 import { ScriptGrid } from './components/ScriptGrid';
 import { NoActiveSource } from './components/NoActiveSource';
 
@@ -42,11 +44,28 @@ export const ScriptGallery: React.FC = () => {
   const { isAuthenticated, activeRole } = useAuth();
   const isMobile = useBreakpoint();
   
+  const [configuredScript, setConfiguredScript] = useState<Script | null>(null);
+
   const handleScriptSelect = useCallback((script: Script) => {
+    // Toggle: clicking the selected script deselects it
+    const normalized = (p: string) => p.replace(/\\/g, '/').toLowerCase();
+    if (selectedScript && normalized(selectedScript.absolutePath || selectedScript.id) === normalized(script.absolutePath || script.id)) {
+      setSelectedScript(null);
+    } else {
+      setSelectedScript(script);
+    }
+  }, [setSelectedScript, selectedScript]);
+
+  const handleConfigureScript = useCallback((script: Script) => {
+    setConfiguredScript(script);
     setSelectedScript(script);
     setActiveInspectorTab('parameters');
     if (isMobile) setInspectorOpen(true);
   }, [setSelectedScript, setActiveInspectorTab, isMobile, setInspectorOpen]);
+
+  const handleBackFromConfigure = useCallback(() => {
+    setConfiguredScript(null);
+  }, []);
 
   // 1. Filtering Logic
   const {
@@ -178,6 +197,15 @@ export const ScriptGallery: React.FC = () => {
     return false;
   }, [activeScriptSource]);
 
+  // When configuring a script, show the parameters view inline
+  if (configuredScript) {
+    return (
+      <div className="h-full">
+        <ScriptInspector onBack={handleBackFromConfigure} />
+      </div>
+    );
+  }
+
   return (
     <div ref={galleryRef} className={`relative min-h-full min-w-0 ${isFocusMode || isArmingWatchdogs ? 'overflow-hidden' : ''}`}>
       <div className={`p-4 transition-opacity duration-300 ${(isFocusMode || isArmingWatchdogs) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
@@ -185,39 +213,52 @@ export const ScriptGallery: React.FC = () => {
           <NoActiveSource />
         ) : (
           <>
-            <GalleryHeader
-              isAuthenticated={isAuthenticated}
-              selectedDefaultCategories={selectedDefaultCategories}
-              handleDefaultCategoryChange={handleDefaultCategoryChange}
-              activeScriptSource={activeScriptSource}
-              selectedFolder={selectedFolder}
-              totalUnits={favoriteScripts.length + otherScripts.length}
-              onRefresh={() => {
-                const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
-                if (path) loadScriptsForFolder(path);
-              }}
-              canCreateScripts={canCreateScripts}
-              onNewScript={openNewScriptModal}
-              onNewSentinel={openNewSentinelModal}
-            />
+            {/* Sticky controls block */}
+            <div className="sticky top-0 z-10 bg-[var(--bg-ground)] pb-4">
+              <GalleryInfoBar
+                isAuthenticated={isAuthenticated}
+                selectedDefaultCategories={selectedDefaultCategories}
+                handleDefaultCategoryChange={handleDefaultCategoryChange}
+                activeScriptSource={activeScriptSource}
+                selectedFolder={selectedFolder}
+                onRefresh={() => {
+                  const path = activeScriptSource && 'path' in activeScriptSource ? activeScriptSource.path : selectedFolder;
+                  if (path) loadScriptsForFolder(path);
+                }}
+                canCreateScripts={canCreateScripts}
+                onNewScript={openNewScriptModal}
+                onNewSentinel={openNewSentinelModal}
+              />
 
-            {pillFilters.length > 0 && (
-              <div className="mb-6">
-                <FilterPills filters={pillFilters} onRemoveFilter={handleRemoveFilter} />
-              </div>
-            )}
+              {pillFilters.length > 0 && (
+                <div className="px-3 pb-1">
+                  <FilterPills filters={pillFilters} onRemoveFilter={handleRemoveFilter} />
+                </div>
+              )}
 
-            <CommandConsole
-              isAuthenticated={isAuthenticated}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              typeFilter={typeFilter}
-              setTypeFilter={setTypeFilter}
-              sortOrder={sortOrder}
-              setSortOrder={setSortOrder}
-              isCompactView={isCompactView}
-              setIsCompactView={setIsCompactView}
-            />
+              <CommandConsole
+                isAuthenticated={isAuthenticated}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                typeFilter={typeFilter}
+                setTypeFilter={setTypeFilter}
+                sortOrder={sortOrder}
+                setSortOrder={setSortOrder}
+                isCompactView={isCompactView}
+                setIsCompactView={setIsCompactView}
+                totalUnits={scripts.length}
+                filteredCount={favoriteScripts.length + otherScripts.length}
+              />
+
+              {selectedScript && (
+                <GalleryActionBar
+                  script={selectedScript}
+                  onFocus={handleEnterFocusMode}
+                  onReplace={handleReplaceScript}
+                  onConfigure={handleConfigureScript}
+                />
+              )}
+            </div>
 
             <ScriptGrid
               favoriteScripts={favoriteScripts}

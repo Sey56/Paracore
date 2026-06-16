@@ -4,6 +4,8 @@ import { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/age
 
 export type InspectorTab = "parameters" | "console" | "table" | "metadata";
 
+export type AutomationSubMode = 'gallery' | 'repl';
+
 export type ActiveScriptSource =
   | { type: 'local'; path: string }
   | { type: 'team'; id: string; path: string }
@@ -75,6 +77,10 @@ export interface UIContextProps {
   // Main View Toggle
   activeMainView: 'scripts' | 'agent' | 'playlists';
   setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'playlists'>>;
+
+  // Automation Sub-mode (only relevant when activeMainView === 'scripts')
+  automationSubMode: AutomationSubMode;
+  setAutomationSubMode: React.Dispatch<React.SetStateAction<AutomationSubMode>>;
 
   // Welcome Gate overlay (accessible from main UI after auth)
   isWelcomeGateOpen: boolean;

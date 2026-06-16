@@ -490,12 +490,12 @@ In string mode, use <code>WhereParam("HandFlipped", "True")</code> instead. This
 // false for curtain wall glass doors
 </code></pre>
 <hr />
-<h3><code>.StandardOnly()</code> — Collection Filter</h3>
+<h3><code>.StandardDoor()</code> — Collection Filter</h3>
 <blockquote>
 <p>Filters a <code>FamilyInstance</code> collection to exclude Curtain Wall hosted panels. Curtain wall doors don’t carry standard properties like Level, Width, Height, Room, or swing geometry.</p>
 </blockquote>
 <pre><code class="language-csharp">GetElements&lt;FamilyInstance&gt;(&quot;Doors&quot;)
-    .StandardOnly()
+    .StandardDoor()
     .Table();
 </code></pre>
 <hr />

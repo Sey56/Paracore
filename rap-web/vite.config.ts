@@ -12,13 +12,13 @@ export default defineConfig({
   plugins: [
     react(),
     tailwind(),
-    visualizer({
-      template: 'treemap', // or 'sunburst'
+    ...(process.env.ANALYZE ? [visualizer({
+      template: 'treemap',
       open: true,
       gzipSize: true,
       brotliSize: true,
-      filename: 'analyse.html', // output file name
-    }),
+      filename: 'analyse.html',
+    })] : []),
   ],
   server: {
     port: 5173,
