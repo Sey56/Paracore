@@ -87,9 +87,8 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
             </div>
 
             {isProtectedTool && (
-              <span className={`${styles.multiFileBadge} !bg-slate-100 !text-slate-600 dark:!bg-slate-900/40 dark:!text-slate-400 border border-slate-200 dark:border-slate-800 whitespace-nowrap shrink-0`}>
-                <FontAwesomeIcon icon={faLock} className="mr-1" style={{ fontSize: '0.6rem' }} />
-                Sealed
+              <span className={`${styles.multiFileBadge} !bg-slate-100 !text-slate-600 dark:!bg-slate-900/40 dark:!text-slate-400 border border-slate-200 dark:border-slate-800 shrink-0`}>
+                <FontAwesomeIcon icon={faLock} style={{ fontSize: '0.6rem' }} />
               </span>
             )}
           </div>

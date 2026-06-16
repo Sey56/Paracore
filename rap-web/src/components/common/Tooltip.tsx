@@ -58,8 +58,10 @@ export const Tooltip: React.FC<TooltipProps> = ({ text, children, position = 'to
                             : 'translate(-50%, 0)',
                         zIndex: 99999,
                         pointerEvents: 'none',
+                        backgroundColor: 'var(--tooltip-bg)',
+                        color: 'var(--tooltip-text)',
                     }}
-                    className="px-3 py-2 rounded-xl shadow-2xl bg-white dark:bg-slate-900 text-slate-700 dark:text-white text-[11px] font-medium leading-relaxed max-w-[250px] whitespace-nowrap"
+                    className="px-3 py-2 rounded-xl shadow-2xl text-[11px] font-medium leading-relaxed max-w-[250px] whitespace-nowrap"
                 >
                     {text}
                 </div>,

@@ -8,6 +8,7 @@ import { useAuth } from '@/features/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { MetadataTabContent } from './MetadataTabContent';
+import { Tooltip } from '@/components/common/Tooltip';
 
 interface ScriptInspectorProps {
   onBack?: () => void;
@@ -67,13 +68,14 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
 
         <div className="flex items-center gap-1">
           {onBack && (
-            <button
-              onClick={onBack}
-              className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors rounded"
-              title="Back to Gallery"
-            >
-              <FontAwesomeIcon icon={faArrowLeft} className="text-xs" />
-            </button>
+            <Tooltip text="Back to Gallery" position="bottom-center">
+              <button
+                onClick={onBack}
+                className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors rounded"
+              >
+                <FontAwesomeIcon icon={faArrowLeft} className="text-xs" />
+              </button>
+            </Tooltip>
           )}
           <button
             onClick={() => setIsMetadataOpen(!isMetadataOpen)}

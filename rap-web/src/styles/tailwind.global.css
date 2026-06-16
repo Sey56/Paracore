@@ -118,8 +118,8 @@
   transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
 
   /* Light mode */
-  background: white;
-  color: #334155;
+  background: var(--tooltip-bg, white);
+  color: var(--tooltip-text, #334155);
 }
 
 /* Tooltip on bottom */
@@ -161,8 +161,8 @@
 }
 
 .dark [data-tooltip]::after {
-  background: #0f172a;
-  color: white;
+  background: var(--tooltip-bg, #0f172a);
+  color: var(--tooltip-text, white);
 }
 
 [data-tooltip]:hover::after {
