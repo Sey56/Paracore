@@ -78,7 +78,6 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
         <button
           onClick={onClose}
           className="text-slate-400 hover:text-red-500 transition-colors p-1"
-          title="Close Viewer"
         >
           <FontAwesomeIcon icon={faTimes} />
         </button>

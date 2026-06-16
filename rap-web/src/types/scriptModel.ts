@@ -141,4 +141,5 @@ export interface Script {
   metadataError?: boolean;
   sourceType?: 'local' | 'team';
   queryData?: unknown;
+  hasDoc?: boolean;
 }

@@ -174,11 +174,15 @@ async def get_all_scripts(pack_path: str) -> List[Dict[str, Any]]:
             # V5: Pre-extract VQB graph data for the "Template Gallery"
             extracted_query = _extract_query_data(project["files"])
 
+            # Check if this script has a Docs/ folder with index.md
+            has_doc = os.path.isfile(os.path.join(p_path, "Docs", "index.md"))
+
             tools.append({
                 "id": p_path, "name": project["project_name"], "absolutePath": p_path,
                 "metadata": _hydrate_metadata_for_frontend(raw_meta),
                 "parameters": _hydrate_params_for_frontend(raw_params),
-                "queryData": extracted_query
+                "queryData": extracted_query,
+                "hasDoc": has_doc
             })
 
         # Load Binaries (.ptool, .wtool)
@@ -334,23 +338,41 @@ async def edit_script_logic(tool_path: str, force_scaffold: bool = False):
                 with open(entry_file, 'w', encoding='utf-8') as f:
                     f.write(ARCHETYPES.get(template_id, ARCHETYPES["blank"]))
 
-        # 3. Perform FULL Scaffolding in Python ONLY if needed (Idempotent)
+        # 3. Ensure Docs/ folder with starter index.md (idempotent — never overwrites)
+        docs_dir = os.path.join(project_root, "Docs")
+        if not os.path.isdir(docs_dir):
+            os.makedirs(docs_dir, exist_ok=True)
+        doc_index = os.path.join(docs_dir, "index.md")
+        if not os.path.exists(doc_index):
+            with open(doc_index, 'w', encoding='utf-8') as f:
+                f.write(f"# {project_name}\n\n"
+                        "## Overview\n\n"
+                        "Brief description of what this tool does.\n\n"
+                        "## Parameters\n\n"
+                        "| Parameter | Type | Description |\n"
+                        "|-----------|------|-------------|\n"
+                        "| — | — | — |\n\n"
+                        "## Usage\n\n"
+                        "How to use this tool.\n\n"
+                        "## Notes\n\n")
+
+        # 4. Perform FULL Scaffolding in Python ONLY if needed (Idempotent)
         # We skip this if .csproj already exists, making "Edit Script" instant for existing projects.
         has_csproj = any(f.endswith('.csproj') for f in os.listdir(project_root))
         if force_scaffold or not has_csproj:
             scaffold_project_full(project_root)
 
-        # 4. Trigger VS Code Launch from Python (Robust & Non-blocking)
+        # 5. Trigger VS Code Launch from Python (Robust & Non-blocking)
         launch_vscode(project_root)
 
-        # 5. gRPC call — C# handles its own internal sync/scaffolding if needed
+        # 6. gRPC call — C# handles its own internal sync/scaffolding if needed
         # We don't wait for this; it's fire-and-forget for the Addin
         try:
             grpc_client.create_and_open_workspace(project_root)
         except:
             pass
 
-        # 6. Track IDE session
+        # 7. Track IDE session
         try:
             set_active_ide_session(project_root)
             _ensure_pack_gitignore(os.path.dirname(project_root))

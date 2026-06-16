@@ -4,11 +4,12 @@ import {
   faPlay, faSpinner, faStar as fasStar,
   faCode, faBullseye, faEdit, faSlidersH,
   faICursor, faSyncAlt, faTags, faTrash, faTools, faBroom,
-  faExclamationTriangle
+  faExclamationTriangle, faBook
 } from '@fortawesome/free-solid-svg-icons';
 import { faStar as farStar } from '@fortawesome/free-regular-svg-icons';
 import { Script } from '@/types/scriptModel';
 import { useScriptExecution, useScripts } from '@/features/automation';
+import api from '@/api/axios';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
@@ -62,6 +63,15 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   const handleViewCode = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleFloatingCodeViewer();
+  };
+
+  const handleDoc = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await api.post('/api/open-doc', { scriptPath: script.absolutePath });
+    } catch (err: any) {
+      console.error('[Doc] Failed:', err.response?.data?.detail || err.message);
+    }
   };
 
   const handleFocus = (e: React.MouseEvent) => {
@@ -164,6 +174,13 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
             title="View Code">
             <FontAwesomeIcon icon={faCode} className="text-xs" />
           </button>
+          {script.hasDoc && (
+            <button onClick={handleDoc}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
+              title="Documentation">
+              <FontAwesomeIcon icon={faBook} className="text-xs" />
+            </button>
+          )}
           {onFocus && (
             <button onClick={handleFocus}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-purple-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"

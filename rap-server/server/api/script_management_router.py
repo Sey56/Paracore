@@ -2,7 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+import json
 import os
+import subprocess
+import tempfile
 import traceback
 
 from services import script_service, migration_service
@@ -279,6 +282,62 @@ async def update_metadata(request: UpdateMetadataRequest, current_user: CurrentU
 
         with open(main_file, 'w', encoding='utf-8') as f:
             f.write(updated)
+
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ══════════════════════════════════════════════════════════════════
+#  SCRIPT DOCUMENTATION ENDPOINT
+# ══════════════════════════════════════════════════════════════════
+
+@router.post("/api/open-doc")
+async def open_script_doc(request: EditScriptRequest):
+    """Opens the script's Docs/index.md in the default system browser."""
+    try:
+        abs_path = script_service.resolve_script_path(request.scriptPath)
+        doc_path = os.path.join(abs_path, "Docs", "index.md")
+        print(f"[open-doc] scriptPath={request.scriptPath}", flush=True)
+        print(f"[open-doc] resolved={abs_path}", flush=True)
+        print(f"[open-doc] doc_path={doc_path}", flush=True)
+        print(f"[open-doc] exists={os.path.isfile(doc_path)}", flush=True)
+        if not os.path.isfile(doc_path):
+            raise HTTPException(status_code=404, detail=f"No documentation found at {doc_path}")
+
+        # Read the markdown and wrap it in a self-contained HTML page
+        # so it always opens in the browser (not VS Code for .md files)
+        with open(doc_path, 'r', encoding='utf-8') as f:
+            md_content = f.read()
+        html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>{os.path.basename(abs_path)} — Documentation</title>
+<style>
+  body {{ font-family: -apple-system, Segoe UI, sans-serif; max-width: 900px;
+         margin: 0 auto; padding: 2rem; line-height: 1.7; color: #1a1a1a; }}
+  pre {{ background: #f5f5f5; padding: 1rem; border-radius: 8px; overflow-x: auto; }}
+  code {{ background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }}
+  pre code {{ background: none; padding: 0; }}
+  table {{ border-collapse: collapse; width: 100%; }}
+  th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+  th {{ background: #f5f5f5; }}
+  img {{ max-width: 100%; }}
+</style></head><body>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<div id="content"></div>
+<script>
+  document.getElementById('content').innerHTML =
+    marked.parse({json.dumps(md_content)});
+</script>
+</body></html>"""
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w',
+                                         encoding='utf-8') as tmp:
+            tmp.write(html)
+            html_path = tmp.name
+        subprocess.run(['cmd', '/c', 'start', '', html_path],
+                       shell=True, timeout=5)
 
         return {"success": True}
     except HTTPException:
