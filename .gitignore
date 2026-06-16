@@ -111,3 +111,4 @@ NewShTool/
 # External projects (separate repos, must not be tracked here)
 SH_Tools/
 training/
+rap-auth-server/
