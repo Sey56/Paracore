@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport } from '@fortawesome/free-solid-svg-icons';
 import { REPLCodeEditor } from './REPLCodeEditor';
 import { Modal } from '@/components/common/Modal';
+import { Tooltip } from '@/components/common/Tooltip';
 
 export const ReplModeContent: React.FC = () => {
   const {
@@ -164,28 +165,34 @@ export const ReplModeContent: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={onNewSnippet} title="New / Clear" className="p-1.5 text-slate-400 hover:text-green-500 transition-colors">
-            <FontAwesomeIcon icon={faFile} className="text-xs" />
-          </button>
-          <button onClick={handleLoadSnippet} title="Open" className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
-            <FontAwesomeIcon icon={faFolderOpen} className="text-xs" />
-          </button>
-          <button
-            onClick={() => handleSaveSnippet(false)}
-            disabled={!multiLineValue.trim()}
-            title="Save"
-            className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
-          >
-            <FontAwesomeIcon icon={faSave} className="text-xs" />
-          </button>
-          <button
-            onClick={() => handleSaveSnippet(true)}
-            disabled={!multiLineValue.trim()}
-            title="Save As"
-            className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
-          >
-            <FontAwesomeIcon icon={faFileExport} className="text-xs" />
-          </button>
+          <Tooltip text="New / Clear" position="bottom-center">
+            <button onClick={onNewSnippet} className="p-1.5 text-slate-400 hover:text-green-500 transition-colors">
+              <FontAwesomeIcon icon={faFile} className="text-xs" />
+            </button>
+          </Tooltip>
+          <Tooltip text="Open" position="bottom-center">
+            <button onClick={handleLoadSnippet} className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
+              <FontAwesomeIcon icon={faFolderOpen} className="text-xs" />
+            </button>
+          </Tooltip>
+          <Tooltip text="Save" position="bottom-center">
+            <button
+              onClick={() => handleSaveSnippet(false)}
+              disabled={!multiLineValue.trim()}
+              className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
+            >
+              <FontAwesomeIcon icon={faSave} className="text-xs" />
+            </button>
+          </Tooltip>
+          <Tooltip text="Save As" position="bottom-center">
+            <button
+              onClick={() => handleSaveSnippet(true)}
+              disabled={!multiLineValue.trim()}
+              className={`p-1.5 transition-colors ${multiLineValue.trim() ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
+            >
+              <FontAwesomeIcon icon={faFileExport} className="text-xs" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

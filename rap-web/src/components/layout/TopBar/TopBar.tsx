@@ -153,10 +153,10 @@ export const TopBar: React.FC = () => {
             title={automationSubMode === 'gallery' ? 'Switch to REPL Playground' : 'Switch to Script Gallery'}
           >
             <FontAwesomeIcon
-              icon={automationSubMode === 'gallery' ? faCode : faThLarge}
+              icon={automationSubMode === 'gallery' ? faThLarge : faCode}
               className="text-purple-500"
             />
-            {automationSubMode === 'gallery' ? 'REPL' : 'Gallery'}
+            {automationSubMode === 'gallery' ? 'Gallery' : 'REPL'}
           </button>
         )}
       </div>
