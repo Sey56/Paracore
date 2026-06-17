@@ -1412,7 +1412,7 @@ export const AgentView: React.FC = () => {
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={handleNewSession}
-            className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors tooltip-bottom"
             title="New Chat"
           >
             <FontAwesomeIcon icon={faPlus} className="text-xs" />
@@ -1420,7 +1420,7 @@ export const AgentView: React.FC = () => {
           <button
             onClick={() => setIsDeleteSessionModalOpen(true)}
             title="Delete Session"
-            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors tooltip-bottom"
           >
             <FontAwesomeIcon icon={faTrash} className="text-xs" />
           </button>
