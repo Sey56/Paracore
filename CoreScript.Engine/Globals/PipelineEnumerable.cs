@@ -27,6 +27,12 @@ namespace CoreScript.Engine.Globals
         private readonly List<T> _items;
 
         /// <summary>
+        /// True when this instance has already pushed its count to PipelineDiagnostics.
+        /// Prevents TrackEnumerable from double-tracking wrapped PipelineEnumerable results.
+        /// </summary>
+        internal bool AlreadyTracked { get; set; }
+
+        /// <summary>
         /// Wrap an existing sequence.  Elements are realised immediately
         /// so the count is known for pipeline reporting.
         /// </summary>
@@ -42,7 +48,10 @@ namespace CoreScript.Engine.Globals
         {
             _items = source as List<T> ?? source.ToList();
             if (track)
+            {
                 ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(_items.Count);
+                AlreadyTracked = true;
+            }
         }
 
         /// <summary>
@@ -53,6 +62,7 @@ namespace CoreScript.Engine.Globals
         {
             var filtered = new PipelineEnumerable<T>(_items.Where(predicate));
             ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(filtered._items.Count);
+            filtered.AlreadyTracked = true;
             return filtered;
         }
 
@@ -63,6 +73,7 @@ namespace CoreScript.Engine.Globals
         {
             var filtered = new PipelineEnumerable<T>(_items.Where(predicate));
             ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(filtered._items.Count);
+            filtered.AlreadyTracked = true;
             return filtered;
         }
 

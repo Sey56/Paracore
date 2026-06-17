@@ -366,6 +366,32 @@ namespace CoreScript.Engine.Globals
             Current.Value?.PipelineDiagnostics.Add(diagnostic);
         }
 
+        /// <summary>
+        /// Injected by PipelineTrackingRewriter after intermediate LINQ methods (Where, Select, OrderBy, etc.).
+        /// Materializes the enumerable, pushes the count to PipelineDiagnostics,
+        /// and returns the materialized list for further chaining.
+        /// Idempotent: if the source is an AlreadyTracked PipelineEnumerable, returns it as-is.
+        /// </summary>
+        public static IEnumerable<T> TrackEnumerable<T>(IEnumerable<T> source)
+        {
+            if (source is PipelineEnumerable<T> pe && pe.AlreadyTracked)
+                return pe;
+
+            var list = source.ToList();
+            TrackPipeline(list.Count);
+            return list;
+        }
+
+        /// <summary>
+        /// Injected by PipelineTrackingRewriter after terminal LINQ methods (First, Last, Single, etc.).
+        /// Pushes 1 (or 0 for null results) to PipelineDiagnostics and passes the item through.
+        /// </summary>
+        public static T TrackSingle<T>(T item)
+        {
+            TrackPipeline(item == null ? 0 : 1);
+            return item;
+        }
+
         // Timeout mechanism — per-execution instance fields, accessed via Current.Value
         private DateTime _executionDeadline = DateTime.MaxValue;
         private int _timeoutSeconds = 10; // Default 10 seconds

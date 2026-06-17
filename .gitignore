@@ -3,6 +3,7 @@
 *.suo
 *.db
 *.lock
+!rap-server/server/uv.lock
 .env
 
 # IDE & OS

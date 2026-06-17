@@ -29,7 +29,11 @@ namespace CoreScript.Engine.Core
                 root = parameterRewriter.Visit(root);
             }
 
-            // 2. Timeout Rewriting
+            // 2. Pipeline Tracking (inject count diagnostics after all LINQ methods)
+            var pipelineTrackingRewriter = new PipelineTrackingRewriter();
+            root = pipelineTrackingRewriter.Visit(root);
+
+            // 3. Timeout Rewriting
             var timeoutRewriter = new TimeoutRewriter();
             root = timeoutRewriter.Visit(root);
 
