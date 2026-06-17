@@ -6,7 +6,6 @@ import TeamSourceSettings from '@/features/team-sources/components/TeamSourceSet
 import LLMSettings from './LLMSettings';
 import { WatchdogSettings } from './WatchdogSettings';
 import { AutomationSettings } from './AutomationSettings';
-import AgentSettings from './AgentSettings';
 import { Modal } from '@/components/common/Modal';
 import { Role } from '@/features/auth';
 
@@ -59,11 +58,6 @@ const SettingsModal: React.FC = () => {
     tabs.push({
       name: 'LLM Settings',
       component: LLMSettings,
-    });
-
-    tabs.push({
-      name: 'Agent Settings',
-      component: AgentSettings,
     });
 
     return tabs;
