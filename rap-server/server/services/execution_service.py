@@ -175,12 +175,12 @@ async def batch_update_element_parameters_logic(updates: list):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def execute_repl_logic(code: str, session_id: str, license_tier: str = "free"):
+async def execute_repl_logic(code: str, session_id: str, license_tier: str = "free", source: str = None):
     """
     Service wrapper for executing a REPL command in Revit via gRPC.
     """
     try:
         from grpc_client import execute_repl
-        return execute_repl(code, session_id, license_tier)
+        return execute_repl(code, session_id, license_tier, source=source or "paracore")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

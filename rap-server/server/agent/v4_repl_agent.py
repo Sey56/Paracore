@@ -130,7 +130,7 @@ async def explore_revit_data(ctx: RunContext[AgentDeps], args: ExploreQueryArgs)
             step["result_summary"] = danger[:300]
             return danger
 
-        result = execute_script(code, "{}")
+        result = execute_script(code, "{}", source="paracore_agent")
 
         if result["is_success"]:
             from agent.tool_helpers import summarize_execution_result

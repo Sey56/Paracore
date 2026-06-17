@@ -3,10 +3,12 @@ using Autodesk.Revit.UI;
 namespace Paracore.Addin.Services
 {
     /// <summary>
-    /// Shared session-level gate for ALL code execution (REPL and scripts).
-    /// Shows a TaskDialog ONCE per Revit session. Once approved, all subsequent
-    /// execution proceeds without further prompts. If denied, all execution is
-    /// blocked until Revit restarts.
+    /// Session-level gate for AI agent code execution ONLY.
+    /// Manual execution (REPL, Gallery, Playlists) passes through immediately.
+    /// Agent execution (Paracore Agent, MCP server, Claude Desktop, Cursor, etc.)
+    /// shows a TaskDialog ONCE per Revit session. Once approved, all agent
+    /// sources are allowed. If denied, all agent execution is blocked until
+    /// Revit restarts.
     ///
     /// Must be called from the Revit UI thread.
     /// </summary>
@@ -18,15 +20,20 @@ namespace Paracore.Addin.Services
 
         /// <summary>
         /// Returns true if code execution may proceed.
-        /// If neither approved nor denied, shows the TaskDialog ONCE.
+        /// Manual execution (source does NOT contain "agent") always passes.
+        /// Agent execution shows the TaskDialog ONCE per session.
         /// </summary>
         /// <param name="source">
-        /// Identifies the caller. Sources containing "agent" get the AI-agent
-        /// warning message; all others get the generic Paracore message.
-        /// Expected values: "mcp_agent", "paracore_agent", "paracore_ui", "paracore"
+        /// Identifies the caller. Sources containing "agent" trigger the gate.
+        /// Expected values: "mcp_agent", "paracore_agent", "paracore", etc.
         /// </param>
         public static bool EnsureApproved(string source)
         {
+            // Manual execution (REPL, Gallery, Playlists) — always allowed
+            bool isAgent = source?.Contains("agent") == true;
+            if (!isAgent) return true;
+
+            // Agent execution — one-time approval per session
             if (_approved) return true;
             if (_denied) return false;
 
@@ -35,29 +42,16 @@ namespace Paracore.Addin.Services
                 if (_approved) return true;
                 if (_denied) return false;
 
-                bool isAgent = source?.Contains("agent") == true;
+                string title = "Paracore — AI Agent Code Execution";
 
-                string title = isAgent
-                    ? "Paracore — AI Agent Code Execution"
-                    : "Paracore — Code Execution";
+                string mainInstruction = "An AI agent wants to execute code in Revit.";
 
-                string mainInstruction = isAgent
-                    ? "An AI agent wants to execute code in Revit."
-                    : "Paracore needs to execute code in Revit.";
-
-                string mainContent = isAgent
-                    ? "An AI agent (the built-in Paracore Agent, an MCP server, Claude Desktop, "
-                      + "Cursor, or another LLM-powered tool) is requesting to execute C# code "
-                      + "in this Revit document.\n\n"
-                      + "This code can read and modify the Revit model. "
-                      + "Only allow this if you trust the AI agent and the instructions you gave it.\n\n"
-                      + "Allow for this Revit session?"
-                    : "Code execution in this Revit document may be triggered by scripts, "
-                      + "the REPL console, automations, or AI agents (Paracore Agent, MCP server, "
-                      + "Claude Desktop, Cursor, etc.).\n\n"
-                      + "Executed code can read and modify the Revit model. "
-                      + "Only allow this if you know and trust the source of the execution.\n\n"
-                      + "Allow for this Revit session?";
+                string mainContent = "An AI agent (the built-in Paracore Agent, an MCP server, Claude Desktop, "
+                    + "Cursor, or another LLM-powered tool) is requesting to execute C# code "
+                    + "in this Revit document.\n\n"
+                    + "This code can read and modify the Revit model. "
+                    + "Only allow this if you trust the AI agent and the instructions you gave it.\n\n"
+                    + "Allow for this Revit session?";
 
                 var dialog = new TaskDialog(title)
                 {

@@ -568,7 +568,8 @@ export const AgentView: React.FC = () => {
             const res = await api.post(effectiveUrl, {
                 code: toolCall.args.csharp_code,
                 session_id: threadId || "temp_session",
-                license_tier: isEnterprise ? "enterprise" : "free"
+                license_tier: isEnterprise ? "enterprise" : "free",
+                source: "paracore_agent"
             });
             
             if (!res.data.is_success) {

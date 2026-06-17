@@ -79,6 +79,7 @@ class ReplRequestModel(BaseModel):
     code: str
     session_id: str
     license_tier: Optional[str] = None
+    source: Optional[str] = None
 
 @router.post("/api/repl", tags=["Script Execution"])
 async def execute_repl_endpoint(
@@ -89,5 +90,5 @@ async def execute_repl_endpoint(
     tier = request.license_tier
     if not tier:
         tier = "enterprise" if current_user.id != 0 else "free"
-    response = await execution_service.execute_repl_logic(request.code, request.session_id, tier)
+    response = await execution_service.execute_repl_logic(request.code, request.session_id, tier, request.source)
     return JSONResponse(content=response)
