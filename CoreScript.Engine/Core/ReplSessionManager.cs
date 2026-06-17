@@ -172,6 +172,11 @@ namespace CoreScript.Engine.Core
                         "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
                     );
 
+                // Inject pipeline tracking for all LINQ methods
+                var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(code);
+                var pipelineRewriter = new Rewriters.PipelineTrackingRewriter();
+                code = pipelineRewriter.Visit(syntaxTree.GetRoot()).ToFullString();
+
                 // Inject ScriptApi and resolve Parameter ambiguity
                 string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
                                   "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine +
