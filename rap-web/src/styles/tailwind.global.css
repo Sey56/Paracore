@@ -148,6 +148,21 @@
   transform: translateX(0) translateY(0);
 }
 
+/* Tooltip Bottom + Left (anchored right, expands left, below element) */
+[data-tooltip].tooltip-bottom.tooltip-left::after,
+.tooltip-bottom.tooltip-left [data-tooltip]::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+  left: auto;
+  right: 0;
+  transform: translateX(0) translateY(-4px);
+}
+
+[data-tooltip].tooltip-bottom.tooltip-left:hover::after,
+.tooltip-bottom.tooltip-left [data-tooltip]:hover::after {
+  transform: translateX(0) translateY(0);
+}
+
 /* Tooltip Right-Aligned (anchored to left edge, expands to right) */
 [data-tooltip].tooltip-right::after,
 .tooltip-right [data-tooltip]::after {
