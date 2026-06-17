@@ -141,7 +141,7 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
           </div>
           <Sep />
 
-          {/* Run */}
+          {/* ── Group 1: Execute & Inspect ── */}
           <Tooltip text={runTooltip}>
             <button onClick={handleRun} disabled={runDisabled}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shrink-0
@@ -151,7 +151,6 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
             </button>
           </Tooltip>
 
-          {/* Configure */}
           {onConfigure && (
             <button onClick={(e) => { e.stopPropagation(); onConfigure(script); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all shrink-0"
@@ -160,15 +159,6 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               <span>Configure</span>
             </button>
           )}
-          <Sep />
-
-          {/* Quick actions */}
-          <button onClick={handleFavorite}
-            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors shrink-0
-              ${script.isFavorite ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-slate-400 hover:text-yellow-500 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
-            title={script.isFavorite ? 'Unfavorite' : 'Favorite'}>
-            <FontAwesomeIcon icon={script.isFavorite ? fasStar : farStar} className="text-xs" />
-          </button>
           <button onClick={handleViewCode}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
             title="View Code">
@@ -181,13 +171,9 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               <FontAwesomeIcon icon={faBook} className="text-xs" />
             </button>
           )}
-          {onFocus && (
-            <button onClick={handleFocus}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-purple-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
-              title="Focus Mode">
-              <FontAwesomeIcon icon={faBullseye} className="text-xs" />
-            </button>
-          )}
+          <Sep />
+
+          {/* ── Group 2: Modify ── */}
           {canCreateScripts && !isProtectedTool && (
             <button onClick={handleEdit}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
@@ -210,9 +196,29 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               className="w-32 px-2 py-1 text-[11px] font-bold bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-600 rounded-lg outline-none text-slate-800 dark:text-slate-200 shrink-0"
               autoFocus />
           )}
+          {canCreateScripts && !isProtectedTool && (
+            <button onClick={(e) => { e.stopPropagation(); setShowMetadataModal(true); }}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-purple-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
+              title="Edit Metadata">
+              <FontAwesomeIcon icon={faTags} className="text-[10px]" />
+            </button>
+          )}
+          <button onClick={handleFavorite}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors shrink-0
+              ${script.isFavorite ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20' : 'text-slate-400 hover:text-yellow-500 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+            title={script.isFavorite ? 'Unfavorite' : 'Favorite'}>
+            <FontAwesomeIcon icon={script.isFavorite ? fasStar : farStar} className="text-xs" />
+          </button>
+          <Sep />
 
-          {/* Tool actions */}
-          {canCreateScripts && <Sep />}
+          {/* ── Group 3: Dev Tools ── */}
+          {onFocus && (
+            <button onClick={handleFocus}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-purple-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
+              title="Focus Mode">
+              <FontAwesomeIcon icon={faBullseye} className="text-xs" />
+            </button>
+          )}
           {canCreateScripts && !isProtectedTool && (
             <button onClick={(e) => { e.stopPropagation(); editScript(script, true); }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
@@ -234,15 +240,9 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               <FontAwesomeIcon icon={faSyncAlt} className="text-[10px]" />
             </button>
           )}
-          {canCreateScripts && !isProtectedTool && (
-            <button onClick={(e) => { e.stopPropagation(); setShowMetadataModal(true); }}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-purple-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
-              title="Edit Metadata">
-              <FontAwesomeIcon icon={faTags} className="text-[10px]" />
-            </button>
-          )}
+          <Sep />
 
-          {/* Delete */}
+          {/* ── Group 4: Delete (isolated, last) ── */}
           {canCreateScripts && (
             <button onClick={(e) => { e.stopPropagation(); setShowDeleteModal(true); }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
