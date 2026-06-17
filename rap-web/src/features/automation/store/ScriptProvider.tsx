@@ -419,9 +419,10 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (response.data) {
         setActiveSyncSessions(response.data);
 
-        // V5 OPTIMIZATION: If the selected script is active, speed up polling for "Instant" feel
-        const hasActiveSelected = selectedFolder && Object.keys(response.data).some(key => 
-          key.replace(/\\/g, '/').toLowerCase() === selectedFolder.replace(/\\/g, '/').toLowerCase()
+        // V5 OPTIMIZATION: If the selected script source is actively syncing, speed up polling
+        const normalizedFolder = (selectedFolder || "").replace(/\\/g, '/').toLowerCase();
+        const hasActiveSelected = normalizedFolder && Object.keys(response.data).some(key =>
+          key.replace(/\\/g, '/').toLowerCase() === normalizedFolder
         );
         setPollingInterval(hasActiveSelected ? 500 : 2000);
       }

@@ -262,9 +262,11 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     if (!selectedScript?.absolutePath || !activeSyncSessions) return;
 
     const normalizedSelected = selectedScript.absolutePath.replace(/\\/g, '/').toLowerCase();
-    const sessionEntry = Object.entries(activeSyncSessions).find(([path]) =>
-      path.replace(/\\/g, '/').toLowerCase() === normalizedSelected
-    );
+    // Find the sync session whose folder contains this script
+    const sessionEntry = Object.entries(activeSyncSessions).find(([path]) => {
+      const normalizedPath = path.replace(/\\/g, '/').toLowerCase();
+      return normalizedSelected.startsWith(normalizedPath + "/");
+    });
 
     if (sessionEntry) {
       const [_, data] = sessionEntry;
