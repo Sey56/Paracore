@@ -4,7 +4,8 @@ import {
   faStar as fasStar,
   faShieldHeart,
   faTools,
-  faLock
+  faLock,
+  faCompressAlt
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import styles from '../ScriptCard.module.css';
@@ -23,6 +24,7 @@ interface CardHeaderProps {
   isProtectedTool: boolean;
   isSelected: boolean;
   showExitFocus: boolean;
+  onExitFocus?: () => void;
   isCompact: boolean;
   getDisplayName: () => string;
   handleFavoriteClick: (e: React.MouseEvent) => void;
@@ -40,6 +42,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   isProtectedTool,
   isSelected,
   showExitFocus,
+  onExitFocus,
   isCompact,
   getDisplayName,
   handleFavoriteClick
@@ -93,6 +96,17 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
             )}
           </div>
         </div>
+      )}
+      {showExitFocus && onExitFocus && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onExitFocus();
+          }}
+          className="shrink-0 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-full w-7 h-7 flex items-center justify-center transition-all shadow-sm"
+        >
+          <FontAwesomeIcon icon={faCompressAlt} className="text-xs" />
+        </button>
       )}
       <button
         onClick={handleFavoriteClick}

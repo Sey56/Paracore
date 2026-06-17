@@ -1,6 +1,5 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCompressAlt } from '@fortawesome/free-solid-svg-icons';
 import { Script } from "@/types/scriptModel";
 import styles from './ScriptCard.module.css';
 
@@ -116,6 +115,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
           isProtectedTool={isProtectedTool}
           isSelected={isSelected}
           showExitFocus={showExitFocus}
+          onExitFocus={onExitFocus}
           isCompact={isCompact}
           getDisplayName={getDisplayName}
           handleFavoriteClick={handleFavoriteClick}
@@ -124,16 +124,6 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
         {!isCompact && <CardBody script={script} />}
       </div>
 
-      {/* Exit Focus button — subtle icon, only shown in focus mode */}
-      {showExitFocus && onExitFocus && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onExitFocus(); }}
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors z-10"
-          title="Exit Focus"
-        >
-          <FontAwesomeIcon icon={faCompressAlt} className="text-xs" />
-        </button>
-      )}
     </div>
   );
 });
