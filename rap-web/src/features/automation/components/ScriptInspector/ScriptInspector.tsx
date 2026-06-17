@@ -6,7 +6,7 @@ import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useAuth } from '@/features/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faInfoCircle, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { faInfoCircle, faArrowLeft, faCode, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { MetadataTabContent } from './MetadataTabContent';
 import { Tooltip } from '@/components/common/Tooltip';
 
@@ -15,7 +15,7 @@ interface ScriptInspectorProps {
 }
 
 export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
-  const { selectedScript, setSelectedScript } = useScriptExecution();
+  const { selectedScript, setSelectedScript, editScript } = useScriptExecution();
   const { scripts } = useScripts();
   const { agentSelectedScriptPath, toggleFloatingCodeViewer } = useUI();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
@@ -67,6 +67,24 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
         </div>
 
         <div className="flex items-center gap-1">
+          <Tooltip text="View Code" position="bottom-center">
+            <button
+              onClick={toggleFloatingCodeViewer}
+              className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors rounded"
+            >
+              <FontAwesomeIcon icon={faCode} className="text-xs" />
+            </button>
+          </Tooltip>
+          <Tooltip text="Edit Script" position="bottom-center">
+            <button
+              onClick={() => editScript(script)}
+              disabled={!isActionable}
+              className={`p-1.5 transition-colors rounded ${isActionable ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
+            >
+              <FontAwesomeIcon icon={faEdit} className="text-xs" />
+            </button>
+          </Tooltip>
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
           {onBack && (
             <Tooltip text="Back to Gallery" position="bottom-center">
               <button
