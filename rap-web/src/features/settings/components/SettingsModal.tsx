@@ -80,10 +80,6 @@ const SettingsModal: React.FC = () => {
       <div className="flex overflow-hidden max-h-[80vh] animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 dark:bg-slate-900">
         <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/60 p-6 flex-shrink-0 overflow-y-auto custom-scrollbar bg-white/50 dark:bg-slate-950/40 backdrop-blur-sm">
           <nav className="flex flex-col space-y-2">
-            {/* Core Features Grouping */}
-            <h3 className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500 mt-4 mb-4 tracking-[0.2em] px-4">
-              Core Features
-            </h3>
             <div className="flex flex-col space-y-1.5">
               {coreFeaturesTabs.map((tab: TabItem) => (
                 <button
