@@ -79,9 +79,9 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   const [editedParameters, setEditedParameters] = useState<ScriptParameter[]>([]);
 
   useEffect(() => {
-    // Use cached user-edited parameters if available, otherwise fall back to script defaults
+    // Use cached user-edited parameters if available and non-empty, otherwise fall back to script defaults
     const cachedParams = userEditedScriptParameters[script.id];
-    setEditedParameters(cachedParams || script.parameters || []);
+    setEditedParameters((cachedParams && cachedParams.length > 0) ? cachedParams : (script.parameters || []));
   }, [script.id, userEditedScriptParameters, script.parameters]);
 
   const selectedPreset = activePresets[script.id] || "<Default Parameters>";
