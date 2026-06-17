@@ -19,10 +19,12 @@ Per-session token usage (input + output tokens, request count) is now tracked an
 
 ## Security
 
-### Execution Warning — New Revit TaskDialog
-Every time you open a new Revit session, the first execution — whether manual (REPL/Gallery/Playlist) or AI-driven (Agent/MCP) — will trigger a Revit TaskDialog warning. This is new in 4.6.0 and is by design. The dialog explains that code is about to run inside Revit and names the source (Paracore Agent, MCP server, Claude Desktop, Cursor, or manual execution). You must allow it to proceed.
+### Agent Execution Warning — Revit TaskDialog
+The first time an AI agent (Paracore Agent, MCP server, Claude Desktop, Cursor, etc.) tries to execute code in a new Revit session, a TaskDialog appears asking you to allow it. This is once per session — approve it and all agent sources are cleared for the rest of that session. Denying blocks agent execution until Revit restarts.
 
-**Why this is necessary:** Paracore executes real C# code inside Revit's process. The warning ensures you're aware every session that external code — especially AI-generated code — is being run. Denying blocks all execution until you restart Revit.
+Manual execution (REPL, Gallery, Playlists) is not gated — your own code runs immediately, no dialog.
+
+**Why this is necessary:** AI agents generate code autonomously. This ensures you're aware and in control the first time an agent executes code in your model each session.
 
 ### Two-Tier Code Safety Scanner
 All AI-generated code is scanned before it reaches Revit. System-level operations (`Process.Start`, `Environment.Exit`, registry access, assembly loading, file deletion) are blocked unconditionally — these have no legitimate use in any Paracore context. Network access (`HttpClient`, raw sockets) is blocked for AI-generated code but remains available in user-written REPL scripts. 22 additional anti-patterns are detected (raw Revit API calls where Paracore extensions should be used, hardcoded unit math, incorrect `Transact()` usage).
