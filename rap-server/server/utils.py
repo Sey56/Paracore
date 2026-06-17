@@ -23,6 +23,18 @@ def launch_vscode(project_path: str):
         logger.error(f"[Utils] Failed to launch VS Code via 'code' command: {e}")
         return False
 
+def open_in_explorer(project_path: str):
+    """
+    Opens the project folder in Windows File Explorer.
+    """
+    try:
+        win_path = project_path.replace('/', '\\')
+        subprocess.Popen(f'explorer "{win_path}"', shell=True)
+        return True
+    except Exception as e:
+        logger.error(f"[Utils] Failed to open folder in Explorer: {e}")
+        return False
+
 def read_script_files(project_path: str) -> list:
     """
     Read all .cs files from a project's Scripts/ subdirectory.

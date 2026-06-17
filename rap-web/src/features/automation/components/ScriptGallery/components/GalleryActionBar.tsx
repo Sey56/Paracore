@@ -4,7 +4,7 @@ import {
   faPlay, faSpinner, faStar as fasStar,
   faCode, faBullseye, faEdit, faSlidersH,
   faICursor, faSyncAlt, faTags, faTrash, faTools, faBroom,
-  faExclamationTriangle, faBook
+  faExclamationTriangle, faBook, faFolderOpen
 } from '@fortawesome/free-solid-svg-icons';
 import { faStar as farStar } from '@fortawesome/free-regular-svg-icons';
 import { Script } from '@/types/scriptModel';
@@ -30,7 +30,7 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   onReplace,
   onConfigure,
 }) => {
-  const { runScript, runningScriptPath, renameScript } = useScriptExecution();
+  const { runScript, runningScriptPath, renameScript, openFolder } = useScriptExecution();
   const { toggleFavoriteScript, editScript, deleteScript: deleteScriptApi, reloadScript } = useScripts();
   const { toggleFloatingCodeViewer } = useUI();
   const { ParacoreConnected } = useRevitStatus();
@@ -72,6 +72,11 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
     } catch (err: any) {
       console.error('[Doc] Failed:', err.response?.data?.detail || err.message);
     }
+  };
+
+  const handleOpenFolder = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (openFolder) openFolder(script);
   };
 
   const handleFocus = (e: React.MouseEvent) => {
@@ -231,6 +236,13 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
               title="Remove Scaffolding">
               <FontAwesomeIcon icon={faBroom} className="text-[10px]" />
+            </button>
+          )}
+          {canCreateScripts && (
+            <button onClick={handleOpenFolder}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors shrink-0"
+              title="Open Project Folder">
+              <FontAwesomeIcon icon={faFolderOpen} className="text-[10px]" />
             </button>
           )}
           {canCreateScripts && !isProtectedTool && onReplace && (

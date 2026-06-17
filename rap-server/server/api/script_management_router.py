@@ -46,6 +46,9 @@ class EditScriptRequest(BaseModel):
     scriptPath: str
     force_scaffold: bool = False
 
+class OpenFolderRequest(BaseModel):
+    scriptPath: str
+
 class RenameRequest(BaseModel):
     oldPath: str
     newName: str
@@ -209,6 +212,10 @@ async def get_content(scriptPath: str = Query(...)):
 @router.post("/api/edit-script", tags=["Script Management"])
 async def edit_script(request: EditScriptRequest):
     return await script_service.edit_script_logic(request.scriptPath, request.force_scaffold)
+
+@router.post("/api/open-folder", tags=["Script Management"])
+async def open_folder(request: OpenFolderRequest):
+    return script_service.open_folder_logic(request.scriptPath)
 
 @router.post("/api/save-script", tags=["Script Management"])
 async def save_script(request: SaveScriptRequest, current_user: CurrentUser = Depends(get_current_user)):

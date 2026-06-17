@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Any
 from fastapi import HTTPException
 import grpc_client
 from ide_manager import set_active_ide_session, remove_active_ide_session
-from utils import resolve_script_path, launch_vscode, read_script_files
+from utils import resolve_script_path, launch_vscode, open_in_explorer, read_script_files
 from api.script_templates import ARCHETYPES
 
 def recover_true_path(path: str) -> str:
@@ -384,6 +384,26 @@ async def edit_script_logic(tool_path: str, force_scaffold: bool = False):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+def open_folder_logic(tool_path: str):
+    """Opens the project folder in Windows File Explorer."""
+    try:
+        project_root = recover_true_path(tool_path)
+        project_name = os.path.basename(project_root)
+
+        if not os.path.isdir(project_root):
+            raise HTTPException(status_code=404, detail=f"Project folder not found: {project_name}")
+
+        success = open_in_explorer(project_root)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to open folder in Explorer.")
+
+        return {"message": f"Opened project folder: {project_name}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 def _scaffold_project_inplace(project_root: str, project_name: str):
     try:
         with open(os.path.join(project_root, "global.json"), 'w') as f: f.write('{"sdk": {"version": "8.0.0", "rollForward": "latestFeature"}}')
@@ -487,9 +507,8 @@ def scaffold_project_full(project_root: str):
         github_dir = os.path.join(project_root, ".github")
         os.makedirs(github_dir, exist_ok=True)
         from api.ai_instructions import COPILOT_INSTRUCTIONS
-        context_header = "# Current Script Context: FOLDER PROJECT\n# All logic goes into the Scripts/ folder.\n# Use #region GroupName directives to organize parameters.\n\n"
         with open(os.path.join(github_dir, "copilot-instructions.md"), 'w', encoding='utf-8') as f:
-            f.write(context_header + COPILOT_INSTRUCTIONS)
+            f.write(COPILOT_INSTRUCTIONS)
 
         return True
     except Exception as e:

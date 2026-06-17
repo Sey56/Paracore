@@ -81,6 +81,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   const {
     renameScript,
     buildTool,
+    openFolder,
     editScript,
     fetchScriptContent
   } = useScriptOperations(
@@ -375,8 +376,8 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
   }, [renameScript, setSelectedScript, selectedFolder, loadScriptsFromPath]);
 
   const contextValue = useMemo(() => ({
-    selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, runScript: handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, renameScript: handleRenameScript, resetScriptParameters, buildTool,
-  }), [selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, editScript, handleRenameScript, resetScriptParameters, buildTool]);
+    selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, runScript: handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, openFolder, editScript, renameScript: handleRenameScript, resetScriptParameters, buildTool,
+  }), [selectedScript, setSelectedScript, runningScriptPath, executionResult, setExecutionResult, handleRunScript, clearExecutionResult, userEditedScriptParameters, updateUserEditedParameters, defaultDraftParameters, activePresets, setActivePreset, presets, addPreset, updatePreset, deletePreset, renamePreset, computeParameterOptions, pickObject, isComputingOptions, combinedScriptContent, openFolder, editScript, handleRenameScript, resetScriptParameters, buildTool]);
 
   return <ScriptExecutionContext.Provider value={contextValue}>{children}</ScriptExecutionContext.Provider>;
 };

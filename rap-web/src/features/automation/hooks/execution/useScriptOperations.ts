@@ -51,6 +51,16 @@ export const useScriptOperations = (
     }
   }, [showNotification, selectedFolder, loadScriptsFromPath, updateScriptModificationTime]);
 
+  const openFolder = useCallback(async (script: Script) => {
+    if (!script?.absolutePath) return;
+    try {
+      await api.post("/api/open-folder", { scriptPath: script.absolutePath });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }, message: string };
+      showNotification(err.response?.data?.detail || err.message || "Failed to open folder.", "error");
+    }
+  }, [showNotification]);
+
   const editScript = useCallback(async (script: Script, force: boolean = false) => {
     if (!script || !isAuthenticated) return;
     try {
@@ -90,6 +100,7 @@ export const useScriptOperations = (
   return {
     renameScript,
     buildTool,
+    openFolder,
     editScript,
     fetchScriptContent
   };
