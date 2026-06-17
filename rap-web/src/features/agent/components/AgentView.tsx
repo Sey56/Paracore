@@ -1420,7 +1420,7 @@ export const AgentView: React.FC = () => {
           <button
             onClick={() => setIsDeleteSessionModalOpen(true)}
             title="Delete Session"
-            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors tooltip-bottom"
+            className="p-1.5 text-slate-400 hover:text-red-500 transition-colors tooltip-bottom tooltip-left"
           >
             <FontAwesomeIcon icon={faTrash} className="text-xs" />
           </button>
