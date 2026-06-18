@@ -4,6 +4,8 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional
 
+from mcp_core.context_manager import StatusHeader, TurnTracker, SHIELD_TOOL_RETURN_AT_CHARS, build_status_augmented_message
+
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, TypeAdapter
@@ -139,8 +141,8 @@ def _reconstruct_history(
                 t_name = call_id_to_name.get(c_id, "unknown")
 
                 # Truncate large tool returns to protect context window
-                from agent.summarizer import shield_tool_return
-                if len(text) > 1000:
+                from mcp_core.summarizer import shield_tool_return
+                if len(text) > 500:
                     text = shield_tool_return(text, t_name)
 
                 pydantic_history.append(ModelRequest(parts=[
@@ -148,19 +150,10 @@ def _reconstruct_history(
                 ]))
 
     # ── Protocol Shield ──
-    # If the last message is a ModelResponse with a ToolCallPart, inject a
-    # dummy ToolReturnPart so strict providers don't crash with 400.
-    if pydantic_history and isinstance(pydantic_history[-1], ModelResponse):
-        for part in pydantic_history[-1].parts:
-            if isinstance(part, ToolCallPart):
-                pydantic_history.append(ModelRequest(parts=[
-                    ToolReturnPart(
-                        tool_name=part.tool_name,
-                        content="Execution output provided in next system message.",
-                        tool_call_id=part.tool_call_id,
-                    )
-                ]))
-                break  # Only need one shield per response
+    # If last message has ToolCallPart without ToolReturnPart, inject a dummy
+    # so strict providers (OpenAI, Google) don't crash with HTTP 400.
+    from mcp_core.context_manager import inject_protocol_shield
+    inject_protocol_shield(pydantic_history)
 
     return pydantic_history
 
@@ -381,7 +374,7 @@ async def chat_with_agent(request: ChatRequest):
 
         # ── 1. Setup ──────────────────────────────────────────────────────
         from agent.v4_repl_agent import v4_repl_agent, AgentDeps, InterruptedException
-        from agent.summarizer import summarize
+        from mcp_core.summarizer import summarize
 
         deps = AgentDeps(
             user_id=request.token or "unknown",
@@ -440,33 +433,12 @@ async def chat_with_agent(request: ChatRequest):
                     pass
             agent_response = await _run_conversational_summary(summary, deps, model, topic_query, csharp_code)
 
-            # ── Patch the dummy ToolReturnPart with real results ──────────
-            # The Protocol Shield injected a placeholder ToolReturnPart with
-            # "Execution output provided in next system message." — but the
-            # real execution just completed.  Replace the dummy with the
-            # actual summary so the agent remembers what its code produced on
-            # the next turn.
-            for i in range(len(pydantic_history) - 1, -1, -1):
-                msg = pydantic_history[i]
-                if isinstance(msg, ModelRequest):
-                    new_parts = []
-                    replaced = False
-                    for part in msg.parts:
-                        if isinstance(part, ToolReturnPart) and part.content == "Execution output provided in next system message.":
-                            new_parts.append(ToolReturnPart(
-                                tool_name=part.tool_name,
-                                content=summary,
-                                tool_call_id=part.tool_call_id,
-                            ))
-                            replaced = True
-                        else:
-                            new_parts.append(part)
-                    if replaced:
-                        pydantic_history[i] = ModelRequest(parts=new_parts)
-                        break
+            # Patch Protocol Shield placeholder with real execution results
+            from mcp_core.context_manager import replace_dummy_tool_return
+            replace_dummy_tool_return(pydantic_history, summary)
 
-            # Append the agent's summary response + the system prompt that
-            # triggered it so the full turn is captured.
+            # Append the agent's summary response + the user message
+            # so the full turn is captured.
             pydantic_history.append(ModelRequest(parts=[UserPromptPart(content=request.message)]))
             pydantic_history.append(ModelResponse(parts=[TextPart(content=agent_response)]))
 
@@ -479,9 +451,16 @@ async def chat_with_agent(request: ChatRequest):
             from pydantic_ai.settings import ModelSettings
             from pydantic_ai.usage import RunUsage
 
+            # Prepend status header for context efficiency (Kaizen Harness pattern)
+            # Extracts goal + completed tool calls from history, replaces full recaps
+            augmented_message = build_status_augmented_message(
+                request.message,
+                request.history,  # Legacy-format history from frontend
+            )
+
             deps.turn_usage = RunUsage()
             result = await v4_repl_agent.run(
-                request.message,
+                augmented_message,
                 message_history=pydantic_history,
                 deps=deps,
                 model=model,
@@ -509,7 +488,7 @@ async def chat_with_agent(request: ChatRequest):
             if parsed_tool and parsed_tool.tool_name == "execute_dynamic_query":
                 csharp_code = parsed_tool.arguments.get("csharp_code", "")
                 justification = parsed_tool.arguments.get("justification", "Agent-generated query")
-                from agent.tool_helpers import sanitize_csharp_code
+                from mcp_core.tool_helpers import sanitize_csharp_code
                 csharp_code = sanitize_csharp_code(csharp_code)
                 logger.info(f"[V4] Sanitizer recovered raw execute_dynamic_query — triggering handoff.")
                 raise InterruptedException(csharp_code, justification)
@@ -622,34 +601,15 @@ async def chat_with_agent_stream(request: ChatRequest):
     async def event_generator():
         # ── Conversational summary shortcut ────────────────────────────────
         if request.raw_output_for_summary:
-            from agent.summarizer import summarize
+            from mcp_core.summarizer import summarize
             try:
                 summary = summarize(request.raw_output_for_summary)
             except Exception:
                 summary = "Execution completed."
 
-            # ── Patch the dummy ToolReturnPart with real results ──────────
-            # Same fix as the non-streaming path: replace the Protocol Shield's
-            # placeholder with the actual execution summary so the agent
-            # remembers what its code produced on the next turn.
-            for i in range(len(pydantic_history) - 1, -1, -1):
-                msg = pydantic_history[i]
-                if isinstance(msg, ModelRequest):
-                    new_parts = []
-                    replaced = False
-                    for part in msg.parts:
-                        if isinstance(part, ToolReturnPart) and part.content == "Execution output provided in next system message.":
-                            new_parts.append(ToolReturnPart(
-                                tool_name=part.tool_name,
-                                content=summary,
-                                tool_call_id=part.tool_call_id,
-                            ))
-                            replaced = True
-                        else:
-                            new_parts.append(part)
-                    if replaced:
-                        pydantic_history[i] = ModelRequest(parts=new_parts)
-                        break
+            # Patch Protocol Shield placeholder with real execution results
+            from mcp_core.context_manager import replace_dummy_tool_return
+            replace_dummy_tool_return(pydantic_history, summary)
 
             # Append this turn to history so the full cycle is preserved
             pydantic_history.append(ModelRequest(parts=[UserPromptPart(content=request.message)]))

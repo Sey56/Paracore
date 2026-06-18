@@ -30,41 +30,31 @@ import logging
 from mcp.server.fastmcp import FastMCP
 
 # Now we can safely import from grpc_client (which is in base_dir/server or base_dir)
-from grpc_client import close_channel, execute_repl, execute_script, get_context, init_channel
+from grpc_client import close_channel, init_channel
 
-# Shared tool helpers (summarize, extension method search, etc.)
-try:
-    from agent.tool_helpers import summarize_execution_result, format_execution_error, search_extension_methods, sanitize_csharp_code, check_paracore_compliance, check_dangerous_patterns
-except ImportError:
-    # Fallback for when agent package isn't available
-    def summarize_execution_result(x):
-        from agent.summarizer import summarize
-        return summarize(x)
-    def format_execution_error(result):
-        err = result.get('error_message', 'Unknown error')
-        det = result.get('error_details', '')
-        msg = f"Execution Failed: {err}"
-        if det:
-            msg += f"\nDetails: {det}"
-        msg += "\n\n💡 Check paracore://system-prompt for correct method syntax. Call read_extension_methods(\"method-name\") for signatures."
-        return msg
-    def search_extension_methods(query, doc):
-        return doc[:8000] if doc else "No reference available."
-    def sanitize_csharp_code(code):
-        return code
-    def check_paracore_compliance(code):
-        return None  # skip check when helpers unavailable
-    def check_dangerous_patterns(code, agent_only=True):
-        return None  # skip check when helpers unavailable
+# ── Shared tool implementations (single source of truth) ──────────────────
+# Previously: try/except import of individual helpers with silent no-op fallback.
+# Now: direct import from mcp_core — if this fails, the server fails LOUD.
+from mcp_core.prompt_assembler import build_prompt
+from mcp_core.tools import (
+    explore_revit_data,
+    execute_dynamic_query,
+    search_schema,
+    read_extension_methods,
+    ping,
+    get_globals,
+)
 
 # Configure logging
+# Write to %APPDATA%\paracore-data\logs\ (created by Paracore add-in installer)
+# NOT to the .exe directory — Program Files is not writable without admin.
 if getattr(sys, 'frozen', False):
-    # Log next to the executable in bundled mode
-    log_dir = os.path.dirname(sys.executable)
+    log_dir = os.path.join(os.getenv("APPDATA", ""), "paracore-data", "logs")
 else:
     log_dir = os.path.dirname(os.path.abspath(__file__))
+os.makedirs(log_dir, exist_ok=True)
 
-log_file = os.path.join(log_dir, "mcp_debug.log")
+log_file = os.path.join(log_dir, "paracore_mcp.log")
 
 from logging.handlers import RotatingFileHandler
 _mcp_handler = RotatingFileHandler(log_file, maxBytes=1_000_000, backupCount=3)
@@ -77,7 +67,35 @@ logger.addHandler(_mcp_handler)
 logger.info(f"MCP Logging initialized at {log_file}")
 
 # Initialize FastMCP Server
-mcp = FastMCP("Paracore")
+# Server-level instructions: injected into LLM context on EVERY turn.
+# This is the nuclear option — critical anti-patterns the LLM MUST know
+# before writing any code, even if it skips _ping and _read_extension_methods.
+mcp = FastMCP(
+    "Paracore",
+    instructions="""CRITICAL RULES — violations will be rejected:
+
+GLOBALS (use EXACTLY these — PascalCase):
+  Doc (NOT doc, NOT ActiveDocument, NOT activeDocument)
+  ActiveView, Selection, Println()
+
+QUERY (use Paracore methods, NOT raw Revit API):
+  GetElements("Walls")  — NOT new FilteredElementCollector(Doc)
+  GetElements<Wall>()   — typed retrieval
+  .WhereParam("Name", "value")  — NOT .Where(e => e.Property)
+  .Table()  — NOT foreach+Println loops
+
+FORBIDDEN — these WILL fail:
+  new FilteredElementCollector(...)  → use GetElements()
+  doc / ActiveDocument               → use Doc
+  LookupParameter / get_Parameter    → use .GetStr() / .GetNum()
+  .AsString() / .AsDouble()          → use .GetStr() / .GetNum()
+  Console.WriteLine()                → use Println()
+
+START EVERY SESSION WITH:
+  1. _ping  → confirms connectivity + shows full cheat sheet
+  2. _read_extension_methods()  → loads complete method catalog
+  Then explore. Never write code before these two steps."""
+)
 
 # Cache resource files in memory at startup (read once, serve from RAM)
 _CACHED_SYSTEM_PROMPT: str | None = None
@@ -101,309 +119,156 @@ _CACHED_EXTENSION_METHODS = _load_resource(_get_resource_path("EXTENSION_METHODS
 logger.info(f"MCP resources cached: REPL_GUIDE={len(_CACHED_REPL_GUIDE)} chars, EXTENSION_METHODS={len(_CACHED_EXTENSION_METHODS)} chars")
 
 @mcp.tool()
-def ping() -> str:
-    """Diagnostic tool to verify the MCP server is alive and responding."""
-    return "pong"
+def _ping() -> str:
+    """
+    Verify the Paracore MCP server is alive and connected to Revit.
+    ALWAYS call this FIRST at the start of every session.
 
+    OUTPUT: Returns "pong" if connected, PLUS a mandatory quick-start
+    cheat sheet with globals, query patterns, write patterns, and
+    forbidden API patterns. READ THE CHEAT SHEET before writing any code.
+
+    FAILURE: If the server is not running, this tool will not be available
+    at all (the MCP client will report a connection error).
+    """
+    return ping()
 
 
 @mcp.tool()
-def explore_revit_data(csharp_code: str, justification: str) -> str:
+def _explore_revit_data(csharp_code: str, justification: str) -> str:
     """
-    Execute a READ-ONLY C# snippet in Revit for schema/data discovery.
-    Results are summarized: first 5 table rows, first 10 text lines, + totals.
+    Execute a READ-ONLY C# snippet in Revit to explore model data.
+    Use this to DISCOVER parameter names, check element counts, verify values
+    exist, or inspect schema — anything that DOES NOT modify the model.
 
-    BEFORE WRITING ANY C#: read paracore://system-prompt for the complete
-    Paracore method catalog and syntax rules.
+    Do NOT use this for modifications. Use execute_dynamic_query for writes.
 
-    PARACORE-FIRST: Use extension methods (.GetStr, .GetNum, .WhereParam,
-    .OrderByParam, .GroupByParam, .SumParam, .Table, etc.) instead of raw
-    LINQ, FilteredElementCollector, LookupParameter, or foreach+Println.
-    For syntax help on a specific method, call read_extension_methods("name").
+    The 'csharp_code' must be valid C# top-level statements. The engine has
+    all Revit namespaces pre-imported. Prefer Paracore extension methods
+    (.GetStr, .WhereParam, .GroupByParam, .Table, etc.) over raw LINQ and
+    FilteredElementCollector.
+
+    OUTPUT: Summarized results — tables show first 5 rows + total count,
+    text output shows first 10 lines. Charts report their type. Empty results
+    return "No results found" with the query context.
+
+    FAILURE: Returns a structured error with the error type, line number,
+    and a suggested fix. Common failures: wrong parameter name (run
+    search_schema first), missing Transact() around a foreach loop, or
+    accidentally including write operations (SetVal, Delete) in read-only mode.
     """
-    csharp_code = sanitize_csharp_code(csharp_code)
-
-    # Anti-pattern guard: catch raw Revit API before execution
-    compliance = check_paracore_compliance(csharp_code)
-    if compliance:
-        logger.info(f"MCP Anti-Pattern Blocked: {compliance[:200]}")
-        return compliance
-
-    # Dangerous pattern guard
-    danger = check_dangerous_patterns(csharp_code, agent_only=True)
-    if danger:
-        logger.info(f"MCP Dangerous Pattern Blocked: {danger[:200]}")
-        return danger
-
-    logger.info(f"MCP Exploring Data: {justification}")
-    try:
-        result = execute_repl(csharp_code, "mcp-session",
-                              execution_mode="read_only", source="mcp_agent")
-
-        if result.get("user_rejected"):
-            return ("❌ Code execution denied for this Revit session. "
-                    "Open Revit and approve the one-time session dialog, or restart Revit to reset.")
-        if result.get("read_only_violation"):
-            return ("❌ Read-only violation: exploration code contains write operations "
-                    f"(SetVal, Delete, Transact, etc.). Use execute_dynamic_query for writes.\n\n"
-                    f"Error: {result['error_message']}")
-
-        if result["is_success"]:
-            return summarize_execution_result(result)
-        else:
-            return format_execution_error(result)
-    except Exception as e:
-        logger.error(f"MCP Exploration Exception: {e}")
-        return f"Error executing exploration script: {str(e)}"
-
-@mcp.tool()
-def execute_dynamic_query(csharp_code: str, justification: str) -> str:
-    """
-    Execute C# in Revit (read or modify). The user's final action.
-    Results are summarized. SELF-CORRECTION: retry up to 3 times on errors.
-
-    BEFORE WRITING ANY C#: read paracore://system-prompt for the complete
-    Paracore method catalog and syntax rules.
-
-    PARACORE-FIRST: Use extension methods (.GetStr, .GetNum, .WhereParam,
-    .OrderByParam, .GroupByParam, .SumParam, .Table, etc.) instead of raw
-    LINQ, FilteredElementCollector, LookupParameter, or foreach+Println.
-    For syntax help on a specific method, call read_extension_methods("name").
-
-    WRITES: el.SetVal("Comments","Done"), el.SetNum("Offset",-150,"cm"),
-    el.Delete(), el.Hide(), el.Unhide(), el.Isolate() — auto-transact.
-    Collection batch writes (ONE transaction): .SetParam("Comments","Done"),
-    .Delete(), .Hide(), .Unhide(), .Isolate().
-    Manual foreach loops: ALWAYS wrap in Transact():
-      Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.Delete();}});
-    Inside Transact, all methods detect the active transaction — no sub-transactions.
-
-    DISPLAY: ALWAYS use .Table(). NEVER foreach+Println loops.
-    For .Select() tables: ALWAYS include Id=c.Id as the first column.
-    NEVER chain .Select() after .GroupByParam(). Chain .Table() directly.
-    """
-    csharp_code = sanitize_csharp_code(csharp_code)
-
-    # Anti-pattern guard: catch raw Revit API before execution
-    compliance = check_paracore_compliance(csharp_code)
-    if compliance:
-        logger.info(f"MCP Anti-Pattern Blocked: {compliance[:200]}")
-        return compliance
-
-    # Dangerous pattern guard
-    danger = check_dangerous_patterns(csharp_code, agent_only=True)
-    if danger:
-        logger.info(f"MCP Dangerous Pattern Blocked: {danger[:200]}")
-        return danger
-
-    logger.info(f"MCP Executing Query: {justification}")
-    try:
-        result = execute_repl(csharp_code, "mcp-session", source="mcp_agent")
-
-        if result.get("user_rejected"):
-            return ("❌ Code execution denied for this Revit session. "
-                    "Open Revit and approve the one-time session dialog, or restart Revit to reset.")
-
-        if result["is_success"]:
-            return summarize_execution_result(result)
-        else:
-            return format_execution_error(result)
-    except Exception as e:
-         return f"Error executing task script: {str(e)}"
+    return explore_revit_data(csharp_code, justification)
 
 
 @mcp.tool()
-def search_schema(category_name: str) -> str:
+def _execute_dynamic_query(csharp_code: str, justification: str) -> str:
     """
-    Search the model schema for parameter definitions of a Revit category.
-    Returns parameter names, storage types, and whether each is Type or Instance.
-    PREFERRED discovery tool — faster than running .CombinedParams().Table().
-    Results are cached in memory after first call per category.
-    Example categories: "Rooms", "Walls", "Doors", "Structural Columns", "Floors", "Ceilings".
-    Use GetMagicNames() to discover available category names if unsure.
-    CRITICAL: Only copy the parameter NAME (first column). NEVER include storage type
-    annotations like [String] or [Double] in your code. e.g. use "Level" not "Level [String]".
+    Execute C# in Revit — supports both reads AND writes. This is the tool
+    for the user's FINAL action after discovery is complete.
+
+    Do NOT use this for initial exploration — use explore_revit_data or
+    search_schema first. This tool is ONLY for the final result after
+    discovery is complete. Unlike explore_revit_data, this tool runs
+    without read-only restrictions and supports model modifications.
+
+    WRITE OPERATIONS (auto-transact — no Transact() needed):
+      Single element: .SetVal("Comments","Done"), .SetNum("Offset",-150,"cm"),
+        .Delete(), .Hide(), .Unhide(), .Isolate()
+      Collection bulk (one transaction): .SetParam("Comments","Done"),
+        .Delete(), .Hide(), .Unhide(), .Isolate()
+
+    Manual foreach loops with writes MUST wrap in Transact("name", () => {...}).
+
+    DISPLAY: Always use .Table() for data, never foreach+Println loops.
+    For .Select() tables, include Id as the first column.
+
+    OUTPUT: Summarized — tables (first 5 rows + total), text (first 10 lines),
+    charts (type reported). Write operations include a confirmation message.
+
+    FAILURE: Structured error with type, line number, and suggested fix.
+    Self-correct up to 3 times. Common failures: wrong parameter name,
+    missing Transact() on foreach, or trying to chain .Select() after
+    .GroupByParam() (chain .Table() directly instead).
     """
-    logger.info(f"MCP Searching schema for: {category_name}")
-    try:
-        from services.schema_cache import search_schema as do_search
-        return do_search(category_name)
-    except Exception as e:
-        logger.error(f"Schema search failed: {e}")
-        return f"Schema search failed: {str(e)}. Try explore_revit_data with .CombinedParams().Table() instead."
+    return execute_dynamic_query(csharp_code, justification)
 
 
 @mcp.tool()
-def read_extension_methods(query: str = "") -> str:
+def _search_schema(category_name: str) -> str:
     """
-    Returns the complete Paracore Extension Methods reference.
-    Call this when you need to check the EXACT syntax of any Paracore method.
-    If 'query' is provided (e.g., "GetStr", "WhereParam", "Table"), returns only
-    the relevant section. Leave empty for the full reference.
-    Covers: GetStr, GetNum, GetVal, GetInt, SetVal, SetNum, WhereParam, WhereMatches,
-    SumParam, GroupByParam, OrderByParam, OrderByParamDesc, Table, BarGraph, PieGraph,
-    LineGraph, Peek, CombinedParams, BuiltInParams, InstanceParams, TypeParams,
-    NativeProperties, GeometrySummary, InputUnit, OutputUnit, Matches,
-    FamilyName, RoomAccess, RoomDestination, Handing, IsStandardDoor, and more.
+    Fast parameter schema lookup for a Revit category. Use this INSTEAD of
+    explore_revit_data when you just need to know what parameters exist for
+    a category — it's faster and cheaper than running live C#.
+
+    PREFERRED for discovery. Results are cached in memory after the first
+    call per category — instant on subsequent calls.
+
+    'category_name' is a Revit category string. Common values: "Rooms",
+    "Walls", "Doors", "Floors", "Ceilings", "Windows", "Structural Columns",
+    "Structural Framing", "Ducts", "Pipes". For unknown categories, use
+    GetMagicNames() via explore_revit_data to discover available names.
+
+    OUTPUT: A compact list of parameter names with storage types (String,
+    Double, Integer, ElementId) and scope (Instance / Type). Copy ONLY the
+    parameter name — do NOT include [String] or [Double] annotations in
+    your code.
+
+    FAILURE: If the category is not found, returns an error suggesting you
+    try explore_revit_data with .CombinedParams().Table() instead. This is
+    rare — most standard Revit category names work directly.
     """
-    path = _get_resource_path("EXTENSION_METHODS.md")
-    global _CACHED_EXTENSION_METHODS
-    _CACHED_EXTENSION_METHODS = _load_resource(path, _CACHED_EXTENSION_METHODS)
-    doc = _CACHED_EXTENSION_METHODS
-    if query and query.strip():
-        return search_extension_methods(query.strip(), doc)
-    return doc[:15000]  # return generous portion when explicitly requesting full reference
+    return search_schema(category_name)
 
 
-# Resources
+@mcp.tool()
+def _read_extension_methods() -> str:
+    """
+    Returns the complete Paracore Extension Methods reference (~7,400 chars).
+    Call this BEFORE writing any code — it's the equivalent of reading the
+    docs before coding. This single call loads every method signature, every
+    parameter description, and every usage pattern into context.
+
+    Call with NO arguments. Always returns the full catalog.
+
+    Use this FIRST, before explore_revit_data or execute_dynamic_query.
+    Knowing the methods prevents guessing, hallucinated method names,
+    and the raw Revit API patterns that will be rejected.
+
+    OUTPUT: ~7,400 chars of Markdown covering GetStr, GetNum, WhereParam,
+    GroupByParam, Table, Select, SetVal, SetNum, SetParam, CombinedParams,
+    Delete, Hide, BarGraph, PieGraph, LineGraph, and everything else.
+
+    FAILURE: Always available — no network or Revit dependency.
+    """
+    return read_extension_methods()
+
+
+# ── System prompt resource ──────────────────────────────────────────────
+# Prompt content lives in agent/prompts/*.md — single source of truth.
+# Previously: 131-line MCP_SYSTEM_PROMPT inline string + import from agent.prompt.
+# Now: assembled from composable .md files via prompt_assembler.build_prompt("mcp").
+
+_MCP_SYSTEM_PROMPT: str | None = None
+
+
 @mcp.resource("paracore://system-prompt")
 def read_system_prompt() -> str:
     """Paracore REPL method catalog and rules. Read this FIRST before using any tools."""
-    global _CACHED_SYSTEM_PROMPT
-    if _CACHED_SYSTEM_PROMPT is not None:
-        return _CACHED_SYSTEM_PROMPT
-    try:
-        from agent.prompt import SYSTEM_PROMPT
-        _CACHED_SYSTEM_PROMPT = SYSTEM_PROMPT
-        return SYSTEM_PROMPT
-    except ImportError:
-        pass
-        
-    _CACHED_SYSTEM_PROMPT = MCP_SYSTEM_PROMPT
-    return _CACHED_SYSTEM_PROMPT
+    global _MCP_SYSTEM_PROMPT
+    if _MCP_SYSTEM_PROMPT is not None:
+        return _MCP_SYSTEM_PROMPT
+    _MCP_SYSTEM_PROMPT = build_prompt("mcp")
+    return _MCP_SYSTEM_PROMPT
 
 
-MCP_SYSTEM_PROMPT = """# PARACORE REPL — COMPLETE METHOD CATALOG
-You are generating C# code for the Paracore REPL engine in Revit.
-This IS the Revit API. Paracore extensions = convenient shortcuts on top.
-Transact() = REQUIRED for foreach loops. Single-element/collection-bulk auto-transacts.
+@mcp.resource("paracore://globals")
+def read_globals() -> str:
+    """Complete list of globals, methods, and pre-imported namespaces. Use when unsure what variables/types are available."""
+    return get_globals()
 
-## SCRIPT RULES
-Top-level statements only. No namespace, class Program, or Main() — the script IS the entry.
-Classes/interfaces go at the BOTTOM after all top-level code.
-ALL namespaces pre-imported — NEVER write `using` or fully-qualified names:
-  CORRECT: XYZ p = new XYZ(0,0,0);  Wall.Create(...);  GetElements<Room>();
-  WRONG:   using Autodesk.Revit.DB;  Autodesk.Revit.DB.XYZ p = ...;
-NO IExternalApplication, IExternalCommand — this is dynamic execution, not an add-in.
-NO FilteredElementCollector — use GetElements<T>() or GetElements("Category") instead.
 
-## ELEMENT RETRIEVAL
-SYSTEM FAMILIES (Wall, Floor, Room, Ceiling):
-  GetElements<Wall>()      → typed instances
-  GetElements<WallType>()  → typed type definitions
-  GetElements("Walls")     → untyped Element list
-LOADABLE FAMILIES (Doors, Windows, Furniture):
-  GetElements<FamilyInstance>("Doors")  → typed instances
-  GetElements<FamilySymbol>("Doors")    → typed type symbols
-  GetElements("Doors")                 → untyped Element list
-GetElement("name")  GetMagicNames()  GetCategories()
+# ── End of inline MCP_SYSTEM_PROMPT replacement ──────────────────────────
 
-## LINQ RULES — PARACORE FIRST — CHECK THIS TABLE BEFORE WRITING CODE
-  ┌──────────────────────────────┬──────────────────────────────────┐
-  │ INSTEAD OF RAW C# LINQ       │ USE PARACORE                     │
-  ├──────────────────────────────┼──────────────────────────────────┤
-  │ .Where(e => e.Property)      │ .WhereParam("Name", "value")     │
-  │ .Where(e => name.Contains)   │ .WhereMatches("pattern")         │
-  │ .Where(fi => !IsCurtain...)  │ .StandardDoor()                  │
-  │ .OrderBy(e => e.GetNum(...)) │ .OrderByParam("Name")            │
-  │ .OrderByDescending(...)      │ .OrderByParamDesc("Name")        │
-  │ .GroupBy(e => "Name")        │ .GroupByParam("Name")            │
-  │   .Select(g => new {...})    │   .Table() [chain directly]      │
-  │ .Sum(e => e.GetNum(...))     │ .SumParam("Name", "unit")        │
-  ├──────────────────────────────┼──────────────────────────────────┤
-  │ DISPLAY DATA                 │ .Table() ALWAYS                  │
-  │ foreach + Println loop       │ .Select(x => new {...}).Table()  │
-  └──────────────────────────────┴──────────────────────────────────┘
-ALLOWED LINQ (no Paracore equivalent): .GroupBy(lambda) multi-key,
-  .Select(x=>new{}) for projection, .Take/.Skip/.First/.FirstOrDefault/.Any
-WARNING: Paracore `.Select()` = Select in Revit UI (highlight elements).
-  For data projection use LINQ `.Select(x => new {...})`.
-NEVER chain LINQ `.Select()` after `.GroupByParam()`. Chain `.Table()` directly:
-  GetElements<Wall>().GroupByParam("Base Constraint").Table()
-
-## DISPLAY RULES
-ALWAYS use .Table() to display data. NEVER foreach+Println+string.Join loops.
-.Table() = interactive sortable grid. Println() = status messages only.
-
-## GLOBALS
-Doc, Uidoc, UIApp, ActiveView, Selection, Println(text)
-Doc.Title, ActiveView.Name, Selection.Count — work directly
-
-## RETRIEVAL
-GetElements<Wall>()   GetElements("Doors")   GetElements<FamilyInstance>("Doors")
-GetElement("id-or-name")   GetCategories()   GetMagicNames()
-
-## ACCESSORS (on elements)
-wall.GetStr("Level")→"Level 1"  wall.GetNum("Area","m2")→25.46
-wall.GetVal("Width")→"300 mm"   wall.GetInt("Count")→4
-wall.SetVal("Mark","101")  wall.SetNum("Offset",-150,"cm")
-wall.Delete()  wall.Hide()  wall.Unhide()  wall.Isolate()
-Native: el.Id  el.Name  el.Symbol  el.Location
-
-## ELEMENT CREATION — Raw Revit API, foreach MUST wrap in Transact()
-Wall.Create  Floor.Create  Doc.Create.NewFamilyInstance  XYZ  Line.CreateBound  CurveLoop
-FilteredElementCollector  ElementId  Arc.Create  Transform  Solid  -- all available everywhere.
-Full namespaces: Autodesk.Revit.DB, Autodesk.Revit.UI, Autodesk.Revit.DB.Architecture, etc.
-Transact() REQUIRED for foreach loops and raw API writes — one clean undo entry.
-Single-element (.SetVal/.SetNum) and collection bulk (.SetParam) auto-transact — no Transact() needed.
-  var lvl = GetElements<Level>().FirstOrDefault(l => l.Name == "Level 1");
-  var typ = GetElements<WallType>().FirstOrDefault(t => t.Name == "Generic - 200mm");
-  Transact("Create Wall", () => { Wall w = Wall.Create(Doc, Line.CreateBound(p1,p2), lvl.Id, false); w.WallType = typ; });
-
-## COLLECTION EXTENSIONS
-.WhereParam("Level","Level 1")  .WhereParam("Area",">",25,"m2")
-.WhereMatches("Single-Flush")   .StandardDoor()
-.OrderByParam("Area")   .OrderByParamDesc("Area")
-.GroupByParam("Level")→Group|Count  .GroupByParam("Level","Area","m2")→Group|Count|Total
-.SumParam("Area","m2")  // GroupByParam args: (groupBy, sumParam?, unit?)
-.SetParam("Comments","Done") — bulk write, ONE transaction
-.Delete() — BIM-safe bulk delete  .Hide()  .Unhide()  .Isolate()
-
-## FLUENT ENDERS
-.Table()  .BarGraph()  .PieGraph()  .LineGraph()  .Show()
-.Table() rules: GroupByParam→chain directly. Raw collection→.Select() first with explicit columns.
-  ✓ .GroupByParam("Level").Table()
-  �--- GetElements("Walls").Table() — dumps hundreds of columns
-  �--- .SetParam(...).Table() — same issue
-  ✓ .Select(x => new { x.Id, Name = x.GetStr("Name") }).Table()
-CHARTS: ONLY chain directly — .GroupByParam("Level","Area","m2").BarGraph(). NO .Select().
-
-## DISCOVERY & DEBUG
-.CombinedParams().Table() — EVERY param (Instance+Type+Native) with exact names
-.Peek()  .BuiltInParams().Table()  .InstanceParams().Table()
-.TypeParams().Table()  .NativeProperties().Table()  .GeometrySummary().Table()
-el.ReflectionProperties()  el.ReflectionMethods()  el.ParamsDict()
-
-## MATERIALS
-el.Materials()  el.MaterialNames()  el.GetMaterialNames()
-
-## NUMERIC HELPERS (on double)
-.InputUnit("mm")  .OutputUnit("m2",2)  .RoundTo("mm",0)
-.IsAlmostEqualTo(v)  .AlmostZero()  .IsGreaterThan(v)  .IsLessThan(v)
-.IsPositive()  .IsNegative()  .FormatValueOnly("mm",2)
-
-## DOOR ORIENTATION
-fi.RoomAccess()  fi.RoomDestination()  fi.RoomFrom()  fi.RoomTo()
-fi.Handing()→"LH"/"RH"  fi.HingeSide()→"Left"/"Right"
-fi.IsHandFlipped()  fi.IsFacingFlipped()  fi.IsStandardDoor()
-
-## MODIFICATION
-Fluent chain (no Transact needed): GetElements("Walls").SetParam("Comments","Done")
-Delete chain: GetElements("Generic Models").WhereMatches("TEMP").Delete()
-Manual foreach: Transact("name",()=>{foreach(var w in walls){w.SetVal(...);w.Delete();}})
-
-## PARAMETER DISCOVERY — CRITICAL
-Diff categories use DIFF param names. No universal "Level":
-  Walls→"Base Constraint"  Structural Columns→"Base Level"  Rooms→"Level"
-ALWAYS: GetElements("Cat").First().CombinedParams().Table() before using any param name.
-
-## COMMON PATTERNS
-Group:  GetElements("Doors").GroupByParam("Level").Table()
-Query:  GetElements("Walls").WhereParam("Base Constraint","Level 1").Select(w => new { w.Id, Name = w.GetStr("Name") }).Table()
-Write:  GetElements("Walls").WhereParam(...).SetParam("Comments","Done")
-Delete: GetElements("Generic Models").WhereMatches("TEMP").Delete()
-Loop:   Transact("Update",()=>{foreach(var w in walls){w.SetVal("Comments","Done");}})
-"""
 
 @mcp.resource("paracore://repl-guide")
 def read_repl_guide() -> str:
