@@ -49,6 +49,9 @@ Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore
 ; Cleanup Legacy RServer
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\RServer.Addin.addin"; Tasks: Revit2025
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\RServer"; Tasks: Revit2025
+; Cleanup Paracore Pro (free replaces pro)
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore.Pro.Addin.addin"; Tasks: Revit2025
+Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\ParacorePro"; Tasks: Revit2025
 
 ; For Revit 2026
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"; Tasks: Revit2026
@@ -56,6 +59,9 @@ Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore
 ; Cleanup Legacy RServer
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\RServer.Addin.addin"; Tasks: Revit2026
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\RServer"; Tasks: Revit2026
+; Cleanup Paracore Pro (free replaces pro)
+Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Pro.Addin.addin"; Tasks: Revit2026
+Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\ParacorePro"; Tasks: Revit2026
 
 ; Cleanup user-level local deployments (Ghost copies from Debug builds)
 Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"

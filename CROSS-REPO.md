@@ -50,4 +50,6 @@ A user of the commercial product installs:
 2. Paracore Addin (from `paracore-pro` — with commercial extensions)
 3. Specialized MCPs (from `paracore-pro` — paid)
 
-The desktop app and either add-in communicate via the same gRPC protocol.
+The desktop app and either add-in communicate via the same gRPC protocol (port 50051).
+Only one add-in can be installed at a time — pro replaces free, free replaces pro.
+Each installer cleans up the other's manifest and folder automatically.
