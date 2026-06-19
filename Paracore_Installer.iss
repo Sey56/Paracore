@@ -42,8 +42,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "Revit2025"; Description: "Install for Revit 2025"; GroupDescription: "Revit Versions:"; Check: IsRevitVersionInstalled('2025')
 Name: "Revit2026"; Description: "Install for Revit 2026"; GroupDescription: "Revit Versions:"; Check: IsRevitVersionInstalled('2026')
-Name: "InstallMCP"; Description: "Install Paracore MCP"; GroupDescription: "Additional Features:";
-
 [InstallDelete]
 ; For Revit 2025
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"; Tasks: Revit2025
@@ -76,9 +74,6 @@ Source: "{#PublishDir}\*"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2026\
 
 Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2026"; Tasks: Revit2026; Flags: replacesameversion
 
-; Install MCP Server
-Source: "installers\paracore-mcp.exe"; DestDir: "{commonappdata}\Paracore\MCP"; Tasks: InstallMCP; Flags: ignoreversion restartreplace
-
 [UninstallDelete]
 ; Clean up the Add-in folders and manifests
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore"
@@ -88,9 +83,6 @@ Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.ad
 
 ; Clean up the roaming data
 Type: filesandordirs; Name: "{userappdata}\Paracore"
-
-; Clean up the MCP Server
-Type: filesandordirs; Name: "{commonappdata}\Paracore\MCP"
 
 ; Clean up the debug files in Documents
 Type: files; Name: "{userdocs}\CodeRunnerDebug.txt"
