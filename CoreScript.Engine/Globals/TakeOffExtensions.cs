@@ -44,11 +44,11 @@ namespace CoreScript.Engine.Globals
                 .Select(g => new
                 {
                     Material = g.Key,
-                    TotalVolume_m3 = Math.Round(g.Sum(r => r.Volume), 3),
-                    TotalArea_m2 = Math.Round(g.Sum(r => r.Area), 3),
+                    TotalVolume = Math.Round(g.Sum(r => r.Volume), 3),
+                    TotalArea = Math.Round(g.Sum(r => r.Area), 3),
                     ElementCount = g.Count()
                 })
-                .OrderByDescending(r => r.TotalVolume_m3);
+                .OrderByDescending(r => r.TotalVolume);
         }
 
         /// <summary>
@@ -68,8 +68,8 @@ namespace CoreScript.Engine.Globals
                         ElementId = el.Id.IntegerValue,
                         ElementName = el.GetStr("Name"),
                         Material = mat,
-                        Volume_m3 = el.GetNum("Volume", "m3"),
-                        Area_m2 = el.GetNum("Area", "m2")
+                        Volume = el.GetNum("Volume", "m3"),
+                        Area = el.GetNum("Area", "m2")
                     };
                 }
             }
@@ -98,7 +98,7 @@ namespace CoreScript.Engine.Globals
                         TypeName = typ.Name,
                         LayerFunction = layer.Function.ToString(),
                         Material = mat?.Name ?? "Unknown",
-                        Thickness_mm = Math.Round(UnitUtils.ConvertFromInternalUnits(layer.Width, UnitTypeId.Millimeters), 1)
+                        Thickness = Math.Round(UnitUtils.ConvertFromInternalUnits(layer.Width, UnitTypeId.Millimeters), 1)
                     };
                 }
             }
@@ -145,7 +145,7 @@ namespace CoreScript.Engine.Globals
                         ElementId = el.Id.IntegerValue,
                         Name = el.GetStr("Name"),
                         Level = el.GetStr("Level"),
-                        Formwork_m2 = formwork
+                        Formwork = formwork
                     };
                 }
             }
@@ -165,10 +165,10 @@ namespace CoreScript.Engine.Globals
                 Name = r.GetStr("Name"),
                 Number = r.GetStr("Number"),
                 Level = r.GetStr("Level"),
-                Area_m2 = Math.Round(UnitUtils.ConvertFromInternalUnits(r.Area, UnitTypeId.SquareMeters), 2),
-                Perimeter_m = Math.Round(UnitUtils.ConvertFromInternalUnits(r.Perimeter, UnitTypeId.Meters), 2),
-                Volume_m3 = r.GetNum("Volume", "m3")
-            }).OrderBy(r => r.Level).ThenByDescending(r => r.Area_m2);
+                Area = Math.Round(UnitUtils.ConvertFromInternalUnits(r.Area, UnitTypeId.SquareMeters), 2),
+                Perimeter = Math.Round(UnitUtils.ConvertFromInternalUnits(r.Perimeter, UnitTypeId.Meters), 2),
+                Volume = r.GetNum("Volume", "m3")
+            }).OrderBy(r => r.Level).ThenByDescending(r => r.Area);
         }
 
         // ── Counts ───────────────────────────────────────────────────────

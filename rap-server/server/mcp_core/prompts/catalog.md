@@ -176,10 +176,17 @@ GetElements("Doors").Table()            → same — every parameter is a column
 Select with explicit columns, the result will have 50-200 columns and be unusable.
 ALWAYS use `.Select()` to pick specific columns before `.Table()`.
 
-**COLUMN NAMES:** use the EXACT parameter name with underscores for spaces.
-NEVER append unit suffixes (_cm, _mm, _m2, _ft) to column names.
-- CORRECT: `Base_Constraint = w.GetStr("Base Constraint")`
-- WRONG: `Top_Offset_cm = w.GetNum("Top Offset", "cm")`
+**COLUMN NAMES = EXACT PARAMETER NAMES.** The structured output viewer uses
+column headers to match Revit parameters for single-cell editing and mass-edit.
+If the header doesn't match the parameter name exactly, editing breaks.
+
+- CORRECT: `Base_Constraint = w.GetStr("Base Constraint")`  → header: "Base Constraint"
+- CORRECT: `Area = r.GetNum("Area", "m2")`                 → header: "Area"
+- CORRECT: `Volume = el.GetNum("Volume", "m3")`             → header: "Volume"
+- CORRECT: `Top_Offset = w.GetNum("Top Offset", "cm")`      → header: "Top Offset"
+- WRONG:   `Top_Offset_cm = w.GetNum("Top Offset", "cm")`   → header doesn't match "Top Offset"
+- WRONG:   `Area_m2 = r.GetNum("Area", "m2")`               → header doesn't match "Area"
+- WRONG:   `BaseLevel = w.GetStr("Base Constraint")`        → made-up name, won't match
 
 **CHARTS** after GroupByParam: chain directly, no `.Select()`:
 `GetElements("Rooms").GroupByParam("Level", "Area", "m2").BarGraph()`
