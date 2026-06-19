@@ -46,8 +46,11 @@ These are NOT element categories — access via Doc, not GetElements:
 
 ## Utilities
 - `GetElement("name")` → single element by name/ID
-- `GetMagicNames()` → all targetable category/family/class strings
-  - ⚠️  GetMagicNames() returns a `List<string>`. Use `foreach` + `Println` to display.
-  - Do NOT chain `.Where().Table()` — `.Where()` returns LINQ, not Paracore pipeline.
-  - To filter: `GetMagicNames().Where(m => m.Contains("term")).ToList()` then loop.
-- `GetCategories()` → all project category names
+
+## ⚠️  DANGER — Never Display Raw
+- `GetCategories()` → returns 1,200+ category names. NEVER call `.Table()` or `Println()` on it.
+  - Use only for `.Contains("CategoryName")` checks in code, not for display.
+- `GetMagicNames()` → returns 500+ category + family + class names. Same danger.
+  - Use only for lookup, never for display.
+  - To check if a name exists: `GetMagicNames().Any(m => m.Equals("Term", StringComparison.OrdinalIgnoreCase))`
+  - To find matching names: use `.Where()` + loop over results — never dump the full list.
