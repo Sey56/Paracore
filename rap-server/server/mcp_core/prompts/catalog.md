@@ -176,17 +176,22 @@ GetElements("Doors").Table()            → same — every parameter is a column
 Select with explicit columns, the result will have 50-200 columns and be unusable.
 ALWAYS use `.Select()` to pick specific columns before `.Table()`.
 
-**COLUMN NAMES = EXACT PARAMETER NAMES.** The structured output viewer uses
-column headers to match Revit parameters for single-cell editing and mass-edit.
-If the header doesn't match the parameter name exactly, editing breaks.
+**COLUMN NAMES = EXACT PARAMETER NAMES.** The table viewer uses column headers
+to match Revit parameters for single-cell editing and mass-edit. If the header
+doesn't match the parameter name exactly, editing breaks.
 
-- CORRECT: `Base_Constraint = w.GetStr("Base Constraint")`  → header: "Base Constraint"
-- CORRECT: `Area = r.GetNum("Area", "m2")`                 → header: "Area"
-- CORRECT: `Volume = el.GetNum("Volume", "m3")`             → header: "Volume"
-- CORRECT: `Top_Offset = w.GetNum("Top Offset", "cm")`      → header: "Top Offset"
-- WRONG:   `Top_Offset_cm = w.GetNum("Top Offset", "cm")`   → header doesn't match "Top Offset"
-- WRONG:   `Area_m2 = r.GetNum("Area", "m2")`               → header doesn't match "Area"
-- WRONG:   `BaseLevel = w.GetStr("Base Constraint")`        → made-up name, won't match
+**Spaces → Underscores:** C# can't have spaces in identifiers. Replace spaces
+with underscores. The table renderer converts underscores BACK to spaces in the
+displayed header, so the header matches the parameter name exactly.
+
+- CORRECT: `Base_Constraint = w.GetStr("Base Constraint")`  → displays as "Base Constraint"
+- CORRECT: `Top_Offset = w.GetNum("Top Offset", "cm")`      → displays as "Top Offset"
+- CORRECT: `Area = r.GetNum("Area", "m2")`                 → displays as "Area"
+- CORRECT: `Volume = el.GetNum("Volume", "m3")`             → displays as "Volume"
+
+- WRONG:   `Top_Offset_cm = w.GetNum("Top Offset", "cm")`   → "Top Offset cm" ≠ "Top Offset"
+- WRONG:   `Area_m2 = r.GetNum("Area", "m2")`               → "Area m2" ≠ "Area"
+- WRONG:   `BaseLevel = w.GetStr("Base Constraint")`        → "BaseLevel" ≠ "Base Constraint"
 
 **CHARTS** after GroupByParam: chain directly, no `.Select()`:
 `GetElements("Rooms").GroupByParam("Level", "Area", "m2").BarGraph()`
