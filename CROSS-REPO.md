@@ -13,6 +13,25 @@ This is `paracore` (public, MIT). Companion repo: `paracore-pro` (private).
 | **CoreScript.Engine** | Base extensions | Base + commercial extensions |
 | **gRPC proto** | Same | Same — MUST stay compatible |
 
+## Sync Checklist
+
+These files exist in BOTH repos and must be kept identical.
+When changing in one, copy to the other:
+
+```
+mcp_core/prompts/*.md          ← All prompt files
+mcp_core/tools.py              ← Shared tool implementations
+mcp_core/tool_helpers.py       ← Security, errors, anti-patterns
+mcp_core/summarizer.py         ← Result compression
+mcp_core/context_manager.py    ← Status headers, Protocol Shield
+mcp_core/schema_cache.py       ← Category parameter cache
+mcp_core/prompt_assembler.py   ← Prompt builder
+mcp/mcp_server.py              ← Generalist MCP entry point
+grpc_client.py                 ← gRPC communication
+
+Note: CoreScript.Engine/ (including TakeOffExtensions.cs) lives ONLY in public.
+The public add-in compiles all extensions. MCPs call them via gRPC.
+
 ## What Must Stay in Sync
 
 - **`protos/corescript.proto`** — the gRPC contract. Changes here must be copied to both repos.
