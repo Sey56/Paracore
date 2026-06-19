@@ -1,20 +1,53 @@
 # Element Retrieval
 
-Use GetElements, NEVER FilteredElementCollector:
+Use GetElements, NEVER FilteredElementCollector.
 
-## System Families
-(C# classes: Wall, Floor, Room, Ceiling, etc.)
-- `GetElements<Wall>()` → typed Wall instances
-- `GetElements<WallType>()` → typed wall type definitions
-- `GetElements("Walls")` → untyped Element list (use only when type doesn't matter)
+## Typed vs String Retrieval — MUST READ
 
-## Loadable Families
-(Doors, Windows, Furniture, Columns, etc.)
-- `GetElements<FamilyInstance>("Doors")` → typed FamilyInstance, door category
-- `GetElements<FamilySymbol>("Doors")` → typed type symbols (door family types)
-- `GetElements("Doors")` → untyped Element list
+Some categories have C# classes (`.Name`, `.Area` are native dot-access properties).
+Others are loadable families — no native class, must use `.GetStr("Name")` for everything.
+
+**USE TYPED retrieval** for categories that have a C# class:
+| Category | Typed | String (only if you need all params) |
+|---|---|---|
+| Walls | `GetElements<Wall>()` | `GetElements("Walls")` |
+| Floors | `GetElements<Floor>()` | `GetElements("Floors")` |
+| Rooms | `GetElements<Room>()` | `GetElements("Rooms")` |
+| Ceilings | `GetElements<Ceiling>()` | `GetElements("Ceilings")` |
+| Levels | `GetElements<Level>()` | ❌ NOT `GetElements("Levels")` |
+| Roofs | `GetElements<Roof>()` | ❌ NOT `GetElements("Roofs")` |
+| Stairs | `GetElements<Stairs>()` | `GetElements("Stairs")` |
+| Views | `GetElements<View>()` | `GetElements("Views")` |
+| Sheets | `GetElements<ViewSheet>()` | `GetElements("Sheets")` |
+| Grids | `GetElements<Grid>()` | ❌ NOT `GetElements("Grids")` |
+
+**USE STRING retrieval** for loadable families (no C# class):
+| Category | Correct |
+|---|---|
+| Doors | `GetElements("Doors")` or `GetElements<FamilyInstance>("Doors")` |
+| Windows | `GetElements("Windows")` or `GetElements<FamilyInstance>("Windows")` |
+| Furniture | `GetElements("Furniture")` |
+| Structural Columns | `GetElements("Structural Columns")` |
+| Structural Framing | `GetElements("Structural Framing")` |
+| Generic Models | `GetElements("Generic Models")` |
+
+**For typed elements:** `.Name`, `.Id`, `.Area` are native properties — use dot access.
+**For untyped elements (string retrieval):** use `.GetStr("Name")`, `.GetStr("Level")`, etc.
+
+## Special Cases — NOT categories
+
+These are NOT element categories — access via Doc, not GetElements:
+- `Doc.ProjectInformation` → singleton with `.Name`, `.Number`, `.ClientName`, `.Address`
+- `Doc.Title` → file name
+- `Doc.PathName` → file path
+- `Doc.IsWorkshared` → boolean
+- `ActiveView` → current view
+- `Selection` → selected elements
 
 ## Utilities
 - `GetElement("name")` → single element by name/ID
 - `GetMagicNames()` → all targetable category/family/class strings
+  - ⚠️  GetMagicNames() returns a `List<string>`. Use `foreach` + `Println` to display.
+  - Do NOT chain `.Where().Table()` — `.Where()` returns LINQ, not Paracore pipeline.
+  - To filter: `GetMagicNames().Where(m => m.Contains("term")).ToList()` then loop.
 - `GetCategories()` → all project category names

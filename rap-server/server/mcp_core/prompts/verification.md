@@ -52,7 +52,14 @@ STOP exploring that category. The data may not exist or the category name may
 be wrong. Present what you have and ask the user for clarification. Do NOT
 make a 4th call for the same thing — try a different approach entirely.
 
-**Anti-loop guard:** If you find yourself making repeated explore calls that
-all return similar empty or error results, you are in a discovery loop.
-Break out by: (1) trying a different category, (2) using GetMagicNames() to
-verify category names exist, or (3) presenting partial results.
+**Anti-loop guard — READ THIS:** If you've tried the same category 2 times
+and both failed, STOP. Do NOT try a 3rd time. The category name is probably
+wrong, or you're using string retrieval when you should use typed retrieval.
+
+Check the retrieval rules table — is this a typed category (Level → GetElements<Level>())
+or a loadable family (Doors → GetElements("Doors"))? Fix the retrieval method,
+not the projection.
+
+**Discovery spiral detection:** If you've made 5+ explore calls across ANY
+categories and still don't have useful data, you are spiraling. Present what
+you have and ask for clarification. More calls will not fix wrong category names.
