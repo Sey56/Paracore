@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paracore Content Series Planner</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #fafaf9;
+    --card-bg: #ffffff;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --text-secondary: #78716c;
+    --text-tertiary: #a8a29e;
+    --accent: #534ab7;
+    --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09;
+      --card-bg: #1c1917;
+      --border: #292524;
+      --text: #fafaf9;
+      --text-secondary: #a8a29e;
+      --text-tertiary: #78716c;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: var(--sans); color: var(--text); padding: 48px 24px 96px; }
+
+  .container { max-width: 720px; margin: 0 auto; }
+
+  /* Header */
+  .header { margin-bottom: 40px; }
+  .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .header p { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }
+
+  /* Filters */
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 32px; align-items: center; }
+  .filters-label { font-size: 12px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; margin-right: 6px; }
+  .flt {
+    font-size: 12px; padding: 5px 14px; border-radius: 99px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+    cursor: pointer; transition: all 0.15s; font-family: var(--sans);
+  }
+  .flt:hover { background: var(--card-bg); color: var(--text); border-color: var(--text-tertiary); }
+  .flt.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+
+  /* Category dots in filter buttons */
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; position: relative; top: -1px; }
+  .dot-query { background: #6c63ff; } .dot-write { background: #e8950c; }
+  .dot-viz { background: #0ea97a; } .dot-action { background: #e0552b; }
+  .dot-audit { background: #2d7dd2; }
+
+  /* Episode card */
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px 32px; margin-bottom: 16px; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .card:hover { border-color: var(--text-tertiary); box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+
+  .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .ep-num { font-size: 12px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.04em; min-width: 42px; }
+  .tags-row { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 3px 9px; border-radius: 99px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+  .tag-query { background: #eeecfe; color: #4a3fcf; }
+  .tag-write { background: #fef4e6; color: #b86508; }
+  .tag-viz { background: #e1f7ef; color: #0b6e50; }
+  .tag-action { background: #fef0eb; color: #c0401e; }
+  .tag-audit { background: #e5f1fb; color: #1b5fa2; }
+  @media (prefers-color-scheme: dark) {
+    .tag-query { background: #2d2880; color: #c7c3f4; }
+    .tag-write { background: #5c3504; color: #facc6c; }
+    .tag-viz { background: #064a36; color: #8ce6c4; }
+    .tag-action { background: #682a14; color: #f4bca6; }
+    .tag-audit { background: #0c4172; color: #a6cdf2; }
+  }
+
+  .hook { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; margin-bottom: 16px; }
+  .hook-quote { color: var(--accent); }
+
+  .script-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; position: relative; margin-bottom: 14px; }
+  .script-box-label { font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+  .script-box code { font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.6; word-break: break-all; }
+  .copy-btn { position: absolute; top: 12px; right: 14px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--text-tertiary); font-size: 14px; transition: all 0.15s; display: flex; align-items: center; gap: 4px; }
+  .copy-btn:hover { color: var(--text); border-color: var(--text-tertiary); }
+  .copy-btn.copied { color: #0ea97a; border-color: #0ea97a; }
+
+  .card-footer { display: flex; gap: 8px; align-items: center; }
+  .platform-tag { font-size: 10px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-secondary); }
+
+  .empty { text-align: center; padding: 64px 24px; color: var(--text-secondary); font-size: 15px; }
+
+  /* Count badge */
+  .count-badge { font-size: 12px; color: var(--text-tertiary); margin-left: auto; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>Paracore Content Series</h1>
+    <p>20 short-form video episodes — one C# one-liner, one result. No setup, no boilerplate.</p>
+  </div>
+
+  <div class="filters" id="filters">
+    <span class="filters-label">Filter</span>
+    <button class="flt active" data-filter="all">All</button>
+    <button class="flt" data-filter="query"><span class="dot dot-query"></span>Query</button>
+    <button class="flt" data-filter="write"><span class="dot dot-write"></span>Write</button>
+    <button class="flt" data-filter="viz"><span class="dot dot-viz"></span>Visualize</button>
+    <button class="flt" data-filter="action"><span class="dot dot-action"></span>Action</button>
+    <button class="flt" data-filter="audit"><span class="dot dot-audit"></span>Audit</button>
+    <span class="count-badge" id="count"></span>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+const episodes = [
+  {n:1, hook:"How many rooms are on each level?", script:'GetElements("Rooms").GroupByParam("Level").Table()', cats:["query"], platforms:["YouTube","TikTok"]},
+  {n:2, hook:"Find every door with no mark", script:'GetElements("Doors").WhereParam("Mark", "").Select()', cats:["audit"], platforms:["TikTok","YouTube"]},
+  {n:3, hook:"What's the total wall area on each level?", script:'GetElements<Wall>().GroupByParam("Base Constraint", "Area", "m2").Table()', cats:["query","viz"], platforms:["YouTube","TikTok"]},
+  {n:4, hook:"Delete every element named TEMP", script:'GetElements<Element>().WhereMatches("TEMP").Delete()', cats:["action"], platforms:["TikTok"]},
+  {n:5, hook:"Show me the biggest rooms", script:'GetElements<Room>().OrderByParamDesc("Area").Table()', cats:["query","viz"], platforms:["YouTube","TikTok"]},
+  {n:6, hook:"Which walls are external?", script:'GetElements<Wall>().WhereParam("Is External", "1").Select()', cats:["query","audit"], platforms:["TikTok"]},
+  {n:7, hook:"How many windows per level?", script:'GetElements("Windows").GroupByParam("Level").Table()', cats:["query"], platforms:["TikTok","YouTube"]},
+  {n:8, hook:"Tag all doors with missing comments", script:'GetElements("Doors").WhereParam("Comments", "").SetParam("Comments", "NEEDS REVIEW")', cats:["write","action"], platforms:["YouTube"]},
+  {n:9, hook:"Which columns have a base offset?", script:'GetElements("Structural Columns").WhereParam("Base Offset", ">", 0, "mm").Select().Zoom()', cats:["audit"], platforms:["YouTube","TikTok"]},
+  {n:10, hook:"Pie chart: floors by type", script:'GetElements<Floor>().GroupByParam("Type Name").PieGraph()', cats:["viz"], platforms:["TikTok","YouTube"]},
+  {n:11, hook:"List all wall types in the model", script:'GetElements<WallType>().Select(t => new { t.Name, Kind = t.Kind.ToString() }).Table()', cats:["query"], platforms:["TikTok"]},
+  {n:12, hook:"Count rooms by name — spot duplicates instantly", script:'GetElements("Rooms").GroupByParam("Name").Table()', cats:["audit"], platforms:["YouTube"]},
+  {n:13, hook:"Total floor area of the whole building", script:'Println(GetElements<Floor>().SumParam("Area", "m2"))', cats:["query"], platforms:["TikTok"]},
+  {n:14, hook:"Rename all rooms on Level 3", script:'GetElements<Room>().WhereParam("Level", "Level 3").SetParam("Name", "Hotel Room")', cats:["write","action"], platforms:["YouTube","TikTok"]},
+  {n:15, hook:"Which doors swing into corridors?", script:'GetElements<FamilyInstance>("Doors").Where(d => d.RoomFrom().Contains("Corridor")).Select()', cats:["audit","query"], platforms:["YouTube"]},
+  {n:16, hook:"Bar chart: doors per level", script:'GetElements("Doors").GroupByParam("Level").BarGraph()', cats:["viz"], platforms:["TikTok","YouTube"]},
+  {n:17, hook:"Pin every structural column", script:'GetElements("Structural Columns").SetParam("Pinned", true)', cats:["action","write"], platforms:["TikTok"]},
+  {n:18, hook:"What parameters does a wall have?", script:'GetElements<Wall>().First().CombinedParams().Table()', cats:["query"], platforms:["YouTube","TikTok"]},
+  {n:19, hook:"Isolate all exterior walls in the view", script:'GetElements<Wall>().WhereParam("Is External", "1").Isolate()', cats:["action","viz"], platforms:["TikTok"]},
+  {n:20, hook:"Audit: rooms with no area", script:'GetElements<Room>().Where(r => r.GetNum("Area").AlmostZero()).Select().Zoom()', cats:["audit"], platforms:["YouTube","TikTok"]},
+];
+
+const catClass = {query:"tag-query",write:"tag-write",viz:"tag-viz",action:"tag-action",audit:"tag-audit"};
+const catLabel = {query:"Query",write:"Write",viz:"Visualize",action:"Action",audit:"Audit"};
+
+function renderCard(ep) {
+  const tags = ep.cats.map(c => `<span class="tag ${catClass[c]}">${catLabel[c]}</span>`).join("");
+  const platforms = ep.platforms.map(p => `<span class="platform-tag">${p}</span>`).join("");
+  const safeScript = ep.script.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return `
+    <div class="card" data-cats="${ep.cats.join(",")}">
+      <div class="card-header">
+        <span class="ep-num">EP. ${String(ep.n).padStart(2,"0")}</span>
+        <div class="tags-row">${tags}</div>
+      </div>
+      <div class="hook"><span class="hook-quote">&ldquo;</span>${ep.hook}<span class="hook-quote">&rdquo;</span></div>
+      <div class="script-box">
+        <div class="script-box-label">One-liner</div>
+        <code>${safeScript}</code>
+        <button class="copy-btn" onclick="copyScript(this, '${ep.script.replace(/'/g,"\\'")}')" title="Copy">
+          <i class="ti ti-copy"></i> Copy
+        </button>
+      </div>
+      <div class="card-footer">${platforms}</div>
+    </div>`;
+}
+
+function render(filter) {
+  const list = document.getElementById("list");
+  const filtered = filter === "all" ? episodes : episodes.filter(e => e.cats.includes(filter));
+  document.getElementById("count").textContent = filtered.length + " episodes";
+  if (!filtered.length) { list.innerHTML = '<div class="empty">No episodes in this category.</div>'; return; }
+  list.innerHTML = filtered.map(renderCard).join("");
+}
+
+document.getElementById("filters").addEventListener("click", e => {
+  const btn = e.target.closest(".flt");
+  if (!btn) return;
+  document.querySelectorAll(".flt").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  render(btn.dataset.filter);
+});
+
+function copyScript(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.innerHTML = '<i class="ti ti-check"></i> Copied';
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.innerHTML = '<i class="ti ti-copy"></i> Copy';
+      btn.classList.remove("copied");
+    }, 1800);
+  });
+}
+
+render("all");
+</script>
+</body>
+</html>

@@ -41,6 +41,7 @@
     <None Remove="Images\Dashboard.png" />
     <None Remove="Images\na_icon.png" />
     <None Remove="Images\Paracore.png" />
+    <None Remove="Images\ParacorePro.png" />
     <None Remove="Images\unknown_icon.png" />
     <None Remove="Images\vscode_icon.png" />
     <None Remove="Images\web_icon.png" />
@@ -70,6 +71,7 @@
   <ItemGroup>
     <Resource Include="Images\Dashboard.png" />
     <Resource Include="Images\Paracore.png" />
+    <Resource Include="Images\ParacorePro.png" />
     <Resource Include="Images\unknown_icon.png" />
     <Resource Include="Images\vscode_icon.png" />
     <Resource Include="Images\web_icon.png" />

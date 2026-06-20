@@ -61,8 +61,12 @@ def summarize(output_raw: Dict[str, Any]) -> str:
                     # Small table — show all rows, no truncation
                     shown = data
                 else:
-                    # Large table — cap to prevent context bloat
-                    shown = data[:MAX_TABLE_ROWS]
+                    # Large table — show first N-2 rows + last 2 rows.
+                    # The last rows often contain totals/summaries that must
+                    # survive truncation (e.g. formwork grand total).
+                    head = data[:MAX_TABLE_ROWS - 2]
+                    tail = data[-2:]
+                    shown = head + tail
 
                 if headers:
                     rows = [[str(row.get(h, "")) for h in headers] for row in shown]
@@ -72,7 +76,7 @@ def summarize(output_raw: Dict[str, Any]) -> str:
                         parts.append(f"{title_line}Table ({total_rows} rows):\n{table_md}")
                     else:
                         parts.append(f"{title_line}Table — {total_rows} rows total (showing first {len(shown)}):\n{table_md}")
-                        parts.append(f"↳ {total_rows - MAX_TABLE_ROWS} more rows not shown. Narrow your query with .WhereParam() or .GroupByParam() for focused results.")
+                        parts.append(f"↳ {total_rows - MAX_TABLE_ROWS} more rows not shown (last 2 rows preserved). Narrow your query with .WhereParam() or .GroupByParam() for focused results.")
                 else:
                     parts.append(f"Table **{title}** has {total_rows} rows (data available in UI).")
 

@@ -1,0 +1,66 @@
+ seyou@SH  ~  Paracore  paracore-help  main 
+❯ npm start
+
+> paracore-help@3.0.0 start
+> docusaurus start
+
+[INFO] Starting the development server...
+[SUCCESS] Docusaurus website is running at: http://localhost:3000/paracore-help/
+● Client ██████████████████████████████████████████████████ (44%) building C:\Users\seyou\Paracore\paracore-help\node_modules\css-loa[WARNING] Markdown link with URL `./extension-methods.mdx` in source file "docs/scripting-reference/parameters.mdx" (244:114) couldn't be resolved.
+Make sure it references a local Markdown file that exists within the current plugin.
+● Client ██████████████████████████████████████████████████ (100%) emitting after emit                                               × Module build failed (from ./node_modules/@docusaurus/plugin-content-blog/lib/markdownLoader.js):
+  ╰─▶   × Error: MDX compilation failed for file "C:\Users\seyou\Paracore\paracore-help\blog\2025-10-27-introducing-paracore.md"
+        │ Cause: Unexpected character `!` (U+0021) before name, expected a character that can start a name, such as a letter, `$`, or `_` (note: to create a comment in MDX, use `{/* text */}`)
+        │ Details:
+        │ {
+        │   "column": 2,
+        │   "file": "",
+        │   "message": "Unexpected character `!` (U+0021) before name, expected a character that can start a name, such as a letter, `$`, or `_` (note: to create a comment in MDX, use `{/* text */}`)",
+        │   "line": 9,
+        │   "name": "9:2",
+        │   "place": {
+        │     "_bufferIndex": 1,
+        │     "_index": 14,
+        │     "line": 9,
+        │     "column": 2,
+        │     "offset": 318
+        │   },
+        │   "reason": "Unexpected character `!` (U+0021) before name, expected a character that can start a name, such as a letter, `$`, or `_` (note: to create a comment in MDX, use `{/* text */}`)",
+        │   "ruleId": "unexpected-character",
+        │   "source": "micromark-extension-mdx-jsx",
+        │   "url": "https://github.com/micromark/micromark-extension-mdx-jsx#unexpected-character-at-expected-expect"
+        │ }
+        │
+        │     at compileToJSX (C:\Users\seyou\Paracore\paracore-help\node_modules\@docusaurus\mdx-loader\lib\utils.js:93:15)
+        │     at async loadMDX (C:\Users\seyou\Paracore\paracore-help\node_modules\@docusaurus\mdx-loader\lib\loader.js:22:20)
+        │     at async Object.mdxLoader (C:\Users\seyou\Paracore\paracore-help\node_modules\@docusaurus\mdx-loader\lib\loader.js:157:24)
+
+--------------------------
+
+× Module build failed (from ./node_modules/@docusaurus/plugin-content-blog/lib/markdownLoader.js):
+  ╰─▶   × Error: MDX compilation failed for file "C:\Users\seyou\Paracore\paracore-help\blog\2026-01-04-origin-story.md"
+        │ Cause: Unexpected character `!` (U+0021) before name, expected a character that can start a name, such as a letter, `$`, or `_` (note: to create a comment in MDX, use `{/* text */}`)
+        │ Details:
+        │ {
+        │   "column": 2,
+        │   "file": "",
+        │   "message": "Unexpected character `!` (U+0021) before name, expected a character that can start a name, such as a letter, `$`, or `_` (note: to create a comment in MDX, use `{/* text */}`)",
+        │   "line": 23,
+        │   "name": "23:2",
+        │   "place": {
+        │     "_bufferIndex": 1,
+        │     "_index": 15,
+        │     "line": 23,
+        │     "column": 2,
+        │     "offset": 1570
+        │   },
+        │   "reason": "Unexpected character `!` (U+0021) before name, expected a character that can start a name, such as a letter, `$`, or `_` (note: to create a comment in MDX, use `{/* text */}`)",
+        │   "ruleId": "unexpected-character",
+        │   "source": "micromark-extension-mdx-jsx",
+        │   "url": "https://github.com/micromark/micromark-extension-mdx-jsx#unexpected-character-at-expected-expect"
+        │ }
+        │
+        │     at compileToJSX (C:\Users\seyou\Paracore\paracore-help\node_modules\@docusaurus\mdx-loader\lib\utils.js:93:15)
+        │     at async loadMDX (C:\Users\seyou\Paracore\paracore-help\node_modules\@docusaurus\mdx-loader\lib\loader.js:22:20)
+        │     at async Object.mdxLoader (C:\Users\seyou\Paracore\paracore-help\node_modules\@docusaurus\mdx-loader\lib\loader.js:157:24)
+client (Rspack 1.7.11) compiled with 4 errors

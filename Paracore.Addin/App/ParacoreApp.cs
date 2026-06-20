@@ -27,6 +27,10 @@ namespace Paracore.Addin.App
         public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         public static string RevitVersion { get; private set; } = "Unknown"; // Default fallback
         public static string RevitInstallPath { get; private set; } = @"C:\Program Files\Autodesk\Revit"; // Default fallback base
+        private static readonly string _iconName =
+            (bool?)Type.GetType("CoreScript.Engine.Globals.TakeOffExtensions, CoreScript.Engine")
+                ?.GetField("IsPro")?.GetValue(null) == true
+            ? "ParacorePro.png" : "Paracore.png";
         private static CoreScriptClient? _client;
         private static bool _serverRunning;
         private static PushButton? _toggleButton;
@@ -166,9 +170,9 @@ namespace Paracore.Addin.App
             {
                 ToolTip = "Toggle the Paracore server to run scripts from Paracore and VSCode.",
                 LargeImage = new BitmapImage(
-                    new Uri("pack://application:,,,/Paracore.Addin;component/Images/Paracore.png")),
+                    new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_iconName}")),
                 Image = new BitmapImage(
-                    new Uri("pack://application:,,,/Paracore.Addin;component/Images/Paracore.png"))
+                    new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_iconName}"))
             };
 
             toggleServerButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://sey56.github.io/paracore-help/"));

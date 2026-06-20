@@ -7,220 +7,85 @@ using System.Linq;
 namespace CoreScript.Engine.Globals
 {
     /// <summary>
-    /// Quantity TakeOff extension methods for Paracore.
-    /// Provides material extraction, formwork computation, compound structure
-    /// analysis, and structured room data — all in fluent one-liners.
+    /// Stub methods for the free add-in. Every method throws a clear upgrade
+    /// message instead of a confusing CS0103 compiler error.
     ///
-    /// These are commercial extensions. In production, each method gates behind
-    /// LicenseContext.RequireEnterprise("TakeOff") or similar.
+    /// In the pro add-in (paracore-pro), TakeOffExtensions.cs has real
+    /// implementations gated behind LicenseContext.RequireEnterprise("TakeOff").
     /// </summary>
     public static class TakeOffExtensions
     {
-        // ── Material Quantities ──────────────────────────────────────────
+        private const string _upgradeMsg =
+            "This feature requires Paracore Pro. Contact codarch46@gmail.com to upgrade.";
 
-        /// <summary>
-        /// Extracts material quantities from elements: material name, total volume
-        /// (m³), total area (m²), and element count. Groups and sums by material.
-        /// Usage: GetElements("Walls").GetMaterialQuantities().Table()
-        /// </summary>
+        public static IEnumerable<object> GetConcreteQuantities(this IEnumerable<Element> elements)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetConcreteSummary(this Document doc)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetSteelTonnage(this IEnumerable<Element> elements)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetSteelTonnageSummary(this Document doc)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetExcavationQuantities(this IEnumerable<Element> elements,
+            double workingAllowance = 0.6)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetDoorSchedule(this IEnumerable<FamilyInstance> instances)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetWindowSchedule(this IEnumerable<FamilyInstance> instances)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetLinearQuantities(this IEnumerable<Element> elements,
+            string groupLabel = "Linear")
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetLinearSummary(this IEnumerable<Element> elements,
+            string groupLabel = "Linear")
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetQuantitiesByLevel(this IEnumerable<Element> elements)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetLevels(this Document doc)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetFloorFinishAreas(this IEnumerable<Element> floors)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetFloorFinishSummary(this Document doc)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
+        public static IEnumerable<object> GetWallFinishAreas(this IEnumerable<Element> walls)
+        { throw new InvalidOperationException(_upgradeMsg); }
+
         public static IEnumerable<object> GetMaterialQuantities(this IEnumerable<Element> elements)
-        {
-            var results = new List<(string Material, double Volume, double Area)>();
+        { throw new InvalidOperationException(_upgradeMsg); }
 
-            foreach (var el in elements)
-            {
-                if (el == null) continue;
-                var mats = el.MaterialNames().ToList();
-                foreach (var mat in mats)
-                {
-                    var vol = el.GetNum("Volume", "m3");
-                    var area = el.GetNum("Area", "m2");
-                    results.Add((mat, vol, area));
-                }
-            }
-
-            return results
-                .GroupBy(r => r.Material)
-                .Select(g => new
-                {
-                    Material = g.Key,
-                    TotalVolume = Math.Round(g.Sum(r => r.Volume), 3),
-                    TotalArea = Math.Round(g.Sum(r => r.Area), 3),
-                    ElementCount = g.Count()
-                })
-                .OrderByDescending(r => r.TotalVolume);
-        }
-
-        /// <summary>
-        /// Returns per-element material breakdown with Id and name.
-        /// Usage: GetElements("Walls").Take(100).GetMaterialBreakdown().Table()
-        /// </summary>
         public static IEnumerable<object> GetMaterialBreakdown(this IEnumerable<Element> elements)
-        {
-            foreach (var el in elements)
-            {
-                if (el == null) continue;
-                var mats = el.MaterialNames().ToList();
-                foreach (var mat in mats)
-                {
-                    yield return new
-                    {
-                        ElementId = el.Id.IntegerValue,
-                        ElementName = el.GetStr("Name"),
-                        Material = mat,
-                        Volume = el.GetNum("Volume", "m3"),
-                        Area = el.GetNum("Area", "m2")
-                    };
-                }
-            }
-        }
+        { throw new InvalidOperationException(_upgradeMsg); }
 
-        // ── Compound Structure ───────────────────────────────────────────
-
-        /// <summary>
-        /// Extracts layer-by-layer composition of wall/floor/roof/ceiling types.
-        /// Usage: GetElements("WallType").GetCompoundStructureLayers().Table()
-        /// </summary>
         public static IEnumerable<object> GetCompoundStructureLayers(this IEnumerable<ElementType> types)
-        {
-            foreach (var typ in types)
-            {
-                if (typ == null) continue;
-                if (typ is not HostObjAttributes hostAttrs) continue;
-                var cs = hostAttrs.GetCompoundStructure();
-                if (cs == null) continue;
+        { throw new InvalidOperationException(_upgradeMsg); }
 
-                foreach (var layer in cs.GetLayers())
-                {
-                    var mat = typ.Document.GetElement(layer.MaterialId);
-                    yield return new
-                    {
-                        TypeName = typ.Name,
-                        LayerFunction = layer.Function.ToString(),
-                        Material = mat?.Name ?? "Unknown",
-                        Thickness = Math.Round(UnitUtils.ConvertFromInternalUnits(layer.Width, UnitTypeId.Millimeters), 1)
-                    };
-                }
-            }
-        }
-
-        // ── Formwork ─────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Computes shuttering/formwork area (m²) for concrete elements.
-        /// Columns: perimeter × height × 2 (both sides of rectangular column).
-        /// Walls/Slabs: 2 × face area.
-        /// Usage: GetElements("Structural Columns").ComputeFormwork().Table()
-        /// </summary>
         public static IEnumerable<object> ComputeFormwork(this IEnumerable<Element> elements)
-        {
-            foreach (var el in elements)
-            {
-                if (el == null) continue;
-                double formwork = 0;
+        { throw new InvalidOperationException(_upgradeMsg); }
 
-                // Column: perimeter × height, approximation from b × h dimensions
-                var bParam = el.GetNum("b", "mm");
-                var hParam = el.GetNum("h", "mm");
-                var length = el.GetNum("Length", "m");
-
-                if (bParam > 0 && hParam > 0 && length > 0)
-                {
-                    // Rectangular column: 2 sides (b+h) × height
-                    var perimeterM = (bParam + hParam) * 2 / 1000.0; // mm → m
-                    formwork = Math.Round(perimeterM * length, 3);
-                }
-                else
-                {
-                    // Non-column: 2 × face area
-                    var area = el.GetNum("Area", "m2");
-                    if (area > 0)
-                        formwork = Math.Round(area * 2, 3);
-                }
-
-                if (formwork > 0)
-                {
-                    yield return new
-                    {
-                        ElementId = el.Id.IntegerValue,
-                        Name = el.GetStr("Name"),
-                        Level = el.GetStr("Level"),
-                        Formwork = formwork
-                    };
-                }
-            }
-        }
-
-        // ── Room Data ────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Extracts room data: name, number, area (m²), perimeter (m), volume (m³).
-        /// Usage: GetElements<Room>().GetRoomData().Table()
-        /// </summary>
         public static IEnumerable<object> GetRoomData(this IEnumerable<Room> rooms)
-        {
-            return rooms.Select(r => new
-            {
-                r.Id,
-                Name = r.GetStr("Name"),
-                Number = r.GetStr("Number"),
-                Level = r.GetStr("Level"),
-                Area = Math.Round(UnitUtils.ConvertFromInternalUnits(r.Area, UnitTypeId.SquareMeters), 2),
-                Perimeter = Math.Round(UnitUtils.ConvertFromInternalUnits(r.Perimeter, UnitTypeId.Meters), 2),
-                Volume = r.GetNum("Volume", "m3")
-            }).OrderBy(r => r.Level).ThenByDescending(r => r.Area);
-        }
+        { throw new InvalidOperationException(_upgradeMsg); }
 
-        // ── Counts ───────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Counts elements grouped by family type name.
-        /// Usage: GetElements("Doors").GetCountsByType().Table()
-        /// </summary>
         public static IEnumerable<object> GetCountsByType(this IEnumerable<Element> elements)
-        {
-            return elements
-                .GroupBy(e => e.GetStr("Family and Type"))
-                .Select(g => new { Type = g.Key, Count = g.Count() })
-                .OrderByDescending(r => r.Count);
-        }
+        { throw new InvalidOperationException(_upgradeMsg); }
 
-        // ── Category Discovery ───────────────────────────────────────────
-
-        /// <summary>
-        /// Lists all model categories with element counts.
-        /// Usage: Doc.GetModelCategoryCounts().Table() or GetCategoriesWithCounts().Table()
-        /// </summary>
         public static IEnumerable<object> GetModelCategoryCounts(this Document doc)
-        {
-            var cats = doc.Settings.Categories.Cast<Category>().Select(c => c.Name);
-            foreach (var cat in cats)
-            {
-                var count = new FilteredElementCollector(doc)
-                    .OfCategoryId(doc.Settings.Categories.get_Item(cat).Id)
-                    .WhereElementIsNotElementType()
-                    .GetElementCount();
+        { throw new InvalidOperationException(_upgradeMsg); }
 
-                if (count > 0)
-                    yield return new { Category = cat, Count = count };
-            }
-        }
-
-        // ── Element Summary ──────────────────────────────────────────────
-
-        /// <summary>
-        /// Returns a summary of elements with basic info: Id, Name, Level, Type.
-        /// Usage: GetElements("Walls").GetElementSummary(200).Table()
-        /// </summary>
-        public static IEnumerable<object> GetElementSummary(this IEnumerable<Element> elements, int maxCount = 200)
-        {
-            return elements.Take(maxCount).Select(e => new
-            {
-                Id = e.Id.IntegerValue,
-                Name = e.GetStr("Name"),
-                Level = e.GetStr("Level"),
-                Type = e.GetStr("Family and Type")
-            });
-        }
+        public static IEnumerable<object> GetElementSummary(this IEnumerable<Element> elements,
+            int maxCount = 200)
+        { throw new InvalidOperationException(_upgradeMsg); }
     }
 }

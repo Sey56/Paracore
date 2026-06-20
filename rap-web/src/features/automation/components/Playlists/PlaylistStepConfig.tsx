@@ -4,6 +4,7 @@ import { PlaylistItemConfig } from './PlaylistItemConfig';
 import { PlaylistItemMetadata } from './PlaylistItemMetadata';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { Tooltip } from '@/components/common/Tooltip';
 
 interface PlaylistStepConfigProps {
     script: Script;
@@ -41,23 +42,25 @@ export const PlaylistStepConfig: React.FC<PlaylistStepConfigProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1">
-                    <button
-                        onClick={onBack}
-                        className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors rounded"
-                        title="Back to Steps"
-                    >
-                        <FontAwesomeIcon icon={faArrowLeft} className="text-xs" />
-                    </button>
-                    <button
-                        onClick={() => setIsMetadataOpen(!isMetadataOpen)}
-                        className={`p-1.5 rounded transition-all duration-200 ${isMetadataOpen
-                            ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
-                            : "text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400"
-                        }`}
-                        title="Script Info"
-                    >
-                        <FontAwesomeIcon icon={faInfoCircle} />
-                    </button>
+                    <Tooltip text="Back to Steps" position="bottom-center">
+                        <button
+                            onClick={onBack}
+                            className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors rounded"
+                        >
+                            <FontAwesomeIcon icon={faArrowLeft} className="text-xs" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Script Info" position="bottom-center">
+                        <button
+                            onClick={() => setIsMetadataOpen(!isMetadataOpen)}
+                            className={`p-1.5 rounded transition-all duration-200 ${isMetadataOpen
+                                ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
+                                : "text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400"
+                            }`}
+                        >
+                            <FontAwesomeIcon icon={faInfoCircle} />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
 
