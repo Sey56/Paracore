@@ -41,17 +41,6 @@ Paracore leverages AI where it is most effective: in the code editor. Every work
 *   **Parameter Awareness**: The AI understands the Paracore parameter engine and auto-generates the necessary C# properties to build your UI.
 *   **Iterative Design**: Adjust the code, see the UI update instantly, and execute.
 
-## 🚀 Future Roadmap
-
-Development is ongoing for the following advanced features:
-- **Team & Workspace Management**: Centralized Git-synced script libraries for firms.
-- **Agentic Automation**: Multi-step AI orchestration of Revit tasks.
-- **Playlist Mode**: Sequential execution of standardized BIM workflows.
-- **.ptool Marketplace**: A hub for sharing and discovering specialized automation tools.
-
-
----
-
 ---
 
 ## 📄 License
