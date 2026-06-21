@@ -56,14 +56,8 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    if not settings.JWT_PUBLIC_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="JWT_PUBLIC_KEY not configured on the server for offline validation."
-        )
-
     try:
-        # LOCAL MODE BYPASS
+        # LOCAL MODE BYPASS — works even without a JWT public key configured
         if token == "rap-local-token":
             local_email = "local@paracore.app"
             local_user = db.query(models.User).filter(models.User.email == local_email).first()

@@ -12,7 +12,7 @@ Engineered for the Future:
 
 ### 1. Revit as the Host (The Listener)
 The Revit Add-in acts as the gRPC host. It must be running and in the "**On**" state for the desktop app to function.
-- **Build**: `./Paracore-Installer.ps1`
+- **Build**: `./build-addin.ps1`
 - **Verification**: Check the Paracore Tab in Revit.
 
 ### 2. The Sidecar (The Intelligence)
@@ -29,7 +29,7 @@ The Tauri UI consumes the backend API and orchestrates Revit commands.
 The VS Code extension is a critical part of the authoring flow. Use `./build_extension.sh` in **Git Bash** to keep your local extension synced with your code changes.
 
 ## 📦 Distribution
-Use `./RAP-installer.ps1 -Release` to generate the final MSI. This bundles the UI and Sidecar into a single, user-friendly package.
+Use `./build-frontend.ps1 -Release` to generate the final bundled desktop app.
 
 ## 📡 gRPC & Protobuf Synchronization
 Paracore uses gRPC for high-performance communication with Revit. The service definition is maintained in `corescript.proto`.

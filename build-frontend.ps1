@@ -10,6 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 # --- Configuration ---
 $ProjectRoot = Get-Location
+$ParacoreRoot = Split-Path -Path $ProjectRoot -Parent  # Container: C:\Users\seyou\Paracore
 $webDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-web'
 $distDir = "rap-server-dist" # Define distDir at a higher scope
 
@@ -199,13 +200,17 @@ try {
 
     
 
-            # 5. Copy the RAP Auth Server public key
+            # 5. Optionally copy RAP Auth Server public key (only if available — public clones won't have it)
 
+            $jwtKeySource = "$ParacoreRoot\rap-auth-server\server\jwt_public.pem"
             $releaseAuthDest = Join-Path -Path $serverReleaseDir -ChildPath 'rap-auth-server\server'
 
-            New-Item -ItemType Directory -Path $releaseAuthDest -Force | Out-Null
-
-            Copy-Item -Path "$ProjectRoot\rap-auth-server\server\jwt_public.pem" -Destination $releaseAuthDest -Force     
+            if (Test-Path $jwtKeySource) {
+                New-Item -ItemType Directory -Path $releaseAuthDest -Force | Out-Null
+                Copy-Item -Path $jwtKeySource -Destination $releaseAuthDest -Force
+            } else {
+                Write-Warning "jwt_public.pem not found at $jwtKeySource — app will run in offline-only mode."
+            }     
 
     
 
@@ -289,7 +294,7 @@ Lib/site-packages
         robocopy (Join-Path $serverSourceDir "server") (Join-Path $bundleDir "server") /E /XD .venv __pycache__ .ruff_cache /XF test_*.py reproduce_*.py debug_*.py render_markdown.py rserver_listener.py checkpoints.sqlite paracore_local.db
 
         # 6. Copy the RAP Auth Server public key (Crucial for generic "relative path" config)
-        $authServerSource = Join-Path -Path $ProjectRoot -ChildPath 'rap-auth-server\server'
+        $authServerSource = Join-Path -Path $ParacoreRoot -ChildPath 'rap-auth-server\server'
         $authServerDest = Join-Path -Path $bundleDir -ChildPath 'rap-auth-server\server'
         if (-not (Test-Path $authServerDest)) {
             New-Item -ItemType Directory -Path $authServerDest -Force | Out-Null

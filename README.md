@@ -12,6 +12,16 @@ Paracore was born from an architect's passion for Revit and a desire to expand t
 1.  **AI-Ready Infrastructure**: Designed as a robust, safe host for AI Agents, providing the deterministic environment needed for LLMs to intelligently interact with your live Revit session.
 2.  **Design-First Automation**: Streamlines the journey from a design idea to an active tool, allowing scripters to focus on their domain logic and creative flow.
 
+## 🛠️ Build
+
+```powershell
+./build-addin.ps1               # Revit add-in (free)
+./build-frontend.ps1 -Release   # Desktop app (Tauri + Python sidecar)
+./build_extension.sh            # VS Code extension (Git Bash)
+```
+
+Requirements: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
+
 ## 📚 Developer Resources
 - **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally (Build, Run, Contribute)
 - **[Contributing](CONTRIBUTING.md)** - Guidelines for contributing to the project
