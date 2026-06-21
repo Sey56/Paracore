@@ -1,44 +1,53 @@
-# Paracore Development Guide 🏗️⚡
+# Paracore Development Guide
 
-## 🧠 Philosophy: Why Paracore?
-Paracore is the result of an architect's passion for Revit and the desire to push its automation boundaries further. What began as a personal journey to solve everyday design challenges has evolved into a specialized platform for the next generation of BIM tools.
+## Architecture
 
-Engineered for the Future:
-1.  **Expanding the Possible**: Built to sit alongside Revit's native power, providing a dynamic environment that makes sophisticated automation more reachable.
-2.  **AI-Ready Foundation**: Designed as a deterministic host for AI Agents, allowing them to safely and intelligently interact with your Revit projects.
-3.  **Creative Fluidity**: The same features that empower AI—like isolated execution and live parameter mapping—allow human developers to build and test ideas with unprecedented speed.
+Paracore has three components that run together:
 
-## 🧱 Workflow: The Three Pillars
+```
+Revit + Paracore.Addin (gRPC host, port 50051)
+        ↑
+rap-server (Python/FastAPI — script management, agent, API)
+        ↑
+rap-web (Tauri desktop app)
+```
 
-### 1. Revit as the Host (The Listener)
-The Revit Add-in acts as the gRPC host. It must be running and in the "**On**" state for the desktop app to function.
-- **Build**: `./build-addin.ps1`
-- **Verification**: Check the Paracore Tab in Revit.
+## Build
 
-### 2. The Sidecar (The Intelligence)
-The `rap-server` sidecar handles script discovery and data persistence. Its lifecycle is managed by the desktop app in production, but it must be run manually during development.
-- **Setup**: Use `uv` for all dependency management in `rap-server/server`.
-- **Run**: `uvicorn main:app --reload` (after activating venv).
+```powershell
+./build-addin.ps1               # Revit add-in (.NET 8)
+./build-frontend.ps1 -Release   # Desktop app (Tauri + Python sidecar)
+```
 
-### 3. The Desktop App (The Command Center)
-The Tauri UI consumes the backend API and orchestrates Revit commands.
-- **Requirement**: Always run `npm run build` before `npm run tauri dev` to ensure the environment is healthy.
-- **Connection Status**: Watch the **TopBar**. A green status (e.g., `Paracore Connected | Revit 2025`) indicates a healthy end-to-end link.
+```bash
+./build_extension.sh            # VS Code extension (Git Bash)
+```
 
-## 🧩 Extension Development
-The VS Code extension is a critical part of the authoring flow. Use `./build_extension.sh` in **Git Bash** to keep your local extension synced with your code changes.
+Requirements: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
 
-## 📦 Distribution
-Use `./build-frontend.ps1 -Release` to generate the final bundled desktop app.
+## Run (development)
 
-## 📡 gRPC & Protobuf Synchronization
-Paracore uses gRPC for high-performance communication with Revit. The service definition is maintained in `corescript.proto`.
-- **Source of Truth**: `protos/corescript.proto`
-- **Synchronization**: If you modify the protocol, use the automated script in `rap-server/server`:
-  - Run: `python sync_protos.py` (ensure your venv is activated).
-  - This script regenerates the Python gRPC files and automatically copies the `.proto` file to the VS Code extension's directory: `corescript-vscode/proto/corescript.proto`.
-- **Reasoning**: Both `rap-server` and the VS Code extension communicate with the same `Paracore.Addin` gRPC server. Keeping these files identical ensures the extension remains compatible with the core engine.
+1. Build and install the add-in, open Revit — verify the Paracore tab shows "On"
+2. Start the server: `cd rap-server/server && uvicorn main:app --reload`
+3. Start the UI: `cd rap-web && npm run tauri dev`
 
----
+The TopBar shows green when all three are connected (e.g. "Paracore Connected | Revit 2025").
 
-*Focus on the logic. Let Paracore handle the rest.*
+## gRPC & Protobuf
+
+The service definition is `protos/corescript.proto`. After changing it:
+
+```bash
+cd rap-server/server
+python sync_protos.py   # regenerates Python stubs + copies .proto to VS Code extension
+```
+
+Both `rap-server` and `corescript-vscode` share the same gRPC contract.
+
+## Cross-Repo
+
+This is the **public** repo (MIT) — the free add-in, desktop app, and VS Code extension.
+
+The **private** `paracore-pro` repo contains commercial extensions (TakeOff, Rebar, MEP) and specialized MCP servers. Both add-ins share the same gRPC proto, ClientId, and install folder — swapping between them is just file overwrite.
+
+Bug fixes to base engine/add-in should be made here first, then copied to `paracore-pro`. Commercial features are developed in `paracore-pro` only.
