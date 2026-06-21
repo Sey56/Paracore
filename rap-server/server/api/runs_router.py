@@ -21,7 +21,7 @@ def get_runs(db: Session = Depends(get_db), current_user: CurrentUser = Depends(
     return db.query(models.Run).filter(models.Run.user_id == str(current_user.id)).order_by(models.Run.timestamp.desc()).all()
 
 @router.get("/api/runs/latest", response_model=Dict[str, datetime], tags=["runs"])
-def get_latest_runs(db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
+def get_latest_runs(db: Session = Depends(get_db)):
     """
     Retrieves the latest run timestamp for each script, keyed by script path.
     """
@@ -54,7 +54,7 @@ def get_latest_runs(db: Session = Depends(get_db), current_user: CurrentUser = D
 
 
 @router.get("/api/scripts/{script_path:path}/last_run", response_model=Optional[schemas.RunResponse], tags=["runs"])
-def get_last_run(script_path: str, db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)):
+def get_last_run(script_path: str, db: Session = Depends(get_db)):
     """
     Retrieves the last run for a specific script.
     """

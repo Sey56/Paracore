@@ -164,6 +164,8 @@ fn launch_main_app(handle: AppHandle, state: State<AppState>) -> Result<(), Stri
     let mut command = std::process::Command::new(exe_path);
     command.current_dir(&working_dir);
     command.env("RAP_DATABASE_PATH", db_path);
+    // Point the local server at the real auth server so it can fetch the JWT public key
+    command.env("AUTH_SERVER_URL", "https://rap-auth-server-production.up.railway.app");
     // Prevent embedded Python from discovering system/user Python packages
     command.env("PYTHONNOUSERSITE", "1");
     command.env_remove("PYTHONPATH");

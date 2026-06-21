@@ -127,7 +127,7 @@ async def register_watchdog_source(request: RegisterWatchdogSourceRequest, curre
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/watchdogs/unregister-source", tags=["Script Management"])
-async def unregister_watchdog_source(request: RegisterWatchdogSourceRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def unregister_watchdog_source(request: RegisterWatchdogSourceRequest):
     """
     Tells the Addin to stop all watchdogs from a specific source folder.
     Uses the same Request model as Register (just a path).
@@ -148,7 +148,7 @@ async def migrate_to_projects(request: MigrateRequest, current_user: CurrentUser
     return migration_service.migrate_folder_to_projects(request.folder_path)
 
 @router.post("/api/scripts/new", tags=["Script Management"])
-async def create_new_script(request: NewScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def create_new_script(request: NewScriptRequest):
     if not os.path.isabs(request.parent_folder) or not os.path.isdir(request.parent_folder):
         raise HTTPException(status_code=400, detail="Invalid parent folder path.")
     return await script_service.create_new_script_logic(
@@ -157,7 +157,7 @@ async def create_new_script(request: NewScriptRequest, current_user: CurrentUser
     )
 
 @router.post("/api/scripts/replace-code", tags=["Script Management"])
-async def replace_script_code(request: ReplaceCodeRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def replace_script_code(request: ReplaceCodeRequest):
     """
     Surgically replaces logic and parameters for an existing script.
     """
@@ -175,7 +175,7 @@ async def replace_script_code(request: ReplaceCodeRequest, current_user: Current
     )
 
 @router.post("/api/scripts/delete", tags=["Script Management"])
-async def delete_script(request: DeleteScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def delete_script(request: DeleteScriptRequest):
     return script_service.delete_script_logic(request.script_path, request.delete_scaffolding_only)
 
 @router.get("/api/scripts", tags=["Script Management"])
@@ -218,7 +218,7 @@ async def open_folder(request: OpenFolderRequest):
     return script_service.open_folder_logic(request.scriptPath)
 
 @router.post("/api/save-script", tags=["Script Management"])
-async def save_script(request: SaveScriptRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def save_script(request: SaveScriptRequest):
     return await script_service.save_script_logic(request.script_path, request.content, request.filename, request.files)
 
 @router.post("/api/compute-parameter-options", tags=["Script Management"])
@@ -227,11 +227,11 @@ async def compute_options(request: ComputeOptionsRequest):
 
 
 @router.post("/api/rename-script", tags=["Script Management"])
-async def rename_script(request: RenameRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def rename_script(request: RenameRequest):
     return script_service.rename_script_logic(request.oldPath, request.newName)
 
 @router.post("/api/scripts/clear-cache", tags=["Script Management"])
-async def clear_cache(current_user: CurrentUser = Depends(get_current_user)):
+async def clear_cache():
     """
     Clears the internal in-memory assembly cache in the Revit engine.
     """
@@ -260,7 +260,7 @@ async def get_raw_main_file(scriptPath: str = Query(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/scripts/update-metadata", tags=["Script Management"])
-async def update_metadata(request: UpdateMetadataRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def update_metadata(request: UpdateMetadataRequest):
     """Replaces or prepends the /* ... */ metadata block in the main .cs file."""
     import re
     try:

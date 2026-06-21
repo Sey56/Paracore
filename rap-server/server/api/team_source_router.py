@@ -54,7 +54,7 @@ class RenameRequest(BaseModel):
 # --- VS CODE IDE SESSIONS ---
 
 @router.get("/api/sync/active-sessions", tags=["IDE Sessions"])
-async def get_active_ide_sessions(current_user: CurrentUser = Depends(get_current_user)):
+async def get_active_ide_sessions():
     """
     Returns a map of which project folders are currently open in VS Code.
     Auto-cleans stale sessions on every poll.
@@ -63,7 +63,7 @@ async def get_active_ide_sessions(current_user: CurrentUser = Depends(get_curren
     return ACTIVE_IDE_SESSIONS
 
 @router.post("/api/sync/clear-session", tags=["IDE Sessions"])
-async def clear_ide_session_endpoint(req: TeamSourcePath, current_user: CurrentUser = Depends(get_current_user)):
+async def clear_ide_session_endpoint(req: TeamSourcePath):
     """
     Manually removes an active IDE session entry.
     """
@@ -81,8 +81,7 @@ async def clear_ide_session_endpoint(req: TeamSourcePath, current_user: CurrentU
 @router.post("/api/team-sources/register", response_model=schemas.RegisteredTeamSourceResponse, tags=["Team Sources"])
 async def register_team_source(
     req: schemas.RegisteredTeamSourceCreate,
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     logging.info(f"Registering team source: team_id={req.team_id}, name={req.name}, repo_url={req.repo_url}")
     
@@ -99,8 +98,7 @@ async def register_team_source(
 @router.get("/api/team-sources/registered/{team_id}", response_model=List[schemas.RegisteredTeamSourceResponse], tags=["Team Sources"])
 async def get_team_registered_sources(
     team_id: int,
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     if team_id == 0:
         return []
@@ -109,7 +107,7 @@ async def get_team_registered_sources(
     return sources
 
 @router.post("/api/team-sources/create-branch", tags=["Team Sources"])
-async def create_branch(req: CreateBranchRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def create_branch(req: CreateBranchRequest):
     if not os.path.isdir(req.source_path):
         raise HTTPException(status_code=404, detail="Source path not found.")
     try:
@@ -126,7 +124,7 @@ async def create_branch(req: CreateBranchRequest, current_user: CurrentUser = De
         raise HTTPException(status_code=500, detail=f"Failed to create branch {req.branch_name}: {e.stderr}")
 
 @router.post("/api/team-sources/checkout", tags=["Team Sources"])
-async def checkout_branch(req: CheckoutRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def checkout_branch(req: CheckoutRequest):
     if not os.path.isdir(req.source_path):
         raise HTTPException(status_code=404, detail="Source path not found.")
     try:
@@ -143,7 +141,7 @@ async def checkout_branch(req: CheckoutRequest, current_user: CurrentUser = Depe
         raise HTTPException(status_code=500, detail=f"Failed to checkout branch {req.branch_name}: {e.stderr}")
 
 @router.get("/api/team-sources/branches", response_model=BranchListResponse, tags=["Team Sources"])
-async def get_source_branches(source_path: str, current_user: CurrentUser = Depends(get_current_user)):
+async def get_source_branches(source_path: str):
     if not os.path.isdir(source_path):
         raise HTTPException(status_code=404, detail="Source path not found.")
     try:
@@ -184,7 +182,7 @@ async def get_source_branches(source_path: str, current_user: CurrentUser = Depe
         raise HTTPException(status_code=500, detail=f"Failed to list branches: {e.stderr}")
 
 @router.post("/api/team-sources/clone", tags=["Team Sources"])
-async def clone_team_source(req: CloneRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def clone_team_source(req: CloneRequest):
     try:
         repo_name = req.repo_url.split('/')[-1].replace('.git', '')
         cloned_path = os.path.join(req.local_path, repo_name)
@@ -223,7 +221,7 @@ async def clone_team_source(req: CloneRequest, current_user: CurrentUser = Depen
         raise HTTPException(status_code=500, detail=f"Git operation failed: {e.stderr}")
 
 @router.get("/api/team-sources/status", tags=["Team Sources"])
-async def get_source_status(source_path: str, fetch: bool = False, current_user: CurrentUser = Depends(get_current_user)):
+async def get_source_status(source_path: str, fetch: bool = False):
     if not os.path.isdir(source_path):
         raise HTTPException(status_code=404, detail="Source path not found.")
     try:
@@ -271,7 +269,7 @@ async def get_source_status(source_path: str, fetch: bool = False, current_user:
         raise HTTPException(status_code=500, detail=f"Failed to get git status: {e.stderr}")
 
 @router.post("/api/team-sources/commit", tags=["Team Sources"])
-async def commit_source_changes(req: Annotated[CommitRequest, Body()], current_user: CurrentUser = Depends(get_current_user)):
+async def commit_source_changes(req: Annotated[CommitRequest, Body()]):
     if not os.path.isdir(req.source_path):
         raise HTTPException(status_code=404, detail="Source path not found.")
     try:
@@ -291,7 +289,7 @@ async def commit_source_changes(req: Annotated[CommitRequest, Body()], current_u
         raise HTTPException(status_code=400, detail=f"Commit failed: {e.stderr}")
 
 @router.post("/api/team-sources/rename-script", tags=["Team Sources"])
-async def rename_script_endpoint(req: RenameRequest, current_user: CurrentUser = Depends(get_current_user)):
+async def rename_script_endpoint(req: RenameRequest):
     """
     Renames a script. Automatically stops any active sync session for the old path.
     """
@@ -312,7 +310,7 @@ async def rename_script_endpoint(req: RenameRequest, current_user: CurrentUser =
     }
 
 @router.post("/api/team-sources/pull", tags=["Team Sources"])
-async def pull_source_changes(req: TeamSourcePath, current_user: CurrentUser = Depends(get_current_user)):
+async def pull_source_changes(req: TeamSourcePath):
     if not os.path.isdir(req.path):
         raise HTTPException(status_code=404, detail="Source path not found.")
     try:
@@ -329,7 +327,7 @@ async def pull_source_changes(req: TeamSourcePath, current_user: CurrentUser = D
         raise HTTPException(status_code=500, detail=f"Pull failed: {e.stderr}")
 
 @router.post("/api/team-sources/push", tags=["Team Sources"])
-async def push_source_changes(req: TeamSourcePath, current_user: CurrentUser = Depends(get_current_user)):
+async def push_source_changes(req: TeamSourcePath):
     if not os.path.isdir(req.path):
         raise HTTPException(status_code=404, detail="Source path not found.")
     try:
@@ -351,8 +349,7 @@ class PullTeamSourcesRequest(BaseModel):
 
 @router.post("/api/team-sources/pull-all", tags=["Team Sources"])
 async def pull_all_team_sources(
-    req: PullTeamSourcesRequest,
-    current_user: CurrentUser = Depends(get_current_user)
+    req: PullTeamSourcesRequest
 ):
     results = []
     for path in req.source_paths:
@@ -391,8 +388,7 @@ async def delete_registered_source(
 
 @router.delete("/api/team-sources/local", status_code=status.HTTP_204_NO_CONTENT, tags=["Team Sources"])
 async def delete_local_source_files(
-    req: TeamSourcePath,
-    current_user: CurrentUser = Depends(get_current_user)
+    req: TeamSourcePath
 ):
     if not os.path.isdir(req.path):
         raise HTTPException(status_code=404, detail="Local source path not found.")
