@@ -35,11 +35,7 @@ The traditional Revit API development workflow involves several preparatory step
 
 ## 🤖 AI-Powered Automation
 
-Paracore provides three AI surfaces, all backed by the same gRPC execution engine and safety layer:
-
 **In-App AI Agent** — A conversational agent inside the Paracore desktop app, built on PydanticAI. It explores your Revit model, answers questions, and executes commands — with a human-in-the-loop approval step for any model changes. Bring your own API key (OpenAI, Gemini, DeepSeek, Anthropic, or OpenRouter).
-
-**MCP Server** — The free generalist MCP (`paracore-mcp`) exposes the full Revit API + Paracore DSL to any MCP-compatible client (Claude Desktop, VS Code, Cursor). Start with `Ping`, load the method catalog, then explore and execute.
 
 **AI Script Generation** — In VS Code, Copilot and Cline receive custom instructions that teach them the Paracore DSL, parameter engine, and UI conventions. Describe your automation task in natural language and the AI generates a gallery-ready C# script with auto-generated parameter UI.
 
