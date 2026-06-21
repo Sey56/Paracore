@@ -15,7 +15,7 @@ Paracore was born from an architect's passion for Revit and a desire to expand t
 ## 🛠️ Build
 
 ```powershell
-./build-addin.ps1               # Revit add-in (free)
+./build-addin.ps1               # Revit add-in
 ./build-frontend.ps1 -Release   # Desktop app (Tauri + Python sidecar)
 ./build_extension.sh            # VS Code extension (Git Bash)
 ```
