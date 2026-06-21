@@ -9,8 +9,8 @@
 ## Overview
 Paracore was born from an architect's passion for Revit and a desire to expand the possibilities of design automation. Starting as a personal toolkit to solve everyday design challenges, it has grown into a high-performance execution layer designed to bridge the gap between heavy API development and the dynamic needs of modern automation.
 
-1.  **AI-Ready Infrastructure**: Designed as a robust, safe host for AI Agents, providing the deterministic environment needed for LLMs to intelligently interact with your live Revit session.
-2.  **Design-First Automation**: Streamlines the journey from a design idea to an active tool, allowing scripters to focus on their domain logic and creative flow.
+1.  **Safe AI Execution** — AI agents explore and execute C# in Revit through a gRPC sandbox. All model changes require human approval (Sovereign Handoff). The same security layer protects both the in-app agent and MCP clients.
+2.  **Zero Boilerplate** — Write a C# script, declare a `Params` class with public properties, and Paracore auto-generates the UI from them. Add attributes like `[Range(0, 100, 1)]` to turn an entry into a slider, or `[Unit("mm")]` for automatic unit conversion. No project files, no compilation — just code and run.
 
 ## 🛠️ Build
 
