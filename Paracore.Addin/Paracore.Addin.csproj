@@ -39,6 +39,7 @@
   <!-- Remove image from default build -->
   <ItemGroup>
     <None Remove="Images\Dashboard.png" />
+    <None Remove="Images\DashboardPro.png" />
     <None Remove="Images\na_icon.png" />
     <None Remove="Images\Paracore.png" />
     <None Remove="Images\ParacorePro.png" />
@@ -70,6 +71,7 @@
   <!-- Embedded resources -->
   <ItemGroup>
     <Resource Include="Images\Dashboard.png" />
+    <Resource Include="Images\DashboardPro.png" />
     <Resource Include="Images\Paracore.png" />
     <Resource Include="Images\ParacorePro.png" />
     <Resource Include="Images\unknown_icon.png" />

@@ -31,6 +31,11 @@ namespace Paracore.Addin.App
             (bool?)Type.GetType("CoreScript.Engine.Globals.TakeOffExtensions, CoreScript.Engine")
                 ?.GetField("IsPro")?.GetValue(null) == true
             ? "ParacorePro.png" : "Paracore.png";
+
+        private static readonly string _dashboardIconName =
+            (bool?)Type.GetType("CoreScript.Engine.Globals.TakeOffExtensions, CoreScript.Engine")
+                ?.GetField("IsPro")?.GetValue(null) == true
+            ? "DashboardPro.png" : "Dashboard.png";
         private static CoreScriptClient? _client;
         private static bool _serverRunning;
         private static PushButton? _toggleButton;
@@ -187,9 +192,9 @@ namespace Paracore.Addin.App
             {
                 ToolTip = "Toggle the Paracore dashboard.",
                 LargeImage = new BitmapImage(
-                    new Uri("pack://application:,,,/Paracore.Addin;component/Images/Dashboard.png")),
+                    new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_dashboardIconName}")),
                 Image = new BitmapImage(
-                    new Uri("pack://application:,,,/Paracore.Addin;component/Images/Dashboard.png"))
+                    new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_dashboardIconName}"))
             };
 
             toggleDashboardButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://sey56.github.io/paracore-help/"));
