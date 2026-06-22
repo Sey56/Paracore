@@ -12,11 +12,17 @@ load_dotenv()
 if os.environ.get("GOOGLE_API_KEY") and os.environ.get("GEMINI_API_KEY"):
     os.environ.pop("GEMINI_API_KEY", None)
 
-# This block allows running main.py directly from within the 'server' directory
-# by adding the current directory to sys.path. This is a development workaround
-# for relative imports when the module is not run as part of a package.
+# Allow running main.py directly from within the 'server' directory
 if __name__ == "__main__" and __package__ is None:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Resolve paracore-agent — the shared AI brain (agent, MCP core, gRPC client).
+# Appended (not inserted) so local modules (utils, config) take precedence.
+_PARACORE_AGENT = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "paracore-agent")
+)
+if os.path.isdir(_PARACORE_AGENT):
+    sys.path.append(_PARACORE_AGENT)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
