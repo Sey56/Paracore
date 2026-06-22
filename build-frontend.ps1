@@ -198,6 +198,13 @@ try {
 
             robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache build dist /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
 
+            # Bundle paracore-agent alongside server (agent, mcp_core, grpc_client live there now)
+            $agentSource = Join-Path $ParacoreRoot "paracore-agent"
+            if (Test-Path $agentSource) {
+                robocopy $agentSource (Join-Path $serverReleaseDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+                Write-Host "Bundled paracore-agent with server release" -ForegroundColor Gray
+            }
+
     
 
             # 5. Optionally copy RAP Auth Server public key (only if available — public clones won't have it)
@@ -292,6 +299,13 @@ Lib/site-packages
         Write-Host "Copying application source from $serverSourceDir to $bundleDir..."
         Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $bundleDir
         robocopy (Join-Path $serverSourceDir "server") (Join-Path $bundleDir "server") /E /XD .venv __pycache__ .ruff_cache /XF test_*.py reproduce_*.py debug_*.py render_markdown.py rserver_listener.py checkpoints.sqlite paracore_local.db
+
+        # Bundle paracore-agent alongside server (agent, mcp_core, grpc_client live there now)
+        $agentSource = Join-Path $ParacoreRoot "paracore-agent"
+        if (Test-Path $agentSource) {
+            robocopy $agentSource (Join-Path $bundleDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+            Write-Host "Bundled paracore-agent with server dev bundle" -ForegroundColor Gray
+        }
 
         # 6. Copy the RAP Auth Server public key (Crucial for generic "relative path" config)
         $authServerSource = Join-Path -Path $ParacoreRoot -ChildPath 'rap-auth-server\server'

@@ -18,11 +18,16 @@ if __name__ == "__main__" and __package__ is None:
 
 # Resolve paracore-agent — the shared AI brain (agent, MCP core, gRPC client).
 # Appended (not inserted) so local modules (utils, config) take precedence.
-_PARACORE_AGENT = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "paracore-agent")
-)
-if os.path.isdir(_PARACORE_AGENT):
-    sys.path.append(_PARACORE_AGENT)
+# Dev:  ../../../paracore-agent (paracore/rap-server/server/ → Paracore/paracore-agent)
+# Frozen: ../paracore-agent (server-release/server/ → server-release/paracore-agent)
+_here = os.path.dirname(os.path.abspath(__file__))
+for _candidate in (
+    os.path.normpath(os.path.join(_here, "..", "paracore-agent")),          # frozen
+    os.path.normpath(os.path.join(_here, "..", "..", "..", "paracore-agent")),  # dev
+):
+    if os.path.isdir(_candidate):
+        sys.path.append(_candidate)
+        break
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
