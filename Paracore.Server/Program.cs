@@ -7,7 +7,9 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.IO;
 using System;
 
-var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "CoreScriptServerLog.txt");
+var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs");
+Directory.CreateDirectory(logDir);
+var logPath = Path.Combine(logDir, "CoreScriptServerLog.txt");
 
 void Log(string message)
 {

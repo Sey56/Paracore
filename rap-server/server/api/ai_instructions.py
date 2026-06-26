@@ -1,12 +1,12 @@
 """
 Canonical AI instructions for generating Paracore gallery scripts.
-SOURCE OF TRUTH: ai-instructions.md in the repo root.
-Update that file first, then sync changes here.
-This module reads from the canonical file at import time.
+SOURCE OF TRUTH: copilot-instructions.md in the paracore repo root.
+This module reads from the canonical file at import time (dev) or falls
+back to an inline default (production bundles).
 """
 import os
 
-_instructions_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "ai-instructions.md")
+_instructions_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "copilot-instructions.md")
 _instructions_path = os.path.normpath(_instructions_path)
 
 try:
@@ -19,5 +19,5 @@ except FileNotFoundError:
 # ...
 
 Generate C# Revit API scripts for the Paracore runtime (CoreScript.Engine).
-See ai-instructions.md in the repo root for the full canonical content.
+See docs/copilot-instructions.md for the full canonical content.
 """

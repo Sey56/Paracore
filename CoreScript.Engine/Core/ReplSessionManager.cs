@@ -408,7 +408,7 @@ namespace CoreScript.Engine.Core
                     parts.Add(printLog);
                 if (!string.IsNullOrEmpty(output))
                     parts.Add(output);
-                if (!string.IsNullOrEmpty(pipelineLine))
+                if (!string.IsNullOrEmpty(pipelineLine) && ExecutionGlobals.ShowPipeline)
                     parts.Add(pipelineLine);
 
                 var finalOutput = string.Join(Environment.NewLine, parts);

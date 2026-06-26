@@ -622,6 +622,36 @@ GetElements("Windows").WhereMatches("Fixed")
 
 ---
 
+### `.WhereMaterial(materialName)` — Filter by assigned material
+
+> Filters to elements that have the specified material assigned (case-insensitive substring match).
+> Checks every material source: geometry faces, paint, compound structure layers,
+> structural material parameter, and any custom parameter referencing a Material element.
+> Works on any element type.
+
+```csharp
+// Find structural elements with concrete
+GetElements("Structural Framing").WhereMaterial("Concrete").Table()
+
+// Find elements with wrong material (QA audit)
+GetElements("Structural Framing").WhereMaterial("Default Wall").Table()
+```
+
+### `.WhereMaterialNot(materialName)` — Exclude by material
+
+> Inverse — keeps only elements that do NOT have the specified material.
+> Useful for QA: find structural elements mis-assigned with non-structural materials.
+
+```csharp
+// Find any structural element that ISN'T concrete
+GetElements("Structural Columns").WhereMaterialNot("Concrete").Table()
+
+// Find walls missing plaster
+GetElements("Walls").WhereMaterialNot("Plaster").Table()
+```
+
+---
+
 ## 🔼 Collection: Sorting
 
 ### `.OrderByParam(name)` — Ascending
@@ -1082,6 +1112,8 @@ Transact("Delete overlapping columns", () => {
 | Filter by numeric value | `.WhereParam("Width", 200, "mm")` |
 | Filter by numeric op | `.WhereParam("Area", ">", 25, "m2")` |
 | Filter by name/family | `.WhereMatches("Single-Flush")` |
+| Filter by material | `.WhereMaterial("Concrete")` |
+| Exclude by material | `.WhereMaterialNot("Default Wall")` |
 | Sort ascending (auto numeric) | `.OrderByParam("Area")` |
 | Sort descending (auto numeric) | `.OrderByParamDesc("Area")` |
 | Group by → Count | `.GroupByParam("Level")` |

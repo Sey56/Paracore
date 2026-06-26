@@ -146,11 +146,34 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Renders a list of Revit elements as an interactive table in the Summary tab.
+        /// Renders elements as a compact table — Id, Name, Level, Type.
+        /// Limits to 200 rows. Use .Select() before .Table() for custom columns.
+        /// Use .CombinedParams().Table() for full parameter discovery.
         /// </summary>
         public static void Table(IEnumerable<Element> elements)
         {
-            Globals.Output.Table(elements);
+            var compact = elements.Take(200).Select(e =>
+            {
+                // Resolve level — try native LevelId first, then parameter lookup
+                var level = "";
+                try
+                {
+                    if (e.LevelId != null && e.LevelId != ElementId.InvalidElementId)
+                        level = e.Document.GetElement(e.LevelId)?.Name ?? "";
+                }
+                catch { }
+                if (string.IsNullOrEmpty(level))
+                    level = e.GetStr("Level");
+
+                return (object)new
+                {
+                    Id = e.Id.Value,
+                    Name = e.GetStr("Name"),
+                    Level = level,
+                    Type = e.GetStr("Family and Type")
+                };
+            });
+            Globals.Output.Table(compact);
         }
 
         /// <summary>

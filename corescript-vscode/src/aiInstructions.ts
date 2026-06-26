@@ -1,8 +1,7 @@
 /**
  * AI instructions for generating Paracore gallery scripts.
  *
- * CANONICAL SOURCE: ai-instructions.md in the Paracore repo root.
- * Update that file — this module reads it at runtime.
+ * CANONICAL SOURCE: ..\\docs\\copilot-instructions.md (shared Paracore docs).
  *
  * These instructions are written to .github/copilot-instructions.md
  * when a workspace is scaffolded, teaching VS Code AI assistants
@@ -14,12 +13,12 @@ import * as fs from "fs";
 import * as path from "path";
 
 function loadInstructions(): string {
-  // Search paths for the canonical file
+  // Search paths for the canonical file — try shared docs first
   const searchPaths = [
-    // Production: extension root (__dirname = dist/, so .. = extension root)
-    path.join(__dirname, "..", "ai-instructions.md"),
-    // Dev: repo root (__dirname = src/ in ts-node, .. = corescript-vscode/, ../.. = repo root)
-    path.join(__dirname, "..", "..", "ai-instructions.md"),
+    // Dev: shared container docs (__dirname = src/ → corescript-vscode/ → paracore/ → container/)
+    path.join(__dirname, "..", "..", "..", "docs", "copilot-instructions.md"),
+    // Production: bundled in extension root (__dirname = dist/)
+    path.join(__dirname, "..", "copilot-instructions.md"),
   ];
 
   for (const p of searchPaths) {
@@ -28,11 +27,8 @@ function loadInstructions(): string {
     }
   }
 
-  // If the canonical file isn't found (shouldn't happen), return a
-  // minimal instructions stub. The file should be included in the
-  // VS Code extension bundle.
   console.warn(
-    "Paracore: ai-instructions.md not found. AI script generation may produce suboptimal code."
+    "Paracore: copilot-instructions.md not found. AI script generation may produce suboptimal code."
   );
   return `# Script Context: Paracore Tool Project
 # All logic goes into the Scripts/ folder.

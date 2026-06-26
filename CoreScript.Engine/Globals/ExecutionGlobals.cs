@@ -367,6 +367,12 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// Toggle for showing/hiding pipeline diagnostics in output.
+        /// Bound to the Pipeline checkbox in the History tab.
+        /// </summary>
+        public static bool ShowPipeline { get; set; } = true;
+
+        /// <summary>
         /// Injected by PipelineTrackingRewriter after intermediate LINQ methods (Where, Select, OrderBy, etc.).
         /// Materializes the enumerable, pushes the count to PipelineDiagnostics,
         /// and returns the materialized list for further chaining.
@@ -604,7 +610,36 @@ namespace CoreScript.Engine.Globals
 
         public static IEnumerable<T> Table<T>(this IEnumerable<T> data)
         {
-            ExecutionGlobals.Current.Value?.Table(data);
+            // Raw elements → compact view (Id, Name, Level, Type).
+            // Already-processed data (GroupByParam, Select, etc.) → render as-is.
+            if (data is IEnumerable<Element> elements)
+            {
+                var compact = elements.Take(200).Select(e =>
+                {
+                    var level = "";
+                    try
+                    {
+                        if (e.LevelId != null && e.LevelId != ElementId.InvalidElementId)
+                            level = e.Document.GetElement(e.LevelId)?.Name ?? "";
+                    }
+                    catch { }
+                    if (string.IsNullOrEmpty(level))
+                        level = e.GetStr("Level");
+
+                    return (object)new
+                    {
+                        Id = e.Id.Value,
+                        Name = e.GetStr("Name"),
+                        Level = level,
+                        Type = e.GetStr("Family and Type")
+                    };
+                });
+                ExecutionGlobals.Current.Value?.Table(compact);
+            }
+            else
+            {
+                ExecutionGlobals.Current.Value?.Table(data);
+            }
             return data;
         }
 

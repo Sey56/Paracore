@@ -18,6 +18,10 @@ export const OutputPanel: React.FC = () => {
   const { agentReplResults, setAgentReplResults, agentCapturedDocTitle } = useUI();
 
   const [activeTab, setActiveTab] = useState<'history' | 'analytics'>('history');
+  const [showPipeline, setShowPipeline] = useState(() => {
+    const stored = localStorage.getItem('paracore_show_pipeline');
+    return stored !== null ? stored === 'true' : true;
+  });
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
@@ -151,6 +155,22 @@ export const OutputPanel: React.FC = () => {
         <div id="bottom-panel-portal-root" className="flex-1 flex items-center gap-2 min-w-0" />
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Pipeline toggle — always visible */}
+          {activeTab === 'history' && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showPipeline}
+                onChange={(e) => {
+                  setShowPipeline(e.target.checked);
+                  localStorage.setItem('paracore_show_pipeline', String(e.target.checked));
+                }}
+                className="w-3 h-3 accent-blue-500 cursor-pointer"
+              />
+              Pipeline
+            </label>
+          )}
+
           {/* History tab buttons — only when there's data */}
           {activeTab === 'history' && hasHistoryData && (
             <div className="flex items-center gap-2 animate-in fade-in duration-300">
@@ -188,7 +208,7 @@ export const OutputPanel: React.FC = () => {
       {/* Content */}
       <div className="flex-1 overflow-hidden relative">
         <div className={`h-full w-full ${activeTab !== 'history' ? 'hidden' : ''}`}>
-          <ExecutionHistory />
+          <ExecutionHistory showPipeline={showPipeline} />
         </div>
         <div className={`h-full w-full ${activeTab !== 'analytics' ? 'hidden' : ''}`}>
           <TableTabContent

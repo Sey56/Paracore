@@ -201,7 +201,7 @@ try {
             # Bundle paracore-agent alongside server (agent, mcp_core, grpc_client live there now)
             $agentSource = Join-Path $ParacoreRoot "paracore-agent"
             if (Test-Path $agentSource) {
-                robocopy $agentSource (Join-Path $serverReleaseDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+                robocopy $agentSource (Join-Path $serverReleaseDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
                 Write-Host "Bundled paracore-agent with server release" -ForegroundColor Gray
             }
 
@@ -303,7 +303,7 @@ Lib/site-packages
         # Bundle paracore-agent alongside server (agent, mcp_core, grpc_client live there now)
         $agentSource = Join-Path $ParacoreRoot "paracore-agent"
         if (Test-Path $agentSource) {
-            robocopy $agentSource (Join-Path $bundleDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+            robocopy $agentSource (Join-Path $bundleDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
             Write-Host "Bundled paracore-agent with server dev bundle" -ForegroundColor Gray
         }
 

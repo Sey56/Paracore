@@ -30,6 +30,11 @@ namespace Paracore.Shim
                 var shimDir = Path.GetDirectoryName(typeof(ParacoreShim).Assembly.Location)!;
                 Log($"Shim loaded from: {shimDir}");
 
+                // Pass shimDir to the addin — Assembly.Location may be
+                // empty in isolated load contexts (Add-in-Manager dev workflow).
+                Environment.SetEnvironmentVariable("PARACORE_ADDIN_DIR", shimDir,
+                    EnvironmentVariableTarget.Process);
+
                 // 1. Create the isolated bubble
                 LoadContext = new IsolatedLoadContext(shimDir);
 
@@ -108,9 +113,11 @@ namespace Paracore.Shim
         {
             try
             {
-                var logPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "ParacoreShimLog.txt");
+                var logDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "paracore-data", "logs");
+                Directory.CreateDirectory(logDir);
+                var logPath = Path.Combine(logDir, "ParacoreShimLog.txt");
                 File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {message}\n");
             }
             catch { }

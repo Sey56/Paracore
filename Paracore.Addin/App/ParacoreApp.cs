@@ -43,6 +43,7 @@ namespace Paracore.Addin.App
         private static ExternalEvent? _externalEvent;
         private static IServiceProvider? _serviceProvider;
         private static System.Diagnostics.Process? _sidecarProcess;
+        private static string? _addinDir;
 
 
         public static Dictionary<string, string> ActiveWorkspaces = new(); // Kept for legacy compatibility if needed
@@ -62,7 +63,11 @@ namespace Paracore.Addin.App
             RevitInstallPath = Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName) ?? RevitInstallPath;
             FileLogger.Log($"Detected Revit {RevitVersion} at {RevitInstallPath}");
 
-            var addinDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location);
+            // Primary: env var set by the shim (always correct).
+            // Fallback: Assembly.Location (regular install).
+            var addinDir = Environment.GetEnvironmentVariable("PARACORE_ADDIN_DIR")
+                ?? Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location);
+            _addinDir = addinDir; // cached for StartSidecar
             FileLogger.Log($"Paracore Add-in loaded from: {addinDir}");
 
             // NOTE: ALC isolation is now handled by Paracore.Shim.
@@ -238,9 +243,46 @@ namespace Paracore.Addin.App
             _client = client;
         }
 
+        /// <summary>
+        /// Resolves the addin directory from multiple sources, in priority order.
+        /// Works in normal install AND Add-in-Manager dev workflow.
+        /// </summary>
+        private static string ResolveAddinDir()
+        {
+            // 1. Env var set by the shim (normal install)
+            var env = Environment.GetEnvironmentVariable("PARACORE_ADDIN_DIR");
+            if (!string.IsNullOrEmpty(env)) return env;
+
+            // 2. Cached from OnStartup (normal install)
+            if (!string.IsNullOrEmpty(_addinDir)) return _addinDir;
+
+            // 3. Find the shim assembly — its directory is where all DLLs live
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (asm.GetName().Name == "Paracore.Shim"
+                    && !string.IsNullOrEmpty(asm.Location))
+                    return Path.GetDirectoryName(asm.Location)!;
+            }
+
+            // 4. Module path — more reliable than Assembly.Location
+            //    in isolated load contexts (Add-in-Manager).
+            var mod = typeof(ParacoreApp).Module.FullyQualifiedName;
+            if (!string.IsNullOrEmpty(mod))
+                return Path.GetDirectoryName(mod)!;
+
+            // 5. Assembly.Location (regular non-isolated loads)
+            var loc = typeof(ParacoreApp).Assembly.Location;
+            if (!string.IsNullOrEmpty(loc))
+                return Path.GetDirectoryName(loc)!;
+
+            // 6. Last resort
+            return Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)
+                + @"\Paracore";
+        }
+
         public static void StartSidecar()
         {
-            var addinDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location)!;
+            var addinDir = ResolveAddinDir();
             var sidecarPath = Path.Combine(addinDir, "Paracore.Server.exe");
 
             if (File.Exists(sidecarPath))
