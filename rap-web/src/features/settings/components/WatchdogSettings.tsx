@@ -19,6 +19,9 @@ interface WatchdogSettingsProps {
 }
 
 export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthenticated }) => {
+  const { isPro } = useRevitStatus();
+  const deployDisabled = !isPro;
+  const deployTooltip = deployDisabled ? "Deployment needs the Pro addin" : "";
   const { showSentinelFAB, toggleSentinelFAB } = useUI();
   const {
     configuredWatchdogRoots,
@@ -177,7 +180,9 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
           </button>
           <button
             onClick={handleArmAll}
-            className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all active:scale-95"
+            disabled={deployDisabled}
+            title={deployTooltip}
+            className={`px-6 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold uppercase tracking-widest rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all active:scale-95 ${deployDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Deploy All
           </button>
@@ -282,12 +287,16 @@ export const WatchdogSettings: React.FC<WatchdogSettingsProps> = ({ isAuthentica
 
                             <button
                               onClick={() => {
+                                if (deployDisabled) return;
                                 const paramsSnapshot = userEditedScriptParameters[s.id] || s.parameters;
                                 toggleScriptArm(path, paramsSnapshot);
                                 if (!isArmed) trackEvent('sentinel_deployed', { method: 'single' });
                               }}
+                              disabled={deployDisabled}
+                              title={deployTooltip}
                               className={`px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all active:scale-95
-                                ${isArmed ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 border border-amber-200 dark:border-amber-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-indigo-600 border border-transparent hover:border-indigo-100'}`}
+                                ${isArmed ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 border border-amber-200 dark:border-amber-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-indigo-600 border border-transparent hover:border-indigo-100'}
+                                ${deployDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               {isArmed ? 'Deployed' : 'Deploy'}
                             </button>

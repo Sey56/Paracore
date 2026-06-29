@@ -21,21 +21,10 @@ def load_public_key():
 
     # 2. Fallback: Try Local File System
     try:
-        key_path = os.getenv("JWT_PUBLIC_KEY_PATH")
-        if not key_path:
-             current_dir = os.path.dirname(__file__)
-             candidate_bases = [
-                 os.path.join(current_dir, "..", ".."), # Dev
-                 os.path.join(current_dir, ".."),       # Installed
-                 current_dir                            # Fallback
-             ]
-             for base in candidate_bases:
-                 potential_path = os.path.join(os.path.abspath(base), "rap-auth-server", "server", "jwt_public.pem")
-                 if os.path.exists(potential_path):
-                     key_path = potential_path
-                     break
-
-        if key_path and os.path.exists(key_path):
+        current_dir = os.path.dirname(__file__)
+        key_path = os.path.normpath(os.path.join(os.path.abspath(current_dir), "..", "..", "..", "rap-auth-server", "server", "jwt_public.pem"))
+        if os.path.exists(key_path):
+            print(f"--- Loaded public key from LOCAL: {key_path}")
             with open(key_path, 'r') as f:
                 return f.read()
     except Exception as e:
@@ -55,7 +44,14 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 43200)) # 30 days
     AUTH_SERVER_URL: str = os.getenv("AUTH_SERVER_URL", "https://rap-auth-server-production.up.railway.app")
 
-    # Load the public key directly from the file
+    # Load the public key from remote or local file
     JWT_PUBLIC_KEY: str = load_public_key()
 
 settings = Settings()
+# Attach private key after Settings init (bypasses pydantic validation)
+_priv_path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "rap-auth-server", "server", "jwt_private.pem"))
+if os.path.exists(_priv_path):
+    with open(_priv_path, 'r') as f:
+        settings.JWT_PRIVATE_KEY = f.read()
+else:
+    settings.JWT_PRIVATE_KEY = None

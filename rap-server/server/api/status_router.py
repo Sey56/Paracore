@@ -1,4 +1,5 @@
 import json
+import logging
 
 import grpc
 from fastapi import APIRouter, HTTPException
@@ -15,15 +16,29 @@ async def get_status_endpoint():
     """
     try:
         response = get_status()
-        return JSONResponse(content=json.loads(json_format.MessageToJson(response)))
-    except Exception:
+        # Build dict manually to guarantee field names and values
+        result = {
+            "paracoreConnected": response.paracore_connected,
+            "revitOpen": response.revit_open,
+            "revitVersion": response.revit_version or "",
+            "documentOpen": response.document_open,
+            "documentTitle": response.document_title or "",
+            "documentType": response.document_type or "None",
+            "revitInstallPath": response.revit_install_path or "",
+            "addinServerPath": response.addin_server_path or "",
+            "isPro": response.is_pro,
+        }
+        return JSONResponse(content=result)
+    except Exception as e:
+        logging.getLogger(__name__).error(f"[STATUS HTTP] Error: {e}", exc_info=True)
         return JSONResponse(content={
             "paracoreConnected": False,
             "revitOpen": False,
             "revitVersion": None,
             "documentOpen": False,
             "documentTitle": None,
-            "documentType": "None"
+            "documentType": "None",
+            "isPro": False,
         })
 
 @router.get("/api/watchdogs", tags=["status"])

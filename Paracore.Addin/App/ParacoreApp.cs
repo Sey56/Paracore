@@ -143,12 +143,13 @@ namespace Paracore.Addin.App
                 {
                     WatchdogRegistry.CurrentWatchdogPath = watchdog.ScriptPath;
 
-                    // Initialize Global Context for ScriptApi access
+                    // MUST use ScriptApi.SetScriptGlobals (AppDomain bridge) —
+                    // the callback runs in SharedAssemblyLoadContext which cannot
+                    // see ExecutionGlobals.Current (AsyncLocal).
                     var ctx = new WatchdogContext(uiApp, doc, watchdog.Parameters);
                     var execContext = new ExecutionGlobals(ctx, watchdog.Parameters);
-                    ExecutionGlobals.SetContext(execContext);
+                    ScriptApi.SetScriptGlobals(execContext);
 
-                    // Use Low priority for background loops
                     watchdog.LastRun = DateTime.Now;
                     watchdog.Action(doc);
                 }
@@ -159,7 +160,7 @@ namespace Paracore.Addin.App
                 finally
                 {
                     WatchdogRegistry.CurrentWatchdogPath = null;
-                    ExecutionGlobals.ClearContext();
+                    ScriptApi.ClearScriptGlobals();
                 }
             }
         }

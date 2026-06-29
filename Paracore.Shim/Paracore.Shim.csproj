@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PlatformTarget>x64</PlatformTarget>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -13,8 +13,8 @@
 
   <!-- Reference-only Revit APIs (not copied to output) -->
   <ItemGroup>
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.*" />
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.*" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2027.*" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2027.*" />
   </ItemGroup>
 
 </Project>

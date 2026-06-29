@@ -62,6 +62,11 @@ namespace CoreScript.Engine.Core
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
 
+                // .NET 10: Set globals early so parameter extraction and option
+                // pool computation (which use Roslyn scripts) have context.
+                var executionGlobals = new ExecutionGlobals(context, parameters, rawParameters);
+                ScriptApi.SetScriptGlobals(executionGlobals);
+
                 // Apply license tier from parameters (set by Python backend for enterprise users)
                 if (parameters.TryGetValue("__license_tier__", out var tierObj) && tierObj is string tierStr)
                 {
@@ -125,8 +130,6 @@ namespace CoreScript.Engine.Core
                 }
                 catch { }
 
-                var executionGlobals = new ExecutionGlobals(context, parameters, rawParameters);
-
                 // --- V4 ELITE: MAGIC HYDRATION (Pre-calculate Resolution Pools) ---
                 foreach (var p in richParams)
                 {
@@ -165,28 +168,23 @@ namespace CoreScript.Engine.Core
                 if (cachedAssembly != null)
                 {
                     // Run pre-compiled assembly (Blazingly Fast)
+                    ScriptApi.SetScriptGlobals(executionGlobals);
                     result = _scriptExecutor.ExecuteBinary(cachedAssembly, context);
+                    ScriptApi.ClearScriptGlobals();
                 }
                 else
                 {
-                    // Compile fresh (Slow path)
+                    // .NET 10 fix: compile to bytes first, then run via
+                    // ExecuteBinary. Avoids CSharpScript.RunAsync() which
+                    // loads a duplicate of CoreScript.Engine into Default ALC.
                     FileLogger.Log($"[CodeRunner] 🐢 CACHE MISS: Compiling {topLevelScriptName}...");
-                    var script = _scriptCompiler.CreateScript(finalScriptCode, topLevelScriptName);
-                    var state = _scriptExecutor.ExecuteAsync(script).GetAwaiter().GetResult();
+                    var assemblyBytes = _scriptCompiler.CompileToBytes(finalScriptCode);
+                    lock (_cacheLock) { _assemblyCache[codeHash] = assemblyBytes; }
+                    FileLogger.Log($"[CodeRunner] 💾 Cached assembly ({assemblyBytes.Length} bytes)");
 
-                    result = ExecutionResult.Success("Success", state.ReturnValue);
-
-                    // Add to cache for next time
-                    try
-                    {
-                        var assemblyBytes = _scriptCompiler.CompileToBytes(finalScriptCode);
-                        lock (_cacheLock) { _assemblyCache[codeHash] = assemblyBytes; }
-                        FileLogger.Log($"[CodeRunner] 💾 Cached assembly for future runs ({assemblyBytes.Length} bytes)");
-                    }
-                    catch (Exception cacheEx)
-                    {
-                        FileLogger.LogError($"[CodeRunner] Failed to cache assembly: {cacheEx.Message}");
-                    }
+                    ScriptApi.SetScriptGlobals(executionGlobals);
+                    result = _scriptExecutor.ExecuteBinary(assemblyBytes, context);
+                    ScriptApi.ClearScriptGlobals();
                 }
 
                 result.PrintLog = context.PrintLog.ToList();
@@ -249,6 +247,7 @@ namespace CoreScript.Engine.Core
             }
             finally
             {
+                ScriptApi.ClearScriptGlobals();
                 ExecutionGlobals.ClearContext();
             }
         }
@@ -266,6 +265,11 @@ namespace CoreScript.Engine.Core
             {
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
+
+                // .NET 10: Set globals early so parameter extraction and option
+                // pool computation (which use Roslyn scripts) have context.
+                var executionGlobals = new ExecutionGlobals(context, parameters, rawParameters);
+                ScriptApi.SetScriptGlobals(executionGlobals);
 
                 // Apply license tier from parameters (set by Python backend for enterprise users)
                 if (parameters.TryGetValue("__license_tier__", out var tierObj) && tierObj is string tierStr)
@@ -296,7 +300,9 @@ namespace CoreScript.Engine.Core
                     _parameterService.HardenParameters(parameters, richParams);
                 }
 
-                ExecutionGlobals.SetContext(new ExecutionGlobals(context, parameters, rawParameters));
+                var execGlobals = new ExecutionGlobals(context, parameters, rawParameters);
+                ScriptApi.SetScriptGlobals(execGlobals);
+                ExecutionGlobals.SetContext(execGlobals);
 
                 var result = _scriptExecutor.ExecuteBinary(assemblyBytes, context);
 
@@ -328,7 +334,8 @@ namespace CoreScript.Engine.Core
                 failureResult.ScriptName = topLevelScriptName;
                 return failureResult;
             }
-            finally { ExecutionGlobals.ClearContext(); }
+            finally { ScriptApi.ClearScriptGlobals();
+                ExecutionGlobals.ClearContext(); }
         }
 
         public byte[] CompileToBytes(string scriptContent)

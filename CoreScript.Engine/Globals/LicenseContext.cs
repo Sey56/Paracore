@@ -9,16 +9,19 @@ namespace CoreScript.Engine.Globals
     /// </summary>
     public static class LicenseContext
     {
-        [ThreadStatic]
-        private static string _tier;
+        // .NET 10: Use AppDomain.SetData instead of [ThreadStatic].
+        // [ThreadStatic] storage is per-ALC — when the compiled script assembly runs
+        // inside SharedAssemblyLoadContext, it cannot see the tier set by CodeRunner
+        // (which runs in the isolated ALC). AppDomain storage is shared across all ALCs.
+        private const string TierKey = "ParacoreLicenseTier";
 
         /// <summary>
         /// The current license tier: "enterprise" or "free" (default).
         /// </summary>
         public static string Tier
         {
-            get => _tier ?? "free";
-            set => _tier = value;
+            get => AppDomain.CurrentDomain.GetData(TierKey) as string ?? "free";
+            set => AppDomain.CurrentDomain.SetData(TierKey, value);
         }
 
         /// <summary>
@@ -45,7 +48,7 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Reset()
         {
-            _tier = null;
+            AppDomain.CurrentDomain.SetData(TierKey, null);
         }
     }
 

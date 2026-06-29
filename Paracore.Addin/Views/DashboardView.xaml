@@ -83,6 +83,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="Execution History" Foreground="#F8F8F2" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                            <CheckBox Content="Pipeline" IsChecked="{Binding ShowPipeline}" Margin="12,0,0,0" Foreground="#F8F8F2" VerticalAlignment="Center"/>
                             <Button Content="Clear" Command="{Binding ClearHistoryCommand}" Margin="10,0,0,0" Padding="8,2" FontSize="10"/>
                         </StackPanel>
                         <DataGrid x:Name="ExecutionHistoryGrid" ItemsSource="{Binding ExecutionHistory}" AutoGenerateColumns="False" HeadersVisibility="Column" Height="220" Background="#282A36" Foreground="#F8F8F2" BorderThickness="0" RowBackground="#23243A" AlternatingRowBackground="#22223A" GridLinesVisibility="None">

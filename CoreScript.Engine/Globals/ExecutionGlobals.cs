@@ -359,11 +359,37 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Appends a diagnostic value to the pipeline diagnostics list.
-        /// Thread-safe via AsyncLocal. Call from any extension method.
+        /// Uses AppDomain.SetData for cross-ALC visibility (.NET 10 boundary).
+        /// AsyncLocal (Current.Value) is per-ALC — the Default ALC loaded by
+        /// CSharpScript.RunAsync() cannot see it, and type-identity mismatch
+        /// prevents casting the AppDomain-stored ExecutionGlobals back.
+        /// So we store the List&lt;int&gt; directly in AppDomain.
         /// </summary>
+        internal const string PipelineDiagKey = "ParacorePipelineDiagnostics";
+
+        private static List<int> GetPipelineDiag()
+        {
+            var list = AppDomain.CurrentDomain.GetData(PipelineDiagKey) as List<int>;
+            if (list == null)
+            {
+                list = new List<int>();
+                AppDomain.CurrentDomain.SetData(PipelineDiagKey, list);
+            }
+            return list;
+        }
+
         public static void TrackPipeline(int diagnostic)
         {
-            Current.Value?.PipelineDiagnostics.Add(diagnostic);
+            var diag = AppDomain.CurrentDomain.GetData(PipelineDiagKey) as List<int>;
+            if (diag != null)
+            {
+                diag.Add(diagnostic);
+            }
+            else
+            {
+                // Fallback: use AsyncLocal (main ALC path before SetScriptGlobals runs)
+                Current.Value?.PipelineDiagnostics.Add(diagnostic);
+            }
         }
 
         /// <summary>
@@ -591,7 +617,7 @@ namespace CoreScript.Engine.Globals
                     NumericValue = p.StorageType == StorageType.Double ? e.GetNum(p.Definition.Name).ToString("F4") : p.StorageType == StorageType.Integer ? e.GetInt(p.Definition.Name).ToString() : "-",
                     UIValue = p.AsValueString() ?? "-"
                 });
-            ExecutionGlobals.Current.Value?.Table(snoopData);
+            ScriptApi.Table(snoopData);
             return e;
         }
 
@@ -604,7 +630,7 @@ namespace CoreScript.Engine.Globals
 
         public static IEnumerable<T> Show<T>(this IEnumerable<T> data)
         {
-            ExecutionGlobals.Current.Value?.Table(data);
+            ScriptApi.Table(data);
             return data;
         }
 
@@ -614,7 +640,7 @@ namespace CoreScript.Engine.Globals
             // Already-processed data (GroupByParam, Select, etc.) → render as-is.
             if (data is IEnumerable<Element> elements)
             {
-                var compact = elements.Take(200).Select(e =>
+                var compact = elements.Select(e =>
                 {
                     var level = "";
                     try
@@ -634,18 +660,18 @@ namespace CoreScript.Engine.Globals
                         Type = e.GetStr("Family and Type")
                     };
                 });
-                ExecutionGlobals.Current.Value?.Table(compact);
+                ScriptApi.Table(compact);
             }
             else
             {
-                ExecutionGlobals.Current.Value?.Table(data);
+                ScriptApi.Table(data);
             }
             return data;
         }
 
         public static IEnumerable<T> BarChart<T>(this IEnumerable<T> data)
         {
-            ExecutionGlobals.Current.Value?.BarChart(data);
+            ScriptApi.BarChart(data);
             return data;
         }
 
@@ -653,7 +679,7 @@ namespace CoreScript.Engine.Globals
 
         public static IEnumerable<T> PieChart<T>(this IEnumerable<T> data)
         {
-            ExecutionGlobals.Current.Value?.PieChart(data);
+            ScriptApi.PieChart(data);
             return data;
         }
 
@@ -661,7 +687,7 @@ namespace CoreScript.Engine.Globals
 
         public static IEnumerable<T> LineChart<T>(this IEnumerable<T> data)
         {
-            ExecutionGlobals.Current.Value?.LineChart(data);
+            ScriptApi.LineChart(data);
             return data;
         }
 

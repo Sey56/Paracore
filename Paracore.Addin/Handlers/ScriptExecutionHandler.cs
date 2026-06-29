@@ -129,6 +129,9 @@ namespace Paracore.Addin.Handlers
                                 wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
                                 wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = actualFileName, ["type"] = "string" });
                                 wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
+                                // Preserve __license_tier__ from Python backend if present; fall back to local LicenseContext.
+                                if (!wtoolParams.Any(p => p?["name"]?.GetValue<string>() == "__license_tier__"))
+                                    wtoolParams.Add(new JsonObject { ["name"] = "__license_tier__", ["defaultValueJson"] = CoreScript.Engine.Globals.LicenseContext.Tier, ["type"] = "string" });
 
                                 string paramsJson = wtoolParams.ToJsonString();
 
@@ -209,6 +212,9 @@ namespace Paracore.Addin.Handlers
                                 uiParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = projectPath.Replace('\\', '/'), ["type"] = "string" });
                                 uiParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = folderName, ["type"] = "string" });
                                 uiParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
+                                // Preserve __license_tier__ from Python backend if present; fall back to local LicenseContext.
+                                if (!uiParams.Any(p => p?["name"]?.GetValue<string>() == "__license_tier__"))
+                                    uiParams.Add(new JsonObject { ["name"] = "__license_tier__", ["defaultValueJson"] = CoreScript.Engine.Globals.LicenseContext.Tier, ["type"] = "string" });
 
                                 string paramsJson = uiParams.ToJsonString();
 
@@ -308,6 +314,9 @@ namespace Paracore.Addin.Handlers
                         wtoolParams.Add(new JsonObject { ["name"] = "__absolute_path__", ["defaultValueJson"] = wtoolPath.Replace('\\', '/'), ["type"] = "string" });
                         wtoolParams.Add(new JsonObject { ["name"] = "__script_name__", ["defaultValueJson"] = actualFileName, ["type"] = "string" });
                         wtoolParams.Add(new JsonObject { ["name"] = "__is_watchdog_registration__", ["defaultValueJson"] = "true", ["type"] = "boolean" });
+                        // Preserve __license_tier__ from Python backend if present; fall back to local LicenseContext.
+                        if (!wtoolParams.Any(p => p?["name"]?.GetValue<string>() == "__license_tier__"))
+                            wtoolParams.Add(new JsonObject { ["name"] = "__license_tier__", ["defaultValueJson"] = CoreScript.Engine.Globals.LicenseContext.Tier, ["type"] = "string" });
 
                         string paramsJson = wtoolParams.ToJsonString();
 

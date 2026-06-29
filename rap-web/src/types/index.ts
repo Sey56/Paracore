@@ -29,4 +29,5 @@ export interface RevitStatus {
   version: string;
   document: string | null;
   documentType: string | null;
+  isPro: boolean;
 }

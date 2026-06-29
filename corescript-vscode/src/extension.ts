@@ -41,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
         const globalJson = `
 {
   "sdk": {
-    "version": "8.0.0",
+    "version": "10.0.0",
     "rollForward": "latestFeature"
   }
 }
@@ -61,9 +61,12 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Define search paths in priority order (ProgramData preferred over AppData, newer Revit preferred over older)
         // We look for the folder that contains CoreScript.Engine.dll
+        const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
         const searchPaths = [
+          path.join(programFiles, 'Autodesk', 'Revit', 'Addins', '2027', 'Paracore'),
           path.join(programData, 'Autodesk', 'Revit', 'Addins', '2026', 'Paracore'),
           path.join(programData, 'Autodesk', 'Revit', 'Addins', '2025', 'Paracore'),
+          path.join(appData, 'Autodesk', 'Revit', 'Addins', '2027', 'Paracore'),
           path.join(appData, 'Autodesk', 'Revit', 'Addins', '2026', 'Paracore'),
           path.join(appData, 'Autodesk', 'Revit', 'Addins', '2025', 'Paracore')
         ];
@@ -76,20 +79,41 @@ export function activate(context: vscode.ExtensionContext) {
           if (fs.existsSync(potentialEnginePath)) {
             enginePath = potentialEnginePath;
             // Infer Revit version from path to find RevitAPI.dll
-            if (basePath.includes('2026')) {
-              revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2026');
+            if (basePath.includes('2027')) {
+              revitPath = path.join(programFiles, 'Autodesk', 'Revit 2027');
+            } else if (basePath.includes('2026')) {
+              revitPath = path.join(programFiles, 'Autodesk', 'Revit 2026');
             } else {
-              revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2025');
+              revitPath = path.join(programFiles, 'Autodesk', 'Revit 2025');
             }
             break;
           }
         }
 
-        // Fallback if not found (default to 2025 ProgramData logic but warn)
+        // Fallback if not found — try all supported versions
         if (!enginePath) {
           vscode.window.showWarningMessage("Could not locate CoreScript.Engine.dll in standard locations. IntelliSense might fail.");
-          enginePath = path.join(programData, 'Autodesk', 'Revit', 'Addins', '2025', 'Paracore', 'CoreScript.Engine.dll');
-          revitPath = path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Autodesk', 'Revit 2025');
+          for (const ver of ['2027', '2026', '2025']) {
+            const is2027 = ver === '2027';
+            const base = is2027 ? programFiles : programData;
+            const appBase = is2027 ? programFiles : appData;
+            const progPath = path.join(base, 'Autodesk', 'Revit', 'Addins', ver, 'Paracore', 'CoreScript.Engine.dll');
+            const appPath = path.join(appBase, 'Autodesk', 'Revit', 'Addins', ver, 'Paracore', 'CoreScript.Engine.dll');
+            if (fs.existsSync(progPath)) {
+              enginePath = progPath;
+              revitPath = path.join(programFiles, 'Autodesk', `Revit ${ver}`);
+              break;
+            }
+            if (fs.existsSync(appPath)) {
+              enginePath = appPath;
+              revitPath = path.join(programFiles, 'Autodesk', `Revit ${ver}`);
+              break;
+            }
+          }
+          if (!enginePath) {
+            enginePath = path.join(programData, 'Autodesk', 'Revit', 'Addins', '2027', 'Paracore', 'CoreScript.Engine.dll');
+            revitPath = path.join(programFiles, 'Autodesk', 'Revit 2027');
+          }
         }
 
         const addinDirectory = path.dirname(enginePath);
@@ -111,7 +135,7 @@ export function activate(context: vscode.ExtensionContext) {
         const csproj = `
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

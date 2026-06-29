@@ -429,14 +429,28 @@ def scaffold_project_full(project_root: str):
         project_name = os.path.basename(project_root)
         config = grpc_client.get_revit_config()
         
-        # 1. Fallback paths if Revit hasn't connected yet
-        revit_path = config.revit_install_path or r"C:\Program Files\Autodesk\Revit 2025"
-        addin_dir = config.addin_server_path or r"C:\ProgramData\Autodesk\Revit\Addins\2025\Paracore"
+        # 1. Fallback paths if Revit hasn't connected yet — try 2027 → 2026 → 2025
+        if not config.revit_install_path:
+            for ver in ("2027", "2026", "2025"):
+                cand = rf"C:\Program Files\Autodesk\Revit {ver}"
+                if os.path.isdir(cand):
+                    config.revit_install_path = cand; break
+        revit_path = config.revit_install_path or r"C:\Program Files\Autodesk\Revit 2027"
+
+        if not config.addin_server_path:
+            program_data = os.environ.get("ProgramData", r"C:\ProgramData")
+            for ver in ("2027", "2026", "2025"):
+                # Revit 2027 uses Program Files; 2025/2026 use ProgramData
+                base = os.environ.get("ProgramFiles", r"C:\Program Files") if ver == "2027" else program_data
+                cand = os.path.join(base, "Autodesk", "Revit", "Addins", ver, "Paracore")
+                if os.path.isdir(cand):
+                    config.addin_server_path = cand; break
+        addin_dir = config.addin_server_path or r"C:\ProgramData\Autodesk\Revit\Addins\2027\Paracore"
         engine_path = os.path.join(addin_dir, "CoreScript.Engine.dll")
 
         # 2. global.json
         with open(os.path.join(project_root, "global.json"), 'w', encoding='utf-8') as f:
-            f.write('{\n    "sdk": {\n        "version": "8.0.0",\n        "rollForward": "latestFeature"\n    }\n}')
+            f.write('{\n    "sdk": {\n        "version": "10.0.0",\n        "rollForward": "latestFeature"\n    }\n}')
 
         # 3. .editorconfig
         with open(os.path.join(project_root, ".editorconfig"), 'w', encoding='utf-8') as f:
@@ -471,7 +485,7 @@ def scaffold_project_full(project_root: str):
 
         csproj_content = f"""<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

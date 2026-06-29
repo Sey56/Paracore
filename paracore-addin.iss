@@ -10,7 +10,7 @@
 #endif
 
 #ifndef PublishDir
-  #define PublishDir "Paracore.Addin\bin\Release\net8.0-windows\win-x64\publish"
+  #define PublishDir "Paracore.Addin\bin\Release\net10.0-windows\win-x64\publish"
 #endif
 
 [Setup]
@@ -42,6 +42,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "Revit2025"; Description: "Install for Revit 2025"; GroupDescription: "Revit Versions:"; Check: IsRevitVersionInstalled('2025')
 Name: "Revit2026"; Description: "Install for Revit 2026"; GroupDescription: "Revit Versions:"; Check: IsRevitVersionInstalled('2026')
+Name: "Revit2027"; Description: "Install for Revit 2027"; GroupDescription: "Revit Versions:"; Check: IsRevitVersionInstalled('2027')
 [InstallDelete]
 ; For Revit 2025
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"; Tasks: Revit2025
@@ -63,11 +64,19 @@ Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\RServer"
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Pro.Addin.addin"; Tasks: Revit2026
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\ParacorePro"; Tasks: Revit2026
 
+; For Revit 2027 (Program Files install location)
+Type: filesandordirs; Name: "{pf}\Autodesk\Revit\Addins\2027\Paracore"; Tasks: Revit2027
+; Cleanup Paracore Pro (free replaces pro)
+Type: files; Name: "{pf}\Autodesk\Revit\Addins\2027\Paracore.Pro.Addin.addin"; Tasks: Revit2027
+Type: filesandordirs; Name: "{pf}\Autodesk\Revit\Addins\2027\ParacorePro"; Tasks: Revit2027
+
 ; Cleanup user-level local deployments (Ghost copies from Debug builds)
 Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"
 Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2025\Paracore"
 Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"
 Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2026\Paracore"
+Type: files; Name: "{userappdata}\Autodesk\Revit\Addins\2027\Paracore.Addin.addin"
+Type: filesandordirs; Name: "{userappdata}\Autodesk\Revit\Addins\2027\Paracore"
 
 [Files]
 ; Install Add-in for Revit 2025
@@ -80,12 +89,19 @@ Source: "{#PublishDir}\*"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2026\
 
 Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{commonappdata}\Autodesk\Revit\Addins\2026"; Tasks: Revit2026; Flags: replacesameversion
 
+; Install Add-in for Revit 2027 (Program Files)
+Source: "{#PublishDir}\*"; DestDir: "{pf}\Autodesk\Revit\Addins\2027\Paracore"; Tasks: Revit2027; Flags: recursesubdirs replacesameversion
+Source: "{#PublishDir}\Paracore.Addin.addin"; DestDir: "{pf}\Autodesk\Revit\Addins\2027"; Tasks: Revit2027; Flags: replacesameversion
+
 [UninstallDelete]
 ; Clean up the Add-in folders and manifests
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore"
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2025\Paracore.Addin.addin"
 Type: filesandordirs; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore"
 Type: files; Name: "{commonappdata}\Autodesk\Revit\Addins\2026\Paracore.Addin.addin"
+; Revit 2027 (Program Files)
+Type: filesandordirs; Name: "{pf}\Autodesk\Revit\Addins\2027\Paracore"
+Type: files; Name: "{pf}\Autodesk\Revit\Addins\2027\Paracore.Addin.addin"
 
 ; Clean up the roaming data
 Type: filesandordirs; Name: "{userappdata}\Paracore"
@@ -112,39 +128,35 @@ end;
 
 function IsRevitVersionInstalled(Version: string): Boolean;
 var
-  RevitKey: string;
+  RevitPath: string;
 begin
-  RevitKey := 'SOFTWARE\Autodesk\Revit\Autodesk Revit ' + Version;
-  Result := RegKeyExists(HKLM, RevitKey) or RegKeyExists(HKCU, RevitKey);
+  // Check if Revit.exe actually exists — registry keys can persist after uninstall.
+  RevitPath := ExpandConstant('{pf}\Autodesk\Revit ' + Version + '\Revit.exe');
+  Result := FileExists(RevitPath);
 end;
 
-function IsAspNetCore8RuntimeInstalled: Boolean;
+function IsAspNetCore10RuntimeInstalled: Boolean;
 var
   VersionNames: TArrayOfString;
   I: Integer;
   FindRec: TFindRec;
 begin
   Result := False;
-  
-  // 1. Registry check (x64)
   if RegGetSubkeyNames(HKLM64, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.AspNetCore.App', VersionNames) then
   begin
     for I := 0 to GetArrayLength(VersionNames) - 1 do
     begin
-      // STRICT check for 8.x
-      if Pos('8.', VersionNames[I]) = 1 then
+      if Pos('10.', VersionNames[I]) = 1 then
       begin
         Result := True;
         Exit;
       end;
     end;
   end;
-
-  // 2. Folder check (Fallback)
   if FindFirst(ExpandConstant('{pf64}\dotnet\shared\Microsoft.AspNetCore.App\*'), FindRec) then
   begin
     repeat
-      if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0) and (Pos('8.', FindRec.Name) = 1) then
+      if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0) and (Pos('10.', FindRec.Name) = 1) then
       begin
         Result := True;
         FindClose(FindRec);
@@ -158,11 +170,11 @@ end;
 function InitializeSetup: Boolean;
 begin
   Result := True;
-  if not IsAspNetCore8RuntimeInstalled then
+  if not IsAspNetCore10RuntimeInstalled then
   begin
-    if MsgBox('Paracore requires the ASP.NET Core 8 Runtime (x64) to function properly in Revit 2025+.' + #13#10#13#10 +
-              'The installer could not verify if the ASP.NET Core 8 Runtime is installed on this system.' + #13#10#13#10 +
-              'Would you like to proceed anyway? (Ensure you have the "ASP.NET Core Runtime 8.0" x64 installed)', mbConfirmation, MB_YESNO) = IDNO then
+    if MsgBox('Paracore requires the ASP.NET Core 10 Runtime (x64) to function properly in Revit 2027.' + #13#10#13#10 +
+              'The installer could not verify if the ASP.NET Core 10 Runtime is installed on this system.' + #13#10#13#10 +
+              'Would you like to proceed anyway?', mbConfirmation, MB_YESNO) = IDNO then
     begin
       Result := False;
     end;

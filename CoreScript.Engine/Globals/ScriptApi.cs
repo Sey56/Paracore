@@ -26,7 +26,38 @@ namespace CoreScript.Engine.Globals
     /// </summary>
     public static class ScriptApi
     {
-        private static ExecutionGlobals Globals => ExecutionGlobals.Current.Value ?? throw new InvalidOperationException("Script context is not available. Ensure the script is run through the engine.");
+        // .NET 10: CSharpScript.RunAsync() loads a second copy of this assembly
+        // into the Default ALC. ExecutionGlobals.Current (AsyncLocal) doesn't
+        // cross ALC boundaries. Bridge them via AppDomain.SetData + dynamic.
+        private const string GlobalsKey = "ParacoreScriptGlobals";
+
+        public static void SetScriptGlobals(ExecutionGlobals globals)
+        {
+            AppDomain.CurrentDomain.SetData(GlobalsKey, globals);
+            ExecutionGlobals.SetContext(globals);
+            // Seed the cross-ALC pipeline diagnostics list from the globals
+            var appDiags = new System.Collections.Generic.List<int>(globals.PipelineDiagnostics);
+            AppDomain.CurrentDomain.SetData(ExecutionGlobals.PipelineDiagKey, appDiags);
+        }
+
+        public static void ClearScriptGlobals()
+        {
+            // Flush cross-ALC pipeline diagnostics back to the globals before clearing
+            var appDiags = AppDomain.CurrentDomain.GetData(ExecutionGlobals.PipelineDiagKey) as System.Collections.Generic.List<int>;
+            var g = AppDomain.CurrentDomain.GetData(GlobalsKey) as ExecutionGlobals;
+            if (appDiags != null && g != null)
+            {
+                g.PipelineDiagnostics.Clear();
+                g.PipelineDiagnostics.AddRange(appDiags);
+            }
+            AppDomain.CurrentDomain.SetData(ExecutionGlobals.PipelineDiagKey, null);
+            AppDomain.CurrentDomain.SetData(GlobalsKey, null);
+            ExecutionGlobals.ClearContext();
+        }
+
+        private static dynamic Globals =>
+            AppDomain.CurrentDomain.GetData(GlobalsKey)
+            ?? throw new InvalidOperationException("Script context is not available. Ensure the script is run through the engine.");
 
         /// <summary>
         /// Represents the active Revit UI application.
@@ -147,12 +178,12 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Renders elements as a compact table — Id, Name, Level, Type.
-        /// Limits to 200 rows. Use .Select() before .Table() for custom columns.
+        /// Use .Select() before .Table() for custom columns.
         /// Use .CombinedParams().Table() for full parameter discovery.
         /// </summary>
         public static void Table(IEnumerable<Element> elements)
         {
-            var compact = elements.Take(200).Select(e =>
+            var compact = elements.Select(e =>
             {
                 // Resolve level — try native LevelId first, then parameter lookup
                 var level = "";

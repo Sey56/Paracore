@@ -51,6 +51,10 @@ namespace Paracore.Addin.Handlers
                 else documentType = "Project";
             }
 
+            // Detect Pro vs Free via reflection — same check ParacoreApp.cs uses for icons.
+            // TakeOffExtensions only exists in the Pro build of CoreScript.Engine.dll.
+            bool isPro = System.Type.GetType("CoreScript.Engine.Globals.TakeOffExtensions, CoreScript.Engine") != null;
+
             var status = new GetStatusResponse
             {
                 ParacoreConnected = true,
@@ -60,7 +64,8 @@ namespace Paracore.Addin.Handlers
                 DocumentTitle = documentTitle ?? "",
                 DocumentType = documentType,
                 RevitInstallPath = App.ParacoreApp.RevitInstallPath,
-                AddinServerPath = System.IO.Path.GetDirectoryName(typeof(App.ParacoreApp).Assembly.Location) ?? ""
+                AddinServerPath = System.IO.Path.GetDirectoryName(typeof(App.ParacoreApp).Assembly.Location) ?? "",
+                IsPro = isPro
             };
 
             _logger.Log($"[ContextHandler] Revit Status: Open={revitOpen}, Version={revitVersion}, DocOpen={documentOpen}, DocTitle='{documentTitle}', DocType={documentType}.", LogLevel.Debug);

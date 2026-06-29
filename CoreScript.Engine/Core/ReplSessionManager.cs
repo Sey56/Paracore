@@ -118,22 +118,15 @@ namespace CoreScript.Engine.Core
                         {
                             var loc = t.Assembly.Location;
                             if (!string.IsNullOrEmpty(loc) && File.Exists(loc))
-                                return MetadataReference.CreateFromFile(loc);
+                                // .NET 10 fix: use CreateFromImage instead of
+                                // CreateFromFile. CreateFromFile causes Roslyn to
+                                // load a duplicate into the Default ALC, breaking
+                                // type identity for isolated-ALC assemblies.
+                                return MetadataReference.CreateFromImage(
+                                    System.Collections.Immutable.ImmutableArray.CreateRange(
+                                        File.ReadAllBytes(loc)));
                         }
                         catch { }
-                        // Fallback: resolve by simple name (handles shared framework
-                        // churn after .NET runtime updates — e.g. 8.0.27 → 8.0.28).
-                        string asmName = t.Assembly.GetName().Name;
-                        if (!string.IsNullOrEmpty(asmName))
-                        {
-                            try
-                            {
-                                var resolved = Assembly.Load(asmName);
-                                if (!string.IsNullOrEmpty(resolved.Location) && File.Exists(resolved.Location))
-                                    return MetadataReference.CreateFromFile(resolved.Location);
-                            }
-                            catch { }
-                        }
                         FileLogger.LogWarning($"[ReplSessionManager] Could not resolve reference for {t.FullName}");
                         return null;
                     })
@@ -148,7 +141,9 @@ namespace CoreScript.Engine.Core
                     string dllPath = Path.Combine(engineDir, dllName);
                     if (File.Exists(dllPath))
                     {
-                        coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
+                        coreRefs.Add(MetadataReference.CreateFromImage(
+                            System.Collections.Immutable.ImmutableArray.CreateRange(
+                                File.ReadAllBytes(dllPath))));
                     }
                 }
 
@@ -193,6 +188,7 @@ namespace CoreScript.Engine.Core
                     // Start new session
                     var globals = new ExecutionGlobals(context, new Dictionary<string, object>(), new Dictionary<string, object>());
                     ExecutionGlobals.SetContext(globals);
+                    ScriptApi.SetScriptGlobals(globals);
                     try
                     {
                         // Create a loader aware of our isolated ALC to prevent Roslyn from
@@ -215,6 +211,7 @@ namespace CoreScript.Engine.Core
                     }
                     finally
                     {
+                        ScriptApi.ClearScriptGlobals();
                         context.PipelineDiagnostics = new List<int>(globals.PipelineDiagnostics);
                         ExecutionGlobals.ClearContext();
                     }
@@ -282,6 +279,7 @@ namespace CoreScript.Engine.Core
                     session.Globals.UpdateContext(context);
                     session.Globals.PipelineDiagnostics.Clear();
                     ExecutionGlobals.SetContext(session.Globals);
+                    ScriptApi.SetScriptGlobals(session.Globals);
 
                     try
                     {
@@ -289,6 +287,7 @@ namespace CoreScript.Engine.Core
                     }
                     finally
                     {
+                        ScriptApi.ClearScriptGlobals();
                         context.PipelineDiagnostics = new List<int>(session.Globals.PipelineDiagnostics);
                         ExecutionGlobals.ClearContext();
                     }

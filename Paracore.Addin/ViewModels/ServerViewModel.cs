@@ -1,6 +1,7 @@
 using Autodesk.Revit.UI;
 using CoreScript.Engine.Context;
 using CoreScript.Engine.Core;
+using CoreScript.Engine.Globals;
 using CoreScript.Engine.Runtime;
 using Paracore.Addin.Context;
 using CoreScript.Engine.Logging;
@@ -41,6 +42,16 @@ namespace Paracore.Addin.ViewModels
         }
 
         public ObservableCollection<ExecutionRecord> ExecutionHistory { get; } = new ObservableCollection<ExecutionRecord>();
+
+        public bool ShowPipeline
+        {
+            get => ExecutionGlobals.ShowPipeline;
+            set
+            {
+                ExecutionGlobals.ShowPipeline = value;
+                OnPropertyChanged(nameof(ShowPipeline));
+            }
+        }
 
         private int _totalExecutions;
         public int TotalExecutions

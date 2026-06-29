@@ -11,9 +11,11 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
     version: "",
     document: null,
     documentType: null,
+    isPro: false,
   }), []);
 
   const [ParacoreConnected, setParacoreConnected] = useState<boolean>(false);
+  const [isPro, setIsPro] = useState<boolean>(false);
   const [revitStatus, setRevitStatus] = useState<RevitStatus>(initialRevitStatus);
 
   const fetchStatus = useCallback(async () => {
@@ -22,12 +24,14 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
       
       const newParacoreConnected = response.data.paracoreConnected;
       setParacoreConnected(prev => prev !== newParacoreConnected ? newParacoreConnected : prev);
+      setIsPro(response.data.isPro === true);
 
       const newRevitStatus: RevitStatus = {
         isConnected: response.data.revitOpen,
         version: response.data.revitVersion || "",
         document: response.data.documentOpen ? response.data.documentTitle : null,
         documentType: response.data.documentOpen ? response.data.documentType : null,
+        isPro: response.data.isPro === true,
       };
 
       setRevitStatus(prev => {
@@ -63,7 +67,8 @@ export const RevitProvider = ({ children }: { children: React.ReactNode }) => {
   const contextValue = useMemo(() => ({
     ParacoreConnected,
     revitStatus,
-  }), [ParacoreConnected, revitStatus]);
+    isPro,
+  }), [ParacoreConnected, revitStatus, isPro]);
 
   return (
     <RevitContext.Provider value={contextValue}>

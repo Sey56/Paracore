@@ -39,8 +39,12 @@ namespace CoreScript.Engine.Globals
         private static readonly Dictionary<string, FailedWatchdogInfo> _failedRegistrations = new Dictionary<string, FailedWatchdogInfo>();
         private static readonly object _lock = new object();
 
-        [ThreadStatic]
-        public static string? CurrentWatchdogPath;
+        private const string CurrentPathKey = "ParacoreWatchdogCurrentPath";
+        public static string? CurrentWatchdogPath
+        {
+            get => AppDomain.CurrentDomain.GetData(CurrentPathKey) as string;
+            set => AppDomain.CurrentDomain.SetData(CurrentPathKey, value);
+        }
 
         public static void Register(string scriptPath, string scriptName, Action<Document> action, int intervalSeconds = 5, Dictionary<string, object>? parameters = null, Dictionary<string, object>? snapshotParameters = null)
         {

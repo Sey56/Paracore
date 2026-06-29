@@ -22,6 +22,7 @@ namespace CoreScript.Engine.Core
         public ExecutionResult ExecuteBinary(byte[] assemblyBytes, ICoreScriptContext context)
         {
             var alc = new SharedAssemblyLoadContext("RevitScriptBinary");
+            var watchdogCountBefore = WatchdogRegistry.GetActiveWatchdogs().Count;
             try
             {
                 using (var ms = new MemoryStream(assemblyBytes))
@@ -68,7 +69,11 @@ namespace CoreScript.Engine.Core
             }
             finally
             {
-                alc.Unload();
+                var watchdogCountAfter = WatchdogRegistry.GetActiveWatchdogs().Count;
+                if (watchdogCountAfter > watchdogCountBefore)
+                    FileLogger.Log($"[ScriptExecutor] Keeping ALC alive — {watchdogCountAfter - watchdogCountBefore} watchdog(s) registered.");
+                else
+                    alc.Unload();
             }
         }
     }

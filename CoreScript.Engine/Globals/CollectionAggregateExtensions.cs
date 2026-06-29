@@ -149,7 +149,7 @@ namespace CoreScript.Engine.Globals
                     obj.Count = g.Count();
                     return (object)obj;
                 }).ToList();
-            ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(results.Count);
+            ExecutionGlobals.TrackPipeline(results.Count);
             return results;
         }
 
@@ -174,7 +174,7 @@ namespace CoreScript.Engine.Globals
                     }), 3);
                     return (object)obj;
                 }).ToList();
-            ExecutionGlobals.Current.Value?.PipelineDiagnostics.Add(results.Count);
+            ExecutionGlobals.TrackPipeline(results.Count);
             return results;
         }
     }

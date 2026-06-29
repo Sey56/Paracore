@@ -84,7 +84,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           throw new Error('No authorization code received from Tauri.');
         }
 
-        const cloudAuthResponse = await axios.post('https://rap-auth-server-production.up.railway.app/auth/verify-google-code', {
+        const cloudAuthResponse = await axios.post('http://localhost:8000/auth/verify-google-code', {
           code: authorizationCode,
           redirect_uri: redirectUri,
         });
@@ -226,7 +226,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         throw new Error('No authorization code received from Tauri.');
       }
 
-      const cloudAuthResponse = await axios.post('https://rap-auth-server-production.up.railway.app/auth/verify-google-code', {
+      const cloudAuthResponse = await axios.post('http://localhost:8000/auth/verify-google-code', {
         code: authorizationCode,
         redirect_uri: redirectUri,
       });
