@@ -11,7 +11,7 @@ export const NoActiveSource: React.FC = () => {
       <div className="space-y-2">
         <h2 className="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">No Active Script Source</h2>
         <p className="text-[11px] font-bold text-slate-400/60 dark:text-slate-500/40 uppercase tracking-widest leading-relaxed max-w-[280px]">
-          Select a Local Source or Team Source from the sidebar to station your units.
+          Select a Local Source from the sidebar to get started.
         </p>
       </div>
     </div>

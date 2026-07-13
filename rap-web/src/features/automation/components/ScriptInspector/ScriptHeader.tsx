@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faStar as fasStar, faChevronUp, faChevronDown, faTools } from '@fortawesome/free-solid-svg-icons';
 import { faStar as farStar } from '@fortawesome/free-regular-svg-icons';
 import { Script } from '@/types/scriptModel';
-import { getScriptLog } from '@/features/team-sources/services/teamSources';
-import { useUI } from '@/hooks/useUI';
 
 interface ScriptHeaderProps {
   script: Script;
@@ -15,38 +13,7 @@ interface ScriptHeaderProps {
 }
 
 export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavorite, disabled, isFavoriteProp, hideFavoriteButton }) => {
-  const [gitLog, setGitLog] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { activeScriptSource } = useUI();
-
-  useEffect(() => {
-    const fetchGitLog = async () => {
-      if (script?.absolutePath && activeScriptSource?.type === 'team') {
-        try {
-          const response = await getScriptLog(script.absolutePath);
-          setGitLog(response.log);
-        } catch (error) {
-          console.error("Failed to fetch script Git log:", error);
-          setGitLog(null);
-        }
-      }
-    };
-    fetchGitLog();
-  }, [script?.absolutePath, activeScriptSource]);
-
-  const parseGitLog = (log: string) => {
-    const authorMatch = log.match(/Author: (.+?) <.+>/);
-    const dateMatch = log.match(/Date: {3}(.+)/);
-    const commitMessageMatch = log.match(/\n\n\s{3}(.+)/);
-
-    const author = authorMatch ? authorMatch[1] : 'Unknown';
-    const date = dateMatch ? new Date(dateMatch[1]).toLocaleDateString() : 'Unknown';
-    const message = commitMessageMatch ? commitMessageMatch[1] : 'No message';
-
-    return { author, date, message };
-  };
-
-  const { author: lastCommitAuthor, date: lastCommitDate, message: lastCommitMessage } = gitLog ? parseGitLog(gitLog) : { author: null, date: null, message: null };
 
   return (
     <div className={`mb-6 border-b border-slate-200/50 dark:border-slate-700/40 pb-4 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -99,15 +66,6 @@ export const ScriptHeader: React.FC<ScriptHeaderProps> = ({ script, onToggleFavo
           <div className="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400 pl-6">
             <span>{script.metadata?.author || 'Unknown Author'}</span>
           </div>
-
-          {/* Git Last Commit Info */}
-          {gitLog && (lastCommitAuthor || lastCommitDate) && (
-            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 pl-6 border-l-2 border-slate-200/60 dark:border-slate-700/50 ml-6 py-1">
-              {lastCommitAuthor && <span>Last Commit by: {lastCommitAuthor}</span>}
-              {lastCommitDate && <span className="ml-2">on {lastCommitDate}</span>}
-              {lastCommitMessage && <p className="italic mt-1">"{lastCommitMessage}"</p>}
-            </div>
-          )}
         </div>
       )}
     </div>

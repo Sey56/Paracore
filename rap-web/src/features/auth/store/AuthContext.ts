@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import { User, TeamMembership, Role } from '../types/authTypes';
+import { User } from '../types/authTypes';
 
 export interface AuthContextType {
   isAuthenticated: boolean;
@@ -8,8 +8,6 @@ export interface AuthContextType {
   cloudToken: string | null;
   localToken: string | null;
   sessionStartTime: number | null;
-  activeTeam: TeamMembership | null;
-  activeRole: Role | null;
   login: () => Promise<void>;
   loginLocal: () => Promise<void>;
   logout: () => void;

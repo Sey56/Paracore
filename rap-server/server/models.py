@@ -33,19 +33,6 @@ class Script(Base):
     owner = relationship("User")
     presets = relationship("Preset", back_populates="script")
 
-class TeamSource(Base):
-    __tablename__ = "team_sources"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    path = Column(String, unique=True, index=True)
-
-class RegisteredTeamSource(Base):
-    __tablename__ = "registered_team_sources"
-    id = Column(Integer, primary_key=True, index=True)
-    team_id = Column(Integer, index=True)
-    name = Column(String, index=True)
-    repo_url = Column(String)
-
 class UserSetting(Base):
     __tablename__ = "user_settings"
     id = Column(Integer, primary_key=True, index=True)

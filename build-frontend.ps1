@@ -1,31 +1,25 @@
-# PowerShell Build Script for RAP Installer
+# Build Paracore Desktop App (Tauri + Python sidecar)
+# Usage: ./build-frontend.ps1
+# For live testing without building: cd rap-web && npm run tauri dev
 
-# Define script parameters
-param(
-    [switch]$Release
-)
-
-# Exit on any error
 $ErrorActionPreference = 'Stop'
 
 # --- Configuration ---
 $ProjectRoot = Get-Location
-$ParacoreRoot = Split-Path -Path $ProjectRoot -Parent  # Container: C:\Users\seyou\Paracore
+$ParacoreRoot = Split-Path -Path $ProjectRoot -Parent
 $webDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-web'
-$distDir = "rap-server-dist" # Define distDir at a higher scope
 
 # --- Auto-Sync Version ---
 $VersionFile = Join-Path $ProjectRoot "VERSION"
 if (-not (Test-Path $VersionFile)) {
-    Write-Error "CRITICAL: VERSION file not found at $VersionFile"
+    Write-Error "VERSION file not found at $VersionFile"
     exit 1
 }
 $Version = (Get-Content $VersionFile).Trim()
-$SyncScript = Join-Path -Path (Join-Path -Path $ProjectRoot -ChildPath "scripts") -ChildPath "Set-Version.ps1"
-
+$SyncScript = Join-Path $ProjectRoot "..\Versioning\Set-Version.ps1"
 if (Test-Path $SyncScript) {
     Write-Host "Syncing versions to $Version..." -ForegroundColor Cyan
-    & $SyncScript
+    & $SyncScript $Version
 } else {
     Write-Warning "Set-Version.ps1 not found, skipping auto-sync."
 }
@@ -36,402 +30,185 @@ Write-Host '   Building Paracore Installer   '
 Write-Host '=================================' -ForegroundColor Cyan
 
 # --- Prerequisite Check ---
-Write-Host "`n[0/2] Checking for prerequisites..."
-
-# Check for uv
+Write-Host "`n[0/2] Checking prerequisites..."
 $uvCommand = Get-Command uv -ErrorAction SilentlyContinue
 if (-not $uvCommand) {
-    Write-Host "Error: 'uv' is not installed or not in PATH." -ForegroundColor Red
-    Write-Host "Please install uv from https://docs.astral.sh/uv/getting-started/installation/" -ForegroundColor Red
-    Write-Host "Note: uv will automatically download Python 3.12+ if needed for the build." -ForegroundColor Yellow
+    Write-Host "Error: 'uv' is required. Install from https://docs.astral.sh/uv/" -ForegroundColor Red
     exit 1
 }
-
 Write-Host "Found uv at: $($uvCommand.Source)" -ForegroundColor Green
 
 # --- 1. Build rap-web (Tauri) ---
 Write-Host "`n[1/2] Building rap-web..."
 Push-Location $webDir
 
-# --- Compile Python Server (Conditional Build) ---
-# Use absolute path to avoid issues in finally block
 $tauriConfigPath = Join-Path -Path $webDir -ChildPath 'src-tauri\tauri.conf.json'
 $originalConfig = Get-Content -Path $tauriConfigPath -Raw
 $configObject = $originalConfig | ConvertFrom-Json
 
 try {
     # --- Rebrand to Paracore ---
-    Write-Host "Rebranding application to 'Paracore' for this build..." -ForegroundColor Yellow
+    Write-Host "Rebranding to 'Paracore'..." -ForegroundColor Yellow
     $configObject.package.productName = "Paracore"
     $configObject.tauri.bundle.identifier = "com.paracore.dev"
 
-    # --- Add WiX Cleanup Fragment (Ensures paracore-data removal on uninstall) ---
+    # --- WiX Cleanup Fragment ---
     if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'windows')) {
         Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'windows' -Value @{ wix = @{ fragmentPaths = @() } }
-    }
-    elseif (-not ($configObject.tauri.bundle.windows.PSObject.Properties.Name -contains 'wix')) {
+    } elseif (-not ($configObject.tauri.bundle.windows.PSObject.Properties.Name -contains 'wix')) {
         Add-Member -InputObject $configObject.tauri.bundle.windows -MemberType NoteProperty -Name 'wix' -Value @{ fragmentPaths = @() }
     }
     $configObject.tauri.bundle.windows.wix.fragmentPaths = @("wix/cleanup.wxs")
 
-        if ($Release) {
+    # ── Embedded Python Environment ──
+    Write-Host "Preparing embedded Python environment..." -ForegroundColor Yellow
 
-            # --- RELEASE BUILD: Embeddable Python (Fast & Reliable) ---
+    $serverReleaseDir = Join-Path -Path $webDir -ChildPath 'src-tauri\server-release'
+    if (Test-Path $serverReleaseDir) { Remove-Item -Path $serverReleaseDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $serverReleaseDir | Out-Null
 
-            Write-Host "Preparing optimized Embeddable Python environment for Release..." -ForegroundColor Yellow
+    $assetsDir = Join-Path -Path $webDir -ChildPath 'src-tauri\assets'
+    $embeddableZip = Join-Path -Path $assetsDir -ChildPath 'python-3.12.3-embed-amd64.zip'
+    Write-Host "Unzipping $embeddableZip..."
+    Expand-Archive -Path $embeddableZip -DestinationPath $serverReleaseDir -Force
 
-    
+    # .pth file
+    $pthFile = Join-Path -Path $serverReleaseDir -ChildPath 'python312._pth'
+    Set-Content -Path $pthFile -Value "python312.zip`n.`nLib/site-packages" -Force
 
-            $serverReleaseDir = Join-Path -Path $webDir -ChildPath 'src-tauri\server-release'
+    # Strip dev packages, bundle site-packages, then restore dev packages
+    Write-Host "Stripping dev packages..." -ForegroundColor Cyan
+    $serverProjectDir = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server"
+    Push-Location $serverProjectDir
+    uv sync --no-dev
+    Pop-Location
 
-            if (Test-Path $serverReleaseDir) {
-
-                Remove-Item -Path $serverReleaseDir -Recurse -Force
-
-            }
-
-            New-Item -ItemType Directory -Path $serverReleaseDir | Out-Null
-
-    
-
-            # 1. Unzip the official Python embeddable package
-
-            $assetsDir = Join-Path -Path $webDir -ChildPath 'src-tauri\assets'
-
-            $embeddableZip = Join-Path -Path $assetsDir -ChildPath 'python-3.12.3-embed-amd64.zip'
-
-            Write-Host "Unzipping $embeddableZip..."
-
-            Expand-Archive -Path $embeddableZip -DestinationPath $serverReleaseDir -Force
-
-    
-
-            # 2. Configure .pth file to add bundled site-packages (no import site — keep embedded Python isolated)
-
-            $pthFile = Join-Path -Path $serverReleaseDir -ChildPath 'python312._pth'
-
-            $pthContent = "python312.zip`n.`nLib/site-packages"
-
-            Set-Content -Path $pthFile -Value $pthContent -Force
-
-    
-
-            # 3. Strip dev packages, then copy site-packages
-
-            # We strip build-only tools (pyinstaller, fastmcp, grpcio-tools) so they
-            # don't bloat the installed Paracore desktop app. dev packages are restored after.
-
-            Write-Host "Stripping dev packages for release..." -ForegroundColor Cyan
-            $serverProjectDir = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server"
-            Push-Location $serverProjectDir
-            uv sync --no-dev
-            Pop-Location
-
-            # Patch logfire_api to be resilient: don't blindly trust a stray logfire module.
-            # If logfire is a stale namespace package (empty directory from old install),
-            # logfire_api would replace itself with it and crash. Verify the API exists first.
-            $logfireApiInit = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages\logfire_api\__init__.py"
-            $original = @'
+    # Patch logfire_api resilience
+    $logfireApiInit = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages\logfire_api\__init__.py"
+    if (Test-Path $logfireApiInit) {
+        $original = @'
     logfire_module = importlib.import_module('logfire')
     sys.modules[__name__] = logfire_module
 '@
-            $patched = @'
+        $patched = @'
     logfire_module = importlib.import_module('logfire')
-    # Verify it is the real logfire package, not a stale namespace shell
     if hasattr(logfire_module, 'Logfire') and hasattr(logfire_module, 'LogfireSpan'):
         sys.modules[__name__] = logfire_module
     else:
         raise ImportError('Found logfire module but it lacks the expected API (stale install?)')
 '@
-            (Get-Content -Path $logfireApiInit -Raw).Replace($original, $patched) | Set-Content -Path $logfireApiInit -NoNewline
-            Write-Host "Patched logfire_api to reject incomplete logfire modules." -ForegroundColor Gray
-
-            Write-Host "Bundling runtime dependencies from clean environment..." -ForegroundColor Cyan
-
-            $venvSitePackages = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages"
-
-            $destSitePackages = Join-Path -Path $serverReleaseDir -ChildPath "Lib\site-packages"
-
-            # Purge stale logfire/ directory before copying (survives MSI uninstall from old builds)
-            $staleLogfire = Join-Path -Path $venvSitePackages -ChildPath "logfire"
-            if (Test-Path $staleLogfire) {
-                Remove-Item -Recurse -Force $staleLogfire
-                Write-Host "Removed stale logfire/ directory from venv site-packages." -ForegroundColor Yellow
-            }
-
-            New-Item -ItemType Directory -Path $destSitePackages -Force | Out-Null
-
-                    # Use robocopy for speed and to exclude bloat (pycache, tests, etc.)
-
-                    # We MUST include *.dist-info because many libraries (FastAPI, Pydantic)
-
-                    # use importlib.metadata to check versions at runtime.
-
-                    robocopy $venvSitePackages $destSitePackages /E /XD "__pycache__" "tests" "docs" "examples" /NJH /NJS /NDL /NC /NS /NP | Out-Null
-
-            # Also purge stale logfire/ from destination (belt and suspenders)
-            $destLogfire = Join-Path -Path $destSitePackages -ChildPath "logfire"
-            if (Test-Path $destLogfire) {
-                Remove-Item -Recurse -Force $destLogfire
-                Write-Host "Removed stale logfire/ directory from bundled site-packages." -ForegroundColor Yellow
-            }
-
-            # Restore dev packages so the developer's venv is whole again
-            Write-Host "Restoring dev packages..." -ForegroundColor Gray
-            Push-Location $serverProjectDir
-            uv sync
-            Pop-Location
-
-            
-
-            
-
-    
-
-            # 4. Copy the application scripts
-
-            Write-Host "Copying application source..."
-
-            $serverSourceDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-server'
-
-            Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $serverReleaseDir
-
-            robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache build dist /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
-
-            # Bundle paracore-agent alongside server (agent, mcp_core, grpc_client live there now)
-            $agentSource = Join-Path $ParacoreRoot "paracore-agent"
-            if (Test-Path $agentSource) {
-                robocopy $agentSource (Join-Path $serverReleaseDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
-                Write-Host "Bundled paracore-agent with server release" -ForegroundColor Gray
-            }
-
-    
-
-            # 5. Optionally copy RAP Auth Server public key (only if available — public clones won't have it)
-
-            $jwtKeySource = "$ParacoreRoot\rap-auth-server\server\jwt_public.pem"
-            $releaseAuthDest = Join-Path -Path $serverReleaseDir -ChildPath 'rap-auth-server\server'
-
-            if (Test-Path $jwtKeySource) {
-                New-Item -ItemType Directory -Path $releaseAuthDest -Force | Out-Null
-                Copy-Item -Path $jwtKeySource -Destination $releaseAuthDest -Force
-            } else {
-                Write-Warning "jwt_public.pem not found at $jwtKeySource — app will run in offline-only mode."
-            }     
-
-    
-
-            # Configure Tauri to bundle the server-release directory
-
-            if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {
-
-                Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'resources' -Value $null
-
-            }
-
-            $configObject.tauri.bundle.resources = @("server-release")
-
-            
-
-            Write-Host 'Python server has been bundled for release (Embeddable Mode).' -ForegroundColor Green
-
-        }
-
-    
-    else {
-        # --- DEVELOPMENT BUILD: Embeddable Python (Fast) ---
-        Write-Host "Embeddable Python environment prepared for fast build."
-
-        $assetsDir = Join-Path -Path $webDir -ChildPath 'src-tauri\assets'
-
-        # Create a clean 'server-modules' directory inside 'rap-web' for bundling
-        $bundleDir = Join-Path -Path $webDir -ChildPath 'server-modules'
-        if (Test-Path $bundleDir) {
-            Remove-Item -Path $bundleDir -Recurse -Force
-        }
-        New-Item -ItemType Directory -Path $bundleDir | Out-Null
-
-        # 1. Unzip the official Python embeddable package.
-        $embeddableZip = Join-Path -Path $assetsDir -ChildPath 'python-3.12.3-embed-amd64.zip'
-        Write-Host "Unzipping $embeddableZip to create a portable Python environment..."
-        Expand-Archive -Path $embeddableZip -DestinationPath $bundleDir -Force
-
-        # 2. Add bundled site-packages to the embedded Python's path (no import site — keep it isolated).
-        $pthFile = Join-Path -Path $bundleDir -ChildPath 'python312._pth'
-        $correctPthContent = @"
-python312.zip
-.
-Lib
-Lib/site-packages
-"@
-        Set-Content -Path $pthFile -Value $correctPthContent -Force
-
-        # 3. Install pip from a local script.
-        $pythonExe = Join-Path -Path $bundleDir -ChildPath 'python.exe'
-        $getPipScript = Join-Path -Path $assetsDir -ChildPath 'get-pip.py'
-        if (-not (Test-Path $getPipScript)) {
-            Write-Host "get-pip.py not found locally, downloading..." -ForegroundColor Yellow
-            Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile $getPipScript
-        }
-        & $pythonExe $getPipScript
-
-        # Define pipExe here, after pip is installed by get-pip.py
-        $pipExe = Join-Path -Path $bundleDir -ChildPath 'Scripts\pip.exe'
-
-        Write-Host "Upgrading pip, setuptools, and wheel in embeddable environment..."
-        & $pipExe install --upgrade pip setuptools wheel
-
-        # 4. Install dependencies from local wheels.
-        $wheelsDir = Join-Path -Path $assetsDir -ChildPath 'wheels'
-        $requirementsFile = Join-Path -Path $assetsDir -ChildPath 'requirements.txt'
-
-        Write-Host "Wheels directory: $wheelsDir"
-        Get-ChildItem -Path $wheelsDir
-
-        Write-Host "Running pip install with requirements.txt..."
-        & $pipExe install --verbose --no-warn-script-location --no-index --find-links $wheelsDir -r $requirementsFile
-
-        Write-Host "Contents of site-packages after install:"
-        Get-ChildItem -Path "$bundleDir\Lib\site-packages"
-
-        # 5. Copy the application scripts
-        $serverSourceDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-server'
-        Write-Host "Copying application source from $serverSourceDir to $bundleDir..."
-        Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $bundleDir
-        robocopy (Join-Path $serverSourceDir "server") (Join-Path $bundleDir "server") /E /XD .venv __pycache__ .ruff_cache /XF test_*.py reproduce_*.py debug_*.py render_markdown.py rserver_listener.py checkpoints.sqlite paracore_local.db
-
-        # Bundle paracore-agent alongside server (agent, mcp_core, grpc_client live there now)
-        $agentSource = Join-Path $ParacoreRoot "paracore-agent"
-        if (Test-Path $agentSource) {
-            robocopy $agentSource (Join-Path $bundleDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
-            Write-Host "Bundled paracore-agent with server dev bundle" -ForegroundColor Gray
-        }
-
-        # 6. Copy the RAP Auth Server public key (Crucial for generic "relative path" config)
-        $authServerSource = Join-Path -Path $ParacoreRoot -ChildPath 'rap-auth-server\server'
-        $authServerDest = Join-Path -Path $bundleDir -ChildPath 'rap-auth-server\server'
-        if (-not (Test-Path $authServerDest)) {
-            New-Item -ItemType Directory -Path $authServerDest -Force | Out-Null
-        }
-        $jwtKeyPath = Join-Path -Path $authServerSource -ChildPath 'jwt_public.pem'
-        
-        if (Test-Path $jwtKeyPath) {
-             Write-Host "Copying jwt_public.pem to bundle..."
-             Copy-Item -Path $jwtKeyPath -Destination $authServerDest -Force
-        } else {
-             Write-Warning "jwt_public.pem not found at $jwtKeyPath. The installed app may fail to authenticate tokens."
-        }
-
-        # Configure Tauri to bundle the server-modules directory
-        if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {
-            Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'resources' -Value $null
-        }
-        $configObject.tauri.bundle.resources = @("../server-modules")
-
-        Write-Host 'Embeddable Python environment created for fast build.' -ForegroundColor Green
+        (Get-Content -Path $logfireApiInit -Raw).Replace($original, $patched) | Set-Content -Path $logfireApiInit -NoNewline
     }
 
-    # Write the modified config to disk before building
+    Write-Host "Bundling runtime dependencies..." -ForegroundColor Cyan
+    $venvSitePackages = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages"
+    $destSitePackages = Join-Path -Path $serverReleaseDir -ChildPath "Lib\site-packages"
+
+    # Purge stale logfire
+    $staleLogfire = Join-Path -Path $venvSitePackages -ChildPath "logfire"
+    if (Test-Path $staleLogfire) { Remove-Item -Recurse -Force $staleLogfire }
+
+    New-Item -ItemType Directory -Path $destSitePackages -Force | Out-Null
+    robocopy $venvSitePackages $destSitePackages /E /XD "__pycache__" "tests" "docs" "examples" /NJH /NJS /NDL /NC /NS /NP | Out-Null
+
+    $destLogfire = Join-Path -Path $destSitePackages -ChildPath "logfire"
+    if (Test-Path $destLogfire) { Remove-Item -Recurse -Force $destLogfire }
+
+    # Restore dev packages
+    Write-Host "Restoring dev packages..." -ForegroundColor Gray
+    Push-Location $serverProjectDir
+    uv sync
+    Pop-Location
+
+    # Copy application source
+    Write-Host "Copying application source..."
+    $serverSourceDir = Join-Path -Path $ProjectRoot -ChildPath 'rap-server'
+    Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $serverReleaseDir
+    robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache build dist /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
+
+    # Bundle paracore-agent
+    $agentSource = Join-Path $ParacoreRoot "paracore-agent"
+    if (Test-Path $agentSource) {
+        robocopy $agentSource (Join-Path $serverReleaseDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+        Write-Host "Bundled paracore-agent" -ForegroundColor Gray
+    }
+
+    # Optional: JWT public key for offline auth
+    $jwtKeySource = "$ParacoreRoot\rap-auth-server\server\jwt_public.pem"
+    $releaseAuthDest = Join-Path -Path $serverReleaseDir -ChildPath 'rap-auth-server\server'
+    if (Test-Path $jwtKeySource) {
+        New-Item -ItemType Directory -Path $releaseAuthDest -Force | Out-Null
+        Copy-Item -Path $jwtKeySource -Destination $releaseAuthDest -Force
+    }
+
+    # Configure Tauri resources
+    if (-not ($configObject.tauri.bundle.PSObject.Properties.Name -contains 'resources')) {
+        Add-Member -InputObject $configObject.tauri.bundle -MemberType NoteProperty -Name 'resources' -Value $null
+    }
+    $configObject.tauri.bundle.resources = @("server-release")
+
+    Write-Host 'Python server bundled.' -ForegroundColor Green
+
+    # Write modified config
     $configObject | ConvertTo-Json -Depth 10 | Set-Content -Path $tauriConfigPath
 
-    # --- Clean Previous Bundle (Force Tauri to regenerate MSI) ---
+    # Clean build artifacts that break WiX (colon in filename)
+    $badFiles = Get-ChildItem -Path $serverReleaseDir -Recurse -Filter "*_all_files.txt" -ErrorAction SilentlyContinue
+    $badFiles | ForEach-Object { Remove-Item $_.FullName -Force; Write-Host "Removed: $($_.Name)" -ForegroundColor Gray }
+
+    # Clean stale MSI to force regeneration
     $tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\release\bundle\msi\Paracore_$($Version)_x64_en-US.msi"
     if (Test-Path $tauriMsiSource) {
-        Write-Host "Cleaning stale source MSI to force regeneration..." -ForegroundColor Gray
+        Write-Host "Cleaning stale MSI..." -ForegroundColor Gray
         Remove-Item -Path $tauriMsiSource -Force
     }
 
-    # --- Build the Tauri App (COMMON STEP) ---
-    if ($Release) {
-        Write-Host "Running npx tauri build for RELEASE..." -ForegroundColor Cyan
-        npx tauri build --features "bundle-server"
-    } else {
-        Write-Host "Running npx tauri build with 'bundle-server' feature..."
-        npx tauri build --features "bundle-server" --debug
+    # --- Build Tauri ---
+    Write-Host "Running tauri build..." -ForegroundColor Cyan
+    npx tauri build --features "bundle-server"
+
+    # Tauri sometimes returns exit 1 for WiX warnings even on success
+    if (-not (Test-Path $tauriMsiSource)) {
+        Write-Error "Build failed — MSI not produced at: $tauriMsiSource"
+        exit 1
     }
+    Write-Host "Tauri build finished — MSI produced."
 
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "CRITICAL: Tauri build failed with exit code $LASTEXITCODE. Check the output above for errors."
-        exit $LASTEXITCODE
-    }
-
-    Write-Host "Tauri build finished."
-
-    # --- Cleanup on Success ---
-    Write-Host "Restoring original tauri.conf.json..." -ForegroundColor Gray
+    # --- Cleanup ---
+    Write-Host "Restoring tauri.conf.json..." -ForegroundColor Gray
     Set-Content -Path $tauriConfigPath -Value $originalConfig
 
-    # Remove the server-modules directory after the build for development builds
+    # Remove any server-modules debris
     $bundleDir = Join-Path -Path $webDir -ChildPath 'server-modules'
-    if (Test-Path $bundleDir) {
-        Write-Host "Removing generated server-modules directory..." -ForegroundColor Yellow
-        Remove-Item -Path $bundleDir -Recurse -Force
-    }
-
-    # Remove Nuitka build artifacts for release builds
-    $nuitkaDistDir = Join-Path -Path $ProjectRoot -ChildPath "rap-server\$distDir"
-    if (Test-Path $nuitkaDistDir) {
-        Write-Host "Removing Nuitka build artifacts..." -ForegroundColor Yellow
-        Remove-Item -Path $nuitkaDistDir -Recurse -Force
-    }
+    if (Test-Path $bundleDir) { Remove-Item -Path $bundleDir -Recurse -Force }
 }
 finally {
-    # If the build failed, we leave the config on disk for debugging, 
-    # but we should still pop the location to keep the shell state clean.
-    Pop-Location 
+    Pop-Location
 }
 
 Write-Host 'rap-web build complete.' -ForegroundColor Green
 
-# --- Code Signing (Placeholder) ---
-# For a production build, you must sign the executables to avoid antivirus issues.
-# You will need a code signing certificate.
-Write-Host "`n[INFO] Skipping code signing." # In a production build, these lines should be uncommented and configured.
-# $certPath = "path\to\your\certificate.pfx"
-# $certPassword = "your_password"
-
-# $webExe = Join-Path -Path $ProjectRoot -ChildPath 'rap-web\src-tauri\target\release\Paracore.exe'
-
-# & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /f $certPath /p $certPassword /t http://timestamp.digicert.com $webExe
-
-# --- Define Output Directory based on Build Mode ---
+# --- 2. Copy MSI to installers ---
+Write-Host "`n[2/2] Copying installer..."
 $finalInstallDir = Join-Path -Path $ProjectRoot -ChildPath 'installers'
+if (-not (Test-Path $finalInstallDir)) { New-Item -ItemType Directory -Path $finalInstallDir | Out-Null }
 
-# Ensure the final destination directory exists
-if (-not (Test-Path $finalInstallDir)) {
-    New-Item -ItemType Directory -Path $finalInstallDir | Out-Null
-}
-Write-Host "Installer output will be placed in: $finalInstallDir" -ForegroundColor Yellow
-
-# --- 2. Copy Tauri MSI to installers folder ---
-Write-Host "`n[2/2] Copying Tauri MSI to installers folder..."
-
-$buildMode = if ($Release) { 'release' } else { 'debug' }
-$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\$buildMode\bundle\msi\Paracore_$($Version)_x64_en-US.msi"
-
+$tauriMsiSource = Join-Path -Path $ProjectRoot -ChildPath "rap-web\src-tauri\target\release\bundle\msi\Paracore_$($Version)_x64_en-US.msi"
 $tauriMsiDestination = Join-Path -Path $finalInstallDir -ChildPath "Paracore_$($Version)_x64.msi"
 
-# 🗑️ Clean up existing file if it exists (helps prevent locking issues and duplicates)
 if (Test-Path $tauriMsiDestination) {
-    try {
-        Remove-Item -Path $tauriMsiDestination -Force -ErrorAction Stop
-        Write-Host "Removed previous version of the installer." -ForegroundColor Gray
-    } catch {
-        Write-Warning "Failed to remove $tauriMsiDestination. It might be locked. Please close any installers or file explorers and try again."
+    try { Remove-Item -Path $tauriMsiDestination -Force } catch {
+        Write-Warning "Could not remove old installer — it may be locked."
     }
 }
-
-# Also clean up the 'en-US' suffixed version if it's there (prevents duplicates)
 $extraMsi = Join-Path -Path $finalInstallDir -ChildPath "Paracore_$($Version)_x64_en-US.msi"
-if (Test-Path $extraMsi) {
-    Remove-Item -Path $extraMsi -Force -ErrorAction SilentlyContinue
-}
+if (Test-Path $extraMsi) { Remove-Item -Path $extraMsi -Force -ErrorAction SilentlyContinue }
 
 try {
     Copy-Item -Path $tauriMsiSource -Destination $tauriMsiDestination -Force -ErrorAction Stop
-    Write-Host "Paracore MSI Installer created at: $tauriMsiDestination" -ForegroundColor Yellow
+    Write-Host "Installer: $tauriMsiDestination" -ForegroundColor Yellow
 } catch {
-    Write-Error "CRITICAL: Could not copy the installer to the 'installers' folder. The file is locked.`nSource: $tauriMsiSource`nDestination: $tauriMsiDestination`n`n💡 Recovery Tip: You don't need to rebuild! You can manually copy the file from the Source path above."
+    Write-Error "Could not copy installer. Source: $tauriMsiSource"
 }
 
 Write-Host "`n=================================" -ForegroundColor Cyan

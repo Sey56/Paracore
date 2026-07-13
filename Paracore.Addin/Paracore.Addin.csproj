@@ -136,7 +136,7 @@
       <SidecarFiles Include="$(SidecarPublishTemp)\**\*.*" />
     </ItemGroup>
 
-    <Copy SourceFiles="@(SidecarFiles)" DestinationFolder="$(SidecarOutputDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SidecarFiles)" DestinationFolder="$(SidecarOutputDir)" />
     
     <Message Text="[Paracore] Sidecar bundled successfully to: $(SidecarOutputDir)" Importance="high" />
   </Target>

@@ -23,7 +23,6 @@ import { NewPresetNameModal } from './NewPresetNameModal';
 import { ConfirmActionModal } from './ConfirmActionModal';
 import { InfoModal } from './InfoModal';
 import { useAuth } from '@/features/auth';
-import { Role } from '@/features/auth';
 
 interface ParametersTabProps {
   script: Script;
@@ -54,7 +53,6 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
   }, []);
 
   const [activeTab, setActiveTab] = useState(0);
-  const { activeRole } = useAuth();
   const {
     runScript,
     runningScriptPath,
@@ -350,7 +348,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
                 </button>
               </div>
 
-              {activeRole !== Role.User && !isProtectedTool && (
+              {!isProtectedTool && (
                 <button
                   title="View Source Code"
                   className="w-12 h-12 rounded-xl text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center shadow-sm group tooltip-left"

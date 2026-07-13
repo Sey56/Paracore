@@ -67,7 +67,7 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
           <div className="flex items-center space-x-2">
             <div className="w-1 h-4 bg-blue-600 dark:bg-blue-500 rounded-full" />
             <h1 className="text-sm font-black text-slate-700 dark:text-slate-200 tracking-tight uppercase">
-              {activeScriptSource?.type === 'team' ? 'Team Scripts' : (activeScriptSource?.type === 'local' ? 'Local Scripts' : 'All Scripts')}
+              {activeScriptSource?.type === 'local' ? 'Local Scripts' : 'All Scripts'}
             </h1>
           </div>
 

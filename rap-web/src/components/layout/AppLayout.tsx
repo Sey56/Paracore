@@ -14,13 +14,10 @@ import { useScripts } from "@/features/automation";
 import { listen } from '@tauri-apps/api/event';
 import api from '@/api/axios';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
-import { GitStatusPanel } from "@/features/team-sources/components/GitStatusPanel";
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from "@/features/auth";
-import { Role } from '@/features/auth';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import SettingsModal from '@/features/settings/components/SettingsModal';
-import TeamManagementModal from '@/features/settings/components/TeamManagementModal';
 import { AgentView } from "@/features/agent/components/AgentView";
 import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
 import { OutputPanel } from "@/components/layout/OutputPanel/OutputPanel";
@@ -28,7 +25,7 @@ import { ReplModeContent } from "@/features/automation/components/ScriptInspecto
 import { WelcomeGate } from "@/features/auth/components/WelcomeGate";
 
 export const AppLayout: React.FC = () => {
-  const { isAuthenticated, isEnterprise, user, activeRole, login, loginLocal } = useAuth();
+  const { isAuthenticated, isEnterprise, user, login, loginLocal } = useAuth();
   const { selectedScript, setSelectedScript, runScript, userEditedScriptParameters } = useScriptExecution();
   const { isArmingWatchdogs, watchdogs } = useWatchdog();
   const [gateVisible, setGateVisible] = useState(true);
@@ -177,7 +174,6 @@ export const AppLayout: React.FC = () => {
       )}
 
       <SettingsModal />
-      <TeamManagementModal />
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
       {isEnterprise && showSentinelFAB && <FloatingActionButton />}
 
@@ -258,7 +254,6 @@ export const AppLayout: React.FC = () => {
                     <OutputPanel />
                   </div>
                 </div>
-                {activeScriptSource?.type === 'team' && activeRole !== Role.User && <GitStatusPanel />}
               </div>
               {isMobile && selectedScript && (
                 <div className={`fixed bottom-0 left-0 right-0 semantic-bg-panel border-t border-slate-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ height: '70vh' }}>

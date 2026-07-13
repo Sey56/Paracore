@@ -1,6 +1,5 @@
 import { createContext } from 'react';
 import { Script } from '@/types/scriptModel';
-import { TeamScriptSource } from '@/types';
 import { ActiveScriptSource } from '@/context/providers/UIContext';
 
 export interface ScriptContextProps {
@@ -48,24 +47,10 @@ export interface ScriptContextProps {
   removeCustomScriptFolder: (folderPath: string) => void;
   clearAllCustomScriptFolders: () => Promise<void>;
 
-  // Team & Remote
-  remoteScriptSources: Record<number, TeamScriptSource[]>;
-  fetchRemoteScriptSources: () => Promise<void>;
-  addRemoteScriptSource: (teamId: number, source: TeamScriptSource) => Promise<void>;
-  removeRemoteScriptSource: (teamId: number, sourceId: number) => Promise<void>;
-  updateRemoteScriptSource: (teamId: number, sourceId: number, name: string | undefined, repoUrl: string | undefined) => Promise<void>;
-  pullAllTeamSources: () => Promise<void>;
-  pullTeamSource: (sourcePath: string) => Promise<void>;
-  clearScriptsForSource: (sourcePath: string) => void;
-
   // Agent / Library
   toolLibraryPath: string | null;
   setToolLibraryPath: (path: string | null) => void;
 
-  // User paths mapping
-  userSourcePaths: Record<number, { path: string; name: string }>;
-  setUserSourcePath: (sourceId: number, path: string, name: string) => void;
-  removeSourcePath: (sourceId: string) => Promise<void>;
   canUseLocalFolders: boolean;
   selectedFolder: string | null;
 }

@@ -34,7 +34,7 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   const { toggleFavoriteScript, editScript, deleteScript: deleteScriptApi, reloadScript } = useScripts();
   const { toggleFloatingCodeViewer } = useUI();
   const { ParacoreConnected } = useRevitStatus();
-  const { isAuthenticated, activeRole } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -45,7 +45,7 @@ export const GalleryActionBar: React.FC<GalleryActionBarProps> = ({
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   const isRunning = runningScriptPath === script.absolutePath;
-  const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
+  const canCreateScripts = isAuthenticated;
   const isProtectedTool = script.metadata?.isProtected || script.metadata?.isCompiled;
   const isGuard = script.metadata?.isWatchdog || script.metadata?.is_watchdog || (script.name ?? '').endsWith('.wtool');
 

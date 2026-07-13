@@ -2,21 +2,6 @@ export * from './common';
 export * from './scriptModel';
 export * from './playlistModel';
 
-export interface TeamScriptSource {
-  id: number;
-  name: string;
-  repo_url: string;
-  localId?: number;
-  isOrphaned?: boolean;
-  path?: string;
-}
-
-export interface Membership {
-  team_id: number;
-  team_name: string;
-  role: string;
-}
-
 export interface Notification {
   id: string;
   message: string;

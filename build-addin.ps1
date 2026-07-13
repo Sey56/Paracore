@@ -87,8 +87,8 @@ if (Test-Path $publishDir) {
 dotnet publish Paracore.Addin.csproj -c Release
 
 # Dynamically resolve the actual publish directory
-$resolvedPublishDir = Get-ChildItem -Path "$addinDir\bin\Release" -Recurse -Filter "Paracore.Addin.dll" | 
-                      Where-Object { $_.FullName -match 'publish' } | 
+$resolvedPublishDir = Get-ChildItem -Path "$addinDir\bin\Release\net8.0-windows" -Recurse -Filter "Paracore.Addin.dll" |
+                      Where-Object { $_.FullName -match 'publish' } |
                       Select-Object -First 1 -ExpandProperty DirectoryName
 
 if (-not $resolvedPublishDir -or -not (Test-Path (Join-Path $resolvedPublishDir "Paracore.Addin.addin"))) {
@@ -104,7 +104,7 @@ Write-Host "Resolved Publish Directory: $resolvedPublishDir" -ForegroundColor Cy
 Write-Host "`nBuilding Paracore.Shim (Isolation Layer)..." -ForegroundColor Cyan
 $shimDir = Join-Path -Path $ProjectRoot -ChildPath 'Paracore.Shim'
 dotnet build $shimDir -c Release
-$shimDll = Get-ChildItem -Path "$shimDir\bin\Release" -Recurse -Filter "Paracore.Shim.dll" |
+$shimDll = Get-ChildItem -Path "$shimDir\bin\Release\net8.0-windows" -Recurse -Filter "Paracore.Shim.dll" |
            Select-Object -First 1
 if ($shimDll) {
     Copy-Item -Path $shimDll.FullName -Destination $resolvedPublishDir -Force
@@ -115,53 +115,7 @@ if ($shimDll) {
     exit 1
 }
 
-# --- Targeted Dependency Bundle (Official Sweep) ---
-# We find and bundle ONLY the missing Middleware DLLs (Extensions, Grpc, AspNetCore)
-# This keeps the add-in small (15-20MB) but makes it self-sufficient for gRPC.
-# CRITICAL: We MUST target v8.x packages to match our net8.0 target framework.
-# The previous logic grabbed "latest version" which could be v9.x if the dev has .NET 9 SDK.
-Write-Host "`nPerforming Targeted Dependency Bundle (v8.x Strict Sweep)..." -ForegroundColor Cyan
-$nugetStore = Join-Path $env:USERPROFILE ".nuget\packages"
-$prefixes = @("microsoft.extensions.", "grpc.", "google.protobuf", "microsoft.aspnetcore.")
-
-foreach ($prefix in $prefixes) {
-    Get-ChildItem -Path $nugetStore -Filter "$prefix*" -Directory | ForEach-Object {
-        $pkgName = $_.Name
-        # STRICT: Prefer v8.x versions to match our net8.0 target framework.
-        # This prevents v9.x preview/SDK DLLs from contaminating the bundle.
-        $versionDir = Get-ChildItem -Path $_.FullName -Directory |
-                      Where-Object { $_.Name -match '^8\.' } |
-                      Sort-Object Name -Descending |
-                      Select-Object -First 1
-
-        # Fallback: If no 8.x version exists (e.g. grpc.core), take the latest available
-        if (-not $versionDir) {
-            $versionDir = Get-ChildItem -Path $_.FullName -Directory |
-                          Sort-Object Name -Descending |
-                          Select-Object -First 1
-        }
-        
-        if ($versionDir) {
-            $expectedDll = "$pkgName.dll"
-            # Find the implementation DLL (not the reference one)
-            # Strictly prefer net8.0, then fall back to netstandard2.1/2.0
-            $dllFile = Get-ChildItem -Path $versionDir.FullName -Recurse -Filter $expectedDll | 
-                      Where-Object { $_.FullName -match "lib" -and $_.FullName -match "net" } | 
-                      Sort-Object { 
-                          if ($_.FullName -match "net8\.0") { 0 }
-                          elseif ($_.FullName -match "netstandard2\.1") { 1 }
-                          elseif ($_.FullName -match "netstandard2\.0") { 2 }
-                          else { 3 }
-                      } |
-                      Select-Object -First 1
-            
-            if ($dllFile -and -not (Test-Path (Join-Path $resolvedPublishDir $expectedDll))) {
-                Copy-Item -Path $dllFile.FullName -Destination $resolvedPublishDir -Force
-                Write-Host "  [+] Force-Bundled: $expectedDll (from $($versionDir.Name))" -ForegroundColor Gray
-            }
-        }
-    }
-}
+# Dependency bundling removed — framework packages are provided by the .NET runtime.
 
 Pop-Location
 Write-Host 'Paracore.Addin publish complete (Isolated Bundle).' -ForegroundColor Green

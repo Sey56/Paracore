@@ -100,7 +100,6 @@ api.interceptors.response.use(
           localStorage.removeItem('rap_cloud_token');
           localStorage.removeItem('rap_local_token');
           localStorage.removeItem('rap_user');
-          localStorage.removeItem('rap_active_team');
           window.dispatchEvent(new Event('paracore-auth-expired'));
           _clearPendingRequests(false);
         }

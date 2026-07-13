@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 import sys
@@ -50,7 +49,6 @@ from api import (
     script_management_router,
     status_router,
     user_settings_router,
-    team_source_router,
     tool_builder_router,
     query_router,
 )
@@ -78,20 +76,7 @@ async def lifespan(app: FastAPI):
     # Initialize singleton gRPC channel
     init_channel()
 
-# Start Phase 3: Git Sync Background Task
-    from sync.git_sync_service import start_git_sync_loop
-    app.state.git_sync_task = asyncio.create_task(start_git_sync_loop())
-
     yield
-
-    # Shutdown events
-    if hasattr(app.state, "git_sync_task"):
-        logger.info("Stopping Git Sync Background Service...")
-        app.state.git_sync_task.cancel()
-        try:
-            await app.state.git_sync_task
-        except asyncio.CancelledError:
-            pass
 
     close_channel()
 
@@ -121,7 +106,6 @@ app.include_router(script_management_router.router)
 app.include_router(presets_router.router)
 app.include_router(runs_router.router)
 app.include_router(status_router.router)
-app.include_router(team_source_router.router)
 app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
 app.include_router(agent_router.router)

@@ -23,7 +23,7 @@ export const useScriptCard = (script: Script, onSelect: () => void, isSelected: 
   const { toggleFavoriteScript, deleteScript, isSyncActive, reloadScript } = useScripts();
   const { setActiveInspectorTab } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
-  const { isAuthenticated, activeRole, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { watchdogs } = useWatchdog();
 
   const [showMenu, setShowMenu] = useState(false);
@@ -200,7 +200,6 @@ export const useScriptCard = (script: Script, onSelect: () => void, isSelected: 
     setActiveInspectorTab,
     toggleFloatingCodeViewer,
     isAuthenticated,
-    activeRole,
     ParacoreConnected,
     reloadScript
   };

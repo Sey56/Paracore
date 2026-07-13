@@ -17,7 +17,7 @@ export const TopBar: React.FC = () => {
   const { toggleSidebar, openSettingsModal, activeMainView, setActiveMainView, isLayoutSwapped, toggleLayoutSwap, openWelcomeGate, automationSubMode, setAutomationSubMode } = useUI();
   const { ParacoreConnected, revitStatus } = useRevitStatus();
   const { theme, toggleTheme } = useTheme();
-  const { isAuthenticated, user, login, loginLocal, logout, activeTeam } = useAuth();
+  const { isAuthenticated, user, login, loginLocal, logout } = useAuth();
   const { loadScriptsForFolder, toolLibraryPath } = useScripts();
   const { showNotification } = useNotifications();
 

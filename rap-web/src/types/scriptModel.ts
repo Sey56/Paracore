@@ -139,7 +139,7 @@ export interface Script {
   metadata: ScriptMetadata;
   isFavorite?: boolean;
   metadataError?: boolean;
-  sourceType?: 'local' | 'team';
+  sourceType?: 'local';
   queryData?: unknown;
   hasDoc?: boolean;
 }

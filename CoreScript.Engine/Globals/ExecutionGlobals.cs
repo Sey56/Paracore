@@ -610,30 +610,39 @@ namespace CoreScript.Engine.Globals
 
         public static IEnumerable<T> Table<T>(this IEnumerable<T> data)
         {
-            // Raw elements → compact view (Id, Name, Level, Type).
+            // Raw elements → compact view with columns adapted to element kind.
             // Already-processed data (GroupByParam, Select, etc.) → render as-is.
             if (data is IEnumerable<Element> elements)
             {
-                var compact = elements.Take(200).Select(e =>
-                {
-                    var level = "";
-                    try
-                    {
-                        if (e.LevelId != null && e.LevelId != ElementId.InvalidElementId)
-                            level = e.Document.GetElement(e.LevelId)?.Name ?? "";
-                    }
-                    catch { }
-                    if (string.IsNullOrEmpty(level))
-                        level = e.GetStr("Level");
+                var list = elements.ToList();
+                if (list.Count == 0) return data;
 
-                    return (object)new
+                // Types / Symbols: FamilySymbol, WallType, FloorType, etc.
+                // Instances:       FamilyInstance, Wall, Floor, etc.
+                var isType = list[0] is ElementType;
+                object compact;
+
+                if (isType)
+                {
+                    compact = list.Select(e => (object)new
                     {
                         Id = e.Id.Value,
-                        Name = e.GetStr("Name"),
-                        Level = level,
-                        Type = e.GetStr("Family and Type")
-                    };
-                });
+                        Family = e.GetStr("Family Name"),
+                        Type = e.GetStr("Type Name"),
+                        Category = e.Category?.Name ?? ""
+                    });
+                }
+                else
+                {
+                    compact = list.Select(e => (object)new
+                    {
+                        Id = e.Id.Value,
+                        Family = e.GetStr("Family"),
+                        Type = e.GetStr("Type"),
+                        Category = e.Category?.Name ?? ""
+                    });
+                }
+
                 ExecutionGlobals.Current.Value?.Table(compact);
             }
             else

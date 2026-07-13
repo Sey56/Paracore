@@ -239,6 +239,81 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// Filters elements where ANY of the named parameters matches the value.
+        /// Useful when the same concept has different parameter names across categories
+        /// (e.g. "Level", "Base Constraint", "Reference Level", "Base Level").
+        /// <para>Example: GetElements&lt;FamilyInstance&gt;().WhereAnyParam(
+        ///     new[] {"Level", "Base Constraint", "Reference Level"}, "Level 1")</para>
+        /// </summary>
+        public static IEnumerable<T> WhereAnyParam<T>(this IEnumerable<T> elements, string[] names, string value)
+            where T : Element
+        {
+            var list = elements.Where(e =>
+                names.Any(n => e.GetStr(n).Equals(value, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
+        }
+
+        /// <summary>
+        /// Filters elements where ANY of the named parameters matches the value using an operator.
+        /// <para>Example: GetElements&lt;FamilyInstance&gt;().WhereAnyParam(
+        ///     new[] {"Level", "Base Constraint"}, "starts", "02")</para>
+        /// </summary>
+        public static IEnumerable<T> WhereAnyParam<T>(this IEnumerable<T> elements, string[] names, string op, string value)
+            where T : Element
+        {
+            var list = elements.Where(e =>
+                names.Any(n =>
+                {
+                    var val = e.GetStr(n);
+                    return op.ToLower() switch
+                    {
+                        "contains" => val.Contains(value, StringComparison.OrdinalIgnoreCase),
+                        "starts" or "startswith" => val.StartsWith(value, StringComparison.OrdinalIgnoreCase),
+                        "ends" or "endswith" => val.EndsWith(value, StringComparison.OrdinalIgnoreCase),
+                        "!=" or "not" or "notequal" => !val.Equals(value, StringComparison.OrdinalIgnoreCase),
+                        "notcontains" => !val.Contains(value, StringComparison.OrdinalIgnoreCase),
+                        "notstarts" => !val.StartsWith(value, StringComparison.OrdinalIgnoreCase),
+                        "notends" => !val.EndsWith(value, StringComparison.OrdinalIgnoreCase),
+                        _ => val.Equals(value, StringComparison.OrdinalIgnoreCase),
+                    };
+                })
+            ).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
+        }
+
+        /// <summary>
+        /// Filters elements by a TYPE parameter value.
+        /// Usage: GetElements("Walls").WhereTypeParam("Fire Rating", "starts", "2")
+        /// </summary>
+        public static IEnumerable<T> WhereTypeParam<T>(this IEnumerable<T> elements, string paramName, string op, string value)
+            where T : Element
+        {
+            var doc = elements.FirstOrDefault()?.Document;
+            if (doc == null) return elements;
+
+            var list = elements.Where(el =>
+            {
+                var typeId = el.GetTypeId();
+                if (typeId == ElementId.InvalidElementId) return false;
+                var type = doc.GetElement(typeId);
+                if (type == null) return false;
+                var val = type.GetStr(paramName);
+                return op.ToLower() switch
+                {
+                    "contains" => val.Contains(value, StringComparison.OrdinalIgnoreCase),
+                    "starts" => val.StartsWith(value, StringComparison.OrdinalIgnoreCase),
+                    "ends" => val.EndsWith(value, StringComparison.OrdinalIgnoreCase),
+                    _ => val.Equals(value, StringComparison.OrdinalIgnoreCase),
+                };
+            }).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
+        }
+
+        /// <summary>
         /// Filters to elements whose Type Name OR Family Name contains the substring.
         /// </summary>
         public static IEnumerable<T> WhereMatches<T>(this IEnumerable<T> elements, string pattern)

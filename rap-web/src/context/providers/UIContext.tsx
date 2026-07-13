@@ -8,7 +8,6 @@ export type AutomationSubMode = 'gallery' | 'repl';
 
 export type ActiveScriptSource =
   | { type: 'local'; path: string }
-  | { type: 'team'; id: string; path: string }
   | { type: 'published'; id: string }
   | null;
 
@@ -44,10 +43,6 @@ export interface UIContextProps {
   openSettingsModal: () => void;
   closeSettingsModal: () => void;
 
-  isTeamManagementModalOpen: boolean;
-  openTeamManagementModal: () => void;
-  closeTeamManagementModal: () => void;
-
   isNewScriptModalOpen: boolean;
   openNewScriptModal: () => void;
   closeNewScriptModal: () => void;
@@ -62,7 +57,7 @@ export interface UIContextProps {
   closeFloatingCodeViewer: () => void;
   toggleFloatingCodeViewer: () => void;
 
-  // Active Script Source (either a local folder or a team source)
+  // Active Script Source (local folder or published)
   activeScriptSource: ActiveScriptSource;
   setActiveScriptSource: (source: ActiveScriptSource) => void;
 

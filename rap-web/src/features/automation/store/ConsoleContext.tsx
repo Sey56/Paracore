@@ -48,6 +48,13 @@ interface ConsoleContextType {
   handleNewSnippet: () => void;
   handleLoadSnippet: () => Promise<void>;
   handleSaveSnippet: (forceSaveAs?: boolean) => Promise<boolean>;
+
+  // Recent & Pinned Files
+  recentFiles: Array<{ path: string; name: string; lastOpened: number }>;
+  pinnedFiles: Array<{ path: string; name: string }>;
+  togglePinFile: (path: string, name: string) => void;
+  removeRecentFile: (path: string) => void;
+  loadRecentFile: (path: string) => Promise<void>;
 }
 
 const ConsoleContext = createContext<ConsoleContextType | undefined>(undefined);
@@ -269,50 +276,12 @@ export const ConsoleProvider: React.FC<{
     }
   };
 
-  const handleSaveSnippet = async (forceSaveAs: boolean = false): Promise<boolean> => {
-    if (!multiLineValue.trim()) return false;
-    try {
-      let targetPath = activeSnippetPath;
-      if (forceSaveAs || !targetPath) {
-        targetPath = await save({
-          filters: [{ name: 'C# Script', extensions: ['cs'] }],
-          defaultPath: activeSnippetName ? `${activeSnippetName}.cs` : 'MyReplSnippet.cs'
-        });
-      }
-      if (targetPath) {
-        setActiveSnippetPath(targetPath);
-        setLastSavedValue(multiLineValue);
-        const filename = targetPath.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
-        setActiveSnippetName(filename);
-        await writeTextFile(targetPath, multiLineValue);
-        showNotification(forceSaveAs ? "Saved As" : "Saved", "success");
-        return true;
-      }
-      return false;
-    } catch (err: any) { showNotification(err.message, "error"); return false; }
-  };
-
   const handleNewSnippet = () => {
     setMultiLineValue("");
     setLastSavedValue("");
     setActiveSnippetPath(null);
     setActiveSnippetName(null);
     showNotification("New snippet created", "info");
-  };
-
-  const handleLoadSnippet = async () => {
-    try {
-      const sel = await open({ multiple: false, filters: [{ name: 'C# Script', extensions: ['cs'] }] });
-      if (sel && typeof sel === 'string') {
-        const content = await readTextFile(sel);
-        setMultiLineValue(content);
-        setLastSavedValue(content);
-        setActiveSnippetPath(sel);
-        const filename = sel.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
-        setActiveSnippetName(filename);
-        showNotification("Loaded", "success");
-      }
-    } catch (err: any) { showNotification(err.message, "error"); }
   };
 
   // Process execution results into history
@@ -347,7 +316,92 @@ export const ConsoleProvider: React.FC<{
     }
   }, [executionResult]);
 
+  // Recent & Pinned Files
+  const [recentFiles, setRecentFiles] = useState<Array<{ path: string; name: string; lastOpened: number }>>(() => {
+    try { return JSON.parse(localStorage.getItem('paracore_repl_recent_files') || '[]'); } catch { return []; }
+  });
+  const [pinnedFiles, setPinnedFiles] = useState<Array<{ path: string; name: string }>>(() => {
+    try { return JSON.parse(localStorage.getItem('paracore_repl_pinned_files') || '[]'); } catch { return []; }
+  });
+
+  useEffect(() => { localStorage.setItem('paracore_repl_recent_files', JSON.stringify(recentFiles)); }, [recentFiles]);
+  useEffect(() => { localStorage.setItem('paracore_repl_pinned_files', JSON.stringify(pinnedFiles)); }, [pinnedFiles]);
+
+  const addToRecent = useCallback((path: string, name: string) => {
+    setRecentFiles(prev => {
+      const filtered = prev.filter(f => f.path !== path);
+      return [{ path, name, lastOpened: Date.now() }, ...filtered].slice(0, 20);
+    });
+  }, []);
+
+  const togglePinFile = useCallback((path: string, name: string) => {
+    setPinnedFiles(prev => {
+      const isPinned = prev.some(f => f.path === path);
+      if (isPinned) return prev.filter(f => f.path !== path);
+      return [...prev, { path, name }];
+    });
+  }, []);
+
+  const removeRecentFile = useCallback((path: string) => {
+    setRecentFiles(prev => prev.filter(f => f.path !== path));
+    setPinnedFiles(prev => prev.filter(f => f.path !== path));
+  }, []);
+
+  const loadRecentFile = useCallback(async (path: string) => {
+    try {
+      const content = await readTextFile(path);
+      setMultiLineValue(content);
+      setLastSavedValue(content);
+      setActiveSnippetPath(path);
+      const filename = path.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
+      setActiveSnippetName(filename);
+      addToRecent(path, filename);
+      showNotification(`Loaded: ${filename}`, "success");
+    } catch (err: any) { showNotification(err.message, "error"); }
+  }, [addToRecent, showNotification]);
+
   const isDirty = multiLineValue !== lastSavedValue;
+
+  // Override handleLoadSnippet and handleSaveSnippet to track recent files
+  const handleLoadSnippetWithTracking = useCallback(async () => {
+    try {
+      const sel = await open({ multiple: false, filters: [{ name: 'C# Script', extensions: ['cs'] }] });
+      if (sel && typeof sel === 'string') {
+        const content = await readTextFile(sel);
+        setMultiLineValue(content);
+        setLastSavedValue(content);
+        setActiveSnippetPath(sel);
+        const filename = sel.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
+        setActiveSnippetName(filename);
+        addToRecent(sel, filename);
+        showNotification("Loaded", "success");
+      }
+    } catch (err: any) { showNotification(err.message, "error"); }
+  }, [addToRecent, showNotification]);
+
+  const handleSaveSnippetWithTracking = useCallback(async (forceSaveAs: boolean = false): Promise<boolean> => {
+    if (!multiLineValue.trim()) return false;
+    try {
+      let targetPath = activeSnippetPath;
+      if (forceSaveAs || !targetPath) {
+        targetPath = await save({
+          filters: [{ name: 'C# Script', extensions: ['cs'] }],
+          defaultPath: activeSnippetName ? `${activeSnippetName}.cs` : 'MyReplSnippet.cs'
+        });
+      }
+      if (targetPath) {
+        setActiveSnippetPath(targetPath);
+        setLastSavedValue(multiLineValue);
+        const filename = targetPath.split(/[\\/]/).pop()?.replace('.cs', '') || "Snippet";
+        setActiveSnippetName(filename);
+        await writeTextFile(targetPath, multiLineValue);
+        addToRecent(targetPath, filename);
+        showNotification(forceSaveAs ? "Saved As" : "Saved", "success");
+        return true;
+      }
+      return false;
+    } catch (err: any) { showNotification(err.message, "error"); return false; }
+  }, [multiLineValue, activeSnippetPath, activeSnippetName, addToRecent, showNotification]);
 
   return (
     <ConsoleContext.Provider value={{
@@ -360,7 +414,8 @@ export const ConsoleProvider: React.FC<{
       activeSnippetPath, setActiveSnippetPath,
       activeSnippetName, setActiveSnippetName,
       isDirty,
-      handleNewSnippet, handleLoadSnippet, handleSaveSnippet
+      handleNewSnippet, handleLoadSnippet: handleLoadSnippetWithTracking, handleSaveSnippet: handleSaveSnippetWithTracking,
+      recentFiles, pinnedFiles, togglePinFile, removeRecentFile, loadRecentFile
     }}>
       {children}
     </ConsoleContext.Provider>

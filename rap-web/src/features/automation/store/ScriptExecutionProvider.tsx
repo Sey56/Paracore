@@ -43,7 +43,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     activeSyncSessions,
     editScript: editScriptFromContext
   } = useScripts();
-  const { isAuthenticated, activeTeam, user, cloudToken, isEnterprise } = useAuth();
+  const { isAuthenticated, user, isEnterprise, cloudToken } = useAuth();
   const { activeScriptSource, setAgentSelectedScriptPath, setActiveInspectorTab, threadId } = useUI();
   const { revitStatus } = useRevitStatus();
 

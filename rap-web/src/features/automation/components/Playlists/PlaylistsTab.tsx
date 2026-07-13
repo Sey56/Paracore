@@ -22,7 +22,7 @@ export const PlaylistsTab: React.FC = () => {
 
     useEffect(() => {
         if (activeScriptSource) {
-            if (activeScriptSource.type === 'local' || activeScriptSource.type === 'team') {
+            if (activeScriptSource.type === 'local') {
                 loadPlaylists(activeScriptSource.path);
             }
         }

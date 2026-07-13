@@ -41,7 +41,7 @@ export const ScriptGallery: React.FC = () => {
     setActiveInspectorTab
   } = useUI();
   const { setSelectedScript, selectedScript } = useScriptExecution();
-  const { isAuthenticated, activeRole } = useAuth();
+  const { isAuthenticated } = useAuth();
   const isMobile = useBreakpoint();
   
   const [configuredScript, setConfiguredScript] = useState<Script | null>(null);
@@ -186,7 +186,7 @@ export const ScriptGallery: React.FC = () => {
     }
   }, [isFocusMode]);
 
-  const canCreateScripts = activeRole === 'admin' || activeRole === 'developer';
+  const canCreateScripts = isAuthenticated;
 
   const isFromActiveSource = useCallback((script: Script) => {
     if (!script || !script.absolutePath) return false;

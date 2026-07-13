@@ -54,35 +54,6 @@ class ScriptResponse(ScriptBase):
     class Config:
         from_attributes = True
 
-# TeamSource schemas (for locally cloned repos)
-class TeamSourceBase(BaseModel):
-    name: str
-    path: str
-
-class TeamSourceCreate(TeamSourceBase):
-    pass
-
-class TeamSourceResponse(TeamSourceBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-# Registered TeamSource schemas
-class RegisteredTeamSourceBase(BaseModel):
-    team_id: int
-    name: str
-    repo_url: str
-
-class RegisteredTeamSourceCreate(RegisteredTeamSourceBase):
-    pass
-
-class RegisteredTeamSourceResponse(RegisteredTeamSourceBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
 # User Settings schemas
 class UserSettingBase(BaseModel):
     setting_key: str

@@ -79,7 +79,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                 icon: faBolt,
                 color: "text-amber-500 bg-amber-500/10 border-amber-500/20",
                 title: "Dynamic Automation Engine",
-                desc: "Run optimized script projects, pull verified templates from your team registry, and sync code in real-time."
+                desc: "Run optimized script projects, pull verified templates from your local folders, and sync code in real-time."
               },
               {
                 icon: faTerminal,
@@ -201,7 +201,7 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                 <div className="space-y-3 pt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-normal">
                   <div className="flex gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60 mt-1 shrink-0" />
-                    <p><span className="font-bold text-slate-500 dark:text-slate-400">Enterprise Cloud:</span> Sign in with Google to push/pull team repositories, share script presets, and interact with the AI Agent.</p>
+                    <p><span className="font-bold text-slate-500 dark:text-slate-400">Pro Cloud:</span> Sign in with Google to access AI Agent, Sentinels, and exclusive pro features.</p>
                   </div>
                   <div className="flex gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1 shrink-0" />

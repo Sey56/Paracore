@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall, StructuredOutput } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useUserTeamSources } from "@/features/team-sources"; 
 import { useAuth } from "@/features/auth";
 
 const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
@@ -15,14 +14,12 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
   const { showNotification } = useNotifications();
   const { user } = useAuth();
-  const { userSourcePaths, isLoaded: userSourcesLoaded } = useUserTeamSources();
 
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isInspectorOpen, setInspectorOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [isNewScriptModalOpen, setIsNewScriptModalOpen] = useState(false);
   const [isNewSentinelModalOpen, setIsNewSentinelModalOpen] = useState(false);
-  const [isTeamManagementModalOpen, setIsTeamManagementModalOpen] = useState(false);
 
   const [isFloatingCodeViewerOpen, setFloatingCodeViewerOpen] = useState(false);
   const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>("parameters");
@@ -180,9 +177,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const openNewSentinelModal = useCallback(() => setIsNewSentinelModalOpen(true), []);
   const closeNewSentinelModal = useCallback(() => setIsNewSentinelModalOpen(false), []);
 
-  const openTeamManagementModal = useCallback(() => setIsTeamManagementModalOpen(true), []);
-  const closeTeamManagementModal = useCallback(() => setIsTeamManagementModalOpen(false), []);
-
   const openFloatingCodeViewer = useCallback(() => setFloatingCodeViewerOpen(true), []);
   const closeFloatingCodeViewer = useCallback(() => setFloatingCodeViewerOpen(false), []);
   const toggleFloatingCodeViewer = useCallback(() => setFloatingCodeViewerOpen(prev => !prev), []);
@@ -271,10 +265,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     openSettingsModal,
     closeSettingsModal,
 
-    isTeamManagementModalOpen,
-    openTeamManagementModal,
-    closeTeamManagementModal,
-
     isNewScriptModalOpen,
     openNewScriptModal,
     closeNewScriptModal,
@@ -336,9 +326,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isSettingsModalOpen,
     openSettingsModal,
     closeSettingsModal,
-    isTeamManagementModalOpen,
-    openTeamManagementModal,
-    closeTeamManagementModal,
     isNewScriptModalOpen,
     openNewScriptModal,
     closeNewScriptModal,

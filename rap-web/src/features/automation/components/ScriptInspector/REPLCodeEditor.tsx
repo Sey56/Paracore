@@ -40,6 +40,45 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
             return;
         }
 
+        // Ctrl+/ or Cmd+/ — toggle line comments
+        if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+            e.preventDefault();
+            const fullText = value;
+            const selStart = selectionStart;
+            const selEnd = selectionEnd;
+
+            // Find the start of the first selected line and end of the last
+            const lineStart = fullText.lastIndexOf('\n', selStart - 1) + 1;
+            const lineEndIdx = fullText.indexOf('\n', selEnd - 1);
+            const lineEnd = lineEndIdx === -1 ? fullText.length : lineEndIdx;
+
+            const selectedLines = fullText.substring(lineStart, lineEnd);
+            const lines = selectedLines.split('\n');
+
+            const allCommented = lines.every(l => l.trimStart().startsWith('//'));
+
+            let newLines: string[];
+            if (allCommented) {
+                // Uncomment: remove first // from each line
+                newLines = lines.map(l => l.replace(/\/\/\s?/, ''));
+            } else {
+                // Comment: add // to each line
+                newLines = lines.map(l => '// ' + l);
+            }
+
+            const newText = fullText.substring(0, lineStart) + newLines.join('\n') + fullText.substring(lineEnd);
+            onChange(newText);
+
+            // Restore selection
+            requestAnimationFrame(() => {
+                const diff = newText.length - fullText.length;
+                textarea.focus();
+                textarea.selectionStart = lineStart;
+                textarea.selectionEnd = lineEnd + diff;
+            });
+            return;
+        }
+
         if (e.key === 'Tab') {
             e.preventDefault();
             // Use execCommand to preserve undo stack

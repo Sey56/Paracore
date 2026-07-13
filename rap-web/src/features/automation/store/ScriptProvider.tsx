@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { Script } from '@/types/scriptModel';
-import { TeamScriptSource } from '@/types';
 import { useAuth } from '@/features/auth';
 import { useNotifications } from '@/hooks/useNotifications';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { Role } from '@/features/auth/types/authTypes';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
-import { getRemoteSources, registerRemoteSource, deleteRemoteSource, updateRemoteSource } from '@/features/auth/services/rapAuthApiClient';
 import api from '@/api/axios';
 import { ScriptContext } from './ScriptContext';
 import { useUI } from '@/hooks/useUI';
@@ -32,7 +29,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     scriptsRef.current = scripts;
   }, [scripts]);
 
-  const { isAuthenticated, activeTeam, activeRole, user, cloudToken } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { showNotification } = useNotifications();
   const { activeScriptSource, setActiveScriptSource } = useUI();
 
@@ -41,7 +38,6 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // 1. AUTOMATION FOLDER STATE (The Sidebar) - Strictly Isolated
   const [customScriptFolders, setCustomScriptFolders] = useLocalStorage<string[]>(`rap_customScriptFolders_${stableUserId}`, []);
-  const [userSourcePaths, setUserSourcePaths] = useLocalStorage<Record<number, { path: string; name: string }>>(`rap-user-source-paths_${stableUserId}`, {});
   const [toolLibraryPath, setToolLibraryPath] = useLocalStorage<string | null>(`agentScriptsPath_${stableUserId}`, null);
 
   const [isSystemReady, setIsSystemReady] = useState(false);
@@ -74,35 +70,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSystemReady]); // Dependency array intentionally minimal to run only on mount/ready
 
-  const setUserSourcePath = useCallback((sourceId: number, path: string, name: string) => {
-    setUserSourcePaths(prev => ({ ...prev, [sourceId]: { path, name } }));
-  }, [setUserSourcePaths]);
-
-  // 4. REMOTE SOURCES
-  const [remoteScriptSources, setRemoteScriptSources] = useState<Record<number, TeamScriptSource[]>>({});
-
-  const fetchRemoteScriptSources = useCallback(async () => {
-    if (!activeTeam || !cloudToken) {
-      setRemoteScriptSources({});
-      return;
-    }
-    try {
-      let sources: TeamScriptSource[] = [];
-      if (activeTeam.team_id !== 0) {
-        sources = await getRemoteSources(activeTeam.team_id, cloudToken);
-      }
-      setRemoteScriptSources(prev => ({ ...prev, [activeTeam.team_id]: sources }));
-    } catch (error) {
-      console.error(`Failed to fetch registered script sources:`, error);
-      setRemoteScriptSources(prev => ({ ...prev, [activeTeam.team_id]: [] }));
-    }
-  }, [activeTeam, cloudToken]);
-
-  useEffect(() => {
-    fetchRemoteScriptSources();
-  }, [fetchRemoteScriptSources, activeTeam]);
-
-  // 5. SELECTION & LOADING
+  // 4. SELECTION & LOADING
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [favoriteScripts, setFavoriteScripts] = useLocalStorage<string[]>(`rap_favoriteScripts_${stableUserId}`, []);
   const [recentScripts, setRecentScripts] = useLocalStorage<string[]>(`rap_recentScripts_${stableUserId}`, []);
@@ -143,13 +111,6 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setScripts(prev => prev.map(s => s.id === scriptId ? { ...s, metadata: { ...s.metadata, lastRun: now } } : s));
   }, [setLastRunTimes, setScripts]);
 
-  const canUseLocalFolders = useMemo(() => {
-    if (!user || !activeTeam) return false;
-    if (activeRole === Role.Admin) return true;
-    if (activeTeam.owner_id === Number(user.id)) return true;
-    return false;
-  }, [user, activeTeam, activeRole]);
-
   const loadScriptsFromPath = useCallback(async (folderPath: string, silent: boolean = false) => {
     try {
       if (!silent) setScripts([]);
@@ -175,18 +136,12 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [showNotification]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user || !activeTeam || !isSystemReady) return;
+    if (!isAuthenticated || !user || !isSystemReady) return;
 
     let path_to_load: string | null = null;
     if (activeScriptSource) {
       if (activeScriptSource.type === 'local') {
-        if (!canUseLocalFolders) {
-          setActiveScriptSource(null);
-          return;
-        }
         path_to_load = activeScriptSource.path;
-      } else if (activeScriptSource.type === 'team') {
-        path_to_load = userSourcePaths[Number(activeScriptSource.id)]?.path;
       }
     }
 
@@ -197,14 +152,14 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setScripts([]);
       setSelectedFolder(null);
     }
-  }, [activeScriptSource, loadScriptsFromPath, setActiveScriptSource, userSourcePaths, canUseLocalFolders, isAuthenticated, user, activeTeam, isSystemReady]);
+  }, [activeScriptSource, loadScriptsFromPath, setActiveScriptSource, isAuthenticated, user, isSystemReady]);
 
-  const createNewScript = useCallback(async (details: { 
-    script_name: string; 
-    template_id?: string; 
-    generated_logic?: string; 
-    generated_params?: string; 
-    parent_folder?: string | null; 
+  const createNewScript = useCallback(async (details: {
+    script_name: string;
+    template_id?: string;
+    generated_logic?: string;
+    generated_params?: string;
+    parent_folder?: string | null;
   }) => {
     try {
       const response = await api.post("/api/scripts/new", details);
@@ -241,7 +196,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const editScript = useCallback(async (script: Script, forceScaffold: boolean = false) => {
     if (!script || !isAuthenticated) return false;
     try {
-      await api.post("/api/edit-script", { 
+      await api.post("/api/edit-script", {
         scriptPath: script.absolutePath,
         force_scaffold: forceScaffold
       });
@@ -308,62 +263,6 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [setCustomScriptFolders, activeScriptSource, setActiveScriptSource, setScripts]);
 
-  const addRemoteScriptSource = useCallback(async (teamId: number, source: TeamScriptSource) => {
-    if (!cloudToken) return;
-    try {
-      await registerRemoteSource(teamId, source.name, source.repo_url, cloudToken);
-      await fetchRemoteScriptSources();
-    } catch (err) {
-      throw err;
-    }
-  }, [fetchRemoteScriptSources, cloudToken]);
-
-  const removeRemoteScriptSource = useCallback(async (teamId: number, sourceId: number) => {
-    if (!cloudToken) return;
-    try {
-      await deleteRemoteSource(sourceId, cloudToken);
-      await fetchRemoteScriptSources();
-    } catch (err) {
-      throw err;
-    }
-  }, [fetchRemoteScriptSources, cloudToken]);
-
-  const removeSourcePath = useCallback(async (sourceId: string) => {
-    // Clear active source if it matches the one being removed
-    if (activeScriptSource?.type === 'team' && activeScriptSource.id === sourceId) {
-      setActiveScriptSource(null);
-      setScripts([]);
-    }
-
-    // Relay to the hook via setUserSourcePaths (which is just a setter here)
-    setUserSourcePaths(prev => {
-      const { [Number(sourceId)]: _, ...next } = prev;
-      return next;
-    });
-  }, [activeScriptSource, setActiveScriptSource, setScripts, setUserSourcePaths]);
-
-  const updateRemoteScriptSource = useCallback(async (teamId: number, sourceId: number, name: string | undefined, repoUrl: string | undefined) => {
-    if (!cloudToken) return;
-    try {
-      await updateRemoteSource(sourceId, name, repoUrl, cloudToken);
-      await fetchRemoteScriptSources();
-    } catch (err) {
-      throw err;
-    }
-  }, [fetchRemoteScriptSources, cloudToken]);
-
-  const pullAllTeamSources = useCallback(async () => {
-    showNotification("Pulling all sources...", "info");
-  }, [showNotification]);
-
-  const pullTeamSource = useCallback(async (path: string) => {
-    showNotification(`Pulling ${path}...`, "info");
-  }, [showNotification]);
-
-  const clearScriptsForSource = useCallback((path: string) => {
-    setScripts([]);
-  }, []);
-
   const fetchScriptMetadata = useCallback(async (scriptId: string) => {
     const script = scriptsRef.current.find(s => s.id === scriptId);
     if (!script) return;
@@ -408,9 +307,9 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (err) { /* ignore reload errors */ }
   }, [setScripts]);
 
-  // 6. SYNC SESSION TRACKING
+  // 5. SYNC SESSION TRACKING
   const [activeSyncSessions, setActiveSyncSessions] = useState<Record<string, { last_modified: number }>>({});
-  const [pollingInterval, setPollingInterval] = useState(2000); 
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchActiveSyncSessions = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -418,34 +317,47 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const response = await silentApi.get('/api/sync/active-sessions');
       if (response.data) {
         setActiveSyncSessions(response.data);
-
-        // V5 OPTIMIZATION: If the selected script source is actively syncing, speed up polling
-        const normalizedFolder = (selectedFolder || "").replace(/\\/g, '/').toLowerCase();
-        const hasActiveSelected = normalizedFolder && Object.keys(response.data).some(key =>
-          key.replace(/\\/g, '/').toLowerCase() === normalizedFolder
-        );
-        setPollingInterval(hasActiveSelected ? 500 : 2000);
       }
     } catch (error: unknown) {
       const err = error as { response?: { status: number } };
       if (err.response?.status === 401) {
-        // Token expired — back off to 30s to stop flooding
-        setPollingInterval(30000);
-      } else {
-        console.error("Failed to fetch active sessions:", err);
+        // Token expired — silently ignore
+        setActiveSyncSessions({});
       }
+      // Other errors (e.g., endpoint not available in dev) — silently ignore
     }
-  }, [isAuthenticated, selectedFolder]);
+  }, [isAuthenticated]);
 
+  // Smart polling: only poll fast when sessions are active
   useEffect(() => {
     if (!isAuthenticated) {
       setActiveSyncSessions({});
       return;
     }
-    fetchActiveSyncSessions();
-    const id = setInterval(fetchActiveSyncSessions, pollingInterval);
-    return () => clearInterval(id);
-  }, [fetchActiveSyncSessions, isAuthenticated, pollingInterval]);
+
+    // Determine polling speed based on session state
+    const hasActiveSessions = Object.keys(activeSyncSessions).length > 0;
+    const normalizedFolder = (selectedFolder || "").replace(/\\/g, '/').toLowerCase();
+    const activeFolderMatches = hasActiveSessions && normalizedFolder && Object.keys(activeSyncSessions).some(
+      key => key.replace(/\\/g, '/').toLowerCase() === normalizedFolder
+    );
+
+    // Speed: 500ms (active editing), 2000ms (any session), 30000ms (no sessions — discovery probe)
+    const speed = activeFolderMatches ? 500 : hasActiveSessions ? 2000 : 30000;
+
+    // Clear existing interval and set new one
+    if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+    syncIntervalRef.current = setInterval(fetchActiveSyncSessions, speed);
+
+    // Also fetch on window focus (catches VS Code edits made while window was unfocused)
+    const onFocus = () => fetchActiveSyncSessions();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [isAuthenticated, activeSyncSessions, selectedFolder, fetchActiveSyncSessions]);
 
   const isSyncActive = useCallback((scriptPath: string) => {
     if (!scriptPath || !activeSyncSessions) return false;
@@ -455,14 +367,13 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const isValidatingRef = useRef(false);
 
-  // 7. STALE SOURCE RECONCILIATION (Auto-Healing)
+  // 6. STALE SOURCE RECONCILIATION (Auto-Healing)
   const validateSources = useCallback(async () => {
     if (!isSystemReady || isValidatingRef.current) return;
 
     // Gather all local paths to validate
     const localPaths = new Set<string>();
     customScriptFolders.forEach(p => localPaths.add(p));
-    Object.values(userSourcePaths).forEach(s => { if (s.path) localPaths.add(s.path); });
     if (toolLibraryPath) localPaths.add(toolLibraryPath);
 
     if (localPaths.size === 0) return;
@@ -493,44 +404,23 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       if (hasChanges) setCustomScriptFolders(validCustomFolders);
 
-      // B. Heal user source paths (Teams)
-      const newUserSourcePaths = { ...userSourcePaths };
-      let userPathsChanged = false;
-      Object.entries(userSourcePaths).forEach(([id, info]) => {
-        if (info.path && normalizedMap[normalizePath(info.path)] === false) {
-          console.log(`[ScriptProvider] 🩹 Auto-Healing: Removing stale team source link: ${info.path}`);
-          delete newUserSourcePaths[Number(id)];
-          userPathsChanged = true;
-        }
-      });
-      if (userPathsChanged) setUserSourcePaths(newUserSourcePaths);
-
-      // C. Heal tool library (Agent)
+      // B. Heal tool library (Agent)
       if (toolLibraryPath && normalizedMap[normalizePath(toolLibraryPath)] === false) {
         console.log(`[ScriptProvider] 🩹 Auto-Healing: Clearing stale agent scripts path: ${toolLibraryPath}`);
         setToolLibraryPath(null);
       }
 
-      // D. Active source mismatch
+      // C. Active source mismatch
       if (activeScriptSource?.type === 'local' && activeScriptSource.path && normalizedMap[normalizePath(activeScriptSource.path)] === false) {
         console.log(`[ScriptProvider] 🩹 Auto-Healing: Reseting stale active source: ${activeScriptSource.path}`);
         setActiveScriptSource(null);
         setScripts([]);
-      } else if (activeScriptSource?.type === 'team' && activeScriptSource.id) {
-        const info = userSourcePaths[Number(activeScriptSource.id)];
-        if (info?.path && normalizedMap[normalizePath(info.path)] === false) {
-          console.log(`[ScriptProvider] 🩹 Auto-Healing: Reseting stale active source (Team): ${info.path}`);
-          setActiveScriptSource(null);
-          setScripts([]);
-        }
       }
 
-      // E. Fine-Grained Script Sync: Refresh active list if individual scripts were deleted externally
-      if (activeScriptSource && !hasChanges) {
-        const currentPath = activeScriptSource.type === 'local' ? activeScriptSource.path : userSourcePaths[Number(activeScriptSource.id)]?.path;
+      // D. Fine-Grained Script Sync: Refresh active list if individual scripts were deleted externally
+      if (activeScriptSource?.type === 'local' && !hasChanges) {
+        const currentPath = activeScriptSource.path;
         if (currentPath && normalizedMap[normalizePath(currentPath)] === true) {
-          // If we have scripts, check if they still exist via a lightweight HEAD-like check
-          // For now, we trigger a silent reload if individual scripts are missing from the backend response
           loadScriptsFromPath(currentPath, true);
         }
       }
@@ -540,7 +430,7 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       isValidatingRef.current = false;
     }
-  }, [isSystemReady, customScriptFolders, userSourcePaths, toolLibraryPath, activeScriptSource, setCustomScriptFolders, setUserSourcePaths, setToolLibraryPath, setActiveScriptSource, loadScriptsFromPath]);
+  }, [isSystemReady, customScriptFolders, toolLibraryPath, activeScriptSource, setCustomScriptFolders, setToolLibraryPath, setActiveScriptSource, loadScriptsFromPath]);
 
   // Trigger Validation: Mount, Focus, and Interval
   useEffect(() => {
@@ -568,18 +458,17 @@ export const ScriptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     lastRunTimes, updateScriptLastRunTime,
     isSyncActive, activeSyncSessions,
     customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
-    remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
-    pullAllTeamSources, pullTeamSource, clearScriptsForSource, toolLibraryPath, setToolLibraryPath,
-    userSourcePaths, setUserSourcePath, removeSourcePath, canUseLocalFolders, selectedFolder,
+    toolLibraryPath, setToolLibraryPath,
+    canUseLocalFolders: true,
+    selectedFolder,
     updateScriptModificationTime
   }), [
     scripts, activeScriptSource, setActiveScriptSource, loadScriptsFromPath, fetchScriptMetadata, reloadScript,
     combinedScriptContent, createNewScript, editScript, deleteScript, favoriteScripts, toggleFavoriteScript, clearFavoriteScripts,
     recentScripts, addRecentScript, clearRecentScripts, lastRunTimes, updateScriptLastRunTime,
     isSyncActive, activeSyncSessions, customScriptFolders, setCustomScriptFolders, addCustomScriptFolder, addCustomScriptFolders, removeCustomScriptFolder, clearAllCustomScriptFolders,
-    remoteScriptSources, fetchRemoteScriptSources, addRemoteScriptSource, removeRemoteScriptSource, updateRemoteScriptSource,
-    pullAllTeamSources, pullTeamSource, clearScriptsForSource, toolLibraryPath, setToolLibraryPath,
-    userSourcePaths, setUserSourcePath, removeSourcePath, canUseLocalFolders, selectedFolder,
+    toolLibraryPath, setToolLibraryPath,
+    selectedFolder,
     updateScriptModificationTime
   ]);
 

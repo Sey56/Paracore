@@ -24,7 +24,7 @@ namespace CoreScript.Engine.Globals
     /// Provides the core API for Paracore scripts. 
     /// These members are available globally in every script via implicit static usings.
     /// </summary>
-    public static class ScriptApi
+    public static partial class ScriptApi
     {
         private static ExecutionGlobals Globals => ExecutionGlobals.Current.Value ?? throw new InvalidOperationException("Script context is not available. Ensure the script is run through the engine.");
 
@@ -146,33 +146,43 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Renders elements as a compact table — Id, Name, Level, Type.
-        /// Limits to 200 rows. Use .Select() before .Table() for custom columns.
+        /// Renders elements as a compact table with columns adapted to element kind.
+        /// Types/Symbols: Id | Family | Type | Category
+        /// Instances:     Id | Family | Type | Category
+        /// Use .Select() before .Table() for custom columns.
         /// Use .CombinedParams().Table() for full parameter discovery.
         /// </summary>
         public static void Table(IEnumerable<Element> elements)
         {
-            var compact = elements.Take(200).Select(e =>
-            {
-                // Resolve level — try native LevelId first, then parameter lookup
-                var level = "";
-                try
-                {
-                    if (e.LevelId != null && e.LevelId != ElementId.InvalidElementId)
-                        level = e.Document.GetElement(e.LevelId)?.Name ?? "";
-                }
-                catch { }
-                if (string.IsNullOrEmpty(level))
-                    level = e.GetStr("Level");
+            var list = elements.ToList();
+            if (list.Count == 0) return;
 
-                return (object)new
+            // Types / Symbols: FamilySymbol, WallType, FloorType, etc.
+            // Instances:       FamilyInstance, Wall, Floor, etc.
+            var isType = list[0] is ElementType;
+            object compact;
+
+            if (isType)
+            {
+                compact = list.Select(e => (object)new
                 {
                     Id = e.Id.Value,
-                    Name = e.GetStr("Name"),
-                    Level = level,
-                    Type = e.GetStr("Family and Type")
-                };
-            });
+                    Family = e.GetStr("Family Name"),
+                    Type = e.GetStr("Type Name"),
+                    Category = e.Category?.Name ?? ""
+                });
+            }
+            else
+            {
+                compact = list.Select(e => (object)new
+                {
+                    Id = e.Id.Value,
+                    Family = e.GetStr("Family"),
+                    Type = e.GetStr("Type"),
+                    Category = e.Category?.Name ?? ""
+                });
+            }
+
             Globals.Output.Table(compact);
         }
 

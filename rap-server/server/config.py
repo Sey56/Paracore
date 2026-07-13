@@ -59,3 +59,10 @@ class Settings:
     JWT_PUBLIC_KEY: str = load_public_key()
 
 settings = Settings()
+# Attach private key for local Google sign-in fallback
+_priv_path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "rap-auth-server", "server", "jwt_private.pem"))
+if os.path.exists(_priv_path):
+    with open(_priv_path, 'r') as f:
+        settings.JWT_PRIVATE_KEY = f.read()
+else:
+    settings.JWT_PRIVATE_KEY = None

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useConsole } from '../../store/ConsoleContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport, faHistory, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import { REPLCodeEditor } from './REPLCodeEditor';
 import { Modal } from '@/components/common/Modal';
 import { Tooltip } from '@/components/common/Tooltip';
@@ -14,7 +14,8 @@ export const ReplModeContent: React.FC = () => {
     isReplLoading, handleReplSubmit,
     activeSnippetName, handleSaveSnippet,
     singleCommandHistory, isDirty,
-    handleNewSnippet, handleLoadSnippet
+    handleNewSnippet, handleLoadSnippet,
+    recentFiles, pinnedFiles, togglePinFile, removeRecentFile, loadRecentFile
   } = useConsole();
 
   const { runningScriptPath } = useScriptExecution();
@@ -24,7 +25,32 @@ export const ReplModeContent: React.FC = () => {
 
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [currentValueBeforeHistory, setCurrentValueBeforeHistory] = useState<string>("");
+
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showRecentMenu, setShowRecentMenu] = useState(false);
+  const recentMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close recent menu on outside click
+  useEffect(() => {
+    if (!showRecentMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (recentMenuRef.current && !recentMenuRef.current.contains(e.target as Node)) {
+        setShowRecentMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showRecentMenu]);
+
+  // Combine pinned + recent for display, deduplicating
+  const displayFiles = React.useMemo(() => {
+    const pinnedPaths = new Set(pinnedFiles.map(f => f.path));
+    const pinned = pinnedFiles.map(f => ({ ...f, isPinned: true, lastOpened: 0 }));
+    const recent = recentFiles
+      .filter(f => !pinnedPaths.has(f.path))
+      .map(f => ({ ...f, isPinned: false }));
+    return [...pinned, ...recent];
+  }, [pinnedFiles, recentFiles]);
 
   const onNewSnippet = () => {
     if (multiLineValue.trim() && isDirty) {
@@ -193,6 +219,58 @@ export const ReplModeContent: React.FC = () => {
               <FontAwesomeIcon icon={faFileExport} className="text-xs" />
             </button>
           </Tooltip>
+          <div className="relative" ref={recentMenuRef}>
+            <Tooltip text="Recent Files" position="bottom-center">
+              <button
+                onClick={() => setShowRecentMenu(!showRecentMenu)}
+                className={`p-1.5 transition-colors ${displayFiles.length > 0 ? 'text-slate-400 hover:text-amber-500' : 'text-slate-200 dark:text-slate-700'}`}
+              >
+                <FontAwesomeIcon icon={faHistory} className="text-xs" />
+              </button>
+            </Tooltip>
+            {showRecentMenu && displayFiles.length > 0 && (
+              <div className="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="py-1 max-h-64 overflow-y-auto custom-scrollbar">
+                  {displayFiles.map((file, idx) => (
+                    <div
+                      key={file.path}
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer group"
+                    >
+                      <button
+                        onClick={() => { loadRecentFile(file.path); setShowRecentMenu(false); }}
+                        className="flex-1 flex items-center gap-2 min-w-0 text-left"
+                      >
+                        <FontAwesomeIcon icon={faCode} className="text-[10px] text-slate-400 shrink-0" />
+                        <span className="text-xs text-slate-700 dark:text-slate-300 truncate">{file.name}</span>
+                      </button>
+                      <Tooltip text={file.isPinned ? 'Unpin' : 'Pin'} position={idx === 0 ? 'bottom' : 'top'}>
+                        <button
+                          onClick={() => togglePinFile(file.path, file.name)}
+                          className={`shrink-0 p-0.5 transition-colors ${file.isPinned ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100'}`}
+                        >
+                          <FontAwesomeIcon icon={faThumbtack} className="text-[10px]" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip text="Remove" position={idx === 0 ? 'bottom' : 'top'}>
+                        <button
+                          onClick={() => removeRecentFile(file.path)}
+                          className="shrink-0 p-0.5 text-slate-300 dark:text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-colors"
+                        >
+                          <span className="text-[10px]">×</span>
+                        </button>
+                      </Tooltip>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {showRecentMenu && displayFiles.length === 0 && (
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-4 text-center">
+                <p className="text-xs text-slate-400">No recent files yet.</p>
+                <p className="text-[10px] text-slate-400 mt-1">Save or open a snippet to see it here.</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
