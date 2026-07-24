@@ -39,7 +39,6 @@ from database_config import Base, engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from agent import agent_router
 from api import (
     auth_router,
     playlist_router,
@@ -108,7 +107,6 @@ app.include_router(runs_router.router)
 app.include_router(status_router.router)
 app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
-app.include_router(agent_router.router)
 app.include_router(tool_builder_router.router)
 app.include_router(query_router.router)
 

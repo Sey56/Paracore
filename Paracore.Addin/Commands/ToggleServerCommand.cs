@@ -72,8 +72,6 @@ namespace Paracore.Addin.Commands
                     ParacoreApp.SetClient(client);
                     ParacoreApp.SetServerRunning(true);
                     ServerViewModel.Instance.IsServerRunning = true;
-
-                    TaskDialog.Show("Paracore Server", "Paracore Server On! You can now execute CoreScripts from Paracore and VSCode. Listening on port 50051.");
                 }
                 catch (Exception ex)
                 {
@@ -93,8 +91,6 @@ namespace Paracore.Addin.Commands
 
                     // TEARDOWN PROCESS
                     ParacoreApp.StopSidecar();
-
-                    TaskDialog.Show("Paracore Server", "Paracore Server stopped!");
                 }
                 catch (Exception ex)
                 {

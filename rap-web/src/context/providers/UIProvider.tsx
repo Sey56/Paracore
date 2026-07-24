@@ -1,14 +1,11 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { UIContext, InspectorTab, ActiveScriptSource, Message, ToolCall, StructuredOutput } from "./UIContext";
+import { UIContext, InspectorTab, ActiveScriptSource, StructuredOutput } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useAuth } from "@/features/auth";
 
-const LOCAL_STORAGE_KEY_MESSAGES = 'agent_chat_messages';
-const LOCAL_STORAGE_KEY_THREAD_ID = 'agent_chat_thread_id';
 const LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW = 'paracore_active_main_view';
 const LOCAL_STORAGE_KEY_AUTOMATION_SUB_MODE = 'paracore_automation_sub_mode';
-const LOCAL_STORAGE_KEY_AGENT_REPL_RESULTS = 'paracore_agent_repl_results';
 
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
@@ -64,54 +61,10 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     });
   }, []);
 
-  // Agent related state
-  const [messages, setMessages] = useState<Message[]>(() => {
-    try {
-      const storedMessages = localStorage.getItem(LOCAL_STORAGE_KEY_MESSAGES);
-      return storedMessages ? JSON.parse(storedMessages) : [];
-    } catch (error) {
-      console.error("Failed to load chat messages from localStorage:", error);
-      return [];
-    }
-  });
-  const [threadId, setThreadId] = useState<string | null>(() => {
-    try {
-      const storedThreadId = localStorage.getItem(LOCAL_STORAGE_KEY_THREAD_ID);
-      return storedThreadId || null;
-    } catch (error) {
-      console.error("Failed to load threadId from localStorage:", error);
-      return null;
-    }
-  });
-  const [isAwaitingApproval, setIsAwaitingApproval] = useState<boolean>(false);
-  const [pendingToolCall, setPendingToolCall] = useState<ToolCall | null>(null);
-  const [agentSelectedScriptPath, setAgentSelectedScriptPath] = useState<string | null>(null);
-
-  // Effect to save messages and threadId to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY_MESSAGES, JSON.stringify(messages));
-    } catch (error) {
-      console.error("Failed to save chat messages to localStorage:", error);
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    try {
-      if (threadId) {
-        localStorage.setItem(LOCAL_STORAGE_KEY_THREAD_ID, threadId);
-      } else {
-        localStorage.removeItem(LOCAL_STORAGE_KEY_THREAD_ID);
-      }
-    } catch (error) {
-      console.error("Failed to save threadId to localStorage:", error);
-    }
-  }, [threadId]);
-
   // Main View Toggle
-  const [activeMainView, setActiveMainView] = useState<'scripts' | 'agent' | 'playlists'>(() => {
+  const [activeMainView, setActiveMainView] = useState<'scripts' | 'playlists'>(() => {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW);
-    if (stored === 'scripts' || stored === 'agent' || stored === 'playlists') return stored;
+    if (stored === 'scripts' || stored === 'playlists') return stored;
     return 'scripts';
   });
 
@@ -134,24 +87,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const [isWelcomeGateOpen, setIsWelcomeGateOpen] = useState(false);
   const openWelcomeGate = useCallback(() => setIsWelcomeGateOpen(true), []);
   const closeWelcomeGate = useCallback(() => setIsWelcomeGateOpen(false), []);
-
-  // Agent REPL execution results (for Analytics tab rendering)
-  const [agentReplResults, setAgentReplResults] = useState<StructuredOutput[] | null>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_AGENT_REPL_RESULTS);
-    if (saved) {
-      try { return JSON.parse(saved); } catch { return null; }
-    }
-    return null;
-  });
-  const [agentCapturedDocTitle, setAgentCapturedDocTitle] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (agentReplResults) {
-      localStorage.setItem(LOCAL_STORAGE_KEY_AGENT_REPL_RESULTS, JSON.stringify(agentReplResults));
-    } else {
-      localStorage.removeItem(LOCAL_STORAGE_KEY_AGENT_REPL_RESULTS);
-    }
-  }, [agentReplResults]);
 
   // Global InfoModal state
   const [infoModalState, setInfoModalState] = useState<{ isOpen: boolean; title: string; message: string }>({
@@ -281,16 +216,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     activeScriptSource,
     setActiveScriptSource,
 
-    messages,
-    setMessages,
-    threadId,
-    setThreadId,
-    isAwaitingApproval,
-    setIsAwaitingApproval,
-    pendingToolCall,
-    setPendingToolCall,
-    agentSelectedScriptPath,
-    setAgentSelectedScriptPath,
     activeMainView,
     setActiveMainView,
     infoModalState,
@@ -307,10 +232,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isWelcomeGateOpen,
     openWelcomeGate,
     closeWelcomeGate,
-    agentReplResults,
-    setAgentReplResults,
-    agentCapturedDocTitle,
-    setAgentCapturedDocTitle,
     automationSubMode,
     setAutomationSubMode,
   }), [
@@ -337,11 +258,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     closeFloatingCodeViewer,
     toggleFloatingCodeViewer,
     activeScriptSource,
-    messages,
-    threadId,
-    isAwaitingApproval,
-    pendingToolCall,
-    agentSelectedScriptPath,
     activeMainView,
     infoModalState,
     showInfoModal,

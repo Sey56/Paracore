@@ -18,7 +18,6 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from "@/features/auth";
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import SettingsModal from '@/features/settings/components/SettingsModal';
-import { AgentView } from "@/features/agent/components/AgentView";
 import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
 import { OutputPanel } from "@/components/layout/OutputPanel/OutputPanel";
 import { ReplModeContent } from "@/features/automation/components/ScriptInspector/ReplModeContent";
@@ -222,11 +221,6 @@ export const AppLayout: React.FC = () => {
                       )}
 
                       {/* Agent mode */}
-                      {activeMainView === 'agent' && (
-                        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
-                          <AgentView />
-                        </div>
-                      )}
                     </div>
                   </div>
 

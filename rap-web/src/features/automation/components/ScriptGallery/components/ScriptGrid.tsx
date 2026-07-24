@@ -13,6 +13,7 @@ interface ScriptGridProps {
   isCompactView: boolean;
   handleEnterFocusMode: (rect: DOMRect) => void;
   handleReplaceScript: (script: Script) => void;
+  handleDoubleClickScript?: (script: Script) => void;
   isAuthenticated: boolean;
   searchTerm: string;
 }
@@ -25,6 +26,7 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
   isCompactView,
   handleEnterFocusMode,
   handleReplaceScript,
+  handleDoubleClickScript,
   isAuthenticated,
   searchTerm
 }) => {
@@ -60,6 +62,7 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
                 isCompact={true}
                 onFocus={handleEnterFocusMode}
                 onReplace={handleReplaceScript}
+                onDoubleClick={handleDoubleClickScript ? () => handleDoubleClickScript(script) : undefined}
               />
             ))}
           </div>
@@ -93,6 +96,7 @@ export const ScriptGrid: React.FC<ScriptGridProps> = React.memo(({
                 isCompact={isCompactView}
                 onFocus={handleEnterFocusMode}
                 onReplace={handleReplaceScript}
+                onDoubleClick={handleDoubleClickScript ? () => handleDoubleClickScript(script) : undefined}
               />
             ))}
           </div>

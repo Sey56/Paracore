@@ -1,7 +1,5 @@
 import { createContext } from "react";
 import { Script, StructuredOutput } from "@/types/scriptModel";
-import { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/agentTypes";
-
 export type InspectorTab = "parameters" | "console" | "table" | "metadata";
 
 export type AutomationSubMode = 'gallery' | 'repl';
@@ -11,7 +9,6 @@ export type ActiveScriptSource =
   | { type: 'published'; id: string }
   | null;
 
-export type { Message, ToolCall, OrchestrationPlan } from "@/features/agent/types/agentTypes";
 export type { StructuredOutput } from "@/types/scriptModel";
 
 
@@ -61,17 +58,9 @@ export interface UIContextProps {
   activeScriptSource: ActiveScriptSource;
   setActiveScriptSource: (source: ActiveScriptSource) => void;
 
-  // Agent related state
-  agentSelectedScriptPath: string | null;
-  setAgentSelectedScriptPath: (path: string | null) => void;
-  messages: Message[];
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-  threadId: string | null;
-  setThreadId: React.Dispatch<React.SetStateAction<string | null>>;
-
   // Main View Toggle
-  activeMainView: 'scripts' | 'agent' | 'playlists';
-  setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'agent' | 'playlists'>>;
+  activeMainView: 'scripts' | 'playlists';
+  setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'playlists'>>;
 
   // Automation Sub-mode (only relevant when activeMainView === 'scripts')
   automationSubMode: AutomationSubMode;
@@ -81,12 +70,6 @@ export interface UIContextProps {
   isWelcomeGateOpen: boolean;
   openWelcomeGate: () => void;
   closeWelcomeGate: () => void;
-
-  // Agent REPL execution results (for Analytics tab rendering)
-  agentReplResults: StructuredOutput[] | null;
-  setAgentReplResults: (results: StructuredOutput[] | null) => void;
-  agentCapturedDocTitle: string | null;
-  setAgentCapturedDocTitle: (title: string | null) => void;
 
   // Global InfoModal
   infoModalState: { isOpen: boolean; title: string; message: string };

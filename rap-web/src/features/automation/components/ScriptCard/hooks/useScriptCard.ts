@@ -8,7 +8,7 @@ import { useAuth } from "@/features/auth";
 import { useWatchdog } from "@/context/providers/WatchdogProvider";
 import { filterVisibleParameters, validateParameters } from '@/utils/parameterVisibility';
 
-export const useScriptCard = (script: Script, onSelect: () => void, isSelected: boolean) => {
+export const useScriptCard = (script: Script, onSelect: () => void, onDoubleClick: (() => void) | undefined, isSelected: boolean) => {
   const {
     runningScriptPath,
     runScript,
@@ -118,6 +118,11 @@ export const useScriptCard = (script: Script, onSelect: () => void, isSelected: 
     onSelect();
   };
 
+  const handleDoubleClick = () => {
+    if (!isAuthenticated) return;
+    if (onDoubleClick) onDoubleClick();
+  };
+
   const handleStartRename = (e: React.MouseEvent) => {
     e.stopPropagation();
     setRenameValue(getDisplayName());
@@ -190,6 +195,7 @@ export const useScriptCard = (script: Script, onSelect: () => void, isSelected: 
     handleRunClick,
     handleFavoriteClick,
     handleSelect,
+    handleDoubleClick,
     handleStartRename,
     handleRenameSubmit,
     handleRenameKeyDown,

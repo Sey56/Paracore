@@ -174,11 +174,11 @@ namespace Paracore.Addin.App
 
             PushButtonData toggleServerButton = new(
                 "ToggleCoreScriptServer",
-                "(Off)",
+                "Server Off",
                 cmdAssembly,
                 useShim ? "Paracore.Shim.ToggleServerProxy" : typeof(ToggleServerCommand).FullName!)
             {
-                ToolTip = "Toggle the Paracore server to run scripts from Paracore and VSCode.",
+                ToolTip = "Server is stopped. Click to start.",
                 LargeImage = new BitmapImage(
                     new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_iconName}")),
                 Image = new BitmapImage(
@@ -385,9 +385,9 @@ namespace Paracore.Addin.App
         {
             if (_toggleButton != null)
             {
-                _toggleButton.ItemText = _serverRunning ? "(On)" : "(Off)";
+                _toggleButton.ItemText = _serverRunning ? "Server On" : "Server Off";
                 _toggleButton.ToolTip = _serverRunning
-                    ? "Server is running. Click to stop."
+                    ? "Server is running on port 50051. Click to stop."
                     : "Server is stopped. Click to start.";
             }
         }

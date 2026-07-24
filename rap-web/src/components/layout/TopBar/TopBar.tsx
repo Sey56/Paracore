@@ -25,10 +25,6 @@ export const TopBar: React.FC = () => {
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const helpDropdownRef = useRef<HTMLDivElement>(null);
 
-  const handleAgentModeClick = () => {
-    setActiveMainView('agent');
-  };
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (helpDropdownRef.current && !helpDropdownRef.current.contains(event.target as Node)) {
@@ -121,7 +117,6 @@ export const TopBar: React.FC = () => {
       <div className="hidden lg:flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
         {[
           { id: 'scripts', label: 'Scripts', icon: faRectangleList },
-          { id: 'agent', label: 'Agent', icon: faRobot },
           { id: 'playlists', label: 'Playlists', icon: faListUl }
         ].map(nav => {
           const isActive = activeMainView === nav.id;
@@ -129,10 +124,7 @@ export const TopBar: React.FC = () => {
           return (
             <button
               key={nav.id}
-              onClick={() => {
-                if (nav.id === 'agent') handleAgentModeClick();
-                else setActiveMainView(nav.id as 'scripts' | 'agent' | 'playlists');
-              }}
+              onClick={() => setActiveMainView(nav.id as 'scripts' | 'playlists')}
               className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300
                 ${isActive
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md scale-[1.02]'

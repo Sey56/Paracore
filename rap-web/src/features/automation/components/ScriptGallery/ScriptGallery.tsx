@@ -268,6 +268,7 @@ export const ScriptGallery: React.FC = () => {
               isCompactView={isCompactView}
               handleEnterFocusMode={handleEnterFocusMode}
               handleReplaceScript={handleReplaceScript}
+              handleDoubleClickScript={handleConfigureScript}
               isAuthenticated={isAuthenticated}
               searchTerm={searchTerm}
             />
