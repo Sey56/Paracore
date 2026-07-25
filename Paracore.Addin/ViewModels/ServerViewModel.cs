@@ -1,6 +1,7 @@
 using CoreScript.Engine.Context;
 using CoreScript.Engine.Core;
 using CoreScript.Engine.Runtime;
+using System;
 using System.ComponentModel;
 
 namespace Paracore.Addin.ViewModels
@@ -32,6 +33,10 @@ namespace Paracore.Addin.ViewModels
             if (_isInitialized) return;
             _isInitialized = true;
             CoreScriptExecutionDispatcher.Instance.Initialize(codeExecutionEvent);
+            CoreScriptExecutionDispatcher.Instance.OnExecutionComplete += result =>
+            {
+                OnExecutionComplete?.Invoke(result);
+            };
         }
 
         public Guid DispatchScript(string scriptContent, string parametersJson, ICoreScriptContext context)
@@ -58,6 +63,11 @@ namespace Paracore.Addin.ViewModels
         {
             CoreScriptExecutionDispatcher.Instance.ClearCache();
         }
+
+        // Used by ScriptExecutionHandler to track execution source
+        public string LastClientSource { get; set; } = string.Empty;
+        public string LastExecutedScriptName { get; set; } = string.Empty;
+        public event Action<ExecutionResult> OnExecutionComplete = delegate { };
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

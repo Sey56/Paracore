@@ -8,15 +8,11 @@ import { ExecutionHistory } from '@/features/automation/components/ScriptInspect
 import { TableTabContent } from '@/features/automation/components/ScriptInspector/TableTabContent';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useUI } from '@/hooks/useUI';
-
 export const OutputPanel: React.FC = () => {
   const { localHistory, setLocalHistory } = useConsole();
   const { executionResult, clearExecutionResult, selectedScript } = useScriptExecution();
   const { revitStatus } = useRevitStatus();
   const { showNotification } = useNotifications();
-  const { agentReplResults, setAgentReplResults, agentCapturedDocTitle } = useUI();
-
   const [activeTab, setActiveTab] = useState<'history' | 'analytics'>('history');
   const [showPipeline, setShowPipeline] = useState(() => {
     const stored = localStorage.getItem('paracore_show_pipeline');
@@ -32,7 +28,7 @@ export const OutputPanel: React.FC = () => {
 
   // Analytics badge — only fires when data changes, not on tab switches
   useEffect(() => {
-    const hasAnalytics = (executionResult?.structuredOutput || agentReplResults)?.some(item =>
+    const hasAnalytics = executionResult?.structuredOutput?.some(item =>
       ['table', 'chart-bar', 'chart-pie', 'chart-line'].includes(item.type)
     );
     if (!hasAnalytics) return;
@@ -42,7 +38,7 @@ export const OutputPanel: React.FC = () => {
     if (activeTabRef.current !== 'analytics') {
       setHasUnviewedAnalytics(true);
     }
-  }, [executionResult, agentReplResults]);
+  }, [executionResult]);
 
   // History badge — only fires when data changes, not on tab switches
   useEffect(() => {
@@ -62,13 +58,6 @@ export const OutputPanel: React.FC = () => {
     if (activeTab === 'history') setHasUnviewedHistory(false);
   }, [activeTab]);
 
-  // Clear agent REPL override when any execution (manual or script) produces new results
-  useEffect(() => {
-    if (executionResult) {
-      setAgentReplResults(null);
-    }
-  }, [executionResult, setAgentReplResults]);
-
   const currentDocTitle = React.useMemo(() => revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null, [revitStatus.document]);
 
   // ── History: Copy & Clear ────────────────────────────────────────────
@@ -86,7 +75,7 @@ export const OutputPanel: React.FC = () => {
   };
 
   // ── Analytics: Copy & Clear ──────────────────────────────────────────
-  const structuredOutput = agentReplResults ?? executionResult?.structuredOutput;
+  const structuredOutput = executionResult?.structuredOutput;
   const hasAnalyticsData = !!(structuredOutput && structuredOutput.length > 0);
 
   const handleAnalyticsCopy = () => {
@@ -116,7 +105,6 @@ export const OutputPanel: React.FC = () => {
 
   const handleAnalyticsClear = () => {
     clearExecutionResult();
-    setAgentReplResults(null);
     showNotification("Analytics cleared", "info");
   };
 
@@ -212,12 +200,12 @@ export const OutputPanel: React.FC = () => {
         </div>
         <div className={`h-full w-full ${activeTab !== 'analytics' ? 'hidden' : ''}`}>
           <TableTabContent
-            executionResult={agentReplResults ? { ...executionResult, scriptName: 'Agent' } as any : executionResult}
-            capturedDocTitle={agentReplResults ? agentCapturedDocTitle : (executionResult?.capturedDocTitle || null)}
+            executionResult={executionResult}
+            capturedDocTitle={executionResult?.capturedDocTitle || null}
             currentDocTitle={currentDocTitle}
             selectedScript={selectedScript}
             isHeaderPortalTarget={activeTab === 'analytics'}
-            structuredOutputOverride={agentReplResults}
+            structuredOutputOverride={null}
           />
         </div>
       </div>

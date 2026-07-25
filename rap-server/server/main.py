@@ -50,6 +50,7 @@ from api import (
     user_settings_router,
     tool_builder_router,
     query_router,
+    sync_router,
 )
 
 
@@ -109,6 +110,7 @@ app.include_router(auth_router.router)
 app.include_router(user_settings_router.router)
 app.include_router(tool_builder_router.router)
 app.include_router(query_router.router)
+app.include_router(sync_router.router)
 
 app.include_router(playlist_router.router, prefix="/playlists", tags=["Playlists"])
 

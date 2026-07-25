@@ -9,7 +9,6 @@ using Paracore.Addin.Commands;
 using Paracore.Addin.Helpers;
 using Paracore.Addin.Services;
 using Paracore.Addin.ViewModels;
-using Paracore.Addin.Views;
 using System;
 using System.IO;
 using System.Windows.Media.Imaging;
@@ -23,7 +22,6 @@ namespace Paracore.Addin.App
     [Regeneration(RegenerationOption.Manual)]
     public class ParacoreApp : IExternalApplication
     {
-        public static readonly Guid DashboardPaneId = new Guid("D7C95B7A-2E34-4A1E-8A6A-45A75D25E48B");
         public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         public static string RevitVersion { get; private set; } = "Unknown"; // Default fallback
         public static string RevitInstallPath { get; private set; } = @"C:\Program Files\Autodesk\Revit"; // Default fallback base
@@ -32,10 +30,6 @@ namespace Paracore.Addin.App
                 ?.GetField("IsPro")?.GetValue(null) == true
             ? "ParacorePro.png" : "Paracore.png";
 
-        private static readonly string _dashboardIconName =
-            (bool?)Type.GetType("CoreScript.Engine.Globals.TakeOffExtensions, CoreScript.Engine")
-                ?.GetField("IsPro")?.GetValue(null) == true
-            ? "DashboardPro.png" : "Dashboard.png";
         private static CoreScriptClient? _client;
         private static bool _serverRunning;
         private static PushButton? _toggleButton;
@@ -106,11 +100,6 @@ namespace Paracore.Addin.App
             RibbonPanel panel = GetOrCreatePanel(application, tabName, panelName);
             CreateRibbonButtons(panel);
 
-            // Register dockable pane
-            var dpid = new DockablePaneId(DashboardPaneId);
-            var dp = new DashboardView();
-            application.RegisterDockablePane(dpid, "Paracore Dashboard", dp);
-
             // Ensure the server is marked as not running on startup
             ServerViewModel.Instance.IsServerRunning = false;
 
@@ -174,37 +163,19 @@ namespace Paracore.Addin.App
 
             PushButtonData toggleServerButton = new(
                 "ToggleCoreScriptServer",
-                "Server Off",
+                "OFF",
                 cmdAssembly,
                 useShim ? "Paracore.Shim.ToggleServerProxy" : typeof(ToggleServerCommand).FullName!)
             {
                 ToolTip = "Server is stopped. Click to start.",
-                LargeImage = new BitmapImage(
-                    new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_iconName}")),
-                Image = new BitmapImage(
-                    new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_iconName}"))
+                LargeImage = _iconOff,
+                Image = _iconOff
             };
 
             toggleServerButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://sey56.github.io/paracore-help/"));
 
             _toggleButton = panel.AddItem(toggleServerButton) as PushButton;
 
-            PushButtonData toggleDashboardButton = new(
-                "ToggleDashboard",
-                "Dashboard",
-                cmdAssembly,
-                useShim ? "Paracore.Shim.ToggleDashboardProxy" : typeof(ToggleDashboardCommand).FullName!)
-            {
-                ToolTip = "Toggle the Paracore dashboard.",
-                LargeImage = new BitmapImage(
-                    new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_dashboardIconName}")),
-                Image = new BitmapImage(
-                    new Uri($"pack://application:,,,/Paracore.Addin;component/Images/{_dashboardIconName}"))
-            };
-
-            toggleDashboardButton.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, "https://sey56.github.io/paracore-help/"));
-
-            panel.AddItem(toggleDashboardButton);
         }
 
         private RibbonPanel GetOrCreatePanel(UIControlledApplication app, string tabName, string panelName)
@@ -381,11 +352,48 @@ namespace Paracore.Addin.App
             // All dependencies resolve from the isolated context automatically.
         }
 
+        private static readonly BitmapImage _iconOn = CreateStatusIcon(System.Windows.Media.Colors.LimeGreen);
+        private static readonly BitmapImage _iconOff = CreateStatusIcon(System.Windows.Media.Colors.IndianRed);
+
+        /// <summary>Creates a 16x16 circle icon filled with the given color.</summary>
+        private static BitmapImage CreateStatusIcon(System.Windows.Media.Color color)
+        {
+            int size = 16;
+            var visual = new System.Windows.Media.DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawEllipse(
+                    new System.Windows.Media.SolidColorBrush(color),
+                    null,
+                    new System.Windows.Point(size / 2.0, size / 2.0),
+                    size / 2.0 - 1, size / 2.0 - 1);
+            }
+            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                size, size, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+            using (var ms = new System.IO.MemoryStream())
+            {
+                encoder.Save(ms);
+                ms.Seek(0, System.IO.SeekOrigin.Begin);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.StreamSource = ms;
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.EndInit();
+                bmp.Freeze();
+                return bmp;
+            }
+        }
+
         private static void UpdateButtonState()
         {
             if (_toggleButton != null)
             {
                 _toggleButton.ItemText = _serverRunning ? "Server On" : "Server Off";
+                _toggleButton.Image = _serverRunning ? _iconOn : _iconOff;
+                _toggleButton.LargeImage = _serverRunning ? _iconOn : _iconOff;
                 _toggleButton.ToolTip = _serverRunning
                     ? "Server is running on port 50051. Click to stop."
                     : "Server is stopped. Click to start.";

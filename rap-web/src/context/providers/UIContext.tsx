@@ -2,8 +2,6 @@ import { createContext } from "react";
 import { Script, StructuredOutput } from "@/types/scriptModel";
 export type InspectorTab = "parameters" | "console" | "table" | "metadata";
 
-export type AutomationSubMode = 'gallery' | 'repl';
-
 export type ActiveScriptSource =
   | { type: 'local'; path: string }
   | { type: 'published'; id: string }
@@ -59,12 +57,8 @@ export interface UIContextProps {
   setActiveScriptSource: (source: ActiveScriptSource) => void;
 
   // Main View Toggle
-  activeMainView: 'scripts' | 'playlists';
-  setActiveMainView: React.Dispatch<React.SetStateAction<'scripts' | 'playlists'>>;
-
-  // Automation Sub-mode (only relevant when activeMainView === 'scripts')
-  automationSubMode: AutomationSubMode;
-  setAutomationSubMode: React.Dispatch<React.SetStateAction<AutomationSubMode>>;
+  activeMainView: 'gallery' | 'repl' | 'playlists';
+  setActiveMainView: React.Dispatch<React.SetStateAction<'gallery' | 'repl' | 'playlists'>>;
 
   // Welcome Gate overlay (accessible from main UI after auth)
   isWelcomeGateOpen: boolean;

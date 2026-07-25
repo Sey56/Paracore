@@ -17,20 +17,11 @@ interface ScriptInspectorProps {
 export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
   const { selectedScript, setSelectedScript, editScript } = useScriptExecution();
   const { scripts } = useScripts();
-  const { agentSelectedScriptPath, toggleFloatingCodeViewer } = useUI();
+  const { toggleFloatingCodeViewer } = useUI();
   const { revitStatus, ParacoreConnected } = useRevitStatus();
   const { isAuthenticated } = useAuth();
 
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
-
-  useEffect(() => {
-    if (agentSelectedScriptPath && scripts.length > 0) {
-      const script = scripts.find(s => s.absolutePath === agentSelectedScriptPath || s.id === agentSelectedScriptPath);
-      if (script) {
-        setSelectedScript(script, 'agent');
-      }
-    }
-  }, [agentSelectedScriptPath, scripts, setSelectedScript]);
 
   const script = selectedScript;
   const isActionable = ParacoreConnected && isAuthenticated;

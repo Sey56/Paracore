@@ -44,7 +44,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     editScript: editScriptFromContext
   } = useScripts();
   const { isAuthenticated, user, isEnterprise, cloudToken } = useAuth();
-  const { activeScriptSource, setAgentSelectedScriptPath, setActiveInspectorTab, threadId } = useUI();
+  const { activeScriptSource, setActiveInspectorTab } = useUI();
   const { revitStatus } = useRevitStatus();
 
   // 1. Selection State
@@ -101,7 +101,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     executionResult,
     setExecutionResult,
     runScript
-  } = useExecutionRunner(threadId, addRecentScript, updateScriptLastRunTime, isEnterprise);
+  } = useExecutionRunner(null, addRecentScript, updateScriptLastRunTime, isEnterprise);
 
   // 6. Parameter Computations
   const {
@@ -125,16 +125,14 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     setSelectedScriptState(null);
     setPersistedScriptId(null);
     setCombinedScriptContent(null);
-    setAgentSelectedScriptPath(null);
-  }, [activeScriptSource, selectedFolder, setPersistedScriptId, setCombinedScriptContent, setSelectedScriptState, setAgentSelectedScriptPath]);
+  }, [activeScriptSource, selectedFolder, setPersistedScriptId, setCombinedScriptContent, setSelectedScriptState]);
 
   // Reset logic when user identity changes (Security)
   useEffect(() => {
     setSelectedScriptState(null);
     setPersistedScriptId(null);
     setCombinedScriptContent(null);
-    setAgentSelectedScriptPath(null);
-  }, [user?.id, setPersistedScriptId, setCombinedScriptContent, setSelectedScriptState, setAgentSelectedScriptPath]);
+  }, [user?.id, setPersistedScriptId, setCombinedScriptContent, setSelectedScriptState]);
 
   const setActivePreset = useCallback((scriptId: string, presetName: string) => {
     setActivePresets(prev => ({ ...prev, [scriptId]: presetName }));
@@ -145,7 +143,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
       setSelectedScriptState(null);
       setCombinedScriptContent(null);
       setPresets([]);
-      setAgentSelectedScriptPath(null);
       loadingScriptPathRef.current = null;
       return;
     }
@@ -162,7 +159,6 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
     // V5 ROBUST COMPARISON: uses shared isSameScript below
 
     if (source !== 'refresh' && source !== 'hard_reset' && source !== 'replace' && currentSelected && isSameScript(script, currentSelected)) {
-      if (source === 'agent') setAgentSelectedScriptPath(script.absolutePath);
       return;
     }
 
@@ -256,7 +252,7 @@ export const ScriptExecutionProvider = ({ children }: { children: React.ReactNod
         loadingScriptPathRef.current = null;
       }
     }
-  }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setPresets, setAgentSelectedScriptPath, updateUserEditedParameters, clearParameterCache, setSelectedScriptState, showNotification, selectedScriptRef, setActiveInspectorTab, updateScriptModificationTime, userEditedParametersRef]);
+  }, [fetchScriptContent, fetchScriptMetadata, setCombinedScriptContent, setPresets, updateUserEditedParameters, clearParameterCache, setSelectedScriptState, showNotification, selectedScriptRef, setActiveInspectorTab, updateScriptModificationTime, userEditedParametersRef]);
 
   // Sync session changes (Automated refresh when editing in IDE)
   useEffect(() => {

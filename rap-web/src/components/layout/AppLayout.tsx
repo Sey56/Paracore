@@ -86,7 +86,6 @@ export const AppLayout: React.FC = () => {
     showSentinelFAB,
     isWelcomeGateOpen,
     closeWelcomeGate,
-    automationSubMode
   } = useUI();
 
   const isMobile = useBreakpoint();
@@ -206,21 +205,19 @@ export const AppLayout: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Automation: Gallery sub-mode */}
-                      {activeMainView === 'scripts' && automationSubMode === 'gallery' && (
+                      {/* Gallery mode */}
+                      {activeMainView === 'gallery' && (
                         <div className="absolute inset-0 overflow-y-auto custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
                           <ScriptGallery />
                         </div>
                       )}
 
-                      {/* Automation: REPL sub-mode */}
-                      {activeMainView === 'scripts' && automationSubMode === 'repl' && (
+                      {/* REPL mode */}
+                      {activeMainView === 'repl' && (
                         <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
                           <ReplModeContent />
                         </div>
                       )}
-
-                      {/* Agent mode */}
                     </div>
                   </div>
 

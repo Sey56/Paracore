@@ -1,11 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { UIContext, InspectorTab, ActiveScriptSource, StructuredOutput } from "./UIContext";
+import { UIContext, InspectorTab, ActiveScriptSource } from "./UIContext";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useAuth } from "@/features/auth";
 
 const LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW = 'paracore_active_main_view';
-const LOCAL_STORAGE_KEY_AUTOMATION_SUB_MODE = 'paracore_automation_sub_mode';
 
 export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useBreakpoint();
@@ -62,26 +61,15 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // Main View Toggle
-  const [activeMainView, setActiveMainView] = useState<'scripts' | 'playlists'>(() => {
+  const [activeMainView, setActiveMainView] = useState<'gallery' | 'repl' | 'playlists'>(() => {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW);
-    if (stored === 'scripts' || stored === 'playlists') return stored;
-    return 'scripts';
+    if (stored === 'gallery' || stored === 'repl' || stored === 'playlists') return stored;
+    return 'gallery';
   });
 
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY_ACTIVE_MAIN_VIEW, activeMainView);
   }, [activeMainView]);
-
-  // Automation Sub-mode (gallery vs repl)
-  const [automationSubMode, setAutomationSubMode] = useState<'gallery' | 'repl'>(() => {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY_AUTOMATION_SUB_MODE);
-    if (stored === 'gallery' || stored === 'repl') return stored;
-    return 'gallery';
-  });
-
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_AUTOMATION_SUB_MODE, automationSubMode);
-  }, [automationSubMode]);
 
   // Welcome Gate overlay
   const [isWelcomeGateOpen, setIsWelcomeGateOpen] = useState(false);
@@ -232,8 +220,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isWelcomeGateOpen,
     openWelcomeGate,
     closeWelcomeGate,
-    automationSubMode,
-    setAutomationSubMode,
   }), [
     isSidebarOpen,
     toggleSidebar,
@@ -271,8 +257,6 @@ export const UIProvider = ({ children }: { children: React.ReactNode }) => {
     isWelcomeGateOpen,
     openWelcomeGate,
     closeWelcomeGate,
-    agentReplResults,
-    automationSubMode,
   ]);
 
   return (

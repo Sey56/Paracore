@@ -211,7 +211,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
       <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-6 pl-5 pr-3">
         <div className="space-y-8 pb-6 pr-2">
         {/* 1. Configuration Presets */}
-        {activeMainView === 'scripts' && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
+        {(activeMainView === 'gallery' || activeMainView === 'repl') && (editedParameters.length > 0 || (script.parameters && script.parameters.length > 0)) && (
           <div className="flex flex-col space-y-4">
 
             <div className="flex items-center gap-3 p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-inner tooltip-bottom">
@@ -328,7 +328,7 @@ export const ParametersTab: React.FC<ParametersTabProps> = ({ script, onViewCode
         </div>
 
         {/* 3. Execution Controls */}
-        {activeMainView === 'scripts' && (
+        {(activeMainView === 'gallery' || activeMainView === 'repl') && (
           <div className="pt-8 mt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 relative">
