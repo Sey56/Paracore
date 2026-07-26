@@ -236,15 +236,17 @@ namespace CoreScript.Engine.Globals
                     return refEl.Name;
                 case StorageType.Double:
                 case StorageType.Integer:
+                    // Yes/No checkbox — AsValueString is unreliable for 0.
+                    // Return the raw integer so 0/1 works bidirectionally
+                    // and displays correctly in tables.
+                    if (p.Definition is InternalDefinition intDef
+                        && intDef.GetDataType() == SpecTypeId.Boolean.YesNo)
+                        return p.AsInteger().ToString();
+
                     var valStr = p.AsValueString();
                     if (!string.IsNullOrEmpty(valStr)) return valStr;
 
-                    if (p.StorageType == StorageType.Integer && p.Definition is InternalDefinition intDef && intDef.GetDataType() == SpecTypeId.Boolean.YesNo)
-                    {
-                        return p.AsInteger() == 1 ? "True" : "False";
-                    }
-
-                    return p.StorageType == StorageType.Double ? p.AsDouble().ToString() : p.AsInteger().ToString();
+                    return p.AsInteger().ToString();
                 default:
                     return "";
             }
