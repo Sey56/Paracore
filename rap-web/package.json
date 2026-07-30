@@ -4,7 +4,7 @@
   "version": "4.7.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"cd ../rap-server/server && uvicorn main:app --host 0.0.0.0 --port 8000 --reload\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
