@@ -16,6 +16,8 @@ import api from '@/api/axios';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from "@/features/auth";
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useTheme } from '@/context/ThemeContext';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
 import SettingsModal from '@/features/settings/components/SettingsModal';
 import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
@@ -27,6 +29,7 @@ export const AppLayout: React.FC = () => {
   const { isAuthenticated, isEnterprise, user, login, loginLocal } = useAuth();
   const { selectedScript, setSelectedScript, runScript, userEditedScriptParameters } = useScriptExecution();
   const { isArmingWatchdogs, watchdogs } = useWatchdog();
+  const { toggleTheme } = useTheme();
   const [gateVisible, setGateVisible] = useState(true);
 
   const prevAuthRef = useRef(isAuthenticated);
@@ -86,10 +89,26 @@ export const AppLayout: React.FC = () => {
     showSentinelFAB,
     isWelcomeGateOpen,
     closeWelcomeGate,
+    toggleLayoutSwap,
+    openSettingsModal,
+    setActiveMainView,
   } = useUI();
 
   const isMobile = useBreakpoint();
   const showGate = isEnterprise && gateVisible;
+
+  // ── Keyboard Shortcuts ──
+  useKeyboardShortcuts({
+    'toggle-sidebar': toggleSidebar,
+    'toggle-inspector': toggleInspector,
+    'run-script': () => { if (selectedScript) runScript(selectedScript, userEditedScriptParameters[selectedScript.id] || selectedScript.parameters || []); },
+    'toggle-layout-swap': toggleLayoutSwap,
+    'cycle-theme': toggleTheme,
+    'open-settings': openSettingsModal,
+    'view-gallery': () => setActiveMainView('gallery'),
+    'view-repl': () => setActiveMainView('repl'),
+    'view-playlists': () => setActiveMainView('playlists'),
+  });
 
   // Global Reflow Trigger: 
   // Helps resolve a known Webview2/Tauri issue where scrollbars don't 

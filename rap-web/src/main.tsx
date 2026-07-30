@@ -3,8 +3,10 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AppProvider } from './context/AppProvider';
 import { ThemeProvider } from './context/ThemeProvider';
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import { initTelemetry } from './utils/telemetry';
-import './styles/tailwind.global.css';
+import './styles/globals.css';
 
 // Initialize anonymous telemetry tracking if user is opted-in
 initTelemetry();
@@ -52,9 +54,12 @@ new MutationObserver((mutations) => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
-      <AppProvider>
-        <App />
-      </AppProvider>
+      <TooltipProvider>
+        <AppProvider>
+          <App />
+          <Toaster />
+        </AppProvider>
+      </TooltipProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

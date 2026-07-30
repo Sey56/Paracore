@@ -1,5 +1,13 @@
 import React from 'react';
-import { Modal } from '@/components/common/Modal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface InfoModalProps {
   isOpen: boolean;
@@ -15,18 +23,16 @@ export const InfoModal: React.FC<InfoModalProps> = ({
   message,
 }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-      <div className="space-y-4">
-        <p className="text-gray-700 dark:text-gray-300">{message}</p>
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            Okay
-          </button>
-        </div>
-      </div>
-    </Modal>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{message}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter showCloseButton>
+          <Button onClick={onClose}>Okay</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
