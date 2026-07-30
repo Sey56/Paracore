@@ -1,12 +1,11 @@
 import React, { useCallback, useMemo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
-import { StreamLanguage, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { StreamLanguage } from '@codemirror/language';
 import { csharp } from '@codemirror/legacy-modes/mode/clike';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { autocompletion, type Completion } from '@codemirror/autocomplete';
-import { tags } from '@lezer/highlight';
 import { useTheme } from '@/context/ThemeContext';
 
 interface REPLCodeEditorProps {
@@ -20,36 +19,6 @@ interface REPLCodeEditorProps {
 }
 
 const csharpLanguage = StreamLanguage.define(csharp);
-
-const darkHighlight = HighlightStyle.define([
-  { tag: tags.keyword, color: '#569cd6' },
-  { tag: tags.comment, color: '#6a9955', fontStyle: 'italic' },
-  { tag: tags.string, color: '#ce9178' },
-  { tag: tags.number, color: '#b5cea8' },
-  { tag: tags.typeName, color: '#4ec9b0' },
-  { tag: tags.className, color: '#4ec9b0' },
-  { tag: tags.function(tags.variableName), color: '#dcdcaa' },
-  { tag: tags.definition(tags.variableName), color: '#9cdcfe' },
-  { tag: tags.operator, color: '#d4d4d4' },
-  { tag: tags.punctuation, color: '#d4d4d4' },
-  { tag: tags.bracket, color: '#d4d4d4' },
-  { tag: tags.meta, color: '#d4d4d4' },
-]);
-
-const lightHighlight = HighlightStyle.define([
-  { tag: tags.keyword, color: '#0000ff' },
-  { tag: tags.comment, color: '#008000', fontStyle: 'italic' },
-  { tag: tags.string, color: '#a31515' },
-  { tag: tags.number, color: '#098658' },
-  { tag: tags.typeName, color: '#267f99' },
-  { tag: tags.className, color: '#267f99' },
-  { tag: tags.function(tags.variableName), color: '#795e26' },
-  { tag: tags.definition(tags.variableName), color: '#001080' },
-  { tag: tags.operator, color: '#000000' },
-  { tag: tags.punctuation, color: '#000000' },
-  { tag: tags.bracket, color: '#000000' },
-  { tag: tags.meta, color: '#000000' },
-]);
 
 // ── Paracore + Revit API autocomplete ──
 const paracoreCompletions: Completion[] = [
@@ -148,24 +117,14 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
 
   const extensions = useMemo(() => [
     csharpLanguage,
-    syntaxHighlighting(isDark ? darkHighlight : lightHighlight),
     EditorView.lineWrapping,
     Prec.highest(keymap.of(runKeymap)),
     paracoreAutocomplete(),
     ...(isDark ? [oneDark] : []),
-    EditorView.theme({
-      '&': { backgroundColor: 'transparent' },
-      '.cm-scroller': { backgroundColor: 'transparent' },
-      '.cm-content': { backgroundColor: 'transparent' },
-      '.cm-gutters': { backgroundColor: 'transparent', borderRight: 'none' },
-      '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'transparent' },
-    }),
   ], [isDark, runKeymap]);
 
-  const wrapperBg = isDark ? 'bg-slate-900' : 'bg-white';
-
   return (
-    <div className={`h-full w-full overflow-hidden ${wrapperBg}`}>
+    <div className="h-full w-full overflow-hidden">
       <CodeMirror
         value={value}
         onChange={handleChange}
