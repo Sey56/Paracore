@@ -20,6 +20,7 @@ export const ReplModeContent: React.FC = () => {
 
   const { runningScriptPath } = useScriptExecution();
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isRunning = !!runningScriptPath;
 
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
@@ -67,6 +68,13 @@ export const ReplModeContent: React.FC = () => {
     }
     wasLoadingRef.current = isReplLoading;
   }, [isReplLoading]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleReplSubmit(true, activeSnippetName);
+    }
+  };
 
   const handleSingleLineKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
@@ -166,7 +174,7 @@ export const ReplModeContent: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 overflow-x-hidden">
       {/* Header — REPL file management, flush against top */}
-      <div className="flex items-center justify-between px-4 h-12 border-b border-slate-200 dark:border-gray-700 shrink-0">
+      <div className="flex items-center justify-between px-4 h-12 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-gray-700 shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
             <FontAwesomeIcon icon={faTerminal} className="text-[10px]" />
@@ -269,12 +277,19 @@ export const ReplModeContent: React.FC = () => {
       {/* Multi-line REPL Editor */}
       <div className="flex-1 min-h-0 flex flex-col pt-2">
         <REPLCodeEditor
+          ref={textareaRef}
           value={multiLineValue}
           onChange={setMultiLineValue}
-          onRun={() => handleReplSubmit(true, activeSnippetName)}
-          onSave={() => handleSaveSnippet(false)}
+          onKeyDown={(e) => {
+            if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              handleSaveSnippet(false);
+            } else {
+              handleKeyDown(e);
+            }
+          }}
           disabled={isReplLoading || isRunning}
-          placeholder="C# Playground... (Ctrl+Enter to run, Ctrl+S to save)"
+          placeholder="C# Playground... (Ctrl+Enter to run)"
         />
       </div>
 
@@ -315,7 +330,7 @@ export const ReplModeContent: React.FC = () => {
             onKeyDown={handleSingleLineKeyDown}
             placeholder="Single command..."
             disabled={isReplLoading || isRunning}
-            className="w-full pl-7 pr-4 py-2.5 bg-transparent border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white transition-all font-mono"
+            className="w-full pl-7 pr-4 py-2.5 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white transition-all font-mono"
           />
         </div>
       </div>
