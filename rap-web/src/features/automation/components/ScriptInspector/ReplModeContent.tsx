@@ -20,7 +20,6 @@ export const ReplModeContent: React.FC = () => {
 
   const { runningScriptPath } = useScriptExecution();
   const inputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isRunning = !!runningScriptPath;
 
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
@@ -277,19 +276,12 @@ export const ReplModeContent: React.FC = () => {
       {/* Multi-line REPL Editor */}
       <div className="flex-1 min-h-0 flex flex-col pt-2">
         <REPLCodeEditor
-          ref={textareaRef}
           value={multiLineValue}
           onChange={setMultiLineValue}
-          onKeyDown={(e) => {
-            if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
-              e.preventDefault();
-              handleSaveSnippet(false);
-            } else {
-              handleKeyDown(e);
-            }
-          }}
+          onRun={() => handleReplSubmit(true, activeSnippetName)}
+          onSave={() => handleSaveSnippet(false)}
           disabled={isReplLoading || isRunning}
-          placeholder="C# Playground... (Ctrl+Enter to run)"
+          placeholder="C# Playground... (Ctrl+Enter to run, Ctrl+S to save)"
         />
       </div>
 
