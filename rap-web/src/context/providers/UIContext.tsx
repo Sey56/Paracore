@@ -1,6 +1,6 @@
 import { createContext } from "react";
 import { Script, StructuredOutput } from "@/types/scriptModel";
-export type InspectorTab = "parameters" | "console" | "table" | "metadata";
+export type InspectorTab = "parameters" | "metadata";
 
 export type ActiveScriptSource =
   | { type: 'local'; path: string }
