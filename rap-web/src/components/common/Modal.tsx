@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -38,29 +38,10 @@ export const Modal: React.FC<ModalProps> = ({
   noPadding = false,
   hideHeader = false,
 }) => {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  // Sync open: when parent opens, we open immediately
-  useEffect(() => {
-    if (isOpen) {
-      setInternalOpen(true);
-    }
-  }, [isOpen]);
-
-  const handleOpenChange = (open: boolean) => {
-    setInternalOpen(open);
-    if (!open) {
-      // Let the exit animation finish before telling the parent
-      setTimeout(() => onCloseRef.current(), 200);
-    }
-  };
-
   return (
-    <Dialog open={internalOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
-        className={`${sizeClasses[size] || ''} ${size === 'full' ? 'h-[90vh]' : ''} max-h-[92vh] overflow-hidden flex flex-col`}
+        className={`${sizeClasses[size] || ''} ${size === 'full' ? 'h-[90vh]' : ''} max-h-[92vh] overflow-hidden flex flex-col data-closed:animate-none data-closed:fade-out-0`}
         showCloseButton={!hideHeader}
       >
         {!hideHeader && (
