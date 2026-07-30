@@ -68,13 +68,6 @@ export const ReplModeContent: React.FC = () => {
     wasLoadingRef.current = isReplLoading;
   }, [isReplLoading]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      handleReplSubmit(true, activeSnippetName);
-    }
-  };
-
   const handleSingleLineKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
     const { selectionStart, selectionEnd, value } = input;

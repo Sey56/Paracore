@@ -11,7 +11,6 @@ import { useTheme } from '@/context/ThemeContext';
 interface REPLCodeEditorProps {
   value: string;
   onChange: (value: string) => void;
-  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onRun?: () => void;
   onSave?: () => void;
   disabled?: boolean;
