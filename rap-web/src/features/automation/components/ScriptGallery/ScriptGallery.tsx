@@ -71,7 +71,10 @@ export const ScriptGallery: React.FC = () => {
     favoriteScripts, otherScripts
   } = useGalleryFilters(scripts, favoriteIds, selectedCategory);
 
-  const [isCompactView, setIsCompactView] = useState(false);
+  const [isCompactView, setIsCompactView] = useState(() => {
+    const saved = localStorage.getItem('paracore_gallery_density');
+    return saved === 'compact';
+  });
   const [scriptToReplace, setScriptToReplace] = useState<Script | null>(null);
 
   // 2. Scroll & Focus Logic
@@ -222,6 +225,14 @@ export const ScriptGallery: React.FC = () => {
                 canCreateScripts={canCreateScripts}
                 onNewScript={openNewScriptModal}
                 onNewSentinel={openNewSentinelModal}
+                isCompactView={isCompactView}
+                onToggleDensity={() => {
+                  setIsCompactView(prev => {
+                    const next = !prev;
+                    localStorage.setItem('paracore_gallery_density', next ? 'compact' : 'card');
+                    return next;
+                  });
+                }}
               />
 
               {pillFilters.length > 0 && (

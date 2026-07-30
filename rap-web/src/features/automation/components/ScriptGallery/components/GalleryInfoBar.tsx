@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSync, faShieldHeart, faFolderOpen, faChevronDown, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { faSync, faShieldHeart, faFolderOpen, faChevronDown, faCheck, faThLarge, faList } from '@fortawesome/free-solid-svg-icons';
 import { defaultCategories } from '@/data/categories';
 import { ActiveScriptSource } from '@/context/providers/UIContext';
 import { useAuth } from '@/features/auth';
@@ -16,6 +16,8 @@ interface GalleryInfoBarProps {
   canCreateScripts: boolean;
   onNewScript: () => void;
   onNewSentinel: () => void;
+  isCompactView: boolean;
+  onToggleDensity: () => void;
 }
 
 export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
@@ -27,7 +29,9 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
   onRefresh,
   canCreateScripts,
   onNewScript,
-  onNewSentinel
+  onNewSentinel,
+  isCompactView,
+  onToggleDensity,
 }) => {
   const { isEnterprise } = useAuth();
   const [catOpen, setCatOpen] = useState(false);
@@ -63,7 +67,7 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
         <div className="relative" ref={catRef}>
           <button
             onClick={() => setCatOpen(!catOpen)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-muted transition-colors"
           >
             <span>{activeCount > 0 ? `Category (${activeCount})` : 'Category'}</span>
             <FontAwesomeIcon icon={faChevronDown} className={`text-[7px] transition-transform ${catOpen ? 'rotate-180' : ''}`} />
@@ -104,10 +108,19 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
           )}
         </div>
 
+        <Tooltip text={isCompactView ? "Card View" : "Compact View"} position="bottom">
+          <button
+            onClick={onToggleDensity}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-muted transition-colors"
+          >
+            <FontAwesomeIcon icon={isCompactView ? faThLarge : faList} className="text-[10px]" />
+          </button>
+        </Tooltip>
+
         <Tooltip text="Refresh Gallery" position="bottom">
           <button
             onClick={onRefresh}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-500 hover:bg-muted transition-colors"
           >
             <FontAwesomeIcon icon={faSync} className="text-[10px]" />
           </button>
