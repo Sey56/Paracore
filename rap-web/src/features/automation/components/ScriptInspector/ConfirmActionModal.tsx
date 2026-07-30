@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,15 +29,18 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   confirmButtonText = "Confirm",
   confirmButtonColor = "default",
 }) => {
-  const closingRef = useRef(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (isOpen) setInternalOpen(true);
+  }, [isOpen]);
 
   const handleOpenChange = (open: boolean) => {
-    if (!open && !closingRef.current) {
-      closingRef.current = true;
-      setTimeout(() => {
-        onClose();
-        closingRef.current = false;
-      }, 150);
+    setInternalOpen(open);
+    if (!open) {
+      setTimeout(() => onCloseRef.current(), 200);
     }
   };
 
@@ -49,7 +52,7 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   const variant = confirmButtonColor === 'red' ? 'destructive' : confirmButtonColor === 'blue' ? 'default' : 'secondary';
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
+    <AlertDialog open={internalOpen} onOpenChange={handleOpenChange}>
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
