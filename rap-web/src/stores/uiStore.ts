@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Script } from '@/types/scriptModel';
 
 export type InspectorTab = "parameters" | "metadata";
@@ -90,7 +91,9 @@ interface UIStore {
   toggleSentinelFAB: () => void;
 }
 
-export const useUIStore = create<UIStore>((set) => ({
+export const useUIStore = create<UIStore>()(
+  persist(
+    (set) => ({
   // Sidebar
   isSidebarOpen: false,
   toggleSidebar: () => set(s => ({ isSidebarOpen: !s.isSidebarOpen })),
@@ -168,4 +171,15 @@ export const useUIStore = create<UIStore>((set) => ({
   // Sentinel FAB
   showSentinelFAB: true,
   toggleSentinelFAB: () => set(s => ({ showSentinelFAB: !s.showSentinelFAB })),
-}));
+}),
+    {
+      name: 'paracore-ui-store',
+      partialize: (state) => ({
+        activeScriptSource: state.activeScriptSource,
+        activeMainView: state.activeMainView,
+        isLayoutSwapped: state.isLayoutSwapped,
+        showSentinelFAB: state.showSentinelFAB,
+      }),
+    },
+  ),
+);
