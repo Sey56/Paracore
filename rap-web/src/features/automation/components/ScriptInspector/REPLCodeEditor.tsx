@@ -109,53 +109,44 @@ function paracoreAutocomplete() {
   });
 }
 
-// ── Transparent editor — inherits parent background in all themes ──
+// ── Force transparent on all editor surfaces, parent controls background ──
 const paracoreEditorTheme = EditorView.theme({
   '&': {
-    backgroundColor: 'transparent',
+    backgroundColor: 'transparent !important',
+  },
+  '&.cm-editor .cm-scroller': {
+    backgroundColor: 'transparent !important',
+  },
+  '&.cm-editor .cm-content': {
+    backgroundColor: 'transparent !important',
+    caretColor: 'var(--accent, #3b82f6) !important',
   },
   '&.cm-focused': {
     outline: 'none',
   },
-  '.cm-gutters': {
-    backgroundColor: 'transparent',
-    borderRight: 'none',
+  '&.cm-editor .cm-gutters': {
+    backgroundColor: 'transparent !important',
+    borderRight: 'none !important',
     color: 'var(--text-muted)',
   },
   '.cm-activeLineGutter': {
-    backgroundColor: 'transparent',
+    backgroundColor: 'transparent !important',
   },
   '.cm-activeLine': {
-    backgroundColor: 'transparent',
+    backgroundColor: 'transparent !important',
   },
   '.cm-cursor': {
-    borderLeftColor: 'var(--accent, #3b82f6)',
+    borderLeftColor: 'var(--accent, #3b82f6) !important',
   },
   '.cm-selectionBackground': {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    backgroundColor: 'rgba(59, 130, 246, 0.25) !important',
   },
   '.cm-matchingBracket': {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    outline: '1px solid rgba(59, 130, 246, 0.3)',
+    backgroundColor: 'rgba(59, 130, 246, 0.15) !important',
+    outline: '1px solid rgba(59, 130, 246, 0.3) !important',
   },
   '.cm-foldPlaceholder': {
-    backgroundColor: 'transparent',
-  },
-  '.cm-tooltip': {
-    backgroundColor: 'var(--bg-panel, #fff)',
-    color: 'var(--text-main, #000)',
-    border: '1px solid var(--border-main, #ccc)',
-    borderRadius: '8px',
-  },
-  '.cm-tooltip-autocomplete': {
-    '& .cm-completionDetail': {
-      color: 'var(--text-muted, #666)',
-      fontStyle: 'normal',
-    },
-    '& .cm-completionInfo': {
-      padding: '4px 8px',
-      fontSize: '12px',
-    },
+    backgroundColor: 'transparent !important',
   },
 }, { dark: false });
 
@@ -196,7 +187,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
   ], [runKeymap]);
 
   return (
-    <div className="h-full w-full overflow-hidden">
+    <div className="h-full w-full overflow-hidden semantic-bg-panel">
       <CodeMirror
         value={value}
         onChange={handleChange}
