@@ -123,10 +123,10 @@ const lightTheme = EditorView.theme({
     borderRight: '1px solid var(--border-main, #e2e8f0)',
   },
   '.cm-activeLineGutter': {
-    backgroundColor: 'var(--bg-card, #f1f5f9)',
+    backgroundColor: 'transparent',
   },
   '.cm-activeLine': {
-    backgroundColor: 'var(--bg-card, #f1f5f9)',
+    backgroundColor: 'transparent',
   },
   '.cm-cursor': {
     borderLeftColor: 'var(--accent, #3b82f6)',
@@ -206,8 +206,8 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         theme={isDark ? 'dark' : 'light'}
         basicSetup={{
           lineNumbers: true,
-          highlightActiveLineGutter: true,
-          highlightActiveLine: true,
+          highlightActiveLineGutter: false,
+          highlightActiveLine: false,
           foldGutter: true,
           bracketMatching: true,
           closeBrackets: true,
