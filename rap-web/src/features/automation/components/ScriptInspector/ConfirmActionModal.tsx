@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,15 +29,27 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   confirmButtonText = "Confirm",
   confirmButtonColor = "default",
 }) => {
+  const closingRef = useRef(false);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !closingRef.current) {
+      closingRef.current = true;
+      setTimeout(() => {
+        onClose();
+        closingRef.current = false;
+      }, 150);
+    }
+  };
+
   const handleConfirm = () => {
     onConfirm();
-    onClose();
+    handleOpenChange(false);
   };
 
   const variant = confirmButtonColor === 'red' ? 'destructive' : confirmButtonColor === 'blue' ? 'default' : 'secondary';
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

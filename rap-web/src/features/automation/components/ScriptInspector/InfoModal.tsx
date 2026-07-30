@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,15 +22,27 @@ export const InfoModal: React.FC<InfoModalProps> = ({
   title,
   message,
 }) => {
+  const closingRef = useRef(false);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !closingRef.current) {
+      closingRef.current = true;
+      setTimeout(() => {
+        onClose();
+        closingRef.current = false;
+      }, 150);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{message}</DialogDescription>
         </DialogHeader>
         <DialogFooter showCloseButton>
-          <Button onClick={onClose}>Okay</Button>
+          <Button onClick={() => handleOpenChange(false)}>Okay</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

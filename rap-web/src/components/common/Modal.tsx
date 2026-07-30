@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -38,8 +38,21 @@ export const Modal: React.FC<ModalProps> = ({
   noPadding = false,
   hideHeader = false,
 }) => {
+  const closingRef = useRef(false);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !closingRef.current) {
+      closingRef.current = true;
+      // Let the exit animation finish before signaling close
+      setTimeout(() => {
+        onClose();
+        closingRef.current = false;
+      }, 150);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
         className={`${sizeClasses[size] || ''} ${size === 'full' ? 'h-[90vh]' : ''} max-h-[92vh] overflow-hidden flex flex-col`}
         showCloseButton={!hideHeader}
