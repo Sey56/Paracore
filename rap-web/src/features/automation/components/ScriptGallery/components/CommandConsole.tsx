@@ -1,7 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faExpandAlt, faCompressAlt, faChevronDown, faSortAmountDown } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faExpandAlt, faCompressAlt, faChevronDown, faSortAmountDown, faClock, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '@/features/auth';
+
+const SEARCH_HISTORY_KEY = 'paracore_search_history';
+const MAX_HISTORY = 10;
+
+function loadSearchHistory(): string[] {
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSearchHistory(history: string[]) {
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+}
 
 interface CommandConsoleProps {
   isAuthenticated: boolean;
@@ -44,16 +58,40 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
   filteredCount
 }) => {
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>(loadSearchHistory);
+  const [showHistory, setShowHistory] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   const { isEnterprise } = useAuth();
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (sortRef.current && !sortRef.current.contains(e.target as Node)) setIsSortOpen(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowHistory(false);
     };
-    if (isSortOpen) document.addEventListener('mousedown', handleClick);
+    if (isSortOpen || showHistory) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [isSortOpen]);
+  }, [isSortOpen, showHistory]);
+
+  const addToHistory = useCallback((term: string) => {
+    if (!term.trim()) return;
+    setSearchHistory(prev => {
+      const next = [term, ...prev.filter(t => t !== term)].slice(0, MAX_HISTORY);
+      saveSearchHistory(next);
+      return next;
+    });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    setSearchHistory([]);
+    saveSearchHistory([]);
+  }, []);
+
+  const handleSearchSubmit = useCallback((term: string) => {
+    setSearchTerm(term);
+    addToHistory(term);
+    setShowHistory(false);
+  }, [setSearchTerm, addToHistory]);
 
   const activeSortLabel = SORT_OPTIONS.find(opt => opt.value === sortOrder)?.label || 'Sort';
 
@@ -62,10 +100,10 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
       <div className={`w-full flex flex-wrap items-center gap-2.5 px-3 py-2 rounded-xl bg-white/70 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 ${!isAuthenticated ? 'opacity-50 pointer-events-none' : ''}`}>
 
         {/* Search */}
-        <div className="flex-1 min-w-[140px] relative">
+        <div className="flex-1 min-w-[140px] relative" ref={searchRef}>
           <FontAwesomeIcon
             icon={faSearch}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] z-10"
           />
           <input
             type="text"
@@ -74,6 +112,13 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
             style={{ paddingRight: totalUnits > 0 ? '3.5rem' : '0.75rem' }}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onFocus={() => setShowHistory(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                addToHistory(searchTerm);
+                setShowHistory(false);
+              }
+            }}
             disabled={!isAuthenticated}
           />
           {totalUnits > 0 && (
@@ -84,6 +129,28 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
               }`}>
               {filteredCount}/{totalUnits}
             </span>
+          )}
+
+          {/* Search History Dropdown */}
+          {showHistory && searchHistory.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 rounded-xl shadow-2xl z-[120] border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Recent</span>
+                <button onClick={clearHistory} className="text-[9px] text-slate-400 hover:text-red-500 transition-colors">
+                  <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                </button>
+              </div>
+              {searchHistory.map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSearchSubmit(item)}
+                  className="w-full text-left px-3 py-2 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
+                >
+                  <FontAwesomeIcon icon={faClock} className="text-[9px] text-slate-400 shrink-0" />
+                  <span className="truncate">{item}</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
