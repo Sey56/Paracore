@@ -2,8 +2,10 @@ import React, { useCallback, useMemo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { StreamLanguage } from '@codemirror/language';
 import { csharp } from '@codemirror/legacy-modes/mode/clike';
+import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
 import { autocompletion, type Completion } from '@codemirror/autocomplete';
+import { useTheme } from '@/context/ThemeContext';
 
 interface REPLCodeEditorProps {
   value: string;
@@ -18,44 +20,34 @@ interface REPLCodeEditorProps {
 
 const csharpLanguage = StreamLanguage.define(csharp);
 
-// ── Paracore + Revit API autocomplete source ──
+// ── Paracore + Revit API autocomplete ──
 const paracoreCompletions: Completion[] = [
-  // ── Paracore Globals ──
   { label: 'GetElements', type: 'function', detail: 'Paracore', info: 'Get all elements of a type. Usage: GetElements<Wall>("Name")' },
   { label: 'GetStr', type: 'function', detail: 'Element extension', info: 'Get parameter value as string. Usage: element.GetStr("ParameterName")' },
   { label: 'GetNum', type: 'function', detail: 'Element extension', info: 'Get parameter value as double. Usage: element.GetNum("Length", "m")' },
   { label: 'GetInt', type: 'function', detail: 'Element extension', info: 'Get parameter value as integer. Usage: element.GetInt("Count")' },
   { label: 'GetVal', type: 'function', detail: 'Element extension', info: 'Get formatted parameter value. Usage: element.GetVal("Area")' },
   { label: 'Transact', type: 'function', detail: 'Paracore', info: 'Wrap changes in a Revit transaction. Usage: Transact(() => { ... })' },
-  { label: 'TransactAsync', type: 'function', detail: 'Paracore', info: 'Async transaction wrapper. Usage: await TransactAsync(async () => { ... })' },
-  { label: 'PickObject', type: 'function', detail: 'Paracore', info: 'Pick an element in the Revit view. Usage: PickObject<Element>()' },
-  { label: 'ShowNotification', type: 'function', detail: 'Paracore', info: 'Show a Revit notification. Usage: ShowNotification("Done")' },
-  { label: 'Params', type: 'class', detail: 'Paracore', info: 'Auto-generate parameter UI from properties. Usage: public class Params { ... }' },
-  { label: 'Watchdog', type: 'class', detail: 'Paracore', info: 'Reactive sentinel guard attribute. Usage: [Watchdog("Name", "* * * * *")]' },
-  { label: 'DocumentType', type: 'keyword', detail: 'Paracore', info: 'Restrict script to document type. Usage: public DocumentType Type => "Project"' },
-  { label: 'Alert', type: 'function', detail: 'Paracore', info: 'Show an alert dialog in Revit. Usage: Alert("message")' },
-
-  // ── Revit API Types ──
-  { label: 'BuiltInCategory', type: 'enum', detail: 'Revit API', info: 'Built-in Revit categories. Usage: BuiltInCategory.OST_Walls' },
-  { label: 'BuiltInParameter', type: 'enum', detail: 'Revit API', info: 'Built-in Revit parameters. Usage: BuiltInParameter.ALL_MODEL_MARK' },
-  { label: 'UnitType', type: 'enum', detail: 'Revit API', info: 'Unit types for conversion. Usage: UnitType.UT_Length' },
-
-  // ── Revit Element Types ──
+  { label: 'TransactAsync', type: 'function', detail: 'Paracore', info: 'Async transaction wrapper.' },
+  { label: 'PickObject', type: 'function', detail: 'Paracore', info: 'Pick an element in the Revit view.' },
+  { label: 'ShowNotification', type: 'function', detail: 'Paracore', info: 'Show a Revit notification.' },
+  { label: 'Params', type: 'class', detail: 'Paracore', info: 'Auto-generate parameter UI from properties.' },
+  { label: 'FilteredElementCollector', type: 'class', detail: 'Revit API', info: 'Collect and filter elements.' },
+  { label: 'BuiltInCategory', type: 'enum', detail: 'Revit API', info: 'Built-in Revit categories.' },
+  { label: 'BuiltInParameter', type: 'enum', detail: 'Revit API', info: 'Built-in Revit parameters.' },
   { label: 'Wall', type: 'class', detail: 'Revit API', info: 'Revit Wall element' },
   { label: 'Floor', type: 'class', detail: 'Revit API', info: 'Revit Floor element' },
-  { label: 'FamilyInstance', type: 'class', detail: 'Revit API', info: 'Revit family instance (doors, windows, furniture)' },
+  { label: 'FamilyInstance', type: 'class', detail: 'Revit API', info: 'Revit family instance' },
   { label: 'FamilySymbol', type: 'class', detail: 'Revit API', info: 'Revit family type/symbol' },
   { label: 'Level', type: 'class', detail: 'Revit API', info: 'Revit Level element' },
   { label: 'View', type: 'class', detail: 'Revit API', info: 'Revit View element' },
   { label: 'ViewPlan', type: 'class', detail: 'Revit API', info: 'Revit plan view' },
   { label: 'View3D', type: 'class', detail: 'Revit API', info: 'Revit 3D view' },
-  { label: 'ViewSection', type: 'class', detail: 'Revit API', info: 'Revit section view' },
   { label: 'Element', type: 'class', detail: 'Revit API', info: 'Base Revit element class' },
   { label: 'ElementId', type: 'class', detail: 'Revit API', info: 'Revit element identifier' },
   { label: 'Document', type: 'class', detail: 'Revit API', info: 'Revit document' },
   { label: 'UIDocument', type: 'class', detail: 'Revit API', info: 'Revit UI document' },
-  { label: 'XYZ', type: 'class', detail: 'Revit API', info: '3D point/vector. Usage: new XYZ(x, y, z)' },
-  { label: 'UV', type: 'class', detail: 'Revit API', info: '2D point/vector' },
+  { label: 'XYZ', type: 'class', detail: 'Revit API', info: '3D point/vector' },
   { label: 'Line', type: 'class', detail: 'Revit API', info: 'Revit geometry line' },
   { label: 'Arc', type: 'class', detail: 'Revit API', info: 'Revit geometry arc' },
   { label: 'Curve', type: 'class', detail: 'Revit API', info: 'Revit curve base class' },
@@ -66,42 +58,32 @@ const paracoreCompletions: Completion[] = [
   { label: 'LocationPoint', type: 'class', detail: 'Revit API', info: 'Point-based element location' },
   { label: 'LocationCurve', type: 'class', detail: 'Revit API', info: 'Curve-based element location' },
   { label: 'Parameter', type: 'class', detail: 'Revit API', info: 'Revit parameter' },
-  { label: 'FilteredElementCollector', type: 'class', detail: 'Revit API', info: 'Collect and filter elements. Usage: new FilteredElementCollector(doc).OfClass(typeof(Wall))' },
-  { label: 'ElementFilter', type: 'class', detail: 'Revit API', info: 'Base class for element filters' },
-  { label: 'ElementClassFilter', type: 'class', detail: 'Revit API', info: 'Filter by element class' },
-  { label: 'ElementCategoryFilter', type: 'class', detail: 'Revit API', info: 'Filter by category' },
-
-  // ── Common Revit Element Properties ──
-  { label: 'get_Parameter', type: 'method', detail: 'Element', info: 'Get parameter by BuiltInParameter. Usage: element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)' },
-  { label: 'LookupParameter', type: 'method', detail: 'Element', info: 'Get parameter by name. Usage: element.LookupParameter("Mark")' },
-  { label: 'get_Geometry', type: 'method', detail: 'Element', info: 'Get element geometry. Usage: element.get_Geometry(new Options())' },
+  { label: 'get_Parameter', type: 'method', detail: 'Element', info: 'Get parameter by BuiltInParameter.' },
+  { label: 'LookupParameter', type: 'method', detail: 'Element', info: 'Get parameter by name.' },
+  { label: 'get_Geometry', type: 'method', detail: 'Element', info: 'Get element geometry.' },
   { label: 'LevelId', type: 'property', detail: 'Element', info: 'Level ID of the element' },
   { label: 'Category', type: 'property', detail: 'Element', info: 'Category of the element' },
-  { label: 'Location', type: 'property', detail: 'Element', info: 'Location of the element' },
-
-  // ── C# Keywords ──
   { label: 'var', type: 'keyword', detail: 'C#', info: 'Implicitly typed variable' },
   { label: 'using', type: 'keyword', detail: 'C#', info: 'Import namespace or dispose pattern' },
-  { label: 'foreach', type: 'keyword', detail: 'C#', info: 'Iterate over collection. Usage: foreach (var item in collection) { }' },
-  { label: 'List', type: 'class', detail: 'System.Collections.Generic', info: 'Generic list. Usage: new List<T>()' },
-  { label: 'Dictionary', type: 'class', detail: 'System.Collections.Generic', info: 'Key-value dictionary. Usage: new Dictionary<K,V>()' },
+  { label: 'foreach', type: 'keyword', detail: 'C#', info: 'Iterate over collection' },
+  { label: 'List', type: 'class', detail: 'System.Collections.Generic', info: 'Generic list' },
+  { label: 'Dictionary', type: 'class', detail: 'System.Collections.Generic', info: 'Key-value dictionary' },
   { label: 'string', type: 'type', detail: 'C#', info: 'String type' },
   { label: 'int', type: 'type', detail: 'C#', info: '32-bit integer' },
   { label: 'double', type: 'type', detail: 'C#', info: 'Double-precision float' },
   { label: 'bool', type: 'type', detail: 'C#', info: 'Boolean' },
   { label: 'void', type: 'type', detail: 'C#', info: 'No return type' },
-  { label: 'new', type: 'keyword', detail: 'C#', info: 'Instantiate object. Usage: new TypeName()' },
-  { label: 'Where', type: 'keyword', detail: 'LINQ', info: 'LINQ filter. Usage: collection.Where(x => x.condition)' },
-  { label: 'Select', type: 'keyword', detail: 'LINQ', info: 'LINQ projection. Usage: collection.Select(x => x.property)' },
-  { label: 'FirstOrDefault', type: 'keyword', detail: 'LINQ', info: 'First element or default. Usage: collection.FirstOrDefault()' },
-  { label: 'OrderBy', type: 'keyword', detail: 'LINQ', info: 'LINQ ordering. Usage: collection.OrderBy(x => x.key)' },
-  { label: 'ToList', type: 'keyword', detail: 'LINQ', info: 'Convert to List. Usage: collection.ToList()' },
+  { label: 'Where', type: 'keyword', detail: 'LINQ', info: 'LINQ filter' },
+  { label: 'Select', type: 'keyword', detail: 'LINQ', info: 'LINQ projection' },
+  { label: 'FirstOrDefault', type: 'keyword', detail: 'LINQ', info: 'First element or default' },
+  { label: 'OrderBy', type: 'keyword', detail: 'LINQ', info: 'LINQ ordering' },
+  { label: 'ToList', type: 'keyword', detail: 'LINQ', info: 'Convert to List' },
 ];
 
 function paracoreAutocomplete() {
   return autocompletion({
     override: [(_context) => {
-      return { from: 0, options: paracoreCompletions, validFor: (_text, _from, _to, _completion) => true };
+      return { from: 0, options: paracoreCompletions, validFor: () => true };
     }],
     activateOnTyping: true,
     closeOnBlur: true,
@@ -109,64 +91,19 @@ function paracoreAutocomplete() {
   });
 }
 
-// ── Force transparent on all editor surfaces, parent controls background ──
-const paracoreEditorTheme = EditorView.theme({
-  '&': {
-    backgroundColor: 'transparent !important',
-  },
-  '&.cm-editor .cm-scroller': {
-    backgroundColor: 'transparent !important',
-  },
-  '&.cm-editor .cm-content': {
-    backgroundColor: 'transparent !important',
-    caretColor: 'var(--accent, #3b82f6) !important',
-  },
-  '&.cm-focused': {
-    outline: 'none',
-  },
-  '&.cm-editor .cm-gutters': {
-    backgroundColor: 'transparent !important',
-    borderRight: 'none !important',
-    color: 'var(--text-muted)',
-  },
-  '.cm-activeLineGutter': {
-    backgroundColor: 'transparent !important',
-  },
-  '.cm-activeLine': {
-    backgroundColor: 'transparent !important',
-  },
-  '.cm-cursor': {
-    borderLeftColor: 'var(--accent, #3b82f6) !important',
-  },
-  '.cm-selectionBackground': {
-    backgroundColor: 'rgba(59, 130, 246, 0.25) !important',
-  },
-  '.cm-matchingBracket': {
-    backgroundColor: 'rgba(59, 130, 246, 0.15) !important',
-    outline: '1px solid rgba(59, 130, 246, 0.3) !important',
-  },
-  '.cm-foldPlaceholder': {
-    backgroundColor: 'transparent !important',
-  },
-}, { dark: false });
-
 export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEditorProps>(({
   value,
   onChange,
-  onKeyDown: _onKeyDown,
   onRun,
   onSave,
   disabled = false,
   placeholder = "Write your code here...",
 }, _ref) => {
-  const handleChange = useCallback(
-    (val: string) => {
-      onChange(val);
-    },
-    [onChange],
-  );
+  const { theme } = useTheme();
+  const isDark = theme !== 'light';
 
-  // Ctrl+Enter to run, Ctrl+S to save
+  const handleChange = useCallback((val: string) => { onChange(val); }, [onChange]);
+
   const runKeymap: readonly KeyBinding[] = useMemo(() => [
     ...(onRun ? [
       { key: 'Ctrl-Enter', run: () => { onRun(); return true; } },
@@ -183,15 +120,16 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     EditorView.lineWrapping,
     keymap.of(runKeymap),
     paracoreAutocomplete(),
-    paracoreEditorTheme,
-  ], [runKeymap]);
+    ...(isDark ? [oneDark] : []),
+  ], [isDark, runKeymap]);
 
   return (
-    <div className="h-full w-full overflow-hidden semantic-bg-panel">
+    <div className="h-full w-full overflow-hidden">
       <CodeMirror
         value={value}
         onChange={handleChange}
         extensions={extensions}
+        theme={isDark ? 'dark' : 'light'}
         basicSetup={{
           lineNumbers: true,
           highlightActiveLineGutter: false,
