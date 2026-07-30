@@ -318,4 +318,29 @@ body,
   html {
     @apply font-sans;
   }
+
+  /* ── Accessibility: keyboard focus ring ── */
+  :focus-visible {
+    outline: 2px solid var(--accent, #3b82f6) !important;
+    outline-offset: 2px !important;
+    border-radius: 4px;
+  }
+
+  /* Skip-to-content link — hidden until focused */
+  .skip-to-content {
+    position: fixed;
+    top: -100%;
+    left: 0.75rem;
+    z-index: 99999;
+    padding: 0.5rem 1rem;
+    background: var(--accent, #3b82f6);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-radius: 0 0 8px 8px;
+    transition: top 0.2s ease;
+  }
+  .skip-to-content:focus {
+    top: 0;
+  }
 }

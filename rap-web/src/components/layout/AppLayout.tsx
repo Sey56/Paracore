@@ -161,7 +161,7 @@ export const AppLayout: React.FC = () => {
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing) return;
-    const container = document.getElementById("main-content-area");
+    const container = document.getElementById("main-content");
     if (!container) return;
     const containerRect = container.getBoundingClientRect();
     let niw: number;
@@ -236,7 +236,7 @@ export const AppLayout: React.FC = () => {
               <div className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} semantic-bg-panel shadow-xl z-30 border-r border-slate-200 dark:border-gray-700`}><Sidebar /></div>
 
               {/* Main Content Area */}
-              <div id="main-content-area" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
+              <div id="main-content" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
                 <div className="flex flex-1 overflow-hidden w-full max-w-full">
                   {/* ── Main Content Area (left side) ── */}
                   <div style={{
