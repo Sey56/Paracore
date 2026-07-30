@@ -4,7 +4,6 @@ import { TopBar } from "@/components/layout/TopBar/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar/Sidebar";
 import { ScriptGallery } from "@/features/automation/components/ScriptGallery/ScriptGallery";
 import { ScriptInspector } from "@/features/automation/components/ScriptInspector/ScriptInspector";
-import { FloatingCodeViewer } from "@/features/automation/components/ScriptInspector/FloatingCodeViewer";
 import { FloatingActionButton } from "@/features/automation/components/FloatingActionButton";
 import { InfoModal } from "@/features/automation/components/ScriptInspector/InfoModal";
 import { useScriptExecution } from "@/features/automation";
@@ -14,16 +13,42 @@ import { useScripts } from "@/features/automation";
 import { listen } from '@tauri-apps/api/event';
 import api from '@/api/axios';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from "@/features/auth";
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useTheme } from '@/context/ThemeContext';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
-import SettingsModal from '@/features/settings/components/SettingsModal';
-import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
 import { OutputPanel } from "@/components/layout/OutputPanel/OutputPanel";
-import { ReplModeContent } from "@/features/automation/components/ScriptInspector/ReplModeContent";
 import { WelcomeGate } from "@/features/auth/components/WelcomeGate";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// ── Lazy-loaded heavy features ──
+const FloatingCodeViewer = React.lazy(() =>
+  import("@/features/automation/components/ScriptInspector/FloatingCodeViewer")
+    .then(m => ({ default: m.FloatingCodeViewer }))
+);
+const SettingsModal = React.lazy(() =>
+  import("@/features/settings/components/SettingsModal")
+);
+const PlaylistsTab = React.lazy(() =>
+  import("@/features/automation/components/Playlists/PlaylistsTab")
+    .then(m => ({ default: m.PlaylistsTab }))
+);
+const ReplModeContent = React.lazy(() =>
+  import("@/features/automation/components/ScriptInspector/ReplModeContent")
+    .then(m => ({ default: m.ReplModeContent }))
+);
+
+// ── Shared skeleton fallback ──
+const PanelSkeleton = () => (
+  <div className="flex-1 p-6 space-y-3">
+    <Skeleton className="h-5 w-1/3" />
+    <Skeleton className="h-4 w-2/3" />
+    <Skeleton className="h-4 w-1/2" />
+    <Skeleton className="h-4 w-3/4" />
+    <Skeleton className="h-4 w-1/4" />
+  </div>
+);
 
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, isEnterprise, user, login, loginLocal } = useAuth();
@@ -190,11 +215,15 @@ export const AppLayout: React.FC = () => {
         </div>
       )}
 
-      <SettingsModal />
+      <Suspense fallback={null}><SettingsModal /></Suspense>
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
       {isEnterprise && showSentinelFAB && <FloatingActionButton />}
 
-      {selectedScript && <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />}
+      {selectedScript && (
+        <Suspense fallback={null}>
+          <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />
+        </Suspense>
+      )}
 
       <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0' : 'opacity-100'}`}>
         {!isAuthenticated ? (
@@ -220,7 +249,7 @@ export const AppLayout: React.FC = () => {
                       {/* Playlists mode */}
                       {activeMainView === 'playlists' && (
                         <div className="absolute inset-0 overflow-y-auto custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
-                          <PlaylistsTab />
+                          <Suspense fallback={<PanelSkeleton />}><PlaylistsTab /></Suspense>
                         </div>
                       )}
 
@@ -234,7 +263,7 @@ export const AppLayout: React.FC = () => {
                       {/* REPL mode */}
                       {activeMainView === 'repl' && (
                         <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
-                          <ReplModeContent />
+                          <Suspense fallback={<PanelSkeleton />}><ReplModeContent /></Suspense>
                         </div>
                       )}
                     </div>
