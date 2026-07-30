@@ -184,6 +184,8 @@ body,
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* ── shadcn/ui tokens ── */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -215,6 +217,25 @@ body,
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+
+  /* ── Paracore semantic surface tokens ── */
+  --color-surface-ground: var(--bg-ground);
+  --color-surface-panel: var(--bg-panel);
+  --color-surface-card: var(--bg-card);
+  --color-surface-card-focus: var(--bg-card-focus);
+  --color-surface-group: var(--bg-group);
+  --color-surface-group-focus: var(--bg-group-focus);
+
+  /* ── Paracore semantic content tokens ── */
+  --color-content-primary: var(--text-main);
+  --color-content-muted: var(--text-muted);
+  --color-content-accent: var(--accent);
+
+  /* ── Paracore semantic border tokens ── */
+  --color-border-main: var(--border-main);
+  --color-border-divider: var(--border-divider);
+
+  /* ── Radius scale ── */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -222,75 +243,72 @@ body,
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── Type scale ── */
+  --text-caption: 0.688rem;
+  --text-caption--line-height: 1rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5rem;
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-heading-sm: 1.125rem;
+  --text-heading-sm--line-height: 1.75rem;
+  --text-heading: 1.5rem;
+  --text-heading--line-height: 2rem;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   TOKEN BRIDGE: Paracore themes → shadcn/ui variables
+   Paracore's themes.css defines --bg-ground, --text-main, --accent, etc.
+   We map them into shadcn's token names so all shadcn components
+   automatically look correct in Light / Midnight / Eclipse Pro.
+   ═══════════════════════════════════════════════════════════════════ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
+  --background: var(--bg-ground);
+  --foreground: var(--text-main);
+  --card: var(--bg-panel);
+  --card-foreground: var(--text-main);
+  --popover: var(--bg-panel);
+  --popover-foreground: var(--text-main);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--bg-card);
+  --secondary-foreground: var(--text-main);
+  --muted: var(--bg-card);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--bg-card);
+  --accent-foreground: var(--text-main);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: var(--border-main);
+  --input: var(--border-divider);
+  --ring: var(--accent);
+  --chart-1: var(--accent);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--bg-card);
+  --sidebar-foreground: var(--text-main);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--bg-card-focus);
+  --sidebar-accent-foreground: var(--text-main);
+  --sidebar-border: var(--border-main);
+  --sidebar-ring: var(--accent);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
+  --primary-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {

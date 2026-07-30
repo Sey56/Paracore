@@ -55,7 +55,10 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
           </li>
         ))}
         {favoriteScripts.length === 0 && (
-          <li className="text-sm text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No favorites yet</li>
+          <li className="flex flex-col items-center gap-1.5 py-3 text-center">
+            <span className="text-lg opacity-30">☆</span>
+            <span className="text-xs text-muted-foreground">No favorites yet</span>
+          </li>
         )}
       </ul>
     </SidebarSection>

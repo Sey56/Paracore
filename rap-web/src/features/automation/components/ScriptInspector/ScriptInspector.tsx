@@ -37,8 +37,13 @@ export const ScriptInspector: React.FC<ScriptInspectorProps> = ({ onBack }) => {
   // If no script is selected, show a minimal fallback (shouldn't normally happen)
   if (!script) {
     return (
-      <div className="flex flex-col h-full items-center justify-center bg-white dark:bg-slate-900 text-slate-400">
-        <p className="text-sm">No script selected</p>
+      <div className="flex flex-col h-full items-center justify-center bg-background gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+          <svg className="h-6 w-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+          </svg>
+        </div>
+        <p className="text-body-sm text-muted-foreground font-medium">Select a script to get started</p>
       </div>
     );
   }
