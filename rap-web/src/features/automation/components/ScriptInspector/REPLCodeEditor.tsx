@@ -4,6 +4,7 @@ import { StreamLanguage } from '@codemirror/language';
 import { csharp } from '@codemirror/legacy-modes/mode/clike';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
+import { Prec } from '@codemirror/state';
 import { autocompletion, type Completion } from '@codemirror/autocomplete';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -118,7 +119,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
   const extensions = useMemo(() => [
     csharpLanguage,
     EditorView.lineWrapping,
-    keymap.of(runKeymap),
+    Prec.highest(keymap.of(runKeymap)),
     paracoreAutocomplete(),
     ...(isDark ? [oneDark] : []),
   ], [isDark, runKeymap]);
