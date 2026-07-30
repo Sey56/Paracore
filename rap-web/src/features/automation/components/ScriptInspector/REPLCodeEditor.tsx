@@ -106,8 +106,8 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
 
   const runKeymap: readonly KeyBinding[] = useMemo(() => [
     ...(onRun ? [
-      { key: 'Ctrl-Enter', run: () => { onRun(); return true; } },
-      { key: 'Cmd-Enter', run: () => { onRun(); return true; } },
+      { key: 'Ctrl-Enter', run: () => { onRun(); return true; }, preventDefault: true },
+      { key: 'Cmd-Enter', run: () => { onRun(); return true; }, preventDefault: true },
     ] : []),
     ...(onSave ? [
       { key: 'Ctrl-s', run: () => { onSave(); return true; }, preventDefault: true },
