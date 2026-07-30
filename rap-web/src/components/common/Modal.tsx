@@ -1,10 +1,5 @@
-import React from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import React, { useEffect, useState } from 'react';
+import Portal from './Portal';
 
 interface ModalProps {
   isOpen: boolean;
@@ -16,43 +11,68 @@ interface ModalProps {
   hideHeader?: boolean;
 }
 
-const sizeClasses: Record<string, string> = {
-  sm: 'sm:max-w-sm',
-  md: 'sm:max-w-md',
-  lg: 'sm:max-w-lg',
-  xl: 'sm:max-w-xl',
-  '2xl': 'sm:max-w-screen-lg',
-  '3xl': 'sm:max-w-screen-xl',
-  '4xl': 'sm:max-w-4xl',
-  '5xl': 'sm:max-w-5xl',
-  '6xl': 'sm:max-w-6xl',
-  full: 'sm:max-w-[95vw]',
-};
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, size = 'md', noPadding = false, hideHeader = false }) => {
+  const [show, setShow] = useState(false);
+  const [render, setRender] = useState(false);
 
-export const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  children,
-  title,
-  size = 'md',
-  noPadding = false,
-  hideHeader = false,
-}) => {
+  useEffect(() => {
+    if (isOpen) {
+      setRender(true);
+      requestAnimationFrame(() => setShow(true));
+    } else {
+      setShow(false);
+      const timer = setTimeout(() => setRender(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!render) return null;
+
+  const maxWidthClass = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
+    '2xl': 'max-w-screen-lg',
+    '3xl': 'max-w-screen-xl',
+    '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
+    '6xl': 'max-w-6xl',
+    'full': 'max-w-[95vw]',
+  }[size];
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent
-        className={`${sizeClasses[size] || ''} ${size === 'full' ? 'h-[90vh]' : ''} max-h-[92vh] overflow-hidden flex flex-col data-closed:animate-none data-closed:fade-out-0`}
-        showCloseButton={!hideHeader}
+    <Portal wrapperId="portal-wrapper">
+      <div
+        className={`fixed inset-0 z-[99999] flex justify-center items-center p-4 transition-all duration-200 ease-out ${show ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'
+          }`}
+        onClick={onClose}
       >
-        {!hideHeader && (
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-          </DialogHeader>
-        )}
-        <div className={`flex-1 min-h-0 overflow-auto ${noPadding ? '-mx-4 -mb-4' : ''}`}>
-          {children}
+        <div
+          className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full ${maxWidthClass} flex flex-col border border-slate-100 dark:border-slate-700 transform transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden max-h-[92vh] ${show ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
+            }`}
+          style={size === 'full' ? { height: '90vh' } : {}}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {!hideHeader && (
+            <div className="flex justify-between items-center px-6 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{title}</h2>
+              <button
+                onClick={onClose}
+                className="group p-2 rounded-full text-slate-400 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <div className={`${noPadding ? 'p-0' : 'p-6'} flex-1 min-h-0 flex flex-col overflow-hidden`}>
+            {children}
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </Portal>
   );
 };

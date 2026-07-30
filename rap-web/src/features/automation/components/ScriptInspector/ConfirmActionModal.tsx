@@ -1,14 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import React from 'react';
+import { Modal } from '@/components/common/Modal';
 
 interface ConfirmActionModalProps {
   isOpen: boolean;
@@ -29,42 +20,36 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   confirmButtonText = "Confirm",
   confirmButtonColor = "default",
 }) => {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  useEffect(() => {
-    if (isOpen) setInternalOpen(true);
-  }, [isOpen]);
-
-  const handleOpenChange = (open: boolean) => {
-    setInternalOpen(open);
-    if (!open) {
-      setTimeout(() => onCloseRef.current(), 200);
-    }
-  };
-
   const handleConfirm = () => {
     onConfirm();
-    handleOpenChange(false);
+    onClose();
   };
 
-  const variant = confirmButtonColor === 'red' ? 'destructive' : confirmButtonColor === 'blue' ? 'default' : 'secondary';
+  const buttonColorClass = {
+    red: "bg-red-600 hover:bg-red-700 focus:ring-red-500",
+    blue: "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500",
+    default: "bg-slate-600 hover:bg-slate-700 focus:ring-slate-500",
+  }[confirmButtonColor];
 
   return (
-    <AlertDialog open={internalOpen} onOpenChange={handleOpenChange}>
-      <AlertDialogContent size="sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{message}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirm} variant={variant}>
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
+      <div className="space-y-4">
+        <p className="text-slate-700 dark:text-slate-300">{message}</p>
+        <div className="flex justify-end space-x-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-600 rounded-md hover:bg-slate-300 dark:hover:bg-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${buttonColorClass}`}
+          >
             {confirmButtonText}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 };
