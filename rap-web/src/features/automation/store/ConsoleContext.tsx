@@ -76,16 +76,7 @@ export const ConsoleProvider: React.FC<{
   const authContext = React.useContext(AuthContext);
   const isEnterprise = authContext?.isEnterprise ?? false;
   
-  const [localHistory, setLocalHistory] = useState<ConsoleItem[]>(() => {
-    const saved = localStorage.getItem('paracore_console_history');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.map((item: any) => ({ ...item, timestamp: new Date(item.timestamp) }));
-      } catch { return []; }
-    }
-    return [];
-  });
+  const [localHistory, setLocalHistory] = useState<ConsoleItem[]>([]);
 
   const [singleLineValue, setSingleLineValue] = useState(() => localStorage.getItem('paracore_repl_single_value') || "");
   const [multiLineValue, setMultiLineValue] = useState(() => localStorage.getItem('paracore_repl_multi_value') || "");
@@ -109,7 +100,6 @@ export const ConsoleProvider: React.FC<{
     return saved ? JSON.parse(saved) : [];
   });
 
-  useEffect(() => { localStorage.setItem('paracore_console_history', JSON.stringify(localHistory)); }, [localHistory]);
   useEffect(() => { localStorage.setItem('paracore_repl_single_history', JSON.stringify(singleCommandHistory)); }, [singleCommandHistory]);
   useEffect(() => { localStorage.setItem('paracore_repl_multi_history', JSON.stringify(multiCommandHistory)); }, [multiCommandHistory]);
   useEffect(() => { localStorage.setItem('paracore_repl_single_value', singleLineValue); }, [singleLineValue]);
@@ -129,7 +119,6 @@ export const ConsoleProvider: React.FC<{
   const handleClear = useCallback(() => {
     setLocalHistory([]);
     setExecutionResult(null);
-    localStorage.removeItem('paracore_console_history');
     localStorage.removeItem('paracore_console_last_timestamp');
     showNotification("Console and Analytics cleared", "info");
   }, [showNotification, setExecutionResult]);
@@ -223,7 +212,6 @@ export const ConsoleProvider: React.FC<{
 
     if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') {
       setLocalHistory([]);
-      localStorage.removeItem('paracore_console_history');
       if (!isMulti) setSingleLineValue("");
       showNotification("Console history cleared", "info");
       return;
