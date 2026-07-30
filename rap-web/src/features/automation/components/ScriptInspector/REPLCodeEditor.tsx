@@ -2,10 +2,8 @@ import React, { useCallback, useMemo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { StreamLanguage } from '@codemirror/language';
 import { csharp } from '@codemirror/legacy-modes/mode/clike';
-import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
 import { autocompletion, type Completion } from '@codemirror/autocomplete';
-import { useTheme } from '@/context/ThemeContext';
 
 interface REPLCodeEditorProps {
   value: string;
@@ -111,16 +109,19 @@ function paracoreAutocomplete() {
   });
 }
 
-// ── Light theme matching Paracore's style ──
-const lightTheme = EditorView.theme({
+// ── Unified theme driven by Paracore CSS variables (works in all 3 themes) ──
+const paracoreEditorTheme = EditorView.theme({
   '&': {
-    backgroundColor: 'var(--bg-panel, #ffffff)',
-    color: 'var(--text-main, #0f172a)',
+    backgroundColor: 'var(--bg-panel)',
+    color: 'var(--text-main)',
+  },
+  '&.cm-focused': {
+    outline: 'none',
   },
   '.cm-gutters': {
-    backgroundColor: 'var(--bg-ground, #f8fafc)',
-    color: 'var(--text-muted, #64748b)',
-    borderRight: '1px solid var(--border-main, #e2e8f0)',
+    backgroundColor: 'var(--bg-panel)',
+    color: 'var(--text-muted)',
+    borderRight: '1px solid var(--border-main)',
   },
   '.cm-activeLineGutter': {
     backgroundColor: 'transparent',
@@ -129,34 +130,38 @@ const lightTheme = EditorView.theme({
     backgroundColor: 'transparent',
   },
   '.cm-cursor': {
-    borderLeftColor: 'var(--accent, #3b82f6)',
+    borderLeftColor: 'var(--accent)',
   },
   '.cm-selectionBackground': {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    backgroundColor: 'color-mix(in srgb, var(--accent) 20%, transparent)',
   },
   '.cm-matchingBracket': {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    outline: '1px solid rgba(59, 130, 246, 0.3)',
+    backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
+    outline: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+  },
+  '.cm-foldPlaceholder': {
+    backgroundColor: 'var(--bg-card)',
+    color: 'var(--text-muted)',
   },
   '.cm-tooltip': {
-    backgroundColor: 'var(--bg-panel, #ffffff)',
-    color: 'var(--text-main, #0f172a)',
-    border: '1px solid var(--border-main, #e2e8f0)',
+    backgroundColor: 'var(--bg-panel)',
+    color: 'var(--text-main)',
+    border: '1px solid var(--border-main)',
     borderRadius: '8px',
     boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
   },
   '.cm-tooltip-autocomplete': {
     '& .cm-completionDetail': {
-      color: 'var(--text-muted, #64748b)',
+      color: 'var(--text-muted)',
       fontStyle: 'normal',
     },
     '& .cm-completionInfo': {
       padding: '4px 8px',
       fontSize: '12px',
-      color: 'var(--text-muted, #64748b)',
+      color: 'var(--text-muted)',
     },
   },
-});
+}, { dark: false }); // dark:false means we control colors via CSS vars, not CodeMirror's dark mode
 
 export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEditorProps>(({
   value,
@@ -167,9 +172,6 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
   disabled = false,
   placeholder = "Write your code here...",
 }, _ref) => {
-  const { theme } = useTheme();
-  const isDark = theme !== 'light';
-
   const handleChange = useCallback(
     (val: string) => {
       onChange(val);
@@ -194,8 +196,8 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     EditorView.lineWrapping,
     keymap.of(runKeymap),
     paracoreAutocomplete(),
-    ...(isDark ? [oneDark] : [lightTheme]),
-  ], [isDark, runKeymap]);
+    paracoreEditorTheme,
+  ], [runKeymap]);
 
   return (
     <div className="h-full w-full overflow-hidden">
@@ -203,7 +205,6 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         value={value}
         onChange={handleChange}
         extensions={extensions}
-        theme={isDark ? 'dark' : 'light'}
         basicSetup={{
           lineNumbers: true,
           highlightActiveLineGutter: false,
