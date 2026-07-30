@@ -5,12 +5,15 @@ import {
   faShieldHeart,
   faTools,
   faLock,
-  faCompressAlt
+  faCompressAlt,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import styles from '../ScriptCard.module.css';
 import { Script } from "@/types/scriptModel";
 import { Tooltip } from '@/components/common/Tooltip';
+
+type RunStatus = 'success' | 'error' | 'running' | null;
 
 interface CardHeaderProps {
   script: Script;
@@ -28,6 +31,7 @@ interface CardHeaderProps {
   isCompact: boolean;
   getDisplayName: () => string;
   handleFavoriteClick: (e: React.MouseEvent) => void;
+  runStatus?: RunStatus;
 }
 
 export const CardHeader: React.FC<CardHeaderProps> = ({
@@ -45,7 +49,8 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   onExitFocus,
   isCompact,
   getDisplayName,
-  handleFavoriteClick
+  handleFavoriteClick,
+  runStatus,
 }) => {
   return (
     <div className="flex items-start gap-2 mb-2 w-full overflow-visible">
@@ -63,6 +68,16 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
       ) : (
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            {/* Run status indicator */}
+            {runStatus && (
+              <Tooltip text={runStatus === 'running' ? 'Running…' : runStatus === 'success' ? 'Last run: success' : 'Last run: error'}>
+                <span className={`shrink-0 inline-flex h-2 w-2 rounded-full ${
+                  runStatus === 'running' ? 'bg-blue-500 animate-pulse' :
+                  runStatus === 'success' ? 'bg-emerald-500' :
+                  'bg-red-500'
+                }`} />
+              </Tooltip>
+            )}
             {isGuard ? (
               <FontAwesomeIcon
                 icon={faShieldHeart}
