@@ -1,6 +1,6 @@
-# 🚀 Paracore REPL Reference Guide (V4.5.0)
+# 🚀 Paracore REPL Reference Guide (v4.9)
 
-The Paracore REPL is a persistent C# scratchpad with direct, real-time access to the Revit API and Paracore's high-level automation helpers.
+The Paracore REPL is a persistent C# scratchpad with direct, real-time access to the Revit API and Paracore's high-level automation helpers. For the complete method catalog with every overload and signature, see **[EXTENSION_METHODS.md](EXTENSION_METHODS.md)**.
 
 > [!TIP]
 > **Session Persistence**: Variables defined in the REPL stay alive between runs within the same session. Break complex tasks into small, iterative steps!
@@ -91,360 +91,47 @@ GetElements<FamilyInstance>("Doors")
 
 ## 🪄 Parameter & Property Accessors (Read)
 
-Paracore extends every `Element` with smart, **StorageType-aware** accessors. These automatically handle:
-- `BuiltInParameter` name resolution
-- `ElementId` → Element Name resolution (Levels, Types, Rooms)
-- C# native property fallback via Reflection (`Width`, `FamilyName`, `HandFlipped`, etc.)
-- Unit conversion
-
-### `element.GetStr(name)`
-**Smart String Getter.** Returns a human-readable string.
-- ElementId parameters → returns the **element name** (e.g. `"Level 1"`)
-- Numeric params → returns the formatted value string
-- Falls back to C# Reflection for native properties (`"HandFlipped"` → `"True"`)
-- Returns `""` if not found.
+Every element has smart accessors — see `EXTENSION_METHODS.md` for the full catalog.
 
 ```csharp
-wall.GetStr("Level")        // → "Level 1"
-door.GetStr("Mark")         // → "D-101"
-door.GetStr("HandFlipped")  // → "True"  (via C# Reflection)
+wall.GetStr("Level")          // "Level 1" (ElementId → name)
+wall.GetNum("Length", "m")    // 3.6
+wall.GetNum("Width", "mm")    // 200
+wall.GetInt("Room Bounding")  // 1 or 0
+wall.GetVal("Area")           // "14.52 m²" (WYSIWYG)
+wall.GetStr("HandFlipped")    // "True" (C# property fallback)
 ```
 
-### `element.GetStr(name, unit)`
-Returns the value converted to the specified unit as a plain number string.
-```csharp
-wall.GetStr("Length", "mm")  // → "3600"
-room.GetStr("Area", "m2")    // → "25.46"
-```
-
-### `element.GetNum(name)`
-**Numeric Getter (Internal Units — feet/sq.ft/cu.ft).** Falls back to C# property via Reflection.
-```csharp
-wall.GetNum("Length")  // → 11.811 (feet)
-```
-
-### `element.GetNum(name, unit)`
-**Numeric Getter + Unit Conversion.**
-
-| Unit | Meaning |
+| Quick reference | |
 |---|---|
-| `mm`, `cm`, `m`, `ft`, `in` | Length |
-| `m2`, `sqm`, `ft2`, `sqft` | Area |
-| `m3`, `cum`, `ft3`, `cuft` | Volume |
-
-```csharp
-wall.GetNum("Length", "m")    // → 3.6
-room.GetNum("Area", "m2")     // → 25.46
-```
-
-### `element.GetVal(name)`
-**WYSIWYG Getter.** Returns the formatted string exactly as seen in Revit's Properties palette.
-- Returns `"-"` if not found.
-```csharp
-room.GetVal("Area")   // → "25.46 m²"
-wall.GetVal("Level")  // → "Level 1"
-```
-
-### `element.GetInt(name)`
-**Integer Getter.** Works for yes/no (boolean) parameters too.
-```csharp
-wall.GetInt("Is External")  // → 1 (true) or 0 (false)
-```
+| `GetStr("Level")` | String — resolves ElementIds to names |
+| `GetNum("Area", "m2")` | Double — with unit conversion |
+| `GetInt("Room Bounding")` | Integer — yes/no → 1/0 |
+| `GetVal("Area")` | Formatted string with unit suffix |
+| `GetTypeStr`, `GetTypeNum`, `GetTypeInt` | Type-level equivalents |
 
 ---
 
-## 📤 Type-Level Accessors
-
-Same as above, but target the element's **ElementType** (the type definition, not the instance).
-
-```csharp
-wall.GetTypeStr("Function")     // → "Exterior"
-door.GetTypeNum("Width", "mm")  // → 900.0
-wall.GetTypeVal("Width", "mm")  // → "300.0 mm"
-wall.GetElementType()           // → returns the WallType Element
-```
-
 ---
 
-## ✏️ Smart Write Methods
+## 🔗 Method Reference
 
-All write methods share the same `IsModifiable` transaction logic:
+For the complete catalog with every overload and parameter pattern, see **[EXTENSION_METHODS.md](EXTENSION_METHODS.md)**. Quick links to key sections:
 
-| Method | Single | Collection | Description |
-|:---|:---|:---|:---|
-| `SetVal` / `SetNum` | ✅ | via `SetParam` | Smart parameter setters |
-| `Delete` | ✅ | ✅ | BIM-Safe Delete (skips Pinned/Curtain) |
-| `Hide` / `Unhide` | ✅ | ✅ | Hide/Unhide in active view |
-| `Isolate` | ✅ | ✅ | Temporarily isolate in view |
-
-- **No active transaction?** → An auto-transaction is created.
-- **Active transaction?** (inside a `Transact()` block) → Runs directly, no sub-transaction.
-- **Collection methods** (`.Delete()`, `.SetParam()`, `.Hide()`, `.Unhide()`, `.Isolate()`) batch everything into **one** transaction.
-
-### `element.SetVal(name, value)`
-**The Smart Setter.** Handles all common scenarios automatically.
-
-| Input | Behavior |
+| Task | Section in EXTENSION_METHODS.md |
 |---|---|
-| `"500 mm"` | Calls `SetValueString` — parses value + unit |
-| `"Level 1"` | Resolves by name to `ElementId` |
-| `"D-101"` | Standard string set |
-| `3.5` (double) | Direct numeric set (internal units) |
-| `4` (int) | Integer set |
-
-```csharp
-wall.SetVal("Comments", "Reviewed")
-wall.SetVal("Base Offset", "500 mm")  // unit-aware
-wall.SetVal("Level", "Level 2")       // resolves to ElementId
-```
-
-> [!NOTE]
-> `SetVal` (and all write/UI methods) auto-wraps in a transaction if none is active. Inside a `Transact()` block, methods detect the active transaction and run directly.
-
-### `element.SetNum(name, value, unit)`
-**Explicit Unit-Aware Numeric Setter.**
-```csharp
-wall.SetNum("Sill Height", 0.9, "m")
-Selection[0].SetNum("Base Offset", 100, "mm")
-```
-
----
-
-## 🗂️ Collection Extensions: Filtering
-
-All collection methods are **fully generic** — they preserve the specific element type (`Wall`, `FamilyInstance`, etc.) throughout the chain.
-
-### `.WhereParam(name, value)` — String Filter
-Uses `GetStr()` internally → covers Revit parameters **and** C# native properties via Reflection.
-```csharp
-GetElements("Doors").WhereParam("Level", "Level 1")
-GetElements("Doors").WhereParam("HandFlipped", "True")  // Reflection
-GetElements("Walls").WhereParam("Mark", "W-01")
-```
-
-### `.WhereParam(name, value, unit)` — Numeric Filter
-Tolerance-based numeric filter (0.001 in the given unit).
-```csharp
-GetElements<Wall>().WhereParam("Width", 200, "mm")
-GetElements<Room>().WhereParam("Area", 25.0, "m2")
-```
-
-### `.WhereMatches(pattern)` — Fuzzy Name Filter
-Checks both Type Name and Family Name (case-insensitive).
-```csharp
-GetElements("Doors").WhereMatches("Single-Flush")
-GetElements("Windows").WhereMatches("Fixed")
-```
-
----
-
-## 🔼 Collection Extensions: Sorting
-
-**Smart auto-detection**: numeric parameters (Double/Integer storage) use numeric sort; text parameters use string sort. You never need to specify which.
-
-### `.OrderByParam(name)` — Ascending
-```csharp
-GetElements("Rooms").OrderByParam("Area").Table()    // smallest first
-GetElements("Doors").OrderByParam("Mark").Table()    // A → Z
-```
-
-### `.OrderByParamDesc(name)` — Descending
-```csharp
-GetElements("Rooms").OrderByParamDesc("Area").Table()   // largest first
-GetElements("Walls").OrderByParamDesc("Length").Table() // longest first
-```
-
----
-
-## 📊 Collection Extensions: Grouping & Aggregation
-
-### `.GroupByParam(name)` → `Group | Count`
-```csharp
-GetElements("Doors").GroupByParam("Level").Table()
-// Group    | Count
-// Level 1  | 14
-// Level 2  | 9
-```
-
-### `.GroupByParam(groupByParam, sumParam, unit)` → `Group | Count | Total`
-
-Groups by the first parameter, SUMS the second numeric parameter per group in the given unit.
-
-```csharp
-// Sum of room Area per Level in m²
-GetElements("Rooms").GroupByParam("Level", "Area", "m2").Table()
-
-// Sum of wall Length per Level in meters
-GetElements("Walls").GroupByParam("Level", "Length", "m").Table()
-// Group    | Count | Total
-// Level 1  | 23    | 284.5
-// Level 2  | 18    | 201.3
-```
-
-### `.SumParam(name, unit)` → `double`
-```csharp
-double total = GetElements("Rooms").SumParam("Area", "m2");
-Println($"Total area: {total:F2} m²");
-```
-
----
-
-## ✏️ Collection Extensions: Bulk Write & Delete
-
-### `.SetParam(name, value)`
-Sets a parameter on **every element** in the collection inside a **single transaction**.
-Returns the collection (chainable).
-```csharp
-GetElements<Wall>().WhereParam("Mark", "").SetParam("Mark", "UNTAGGED")
-GetElements("Doors").WhereParam("Level", "Level 1").SetParam("Comments", "Level 1 Review")
-```
-
-### `.Delete()` — BIM-Safe Bulk Delete
-Deletes an entire collection in a **single transaction**. Automatically skips Pinned elements, Curtain Wall Panels, and hosted Curtain Doors to prevent Revit exceptions.
-```csharp
-GetElements("Generic Models").WhereMatches("TEMP").Delete()
-GetElements("Doors").WhereParam("Level", "Level 4").Delete()
-```
-
-> [!NOTE]
-> Collection methods (`.SetParam()`, `.Delete()`, `.Hide()`, `.Unhide()`, `.Isolate()`) batch all changes into **one transaction** — no `Transact()` needed for fluent chains. Inside an outer `Transact()`, they detect the active transaction and run directly.
-
----
-
-## 📈 Collection Extensions: Visualization
-
-Works on **any** `IEnumerable<T>`, not just elements.
-
-| Method | Description |
-| :--- | :--- |
-| `.Table()` | Interactive data grid in Summary tab |
-| `.BarChart()` / `.BarGraph()` | Bar chart (data needs `name` + `value` props) |
-| `.PieChart()` / `.PieGraph()` | Pie chart |
-| `.LineChart()` / `.LineGraph()` | Line chart |
-
-```csharp
-// Any projection works directly
-GetElements("Walls")
-    .GroupByParam("Base Constraint", "Length", "m")
-    .Table()
-```
-
----
-
-## 🖱️ Collection Extensions: Revit UI
-
-All return `IEnumerable<T>` (fully chainable).
-
-| Method | Single | Collection | Description |
-| :--- | :--- | :--- | :--- |
-| `.Select()` | ✅ | ✅ | Select all in Revit UI |
-| `.Zoom()` | ✅ | ✅ | Zoom to elements |
-| `.Isolate()` | ✅ | ✅ | Temporarily isolate in view |
-| `.Delete()` | ✅ | ✅ | BIM-Safe Delete (auto-transaction) |
-| `.Peek()` | ✅ | ✅ | Forensic param audit |
-| `.Hide()` | ✅ | ✅ | Hide in active view |
-| `.Unhide()` | ✅ | ✅ | Unhide in active view |
-
-```csharp
-// Find walls without a mark and isolate them
-GetElements<Wall>().WhereParam("Mark", "").Isolate()
-```
-
----
-
-## 🚪 Door/Window Orientation Helpers
-
-Revit's `ToRoom`/`FromRoom` swap when a door is flipped. These are stable regardless of flip state.
-
-```csharp
-door.RoomAccess()         // "Corridor"  — always the non-swing side
-door.RoomDestination()    // "Office 101" — always the swing-into side
-door.Handing()            // "RH" — LH or RH
-door.HingeSide()          // "Right" — from Access Room perspective
-door.IsHandFlipped()      // true/false
-door.IsFacingFlipped()    // true/false
-```
-
----
-
-## 🛡️ Coordination & Clash Audit
-
-High-performance geometric interference detection and reporting. These methods leverage the optimized spatial query engine for "DirectShape First" coordination.
-
-| Method | Description | Example |
-| :--- | :--- | :--- |
-| `.AuditClashes(target)` | Detects intersections with target category | `.AuditClashes("Pipes")` |
-| `.AuditClashes(target, tol)`| Audit with double tolerance | `.AuditClashes("Walls", 5.0)` |
-| `.Table()` | **Pro Output**: Table + 3D Helpers | `.Table()` |
-
-```csharp
-// 🛡️ ARCH/STRUCT COORDINATION AUDIT 🛡️
-// Detects clashes and automatically creates 3D intersection volumes/pillars
-GetElements("Walls")
-    .AuditClashes("StructuralColumns")
-    .Table();
-```
-
----
-
-## 🔎 Diagnostics & Inspection
-
-| Method | Description |
-| :--- | :--- |
-| `element.Peek()` | Forensic audit: Parameter/Storage/GetStr/GetNum/UI Value side-by-side |
-| `element.InstanceParams()` | All instance params: Name/Storage/Value |
-| `element.TypeParams()` | All type params |
-| `element.CombinedParams()` | Instance + Type with Scope column |
-| `element.BuiltInParams()` | All BIP identifiers: Name/BIP/Value |
-| `element.NativeProperties()` | Level/Workset/DesignOption/Location etc. |
-| `element.ParamsDict()` | `Dictionary<string,string>` of all params |
-| `element.GeometrySummary()` | Solid/Curve/PolyLine breakdown |
-| `element.ReflectionProperties()` | All native C# properties on the type |
-| `element.ReflectionMethods()` | All public C# methods on the type (with params) |
-
-```csharp
-Selection[0].Peek()
-Selection[0].ReflectionMethods().Table()
-Selection[0].BuiltInParams().Table()  // Find BIP names for language-independent code
-```
-
----
-
-## ⚖️ Precision & Unit Conversions
-
-The REPL is unit-aware. Always convert — never hardcode `* 304.8`.
-
-```csharp
-// Input: user value → internal feet
-var targetLength = 2000.0.InputUnit("mm");
-GetElements<Wall>().Where(w => w.GetNum("Length") > targetLength)
-
-// Output: internal → human units
-var lengthMm = wall.GetNum("Length").OutputUnit("mm");
-
-// Formatted string
-Println(wall.GetNum("Length").FormatUnit("mm"));  // → "3600.0 mm"
-```
-
-| Method | Description |
-| :--- | :--- |
-| `.InputUnit("mm")` | User value → internal feet |
-| `.OutputUnit("m2")` | Internal → target unit double |
-| `.FormatUnit("mm")` | Formatted string with suffix |
-| `.FormatValueOnly("mm", 2)` | Numeric string without unit suffix |
-| `"dimensionString".ToMeters()` | Parse dimension (e.g. `"500mm"` → `0.5`) |
-| `.RoundTo("mm")` | Snap to unit precision |
-| `.IsAlmostEqualTo(v)` | Fuzzy equality (1e-9 tolerance) |
-| `.AlmostZero()` | Effectively zero? |
-| `.IsLessThan(v)` | Precision less-than |
-| `.IsGreaterThan(v)` | Precision greater-than |
-| `.IsGreaterThanOrEqual(v)` | Precision greater-than-or-equal |
-| `.IsLessThanOrEqual(v)` | Precision less-than-or-equal |
-| `.IsPositive()` | Strictly positive |
-| `.IsNegative()` | Strictly negative |
-
-> [!CAUTION]
-> **Never use `==` for doubles.** Use `.IsAlmostEqualTo()` to avoid floating-point noise from Revit geometry.
+| GetStr / GetNum / GetInt / GetVal | [Element: Parameter Accessors](EXTENSION_METHODS.md#1-element-parameter--property-accessors-read) |
+| SetVal / SetNum | [Element: Smart Write Methods](EXTENSION_METHODS.md#3-element-smart-write-methods) |
+| WhereParam / WhereMatches / WhereMaterial | [Collection: Filtering](EXTENSION_METHODS.md#9-collection-filtering) |
+| OrderByParam / GroupByParam / SumParam | [Collection: Sorting](EXTENSION_METHODS.md#10-collection-sorting) + [Grouping](EXTENSION_METHODS.md#11-collection-grouping--aggregation) |
+| SetParam (bulk write) | [Collection: Bulk Write](EXTENSION_METHODS.md#12-collection-bulk-write) |
+| Table / BarChart / PieChart / LineChart | [Global ScriptApi](EXTENSION_METHODS.md#16-global-scriptapi-methods) |
+| Select / Zoom / Isolate / Hide / Delete | [Element UI](EXTENSION_METHODS.md#8-element-revit-ui-actions) + [Collection UI](EXTENSION_METHODS.md#13-collection-revit-ui-actions) |
+| RoomFrom / RoomTo / Handing / StandardDoor | [Door/Window](EXTENSION_METHODS.md#5-element-specialized-doorwindow) |
+| AuditClashes / ClearClashHelpers | [Coordination](EXTENSION_METHODS.md#16-coordination--clash-detection) |
+| InputUnit / OutputUnit / FormatUnit / ToMeters / precision comparisons | [Numeric & Unit Helpers](EXTENSION_METHODS.md#15-numeric--unit-helpers) |
+| BuiltInParams / CombinedParams / Peek / ReflectionProperties | [Element: Discovery](EXTENSION_METHODS.md#4-element-identity--discovery) |
+| Materials / Eco.GetCarbon / Eco.GetUValue | [Materials & Sustainability](EXTENSION_METHODS.md#6-element-materials--sustainability) |
 
 ---
 

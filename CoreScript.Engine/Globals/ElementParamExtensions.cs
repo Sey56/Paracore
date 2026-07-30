@@ -20,16 +20,18 @@ namespace CoreScript.Engine.Globals
         {
             if (e == null || string.IsNullOrEmpty(name)) return "";
 
-            // 1. Try BuiltInParameter name match FIRST
+            // 1. Try standard name lookup FIRST (takes priority over BIP to avoid
+            //    clashes like "Structural" matching a generic BIP instead of the
+            //    element's actual parameter).
+            var p = e.LookupParameter(name);
+            if (p != null && p.HasValue) return FormatParamValue(e, p);
+
+            // 2. Fall back to BuiltInParameter enum match
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
                 if (bp != null && bp.HasValue) return FormatParamValue(e, bp);
             }
-
-            // 2. Try standard name lookup
-            var p = e.LookupParameter(name);
-            if (p != null && p.HasValue) return FormatParamValue(e, p);
 
             // 3. Smart Fallback: Try C# Property via Reflection
             try
@@ -79,14 +81,32 @@ namespace CoreScript.Engine.Globals
         {
             if (e == null) return 0.0;
 
+            // 1. Try standard name lookup FIRST (see GetStr for rationale).
+            var p = e.LookupParameter(name);
+            if (p != null && p.HasValue)
+            {
+                // Yes/No checkbox — AsDouble() is unreliable; use AsInteger().
+                if (p.StorageType == StorageType.Integer
+                    && p.Definition is InternalDefinition pIntDef
+                    && pIntDef.GetDataType() == SpecTypeId.Boolean.YesNo)
+                    return p.AsInteger();
+                return p.AsDouble();
+            }
+
+            // 2. Fall back to BuiltInParameter enum match
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
-                if (bp != null && bp.HasValue) return bp.AsDouble();
+                if (bp != null && bp.HasValue)
+                {
+                    // Yes/No checkbox — AsDouble() is unreliable; use AsInteger().
+                    if (bp.StorageType == StorageType.Integer
+                        && bp.Definition is InternalDefinition bpIntDef
+                        && bpIntDef.GetDataType() == SpecTypeId.Boolean.YesNo)
+                        return bp.AsInteger();
+                    return bp.AsDouble();
+                }
             }
-
-            var p = e.LookupParameter(name);
-            if (p != null && p.HasValue) return p.AsDouble();
 
             try
             {
@@ -116,14 +136,16 @@ namespace CoreScript.Engine.Globals
         {
             if (e == null) return 0;
 
+            // 1. Try standard name lookup FIRST (see GetStr for rationale).
+            var p = e.LookupParameter(name);
+            if (p != null && p.HasValue) return p.AsInteger();
+
+            // 2. Fall back to BuiltInParameter enum match
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
                 if (bp != null && bp.HasValue) return bp.AsInteger();
             }
-
-            var p = e.LookupParameter(name);
-            if (p != null && p.HasValue) return p.AsInteger();
 
             try
             {
