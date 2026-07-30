@@ -109,19 +109,18 @@ function paracoreAutocomplete() {
   });
 }
 
-// ── Unified theme driven by Paracore CSS variables (works in all 3 themes) ──
+// ── Transparent editor — inherits parent background in all themes ──
 const paracoreEditorTheme = EditorView.theme({
   '&': {
-    backgroundColor: 'var(--bg-panel)',
-    color: 'var(--text-main)',
+    backgroundColor: 'transparent',
   },
   '&.cm-focused': {
     outline: 'none',
   },
   '.cm-gutters': {
-    backgroundColor: 'var(--bg-panel)',
+    backgroundColor: 'transparent',
+    borderRight: 'none',
     color: 'var(--text-muted)',
-    borderRight: '1px solid var(--border-main)',
   },
   '.cm-activeLineGutter': {
     backgroundColor: 'transparent',
@@ -130,38 +129,35 @@ const paracoreEditorTheme = EditorView.theme({
     backgroundColor: 'transparent',
   },
   '.cm-cursor': {
-    borderLeftColor: 'var(--accent)',
+    borderLeftColor: 'var(--accent, #3b82f6)',
   },
   '.cm-selectionBackground': {
-    backgroundColor: 'color-mix(in srgb, var(--accent) 20%, transparent)',
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
   },
   '.cm-matchingBracket': {
-    backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
-    outline: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    outline: '1px solid rgba(59, 130, 246, 0.3)',
   },
   '.cm-foldPlaceholder': {
-    backgroundColor: 'var(--bg-card)',
-    color: 'var(--text-muted)',
+    backgroundColor: 'transparent',
   },
   '.cm-tooltip': {
-    backgroundColor: 'var(--bg-panel)',
-    color: 'var(--text-main)',
-    border: '1px solid var(--border-main)',
+    backgroundColor: 'var(--bg-panel, #fff)',
+    color: 'var(--text-main, #000)',
+    border: '1px solid var(--border-main, #ccc)',
     borderRadius: '8px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
   },
   '.cm-tooltip-autocomplete': {
     '& .cm-completionDetail': {
-      color: 'var(--text-muted)',
+      color: 'var(--text-muted, #666)',
       fontStyle: 'normal',
     },
     '& .cm-completionInfo': {
       padding: '4px 8px',
       fontSize: '12px',
-      color: 'var(--text-muted)',
     },
   },
-}, { dark: false }); // dark:false means we control colors via CSS vars, not CodeMirror's dark mode
+}, { dark: false });
 
 export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEditorProps>(({
   value,
