@@ -59,7 +59,7 @@ export const RecentScriptsList: React.FC<RecentScriptsListProps> = ({
           </li>
         ))}
         {scriptsToRender.length === 0 && (
-          <li className="text-sm text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">No recent activity</li>
+          <li className="text-xs text-muted-foreground px-3 py-1.5 italic">No recent scripts</li>
         )}
       </ul>
     </SidebarSection>

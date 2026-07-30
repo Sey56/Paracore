@@ -25,7 +25,7 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
       title="Favorites"
       icon={faStar}
       iconColor="text-yellow-400"
-      defaultExpanded={true}
+      defaultExpanded={favoriteScripts.length > 0}
       actions={
         favoriteScripts.length > 0 && (
           <div className="tooltip-left">
@@ -55,10 +55,7 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
           </li>
         ))}
         {favoriteScripts.length === 0 && (
-          <li className="flex flex-col items-center gap-1.5 py-3 text-center">
-            <span className="text-lg opacity-30">☆</span>
-            <span className="text-xs text-muted-foreground">No favorites yet</span>
-          </li>
+          <li className="text-xs text-muted-foreground px-3 py-1.5 italic">No favorites yet</li>
         )}
       </ul>
     </SidebarSection>
