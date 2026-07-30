@@ -156,7 +156,7 @@ export const TopBar: React.FC = () => {
           </span>
           {ParacoreConnected && revitStatus.document && (
             <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-1 pl-2">
-              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px] italic">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px] italic" title={revitStatus.document}>
                 {revitStatus.document}
               </span>
             </div>
