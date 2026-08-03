@@ -126,11 +126,11 @@ try {
     Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $serverReleaseDir
     robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache build dist /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
 
-    # Bundle paracore-agent
-    $agentSource = Join-Path $ParacoreRoot "paracore-agent"
+    # Bundle paracore-mcp
+    $agentSource = Join-Path $ParacoreRoot "paracore-mcp"
     if (Test-Path $agentSource) {
-        robocopy $agentSource (Join-Path $serverReleaseDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
-        Write-Host "Bundled paracore-agent" -ForegroundColor Gray
+        robocopy $agentSource (Join-Path $serverReleaseDir "paracore-mcp") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+        Write-Host "Bundled paracore-mcp" -ForegroundColor Gray
     }
 
     # Optional: JWT public key for offline auth

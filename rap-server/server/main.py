@@ -15,14 +15,14 @@ if os.environ.get("GOOGLE_API_KEY") and os.environ.get("GEMINI_API_KEY"):
 if __name__ == "__main__" and __package__ is None:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Resolve paracore-agent — the shared AI brain (agent, MCP core, gRPC client).
+# Resolve paracore-mcp — the shared AI brain (agent, MCP core, gRPC client).
 # Appended (not inserted) so local modules (utils, config) take precedence.
-# Dev:  ../../../paracore-agent (paracore/rap-server/server/ → Paracore/paracore-agent)
-# Frozen: ../paracore-agent (server-release/server/ → server-release/paracore-agent)
+# Dev:  ../../../paracore-mcp (paracore/rap-server/server/ → Paracore/paracore-mcp)
+# Frozen: ../paracore-mcp (server-release/server/ → server-release/paracore-mcp)
 _here = os.path.dirname(os.path.abspath(__file__))
 for _candidate in (
-    os.path.normpath(os.path.join(_here, "..", "paracore-agent")),          # frozen
-    os.path.normpath(os.path.join(_here, "..", "..", "..", "paracore-agent")),  # dev
+    os.path.normpath(os.path.join(_here, "..", "paracore-mcp")),          # frozen
+    os.path.normpath(os.path.join(_here, "..", "..", "..", "paracore-mcp")),  # dev
 ):
     if os.path.isdir(_candidate):
         sys.path.append(_candidate)

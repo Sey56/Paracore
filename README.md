@@ -1,52 +1,55 @@
-# Paracore: Dynamic C# Scripting for Revit 🏗️⚡
+# Paracore: Dynamic C# Scripting for Revit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Revit 2025+](https://img.shields.io/badge/Revit-2025%2B-blue)](https://www.autodesk.com/products/revit/)
 [![Documentation](https://img.shields.io/badge/docs-live-brightgreen)](https://sey56.github.io/paracore-help/)
 
-**Paracore** is a dynamic automation platform designed to simplify Revit API development, providing a streamlined bridge between simple macros and full-scale add-ins. It is built to be **Local-First**, ensuring your data and scripts remain entirely on your machine.
+Write C# that runs live inside Revit — no project files, no compilation, no boilerplate. Every Revit API namespace is pre-imported. Every element has smart extension methods.
 
-## Overview
-Paracore was born from an architect's passion for Revit and a desire to expand the possibilities of design automation. Starting as a personal toolkit to solve everyday design challenges, it has grown into a high-performance execution layer designed to bridge the gap between heavy API development and the dynamic needs of modern automation.
+## What's in this repo
 
-1.  **Safe AI Execution** — AI agents explore and execute C# in Revit through a gRPC sandbox. All model changes require human approval (Sovereign Handoff). The same security layer protects both the in-app agent and MCP clients.
-2.  **Zero Boilerplate** — Write a C# script, declare a `Params` class with public properties, and Paracore auto-generates the UI from them. Add attributes like `[Range(0, 100, 1)]` to turn an entry into a slider, or `[Unit("mm")]` for automatic unit conversion. No project files, no compilation — just code and run.
+| Component | What it does | Build |
+|-----------|-------------|-------|
+| **Paracore Addin** | Revit ribbon + gRPC execution engine | `./build-addin.ps1` |
+| **Paracore Desktop App** | Script gallery, REPL playground, parameter UI generator | `./build-frontend.ps1 -Release` |
+| **VS Code Extension** | Write C# in VS Code, execute in Revit, see output in VS Code | `./build_extension.sh` |
 
-## 🛠️ Build
+Installers go to `installers/`.
+
+**Requirements**: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
+
+## Quick start
 
 ```powershell
-./build-addin.ps1               # Revit add-in
-./build-frontend.ps1 -Release   # Desktop app (Tauri + Python sidecar)
-./build_extension.sh            # VS Code extension (Git Bash)
+./build-addin.ps1                        # Build the Revit addin
+./build-frontend.ps1 -Release            # Build the desktop app
 ```
 
-Requirements: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
+Run the installer from `installers/`, open Revit, toggle the Paracore server ON in the ribbon.
 
-## 📚 Developer Resources
-- **[Development Guide](DEVELOPMENT.md)** - How to set up and develop Paracore locally (Build, Run, Contribute)
-- **[Contributing](CONTRIBUTING.md)** - Guidelines for contributing to the project
+## Key features
 
-## ✨ Why Paracore?
-The traditional Revit API development workflow involves several preparatory steps that Paracore simplifies:
-- ✅ **Focus on Logic**: Write scripts in VS Code with full IntelliSense, skipping project boilerplate.
-- ✅ **Dynamic Execution**: Execute code instantly without manual compilation of binaries.
-- ✅ **Automatic UI**: Paracore generates professional-grade parameters UIs (dropdowns, sliders, etc.) automatically from your C# properties.
-- ✅ **Rich Features**: Use simple helpers like `Transact()` and access the full power of the Revit API.
+- **Zero boilerplate** — no `.csproj`, no `using` statements, no `namespace`. Just C# top-level statements.
+- **Smart parameter access** — `GetStr("Level")` works on ANY category (Walls, Beams, Columns, Rooms). The engine resolves the right parameter name per category.
+- **Fluent LINQ chains** — `.WhereParam().GroupByParam().SumParam().Select().Table()` — pipeline tracking shows element counts at each step.
+- **Auto-generated UI** — add a `Params` class and Paracore generates the dialog from it.
+- **AI-ready** — works with the Paracore MCP (separate repo) for Claude Desktop / Cursor / VS Code integration.
 
-## 🤖 AI-Powered Automation
+## Paracore MCP
 
-**In-App AI Agent** — A conversational agent inside the Paracore desktop app, built on PydanticAI. It explores your Revit model, answers questions, and executes commands — with a human-in-the-loop approval step for any model changes. Bring your own API key (OpenAI, Gemini, DeepSeek, Anthropic, or OpenRouter).
+The Model Context Protocol server lives in a separate repo: [`paracore-mcp`](https://github.com/datadrivenconstruction/paracore-mcp). Install it alongside this addin to control Revit from Claude Desktop, Cursor, or any MCP-compatible client.
 
-**AI Script Generation** — In VS Code, Copilot and Cline receive custom instructions that teach them the Paracore DSL, parameter engine, and UI conventions. Describe your automation task in natural language and the AI generates a gallery-ready C# script with auto-generated parameter UI.
+```powershell
+cd ../paracore-mcp
+./build-mcp.ps1
+```
 
----
+## Documentation
 
-## 📄 License
-This project is licensed under the **MIT License**.
+- [Development Guide](DEVELOPMENT.md) — architecture, local setup
+- [Contributing](CONTRIBUTING.md)
+- [paracore-help](https://sey56.github.io/paracore-help/) — user docs
 
-## 🤝 Contributing
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+## License
 
-## 📞 Contact & Support
-- **Documentation**: [paracore-help](https://sey56.github.io/paracore-help/)
-- **Email**: codarch46@gmail.com
+MIT
