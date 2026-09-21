@@ -43,13 +43,17 @@ Write-Host "`n[1/2] Building rap-web..."
 Push-Location $webDir
 
 $tauriConfigPath = Join-Path -Path $webDir -ChildPath 'src-tauri\tauri.conf.json'
-$originalConfig = Get-Content -Path $tauriConfigPath -Raw
+$originalConfig = Get-Content -Path $tauriConfigPath -Raw -Encoding UTF8
 $configObject = $originalConfig | ConvertFrom-Json
 
 try {
     # --- Rebrand to Paracore ---
     Write-Host "Rebranding to 'Paracore'..." -ForegroundColor Yellow
-    $configObject.package.productName = "Paracore"
+    if (-not ($configObject.PSObject.Properties.Name -contains 'package') -or $null -eq $configObject.package) {
+        Add-Member -InputObject $configObject -MemberType NoteProperty -Name 'package' -Value @{ productName = "Paracore"; version = $Version } -Force
+    } else {
+        $configObject.package.productName = "Paracore"
+    }
     $configObject.tauri.bundle.identifier = "com.paracore.dev"
 
     # --- WiX Cleanup Fragment ---
@@ -59,6 +63,17 @@ try {
         Add-Member -InputObject $configObject.tauri.bundle.windows -MemberType NoteProperty -Name 'wix' -Value @{ fragmentPaths = @() }
     }
     $configObject.tauri.bundle.windows.wix.fragmentPaths = @("wix/cleanup.wxs")
+
+    # --- Ensure Windows resource icons exist ---
+    $iconsDir = Join-Path -Path $webDir -ChildPath 'src-tauri\icons'
+    $rapIco = Join-Path -Path $iconsDir -ChildPath 'rap-icon.ico'
+    $iconIco = Join-Path -Path $iconsDir -ChildPath 'icon.ico'
+    if (Test-Path $rapIco) {
+        if (-not (Test-Path $iconIco)) { Copy-Item -Path $rapIco -Destination $iconIco -Force }
+        Copy-Item -Path (Join-Path $iconsDir 'rap-icon-32.png') -Destination (Join-Path $iconsDir '32x32.png') -Force -ErrorAction SilentlyContinue
+        Copy-Item -Path (Join-Path $iconsDir 'rap-icon-128.png') -Destination (Join-Path $iconsDir '128x128.png') -Force -ErrorAction SilentlyContinue
+        Copy-Item -Path (Join-Path $iconsDir 'rap-icon-256.png') -Destination (Join-Path $iconsDir '128x128@2x.png') -Force -ErrorAction SilentlyContinue
+    }
 
     # ── Embedded Python Environment ──
     Write-Host "Preparing embedded Python environment..." -ForegroundColor Yellow
@@ -80,24 +95,19 @@ try {
     Write-Host "Stripping dev packages..." -ForegroundColor Cyan
     $serverProjectDir = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server"
     Push-Location $serverProjectDir
-    uv sync --no-dev
+    uv sync --native-tls --no-dev
     Pop-Location
 
     # Patch logfire_api resilience
     $logfireApiInit = Join-Path -Path $ProjectRoot -ChildPath "rap-server\server\.venv\Lib\site-packages\logfire_api\__init__.py"
     if (Test-Path $logfireApiInit) {
-        $original = @'
-    logfire_module = importlib.import_module('logfire')
-    sys.modules[__name__] = logfire_module
-'@
-        $patched = @'
-    logfire_module = importlib.import_module('logfire')
-    if hasattr(logfire_module, 'Logfire') and hasattr(logfire_module, 'LogfireSpan'):
-        sys.modules[__name__] = logfire_module
-    else:
-        raise ImportError('Found logfire module but it lacks the expected API (stale install?)')
-'@
-        (Get-Content -Path $logfireApiInit -Raw).Replace($original, $patched) | Set-Content -Path $logfireApiInit -NoNewline
+        $rawLogfire = [System.IO.File]::ReadAllText($logfireApiInit)
+        if (-not $rawLogfire.Contains('hasattr(logfire_module')) {
+            $logfireTarget = 'sys.modules[__name__] = logfire_module'
+            $logfireReplacement = "if hasattr(logfire_module, 'Logfire') and hasattr(logfire_module, 'LogfireSpan'):`r`n    sys.modules[__name__] = logfire_module`r`nelse:`r`n    raise ImportError('Found logfire module but it lacks the expected API (stale install?)')"
+            $rawLogfire = $rawLogfire.Replace($logfireTarget, $logfireReplacement)
+            [System.IO.File]::WriteAllText($logfireApiInit, $rawLogfire)
+        }
     }
 
     Write-Host "Bundling runtime dependencies..." -ForegroundColor Cyan
@@ -117,7 +127,7 @@ try {
     # Restore dev packages
     Write-Host "Restoring dev packages..." -ForegroundColor Gray
     Push-Location $serverProjectDir
-    uv sync
+    uv sync --native-tls
     Pop-Location
 
     # Copy application source
@@ -126,11 +136,11 @@ try {
     Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $serverReleaseDir
     robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache build dist /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
 
-    # Bundle paracore-agent
-    $agentSource = Join-Path $ParacoreRoot "paracore-agent"
+    # Bundle paracore-mcp
+    $agentSource = Join-Path $ParacoreRoot "paracore-mcp"
     if (Test-Path $agentSource) {
-        robocopy $agentSource (Join-Path $serverReleaseDir "paracore-agent") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
-        Write-Host "Bundled paracore-agent" -ForegroundColor Gray
+        robocopy $agentSource (Join-Path $serverReleaseDir "paracore-mcp") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+        Write-Host "Bundled paracore-mcp" -ForegroundColor Gray
     }
 
     # Optional: JWT public key for offline auth
@@ -150,7 +160,7 @@ try {
     Write-Host 'Python server bundled.' -ForegroundColor Green
 
     # Write modified config
-    $configObject | ConvertTo-Json -Depth 10 | Set-Content -Path $tauriConfigPath
+    $configObject | ConvertTo-Json -Depth 10 | Set-Content -Path $tauriConfigPath -Encoding UTF8
 
     # Clean build artifacts that break WiX (colon in filename)
     $badFiles = Get-ChildItem -Path $serverReleaseDir -Recurse -Filter "*_all_files.txt" -ErrorAction SilentlyContinue
@@ -176,7 +186,7 @@ try {
 
     # --- Cleanup ---
     Write-Host "Restoring tauri.conf.json..." -ForegroundColor Gray
-    Set-Content -Path $tauriConfigPath -Value $originalConfig
+    Set-Content -Path $tauriConfigPath -Value $originalConfig -Encoding UTF8
 
     # Remove any server-modules debris
     $bundleDir = Join-Path -Path $webDir -ChildPath 'server-modules'
