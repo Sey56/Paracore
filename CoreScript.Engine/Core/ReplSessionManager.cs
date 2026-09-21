@@ -21,6 +21,7 @@ namespace CoreScript.Engine.Core
         {
             public ScriptState<object> State { get; set; }
             public ExecutionGlobals Globals { get; set; }
+            public DateTime LastUsed { get; set; }
         }
 
         private static readonly Dictionary<string, ReplSession> _sessions = new Dictionary<string, ReplSession>();
@@ -44,6 +45,7 @@ namespace CoreScript.Engine.Core
                 lock (_lock)
                 {
                     _sessions.TryGetValue(sessionId, out session);
+                    if (session != null) session.LastUsed = DateTime.UtcNow;
                 }
 
                 if (lowerCode == "vars" || lowerCode == "list" || lowerCode == "list vars")
@@ -99,83 +101,26 @@ namespace CoreScript.Engine.Core
                     }
                 }
 
-                // --- Path-based Reference Gathering (Matches ScriptCompiler.cs) ---
-                string revitInstallPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? string.Empty;
-                var revitDllPaths = Directory.GetFiles(revitInstallPath, "RevitAPI*.dll");
-                var revitRefs = revitDllPaths.Where(Parsers.ExtractionUtils.IsManagedAssembly).Select(path => MetadataReference.CreateFromFile(path)).ToList();
-
-                var coreTypes = new[] {
-                    typeof(object), typeof(Enumerable), typeof(Assembly), typeof(List<>),
-                    typeof(Math), typeof(ReplSessionManager), typeof(JsonSerializer),
-                    typeof(Microsoft.CSharp.RuntimeBinder.Binder),
-                    typeof(System.Runtime.CompilerServices.DynamicAttribute),
-                    typeof(System.Linq.Expressions.Expression),
-                    typeof(System.Dynamic.DynamicObject)
-                };
-                var coreRefs = coreTypes
-                    .Select(t => {
-                        try
-                        {
-                            var loc = t.Assembly.Location;
-                            if (!string.IsNullOrEmpty(loc) && File.Exists(loc))
-                                return MetadataReference.CreateFromFile(loc);
-                        }
-                        catch { }
-                        // Fallback: resolve by simple name (handles shared framework
-                        // churn after .NET runtime updates — e.g. 8.0.27 → 8.0.28).
-                        string asmName = t.Assembly.GetName().Name;
-                        if (!string.IsNullOrEmpty(asmName))
-                        {
-                            try
-                            {
-                                var resolved = Assembly.Load(asmName);
-                                if (!string.IsNullOrEmpty(resolved.Location) && File.Exists(resolved.Location))
-                                    return MetadataReference.CreateFromFile(resolved.Location);
-                            }
-                            catch { }
-                        }
-                        FileLogger.LogWarning($"[ReplSessionManager] Could not resolve reference for {t.FullName}");
-                        return null;
-                    })
-                    .Where(r => r != null)
-                    .Cast<MetadataReference>()
-                    .ToList();
-
-                string engineDir = Path.GetDirectoryName(typeof(ReplSessionManager).Assembly.Location) ?? "";
-                string[] extraDlls = { "SixLabors.ImageSharp.dll", "RestSharp.dll", "MiniExcel.dll", "MathNet.Numerics.dll" };
-                foreach (var dllName in extraDlls)
-                {
-                    string dllPath = Path.Combine(engineDir, dllName);
-                    if (File.Exists(dllPath))
-                    {
-                        coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
-                    }
-                }
+                // --- Path-based Reference Gathering (via ScriptReferenceProvider) ---
+                var revitRefs = Rewriters.ScriptReferenceProvider.GetRevitReferences("ReplSessionManager");
+                var coreRefs = Rewriters.ScriptReferenceProvider.GetCoreReferences("ReplSessionManager");
 
                 // Prepare script options
+                var imports = Rewriters.ScriptReferenceProvider.GetImports(includeRevitSelection: true);
+                var allRefs = coreRefs.Concat(revitRefs).ToList();
                 var options = ScriptOptions.Default
-                    .WithReferences(coreRefs.Concat(revitRefs))
-                    .WithImports(
-                        "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json",
-                        "Microsoft.CSharp",
-                        "Autodesk.Revit.DB",
-                        "Autodesk.Revit.DB.Architecture",
-                        "Autodesk.Revit.DB.Structure",
-                        "Autodesk.Revit.DB.Mechanical",
-                        "Autodesk.Revit.DB.Plumbing",
-                        "Autodesk.Revit.DB.Electrical",
-                        "Autodesk.Revit.UI",
-                        "Autodesk.Revit.UI.Selection",
-                        "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime",
-                        "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
-                        "MiniExcelLibs",
-                        "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
-                    );
+                    .WithReferences(allRefs)
+                    .WithImports(imports);
 
-                // Inject pipeline tracking for all LINQ methods
+                // Inject pipeline tracking for all LINQ methods — semantic guard
+                // first so name collisions that cannot accept tracking
+                // (void/string returns like List<T>.Reverse() / string.Join)
+                // are left untouched.
                 var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(code);
-                var pipelineRewriter = new Rewriters.PipelineTrackingRewriter();
-                code = pipelineRewriter.Visit(syntaxTree.GetRoot()).ToFullString();
+                var replRoot = syntaxTree.GetRoot();
+                var skipCalls = Rewriters.SemanticTrackingGuard.ComputeSkipCalls(replRoot, imports, allRefs);
+                var pipelineRewriter = new Rewriters.PipelineTrackingRewriter(skipCalls);
+                code = pipelineRewriter.Visit(replRoot).ToFullString();
 
                 // Inject ScriptApi and resolve Parameter ambiguity
                 string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
@@ -211,7 +156,7 @@ namespace CoreScript.Engine.Core
                         // Context is accessible via ScriptApi (using static) + ExecutionGlobals.SetContext.
                         var script = CSharpScript.Create(fullCode, options, assemblyLoader: loader);
                         var state = await script.RunAsync();
-                        session = new ReplSession { State = state, Globals = globals };
+                        session = new ReplSession { State = state, Globals = globals, LastUsed = DateTime.UtcNow };
                     }
                     finally
                     {
@@ -297,6 +242,7 @@ namespace CoreScript.Engine.Core
                 lock (_lock)
                 {
                     _sessions[sessionId] = session;
+                    PruneSessions();
                 }
 
                 // --- Structured Output Capture ---
@@ -420,6 +366,25 @@ namespace CoreScript.Engine.Core
                 LicenseContext.Reset();
                 FileLogger.LogError($"[REPL] Error: {ex.Message}");
                 return (false, string.Empty, ex.Message, new List<string>());
+            }
+        }
+
+        private const int MAX_SESSIONS = 40;
+
+        private static void PruneSessions()
+        {
+            // Every unique session id holds a Roslyn ScriptState (all compiled
+            // state + assemblies). MCP servers that use a fresh id per call can
+            // accumulate unbounded sessions otherwise — evict the least-recently
+            // used once we pass the cap so memory stays bounded.
+            if (_sessions.Count <= MAX_SESSIONS) return;
+            var evict = _sessions.OrderBy(kv => kv.Value.LastUsed)
+                                 .Take(_sessions.Count - MAX_SESSIONS)
+                                 .Select(kv => kv.Key).ToList();
+            foreach (var k in evict)
+            {
+                _sessions.Remove(k);
+                FileLogger.Log($"[REPL] Pruned idle session '{k}' (memory cap {MAX_SESSIONS}).");
             }
         }
 

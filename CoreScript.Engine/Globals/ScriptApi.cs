@@ -470,7 +470,7 @@ namespace CoreScript.Engine.Globals
                 .Where(e => e is T)
                 .Cast<T>()
                 .ToList();
-            return new PipelineEnumerable<T>(results, track: true);
+            return new PipelineEnumerable<T>(results, track: false);
         }
 
         /// <summary>
@@ -483,7 +483,7 @@ namespace CoreScript.Engine.Globals
             var results = computer.ComputeElementOptions(typeof(T).Name, categoryName)
                 .Cast<T>()
                 .ToList();
-            return new PipelineEnumerable<T>(results, track: true);
+            return new PipelineEnumerable<T>(results, track: false);
         }
 
 
@@ -498,7 +498,7 @@ namespace CoreScript.Engine.Globals
                 .OfCategory(category)
                 .WhereElementIsNotElementType()
                 .ToList();
-            return new PipelineEnumerable<Element>(results, track: true);
+            return new PipelineEnumerable<Element>(results, track: false);
         }
 
         /// <summary>
@@ -530,7 +530,16 @@ namespace CoreScript.Engine.Globals
                 // Return an empty list — don't throw.
                 if (allValidTerms.Any(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    return new PipelineEnumerable<Element>(results, track: true); // Empty list
+                    return new PipelineEnumerable<Element>(results, track: false); // Empty list
+                }
+
+                // A name that resolves to a real Revit class or BuiltInCategory is valid too —
+                // the document just has no instances of it (e.g. "MultistoryStairs" in a project
+                // without multistory stairs). Return an empty list instead of a misleading error.
+                if (Core.ParameterOptionsComputer.IsKnownElementName(cleanName))
+                {
+                    Println($"[INFO] {cleanName}: valid Class or Category with 0 instances in this document.");
+                    return new PipelineEnumerable<Element>(results, track: false); // Empty list
                 }
 
                 // --- SUGGESTION ENGINE (for genuine typos only) ---
@@ -547,7 +556,7 @@ namespace CoreScript.Engine.Globals
                 throw new ArgumentException($"'{cleanName}' is not a valid Class or Category. For a list of supported Hydrations run GetMagicNames().");
             }
 
-            return new PipelineEnumerable<Element>(results, track: true);
+            return new PipelineEnumerable<Element>(results, track: false);
         }
 
         /// <summary>

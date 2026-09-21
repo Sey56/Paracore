@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CoreScript.Engine.Logging;
+using CoreScript.Engine.Core.Rewriters;
 
 namespace CoreScript.Engine.Core
 {
@@ -78,75 +79,14 @@ namespace CoreScript.Engine.Core
 
         private ScriptOptions GetScriptOptions(string scriptName)
         {
-            string revitInstallPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
-            var revitDllPaths = Directory.GetFiles(revitInstallPath, "RevitAPI*.dll");
-            var revitRefs = revitDllPaths.Where(Parsers.ExtractionUtils.IsManagedAssembly).Select(path => MetadataReference.CreateFromFile(path)).ToList();
-
-            var coreTypes = new[] {
-                typeof(object), typeof(Enumerable), typeof(Assembly), typeof(List<>),
-                typeof(Math), typeof(ScriptCompiler), typeof(JsonSerializer),
-                typeof(Microsoft.CSharp.RuntimeBinder.Binder),
-                typeof(System.Runtime.CompilerServices.DynamicAttribute),
-                typeof(System.Linq.Expressions.Expression),
-                typeof(System.Dynamic.DynamicObject)
-            };
-            var coreRefs = coreTypes
-                .Select(t => {
-                    try
-                    {
-                        var loc = t.Assembly.Location;
-                        if (!string.IsNullOrEmpty(loc) && File.Exists(loc))
-                            return MetadataReference.CreateFromFile(loc);
-                    }
-                    catch { }
-                    // Fallback: resolve by simple name (handles shared framework
-                    // churn after .NET runtime updates — e.g. 8.0.27 → 8.0.28).
-                    string asmName = t.Assembly.GetName().Name;
-                    if (!string.IsNullOrEmpty(asmName))
-                    {
-                        try
-                        {
-                            var resolved = Assembly.Load(asmName);
-                            if (!string.IsNullOrEmpty(resolved.Location) && File.Exists(resolved.Location))
-                                return MetadataReference.CreateFromFile(resolved.Location);
-                        }
-                        catch { }
-                    }
-                    FileLogger.LogWarning($"[ScriptCompiler] Could not resolve reference for {t.FullName}");
-                    return null;
-                })
-                .Where(r => r != null)
-                .Cast<MetadataReference>()
-                .ToList();
-
-            string engineDir = Path.GetDirectoryName(typeof(ScriptCompiler).Assembly.Location) ?? "";
-            string[] extraDlls = { "SixLabors.ImageSharp.dll", "RestSharp.dll", "MiniExcel.dll", "MathNet.Numerics.dll" };
-            foreach (var dllName in extraDlls)
-            {
-                string dllPath = Path.Combine(engineDir, dllName);
-                if (File.Exists(dllPath))
-                {
-                    coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
-                }
-            }
+            // Reference + import lists live in ScriptReferenceProvider — shared
+            // with ReplSessionManager and SemanticTrackingGuard.
+            var coreRefs = ScriptReferenceProvider.GetCoreReferences("ScriptCompiler");
+            var revitRefs = ScriptReferenceProvider.GetRevitReferences("ScriptCompiler");
 
             return ScriptOptions.Default
                 .WithReferences(coreRefs.Concat(revitRefs))
-                .WithImports(
-                    "System", "System.IO", "System.Linq", "System.Collections.Generic", "System.Text.Json", "System.Globalization",
-                    "Microsoft.CSharp",
-                    "Autodesk.Revit.DB",
-                    "Autodesk.Revit.DB.Architecture",
-                    "Autodesk.Revit.DB.Structure",
-                    "Autodesk.Revit.DB.Mechanical",
-                    "Autodesk.Revit.DB.Plumbing",
-                    "Autodesk.Revit.DB.Electrical",
-                    "Autodesk.Revit.UI",
-                    "CoreScript.Engine.Globals", "CoreScript.Engine.Runtime",
-                    "SixLabors.ImageSharp", "SixLabors.ImageSharp.Processing", "SixLabors.ImageSharp.PixelFormats",
-                    "MiniExcelLibs",
-                    "MathNet.Numerics", "MathNet.Numerics.LinearAlgebra", "MathNet.Numerics.Statistics"
-                )
+                .WithImports(ScriptReferenceProvider.GetImports(includeRevitSelection: false))
                 .WithFilePath(scriptName);
         }
 

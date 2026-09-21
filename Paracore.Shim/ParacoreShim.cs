@@ -141,17 +141,6 @@ namespace Paracore.Shim
         }
     }
 
-    [Transaction(TransactionMode.Manual)]
-    public class ToggleDashboardProxy : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
-        {
-            return ProxyHelper.ExecuteIsolated(
-                "Paracore.Addin.Commands.ToggleDashboardCommand",
-                commandData, ref message, elements);
-        }
-    }
-
     /// <summary>
     /// Helper that creates command instances in the isolated ALC and invokes Execute().
     /// </summary>

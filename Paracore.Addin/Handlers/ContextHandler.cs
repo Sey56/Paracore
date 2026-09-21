@@ -514,6 +514,13 @@ namespace Paracore.Addin.Handlers
                             {
                                 val = val.InputUnit(request.Unit);
                             }
+                            else
+                            {
+                                // No unit specified — assume the value is in the
+                                // parameter's display unit (e.g. mm for length, not feet).
+                                try { val = UnitUtils.ConvertToInternalUnits(val, targetParam.GetUnitTypeId()); }
+                                catch { /* dimensionless parameter — leave as-is */ }
+                            }
                             targetParam.Set(val);
                         }
                         t.Commit();
@@ -577,6 +584,11 @@ namespace Paracore.Addin.Handlers
                                     if (!string.IsNullOrEmpty(update.Unit))
                                     {
                                         val = val.InputUnit(update.Unit);
+                                    }
+                                    else
+                                    {
+                                        try { val = UnitUtils.ConvertToInternalUnits(val, targetParam.GetUnitTypeId()); }
+                                        catch { }
                                     }
                                     targetParam.Set(val);
                                 }

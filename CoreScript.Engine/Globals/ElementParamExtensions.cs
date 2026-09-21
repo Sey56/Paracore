@@ -20,16 +20,35 @@ namespace CoreScript.Engine.Globals
         {
             if (e == null || string.IsNullOrEmpty(name)) return "";
 
-            // 1. Try BuiltInParameter name match FIRST
+            // 0. "Level" → category-specific lookup BEFORE parameter search.
+            // Different Revit categories use different parameter names for
+            // their level. Resolve the real parameter name first, then
+            // delegate to the standard lookup chain.
+            if (name.Equals("Level", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var alt in new[] { "Reference Level", "Base Level", "Base Constraint" })
+                {
+                    var lvlP = e.LookupParameter(alt);
+                    if (lvlP != null && lvlP.HasValue)
+                        return FormatParamValue(e, lvlP);
+                }
+                // Also try Native LevelId
+                var nativeLvl = e.Document.GetElement(e.LevelId)?.Name;
+                if (!string.IsNullOrEmpty(nativeLvl)) return nativeLvl;
+            }
+
+            // 1. Try standard name lookup FIRST (takes priority over BIP to avoid
+            //    clashes like "Structural" matching a generic BIP instead of the
+            //    element's actual parameter).
+            var p = e.ResolveParam(name);
+            if (p != null && p.HasValue) return FormatParamValue(e, p);
+
+            // 2. Fall back to BuiltInParameter enum match
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
                 if (bp != null && bp.HasValue) return FormatParamValue(e, bp);
             }
-
-            // 2. Try standard name lookup
-            var p = e.LookupParameter(name);
-            if (p != null && p.HasValue) return FormatParamValue(e, p);
 
             // 3. Smart Fallback: Try C# Property via Reflection
             try
@@ -56,7 +75,34 @@ namespace CoreScript.Engine.Globals
             }
             catch { }
 
-            // 4. Type parameter fallback
+            // 4. Native property fallback — "Level", "Name", "Category", etc.
+            try
+            {
+                foreach (var np in e.NativeProperties())
+                {
+                    dynamic d = np;
+                    if (string.Equals((string)d.Property, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var val = (string)d.Value;
+                        if (val != "-" && !string.IsNullOrEmpty(val)) return val;
+                    }
+                }
+            }
+            catch { }
+
+            // 4b. "Level" fallback chain — different categories use different
+            // parameter names. NativeProperties LevelId is empty for Structural
+            // Framing; try the real parameter names.
+            if (name.Equals("Level", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var alt in new[] { "Reference Level", "Base Level", "Base Constraint" })
+                {
+                    var v = e.GetStr(alt);
+                    if (!string.IsNullOrEmpty(v)) return v;
+                }
+            }
+
+            // 5. Type parameter fallback
             var typeId = e.GetTypeId();
             if (typeId != null && typeId != ElementId.InvalidElementId)
             {
@@ -64,7 +110,24 @@ namespace CoreScript.Engine.Globals
                 if (type != null) return type.GetStr(name);
             }
 
+            // If we got here, the parameter wasn't found in ANY scope.
+            // Record a diagnostic warning (once per unique name per session)
+            // so the user knows they might have a typo or wrong category.
+            _warnUnknownParameter(name);
             return "";
+        }
+
+        /// <summary>Tracks unknown parameter names to avoid flooding diagnostics.</summary>
+        private static readonly HashSet<string> _warnedParams = new(StringComparer.OrdinalIgnoreCase);
+
+        private static void _warnUnknownParameter(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            if (_warnedParams.Contains(name)) return;
+            _warnedParams.Add(name);
+            // Log to session output (Println writes to the REPL output stream)
+            try { ScriptApi.Println($"⚠ GetStr(\"{name}\"): parameter not found on element. Check spelling or use .CombinedParams().Table() to discover available parameters."); }
+            catch { /* silent — diagnostics are best-effort */ }
         }
 
         /// <summary> Gets the parameter value converted to a specific unit as a string (no suffix). </summary>
@@ -74,19 +137,80 @@ namespace CoreScript.Engine.Globals
             return e.GetNum(name).FormatValueOnly(unit, decimals);
         }
 
+        /// <summary>
+        /// Paracore parameter name map — the "Paracore " prefix was dropped
+        /// from all shared parameters (bare names are the convention, matching
+        /// IsWetRoom / IsExterior). Bare is authoritative; the prefixed name is
+        /// the legacy alias still found in projects created before the rename.
+        /// </summary>
+        private static readonly Dictionary<string, string> _paramAliasBare = new(StringComparer.Ordinal)
+        {
+            ["Paracore IsDoorWin"] = "IsDoorWin",
+            ["Paracore IsParapetWall"] = "IsParapetWall",
+            ["Paracore IsFenceWall"] = "IsFenceWall",
+            ["Paracore IsHandrailWall"] = "IsHandrailWall",
+            ["Paracore IsExcavationMarker"] = "IsExcavationMarker",
+            ["Paracore IsRoofSlab"] = "IsRoofSlab",
+            ["Paracore IsGradeSlab"] = "IsGradeSlab",
+            ["Paracore IsGradeBeam"] = "IsGradeBeam",
+            ["Paracore_BOQ_Section"] = "BOQ_Section",
+            ["Paracore_BOQ_Boundary"] = "BOQ_Boundary",
+        };
+        private static readonly Dictionary<string, string> _paramAliasPrefixed =
+            _paramAliasBare.GroupBy(kv => kv.Value).ToDictionary(g => g.Key, g => g.First().Key);
+
+        /// <summary>
+        /// Parameter resolution with the Paracore migration alias. Legacy bare
+        /// names (e.g. "IsDoorWin") transparently resolve to their migrated
+        /// shared parameters ("Paracore IsDoorWin") — the engine's one-time
+        /// rename removed the legacy binding, but user scripts keep using the
+        /// names they always have. Returns null when neither name exists.
+        /// </summary>
+        internal static Parameter ResolveParam(this Element e, string name)
+        {
+            var p = e.LookupParameter(name);
+            if (p != null) return p;
+            if (string.IsNullOrEmpty(name)) return null;
+            if (_paramAliasBare.TryGetValue(name, out var bare))            // legacy prefixed → bare
+                return e.LookupParameter(bare);
+            if (_paramAliasPrefixed.TryGetValue(name, out var prefixed))    // bare → legacy prefixed
+                return e.LookupParameter(prefixed);
+            if (!name.StartsWith("Paracore", StringComparison.OrdinalIgnoreCase))
+                return e.LookupParameter("Paracore " + name);
+            return null;
+        }
+
         /// <summary> Gets the parameter value as a double (Internal Units). Falls back to C# Property. </summary>
         public static double GetNum(this Element e, string name)
         {
             if (e == null) return 0.0;
 
+            // 1. Try standard name lookup FIRST (see GetStr for rationale).
+            var p = e.ResolveParam(name);
+            if (p != null && p.HasValue)
+            {
+                // Yes/No checkbox — AsDouble() is unreliable; use AsInteger().
+                if (p.StorageType == StorageType.Integer
+                    && p.Definition is InternalDefinition pIntDef
+                    && pIntDef.GetDataType() == SpecTypeId.Boolean.YesNo)
+                    return p.AsInteger();
+                return p.AsDouble();
+            }
+
+            // 2. Fall back to BuiltInParameter enum match
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
-                if (bp != null && bp.HasValue) return bp.AsDouble();
+                if (bp != null && bp.HasValue)
+                {
+                    // Yes/No checkbox — AsDouble() is unreliable; use AsInteger().
+                    if (bp.StorageType == StorageType.Integer
+                        && bp.Definition is InternalDefinition bpIntDef
+                        && bpIntDef.GetDataType() == SpecTypeId.Boolean.YesNo)
+                        return bp.AsInteger();
+                    return bp.AsDouble();
+                }
             }
-
-            var p = e.LookupParameter(name);
-            if (p != null && p.HasValue) return p.AsDouble();
 
             try
             {
@@ -116,14 +240,16 @@ namespace CoreScript.Engine.Globals
         {
             if (e == null) return 0;
 
+            // 1. Try standard name lookup FIRST (see GetStr for rationale).
+            var p = e.ResolveParam(name);
+            if (p != null && p.HasValue) return p.AsInteger();
+
+            // 2. Fall back to BuiltInParameter enum match
             if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 var bp = e.get_Parameter(bip);
                 if (bp != null && bp.HasValue) return bp.AsInteger();
             }
-
-            var p = e.LookupParameter(name);
-            if (p != null && p.HasValue) return p.AsInteger();
 
             try
             {
@@ -154,7 +280,7 @@ namespace CoreScript.Engine.Globals
         {
             if (e == null || string.IsNullOrEmpty(name)) return "-";
 
-            var p = e.LookupParameter(name);
+            var p = e.ResolveParam(name);
             if (p == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
             {
                 p = e.get_Parameter(bip);
@@ -236,15 +362,17 @@ namespace CoreScript.Engine.Globals
                     return refEl.Name;
                 case StorageType.Double:
                 case StorageType.Integer:
+                    // Yes/No checkbox — AsValueString is unreliable for 0.
+                    // Return the raw integer so 0/1 works bidirectionally
+                    // and displays correctly in tables.
+                    if (p.Definition is InternalDefinition intDef
+                        && intDef.GetDataType() == SpecTypeId.Boolean.YesNo)
+                        return p.AsInteger().ToString();
+
                     var valStr = p.AsValueString();
                     if (!string.IsNullOrEmpty(valStr)) return valStr;
 
-                    if (p.StorageType == StorageType.Integer && p.Definition is InternalDefinition intDef && intDef.GetDataType() == SpecTypeId.Boolean.YesNo)
-                    {
-                        return p.AsInteger() == 1 ? "True" : "False";
-                    }
-
-                    return p.StorageType == StorageType.Double ? p.AsDouble().ToString() : p.AsInteger().ToString();
+                    return p.AsInteger().ToString();
                 default:
                     return "";
             }

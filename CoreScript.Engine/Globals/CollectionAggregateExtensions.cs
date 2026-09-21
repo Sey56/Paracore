@@ -90,6 +90,20 @@ namespace CoreScript.Engine.Globals
                     p = e.get_Parameter(bip);
                 if (p != null)
                     return p.StorageType == StorageType.Double || p.StorageType == StorageType.Integer;
+
+                var typeId = e.GetTypeId();
+                if (typeId != null && typeId != ElementId.InvalidElementId)
+                {
+                    var type = e.Document.GetElement(typeId);
+                    if (type != null)
+                    {
+                        var tp = type.LookupParameter(name);
+                        if (tp == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var typeBip))
+                            tp = type.get_Parameter(typeBip);
+                        if (tp != null)
+                            return tp.StorageType == StorageType.Double || tp.StorageType == StorageType.Integer;
+                    }
+                }
             }
 
             var prop = first.GetType().GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);

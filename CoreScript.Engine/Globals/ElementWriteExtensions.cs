@@ -6,13 +6,42 @@ using System.Linq;
 namespace CoreScript.Engine.Globals
 {
     /// <summary>
-    /// Parameter setters — SetNum, SetVal (smart setter).
+    /// Parameter setters — SetNum, SetVal (smart setter), and type-level equivalents.
     /// </summary>
     public static partial class ElementExtensions
     {
+        private static readonly HashSet<string> _warnedSetParams = new(StringComparer.OrdinalIgnoreCase);
+
+        private static void _warnUnknownSetParam(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            if (_warnedSetParams.Contains(name)) return;
+            _warnedSetParams.Add(name);
+            try
+            {
+                ScriptApi.Println($"⚠ SetVal(\"{name}\"): parameter not found on element or its type. "
+                    + "Check spelling or use .CombinedParams().Table() to discover available parameters.");
+            }
+            catch { }
+        }
+
+        private static void _warnReadOnlyParam(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            var key = "readonly_" + name;
+            if (_warnedSetParams.Contains(key)) return;
+            _warnedSetParams.Add(key);
+            try
+            {
+                ScriptApi.Println($"⚠ SetVal(\"{name}\"): parameter is read-only and cannot be modified.");
+            }
+            catch { }
+        }
+
         /// <summary>
         /// Sets a numeric parameter value, automatically converting FROM the specified unit.
         /// Wraps in a transaction named "Update Parameter" if one isn't already active.
+        /// Falls back to ElementType if the parameter is a type-level parameter.
         /// </summary>
         public static void SetNum(this Element e, string name, double value, string unit)
         {
@@ -26,7 +55,38 @@ namespace CoreScript.Engine.Globals
                     p = e.get_Parameter(bip);
                 }
 
-                if (p != null && p.StorageType == StorageType.Double)
+                // 1. Fall back to ElementType if not found on instance
+                if (p == null && e is not ElementType)
+                {
+                    var type = e.GetElementType();
+                    if (type != null)
+                    {
+                        var tp = type.LookupParameter(name);
+                        if (tp == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var typeBip))
+                        {
+                            tp = type.get_Parameter(typeBip);
+                        }
+                        if (tp != null)
+                        {
+                            type.SetNum(name, value, unit);
+                            return;
+                        }
+                    }
+                }
+
+                if (p == null)
+                {
+                    _warnUnknownSetParam(name);
+                    return;
+                }
+
+                if (p.IsReadOnly)
+                {
+                    _warnReadOnlyParam(name);
+                    return;
+                }
+
+                if (p.StorageType == StorageType.Double)
                 {
                     p.Set(value.InputUnit(unit));
                 }
@@ -45,6 +105,7 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// THE SMART SETTER. Handles: Double/Int → SetNum, String with units → SetValueString,
         /// String Name → resolves to ElementId (for Levels/Types), String → Standard String set.
+        /// Automatically falls back to ElementType if the parameter is a Type parameter (e.g. Fire Rating on Walls).
         /// </summary>
         public static void SetVal(this Element e, string name, object value)
         {
@@ -56,6 +117,29 @@ namespace CoreScript.Engine.Globals
                 if (p == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip))
                 {
                     p = e.get_Parameter(bip);
+                }
+                // Paracore migration alias — legacy bare names (e.g. "IsDoorWin")
+                // transparently resolve to their migrated shared parameters
+                // ("Paracore IsDoorWin"); see ResolveParam.
+                if (p == null) p = e.ResolveParam(name);
+
+                // 1. Fall back to ElementType if not found on instance
+                if (p == null && e is not ElementType)
+                {
+                    var type = e.GetElementType();
+                    if (type != null)
+                    {
+                        var tp = type.LookupParameter(name);
+                        if (tp == null && Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var typeBip))
+                        {
+                            tp = type.get_Parameter(typeBip);
+                        }
+                        if (tp != null)
+                        {
+                            type.SetVal(name, value);
+                            return;
+                        }
+                    }
                 }
 
                 if (p == null)
@@ -83,12 +167,21 @@ namespace CoreScript.Engine.Globals
                                 }
                             }
                             catch { }
+                            return;
                         }
                     }
                     catch { }
 
+                    _warnUnknownSetParam(name);
                     return;
                 }
+
+                if (p.IsReadOnly)
+                {
+                    _warnReadOnlyParam(name);
+                    return;
+                }
+
                 if (value is double d) { p.Set(d); return; }
                 if (value is int i) { p.Set(i); return; }
 
@@ -156,5 +249,16 @@ namespace CoreScript.Engine.Globals
                 e.SetVal(name, value);
             }
         }
+
+        // ── Type-Level Setters ───────────────────────────────────────────
+
+        /// <summary> Sets a type-level parameter on the element's ElementType. </summary>
+        public static void SetTypeVal(this Element e, string name, object value) => e.GetElementType()?.SetVal(name, value);
+
+        /// <summary> Sets a type-level parameter with unit conversion on the element's ElementType. </summary>
+        public static void SetTypeVal(this Element e, string name, object value, string unit) => e.GetElementType()?.SetVal(name, value, unit);
+
+        /// <summary> Sets a type-level numeric parameter on the element's ElementType. </summary>
+        public static void SetTypeNum(this Element e, string name, double value, string unit) => e.GetElementType()?.SetNum(name, value, unit);
     }
 }

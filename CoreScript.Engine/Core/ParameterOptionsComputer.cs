@@ -201,17 +201,27 @@ namespace CoreScript.Engine.Core
                 }
 
                 // --- ROBUST CATEGORY DISCOVERY (V4.2.0) ---
+                // Matching is lenient: exact name, singular, or with spaces removed — so
+                // "Multistory Stairs" and "MultistoryStairs" both resolve to the same category.
                 var baseCategoryName = cleanName;
+                var baseCompact = baseCategoryName.Replace(" ", "");
+                var singularCompact = singularName.Replace(" ", "");
 
                 Category? matchedCategory = null;
                 foreach (Category cat in _doc.Settings.Categories)
                 {
                     var catSingular = cat.Name.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? cat.Name.Substring(0, cat.Name.Length - 1) : cat.Name;
+                    var catCompact = cat.Name.Replace(" ", "");
+                    var catSingularCompact = catSingular.Replace(" ", "");
 
                     if (cat.Name.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) || 
                         cat.Name.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
                         catSingular.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) ||
-                        catSingular.Equals(singularName, StringComparison.OrdinalIgnoreCase))
+                        catSingular.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
+                        catCompact.Equals(baseCompact, StringComparison.OrdinalIgnoreCase) ||
+                        catCompact.Equals(singularCompact, StringComparison.OrdinalIgnoreCase) ||
+                        catSingularCompact.Equals(baseCompact, StringComparison.OrdinalIgnoreCase) ||
+                        catSingularCompact.Equals(singularCompact, StringComparison.OrdinalIgnoreCase))
                     {
                         matchedCategory = cat;
                         break;
@@ -221,16 +231,30 @@ namespace CoreScript.Engine.Core
                 ElementId? categoryId = matchedCategory?.Id;
 
                 // Fallback to Built-in Enum mapping (covers OST_ prefix and standard Enum names)
+                // The normalized comparisons make "Multistory Stairs" match OST_MultistoryStairs
+                // even though that category is not present in Settings.Categories.
                 if (categoryId == null)
                 {
                     var builtin = Enum.GetValues(typeof(BuiltInCategory)).Cast<BuiltInCategory>()
                         .FirstOrDefault(c =>
-                            c.ToString().Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) ||
-                            c.ToString().Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
-                            c.ToString().Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase) ||
-                            c.ToString().Equals($"OST_{singularName}", StringComparison.OrdinalIgnoreCase) ||
-                            c.ToString().Equals($"OST_{baseCategoryName}s", StringComparison.OrdinalIgnoreCase) ||
-                            c.ToString().Equals($"OST_{singularName}s", StringComparison.OrdinalIgnoreCase));
+                        {
+                            var en = c.ToString(); // e.g. "OST_MultistoryStairs"
+                            var enCompact = en.Replace("_", "").Replace(" ", ""); // "OSTMultistoryStairs"
+                            var enNoPrefix = enCompact.StartsWith("OST", StringComparison.OrdinalIgnoreCase)
+                                ? enCompact.Substring(3) // "MultistoryStairs"
+                                : enCompact;
+
+                            return en.Equals(baseCategoryName, StringComparison.OrdinalIgnoreCase) ||
+                                   en.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
+                                   en.Equals($"OST_{baseCategoryName}", StringComparison.OrdinalIgnoreCase) ||
+                                   en.Equals($"OST_{singularName}", StringComparison.OrdinalIgnoreCase) ||
+                                   en.Equals($"OST_{baseCategoryName}s", StringComparison.OrdinalIgnoreCase) ||
+                                   en.Equals($"OST_{singularName}s", StringComparison.OrdinalIgnoreCase) ||
+                                   enCompact.Equals("OST" + baseCompact, StringComparison.OrdinalIgnoreCase) ||
+                                   enCompact.Equals("OST" + singularCompact, StringComparison.OrdinalIgnoreCase) ||
+                                   enNoPrefix.Equals(baseCompact, StringComparison.OrdinalIgnoreCase) ||
+                                   enNoPrefix.Equals(singularCompact, StringComparison.OrdinalIgnoreCase);
+                        });
 
                     if (builtin != default) categoryId = new ElementId(builtin);
                 }
@@ -257,6 +281,59 @@ namespace CoreScript.Engine.Core
                 return Enumerable.Empty<Element>();
             }
             catch (Exception ex) { Console.WriteLine($"[OptionsComputer] Error: {ex.Message}"); return Enumerable.Empty<Element>(); }
+        }
+
+        /// <summary>
+        /// True if the name matches any Revit Element subclass (exact, singular, or with spaces
+        /// removed) or any BuiltInCategory name (with/without the OST_ prefix, spaces and
+        /// underscores ignored). Used to distinguish "valid but empty" names from genuine typos:
+        /// e.g. "MultistoryStairs" is a real class even when the document has no instances.
+        /// </summary>
+        public static bool IsKnownElementName(string name)
+        {
+            var cleanName = name.Trim();
+            if (string.IsNullOrEmpty(cleanName)) return false;
+
+            var singularName = cleanName.EndsWith("ies", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 3) + "y" :
+                               (cleanName.EndsWith("s", StringComparison.OrdinalIgnoreCase) && !cleanName.EndsWith("ss", StringComparison.OrdinalIgnoreCase) ? cleanName.Substring(0, cleanName.Length - 1) : cleanName);
+
+            if (_revitTypes == null)
+            {
+                try { _revitTypes = typeof(Element).Assembly.GetTypes(); }
+                catch { return false; } // leave null so future calls can retry
+            }
+
+            var cleanCompact = cleanName.Replace(" ", "");
+            var singularCompact = singularName.Replace(" ", "");
+
+            // Revit Element subclass names
+            foreach (var t in _revitTypes)
+            {
+                if (!typeof(Element).IsAssignableFrom(t)) continue;
+                var tName = t.Name;
+                if (tName.Equals(cleanName, StringComparison.OrdinalIgnoreCase) ||
+                    tName.Equals(singularName, StringComparison.OrdinalIgnoreCase) ||
+                    tName.Replace(" ", "").Equals(cleanCompact, StringComparison.OrdinalIgnoreCase) ||
+                    tName.Replace(" ", "").Equals(singularCompact, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            // BuiltInCategory names (OST_ prefix, spaces and underscores normalized)
+            foreach (var bicName in Enum.GetNames(typeof(BuiltInCategory)))
+            {
+                var compact = bicName.Replace("_", "").Replace(" ", "");
+                var noPrefix = compact.StartsWith("OST", StringComparison.OrdinalIgnoreCase) ? compact.Substring(3) : compact;
+                if (compact.Equals("OST" + cleanCompact, StringComparison.OrdinalIgnoreCase) ||
+                    noPrefix.Equals(cleanCompact, StringComparison.OrdinalIgnoreCase) ||
+                    noPrefix.Equals(singularCompact, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

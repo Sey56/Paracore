@@ -72,13 +72,29 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Gets all parameters as a dictionary (Name → FormattedValue).
+        /// Gets all parameters (instance + type) as a dictionary (Name → FormattedValue).
         /// </summary>
         public static Dictionary<string, string> ParamsDict(this Element e)
         {
             var dict = new Dictionary<string, string>();
             if (e == null) return dict;
 
+            // 1. Add type params first so instance params take precedence if names collide
+            var typeId = e.GetTypeId();
+            if (typeId != null && typeId != ElementId.InvalidElementId)
+            {
+                var type = e.Document.GetElement(typeId);
+                if (type != null)
+                {
+                    foreach (Parameter tp in type.Parameters)
+                    {
+                        if (tp == null || !tp.HasValue) continue;
+                        dict[tp.Definition.Name] = type.GetVal(tp.Definition.Name);
+                    }
+                }
+            }
+
+            // 2. Add instance params
             foreach (Parameter p in e.Parameters)
             {
                 if (p == null || !p.HasValue) continue;

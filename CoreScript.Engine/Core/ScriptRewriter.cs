@@ -30,7 +30,15 @@ namespace CoreScript.Engine.Core
             }
 
             // 2. Pipeline Tracking (inject count diagnostics after all LINQ methods)
-            var pipelineTrackingRewriter = new PipelineTrackingRewriter();
+            //    Semantic guard first: resolves candidate calls in a throwaway
+            //    compilation (same refs/imports as the real one) so name
+            //    collisions that cannot accept tracking (void/string returns
+            //    like List<T>.Reverse() / string.Join) are left untouched.
+            var imports = ScriptReferenceProvider.GetImports(includeRevitSelection: false);
+            var refs = ScriptReferenceProvider.GetCoreReferences("ScriptRewriter");
+            refs.AddRange(ScriptReferenceProvider.GetRevitReferences("ScriptRewriter"));
+            var skipCalls = SemanticTrackingGuard.ComputeSkipCalls(root, imports, refs);
+            var pipelineTrackingRewriter = new PipelineTrackingRewriter(skipCalls);
             root = pipelineTrackingRewriter.Visit(root);
 
             // 3. Timeout Rewriting

@@ -96,5 +96,69 @@ namespace CoreScript.Engine.Globals
             catch { ExecutionGlobals.TrackPipeline(-4); throw; }
             return list;
         }
+
+        // ── TYPE-LEVEL BULK SETTERS ──────────────────────────────────────
+
+        /// <summary>
+        /// Sets a type-level parameter across the unique ElementTypes in the collection in a single transaction.
+        /// </summary>
+        public static IEnumerable<T> SetTypeParam<T>(this IEnumerable<T> elements, string name, object value)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (!list.Any()) { ExecutionGlobals.TrackPipeline(0); return list; }
+            var doc = list.First().Document;
+            void Action()
+            {
+                var types = list.Select(e => e.GetElementType())
+                                .Where(t => t != null)
+                                .GroupBy(t => t.Id.Value)
+                                .Select(g => g.First());
+
+                foreach (var t in types)
+                {
+                    t.SetVal(name, value);
+                }
+            }
+            try
+            {
+                if (doc.IsModifiable) Action();
+                else Tx.Transact(doc, $"Set Type {name}", Action);
+                ExecutionGlobals.TrackPipeline(-3);
+            }
+            catch { ExecutionGlobals.TrackPipeline(-4); throw; }
+            return list;
+        }
+
+        /// <summary>
+        /// Sets a type-level parameter with unit conversion across unique ElementTypes in the collection.
+        /// </summary>
+        public static IEnumerable<T> SetTypeParam<T>(this IEnumerable<T> elements, string name, object value, string unit)
+            where T : Element
+        {
+            var list = elements.ToList();
+            if (!list.Any()) { ExecutionGlobals.TrackPipeline(0); return list; }
+            var doc = list.First().Document;
+            void Action()
+            {
+                var types = list.Select(e => e.GetElementType())
+                                .Where(t => t != null)
+                                .GroupBy(t => t.Id.Value)
+                                .Select(g => g.First());
+
+                foreach (var t in types)
+                {
+                    t.SetVal(name, value, unit);
+                }
+            }
+            try
+            {
+                if (doc.IsModifiable) Action();
+                else Tx.Transact(doc, $"Set Type {name}", Action);
+                ExecutionGlobals.TrackPipeline(-3);
+            }
+            catch { ExecutionGlobals.TrackPipeline(-4); throw; }
+            return list;
+        }
     }
 }

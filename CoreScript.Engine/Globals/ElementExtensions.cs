@@ -129,11 +129,25 @@ namespace CoreScript.Engine.Globals
                 {
                     foreach (Parameter p in typeEl.Parameters)
                         AddMaterialIds(p, ids, doc);
+
+                    // Compound structure layers — walls, floors, roofs, ceilings
+                    // store their structural material here, not as a parameter
+                    try
+                    {
+                        if (typeEl is Autodesk.Revit.DB.HostObjAttributes hostAttr
+                            && hostAttr.GetCompoundStructure() is CompoundStructure cs)
+                        {
+                            foreach (CompoundStructureLayer layer in cs.GetLayers())
+                                ids.Add(layer.MaterialId);
+                        }
+                    }
+                    catch { }
                 }
             }
             catch { }
 
             return ids
+                .Where(id => id != ElementId.InvalidElementId)
                 .Select(id => doc.GetElement(id) as Material)
                 .Where(m => m != null);
         }
@@ -236,6 +250,40 @@ namespace CoreScript.Engine.Globals
             }).ToList();
             ExecutionGlobals.TrackPipeline(list.Count);
             return list;
+        }
+
+        /// <summary>
+        /// Filters elements whose Category matches ANY of the given category names (OR).
+        /// Chained WhereParam calls AND together, so use this to select several categories
+        /// at once — e.g. Structural Framing + Structural Columns + Floors.
+        /// Matching is as lenient as GetElements("Category") magic strings: exact name,
+        /// with/without spaces ("StructuralColumns" vs "Structural Columns"), or the
+        /// BuiltInCategory name (e.g. "OST_StructuralFraming").
+        /// <para>Example: GetElements&lt;Element&gt;().WhereCategory("Structural Framing", "Structural Columns", "Floors").Zoom().Isolate()</para>
+        /// </summary>
+        public static IEnumerable<T> WhereCategory<T>(this IEnumerable<T> elements, params string[] categories)
+            where T : Element
+        {
+            var list = elements.Where(e =>
+                e.Category != null &&
+                categories.Any(c => CategoryNameMatches(e.Category, c))
+            ).ToList();
+            ExecutionGlobals.TrackPipeline(list.Count);
+            return list;
+        }
+
+        /// <summary>
+        /// Lenient category-name match, mirroring the GetElements("Category") resolver:
+        /// exact name (case-insensitive), no-space equality, or BuiltInCategory substring.
+        /// </summary>
+        private static bool CategoryNameMatches(Category cat, string filter)
+        {
+            var f = filter.Trim();
+            if (f.Length == 0) return false;
+            var catName = cat.Name;
+            return catName.Equals(f, StringComparison.OrdinalIgnoreCase)
+                || catName.Replace(" ", "").Equals(f.Replace(" ", ""), StringComparison.OrdinalIgnoreCase)
+                || cat.BuiltInCategory.ToString().Contains(f, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

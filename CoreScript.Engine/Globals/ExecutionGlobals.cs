@@ -373,6 +373,27 @@ namespace CoreScript.Engine.Globals
         public static bool ShowPipeline { get; set; } = true;
 
         /// <summary>
+        /// Injected by PipelineTrackingRewriter around USER-SCRIPT
+        /// <c>GetElements(...)</c> calls. Logs the source count and returns the
+        /// SAME PipelineEnumerable instance — the static type is preserved, so
+        /// the shadowed <c>.Where</c> (with its own tracking) and the
+        /// <c>.Count</c> property keep working.
+        /// Engine internals call ScriptApi.GetElements directly (not rewritten)
+        /// and never pass through here — engine-internal enumerations stay
+        /// silent in the pipeline. Idempotent via AlreadyTracked.
+        /// </summary>
+        public static PipelineEnumerable<T> TrackSource<T>(PipelineEnumerable<T> pe)
+        {
+            if (pe == null) return pe;
+            if (!pe.AlreadyTracked)
+            {
+                TrackPipeline(pe.Count);
+                pe.AlreadyTracked = true;
+            }
+            return pe;
+        }
+
+        /// <summary>
         /// Injected by PipelineTrackingRewriter after intermediate LINQ methods (Where, Select, OrderBy, etc.).
         /// Materializes the enumerable, pushes the count to PipelineDiagnostics,
         /// and returns the materialized list for further chaining.
@@ -386,6 +407,37 @@ namespace CoreScript.Engine.Globals
             var list = source.ToList();
             TrackPipeline(list.Count);
             return list;
+        }
+
+        /// <summary>
+        /// Ordered-chain overload — overload resolution picks this one when the
+        /// wrapped call is OrderBy/OrderByDescending, keeping the static type
+        /// IOrderedEnumerable&lt;T&gt; so a following .ThenBy() still compiles
+        /// (the IEnumerable overload erased it and broke ThenBy with CS1061).
+        /// Materializes once, tracks the count, and returns an ordered snapshot.
+        /// </summary>
+        public static IOrderedEnumerable<T> TrackEnumerable<T>(IOrderedEnumerable<T> source)
+        {
+            var list = source.ToList();
+            TrackPipeline(list.Count);
+            return new OrderedSnapshot<T>(list);
+        }
+
+        /// <summary>Materialized, ordered sequence — the sorted order is fixed at
+        /// snapshot time; CreateOrderedEnumerable re-orders the snapshot for
+        /// subsequent ThenBy chains.</summary>
+        private sealed class OrderedSnapshot<T> : IOrderedEnumerable<T>
+        {
+            private readonly List<T> _items;
+            public OrderedSnapshot(List<T> items) => _items = items;
+
+            public IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(
+                Func<T, TKey> keySelector, IComparer<TKey> comparer, bool descending)
+                => descending ? _items.OrderByDescending(keySelector, comparer)
+                              : _items.OrderBy(keySelector, comparer);
+
+            public IEnumerator<T> GetEnumerator() => _items.GetEnumerator();
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
         }
 
         /// <summary>

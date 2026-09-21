@@ -35,8 +35,14 @@ namespace CoreScript.Engine.Runtime
         private readonly PriorityQueue<ExecutionRequest, int> _executionQueue = new();
         private readonly object _queueLock = new object();
 
-        private Func<object>? _pendingUIFunc;
-        private TaskCompletionSource<object>? _uiTaskCompletionSource;
+        // Pending UI-context calls (ExecuteInUIContext). A QUEUE, not single
+        // fields: overlapping calls (long REPL + a second request arriving while
+        // the first still runs on the UI thread) used to overwrite each other's
+        // function and TaskCompletionSource, so the first caller's result landed
+        // in the second caller's TCS — "Unable to cast Task<...> to Boolean"
+        // (and hangs). Each call now gets its OWN (func, TCS) pair, dequeued one
+        // per UI event.
+        private readonly Queue<(Func<object> Func, TaskCompletionSource<object> Tcs)> _pendingUICalls = new();
 
         public static CoreScriptExecutionDispatcher Instance => _instance ??= new CoreScriptExecutionDispatcher(new CodeRunner());
         private static CoreScriptExecutionDispatcher _instance;
@@ -61,12 +67,16 @@ namespace CoreScript.Engine.Runtime
                 throw new InvalidOperationException("CoreScriptExecutionDispatcher is not initialized.");
             }
 
-            _pendingUIFunc = () => func()!;
-            _uiTaskCompletionSource = new TaskCompletionSource<object>();
+            var tcs = new TaskCompletionSource<object>();
+            lock (_queueLock)
+            {
+                _pendingUICalls.Enqueue((() => func()!, tcs));
+            }
 
             _codeExecutionEvent.Raise();
 
-            return _uiTaskCompletionSource.Task.ContinueWith(t => (T)t.Result);
+            // Each call awaits ITS OWN TCS — no shared slot to clobber.
+            return tcs.Task.ContinueWith(t => (T)t.Result);
         }
 
         public ExecutionResult ExecuteSingleScript(string scriptText, ICoreScriptContext context)
@@ -128,20 +138,26 @@ namespace CoreScript.Engine.Runtime
 
         public ExecutionResult ExecuteCodeInRevit(ICoreScriptContext context)
         {
-            if (_pendingUIFunc != null)
+            // UI-context calls (ExecuteInUIContext) — one per event, FIFO.
+            (Func<object> Func, TaskCompletionSource<object> Tcs) pending = default;
+            lock (_queueLock)
+            {
+                if (_pendingUICalls.Count > 0)
+                {
+                    pending = _pendingUICalls.Dequeue();
+                    if (_pendingUICalls.Count > 0 && _codeExecutionEvent != null)
+                        _codeExecutionEvent.Raise(); // more waiting — keep the events flowing
+                }
+            }
+            if (pending.Tcs != null)
             {
                 try
                 {
-                    var result = _pendingUIFunc();
-                    _uiTaskCompletionSource?.SetResult(result);
+                    pending.Tcs.SetResult(pending.Func());
                 }
                 catch (Exception ex)
                 {
-                    _uiTaskCompletionSource?.SetException(ex);
-                }
-                finally
-                {
-                    _pendingUIFunc = null;
+                    pending.Tcs.SetException(ex);
                 }
                 return ExecutionResult.Success("UI function executed.");
             }
