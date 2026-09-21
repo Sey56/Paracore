@@ -55,6 +55,13 @@ interface ConsoleContextType {
   togglePinFile: (path: string, name: string) => void;
   removeRecentFile: (path: string) => void;
   loadRecentFile: (path: string) => Promise<void>;
+
+  // Font Scaling
+  replFontSize: number;
+  setReplFontSize: (size: number | ((prev: number) => number)) => void;
+  increaseReplFontSize: () => void;
+  decreaseReplFontSize: () => void;
+  resetReplFontSize: () => void;
 }
 
 const ConsoleContext = createContext<ConsoleContextType | undefined>(undefined);
@@ -76,16 +83,7 @@ export const ConsoleProvider: React.FC<{
   const authContext = React.useContext(AuthContext);
   const isEnterprise = authContext?.isEnterprise ?? false;
   
-  const [localHistory, setLocalHistory] = useState<ConsoleItem[]>(() => {
-    const saved = localStorage.getItem('paracore_console_history');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.map((item: any) => ({ ...item, timestamp: new Date(item.timestamp) }));
-      } catch { return []; }
-    }
-    return [];
-  });
+  const [localHistory, setLocalHistory] = useState<ConsoleItem[]>([]);
 
   const [singleLineValue, setSingleLineValue] = useState(() => localStorage.getItem('paracore_repl_single_value') || "");
   const [multiLineValue, setMultiLineValue] = useState(() => localStorage.getItem('paracore_repl_multi_value') || "");
@@ -109,7 +107,37 @@ export const ConsoleProvider: React.FC<{
     return saved ? JSON.parse(saved) : [];
   });
 
-  useEffect(() => { localStorage.setItem('paracore_console_history', JSON.stringify(localHistory)); }, [localHistory]);
+  // Font Scaling (11px to 32px, default 14px)
+  const DEFAULT_FONT_SIZE = 14;
+  const MIN_FONT_SIZE = 11;
+  const MAX_FONT_SIZE = 32;
+
+  const [replFontSize, setReplFontSizeState] = useState<number>(() => {
+    const saved = localStorage.getItem('paracore_repl_font_size');
+    return saved ? Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, parseInt(saved, 10))) || DEFAULT_FONT_SIZE : DEFAULT_FONT_SIZE;
+  });
+
+  const setReplFontSize = useCallback((size: number | ((prev: number) => number)) => {
+    setReplFontSizeState(prev => {
+      const next = typeof size === 'function' ? size(prev) : size;
+      const clamped = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, next));
+      localStorage.setItem('paracore_repl_font_size', clamped.toString());
+      return clamped;
+    });
+  }, []);
+
+  const increaseReplFontSize = useCallback(() => {
+    setReplFontSize(prev => Math.min(MAX_FONT_SIZE, prev + 1));
+  }, [setReplFontSize]);
+
+  const decreaseReplFontSize = useCallback(() => {
+    setReplFontSize(prev => Math.max(MIN_FONT_SIZE, prev - 1));
+  }, [setReplFontSize]);
+
+  const resetReplFontSize = useCallback(() => {
+    setReplFontSize(DEFAULT_FONT_SIZE);
+  }, [setReplFontSize]);
+
   useEffect(() => { localStorage.setItem('paracore_repl_single_history', JSON.stringify(singleCommandHistory)); }, [singleCommandHistory]);
   useEffect(() => { localStorage.setItem('paracore_repl_multi_history', JSON.stringify(multiCommandHistory)); }, [multiCommandHistory]);
   useEffect(() => { localStorage.setItem('paracore_repl_single_value', singleLineValue); }, [singleLineValue]);
@@ -129,7 +157,6 @@ export const ConsoleProvider: React.FC<{
   const handleClear = useCallback(() => {
     setLocalHistory([]);
     setExecutionResult(null);
-    localStorage.removeItem('paracore_console_history');
     localStorage.removeItem('paracore_console_last_timestamp');
     showNotification("Console and Analytics cleared", "info");
   }, [showNotification, setExecutionResult]);
@@ -223,7 +250,6 @@ export const ConsoleProvider: React.FC<{
 
     if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') {
       setLocalHistory([]);
-      localStorage.removeItem('paracore_console_history');
       if (!isMulti) setSingleLineValue("");
       showNotification("Console history cleared", "info");
       return;
@@ -415,7 +441,8 @@ export const ConsoleProvider: React.FC<{
       activeSnippetName, setActiveSnippetName,
       isDirty,
       handleNewSnippet, handleLoadSnippet: handleLoadSnippetWithTracking, handleSaveSnippet: handleSaveSnippetWithTracking,
-      recentFiles, pinnedFiles, togglePinFile, removeRecentFile, loadRecentFile
+      recentFiles, pinnedFiles, togglePinFile, removeRecentFile, loadRecentFile,
+      replFontSize, setReplFontSize, increaseReplFontSize, decreaseReplFontSize, resetReplFontSize
     }}>
       {children}
     </ConsoleContext.Provider>

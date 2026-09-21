@@ -63,7 +63,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
           </li>
         ))}
         {customCategories.length === 0 && (
-          <li className="text-sm text-gray-400 italic px-2 py-1.5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">Environment default sets</li>
+          <li className="text-xs text-muted-foreground px-3 py-1.5 italic">No custom category</li>
         )}
       </ul>
     </SidebarSection>

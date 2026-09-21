@@ -12,6 +12,7 @@ export const ExecutionHistory: React.FC<{ showPipeline?: boolean }> = ({ showPip
   const {
     localHistory,
     isReplLoading,
+    replFontSize,
   } = useConsole();
   const { runningScriptPath } = useScriptExecution();
   const { theme } = useTheme();
@@ -31,9 +32,15 @@ export const ExecutionHistory: React.FC<{ showPipeline?: boolean }> = ({ showPip
     }
   }, [localHistory.length, isRunning, isReplLoading]);
 
+  const currentFontSize = replFontSize || 14;
+  const calculatedLineHeight = Math.round(currentFontSize * 1.5);
+
   return (
-    <div className="h-full w-full overflow-y-auto custom-scrollbar bg-slate-50/50 dark:bg-slate-900/40 p-3 pl-5 pr-0 font-mono text-sm select-text cursor-text relative">
-      <div className="min-h-full pb-16">
+    <div
+      className="h-full w-full overflow-y-auto custom-scrollbar bg-slate-50/50 dark:bg-slate-900/40 font-mono select-text cursor-text relative"
+      style={{ fontSize: `${currentFontSize}px`, lineHeight: `${calculatedLineHeight}px` }}
+    >
+      <div className="min-h-full pb-16 p-3 pl-5 pr-0">
         {(showPipeline
           ? localHistory
           : localHistory.map(item => ({

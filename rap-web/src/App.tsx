@@ -5,7 +5,7 @@ import { process as tauriProcess } from '@tauri-apps/api';
 import { resolveResource } from '@tauri-apps/api/path';
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SentinelControlList } from "@/features/automation/components/SentinelControlList";
-import NotificationDisplay from "@/components/common/NotificationDisplay";
+import { CommandPalette } from "@/components/common/CommandPalette";
 import { useWatchdog } from "@/context/providers/WatchdogProvider";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShieldHeart, faSpinner } from '@fortawesome/free-solid-svg-icons';
@@ -138,7 +138,9 @@ function AppContent() {
         </div>
       )}
 
-      {!isSentinelControl && <NotificationDisplay />}
+      {/* Global Command Palette (Cmd+K) */}
+      {!isSentinelControl && <CommandPalette />}
+
     </React.Fragment>
   );
 }

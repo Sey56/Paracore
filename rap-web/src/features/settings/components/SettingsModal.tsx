@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUI } from '@/hooks/useUI';
 import { useAuth } from '@/features/auth';
-import LLMSettings from './LLMSettings';
 import { WatchdogSettings } from './WatchdogSettings';
 import { AutomationSettings } from './AutomationSettings';
 import { Modal } from '@/components/common/Modal';
@@ -34,11 +33,6 @@ const SettingsModal: React.FC = () => {
     tabs.push({
       name: 'Automation',
       component: AutomationSettings,
-    });
-
-    tabs.push({
-      name: 'LLM Settings',
-      component: LLMSettings,
     });
 
     return tabs;

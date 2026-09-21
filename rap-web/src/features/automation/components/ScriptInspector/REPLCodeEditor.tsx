@@ -10,6 +10,7 @@ interface REPLCodeEditorProps {
     disabled?: boolean;
     placeholder?: string;
     className?: string;
+    fontSize?: number;
 }
 
 export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEditorProps>(({
@@ -18,6 +19,7 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
     onKeyDown,
     disabled = false,
     placeholder = "Write your code here...",
+    fontSize = 14,
 }, ref) => {
     const highlighterRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
@@ -190,10 +192,11 @@ export const REPLCodeEditor = React.forwardRef<HTMLTextAreaElement, REPLCodeEdit
         onKeyDown(e);
     };
 
+    const calculatedLineHeight = Math.round(fontSize * 1.538);
     const fontStyles: React.CSSProperties = {
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        fontSize: '13px',
-        lineHeight: '20px',
+        fontSize: `${fontSize}px`,
+        lineHeight: `${calculatedLineHeight}px`,
         letterSpacing: 'normal',
         tabSize: 4,
         WebkitFontSmoothing: 'antialiased',

@@ -1,40 +1,106 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devPath": "http://localhost:5173",
+    "distDir": "../dist",
+    "withGlobalTauri": true
+  },
   "package": {
     "productName": "Paracore",
     "version": "4.7.0"
   },
-  "build": {
-    "beforeBuildCommand": "npm run build",
-    "beforeDevCommand": "npm run dev",
-    "devPath": "http://localhost:5173"
-  },
   "tauri": {
+    "allowlist": {
+      "all": true,
+      "dialog": {
+        "all": true
+      },
+      "fs": {
+        "all": true,
+        "scope": [
+          "**"
+        ]
+      },
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": [
+          "https://**",
+          "http://**"
+        ]
+      },
+      "notification": {
+        "all": true
+      },
+      "os": {
+        "all": true
+      },
+      "path": {
+        "all": true
+      },
+      "process": {
+        "all": true,
+        "exit": true,
+        "relaunch": true
+      },
+      "shell": {
+        "all": true,
+        "execute": true,
+        "open": true,
+        "sidecar": true
+      },
+      "window": {
+        "all": true
+      }
+    },
     "bundle": {
       "active": true,
-      "publisher": "Paras Codarch",
-      "targets": "all",
-      "identifier": "com.paracore.dev",
+      "category": "DeveloperTool",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
       "icon": [
-        "icons/rap-icon-16.png",
         "icons/rap-icon-32.png",
-        "icons/rap-icon-64.png",
         "icons/rap-icon-128.png",
         "icons/rap-icon-256.png",
         "icons/rap-icon-512.png",
         "icons/rap-icon.ico"
       ],
+      "identifier": "com.paracore.dev",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
       "resources": [
         "server-release"
       ],
+      "shortDescription": "",
+      "targets": "all",
       "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "",
         "wix": {
+          "language": "en-US",
           "fragmentPaths": [
             "wix/cleanup.wxs"
           ]
         }
-      },
-      "externalBin": []
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
     },
     "windows": [
       {
@@ -56,60 +122,9 @@
         "visible": false,
         "center": true
       }
-    ],
-    "security": {
-      "csp": null
-    },
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true,
-        "execute": true,
-        "scope": []
-      },
-      "fs": {
-        "all": true,
-        "scope": [
-          "**",
-          "$APPDATA/*",
-          "$APPDATA/com.tauri.dev/*"
-        ]
-      },
-      "path": {
-        "all": true
-      },
-      "notification": {
-        "all": true
-      },
-      "dialog": {
-        "all": true
-      },
-      "process": {
-        "all": false,
-        "exit": true,
-        "relaunch": true
-      },
-      "window": {
-        "all": true,
-        "close": true,
-        "create": true,
-        "hide": true,
-        "show": true,
-        "maximize": true,
-        "minimize": true,
-        "unmaximize": true,
-        "unminimize": true,
-        "startDragging": true
-      },
-      "http": {
-        "all": true
-      },
-      "os": {
-        "all": true
-      }
-    }
+    ]
   }
 }
+
 
 

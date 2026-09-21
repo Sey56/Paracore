@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Script } from '@/types/scriptModel';
 import { useAuth } from '@/features/auth';
+import { fuzzyMatch } from '@/utils/fuzzySearch';
 
 const parseSearchTerm = (term: string) => {
   const filters: {
@@ -137,13 +138,17 @@ export const useGalleryFilters = (scripts: Script[], favoriteIds: string[], sele
         const matchesCreated = created.length === 0 || created.every(c => dateFilterHelper(script.metadata?.dateCreated, c));
         const matchesModified = modified.length === 0 || modified.every(m => dateFilterHelper(script.metadata?.dateModified, m));
         const matchesCategories = categories.length === 0 || categories.every(c => c.split(',').map(cat => cat.trim()).some(sc => scriptCategories.includes(sc)));
-        const matchesGeneral = general.length === 0 || general.every(g =>
-          lowercasedName.includes(g) ||
-          lowercasedDisplayName.includes(g) ||
-          lowercasedDescription.includes(g) ||
-          scriptCategories.some(cat => cat.includes(g)) ||
-          scriptParameters.some(sp => sp.name.includes(g) || sp.description.includes(g))
-        );
+        const matchesGeneral = general.length === 0 || (() => {
+          const searchFields = [
+            lowercasedName,
+            lowercasedDisplayName,
+            lowercasedDescription,
+            ...scriptCategories,
+            ...scriptParameters.map(sp => sp.name),
+            ...scriptParameters.map(sp => sp.description),
+          ];
+          return fuzzyMatch(general.join(' '), searchFields);
+        })();
         return matchesAuthor && matchesParam && matchesDesc && matchesDocType && matchesCreated && matchesModified && matchesCategories && matchesGeneral;
       });
     }

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Portal from './Portal';
 
@@ -22,7 +21,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
       requestAnimationFrame(() => setShow(true));
     } else {
       setShow(false);
-      const timer = setTimeout(() => setRender(false), 200); // Match transition duration
+      const timer = setTimeout(() => setRender(false), 200);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -55,7 +54,6 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
           style={size === 'full' ? { height: '90vh' } : {}}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           {!hideHeader && (
             <div className="flex justify-between items-center px-6 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{title}</h2>
@@ -70,7 +68,6 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
             </div>
           )}
 
-          {/* Content */}
           <div className={`${noPadding ? 'p-0' : 'p-6'} flex-1 min-h-0 flex flex-col overflow-hidden`}>
             {children}
           </div>

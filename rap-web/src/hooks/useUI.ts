@@ -1,10 +1,7 @@
-import { useContext } from 'react';
-import { UIContext, UIContextProps } from '@/context/providers/UIContext';
+import { useUIStore } from '@/stores/uiStore';
 
-export const useUI = (): UIContextProps => {
-  const context = useContext(UIContext);
-  if (!context) {
-    throw new Error('useUI must be used within a UIProvider');
-  }
-  return context;
-};
+/**
+ * UI state hook — backed by Zustand (no Context needed).
+ * Same API as the old UIContext for drop-in compatibility.
+ */
+export const useUI = () => useUIStore();

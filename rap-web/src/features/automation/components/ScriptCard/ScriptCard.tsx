@@ -11,6 +11,7 @@ import { EditMetadataModal } from './components/EditMetadataModal';
 
 // Hooks
 import { useScriptCard } from './hooks/useScriptCard';
+import { useScriptRunStatus } from '@/hooks/useScriptRunStatus';
 
 export interface ScriptCardProps {
   script: Script;
@@ -69,6 +70,9 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
     reloadScript
   } = useScriptCard(script, onSelect, onDoubleClick, isSelected);
 
+  const getRunStatus = useScriptRunStatus();
+  const runStatus = getRunStatus(script.absolutePath || script.id);
+
   return (
     <div
       id={`script-card-${script.id}`}
@@ -123,6 +127,7 @@ export const ScriptCard: React.FC<ScriptCardProps> = React.memo(({
           isCompact={isCompact}
           getDisplayName={getDisplayName}
           handleFavoriteClick={handleFavoriteClick}
+          runStatus={runStatus}
         />
 
         {!isCompact && <CardBody script={script} />}

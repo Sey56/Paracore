@@ -8,7 +8,7 @@ interface ConfirmActionModalProps {
   title: string;
   message: string;
   confirmButtonText?: string;
-  confirmButtonColor?: 'red' | 'blue' | 'default'; // New optional prop
+  confirmButtonColor?: 'red' | 'blue' | 'default';
 }
 
 export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
@@ -18,7 +18,7 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   title,
   message,
   confirmButtonText = "Confirm",
-  confirmButtonColor = "default", // Default to "default"
+  confirmButtonColor = "default",
 }) => {
   const handleConfirm = () => {
     onConfirm();
@@ -28,7 +28,7 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   const buttonColorClass = {
     red: "bg-red-600 hover:bg-red-700 focus:ring-red-500",
     blue: "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500",
-    default: "bg-slate-600 hover:bg-slate-700 focus:ring-slate-500", // Changed default to slate for less prominence
+    default: "bg-slate-600 hover:bg-slate-700 focus:ring-slate-500",
   }[confirmButtonColor];
 
   return (

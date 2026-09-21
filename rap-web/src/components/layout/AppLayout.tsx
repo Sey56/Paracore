@@ -1,32 +1,58 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faShieldHeart, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faShieldHeart, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { TopBar } from "@/components/layout/TopBar/TopBar";
 import { Sidebar } from "@/components/layout/Sidebar/Sidebar";
 import { ScriptGallery } from "@/features/automation/components/ScriptGallery/ScriptGallery";
-import { ScriptInspector } from "@/features/automation/components/ScriptInspector/ScriptInspector";
-import { FloatingCodeViewer } from "@/features/automation/components/ScriptInspector/FloatingCodeViewer";
 import { FloatingActionButton } from "@/features/automation/components/FloatingActionButton";
 import { InfoModal } from "@/features/automation/components/ScriptInspector/InfoModal";
 import { useScriptExecution } from "@/features/automation";
 import { useUI } from "@/hooks/useUI";
-import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { useScripts } from "@/features/automation";
 import { listen } from '@tauri-apps/api/event';
 import api from '@/api/axios';
 import type { Script, ScriptParameter } from '@/types/scriptModel';
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from "@/features/auth";
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useTheme } from '@/context/ThemeContext';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
-import SettingsModal from '@/features/settings/components/SettingsModal';
-import { PlaylistsTab } from "@/features/automation/components/Playlists/PlaylistsTab";
 import { OutputPanel } from "@/components/layout/OutputPanel/OutputPanel";
-import { ReplModeContent } from "@/features/automation/components/ScriptInspector/ReplModeContent";
 import { WelcomeGate } from "@/features/auth/components/WelcomeGate";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// ── Lazy-loaded heavy features ──
+const FloatingCodeViewer = React.lazy(() =>
+  import("@/features/automation/components/ScriptInspector/FloatingCodeViewer")
+    .then(m => ({ default: m.FloatingCodeViewer }))
+);
+const SettingsModal = React.lazy(() =>
+  import("@/features/settings/components/SettingsModal")
+);
+const PlaylistsTab = React.lazy(() =>
+  import("@/features/automation/components/Playlists/PlaylistsTab")
+    .then(m => ({ default: m.PlaylistsTab }))
+);
+const ReplModeContent = React.lazy(() =>
+  import("@/features/automation/components/ScriptInspector/ReplModeContent")
+    .then(m => ({ default: m.ReplModeContent }))
+);
+
+// ── Shared skeleton fallback ──
+const PanelSkeleton = () => (
+  <div className="flex-1 p-6 space-y-3">
+    <Skeleton className="h-5 w-1/3" />
+    <Skeleton className="h-4 w-2/3" />
+    <Skeleton className="h-4 w-1/2" />
+    <Skeleton className="h-4 w-3/4" />
+    <Skeleton className="h-4 w-1/4" />
+  </div>
+);
 
 export const AppLayout: React.FC = () => {
   const { isAuthenticated, isEnterprise, user, login, loginLocal } = useAuth();
   const { selectedScript, setSelectedScript, runScript, userEditedScriptParameters } = useScriptExecution();
   const { isArmingWatchdogs, watchdogs } = useWatchdog();
+  const { toggleTheme } = useTheme();
   const [gateVisible, setGateVisible] = useState(true);
 
   const prevAuthRef = useRef(isAuthenticated);
@@ -83,14 +109,31 @@ export const AppLayout: React.FC = () => {
     infoModalState,
     closeInfoModal,
     isLayoutSwapped,
+    layoutOrientation,
+    toggleLayoutOrientation,
     showSentinelFAB,
     isWelcomeGateOpen,
     closeWelcomeGate,
-    automationSubMode
+    toggleLayoutSwap,
+    openSettingsModal,
+    setActiveMainView,
   } = useUI();
 
-  const isMobile = useBreakpoint();
   const showGate = isEnterprise && gateVisible;
+
+  // ── Keyboard Shortcuts ──
+  useKeyboardShortcuts({
+    'toggle-sidebar': toggleSidebar,
+    'toggle-inspector': toggleInspector,
+    'run-script': () => { if (selectedScript) runScript(selectedScript, userEditedScriptParameters[selectedScript.id] || selectedScript.parameters || []); },
+    'toggle-layout-swap': toggleLayoutSwap,
+    'toggle-layout-orientation': toggleLayoutOrientation,
+    'cycle-theme': toggleTheme,
+    'open-settings': openSettingsModal,
+    'view-gallery': () => setActiveMainView('gallery'),
+    'view-repl': () => setActiveMainView('repl'),
+    'view-playlists': () => setActiveMainView('playlists'),
+  });
 
   // Global Reflow Trigger: 
   // Helps resolve a known Webview2/Tauri issue where scrollbars don't 
@@ -112,31 +155,55 @@ export const AppLayout: React.FC = () => {
     const saved = localStorage.getItem('paracore_inspector_width');
     return saved ? parseFloat(saved) : 0.405;
   });
+  const [galleryHeight, setGalleryHeight] = useState(() => {
+    const saved = localStorage.getItem('paracore_gallery_height');
+    return saved ? parseFloat(saved) : 0.55;
+  });
+  const [inspectorHeight, setInspectorHeight] = useState(() => {
+    const saved = localStorage.getItem('paracore_inspector_height');
+    return saved ? parseFloat(saved) : 0.45;
+  });
   const [isResizing, setIsResizing] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => { setIsResizing(true); e.preventDefault(); };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing) return;
-    const container = document.getElementById("main-content-area");
+    const container = document.getElementById("main-content");
     if (!container) return;
     const containerRect = container.getBoundingClientRect();
-    let niw: number;
-    if (isLayoutSwapped) niw = (e.clientX - containerRect.left) / containerRect.width;
-    else niw = (containerRect.right - e.clientX) / containerRect.width;
-    if (niw >= 0.25 && niw <= 0.7) {
-      setInspectorWidth(niw);
-      setGalleryWidth(1 - niw);
+
+    if (layoutOrientation === 'vertical') {
+      let nih: number;
+      if (isLayoutSwapped) nih = (e.clientY - containerRect.top) / containerRect.height;
+      else nih = (containerRect.bottom - e.clientY) / containerRect.height;
+      if (nih >= 0.2 && nih <= 0.8) {
+        setInspectorHeight(nih);
+        setGalleryHeight(1 - nih);
+      }
+    } else {
+      let niw: number;
+      if (isLayoutSwapped) niw = (e.clientX - containerRect.left) / containerRect.width;
+      else niw = (containerRect.right - e.clientX) / containerRect.width;
+      if (niw >= 0.2 && niw <= 0.8) {
+        setInspectorWidth(niw);
+        setGalleryWidth(1 - niw);
+      }
     }
-  }, [isResizing, isLayoutSwapped]);
+  }, [isResizing, isLayoutSwapped, layoutOrientation]);
 
   const handleMouseUp = useCallback(() => {
     if (isResizing) {
-      localStorage.setItem('paracore_gallery_width', galleryWidth.toString());
-      localStorage.setItem('paracore_inspector_width', inspectorWidth.toString());
+      if (layoutOrientation === 'vertical') {
+        localStorage.setItem('paracore_gallery_height', galleryHeight.toString());
+        localStorage.setItem('paracore_inspector_height', inspectorHeight.toString());
+      } else {
+        localStorage.setItem('paracore_gallery_width', galleryWidth.toString());
+        localStorage.setItem('paracore_inspector_width', inspectorWidth.toString());
+      }
       setIsResizing(false);
     }
-  }, [isResizing, galleryWidth, inspectorWidth]);
+  }, [isResizing, layoutOrientation, galleryWidth, inspectorWidth, galleryHeight, inspectorHeight]);
 
   useEffect(() => {
     if (isResizing) { document.addEventListener('mousemove', handleMouseMove); document.addEventListener('mouseup', handleMouseUp); }
@@ -172,11 +239,15 @@ export const AppLayout: React.FC = () => {
         </div>
       )}
 
-      <SettingsModal />
+      <Suspense fallback={null}><SettingsModal /></Suspense>
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
       {isEnterprise && showSentinelFAB && <FloatingActionButton />}
 
-      {selectedScript && <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />}
+      {selectedScript && (
+        <Suspense fallback={null}>
+          <FloatingCodeViewer script={selectedScript} isOpen={isFloatingCodeViewerOpen} onClose={closeFloatingCodeViewer} />
+        </Suspense>
+      )}
 
       <div className={`flex flex-col h-full transition-opacity duration-700 ${showGate ? 'opacity-0' : 'opacity-100'}`}>
         {!isAuthenticated ? (
@@ -189,74 +260,91 @@ export const AppLayout: React.FC = () => {
               <div className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} semantic-bg-panel shadow-xl z-30 border-r border-slate-200 dark:border-gray-700`}><Sidebar /></div>
 
               {/* Main Content Area */}
-              <div id="main-content-area" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
-                <div className="flex flex-1 overflow-hidden w-full max-w-full">
-                  {/* ── Main Content Area (left side) ── */}
-                  <div style={{
+              <div id="main-content" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0 min-h-0 overflow-hidden" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
+                <div className={`flex flex-1 overflow-hidden w-full max-w-full h-full max-h-full ${layoutOrientation === 'vertical' ? 'flex-col' : 'flex-row'}`}>
+                  {/* ── Main Content Area (left / top side) ── */}
+                  <div style={layoutOrientation === 'vertical' ? {
+                    height: `calc(${galleryHeight * 100}% - 4px)`,
+                    flex: `0 0 calc(${galleryHeight * 100}% - 4px)`,
+                    maxHeight: `calc(${galleryHeight * 100}% - 4px)`,
+                    width: '100%',
+                    maxWidth: '100%',
+                    order: isLayoutSwapped ? 2 : 0
+                  } : {
                     width: `calc(${galleryWidth * 100}% - 4px)`,
                     flex: `0 0 calc(${galleryWidth * 100}% - 4px)`,
                     maxWidth: `calc(${galleryWidth * 100}% - 4px)`,
+                    height: '100%',
                     order: isLayoutSwapped ? 2 : 0
-                  }} className="flex flex-col min-w-0 semantic-bg-ground relative overflow-hidden">
-                    <div className="flex-1 relative">
+                  }} className="flex flex-col min-w-0 min-h-0 semantic-bg-ground relative overflow-hidden">
+                    <div className="flex-1 relative min-h-0">
                       {/* Playlists mode */}
                       {activeMainView === 'playlists' && (
                         <div className="absolute inset-0 overflow-y-auto custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
-                          <PlaylistsTab />
+                          <Suspense fallback={<PanelSkeleton />}><PlaylistsTab /></Suspense>
                         </div>
                       )}
 
-                      {/* Automation: Gallery sub-mode */}
-                      {activeMainView === 'scripts' && automationSubMode === 'gallery' && (
+                      {/* Gallery mode */}
+                      {activeMainView === 'gallery' && (
                         <div className="absolute inset-0 overflow-y-auto custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
                           <ScriptGallery />
                         </div>
                       )}
 
-                      {/* Automation: REPL sub-mode */}
-                      {activeMainView === 'scripts' && automationSubMode === 'repl' && (
+                      {/* REPL mode */}
+                      {activeMainView === 'repl' && (
                         <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
-                          <ReplModeContent />
+                          <Suspense fallback={<PanelSkeleton />}><ReplModeContent /></Suspense>
                         </div>
                       )}
-
-                      {/* Agent mode */}
                     </div>
                   </div>
 
                   {/* Resizer */}
                   <div
-                    className={`w-2.5 transition-all duration-300 cursor-ew-resize flex-shrink-0 relative group flex items-center justify-center
+                    className={`transition-all duration-300 flex-shrink-0 relative group flex items-center justify-center
+                      ${layoutOrientation === 'vertical'
+                        ? 'h-2.5 w-full cursor-ns-resize'
+                        : 'w-2.5 h-full cursor-ew-resize'}
                       ${isResizing ? 'bg-blue-500/20' : 'bg-slate-200/40 dark:bg-slate-800/50 hover:bg-blue-500/10'}`}
                     onMouseDown={handleMouseDown}
                     style={{ order: 1 }}
                   >
-                    <div className={`w-1 rounded-full transition-all duration-500
-                      ${isResizing
-                        ? 'bg-blue-500 h-20 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
-                        : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 group-hover:bg-blue-400 group-hover:h-16'}`}
+                    <div className={`rounded-full transition-all duration-500
+                      ${layoutOrientation === 'vertical'
+                        ? (isResizing
+                            ? 'bg-blue-500 w-24 h-1 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                            : 'bg-slate-400/60 dark:bg-slate-500/40 w-12 h-1 group-hover:bg-blue-400 group-hover:w-20')
+                        : (isResizing
+                            ? 'bg-blue-500 h-20 w-1 shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                            : 'bg-slate-400/60 dark:bg-slate-500/40 h-10 w-1 group-hover:bg-blue-400 group-hover:h-16')}`}
                     />
                   </div>
 
-                  {/* ── OutputPanel (right side, full height) ── */}
-                  <div style={{
+                  {/* ── OutputPanel (right / bottom side) ── */}
+                  <div style={layoutOrientation === 'vertical' ? {
+                    height: `calc(${inspectorHeight * 100}% - 4px)`,
+                    flex: `0 0 calc(${inspectorHeight * 100}% - 4px)`,
+                    maxHeight: `calc(${inspectorHeight * 100}% - 4px)`,
+                    width: '100%',
+                    maxWidth: '100%',
+                    order: isLayoutSwapped ? 0 : 2
+                  } : {
                     width: `calc(${inspectorWidth * 100}% - 4px)`,
                     flex: `0 0 calc(${inspectorWidth * 100}% - 4px)`,
                     maxWidth: `calc(${inspectorWidth * 100}% - 4px)`,
+                    height: '100%',
                     order: isLayoutSwapped ? 0 : 2
-                  }} className={`hidden lg:block overflow-hidden min-w-0 ${isLayoutSwapped ? 'border-r border-slate-200 dark:border-gray-700' : 'border-l border-slate-200 dark:border-gray-700'}`}>
+                  }} className={`flex flex-col overflow-hidden min-w-0 min-h-0 ${
+                    layoutOrientation === 'vertical'
+                      ? (isLayoutSwapped ? 'border-b border-slate-200 dark:border-gray-700' : 'border-t border-slate-200 dark:border-gray-700')
+                      : (isLayoutSwapped ? 'border-r border-slate-200 dark:border-gray-700' : 'border-l border-slate-200 dark:border-gray-700')
+                  }`}>
                     <OutputPanel />
                   </div>
                 </div>
               </div>
-              {isMobile && selectedScript && (
-                <div className={`fixed bottom-0 left-0 right-0 semantic-bg-panel border-t border-slate-200 dark:border-gray-700 rounded-t-lg shadow-lg transform transition-transform duration-300 ${isInspectorOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ height: '70vh' }}>
-                  <div className="h-full flex flex-col relative">
-                    <button onClick={toggleInspector} className="absolute top-2 right-2 semantic-text-muted hover:text-blue-500 z-10"><FontAwesomeIcon icon={faTimes} size="lg" /></button>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar"><div className="p-4 pt-8"><ScriptInspector /></div></div>
-                  </div>
-                </div>
-              )}
             </div>
           </>
         )}

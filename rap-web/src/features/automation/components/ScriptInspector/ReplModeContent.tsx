@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useConsole } from '../../store/ConsoleContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport, faHistory, faThumbtack } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport, faHistory, faThumbtack, faPlus, faMinus } from '@fortawesome/free-solid-svg-icons';
 import { REPLCodeEditor } from './REPLCodeEditor';
 import { Modal } from '@/components/common/Modal';
 import { Tooltip } from '@/components/common/Tooltip';
@@ -15,7 +15,8 @@ export const ReplModeContent: React.FC = () => {
     activeSnippetName, handleSaveSnippet,
     singleCommandHistory, isDirty,
     handleNewSnippet, handleLoadSnippet,
-    recentFiles, pinnedFiles, togglePinFile, removeRecentFile, loadRecentFile
+    recentFiles, pinnedFiles, togglePinFile, removeRecentFile, loadRecentFile,
+    replFontSize, increaseReplFontSize, decreaseReplFontSize, resetReplFontSize
   } = useConsole();
 
   const { runningScriptPath } = useScriptExecution();
@@ -68,6 +69,27 @@ export const ReplModeContent: React.FC = () => {
     }
     wasLoadingRef.current = isReplLoading;
   }, [isReplLoading]);
+
+  // Keyboard shortcuts: Ctrl/Cmd + Plus / Minus / 0 for font size scaling
+  useEffect(() => {
+    const handleGlobalZoomKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault();
+          increaseReplFontSize();
+        } else if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          decreaseReplFontSize();
+        } else if (e.key === '0') {
+          e.preventDefault();
+          resetReplFontSize();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalZoomKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalZoomKeyDown);
+  }, [increaseReplFontSize, decreaseReplFontSize, resetReplFontSize]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -191,6 +213,40 @@ export const ReplModeContent: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Font Size Stepper */}
+          <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+            <Tooltip text="Decrease Font Size (Ctrl + -)" position="bottom-center">
+              <button
+                onClick={decreaseReplFontSize}
+                disabled={replFontSize <= 11}
+                className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-blue-500 dark:text-slate-400 dark:hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold rounded"
+              >
+                <FontAwesomeIcon icon={faMinus} className="text-[9px]" />
+              </button>
+            </Tooltip>
+            
+            <Tooltip text="Reset Font Size to 14px (Ctrl + 0)" position="bottom-center">
+              <button
+                onClick={resetReplFontSize}
+                className="px-1.5 h-6 flex items-center justify-center text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 hover:text-blue-500 transition-colors select-none rounded hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
+              >
+                {replFontSize}px
+              </button>
+            </Tooltip>
+
+            <Tooltip text="Increase Font Size (Ctrl + +)" position="bottom-center">
+              <button
+                onClick={increaseReplFontSize}
+                disabled={replFontSize >= 32}
+                className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-blue-500 dark:text-slate-400 dark:hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold rounded"
+              >
+                <FontAwesomeIcon icon={faPlus} className="text-[9px]" />
+              </button>
+            </Tooltip>
+          </div>
+
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
           <Tooltip text="New / Clear" position="bottom-center">
             <button onClick={onNewSnippet} className="p-1.5 text-slate-400 hover:text-green-500 transition-colors">
               <FontAwesomeIcon icon={faFile} className="text-xs" />
@@ -280,6 +336,7 @@ export const ReplModeContent: React.FC = () => {
           ref={textareaRef}
           value={multiLineValue}
           onChange={setMultiLineValue}
+          fontSize={replFontSize}
           onKeyDown={(e) => {
             if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
               e.preventDefault();
@@ -313,7 +370,12 @@ export const ReplModeContent: React.FC = () => {
 
         {/* Single-line Input */}
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-bold opacity-50 pointer-events-none select-none text-sm">{'>'}</span>
+          <span
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 font-bold opacity-50 pointer-events-none select-none font-mono"
+            style={{ fontSize: `${Math.max(12, replFontSize)}px` }}
+          >
+            {'>'}
+          </span>
           <input
             ref={inputRef}
             type="text"
@@ -330,7 +392,11 @@ export const ReplModeContent: React.FC = () => {
             onKeyDown={handleSingleLineKeyDown}
             placeholder="Single command..."
             disabled={isReplLoading || isRunning}
-            className="w-full pl-7 pr-4 py-2.5 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white transition-all font-mono"
+            style={{
+              fontSize: `${replFontSize}px`,
+              paddingLeft: `${Math.max(28, Math.round(replFontSize * 1.7))}px`
+            }}
+            className="w-full pr-4 py-2.5 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-900 dark:text-white transition-all font-mono"
           />
         </div>
       </div>

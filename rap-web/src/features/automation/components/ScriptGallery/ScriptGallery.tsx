@@ -2,7 +2,6 @@ import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from
 import { useScripts } from '../../hooks/useScripts';
 import { useUI } from '@/hooks/useUI';
 import { useScriptExecution } from '@/features/automation';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useAuth } from '@/features/auth';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useWatchdog } from '@/context/providers/WatchdogProvider';
@@ -42,26 +41,18 @@ export const ScriptGallery: React.FC = () => {
   } = useUI();
   const { setSelectedScript, selectedScript } = useScriptExecution();
   const { isAuthenticated } = useAuth();
-  const isMobile = useBreakpoint();
   
   const [configuredScript, setConfiguredScript] = useState<Script | null>(null);
 
   const handleScriptSelect = useCallback((script: Script) => {
-    // Toggle: clicking the selected script deselects it
-    const normalized = (p: string) => p.replace(/\\/g, '/').toLowerCase();
-    if (selectedScript && normalized(selectedScript.absolutePath || selectedScript.id) === normalized(script.absolutePath || script.id)) {
-      setSelectedScript(null);
-    } else {
-      setSelectedScript(script);
-    }
-  }, [setSelectedScript, selectedScript]);
+    setSelectedScript(script);
+  }, [setSelectedScript]);
 
   const handleConfigureScript = useCallback((script: Script) => {
     setConfiguredScript(script);
     setSelectedScript(script);
     setActiveInspectorTab('parameters');
-    if (isMobile) setInspectorOpen(true);
-  }, [setSelectedScript, setActiveInspectorTab, isMobile, setInspectorOpen]);
+  }, [setSelectedScript, setActiveInspectorTab]);
 
   const handleBackFromConfigure = useCallback(() => {
     setConfiguredScript(null);
@@ -77,7 +68,10 @@ export const ScriptGallery: React.FC = () => {
     favoriteScripts, otherScripts
   } = useGalleryFilters(scripts, favoriteIds, selectedCategory);
 
-  const [isCompactView, setIsCompactView] = useState(false);
+  const [isCompactView, setIsCompactView] = useState(() => {
+    const saved = localStorage.getItem('paracore_gallery_density');
+    return saved === 'compact';
+  });
   const [scriptToReplace, setScriptToReplace] = useState<Script | null>(null);
 
   // 2. Scroll & Focus Logic
@@ -228,6 +222,14 @@ export const ScriptGallery: React.FC = () => {
                 canCreateScripts={canCreateScripts}
                 onNewScript={openNewScriptModal}
                 onNewSentinel={openNewSentinelModal}
+                isCompactView={isCompactView}
+                onToggleDensity={() => {
+                  setIsCompactView(prev => {
+                    const next = !prev;
+                    localStorage.setItem('paracore_gallery_density', next ? 'compact' : 'card');
+                    return next;
+                  });
+                }}
               />
 
               {pillFilters.length > 0 && (
