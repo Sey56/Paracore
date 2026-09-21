@@ -11,7 +11,7 @@ interface ScriptParametersFormProps {
     parameters: ScriptParameter[]; // The current state of values
     onChange: (index: number, value: string | boolean | number) => void;
     onComputeOptions: (paramName: string) => void;
-    onPickObject: (selectionType: string, index: number) => void;
+    onPickObject: (selectionType: string, index: number) => void | Promise<unknown>;
     isComputingOptions: Record<string, boolean>;
     isActionable: boolean;
 }
@@ -122,7 +122,12 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
                         index={originalIndex}
                         onChange={onChange}
                         onCompute={() => onComputeOptions(param.name)}
-                        onPickObject={(type) => onPickObject(type, originalIndex)}
+                        onPickObject={(type) => {
+                            // ⚠ `return` matters: the pick button awaits this promise to hold its
+                            // "selecting" indicator for the length of the Revit pick. See the
+                            // onPickObject prop doc in ParameterInput.
+                            return onPickObject(type, originalIndex);
+                        }}
                         isComputing={isComputingOptions[param.name]}
                         disabled={!isActionable || !isEnabled}
                     />
@@ -139,7 +144,10 @@ export const ScriptParametersForm: React.FC<ScriptParametersFormProps> = ({
                     handleParameterChange={onChange}
                     script={script || {} as Script} // Fallback if script is null, mostly for ID checks inside group if any
                     computeParameterOptions={(s, pName) => onComputeOptions(pName)} // Adapter
-                    onPickObject={(type, idx) => onPickObject(type, idx)} // Adapter
+                    onPickObject={(type, idx) => {
+                        // ⚠ `return` matters — see the note on the ungrouped branch above.
+                        return onPickObject(type, idx);
+                    }} // Adapter
                     isComputingOptions={isComputingOptions}
                     isActionable={isActionable}
                     isExpanded={isGroupExpanded(group.name)}

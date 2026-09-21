@@ -16,7 +16,20 @@ interface ParameterInputProps {
   index: number;
   onChange: (index: number, value: string | number | boolean) => void;
   onCompute?: (paramName: string) => void;
-  onPickObject?: (selectionType: string, index: number) => void;
+  /**
+   * Starts a pick in Revit.
+   *
+   * ⚠ MAY RETURN A PROMISE, and the pick button relies on it. The round trip only
+   * ends when the user clicks an element in Revit or presses Esc there, and the
+   * returned promise resolves at exactly that moment — so awaiting it is what keeps
+   * the "selecting" indicator on screen for the right amount of time, with no timer
+   * and no polling.
+   *
+   * ⚠ Do not drop the return value when wiring this up. An adapter written as a
+   * concise arrow body (`(type, idx) => onPickObject(type, idx)`) silently throws the
+   * promise away, and the indicator would then flash and vanish instead of waiting.
+   */
+  onPickObject?: (selectionType: string, index: number) => void | Promise<unknown>;
   isComputing?: boolean;
   disabled?: boolean;
 }
@@ -29,6 +42,118 @@ interface MultiSelectInputProps {
   isComputing?: boolean;
   disabled?: boolean;
 }
+
+interface RevitPickButtonProps {
+  selectionType: string;
+  isPicking: boolean;
+  isContextMismatch: boolean;
+  disabled?: boolean;
+  onPick: () => void;
+}
+
+/**
+ * The "pick in Revit" button.
+ *
+ * ⚠ ONE component on purpose. This button previously existed TWICE, copied verbatim
+ * into the number branch and the text branch of `renderInput()`, so every change had
+ * to be made twice or the two would quietly diverge. Keep it single.
+ *
+ * A pick is a ROUND TRIP: the click sends the request, Revit takes the cursor, and
+ * nothing comes back until the user clicks an element or presses Esc. That gap lasts
+ * seconds, and the button is disabled for all of it — so with no explicit picking
+ * state the control simply looks frozen. Hence three cues:
+ *   1. the button pulses and takes a blue tint,
+ *   2. its icon becomes a spinner,
+ *   3. the hint panel stays OPEN instead of being hover-gated.
+ * Cue 3 matters most: the pointer is over Revit during a pick, so a hover tooltip is
+ * unreachable exactly when it is needed.
+ */
+const RevitPickButton: React.FC<RevitPickButtonProps> = ({
+  selectionType,
+  isPicking,
+  isContextMismatch,
+  disabled,
+  onPick
+}) => (
+  <div className="relative group/pick flex-shrink-0">
+    <button
+      type="button"
+      onClick={onPick}
+      disabled={disabled || isPicking}
+      aria-busy={isPicking}
+      aria-label={isPicking ? "Selecting in Revit" : `Pick ${selectionType} in Revit`}
+      className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm flex-shrink-0
+        ${isPicking
+          ? "animate-pulse bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-500/40 text-blue-500 cursor-wait"
+          : "bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 active:scale-90"}`}
+    >
+      <FontAwesomeIcon
+        icon={isPicking ? faSpinner : (isContextMismatch ? faExclamationTriangle : (selectionType === 'Point' ? faCrosshairs : faMousePointer))}
+        className={`${isPicking ? 'animate-spin' : ''} ${isContextMismatch && !isPicking ? 'text-amber-500' : ''}`}
+      />
+    </button>
+
+    {isPicking ? (
+      /* Persistent while picking — see cue 3 in the note above. */
+      <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-500/30 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 backdrop-blur-xl pointer-events-none">
+        <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[9px]">
+          <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" /> Selecting in Revit
+        </div>
+        <div className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-normal">
+          {selectionType === 'Point'
+            ? "Click a point in the Revit viewport."
+            : "Click an element in the Revit viewport."}{" "}
+          Press Esc there to cancel.
+        </div>
+      </div>
+    ) : (
+      <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/pick:opacity-100 group-hover/pick:visible transition-all duration-300 transform translate-y-2 group-hover/pick:translate-y-0 pointer-events-none backdrop-blur-xl">
+        <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[9px]">
+          <FontAwesomeIcon icon={selectionType === 'Point' ? faCrosshairs : faMousePointer} className="text-[10px]" /> {selectionType} Selection
+        </div>
+        <div className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-normal">
+          Click to pick a {selectionType?.toLowerCase()} directly in Revit.
+        </div>
+        {isContextMismatch && (
+          <div className="mt-2.5 pt-2 border-t border-amber-500/20 dark:border-amber-500/10 flex items-center gap-2 text-amber-500 font-black uppercase text-[9px] animate-pulse">
+            <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+);
+
+interface RevitSelectionValueProps {
+  value: unknown;
+  isPicking: boolean;
+}
+
+/**
+ * The read-only strip showing what a Revit pick returned — the field immediately to
+ * the LEFT of the pick button.
+ *
+ * ⚠ Also previously duplicated verbatim in both branches; also keep it single.
+ *
+ * It doubles as the second place the "selecting" message appears, because it is where
+ * the user's eye already is: it is the thing that changes when the pick lands. While a
+ * pick is outstanding it replaces the value, and the previous value comes back if the
+ * pick is cancelled.
+ */
+const RevitSelectionValue: React.FC<RevitSelectionValueProps> = ({ value, isPicking }) => (
+  <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center shadow-inner cursor-default truncate min-w-0 tracking-wider">
+    {isPicking ? (
+      <span className="flex items-center gap-2 text-blue-500">
+        <FontAwesomeIcon icon={faSpinner} className="animate-spin text-[10px]" />
+        Selecting in Revit…
+      </span>
+    ) : value !== null && value !== undefined ? (
+      String(value)
+    ) : (
+      <span className="text-slate-400 dark:text-slate-600 font-normal italic">None selected</span>
+    )}
+  </div>
+);
 
 const useDropdownPosition = (isOpen: boolean, triggerRef: React.RefObject<HTMLElement | null>) => {
   const [coords, setCoords] = useState({ left: 0, top: 0 as number | 'auto', bottom: 0 as number | 'auto', width: 0, isUp: false, maxHeight: 300 });
@@ -409,6 +534,25 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
   // because these IDs/Reference strings are sensitive and should only be populated via the selection tool.
   const isRevitSelection = param.selectionType && param.selectionType !== "None";
 
+  // True for the whole duration of a pick round trip to Revit.
+  //
+  // Driven by awaiting the parent's pick rather than by a timer or by watching a shared
+  // busy flag: the promise resolves the instant the pick lands (or the user presses Esc),
+  // so the indicator can neither lag behind nor get stuck on. A local flag also keeps it
+  // independent of any other parameter's work in flight.
+  const [isPicking, setIsPicking] = useState(false);
+
+  const handlePick = useCallback(async (selectionType: string) => {
+    if (!onPickObject) return;
+    setIsPicking(true);
+    try {
+      await onPickObject(selectionType, index);
+    } finally {
+      // Also runs when the pick is cancelled or fails, so the button always comes back.
+      setIsPicking(false);
+    }
+  }, [onPickObject, index]);
+
   const handleFileBrowse = async () => {
     try {
       let selection: string | string[] | null = null;
@@ -490,9 +634,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
       return (
         <div className="flex gap-2 w-full items-center">
           {isRevitSelection ? (
-            <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center shadow-inner cursor-default truncate min-w-0 tracking-wider">
-              {param.value !== null && param.value !== undefined ? String(param.value) : <span className="text-slate-400 dark:text-slate-600 font-normal italic">None selected</span>}
-            </div>
+            <RevitSelectionValue value={param.value} isPicking={isPicking} />
           ) : (
             <input
               type="text"
@@ -522,46 +664,30 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
             />
           )}
           {param.selectionType && param.selectionType !== "None" && onPickObject && (
-            <div className="relative group/pick flex-shrink-0">
-              <button
-                onClick={() => onPickObject(param.selectionType!, index)}
-                disabled={disabled || isComputing}
-                className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
-              >
-                <FontAwesomeIcon icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)} className={isContextMismatch ? 'text-amber-500' : ''} />
-              </button>
-
-              {!isComputing && (
-                <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/pick:opacity-100 group-hover/pick:visible transition-all duration-300 transform translate-y-2 group-hover/pick:translate-y-0 pointer-events-none backdrop-blur-xl">
-                  <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[9px]">
-                    <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} className="text-[10px]" /> {param.selectionType} Selection
-                  </div>
-                  <div className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-normal">
-                    Click to pick a {param.selectionType?.toLowerCase()} directly in Revit.
-                  </div>
-                  {isContextMismatch && (
-                    <div className="mt-2.5 pt-2 border-t border-amber-500/20 dark:border-amber-500/10 flex items-center gap-2 text-amber-500 font-black uppercase text-[9px] animate-pulse">
-                      <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <RevitPickButton
+              selectionType={param.selectionType}
+              isPicking={isPicking}
+              isContextMismatch={!!isContextMismatch}
+              disabled={disabled}
+              onPick={() => handlePick(param.selectionType!)}
+            />
           )}
 
         </div>
       );
     }
 
-    if (param.selectionType === 'Point') return <PointInput value={String(param.value || "0,0,0")} onChange={(val) => onChange(index, val)} onPick={() => onPickObject && onPickObject('Point', index)} disabled={disabled} isPicking={isComputing} computedInDocument={param.computedInDocument} />;
+    // Routed through the same `handlePick` as the element pickers so every pick type shares
+    // ONE mechanism: await the round trip, then drop the indicator. Point used to key off the
+    // shared `isComputing` flag instead, which happened to work but meant two different rules
+    // for the same question.
+    if (param.selectionType === 'Point') return <PointInput value={String(param.value || "0,0,0")} onChange={(val) => onChange(index, val)} onPick={() => handlePick('Point')} disabled={disabled} isPicking={isPicking} computedInDocument={param.computedInDocument} />;
     if (param.inputType === 'Color') return <ColorInput value={String(param.value || "#000000")} onChange={(val) => onChange(index, val)} disabled={disabled} />;
 
     return (
       <div className="flex gap-2 w-full items-center">
         {isRevitSelection ? (
-          <div className="flex-grow h-10 border border-slate-200/50 dark:border-slate-700/30 rounded-xl px-4 text-xs font-bold bg-slate-100/50 dark:bg-slate-900/40 text-blue-600 dark:text-blue-400 flex items-center shadow-inner cursor-default truncate min-w-0 tracking-wider">
-            {param.value !== null && param.value !== undefined ? String(param.value) : <span className="text-slate-400 dark:text-slate-600 font-normal italic">None selected</span>}
-          </div>
+          <RevitSelectionValue value={param.value} isPicking={isPicking} />
         ) : (
           <input
             type="text"
@@ -572,31 +698,13 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
           />
         )}
         {param.selectionType && param.selectionType !== "None" && onPickObject && (
-          <div className="relative group/pick flex-shrink-0">
-            <button
-              onClick={() => onPickObject(param.selectionType!, index)}
-              disabled={disabled || isComputing}
-              className="w-10 h-10 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
-            >
-              <FontAwesomeIcon icon={isContextMismatch ? faExclamationTriangle : (param.selectionType === 'Point' ? faCrosshairs : faMousePointer)} className={isContextMismatch ? 'text-amber-500' : ''} />
-            </button>
-
-            {!isComputing && (
-              <div className="absolute z-[100] right-0 bottom-full mb-3 p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-white text-[10px] font-bold leading-relaxed w-56 opacity-0 invisible group-hover/pick:opacity-100 group-hover/pick:visible transition-all duration-300 transform translate-y-2 group-hover/pick:translate-y-0 pointer-events-none backdrop-blur-xl">
-                <div className="flex items-center gap-2 text-blue-500 mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-800 uppercase tracking-widest text-[9px]">
-                  <FontAwesomeIcon icon={param.selectionType === 'Point' ? faCrosshairs : faMousePointer} className="text-[10px]" /> {param.selectionType} Selection
-                </div>
-                <div className="text-slate-600 dark:text-slate-300 text-xs font-medium leading-normal">
-                  Click to pick a {param.selectionType?.toLowerCase()} directly in Revit.
-                </div>
-                {isContextMismatch && (
-                  <div className="mt-2.5 pt-2 border-t border-amber-500/20 dark:border-amber-500/10 flex items-center gap-2 text-amber-500 font-black uppercase text-[9px] animate-pulse">
-                    <FontAwesomeIcon icon={faExclamationTriangle} /> Document Mismatch
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <RevitPickButton
+            selectionType={param.selectionType}
+            isPicking={isPicking}
+            isContextMismatch={!!isContextMismatch}
+            disabled={disabled}
+            onPick={() => handlePick(param.selectionType!)}
+          />
         )}
 
       </div>

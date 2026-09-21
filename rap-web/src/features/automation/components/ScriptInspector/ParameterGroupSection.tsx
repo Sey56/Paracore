@@ -12,7 +12,7 @@ interface ParameterGroupSectionProps {
     handleParameterChange: (index: number, value: string | number | boolean) => void;
     script: Script;
     computeParameterOptions: (script: Script, paramName: string) => void;
-    onPickObject: (selectionType: string, index: number) => void;
+    onPickObject: (selectionType: string, index: number) => void | Promise<unknown>;
     isComputingOptions: Record<string, boolean>;
     isActionable: boolean;
     isExpanded: boolean;
