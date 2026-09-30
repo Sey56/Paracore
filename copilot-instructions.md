@@ -58,8 +58,6 @@ These namespaces are already available everywhere:
 | `PieChart(data)` / `PieGraph(data)` | void | Render pie chart |
 | `LineChart(data)` / `LineGraph(data)` | void | Render line chart |
 | `Selection` | IList<Element> | Currently selected elements in Revit |
-| `Watchdog(callback, intervalSeconds)` | void | Register background sentinel *(Sentinel Scripts Only)* |
-| `WatchdogReport(summary, status, ids?)` | void | Report health status from sentinels *(Sentinel Scripts Only)* |
 
 **Pipeline Diagnostics (v4.6.0+):** `GetElements<T>()` returns a `PipelineEnumerable<T>` that reports element counts at every stage of a LINQ chain. Each `.Where()`, `.GroupBy()`, `.Select()`, etc. shows how many elements survived — no more guessing why a pipeline returned fewer results.
 
@@ -758,23 +756,7 @@ toDelete.Delete();
 Println($"Deleted {toDelete.Count} overlapping columns across {cols.Count} locations.");
 ```
 
-## 7. Sentinel Script
-
-```csharp
-Watchdog((doc) => {
-    var walls = GetElements<Wall>()
-        .WhereParam("Mark", "");
-    
-    if (walls.Any())
-        WatchdogReport($"{walls.Count()} walls missing Mark values", "warning", walls.Select(w => w.Id).ToList());
-    else
-        WatchdogReport("All walls have valid Mark values", "success");
-}, 10);
-
-public class Params { }
-```
-
-## 8. Sequential Renumbering
+## 7. Sequential Renumbering
 
 ```csharp
 int i = 1;
@@ -786,7 +768,7 @@ GetElements("Doors")
 Println($"Renumbered doors on Level 2.");
 ```
 
-## 9. Structural Wall Audit (Width ≥ 300mm)
+## 8. Structural Wall Audit (Width ≥ 300mm)
 
 ```csharp
 GetElements<Wall>()

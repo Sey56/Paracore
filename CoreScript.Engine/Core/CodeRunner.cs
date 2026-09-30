@@ -288,7 +288,7 @@ namespace CoreScript.Engine.Core
                     {
                         topLevelScriptName = forcedName;
                     }
-                    // Do NOT remove — ScriptApi.Watchdog() needs it at runtime
+                    // Do NOT remove — the Sentinels (Pro) API reads __script_name__ at runtime
                 }
 
                 if (richParams.Count > 0)

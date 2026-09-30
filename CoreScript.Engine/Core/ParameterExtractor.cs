@@ -160,6 +160,19 @@ namespace CoreScript.Engine.Core
                 if (aN.Contains("Unit") && attr.ArgumentList?.Arguments.Count > 0) p.Unit = ExtractString(attr.ArgumentList.Arguments[0].Expression);
                 if (aN.Contains("Suffix") && attr.ArgumentList?.Arguments.Count > 0) p.Suffix = ExtractString(attr.ArgumentList.Arguments[0].Expression);
 
+                // The file-dialog filter carried by [InputFile("csv,txt")] / [OutputFile("pdf")],
+                // read from the attribute argument exactly as Unit and Suffix are above.
+                //
+                // ⚠ Keyed off p.InputType, which the chain above has ALREADY set from this same
+                // attribute, rather than re-testing the name: two more aN.Contains calls here would
+                // add two more CA1307 warnings, and this project's build warning count is an
+                // exact-count gate (finishing-verify §5). Remove the cause, never suppress it.
+                if ((p.InputType == "File" || p.InputType == "SaveFile") && attr.ArgumentList?.Arguments.Count > 0)
+                {
+                    var fileFilter = ExtractString(attr.ArgumentList.Arguments[0].Expression);
+                    if (!string.IsNullOrWhiteSpace(fileFilter)) p.Filter = fileFilter;
+                }
+
                 if (aN.Contains("EnabledWhen")) { p.EnabledWhenParam = ExtractString(attr.ArgumentList.Arguments[0].Expression); p.EnabledWhenValue = attr.ArgumentList.Arguments[1].Expression.ToString().Trim('"', '\''); }
                 
                 if (aN.Contains("Select"))

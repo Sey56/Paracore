@@ -80,5 +80,13 @@ namespace CoreScript.Engine.Models
 
         [JsonPropertyName("selectionType")]
         public string? SelectionType { get; set; }
+
+        /// <summary>
+        /// File-dialog filter declared by the parameter's attribute — the argument of
+        /// <c>[InputFile("csv,txt")]</c> or <c>[OutputFile("pdf")]</c>, verbatim, as a
+        /// comma-separated extension list. Null when the attribute was used with no argument.
+        /// </summary>
+        [JsonPropertyName("filter")]
+        public string? Filter { get; set; }
     }
 }

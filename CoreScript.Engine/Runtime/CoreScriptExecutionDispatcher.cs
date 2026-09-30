@@ -14,7 +14,7 @@ namespace CoreScript.Engine.Runtime
     {
         High = 0,    // Manual User Scripts (Highest)
         Normal = 1,  // Startup Registrations
-        Low = 2      // Periodic Watchdog Runs
+        Low = 2      // Periodic background runs
     }
 
     public class ExecutionRequest

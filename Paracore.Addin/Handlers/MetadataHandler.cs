@@ -117,7 +117,8 @@ namespace Paracore.Addin.Handlers
                         EnabledWhenParam = p.EnabledWhenParam ?? "",
                         EnabledWhenValue = p.EnabledWhenValue ?? "",
                         Unit = p.Unit ?? "",
-                        SelectionType = p.SelectionType ?? ""
+                        SelectionType = p.SelectionType ?? "",
+                        Filter = p.Filter ?? ""
                     };
 
                     protoParam.Options.AddRange(p.Options);
@@ -233,7 +234,8 @@ namespace Paracore.Addin.Handlers
                                     EnabledWhenParam = p.EnabledWhenParam ?? "",
                                     EnabledWhenValue = p.EnabledWhenValue ?? "",
                                     Unit = p.Unit ?? "",
-                                    SelectionType = p.SelectionType ?? ""
+                                    SelectionType = p.SelectionType ?? "",
+                                    Filter = p.Filter ?? ""
                                 };
 
                                 protoParam.Options.AddRange(p.Options);

@@ -117,6 +117,11 @@ namespace Paracore.Addin.Handlers
                     var doc = uidoc.Document;
                     response.ActiveViewName = uidoc.ActiveView?.Name ?? "Unknown";
                     response.ActiveViewType = uidoc.ActiveView?.ViewType.ToString() ?? "Unknown";
+                    // Proto declares these; they were never populated, so every client saw scale 0
+                    // and an empty detail level. Guarded because a throw here would lose the whole
+                    // context response, not just this field.
+                    response.ActiveViewScale = ReadViewScale(uidoc.ActiveView);
+                    response.ActiveViewDetailLevel = ReadViewDetailLevel(uidoc.ActiveView);
                     var selection = uidoc.Selection.GetElementIds();
                     response.SelectionCount = selection.Count;
                     response.SelectedElementIds.AddRange(selection.Select(id => (int)id.Value));
@@ -129,7 +134,7 @@ namespace Paracore.Addin.Handlers
 
                     if (doc.ProjectInformation != null)
                     {
-                        response.ProjectInfo = new CoreScript.ProjectInfo { Name = doc.ProjectInformation.Name ?? "", Title = doc.Title, FilePath = doc.PathName, IsWorkshared = doc.IsWorkshared, Username = _uiApp.Application.Username };
+                        response.ProjectInfo = new CoreScript.ProjectInfo { Name = doc.ProjectInformation.Name ?? "", Number = doc.ProjectInformation.Number ?? "", Title = doc.Title, FilePath = doc.PathName, IsWorkshared = doc.IsWorkshared, Username = _uiApp.Application.Username };
                     }
 
                     var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
@@ -138,6 +143,25 @@ namespace Paracore.Addin.Handlers
                 });
             }
             catch { return new GetContextResponse(); }
+        }
+
+        /// <summary>
+        /// View.Scale for the active view, or 0 when the view type does not carry a scale.
+        /// Guarded: this runs inside ExecuteInUIContext, so an unhandled throw would discard the
+        /// entire GetContextResponse rather than just this one field.
+        /// </summary>
+        private static int ReadViewScale(View view)
+        {
+            try { return view?.Scale ?? 0; } catch { return 0; }
+        }
+
+        /// <summary>
+        /// View.DetailLevel for the active view, or "" when unavailable. Guarded for the same
+        /// reason as ReadViewScale.
+        /// </summary>
+        private static string ReadViewDetailLevel(View view)
+        {
+            try { return view?.DetailLevel.ToString() ?? ""; } catch { return ""; }
         }
 
         public async Task<ValidateWorkingSetResponse> ValidateWorkingSet(ValidateWorkingSetRequest request)

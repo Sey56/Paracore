@@ -176,7 +176,7 @@ namespace CoreScript.Engine.Globals
     public static class IdentityExtensions
     {
         public static Element ToElement(this long id, Document doc) => doc.GetElement(new ElementId(id));
-        public static Element ToElement(this int id, Document doc) => doc.GetElement(new ElementId(id));
+        public static Element ToElement(this int id, Document doc) => doc.GetElement(new ElementId((long)id));
         public static Element ToElement(this ElementId id, Document doc) => doc.GetElement(id);
     }
 

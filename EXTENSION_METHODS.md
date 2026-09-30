@@ -499,13 +499,6 @@ Transact("My Operation", () => { /* modify doc */ });
 Transact("With Doc Access", doc => { /* use doc */ });
 ```
 
-### Watchdogs (background idle-time callbacks)
-
-```csharp
-Watchdog(() => { /* check something */ }, 5);     // every 5s when idle
-WatchdogReport("All good", "success", data);      // send status
-```
-
 ### UI Actions (on collections, without prefixes)
 
 ```csharp

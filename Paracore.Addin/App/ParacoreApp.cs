@@ -20,7 +20,7 @@ namespace Paracore.Addin.App
 {
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ParacoreApp : IExternalApplication
+    public partial class ParacoreApp : IExternalApplication
     {
         public static string HomePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         public static string RevitVersion { get; private set; } = "Unknown"; // Default fallback
@@ -58,6 +58,8 @@ namespace Paracore.Addin.App
             var addinDir = Environment.GetEnvironmentVariable("PARACORE_ADDIN_DIR")
                 ?? Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location);
             _addinDir = addinDir; // cached for StartSidecar
+
+            LoadProSettings();
             FileLogger.Log($"Paracore Add-in loaded from: {addinDir}");
 
             // NOTE: ALC isolation is now handled by Paracore.Shim.
@@ -104,50 +106,20 @@ namespace Paracore.Addin.App
             _externalEvent = ExternalEvent.Create(_serverActionHandler);
             ServerViewModel.Instance.Initialize(_externalEvent);
 
-            // Subscribe to Idling for BIM Watchdog
-            application.Idling += OnIdling;
+            RegisterBackgroundHooks(application);
 
             return Result.Succeeded;
         }
 
-        private void OnIdling(object sender, Autodesk.Revit.UI.Events.IdlingEventArgs e)
-        {
-            // V3.1: Watchdogs run even if server is toggled off in ribbon
-            UIApplication uiApp = sender is UIApplication app ? app : new UIApplication(sender as Autodesk.Revit.ApplicationServices.Application);
-            if (uiApp == null) return;
-
-            var doc = uiApp.ActiveUIDocument?.Document;
-            if (doc == null) return;
-
-            var pendingWatchdogs = WatchdogRegistry.GetPendingCallbacks();
-            if (pendingWatchdogs.Count == 0) return;
-
-            foreach (var watchdog in pendingWatchdogs)
-            {
-                try
-                {
-                    WatchdogRegistry.CurrentWatchdogPath = watchdog.ScriptPath;
-
-                    // Initialize Global Context for ScriptApi access
-                    var ctx = new WatchdogContext(uiApp, doc, watchdog.Parameters);
-                    var execContext = new ExecutionGlobals(ctx, watchdog.Parameters);
-                    ExecutionGlobals.SetContext(execContext);
-
-                    // Use Low priority for background loops
-                    watchdog.LastRun = DateTime.Now;
-                    watchdog.Action(doc);
-                }
-                catch (Exception ex)
-                {
-                    FileLogger.LogError($"[Watchdog] Error executing background task for {watchdog.ScriptPath}: {ex.Message}");
-                }
-                finally
-                {
-                    WatchdogRegistry.CurrentWatchdogPath = null;
-                    ExecutionGlobals.ClearContext();
-                }
-            }
-        }
+        // ------------------------------------------------------------------
+        // Pro hooks. Declared here so this shared file compiles in BOTH
+        // repos; implemented only in ParacoreApp.Pro.cs, which ships in the
+        // Pro repo alone. C# erases an unimplemented partial method and its
+        // call site entirely, so the free add-in pays nothing for these.
+        // ------------------------------------------------------------------
+        partial void LoadProSettings();
+        partial void RegisterBackgroundHooks(Autodesk.Revit.UI.UIControlledApplication app);
+        partial void AddProRibbonButtons(RibbonPanel panel, string cmdAssembly, bool useShim);
 
         private void CreateRibbonButtons(RibbonPanel panel)
         {
@@ -172,6 +144,8 @@ namespace Paracore.Addin.App
 
             _toggleButton = panel.AddItem(toggleServerButton) as PushButton;
 
+
+            AddProRibbonButtons(panel, cmdAssembly, useShim);
         }
 
         private RibbonPanel GetOrCreatePanel(UIControlledApplication app, string tabName, string panelName)
@@ -387,12 +361,12 @@ namespace Paracore.Addin.App
         {
             if (_toggleButton != null)
             {
-                _toggleButton.ItemText = _serverRunning ? "Server On" : "Server Off";
+                _toggleButton.ItemText = _serverRunning ? "ON" : "OFF";
                 _toggleButton.Image = _serverRunning ? _iconOn : _iconOff;
                 _toggleButton.LargeImage = _serverRunning ? _iconOn : _iconOff;
                 _toggleButton.ToolTip = _serverRunning
-                    ? "Server is running on port 50051. Click to stop."
-                    : "Server is stopped. Click to start.";
+                    ? "Paracore Server is running on port 50051. Click to stop."
+                    : "Paracore Server is stopped. Click to start.";
             }
         }
 

@@ -294,6 +294,9 @@ message ScriptParameter {
   string enabled_when_value = 22;
   string unit = 23;
   string selection_type = 24;
+  // Extension list declared by [InputFile("csv,txt")] / [OutputFile("pdf")], e.g. "pdf".
+  // Carried to the UI so the file dialog offers the right "Save as type" filter.
+  string filter = 25;
 }
 
 message GetBulkMetadataRequest {

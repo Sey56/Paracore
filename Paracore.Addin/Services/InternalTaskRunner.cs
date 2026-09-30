@@ -14,7 +14,7 @@ namespace Paracore.Addin.Services
     /// This class contains the LOCAL execution logic for all Corescript gRPC methods.
     /// It is used by the CoreScriptClient to process tasks received from the sidecar.
     /// </summary>
-    public class InternalTaskRunner
+    public partial class InternalTaskRunner
     {
         private readonly ScriptExecutionHandler _executionHandler;
         private readonly MetadataHandler _metadataHandler;
@@ -126,49 +126,53 @@ namespace Paracore.Addin.Services
             return _contextHandler.GetModelCategories(request);
         }
 
+        // ------------------------------------------------------------------
+        // Sentinels (watchdog) RPCs.
+        //
+        // The wire contract is shared, so these three methods exist in BOTH repos and the
+        // dispatcher stays identical. The IMPLEMENTATION is Pro-only: each fills its
+        // response through an optional partial method, which C# erases entirely when no
+        // half implements it. The free add-in therefore answers an empty watchdog list and
+        // an explicit "Pro feature" message, with no watchdog code compiled in at all.
+        // ------------------------------------------------------------------
+
         public GetWatchdogStatusResponse GetWatchdogStatus()
         {
-            var active = CoreScript.Engine.Globals.WatchdogRegistry.GetActiveWatchdogs();
             var response = new GetWatchdogStatusResponse();
-
-            foreach (var w in active)
-            {
-                response.Watchdogs.Add(new WatchdogStatus
-                {
-                    ScriptPath = w.ScriptPath,
-                    ScriptName = w.ScriptName,
-                    Summary = w.LatestReport.Summary,
-                    Status = w.LatestReport.Status,
-                    DetailsJson = w.LatestReport.DetailsJson,
-                    Timestamp = w.LatestReport.Timestamp.ToString("o"),
-                    ParametersJson = System.Text.Json.JsonSerializer.Serialize(w.SnapshotParameters)
-                });
-            }
-
-            var failed = CoreScript.Engine.Globals.WatchdogRegistry.GetFailedWatchdogs();
-            foreach (var f in failed)
-            {
-                response.FailedWatchdogs.Add(new FailedWatchdog
-                {
-                    ScriptPath = f.ScriptPath,
-                    ScriptName = f.ScriptName,
-                    ErrorMessage = f.ErrorMessage,
-                    Timestamp = f.Timestamp.ToString("o")
-                });
-            }
-
+            FillWatchdogStatus(response);
             return response;
         }
 
+        partial void FillWatchdogStatus(GetWatchdogStatusResponse response);
+
         public Task<RegisterWatchdogSourceResponse> RegisterWatchdogSource(RegisterWatchdogSourceRequest request)
         {
-            return _executionHandler.RegisterWatchdogSource(request);
+            var response = new RegisterWatchdogSourceResponse
+            {
+                IsSuccess = false,
+                ErrorMessage = ProFeatureMessage("RegisterWatchdogSource")
+            };
+            FillRegisterWatchdogSource(request, response);
+            return Task.FromResult(response);
         }
+
+        partial void FillRegisterWatchdogSource(RegisterWatchdogSourceRequest request, RegisterWatchdogSourceResponse response);
 
         public Task<UnregisterWatchdogSourceResponse> UnregisterWatchdogSource(UnregisterWatchdogSourceRequest request)
         {
-            return _executionHandler.UnregisterWatchdogSource(request);
+            var response = new UnregisterWatchdogSourceResponse
+            {
+                IsSuccess = false,
+                ErrorMessage = ProFeatureMessage("UnregisterWatchdogSource")
+            };
+            FillUnregisterWatchdogSource(request, response);
+            return Task.FromResult(response);
         }
+
+        partial void FillUnregisterWatchdogSource(UnregisterWatchdogSourceRequest request, UnregisterWatchdogSourceResponse response);
+
+        private static string ProFeatureMessage(string rpc) =>
+            $"'{rpc}' requires the Paracore Pro Add-in (Sentinels).";
 
         public Task<UpdateElementParameterResponse> UpdateElementParameter(UpdateElementParameterRequest request)
         {

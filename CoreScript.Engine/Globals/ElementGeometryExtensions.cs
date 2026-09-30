@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using System;
 using System.Collections.Generic;
 
@@ -82,6 +83,49 @@ namespace CoreScript.Engine.Globals
                     ScanGeometryRecursive(doc, inst.GetSymbolGeometry(), subTr, summary, "Symbol: " + source);
                 }
             }
+        }
+
+        /// <summary>
+        /// The room's vertical span in project Z, in internal units (feet).
+        /// <para>
+        /// <c>Bot</c> = the room's level elevation plus its <c>Base Offset</c>.
+        /// <c>Top</c> = <c>Bot</c> + <see cref="Room.UnboundedHeight"/>, which is
+        /// Revit's own value and already folds in the <c>Upper Limit</c> and
+        /// <c>Limit Offset</c> — so it is correct whether the upper limit is a
+        /// different level with an offset (3.00 − 0.15 = 2.85) or the room's own
+        /// level with a positive one (0.00 + 2.85 = 2.85).
+        /// </para>
+        /// <para>
+        /// ⚠ <c>UnboundedHeight</c> is the height to the upper-limit PLANE. It does
+        /// not know about geometry intruding into the room, so it is the design
+        /// band, not an as-built bounded height.
+        /// </para>
+        /// <para>
+        /// Revit reports a non-positive <c>UnboundedHeight</c> for a room that is
+        /// unplaced or not properly enclosed, so that case falls back to the
+        /// level/upper-limit arithmetic the UI uses. The degenerate guard is kept
+        /// from the original call sites.
+        /// </para>
+        /// </summary>
+        public static (double Bot, double Top) GetZSpan(this Room room)
+        {
+            if (room == null) return (0, 10);
+
+            var level = room.Level;
+            double levelZ = level?.Elevation ?? 0;
+            double bot = levelZ + room.BaseOffset;
+
+            double h = room.UnboundedHeight;
+            if (!(h > 0))
+            {
+                double upOff = room.get_Parameter(BuiltInParameter.ROOM_UPPER_OFFSET)?.AsDouble() ?? 0;
+                var upLvl = room.UpperLimit;
+                h = (upLvl?.Elevation ?? levelZ) + upOff - levelZ;
+            }
+
+            double top = bot + h;
+            if (top <= bot) top = bot + 10;
+            return (bot, top);
         }
     }
 }
