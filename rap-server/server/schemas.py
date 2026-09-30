@@ -93,6 +93,7 @@ class ParameterSchema(BaseModel):
     pattern: Optional[str] = None
     required: Optional[bool] = None
     inputType: Optional[str] = None
+    filter: Optional[str] = None
     defaultValue: Optional[Any] = None
 
 # This represents the structure of a single preset

@@ -175,12 +175,27 @@ async def batch_update_element_parameters_logic(updates: list):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def execute_repl_logic(code: str, session_id: str, license_tier: str = "free", source: str = None):
+# Default gRPC deadline for a USER-TYPED REPL command, in seconds.
+#
+# A typed command is unbounded by nature: the user can paste a full finishing takeoff,
+# which MEASURES ~280 s (engine timings 2026-09-30 — collector-total alone is 273.3 s).
+# The old implicit 120 s default in grpc_client.execute_repl therefore made such a
+# command impossible to complete: it always returned DEADLINE_EXCEEDED at 120 s while
+# Revit kept working for minutes afterwards. 600 s matches the deadline the project's
+# own REPL harness (.repl/g.py) already uses for exactly this reason.
+REPL_TIMEOUT_SECONDS = 600.0
+
+
+async def execute_repl_logic(code: str, session_id: str, license_tier: str = "free",
+                             source: str = None, timeout: float = None):
     """
     Service wrapper for executing a REPL command in Revit via gRPC.
+
+    `timeout` is the gRPC deadline in seconds and defaults to REPL_TIMEOUT_SECONDS.
     """
     try:
         from grpc_client import execute_repl
-        return execute_repl(code, session_id, license_tier, source=source or "paracore")
+        return execute_repl(code, session_id, license_tier, source=source or "paracore",
+                            timeout=timeout if timeout is not None else REPL_TIMEOUT_SECONDS)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

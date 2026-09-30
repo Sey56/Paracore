@@ -46,6 +46,10 @@ export const useExecutionRunner = (
 
     showNotification(`Running script: ${script.name}...`, "info");
 
+    // Start the clock immediately before the request that does the work, so the
+    // number covers the whole run rather than whatever the UI's loading flags
+    // happened to bracket.
+    const startedAt = performance.now();
     try {
       const response = await api.post("/run-script", {
         path: script.absolutePath,
@@ -53,6 +57,7 @@ export const useExecutionRunner = (
         thread_id: threadId,
         license_tier: isEnterprise ? "enterprise" : "free"
       });
+      const elapsedMs = performance.now() - startedAt;
 
       const result = response.data;
       const frontendExecutionResult: ExecutionResult = {
@@ -63,7 +68,8 @@ export const useExecutionRunner = (
         internalData: result.internal_data,
         timestamp: Date.now(),
         scriptName: script.metadata?.displayName || script.name,
-        capturedDocTitle
+        capturedDocTitle,
+        elapsedMs
       };
 
       if (shouldUpdateGlobalState) {
@@ -80,7 +86,8 @@ export const useExecutionRunner = (
         isSuccess: false, 
         error: msg, 
         timestamp: Date.now(),
-        capturedDocTitle
+        capturedDocTitle,
+        elapsedMs: performance.now() - startedAt
       };
       if (shouldUpdateGlobalState) {
         setExecutionResult(errRes);

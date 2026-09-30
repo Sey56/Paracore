@@ -553,6 +553,27 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
     }
   }, [onPickObject, index]);
 
+  // The script declares its file-dialog filter as a comma-separated extension list on the
+  // parameter's attribute — [OutputFile("pdf")], [InputFile("csv,txt")] — and the engine carries
+  // that argument through to `param.filter`.
+  //
+  // ⚠ Until this, the save filter was HARD-CODED to CSV here regardless of what the attribute
+  // said, so a script asking for a PDF still offered "CSV" as the only Save-as-type.
+  //
+  // ⚠ When a script declares no filter we keep the historical CSV default for SaveFile, so every
+  // existing script's dialog behaves exactly as before; the open dialog keeps passing no filters
+  // at all in that case.
+  const declaredExts = (param.filter ?? '')
+    .split(',')
+    .map((e) => e.trim().replace(/^\./, '').toLowerCase())
+    .filter(Boolean);
+  const fileFilters = declaredExts.length > 0
+    ? [
+        { name: declaredExts.map((e) => e.toUpperCase()).join(' / '), extensions: declaredExts },
+        { name: 'All Files', extensions: ['*'] },
+      ]
+    : undefined;
+
   const handleFileBrowse = async () => {
     try {
       let selection: string | string[] | null = null;
@@ -560,13 +581,16 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({ param, index, on
         selection = await save({
           title: param.description || "Output File Path",
           defaultPath: param.value as string || undefined,
-          filters: [{ name: 'CSV', extensions: ['csv'] }, { name: 'All Files', extensions: ['*'] }]
+          filters: fileFilters ?? [{ name: 'CSV', extensions: ['csv'] }, { name: 'All Files', extensions: ['*'] }]
         });
       } else {
         selection = await open({
           multiple: false,
           directory: param.inputType === 'Folder',
-          title: param.description || `Station: Select ${param.inputType}`
+          title: param.description || `Station: Select ${param.inputType}`,
+          // `undefined` is dropped during serialisation, so this leaves the open dialog
+          // unfiltered exactly as it was when the script declares no filter.
+          filters: fileFilters
         });
       }
       if (selection && typeof selection === 'string') onChange(index, selection);

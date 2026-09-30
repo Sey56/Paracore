@@ -76,7 +76,11 @@ def _hydrate_params_for_frontend(params: List[Dict]) -> List[Dict]:
             "enabledWhenParam": p.get("enabledWhenParam") or p.get("enabled_when_param", ""),
             "enabledWhenValue": p.get("enabledWhenValue") or p.get("enabled_when_value", ""),
             "unit": p.get("unit") or p.get("Unit", ""),
-            "selectionType": p.get("selectionType") or p.get("selection_type", "")
+            "selectionType": p.get("selectionType") or p.get("selection_type", ""),
+            # File-dialog filter declared on the attribute, e.g. [OutputFile("pdf")] -> "pdf".
+            # This dict is an ALLOW-LIST: a field that is not named here is silently dropped
+            # before it ever reaches the UI.
+            "filter": p.get("filter") or p.get("Filter", "")
         }
         hydrated.append(item)
     return hydrated

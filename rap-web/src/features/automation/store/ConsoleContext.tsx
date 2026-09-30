@@ -17,6 +17,13 @@ export interface ConsoleItem {
   text: string;
   timestamp: Date;
   replType?: 'single' | 'multi';
+  /**
+   * Set on the trailing "took …" marker that closes a run. The marker is a real
+   * history entry rather than a floating label so it stays attached to the run
+   * it describes: rendered below the whole log, it read as if it belonged to
+   * whatever output had just been appended and appeared to move from run to run.
+   */
+  elapsedMs?: number;
 }
 
 interface ConsoleContextType {
@@ -270,7 +277,10 @@ export const ConsoleProvider: React.FC<{
     const capturedDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
 
     try {
+      // Clock around the request that does the work — see ExecutionResult.elapsedMs.
+      const startedAt = performance.now();
       const response = await api.post("/api/repl", { code: command, session_id: "global", license_tier: isEnterprise ? "enterprise" : "free" });
+      const elapsedMs = performance.now() - startedAt;
       if (response.data.is_success) {
         setExecutionResult({ 
           output: response.data.output || '', 
@@ -280,7 +290,8 @@ export const ConsoleProvider: React.FC<{
           internalData: `REPL_${currentReplType.toUpperCase()}`, 
           timestamp: Date.now(), 
           scriptName: isMulti ? identifier : "REPL",
-          capturedDocTitle
+          capturedDocTitle,
+          elapsedMs
         });
       } else {
         setExecutionResult({ 
@@ -291,7 +302,8 @@ export const ConsoleProvider: React.FC<{
           internalData: `REPL_${currentReplType.toUpperCase()}`, 
           timestamp: Date.now(), 
           scriptName: isMulti ? identifier : "REPL",
-          capturedDocTitle
+          capturedDocTitle,
+          elapsedMs
         });
       }
     } catch (err: any) {
@@ -312,6 +324,7 @@ export const ConsoleProvider: React.FC<{
 
   // Process execution results into history
   const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
+  const mountedAtRef = useRef<number>(Date.now());
   useEffect(() => {
     if (!executionResult) return;
     if (executionResult.timestamp === lastProcessedTimestampRef.current) return;
@@ -335,6 +348,19 @@ export const ConsoleProvider: React.FC<{
     }
     if (executionResult.error) {
       newItems.push({ type: 'error', text: String(executionResult.error), timestamp: new Date(), replType });
+    }
+
+    // Trailing duration marker, appended in the SAME batch as the output it
+    // describes. It is a history entry, so it stays with that run forever
+    // instead of floating at the bottom of the log.
+    //
+    // Skipped for a result restored from localStorage (see the initial state in
+    // useExecutionRunner): that one carries the PREVIOUS session's timestamp,
+    // and a stale "took 4m 12s" appearing on a freshly opened console would be
+    // read as this session's.
+    const producedNow = (executionResult.timestamp ?? 0) >= mountedAtRef.current;
+    if (producedNow && typeof executionResult.elapsedMs === 'number' && executionResult.elapsedMs >= 0) {
+      newItems.push({ type: 'status', text: '', timestamp: new Date(), replType, elapsedMs: executionResult.elapsedMs });
     }
 
     if (newItems.length > 0) {
