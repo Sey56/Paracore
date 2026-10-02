@@ -2,7 +2,7 @@
 
 A comprehensive guide to every extension method available on Revit elements and collections in Paracore scripts. All methods are globally available in the REPL and in all scripts.
 
-Source files: `ElementExtensions.cs`, `ElementParamExtensions.cs`, `ElementWriteExtensions.cs`, `ElementDoorExtensions.cs`, `ElementDiscoveryExtensions.cs`, `ElementGeometryExtensions.cs`, `ElementUIExtensions.cs`, `CollectionAggregateExtensions.cs`, `CollectionWriteExtensions.cs`, `CollectionUIExtensions.cs`, `PipelineEnumerable.cs`, `UnitExtensions.cs`, `NotebookExtensions.cs`, `ScriptApi.cs`.
+Source files: `ElementExtensions.cs`, `ElementParamExtensions.cs`, `ElementWriteExtensions.cs`, `ElementDoorExtensions.cs`, `ElementDiscoveryExtensions.cs`, `ElementGeometryExtensions.cs`, `ElementUIExtensions.cs`, `CollectionAggregateExtensions.cs`, `CollectionWriteExtensions.cs`, `CollectionUIExtensions.cs`, `PipelineEnumerable.cs`, `UnitExtensions.cs`,, `NotebookExtensions.cs`, `ScriptApi.cs`.
 
 > [!NOTE]
 > All extension methods work identically in the **REPL** and in **Gallery scripts**. They are standard C# extension methods available everywhere the engine runs.
@@ -62,14 +62,16 @@ Single-element: `GetElement("name-or-id")` | Discovery: `GetMagicNames()`, `GetC
 ### GetStr — parameter value as string
 
 ```csharp
-// Smart resolution: BuiltInParameter → LookupParameter → C# Property → AsValueString
+// Resolution chain: Level → LookupParameter → BuiltInParameter → C# Property → NativeProperties → Type
 GetElements("Walls").First().GetStr("Comments")        // "North wall"
 GetElements("Walls").First().GetStr("Fire Rating")      // "2 hr"
 GetElements("Walls").First().GetStr("Room Bounding")    // "1" or "0" (yes/no checkbox)
-GetElements("Floors").First().GetStr("Level")           // "Level 1" (ElementId resolved to name)
+GetElements("Walls").First().GetStr("Level")            // "02 - Ground Floor Plan" (via NativeProperties)
 ```
 
-`GetStr` handles String, ElementId (resolves to name), Double/Integer (formatted), and falls back to C# properties via Reflection.
+**"Level" resolution**: GetStr("Level") works on ALL categories. Walls → NativeProperties LevelId, Structural Framing → "Reference Level", Columns → "Base Level", Doors/Windows/Rooms → built-in "Level" parameter. Uses category-specific fallback chain: Reference Level → Base Level → Base Constraint → Native LevelId.
+
+**Unknown parameters**: GetStr returns "" silently (safe for chained queries) but logs a one-time warning: `⚠ GetStr("BadParam"): parameter not found on element. Check spelling or use .CombinedParams().Table() to discover available parameters.`
 
 ### GetNum — parameter value as double
 
@@ -135,30 +137,18 @@ Wraps in a transaction automatically if one isn't active.
 ### SetVal — THE smart setter
 
 ```csharp
-wall.SetVal("Comments", "New comment")         // String (instance parameter)
-wall.SetVal("Fire Rating", "2 hr")             // Type parameter (auto-falls back to WallType!)
+wall.SetVal("Comments", "New comment")         // String
 wall.SetVal("Unconnected Height", 3.0)         // Double
 wall.SetVal("Room Bounding", 0)                // Int (yes/no checkbox — 0 = unchecked)
 wall.SetVal("Level", "Level 2")                // ElementId resolved by name
 wall.SetVal("Mark", "A-12")                    // String parameter
 ```
 
-> [!TIP]
-> **Automatic Type Fallback**: If a parameter doesn't exist on the instance (e.g. `Fire Rating` on a Wall), `SetVal` and `SetNum` automatically check and update the element's `ElementType`.
-
 ### SetVal with unit
 
 ```csharp
 wall.SetVal("Unconnected Height", 2800, "mm")  // converts from mm
 column.SetVal("Base Offset", -0.15, "m")       // converts from m
-```
-
-### Type-Level Setters
-
-```csharp
-wall.SetTypeVal("Fire Rating", "2 hr")         // explicit write to ElementType
-column.SetTypeNum("b", 300, "mm")              // type-level numeric with unit
-GetElements("Walls").SetTypeParam("Fire Rating", "2 hr") // batch update across distinct types
 ```
 
 When no unit is specified for a Double parameter, the handler defaults to the parameter's own display unit (via `GetUnitTypeId()`).
@@ -229,6 +219,11 @@ door.IsStandardDoor()                 // true if NOT hosted on a Curtain Wall
 wall.Materials().Table()              // all Material objects on the element
 wall.MaterialNames()                  // IEnumerable<string>: "Concrete - C-25", "Plaster - Cement"
 wall.GetMaterialNames()              // comma-separated string
+
+// Eco (static, not extension methods)
+Eco.GetCarbon(element)                // kgCO2e
+Eco.GetUValue(element)                // W/m²K
+Eco.GetWeather()                      // live Open-Meteo API for project location
 ```
 
 ---
@@ -278,15 +273,6 @@ GetElements("Doors").WhereParam("Type", "starts", "Interior")
 GetElements("Walls").WhereParam("Type Name", "contains", "HCB")
 ```
 
-### WhereCategory — OR across categories
-
-```csharp
-// Chained WhereParam calls AND together, so select several categories at once:
-GetElements<Element>().WhereCategory("Structural Framing", "Structural Columns", "Floors").Zoom().Isolate()
-// Matching is as lenient as GetElements("Category") strings — both forms work:
-GetElements<Element>().WhereCategory("StructuralFraming", "StructuralColumns", "Floors").Zoom().Isolate()
-```
-
 ### WhereAnyParam
 
 ```csharp
@@ -317,8 +303,8 @@ GetElements("Structural Framing").WhereMaterialNot("Steel")
 
 ```csharp
 GetElements<Wall>()
-    .Where(w => w.GetNum("Unconnected Height", "m") > 3.0)
-    .Table()
+.Where(w => w.GetNum("Unconnected Height", "m") > 3.0)
+.Table()
 ```
 
 ---
@@ -327,12 +313,12 @@ GetElements<Wall>()
 
 ```csharp
 GetElements<FamilyInstance>("Doors")
-    .OrderByParam("Width")
-    .Table()
+.OrderByParam("Width")
+.Table()
 
 GetElements("Structural Columns")
-    .OrderByParamDesc("Volume")
-    .Table()
+.OrderByParamDesc("Volume")
+.Table()
 ```
 
 Automatically uses numeric sorting for Double/Integer parameters, string sorting otherwise.
@@ -372,17 +358,17 @@ All set operations run in a single transaction. All methods are chainable.
 
 ```csharp
 GetElements("Walls")
-    .WhereParam("Fire Rating", "None")
-    .SetParam("Fire Rating", "2 hr")
+.WhereParam("Fire Rating", "None")
+.SetParam("Fire Rating", "2 hr")
 
 GetElements("Structural Columns")
-    .SetParam("Base Offset", -150, "mm")        // with unit conversion
+.SetParam("Base Offset", -150, "mm")        // with unit conversion
 
 GetElements("Doors")
-    .SetParam("Mark", d => $"D-{d.RoomFrom()}")  // dynamic factory
+.SetParam("Mark", d => $"D-{d.RoomFrom()}")  // dynamic factory
 
 GetElements("Walls")
-    .SetParam("Mark", (w, idx) => $"W{idx+1:D3}") // indexed factory
+.SetParam("Mark", (w, idx) => $"W{idx+1:D3}") // indexed factory
 ```
 
 ---
@@ -453,6 +439,9 @@ x.IsPositive() / IsNegative()
 
 ---
 
+
+---
+
 ## 16. Global ScriptApi Methods
 
 These are called directly without a prefix — available in every script.
@@ -474,9 +463,9 @@ Parameters    // parameters from agent/UI context
 Println(message)          // print to console
 Table(object)             // render list as interactive table
 Table(elements)           // render elements (adapts columns to element kind)
-BarChart(data)            // bar chart
-PieChart(data)            // pie chart
-LineChart(data)           // line chart
+BarGraph(data)            // bar chart
+PieGraph(data)            // pie chart
+LineGraph(data)           // line chart
 Show("table", data)       // generic render
 ```
 
@@ -509,31 +498,32 @@ Zoom(elements)            // zoom to fit
 
 ---
 
-## 18. Complete Fluent Chain Examples
+## 17. Complete Fluent Chain Examples
 
 ```csharp
 // Doors on Level 1, sorted by width
 GetElements<FamilyInstance>("Doors")
-    .WhereParam("Level", "Level 1")
-    .StandardDoor()
-    .OrderByParam("Width")
-    .Table()
+.WhereParam("Level", "Level 1")
+.StandardDoor()
+.OrderByParam("Width")
+.Table()
 
 // Concrete framing by type with volume totals
 GetElements("Structural Framing")
-    .WhereMaterial("Concrete")
-    .GroupByParam("Type", "Volume", "m3")
-    .Table()
+.WhereMaterial("Concrete")
+.GroupByParam("Type", "Volume", "m3")
+.Table()
 
 // Find and fix missing fire ratings
 GetElements("Walls")
-    .WhereParam("Fire Rating", "None")
-    .SetParam("Fire Rating", "2 hr")
-    .Select()
+.WhereParam("Fire Rating", "None")
+.SetParam("Fire Rating", "2 hr")
+.Select()
 
 // Heavy columns
 GetElements<StructuralColumn>("Structural Columns")
-    .WhereParam("Volume", ">", 1.0, "m3")
-    .OrderByParamDesc("Volume")
-    .Table()
+.WhereParam("Volume", ">", 1.0, "m3")
+.OrderByParamDesc("Volume")
+.Table()
+
 ```
