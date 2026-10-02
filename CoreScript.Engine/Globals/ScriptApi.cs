@@ -154,34 +154,10 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Table(IEnumerable<Element> elements)
         {
-            var list = elements.ToList();
-            if (list.Count == 0) return;
-
-            // Types / Symbols: FamilySymbol, WallType, FloorType, etc.
-            // Instances:       FamilyInstance, Wall, Floor, etc.
-            var isType = list[0] is ElementType;
-            object compact;
-
-            if (isType)
-            {
-                compact = list.Select(e => (object)new
-                {
-                    Id = e.Id.Value,
-                    Family = e.GetStr("Family Name"),
-                    Type = e.GetStr("Type Name"),
-                    Category = e.Category?.Name ?? ""
-                });
-            }
-            else
-            {
-                compact = list.Select(e => (object)new
-                {
-                    Id = e.Id.Value,
-                    Family = e.GetStr("Family"),
-                    Type = e.GetStr("Type"),
-                    Category = e.Category?.Name ?? ""
-                });
-            }
+            // The element→compact-column adaptation is shared with the .Table() extension;
+            // see Output.AdaptElementsForTable. It used to exist twice and could drift.
+            var compact = Output.AdaptElementsForTable(elements);
+            if (compact == null) return;
 
             Globals.Output.Table(compact);
         }
@@ -276,43 +252,25 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Renders a bar chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void BarChart(object data)
-        {
-            Globals.Output.BarChart(data);
-        }
-
-        /// <summary> Alias for BarChart. </summary>
         public static void BarGraph(object data)
         {
-            Globals.Output.BarChart(data);
+            Globals.Output.BarGraph(data);
         }
 
         /// <summary>
         /// Renders a pie chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void PieChart(object data)
-        {
-            Globals.Output.PieChart(data);
-        }
-
-        /// <summary> Alias for PieChart. </summary>
         public static void PieGraph(object data)
         {
-            Globals.Output.PieChart(data);
+            Globals.Output.PieGraph(data);
         }
 
         /// <summary>
         /// Renders a line chart in the Summary tab. Data should have 'name' and 'value' properties.
         /// </summary>
-        public static void LineChart(object data)
-        {
-            Globals.Output.LineChart(data);
-        }
-
-        /// <summary> Alias for LineChart. </summary>
         public static void LineGraph(object data)
         {
-            Globals.Output.LineChart(data);
+            Globals.Output.LineGraph(data);
         }
 
         /// <summary>

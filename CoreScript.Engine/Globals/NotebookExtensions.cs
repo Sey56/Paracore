@@ -32,9 +32,19 @@ namespace CoreScript.Engine.Globals
                     Directory.CreateDirectory(scratchDir);
                 }
 
-                // Use the scratch directory for both data and notebook
-                string dataFile = Path.Combine(scratchDir, "data.json");
-                string notebookFile = Path.Combine(scratchDir, $"{notebookName}.ipynb");
+                // ⚠ The data file MUST be per-call. It used to be a fixed "data.json", so every
+                // notebook ever generated read the SAME file — reopening an older notebook later
+                // silently loaded the newest data. notebookName is caller-supplied, so sanitize it
+                // before it reaches a path (it also names the .ipynb).
+                var safeName = string.Join("_", notebookName.Split(Path.GetInvalidFileNameChars(),
+                    StringSplitOptions.RemoveEmptyEntries)).Trim();
+                if (string.IsNullOrEmpty(safeName))
+                {
+                    safeName = "Paracore_Analysis";
+                }
+
+                string dataFile = Path.Combine(scratchDir, $"{safeName}_data.json");
+                string notebookFile = Path.Combine(scratchDir, $"{safeName}.ipynb");
 
                 // 1. Serialize Data
                 // Serialize any collection (anonymous types, specific objects) to JSON
