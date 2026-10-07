@@ -139,7 +139,12 @@ try {
     # Bundle paracore-mcp
     $agentSource = Join-Path $ParacoreRoot "paracore-mcp"
     if (Test-Path $agentSource) {
-        robocopy $agentSource (Join-Path $serverReleaseDir "paracore-mcp") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers /XF *.spec *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+        # ⚠⚠ /E copies the WHOLE tree, so this exclusion list is the ONLY thing between the
+        #    working directory and the shipped installer. Verified 2026-10-02 by listing the
+        #    built installer: it contained .workbuddy-ai\memory\*.md (130 KB of agent project
+        #    memory), paracore_mcp.log, and 20 files under spikes\. Keep this list in step
+        #    with what the repo actually accumulates.
+        robocopy $agentSource (Join-Path $serverReleaseDir "paracore-mcp") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers .workbuddy-ai .claude .pytest_cache graphify-out spikes tests /XF *.spec *.pyc *.log .mcp_proc.txt .revit_state.txt .repl_proc.txt /NJH /NJS /NDL /NC /NS /NP | Out-Null
         Write-Host "Bundled paracore-mcp" -ForegroundColor Gray
     }
 
