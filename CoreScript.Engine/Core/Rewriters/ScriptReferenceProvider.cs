@@ -105,10 +105,21 @@ namespace CoreScript.Engine.Core.Rewriters
         /// </summary>
         public static string[] GetImports(bool includeRevitSelection)
         {
+            // ⚠ THIS LIST IS THE IMPORT SURFACE FOR SCRIPTS. A namespace carried
+            // here needs no `using` in any REPL snippet or Gallery script — that is
+            // the whole point of the engine owning it. The doc
+            // (paracore/copilot-instructions.md) and the scaffolded Globals.cs both
+            // describe this list, so add a namespace HERE and nowhere else.
+            //
+            // ⚠ System.Text.RegularExpressions is deliberately ABSENT: it declares
+            // `Group`, which collides with Autodesk.Revit.DB.Group (verified live —
+            // bare `Group` resolves to the Revit type). A script needing Regex must
+            // write `using System.Text.RegularExpressions;` explicitly, exactly like
+            // the RestSharp case.
             var imports = new List<string>
             {
                 "System", "System.IO", "System.Linq", "System.Collections.Generic",
-                "System.Text.Json", "System.Globalization",
+                "System.Text", "System.Text.Json", "System.Globalization",
                 "Microsoft.CSharp",
                 "Autodesk.Revit.DB",
                 "Autodesk.Revit.DB.Architecture",

@@ -128,6 +128,27 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// Regenerates the document — a safe wrapper around <see cref="Document.Regenerate"/>.
+        /// <para>
+        /// ⚠ <b>Why this exists.</b> <c>Doc.Regenerate()</c> requires an open transaction, and
+        /// calling it without one throws Revit's generic
+        /// <i>"Modification of the document is forbidden"</i> — a message that names neither the
+        /// method nor the cause. This wrapper opens the transaction for you, so the safe path is
+        /// also the easy one.
+        /// </para>
+        /// <para>
+        /// ⚠ <b>You usually do not need it.</b> A committed transaction already regenerates, and
+        /// <see cref="ExportImage"/> exports after the model has settled. Reach for <c>Regen()</c>
+        /// only when you must force a regeneration <i>between</i> two reads in the same script,
+        /// outside any transaction of your own.
+        /// </para>
+        /// </summary>
+        public static void Regen()
+        {
+            Transact("Regenerate", () => Doc.Regenerate());
+        }
+
+        /// <summary>
         /// Renders data provided as a specific type in the UI.
         /// </summary>
         /// <param name="type">The type of display (e.g., "table", "chart-bar").</param>

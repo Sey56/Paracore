@@ -91,6 +91,103 @@ namespace Paracore.Addin.Handlers
             byte[]? compiledAssembly = request.CompiledAssembly?.ToByteArray();
             bool hasCompiledAssembly = compiledAssembly != null && compiledAssembly.Length > 0;
 
+            // ── [Confirm("WORD")] — the HUMAN-ONLY gate for agent-driven runs ──────────
+            // ⚠⚠ The engine's own gate (CodeRunner) enforces "a value was supplied and correct",
+            // but it cannot tell WHO supplied it — and the word is readable straight out of the
+            // script source, so an agent can simply type it itself. For an AGENT source we
+            // therefore do not trust the supplied value at all: we ask the person, and only on
+            // approval do we inject the value for the engine's gate to see. The engine stays the
+            // single enforcement point; this is where the human answer comes from.
+            // ⚠ This MUST run BEFORE the 45 s completion timer below. A prompt placed inside the
+            // execution would blow that timer, and the caller would be told "timed out" while the
+            // script then ran anyway the moment the person answered.
+            //
+            // ⚠⚠ `confirmationStatus` is the answer to "DID A PERSON APPROVE THIS?" — the one thing a
+            // caller could not previously tell apart from "there was no gate at all", because both
+            // came back as is_success/user_rejected with nothing in between. It is reported on EVERY
+            // response so no caller has to infer it.
+            string confirmationStatus = ConfirmationStatus.NotEvaluated;
+            if (!IsAgentCall(request.Source))
+            {
+                confirmationStatus = ConfirmationStatus.NotAgentRun;
+            }
+            else if (ConfirmationRequirements.IsDryRunInPayload(parametersJsonStr))
+            {
+                // ⚠⚠ A DRY RUN IS OUT OF SCOPE — and it must be, or the two halves of the rule
+                // disagree. CodeRunner deliberately exempts dry runs (rolled back, and refusing them
+                // would remove the only safe way to preview a destructive script). Prompting here
+                // would gate a run the engine considers ungated, and cost the agent its safe path.
+                // The exemption is read through the SHARED helper so the scope is stated once.
+                confirmationStatus = ConfirmationStatus.DryRunExempt;
+            }
+            else if (string.IsNullOrWhiteSpace(scriptContentStr))
+            {
+                // ⚠ An AGENT run we cannot inspect (a compiled assembly with no source). The gate
+                // cannot be armed from a script we do not have — so say so, rather than report a
+                // clean "not_required" for a run that was never checked.
+                confirmationStatus = ConfirmationStatus.Unavailable;
+            }
+            else
+            {
+                Dictionary<string, string> requirements;
+                try
+                {
+                    requirements = ConfirmationRequirements.FromPayload(
+                        scriptContentStr, _scriptCombiner, new ParameterExtractor(_logger));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[ScriptExecutionHandler] Could not read [Confirm] requirements: {ex.Message}");
+                    return new ExecuteScriptResponse
+                    {
+                        IsSuccess = false,
+                        ErrorMessage = "⛔ Confirmation could not be verified — nothing was executed.",
+                        UserRejected = true,
+                        Confirmation = ConfirmationStatus.Unavailable
+                    };
+                }
+
+                if (requirements.Count == 0)
+                {
+                    confirmationStatus = ConfirmationStatus.NotRequired;
+                }
+                else
+                {
+                    string toolName = ReadScriptName(parametersJsonStr);
+                    _logger.Log($"[ScriptExecutionHandler] [Confirm] {requirements.Count} requirement(s) for '{toolName}' — asking the user.", LogLevel.Debug);
+
+                    // ⚠ Not named `approved` — that name is already the SessionGate result above.
+                    var confirmApproved = await CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext<Dictionary<string, string>>(() =>
+                    {
+                        var ok = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var kv in requirements)
+                        {
+                            string word = ConfirmationRequirements.Literal(kv.Value);
+                            if (!ConfirmationPrompt.Ask(toolName, kv.Key, word))
+                                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            ok[kv.Key] = word;
+                        }
+                        return ok;
+                    });
+
+                    if (confirmApproved.Count == 0)
+                    {
+                        _logger.Log("[ScriptExecutionHandler] [Confirm] declined by the user — nothing executed.", LogLevel.Debug);
+                        return new ExecuteScriptResponse
+                        {
+                            IsSuccess = false,
+                            ErrorMessage = "⛔ Confirmation declined — nothing was executed.",
+                            UserRejected = true,
+                            Confirmation = ConfirmationStatus.UserDeclined
+                        };
+                    }
+
+                    parametersJsonStr = InjectConfirmations(parametersJsonStr, confirmApproved);
+                    confirmationStatus = ConfirmationStatus.UserConfirmed;
+                    _logger.Log($"[ScriptExecutionHandler] [Confirm] approved by the user for '{toolName}'.", LogLevel.Debug);
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(scriptContentStr) && !hasCompiledAssembly)
             {
                 _logger.Log("[ScriptExecutionHandler] Script content is empty and no compiled assembly provided.", LogLevel.Debug);
@@ -174,6 +271,8 @@ namespace Paracore.Addin.Handlers
                 IsSuccess = finalResult.IsSuccess,
                 Output = combinedOutput,
                 ErrorMessage = finalResult.ErrorMessage ?? "",
+                // ⚠ Set on EVERY path out of this method that reaches the gate — see ConfirmationStatus.
+                Confirmation = confirmationStatus,
             };
 
             if (finalResult.ErrorDetails != null)
@@ -230,6 +329,78 @@ namespace Paracore.Addin.Handlers
 
             response.InternalData = "";
             return response;
+        }
+
+        private static bool IsAgentCall(string? source)
+            => (source ?? "paracore").Contains("agent", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The <c>__script_name__</c> reserved parameter, so the prompt can name the tool being run.
+        /// </summary>
+        private static string ReadScriptName(string parametersJson)
+        {
+            try
+            {
+                var node = JsonNode.Parse(parametersJson);
+                if (node is JsonArray arr)
+                {
+                    foreach (var item in arr)
+                    {
+                        if (item is JsonObject o && o["name"]?.ToString() == "__script_name__")
+                            return o["value"]?.ToString() ?? "Unknown tool";
+                    }
+                }
+                else if (node is JsonObject jo && jo["__script_name__"] != null)
+                {
+                    return jo["__script_name__"]!.ToString();
+                }
+            }
+            catch { }
+            return "Unknown tool";
+        }
+
+        /// <summary>
+        /// Writes the approved confirmation values into the parameter payload so the engine's gate
+        /// sees a matching value. ⚠ The payload is a JSON ARRAY for Forge calls and a plain OBJECT
+        /// for others — both shapes are handled, because <c>ParameterService.MapParameters</c>
+        /// branches on the JSON root.
+        /// </summary>
+        private static string InjectConfirmations(string parametersJson, Dictionary<string, string> approved)
+        {
+            JsonNode? root = null;
+            try { root = string.IsNullOrWhiteSpace(parametersJson) ? null : JsonNode.Parse(parametersJson); }
+            catch { root = null; }
+
+            if (root is JsonArray arr)
+            {
+                foreach (var kv in approved)
+                {
+                    JsonObject? hit = null;
+                    foreach (var item in arr)
+                    {
+                        if (item is JsonObject o &&
+                            string.Equals(o["name"]?.ToString(), kv.Key, StringComparison.OrdinalIgnoreCase))
+                        {
+                            hit = o;
+                            break;
+                        }
+                    }
+
+                    if (hit != null) hit["value"] = kv.Value;
+                    else arr.Add(new JsonObject { ["name"] = kv.Key, ["value"] = kv.Value });
+                }
+                return arr.ToJsonString();
+            }
+
+            if (root is JsonObject obj)
+            {
+                foreach (var kv in approved) obj[kv.Key] = kv.Value;
+                return obj.ToJsonString();
+            }
+
+            var fresh = new JsonArray();
+            foreach (var kv in approved) fresh.Add(new JsonObject { ["name"] = kv.Key, ["value"] = kv.Value });
+            return fresh.ToJsonString();
         }
 
         /// <summary>
