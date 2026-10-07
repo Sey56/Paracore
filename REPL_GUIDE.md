@@ -126,6 +126,8 @@ For the complete catalog with every overload and parameter pattern, see **[EXTEN
 | OrderByParam / GroupByParam / SumParam | [Collection: Sorting](EXTENSION_METHODS.md#10-collection-sorting) + [Grouping](EXTENSION_METHODS.md#11-collection-grouping--aggregation) |
 | SetParam (bulk write) | [Collection: Bulk Write](EXTENSION_METHODS.md#12-collection-bulk-write) |
 | Table / BarGraph / PieGraph / LineGraph | [Global ScriptApi](EXTENSION_METHODS.md#16-global-scriptapi-methods) |
+| ExportImage (view → image file) | [Global ScriptApi](EXTENSION_METHODS.md#16-global-scriptapi-methods) |
+| Regen (force a regeneration) | [Global ScriptApi](EXTENSION_METHODS.md#16-global-scriptapi-methods) |
 | Select / Zoom / Isolate / Hide / Delete | [Element UI](EXTENSION_METHODS.md#8-element-revit-ui-actions) + [Collection UI](EXTENSION_METHODS.md#13-collection-revit-ui-actions) |
 | RoomFrom / RoomTo / Handing / StandardDoor | [Door/Window](EXTENSION_METHODS.md#5-element-specialized-doorwindow) |
 | InputUnit / OutputUnit / FormatUnit / ToMeters / precision comparisons | [Numeric & Unit Helpers](EXTENSION_METHODS.md#15-numeric--unit-helpers) |
@@ -276,6 +278,13 @@ Transact("Remove overlapping columns", () => {
 
 // Isolate walls without a mark
 GetElements<Wall>().WhereParam("Mark", "").Isolate()
+
+// See the model — export the active view; returns the ACTUAL file path (Revit
+// appends the view name and may write .jpg even when PNG is requested)
+ExportImage(@"C:\tmp\current")
+
+// Export a named view at 2000 px
+ExportImage(@"C:\tmp\north-elev", "North Elevation", 2000)
 
 // Structural walls ≥ 300 mm wide
 GetElements<Wall>()

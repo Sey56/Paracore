@@ -486,7 +486,13 @@ GetCategories()                             // all Revit categories in doc
 ```csharp
 Transact("My Operation", () => { /* modify doc */ });
 Transact("With Doc Access", doc => { /* use doc */ });
+Regen()                   // regenerate the document (opens the transaction for you)
 ```
+
+⚠ `Doc.Regenerate()` requires an open transaction — called outside one it throws *"Modification of
+the document is forbidden"*, which names neither the method nor the cause. `Regen()` wraps it.
+You rarely need it: a committed transaction already regenerates, and `ExportImage` exports after the
+model has settled.
 
 ### UI Actions (on collections, without prefixes)
 
@@ -495,6 +501,38 @@ Select(elements)          // select + zoom in Revit
 Isolate(elements)         // isolate + zoom
 Zoom(elements)            // zoom to fit
 ```
+
+### Image Export
+
+Render a view to an image file — how a script, or an AI agent driving the REPL, **looks** at what
+it built. Returns the path that was actually written.
+
+```csharp
+// Active view → returns the file that exists
+var shot = ExportImage(@"C:\tmp\current");
+
+// A named view, at 2000 px
+var elev = ExportImage(@"C:\tmp\north-elev", "North Elevation", 2000);
+
+// Keep the level/grid tags in the picture (they are suppressed by default)
+var tagged = ExportImage(@"C:\tmp\tagged", "Ground Floor", 2000, hideAnnotation: false);
+```
+
+⚠ **Use the RETURN value — it is the file that exists, not the path you passed.** Revit appends the
+view identity to the base name and may change the extension: asking for `C:\tmp\shot` on the default
+3D view writes `C:\tmp\shot - 3D View - {3D}.jpg`. **A 3D or shaded view is written as `.jpg` even
+though PNG is requested.**
+
+⚠ **Annotation is suppressed by default** (`hideAnnotation: true`). Revit's export does not clip
+annotation to the view, so level heads, grid bubbles and elevation/section marks are drawn wherever
+they sit — and because the whole extent is fitted to the page, they **shrink the subject**. A plan
+view with elevation markers beside it renders the building into a fraction of the frame. The whole
+`CategoryType.Annotation` set is hidden for the export and restored afterwards (no undo entry).
+
+- Pass the path **without** an extension. The directory is created if it does not exist.
+- `viewName` omitted ⇒ the **active view**. Matched case-insensitively; view templates are rejected.
+- **No `Transact()` needed** — the suppression transaction is opened and rolled back internally, so
+  the model and the view are unchanged when this returns.
 
 ---
 
