@@ -152,3 +152,18 @@ target/
 .kilo/
 .workbuddy-ai/
 *.log
+
+# REPL instruments -- the gates live here (master spec section 4); the rest of
+# .repl/ is scratch. Only the allowlisted files below are tracked, so new probe
+# files stay local and the repo does not grow.
+.repl/*
+!.repl/LEARNINGS.md
+!.repl/_api_surface_check.py
+!.repl/_mcp_engine_drift.py
+!.repl/baseline.py
+!.repl/check_compliance.py
+!.repl/run_section_scope_tests.py
+!.repl/verify_gen_docs.py
+
+# Build log written by build-addin.ps1 -- generated, not source
+scripts/addin_build_log.txt
