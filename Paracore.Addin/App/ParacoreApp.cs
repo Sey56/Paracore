@@ -112,10 +112,14 @@ namespace Paracore.Addin.App
         }
 
         // ------------------------------------------------------------------
-        // Pro hooks. Declared here so this shared file compiles in BOTH
-        // repos; implemented only in ParacoreApp.Pro.cs, which ships in the
-        // Pro repo alone. C# erases an unimplemented partial method and its
-        // call site entirely, so the free add-in pays nothing for these.
+        // Partial hooks. Declared here so this shared file compiles in BOTH
+        // repos; the bodies live elsewhere. C# erases an unimplemented partial
+        // method and its call site entirely, so a repo that omits a body pays
+        // nothing for it.
+        //   • LoadProSettings / AddProRibbonButtons → ParacoreApp.Pro.cs (PRO-ONLY)
+        //   • RegisterBackgroundHooks → ParacoreApp.Sentinels.cs (⚠ SHARED since
+        //     2026-10-08: Sentinels/watchdogs became a FREE capability, so its
+        //     body ships in both repos. Do not move it back to the Pro file.)
         // ------------------------------------------------------------------
         partial void LoadProSettings();
         partial void RegisterBackgroundHooks(Autodesk.Revit.UI.UIControlledApplication app);

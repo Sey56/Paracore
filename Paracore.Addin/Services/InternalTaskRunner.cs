@@ -129,11 +129,14 @@ namespace Paracore.Addin.Services
         // ------------------------------------------------------------------
         // Sentinels (watchdog) RPCs.
         //
-        // The wire contract is shared, so these three methods exist in BOTH repos and the
-        // dispatcher stays identical. The IMPLEMENTATION is Pro-only: each fills its
-        // response through an optional partial method, which C# erases entirely when no
-        // half implements it. The free add-in therefore answers an empty watchdog list and
-        // an explicit "Pro feature" message, with no watchdog code compiled in at all.
+        // ⚠ FREE (non-Pro) as of 2026-10-08 (user ruling). The watchdog mechanism is generic
+        // background execution, so it ships with EVERY tier: the three implementations live in
+        // InternalTaskRunner.Sentinels.cs, which is a SHARED file now — not a Pro half.
+        //
+        // Each hook FILLS a fresh response. Nothing is pre-seeded here on purpose: the old
+        // code seeded `IsSuccess = false` + "requires the Paracore Pro Add-in (Sentinels)" and
+        // relied on the Pro hook to overwrite it. That message is false now, and a default that
+        // exists only to be overwritten is a landmine if a hook ever returns early.
         // ------------------------------------------------------------------
 
         public GetWatchdogStatusResponse GetWatchdogStatus()
@@ -147,11 +150,7 @@ namespace Paracore.Addin.Services
 
         public Task<RegisterWatchdogSourceResponse> RegisterWatchdogSource(RegisterWatchdogSourceRequest request)
         {
-            var response = new RegisterWatchdogSourceResponse
-            {
-                IsSuccess = false,
-                ErrorMessage = ProFeatureMessage("RegisterWatchdogSource")
-            };
+            var response = new RegisterWatchdogSourceResponse();
             FillRegisterWatchdogSource(request, response);
             return Task.FromResult(response);
         }
@@ -160,19 +159,12 @@ namespace Paracore.Addin.Services
 
         public Task<UnregisterWatchdogSourceResponse> UnregisterWatchdogSource(UnregisterWatchdogSourceRequest request)
         {
-            var response = new UnregisterWatchdogSourceResponse
-            {
-                IsSuccess = false,
-                ErrorMessage = ProFeatureMessage("UnregisterWatchdogSource")
-            };
+            var response = new UnregisterWatchdogSourceResponse();
             FillUnregisterWatchdogSource(request, response);
             return Task.FromResult(response);
         }
 
         partial void FillUnregisterWatchdogSource(UnregisterWatchdogSourceRequest request, UnregisterWatchdogSourceResponse response);
-
-        private static string ProFeatureMessage(string rpc) =>
-            $"'{rpc}' requires the Paracore Pro Add-in (Sentinels).";
 
         public Task<UpdateElementParameterResponse> UpdateElementParameter(UpdateElementParameterRequest request)
         {
