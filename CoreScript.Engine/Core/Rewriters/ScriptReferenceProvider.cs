@@ -22,6 +22,52 @@ namespace CoreScript.Engine.Core.Rewriters
     public static class ScriptReferenceProvider
     {
         /// <summary>
+        /// The FACADE layer of the shared framework.
+        ///
+        /// ⚠⚠ THIS LIST IS WHY THE PIPELINE TRACKER USED TO BREAK COMPILATION.
+        ///
+        /// <see cref="GetCoreReferences"/> resolves <c>typeof(object).Assembly</c>,
+        /// i.e. <b>System.Private.CoreLib</b> — the IMPLEMENTATION assembly. But
+        /// every assembly built against .NET Core names the FACADE as the home of
+        /// the framework types: RevitAPI.dll says <c>System.Object</c>,
+        /// <c>System.Enum</c> and <c>IList&lt;&gt;</c> live in
+        /// <c>System.Runtime, Version=8.0.0.0</c>. With no facade present Roslyn
+        /// answers CS0012 — "The type 'Object' is defined in an assembly that is
+        /// not referenced" — for EVERY Revit type, so a throwaway compilation that
+        /// omits these facades can bind almost nothing.
+        ///
+        /// That mattered because of WHO compiles a throwaway: the script itself is
+        /// compiled through <c>CSharpScript</c>, whose
+        /// <c>ScriptOptions.Default</c> carries a RuntimeMetadataReferenceResolver
+        /// that supplies the facades automatically. <c>SemanticTrackingGuard</c>
+        /// builds a bare <c>CSharpCompilation</c> from the explicit list only, so
+        /// it got CoreLib and no facades — its own XML doc claims it uses "the SAME
+        /// references … as the real compilation", and that was false.
+        ///
+        /// Consequence (measured 2026-10-08, out of process, against the real
+        /// guard): in any submission touching the Revit API the guard resolved
+        /// nothing, every candidate fell through its unresolved branch, and the
+        /// rewriter wrapped calls it must not wrap. A legal
+        /// <c>StringBuilder.Append</c> became
+        /// <c>TrackEnumerable&lt;T&gt;(IEnumerable&lt;T&gt;)</c> and failed with
+        /// CS0411 — StringBuilder implements nothing but ISerializable — reported
+        /// at the REWRITTEN coordinates (7,44). Adding just these facades turned
+        /// the guard's verdict on that call from UNRESOLVED (=WRAP) to SKIPPED and
+        /// the submission compiled clean.
+        ///
+        /// They are additive: a facade only type-forwards, so it does not collide
+        /// with CoreLib's definitions.
+        /// </summary>
+        private static readonly string[] FrameworkFacades =
+        {
+            "System.Runtime.dll",
+            "System.Collections.dll",
+            "netstandard.dll",
+            "System.Runtime.Extensions.dll",
+            "System.Console.dll",
+        };
+
+        /// <summary>
         /// Core + engine + third-party metadata references (mirror of the list
         /// previously built inline by ScriptCompiler.GetScriptOptions and
         /// ReplSessionManager). A fresh list is returned on every call —
@@ -75,6 +121,26 @@ namespace CoreScript.Engine.Core.Rewriters
                 if (File.Exists(dllPath))
                 {
                     coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
+                }
+            }
+
+            // The facade layer — see FrameworkFacades above for why its absence
+            // silently disabled SemanticTrackingGuard. Resolved from the directory
+            // that holds System.Private.CoreLib, i.e. the shared framework the
+            // engine is actually running on.
+            string frameworkDir = Path.GetDirectoryName(typeof(object).Assembly.Location) ?? "";
+            if (!string.IsNullOrEmpty(frameworkDir))
+            {
+                foreach (var facade in FrameworkFacades)
+                {
+                    string facadePath = Path.Combine(frameworkDir, facade);
+                    if (!File.Exists(facadePath))
+                    {
+                        FileLogger.LogWarning($"[{logPrefix}] Framework facade not found: {facade}");
+                        continue;
+                    }
+                    try { coreRefs.Add(MetadataReference.CreateFromFile(facadePath)); }
+                    catch { FileLogger.LogWarning($"[{logPrefix}] Could not reference framework facade {facade}"); }
                 }
             }
 

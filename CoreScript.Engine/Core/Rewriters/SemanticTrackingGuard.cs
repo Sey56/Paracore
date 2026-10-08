@@ -71,14 +71,49 @@ namespace CoreScript.Engine.Core.Rewriters
 
                 var model = compilation.GetSemanticModel(tree);
 
-                foreach (var node in tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>())
-                {
-                    if (!TryGetTrackedName(node, out var name))
-                        continue;
+                // ⚠ THE FAIL-OPEN GATE.
+                //
+                // If this throwaway compilation cannot bind — missing references, a
+                // typo in the submission, a variable that does not exist yet — then
+                // its answers are untrustworthy, and the rewriter's fallback for an
+                // unresolved call is to WRAP it. Wrapping is only ever valid when
+                // the receiver really is IEnumerable<T>. When it is not, the user
+                // gets an engine-branded compile error (CS0411) for code that is
+                // perfectly legal, with a line number pointing into the injected
+                // wrapper. Skipping instead costs one pipeline token.
+                //
+                // So: an unusable analysis skips EVERY candidate. That is the
+                // deliberate principle — a failed rewrite falls back to the
+                // original expression rather than failing the compile.
+                //
+                // A CLEAN compilation keeps the old behaviour on purpose: there an
+                // unresolved call is a variable declared in an EARLIER submission,
+                // and wrapping those is exactly what makes a cross-submission chain
+                // still report its counts.
+                bool analysisUsable = !compilation.GetDiagnostics()
+                    .Any(d => d.Severity == DiagnosticSeverity.Error);
 
+                var candidates = new List<(InvocationExpressionSyntax Node, string Name)>();
+                foreach (var node in tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>())
+                    if (TryGetTrackedName(node, out var candidateName))
+                        candidates.Add((node, candidateName));
+
+                if (!analysisUsable)
+                {
+                    foreach (var (node, name) in candidates)
+                    {
+                        int mappedAll = node.Span.Start - prefix.Length;
+                        if (mappedAll >= 0)
+                            skip.Add((mappedAll, name));
+                    }
+                    return skip;
+                }
+
+                foreach (var (node, name) in candidates)
+                {
                     var method = model.GetSymbolInfo(node).Symbol as IMethodSymbol;
                     if (method == null)
-                        continue; // unresolved → keep current (wrap) behavior
+                        continue; // unresolved in a CLEAN compilation → earlier-submission variable → wrap
 
                     if (!ShouldSkip(name, method))
                         continue;
@@ -133,6 +168,19 @@ namespace CoreScript.Engine.Core.Rewriters
             {
                 if (cur.SpecialType == SpecialType.System_Collections_IEnumerable)
                     return true;
+
+                // ⚠ The type ITSELF, not only its interfaces. AllInterfaces EXCLUDES
+                // the type it is called on, so `IEnumerable<T>` — the return type of
+                // Where, Select, Take, Skip, Distinct, Concat, … — matched nothing
+                // below and was reported NOT enumerable-like. Every such call was
+                // then SKIPPED, i.e. the pipeline silently reported nothing at all.
+                // (Measured 2026-10-08 out of process: with the reference set fixed,
+                // `Where` moved from WRAP to SKIP purely because of this missing
+                // self-test.)
+                if (cur.OriginalDefinition.SpecialType
+                        == SpecialType.System_Collections_Generic_IEnumerable_T)
+                    return true;
+
                 if (cur.AllInterfaces.Any(i =>
                     i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T))
                     return true;

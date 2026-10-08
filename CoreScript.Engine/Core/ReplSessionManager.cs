@@ -122,9 +122,23 @@ namespace CoreScript.Engine.Core
                 var pipelineRewriter = new Rewriters.PipelineTrackingRewriter(skipCalls);
                 code = pipelineRewriter.Visit(replRoot).ToFullString();
 
-                // Inject ScriptApi and resolve Parameter ambiguity
+                // Inject ScriptApi and resolve Parameter ambiguity, then RE-ANCHOR
+                // THE LINE NUMBERING.
+                //
+                // ⚠ `#line 1 "script"` is not cosmetic. The two prepended using
+                // lines used to push every diagnostic down by exactly 2 — measured
+                // on five independent failures, every one +2 — so the engine told
+                // its callers to look at the wrong line, and the single most
+                // reported complaint about this engine was exactly that. With the
+                // directive in place GetMappedLineSpan() returns the USER's line.
+                //
+                // The column cannot be fixed this way (a #line directive never
+                // remaps columns, and the rewriter really did insert text at that
+                // offset); DiagnosticMapper.MapReplDiagnostics subtracts the
+                // injected wrapper prefix instead. Both are needed.
                 string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
                                   "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine +
+                                  "#line 1 \"script\"" + Environment.NewLine +
                                   code;
 
                 if (session == null)
@@ -361,6 +375,21 @@ namespace CoreScript.Engine.Core
 
                 return (true, finalOutput, string.Empty, structuredOutput);
             }
+            catch (Microsoft.CodeAnalysis.Scripting.CompilationErrorException cex)
+            {
+                // A compile error is the ONE thing the caller most needs to be
+                // accurate, so it is reported in the user's own coordinates rather
+                // than in the text the engine actually compiled. `code` here is the
+                // REWRITTEN submission, which is what MapReplDiagnostics needs to
+                // locate (and subtract) the injected wrapper prefixes.
+                LicenseContext.Reset();
+                var mapped = DiagnosticMapper.MapReplDiagnostics(cex.Diagnostics, code, InjectedPreludeLines);
+                string message = mapped.Count > 0
+                    ? string.Join(Environment.NewLine, mapped.Select(m => m.ToString()))
+                    : cex.Message;
+                FileLogger.LogError($"[REPL] Compile error: {message}");
+                return (false, string.Empty, message, new List<string>());
+            }
             catch (Exception ex)
             {
                 LicenseContext.Reset();
@@ -368,6 +397,12 @@ namespace CoreScript.Engine.Core
                 return (false, string.Empty, ex.Message, new List<string>());
             }
         }
+
+        /// <summary>
+        /// Lines this class prepends to every submission. DiagnosticMapper
+        /// subtracts them to map a diagnostic back onto the user's own line.
+        /// </summary>
+        private const int InjectedPreludeLines = 2;
 
         private const int MAX_SESSIONS = 40;
 
