@@ -214,6 +214,16 @@ message ExecuteScriptResponse {
   string agent_summary = 7;
   repeated int32 pipeline_diagnostics = 8;
   bool user_rejected = 9;        // session gate: user clicked Reject
+  // Who satisfied the [Confirm("WORD")] gate for this run — so a caller can tell a run a
+  // PERSON approved from a run with no gate at all. Values:
+  //   ""               the gate was never reached (the run failed before it)
+  //   "not_required"   the script declares no [Confirm]
+  //   "not_agent_run"  not an agent run, so no dialog was involved
+  //   "dry_run_exempt" a dry run — the engine's gate exempts dry runs by design
+  //   "user_confirmed" an agent run; a person typed the word in the Revit dialog
+  //   "user_declined"  an agent run; the person declined (user_rejected is also true)
+  //   "unavailable"    the [Confirm] requirements could not be read; the run was refused
+  string confirmation = 10;
 }
 
 message GetStatusRequest {
@@ -228,6 +238,11 @@ message GetStatusResponse {
   string document_type = 6;
   string revit_install_path = 7;
   string addin_server_path = 8;
+  // ⚠ RECONCILED 2026-10-07 — this field was already declared by the generated Python stub
+  // (corescript_pb2.py) and already READ by rap-server/server/api/status_router.py, but it was
+  // missing here. Regenerating the stub from this file would have silently dropped it. The
+  // proto is the authority; the stub and the consumer agreed with each other and not with it.
+  bool is_pro = 9;
 }
 
 message GetScriptMetadataRequest {
@@ -294,6 +309,9 @@ message ScriptParameter {
   string enabled_when_value = 22;
   string unit = 23;
   string selection_type = 24;
+  // Extension list declared by [InputFile("csv,txt")] / [OutputFile("pdf")], e.g. "pdf".
+  // Carried to the UI so the file dialog offers the right "Save as type" filter.
+  string filter = 25;
 }
 
 message GetBulkMetadataRequest {

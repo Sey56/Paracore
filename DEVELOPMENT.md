@@ -95,19 +95,28 @@ The TopBar shows green when all three are connected (e.g. "Paracore Connected | 
 
 ## gRPC & Protobuf
 
-The service definition is `protos/corescript.proto`. After changing it:
+`protos/corescript.proto` is the **ONE authority** for the Revit wire contract. After changing it:
 
 ```bash
-cd rap-server/server
-python sync_protos.py   # regenerates Python stubs + copies .proto to VS Code extension
+python scripts/gen-protos.py --check   # contract gate; exit 1 on any drift
+python scripts/gen-protos.py --write   # copy the proto, regenerate only drifted stubs
 ```
 
-Both `rap-server` and `corescript-vscode` share the same gRPC contract.
+Run it with a python that has both `grpcio-tools` and `protobuf` (the `rap-server` venv qualifies).
+
+⚠ **Every other copy is GENERATED — edit the authority, never a copy:**
+
+- `corescript-vscode/proto/corescript.proto` — a runtime copy, shipped inside the `.vsix` and loaded by `@grpc/proto-loader`. Compared byte-for-byte.
+- `paracore-mcp` / `paracore-forge` / `paracore-takeoff` — each checks in a generated `corescript_pb2*.py`. Compared by CONTRACT, so a `protoc` toolchain bump never churns nine files.
+
+`Paracore.Addin` and `Paracore.Server` compile the authority directly through MSBuild, so they cannot drift. `rap-server` has no stub of its own — it resolves `grpc_client` and `corescript_pb2` from `paracore-mcp` at runtime (see the `sys.path` resolution in `main.py`).
+
+⚠ **A stale proto fails SILENTLY.** Protobuf reads a missing field as its default, so nothing throws — the caller simply behaves as if the answer were "no". That is why this is a gate, not a report. It is also why the VS Code copy sat three fields behind for three months without anyone noticing.
 
 ## Cross-Repo
 
-This is the **public** repo (MIT) — the free add-in, desktop app, and VS Code extension.
+This is the **public** repo (MIT) — the generic add-in, engine, desktop app, and VS Code extension.
 
-The **private** `paracore-pro` repo contains commercial extensions (TakeOff, Rebar, MEP) and specialized MCP servers. Both add-ins share the same gRPC proto, ClientId, and install folder — swapping between them is just file overwrite.
+⚠⚠ **`paracore-pro` no longer exists (deleted 2026-10-09, user ruling).** There is **no Pro add-in and no second engine tree.** The engine and add-in here are **always free and generic**, and they are the **single source of truth** for engine code — there is nothing to sync and nothing to copy down.
 
-Bug fixes to base engine/add-in should be made here first, then copied to `paracore-pro`. Commercial features are developed in `paracore-pro` only.
+A **pack** — the Pro/free unit — lives in **its own tool's repo** (e.g. `paracore-takeoff/pack/`), never here and never in a shared tree. The specialist MCPs (`paracore-mcp`, `paracore-forge`, `paracore-takeoff`) are separate sibling repos, each with its own exe and installer.
