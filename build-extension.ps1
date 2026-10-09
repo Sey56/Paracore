@@ -50,6 +50,18 @@ if (-not (Test-Path (Join-Path $ExtensionDir 'node_modules'))) {
     exit 1
 }
 
+# `vsce package` asks "Do you want to continue? [y/N]" when no LICENSE file is present, and
+# there is NO flag to suppress that one. Fail here, with a clear message, rather than letting
+# the build stop and wait for an answer that nothing is going to supply.
+$licenseFile = @('LICENSE', 'LICENSE.md', 'LICENSE.txt') |
+    ForEach-Object { Join-Path $ExtensionDir $_ } |
+    Where-Object { Test-Path $_ } |
+    Select-Object -First 1
+if (-not $licenseFile) {
+    Write-Error "No LICENSE / LICENSE.md / LICENSE.txt in $ExtensionDir - 'vsce package' would stop and prompt. Add one."
+    exit 1
+}
+
 $Manifest     = Get-Content -Path $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $ExtensionId  = "$($Manifest.publisher).$($Manifest.name)"
 $ExtensionVer = $Manifest.version
@@ -65,19 +77,17 @@ try {
 
     # --- 2. Package (this also runs the production webpack build) ---
     Write-Host 'Packaging VS Code extension...' -ForegroundColor Yellow
-    # `vsce` prompts y/N about the missing `repository` field in package.json.
-    # The old bash script answered with `yes |`; feed the same stream of lines here.
-    $yesLines = @('y') * 100
-    $yesLines | & vsce package
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "vsce package failed with exit code $LASTEXITCODE"
-        exit 1
-    }
+    # `vsce` prompts y/N when `package.json` has no `repository` field. NEVER answer that by
+    # piping into stdin: `vsce` resolves to the vsce.ps1 shim, and a second sequential
+    # readline prompt hits EOF, silently reads it as "no", aborts the package - and still
+    # exits 0, so an exit-code check does not catch it either. Pass the flag instead.
+    & vsce package --allow-missing-repository
+    $vsceExit = $LASTEXITCODE
 
     $vsixFile = Get-ChildItem -Path $ExtensionDir -Filter 'corescript-*.vsix' |
         Select-Object -First 1
     if (-not $vsixFile) {
-        Write-Error 'Could not find the packaged .vsix file.'
+        Write-Error "vsce produced no .vsix (exit code $vsceExit). Run 'vsce package' by hand in $ExtensionDir to see the real error."
         exit 1
     }
     Write-Host "Extension packaged: $($vsixFile.Name)" -ForegroundColor Green
