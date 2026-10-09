@@ -12,7 +12,7 @@ WHY THIS EXISTS
         and is loaded by `@grpc/proto-loader`, so it cannot simply point at `../protos` on a
         user's machine. A copy CAN drift, and it did: found on 2026-10-09 at three fields and
         three months behind the authority.
-      * `paracore-mcp` / `paracore-forge` / `paracore-takeoff` — each checks in a GENERATED
+      * `paracore-gen` / `paracore-forge` / `paracore-takeoff` — each checks in a GENERATED
         `corescript_pb2*.py`. None of them had a generator script, so regenerating was an
         undocumented manual step, and the only script that did regenerate stubs wrote them into
         `rap-server/server/`, a directory with no consumer at all.
@@ -59,7 +59,7 @@ VSCODE_LABEL = "corescript-vscode/proto/corescript.proto"
 
 # Every repo that checks in a generated stub, as (label, repo_root).
 STUB_REPOS = [
-    ("paracore-mcp", SIB / "paracore-mcp"),
+    ("paracore-gen", SIB / "paracore-gen"),
     ("paracore-forge", SIB / "paracore-forge"),
     ("paracore-takeoff", SIB / "paracore-takeoff"),
 ]

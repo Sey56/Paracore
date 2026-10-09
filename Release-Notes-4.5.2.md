@@ -27,7 +27,7 @@ LINQ code through the core framework.
 
 **Also:**
 - MCP server installer now uses `restartreplace` to handle cases where
-  `paracore-mcp.exe` is locked by a running client during reinstall
+  `paracore-gen.exe` is locked by a running client during reinstall
 
 **Should you upgrade?**
 - If you hit the `System.Linq.dll` error → yes, install this patch

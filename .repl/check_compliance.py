@@ -9,7 +9,7 @@ import os
 import re
 import sys
 
-sys.path.insert(0, r"C:\Users\seyou\Paracore\paracore-mcp")
+sys.path.insert(0, r"C:\Users\seyou\Paracore\paracore-gen")
 
 from mcp_core.tool_helpers import (  # noqa: E402
     _ANTI_PATTERNS,

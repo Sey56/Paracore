@@ -23,7 +23,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ENG = ROOT / "CoreScript.Engine"
-DOC = Path(r"C:\Users\seyou\Paracore\paracore-mcp\EXTENSION_METHODS.md")
+DOC = Path(r"C:\Users\seyou\Paracore\paracore-gen\EXTENSION_METHODS.md")
 
 VERBOSE = "--verbose" in sys.argv
 STRICT = "--strict" in sys.argv

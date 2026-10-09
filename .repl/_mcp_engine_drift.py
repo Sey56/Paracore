@@ -1,7 +1,7 @@
 """Cross-check the MCP instruction surfaces against the engine's ACTUAL public members.
 
 WHY THIS EXISTS
-    paracore-mcp and paracore-takeoff never load CoreScript.Engine — they reach Revit
+    paracore-gen and paracore-takeoff never load CoreScript.Engine — they reach Revit
     over gRPC. Their coupling to the engine is therefore *documentation*: prompt and
     skill files that TELL the AI which methods to emit. A method retired in the engine
     but still named in a prompt is invisible to the compiler and to every build — the
@@ -32,10 +32,10 @@ import sys
 from pathlib import Path
 
 PRO = Path(r"C:\Users\seyou\Paracore\paracore-pro")
-# ⚠ paracore-mcp is a SIBLING of paracore-pro, NOT inside it. A path relative to PRO
+# ⚠ paracore-gen is a SIBLING of paracore-pro, NOT inside it. A path relative to PRO
 # silently matched only the takeoff generators, which made the scan look alive while
 # covering ~5% of the surface. Measure the population, never assume the path.
-MCP = Path(r"C:\Users\seyou\Paracore\paracore-mcp")
+MCP = Path(r"C:\Users\seyou\Paracore\paracore-gen")
 TAKEOFF = PRO / "rap-server" / "server" / "takeoff"
 
 # ---- 1. engine public members ------------------------------------------------

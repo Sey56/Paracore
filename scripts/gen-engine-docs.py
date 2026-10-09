@@ -1,4 +1,4 @@
-"""Generate the repo copies of the shared engine docs from the authority in paracore-mcp.
+"""Generate the repo copies of the shared engine docs from the authority in paracore-gen.
 
 WHY THIS EXISTS
     EXTENSION_METHODS.md and REPL_GUIDE.md each existed in SIX places, hand-maintained.
@@ -6,7 +6,7 @@ WHY THIS EXISTS
     missing 13 improvements that existed only in the other. A rename
     (.BarChart() -> .BarGraph()) therefore had to be made by hand in every copy.
 
-    So: ONE authority (`paracore-mcp/EXTENSION_METHODS.md` + `REPL_GUIDE.md`) and the other
+    So: ONE authority (`paracore-gen/EXTENSION_METHODS.md` + `REPL_GUIDE.md`) and the other
     copies are GENERATED from it. Generated output cannot drift.
 
 ⚠⚠ 2026-10-09 — SINGLE VARIANT, ENGINE-ONLY. The free/Pro split is GONE.
@@ -15,7 +15,7 @@ WHY THIS EXISTS
     verbatim copy for `paracore-pro/Docs/`. `paracore-pro` was DELETED (user ruling), and the
     engine doc was split by OWNER, not by tier:
 
-      * engine methods             -> `paracore-mcp/EXTENSION_METHODS.md`  (this tool's authority)
+      * engine methods             -> `paracore-gen/EXTENSION_METHODS.md`  (this tool's authority)
       * the takeoff PACK's methods -> `paracore-takeoff/Docs/TAKEOFF_REFERENCE.md`  (hand-written)
 
     So there are NO `#PRO-ONLY` markers left anywhere, and this tool no longer strips or
@@ -32,7 +32,7 @@ import argparse
 import sys
 from pathlib import Path
 
-MCP = Path(r"C:\Users\seyou\Paracore\paracore-mcp")
+MCP = Path(r"C:\Users\seyou\Paracore\paracore-gen")
 FREE = Path(r"C:\Users\seyou\Paracore\paracore")
 FORGE = Path(r"C:\Users\seyou\Paracore\paracore-forge")
 

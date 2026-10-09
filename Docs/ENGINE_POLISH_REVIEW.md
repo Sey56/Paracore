@@ -186,7 +186,7 @@ Three names × three layers = **9 declarations** existing only to offer a second
 >
 > | Repo | Evidence |
 > | :--- | :--- |
-> | `paracore-mcp` | `mcp_core/skills/display-visualize/SKILL.md:55-57,60` — *"NOTE: `.Bar()` does NOT exist — use `.BarGraph()`."* · `prompts/catalog.md:17,164,182-187,232` · `prompts/globals.md:24-26` · `prompts/common-patterns.md:35` · `skills/aggregate-group/SKILL.md:19,51` · `mcp_server.py:391` · `SKILLS.md:33` |
+> | `paracore-gen` | `mcp_core/skills/display-visualize/SKILL.md:55-57,60` — *"NOTE: `.Bar()` does NOT exist — use `.BarGraph()`."* · `prompts/catalog.md:17,164,182-187,232` · `prompts/globals.md:24-26` · `prompts/common-patterns.md:35` · `skills/aggregate-group/SKILL.md:19,51` · `mcp_server.py:391` · `SKILLS.md:33` |
 > | `paracore-help` | `docs/scripting-reference/globals.md:72-74` · `docs/interactive-repl/index.mdx:130-131,143,187` · `docs/extension-methods/collection-operations.mdx:82-84` · `docs/authoring/vscode.mdx:57-59` |
 > | `corescript-vscode` | `ai-instructions.md:57-59,303-304,346,716,811` · `copilot-instructions.md` (same content) |
 > | `paracore-examples` | `06_Showcase_Demos/ProjectDashboard/Scripts/ProjectDashboard.cs:29` |
@@ -300,7 +300,7 @@ name is P5.
 | # | Remove | Where | Blast radius |
 | :--- | :--- | :--- | :--- |
 | ~~R1~~ | ~~`BarGraph` / `PieGraph` / `LineGraph` — 9 declarations~~ | — | ⛔ **WITHDRAWN 2026-10-02.** The premise was false — see the correction in P2. These names are *taught* by the MCP prompts, the help site and the VS Code instructions. Removing them breaks agent-authored scripts until every consumer is updated. |
-| ~~R2~~ | ~~The untyped `Show(object)` / `Show<T>` synonyms — 2 declarations~~ | — | ⛔ **WITHDRAWN 2026-10-02, on the same evidence that killed R1.** The technical claim is *correct* — verified in source: `ExecutionGlobals.Show(object)` (now `ExecutionGlobals.cs:247`) is `Output.Table(data)`, byte-identical to `Table(object)` (252); `VisualizationExtensions.Show<T>` (`VisualizationExtensions.cs:46`) is `…Current.Value?.Table(data)`, identical to `Table<T>`. **But `.Show()` is documented public API** in five consumer files — `paracore-help/docs/extension-methods/collection-operations.mdx:85`, `…/authoring/inspector.mdx:21`, `paracore/README.md:43`, `paracore-pro/README.md:43`, `paracore-mcp/…/prompts/catalog.md:185`. Removing 2 one-liners would hard-break documented scripts for **zero** functional gain. Rule 2 again: *no callers* ≠ *not load-bearing* when the name is the contract. |
+| ~~R2~~ | ~~The untyped `Show(object)` / `Show<T>` synonyms — 2 declarations~~ | — | ⛔ **WITHDRAWN 2026-10-02, on the same evidence that killed R1.** The technical claim is *correct* — verified in source: `ExecutionGlobals.Show(object)` (now `ExecutionGlobals.cs:247`) is `Output.Table(data)`, byte-identical to `Table(object)` (252); `VisualizationExtensions.Show<T>` (`VisualizationExtensions.cs:46`) is `…Current.Value?.Table(data)`, identical to `Table<T>`. **But `.Show()` is documented public API** in five consumer files — `paracore-help/docs/extension-methods/collection-operations.mdx:85`, `…/authoring/inspector.mdx:21`, `paracore/README.md:43`, `paracore-pro/README.md:43`, `paracore-gen/…/prompts/catalog.md:185`. Removing 2 one-liners would hard-break documented scripts for **zero** functional gain. Rule 2 again: *no callers* ≠ *not load-bearing* when the name is the contract. |
 | R3 | The duplicated `Table` element-adaptation logic | `ScriptApi.cs` 155–187 and `VisualizationExtensions.Table<T>` 663–705 | ⚠ **NOT a delete — an EXTRACTION.** The two are *not* equivalent: `ScriptApi` reaches the renderer through `Globals.Output` (a property that **throws** if the context is null, `ScriptApi.cs:29`), while the extension uses `ExecutionGlobals.Current.Value?.` (**silently no-ops**), and the extension has a non-element `else` branch. Extract the shared adaptation into one helper; keep both call paths and both behaviours. |
 
 **Net: 1 duplicated logic block collapsed (R3 → `Output.AdaptElementsForTable`). R1 and R2 both
@@ -522,7 +522,7 @@ maintained.
   cannot parse rather than guessing.
 - ⚠⚠ **The original "0 callers" claim for the `*Graph` aliases was WRONG.** Corrected in P2. It was
   a text search over only two repos. **Lesson: scope the search across every consumer before
-  calling anything dead** — the consumers here were `paracore-mcp`, `paracore-help`,
+  calling anything dead** — the consumers here were `paracore-gen`, `paracore-help`,
   `corescript-vscode`, `paracore-examples` and `docs/`.
 - I did not read all 31,035 lines. §2 and §3.P1–P6 come from reading `ScriptApi.cs`,
   `ExecutionGlobals.cs`, `PipelineEnumerable.cs`, `NotebookExtensions.cs` in full plus the measured
@@ -536,7 +536,7 @@ maintained.
 
 Seyoum chose **(b)**: `BarGraph` / `PieGraph` / `LineGraph` survive; the `*Chart` names are gone.
 
-**Why this was the right call:** `paracore-mcp`'s prompts and skills teach `*Graph` — that is what
+**Why this was the right call:** `paracore-gen`'s prompts and skills teach `*Graph` — that is what
 the AI actually emits — and the UI label is "Bar Graph". Retiring `*Chart` therefore needs **no MCP
 or help change**; retiring `*Graph` would have needed ~12 files across 4 repos.
 
@@ -576,7 +576,7 @@ NUL-delimited DLL search returns 0 for names that DO exist. Member-level proof f
 | `paracore-examples/…/ProjectDashboard.cs:29,48,73` | calls `BarChart`/`PieChart`/`LineChart` — no longer compiles |
 | `paracore-help/` (4 files) | still documents both names |
 | `corescript-vscode/ai-instructions.md`, `copilot-instructions.md` | list both names |
-| `paracore-mcp/EXTENSION_METHODS.md:484-486`, `REPL_GUIDE.md:128`, `spikes/_tmp_probe.md` | stale |
+| `paracore-gen/EXTENSION_METHODS.md:484-486`, `REPL_GUIDE.md:128`, `spikes/_tmp_probe.md` | stale |
 | `paracore/EXTENSION_METHODS.md:477-479`, `paracore/REPL_GUIDE.md:128` | stale |
 | **`rap-web/…/ConsoleContext.tsx:223`** | ⚠ a **live UI help string** — `h('.BarChart() / .PieChart() / .LineChart()', 'Charts')` now names methods that do not exist |
 

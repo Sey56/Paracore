@@ -41,10 +41,10 @@ terminal — see [Run (development)](DEVELOPMENT.md#run-development).
 
 ## Paracore MCP
 
-The Model Context Protocol server lives in a separate repo: [`paracore-mcp`](https://github.com/datadrivenconstruction/paracore-mcp). Install it alongside this addin to control Revit from Claude Desktop, Cursor, or any MCP-compatible client.
+The Model Context Protocol server lives in a separate repo: [`paracore-gen`](https://github.com/datadrivenconstruction/paracore-gen). Install it alongside this addin to control Revit from Claude Desktop, Cursor, or any MCP-compatible client.
 
 ```powershell
-cd ../paracore-mcp
+cd ../paracore-gen
 ./build-mcp.ps1
 ```
 

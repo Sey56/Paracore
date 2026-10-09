@@ -25,7 +25,7 @@ Syncing versions to 4.7.0...
   Paracore.Server.csproj
   Paracore.Shim.csproj
   paracore-addin.iss
-  paracore-mcp.iss
+  paracore-gen.iss
   CoreScriptClient.cs
 
 ── paracore-agent ──

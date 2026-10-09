@@ -116,9 +116,9 @@ Run it with a python that has both `grpcio-tools` and `protobuf` (the `rap-serve
 ⚠ **Every other copy is GENERATED — edit the authority, never a copy:**
 
 - `corescript-vscode/proto/corescript.proto` — a runtime copy, shipped inside the `.vsix` and loaded by `@grpc/proto-loader`. Compared byte-for-byte.
-- `paracore-mcp` / `paracore-forge` / `paracore-takeoff` — each checks in a generated `corescript_pb2*.py`. Compared by CONTRACT, so a `protoc` toolchain bump never churns nine files.
+- `paracore-gen` / `paracore-forge` / `paracore-takeoff` — each checks in a generated `corescript_pb2*.py`. Compared by CONTRACT, so a `protoc` toolchain bump never churns nine files.
 
-`Paracore.Addin` and `Paracore.Server` compile the authority directly through MSBuild, so they cannot drift. `rap-server` has no stub of its own — it resolves `grpc_client` and `corescript_pb2` from `paracore-mcp` at runtime (see the `sys.path` resolution in `main.py`).
+`Paracore.Addin` and `Paracore.Server` compile the authority directly through MSBuild, so they cannot drift. `rap-server` has no stub of its own — it resolves `grpc_client` and `corescript_pb2` from `paracore-gen` at runtime (see the `sys.path` resolution in `main.py`).
 
 ⚠ **A stale proto fails SILENTLY.** Protobuf reads a missing field as its default, so nothing throws — the caller simply behaves as if the answer were "no". That is why this is a gate, not a report. It is also why the VS Code copy sat three fields behind for three months without anyone noticing.
 
@@ -128,4 +128,4 @@ This is the **public** repo (MIT) — the generic add-in, engine, desktop app, a
 
 ⚠⚠ **`paracore-pro` no longer exists (deleted 2026-10-09, user ruling).** There is **no Pro add-in and no second engine tree.** The engine and add-in here are **always free and generic**, and they are the **single source of truth** for engine code — there is nothing to sync and nothing to copy down.
 
-A **pack** — the Pro/free unit — lives in **its own tool's repo** (e.g. `paracore-takeoff/pack/`), never here and never in a shared tree. The specialist MCPs (`paracore-mcp`, `paracore-forge`, `paracore-takeoff`) are separate sibling repos, each with its own exe and installer.
+A **pack** — the Pro/free unit — lives in **its own tool's repo** (e.g. `paracore-takeoff/pack/`), never here and never in a shared tree. The specialist MCPs (`paracore-gen`, `paracore-forge`, `paracore-takeoff`) are separate sibling repos, each with its own exe and installer.

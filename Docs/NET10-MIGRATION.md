@@ -89,7 +89,7 @@ after retargeting to .NET 10**."* Retarget, not rewrite — which matches the fi
 ## The blast radius — smaller than it looks (verified 2026-10-07)
 
 Of the **11 git repos** in the workspace, only **two** carry Revit-runtime code: `paracore` and `paracore-pro`.
-The Python repos (`paracore-mcp`, `paracore-forge`), the docs repo (`paracore-help`) and the auth server are
+The Python repos (`paracore-gen`, `paracore-forge`), the docs repo (`paracore-help`) and the auth server are
 unaffected by the Revit runtime. `TrueBuild` / `TrueBuild.Pro` are separate Revit add-ins — their own decision.
 
 The projects that must match Revit's runtime — the ones Revit or the add-in loads **in-process**:

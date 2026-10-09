@@ -22,5 +22,5 @@
 
 ### Paracore MCP
 
-- **Now a [separate installer](https://github.com/Sey56/paracore-mcp)** — previously bundled in the addin, now independently installable and updatable
+- **Now a [separate installer](https://github.com/Sey56/paracore-gen)** — previously bundled in the addin, now independently installable and updatable
 - **In-app AI agent retired** — MCP clients (Claude Desktop, Cursor, VS Code) provide a far better harness

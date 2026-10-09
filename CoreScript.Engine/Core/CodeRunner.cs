@@ -303,7 +303,7 @@ namespace CoreScript.Engine.Core
                 }
 
                 // ── TRANSACTION GRANULARITY — static pre-execution check ──────────
-                // ⚠ Runs on the SAME path for BOTH MCPs: paracore-mcp's REPL and
+                // ⚠ Runs on the SAME path for BOTH MCPs: paracore-gen's REPL and
                 // paracore-forge's dry_run / run_tool all arrive at this method (a
                 // gallery tool is executed by the engine, not by its own compiler).
                 // The forge validate_tool path does NOT come through here — and does

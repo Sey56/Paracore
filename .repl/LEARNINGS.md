@@ -1,6 +1,6 @@
 # Paracore execution model — live-verified learnings
 
-Everything on this page was either (a) executed live in Revit through `paracore-mcp.exe`
+Everything on this page was either (a) executed live in Revit through `paracore-gen.exe`
 on 2026-09-23 (model: `Paracore_Tutorial`, addin 1.27.2), or (b) verified statically in
 source. Each item says which. Tooling for both lives in this folder.
 
@@ -8,7 +8,7 @@ source. Each item says which. Tooling for both lives in this folder.
 
 | File | Purpose |
 |---|---|
-| `mcp_client.py` | stdio JSON-RPC client for `paracore-mcp.exe`. `code --file x.cs --out out.txt` (read-only) / `code --rw --file x.cs --out out.txt` (write). **Always write output to a file** — PowerShell mangles stdout. |
+| `mcp_client.py` | stdio JSON-RPC client for `paracore-gen.exe`. `code --file x.cs --out out.txt` (read-only) / `code --rw --file x.cs --out out.txt` (write). **Always write output to a file** — PowerShell mangles stdout. |
 | `check_compliance.py` | Runs the MCP server's own gates locally (`sanitize_csharp_code`, `check_paracore_compliance`, `check_dangerous_patterns`, `check_suspicious_param_names`) and prints exactly which regex matched. Run this BEFORE sending code — saves a round trip. |
 | `live_probe1.cs` | Read-only idiom probe — PASSED live. |
 | `live_probe2.cs` | Write idiom probe (`--rw`) — PASSED live. |
@@ -24,7 +24,7 @@ $py='C:\Users\seyou\AppData\Local\Programs\Python\Python312\python.exe'
 
 ## The compliance gate = the "what to avoid" catalog
 
-Source: `C:\Users\seyou\Paracore\paracore-mcp\mcp_core\tool_helpers.py` (`_ANTI_PATTERNS`,
+Source: `C:\Users\seyou\Paracore\paracore-gen\mcp_core\tool_helpers.py` (`_ANTI_PATTERNS`,
 `check_paracore_compliance`). It is a set of regexes over the **whole submission text —
 comments included** (learned live: a comment spelling out the ft↔mm factor was rejected).
 It is also NOT syntax-aware: the regexes match anywhere, so never write the forbidden
@@ -118,7 +118,7 @@ params are ≤ 0.
 
 1. **License gate — RESOLVED (2026-09-23).** See "TakeOff Enterprise sign-in" below:
    `paracore-takeoff.exe` (48 curated tools) is signed in and runs everything with
-   `license_tier="enterprise"`; `paracore-mcp.exe` stays free-tier BY DESIGN, so
+   `license_tier="enterprise"`; `paracore-gen.exe` stays free-tier BY DESIGN, so
    `GetDwaScheduleRows()` remains 🔒 there. Panel sign-in does NOT affect the MCP path.
 2. **dynamic vs reflection for rows.** `foreach (dynamic r in rows)` COMPILES in the
    engine (probe 3 got past compile; the failure was the license gate at runtime).
@@ -156,7 +156,7 @@ Signed in as seyoumhgs@gmail.com, session expires **2026-10-23**.
 - Tier flows per-request only: `ExecuteReplRequest.license_tier` (proto field 3)
   → `ReplHandler.ExecuteRepl` → `ReplSessionManager.ExecuteAsync(..., licenseTier)`
   → `__license_tier__` parameter → `CodeRunner.Execute` sets it before compiling.
-- `paracore-mcp.exe` (generalist) never sends a tier → always free. Signing into the
+- `paracore-gen.exe` (generalist) never sends a tier → always free. Signing into the
   Paracore panel in Revit does NOT change this — the REPL path ignores panel auth.
 - `paracore-takeoff.exe` gates on the cloud session, then forwards
   `license_tier="enterprise"` on every `_execute` — but exposes ONLY its 48 curated
