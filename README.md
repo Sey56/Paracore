@@ -45,7 +45,7 @@ The Model Context Protocol server lives in a separate repo: [`paracore-gen`](htt
 
 ```powershell
 cd ../paracore-gen
-./build-mcp.ps1
+./build-gen.ps1
 ```
 
 ## Documentation
