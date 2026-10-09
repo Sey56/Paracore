@@ -6,7 +6,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { executeScript, CoreScript as CoreScriptRuntime } from "./grpcClient"; // CoreScriptRuntime is the actual runtime object
 import { CoreScript } from "./grpcTypes"; // CoreScript is for type checking
-import { COPILOT_INSTRUCTIONS } from "./aiInstructions";
+import { WORKSPACE_AI_FILES } from "./aiInstructions";
 
 const execPromise = promisify(exec);
 
@@ -48,12 +48,14 @@ export function activate(context: vscode.ExtensionContext) {
         `.trim();
         fs.writeFileSync(path.join(rootPath, "global.json"), globalJson);
 
-        // 🤖 Create AI Instructions
-        const githubFolder = path.join(rootPath, ".github");
-        if (!fs.existsSync(githubFolder)) {
-          fs.mkdirSync(githubFolder);
+        // 🤖 Create the AI instruction FILE SET (router + instructions + skills).
+        //    Written verbatim from the generated `ai/` tree — see src/aiInstructions.ts for the
+        //    layout and `paracore/scripts/gen-ai-workspace.py` for how the tree is produced.
+        for (const [relPath, text] of Object.entries(WORKSPACE_AI_FILES)) {
+          const dest = path.join(rootPath, ".github", ...relPath.split("/"));
+          fs.mkdirSync(path.dirname(dest), { recursive: true });
+          fs.writeFileSync(dest, text, "utf-8");
         }
-        fs.writeFileSync(path.join(githubFolder, "copilot-instructions.md"), COPILOT_INSTRUCTIONS);
 
         // 📦 Create workspaceName.csproj
         const appData = process.env.APPDATA || '';

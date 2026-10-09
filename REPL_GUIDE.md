@@ -68,10 +68,10 @@ Paracore's "Magic" engine resolves strings into elements, categories, or familie
 ```csharp
 // Works on List<Element>. WhereParam uses reflection for C# properties.
 GetElements("Doors")
-.WhereParam("Level", "Level 1")
-.WhereParam("HandFlipped", "True")  // C# property via reflection — works!
-.OrderByParamDesc("Area")
-.Table()
+    .WhereParam("Level", "Level 1")
+    .WhereParam("HandFlipped", "True")  // C# property via reflection — works!
+    .OrderByParamDesc("Area")
+    .Table()
 ```
 
 ### Mode 2: Typed (Lambda-Based)
@@ -79,10 +79,10 @@ GetElements("Doors")
 ```csharp
 // Preserves FamilyInstance throughout. Enables direct property access in lambdas.
 GetElements<FamilyInstance>("Doors")
-.WhereParam("Level", "Level 1")
-.Where(dr => !dr.HandFlipped)       // direct, strongly-typed lambda
-.OrderByParamDesc("Area")
-.Table()
+    .WhereParam("Level", "Level 1")
+    .Where(dr => !dr.HandFlipped)       // direct, strongly-typed lambda
+    .OrderByParamDesc("Area")
+    .Table()
 ```
 
 > **Rule**: Start with Mode 1. Use Mode 2 when you need IntelliSense or arithmetic on C# properties inside `.Where()`.
@@ -132,7 +132,7 @@ For the complete catalog with every overload and parameter pattern, see **[EXTEN
 | RoomFrom / RoomTo / Handing / StandardDoor | [Door/Window](EXTENSION_METHODS.md#5-element-specialized-doorwindow) |
 | InputUnit / OutputUnit / FormatUnit / ToMeters / precision comparisons | [Numeric & Unit Helpers](EXTENSION_METHODS.md#15-numeric--unit-helpers) |
 | BuiltInParams / CombinedParams / Peek / ReflectionProperties | [Element: Discovery](EXTENSION_METHODS.md#4-element-identity--discovery) |
-| Materials / Eco.GetCarbon / Eco.GetUValue | [Materials & Sustainability](EXTENSION_METHODS.md#6-element-materials--sustainability) |
+| Materials / MaterialNames / GetMaterialNames | [Materials & Sustainability](EXTENSION_METHODS.md#6-element-materials--sustainability) |
 
 ---
 
@@ -288,13 +288,13 @@ ExportImage(@"C:\tmp\north-elev", "North Elevation", 2000)
 
 // Structural walls ≥ 300 mm wide
 GetElements<Wall>()
-.WhereParam("Width", ">=", 300, "mm")
-.OrderByParamDesc("Width")
-.Table()
+    .WhereParam("Width", ">=", 300, "mm")
+    .OrderByParamDesc("Width")
+    .Table()
 
 // Door schedule with handing
 GetElements<FamilyInstance>("Doors")
-.Select(d => new {
+    .Select(d => new {
         Mark     = d.GetStr("Mark"),
         Type     = d.Name,
         Level    = d.GetStr("Level"),
@@ -303,18 +303,18 @@ GetElements<FamilyInstance>("Doors")
         To       = d.RoomDestination(),
         Handing  = d.Handing()
     })
-.OrderByParam("Mark")
-.Table()
+    .OrderByParam("Mark")
+    .Table()
     
 // Export Rooms for Pandas Analysis
 GetElements<Room>()
-.Select(r => new {
+    .Select(r => new {
         Number = r.GetStr("Number"),
         Name = r.Name,
         Level = r.GetStr("Level"),
         Area_m2 = r.Area.OutputUnit("m2", 2)
     })
-.ToNotebook("Room_Analysis")
+    .ToNotebook("Room_Analysis")
 
 ```
 ```

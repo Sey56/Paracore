@@ -151,6 +151,7 @@ venv/
 target/
 .kilo/
 .workbuddy-ai/
+graphify-out/
 *.log
 
 # REPL instruments -- the gates live here (master spec section 4); the rest of
@@ -164,6 +165,12 @@ target/
 !.repl/check_compliance.py
 !.repl/run_section_scope_tests.py
 !.repl/verify_gen_docs.py
+!.repl/_ext_method_audit.py
+!.repl/_ai_tree_check.py
 
 # Build log written by build-addin.ps1 -- generated, not source
 scripts/addin_build_log.txt
+
+# VS Code extension build output -- generated, never source
+corescript-vscode/out/
+corescript-vscode/dist/

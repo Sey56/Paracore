@@ -507,12 +507,17 @@ def scaffold_project_full(project_root: str):
         with open(os.path.join(project_root, f"{project_name}.csproj"), 'w', encoding='utf-8') as f:
             f.write(csproj_content)
 
-        # 6. .github/copilot-instructions.md
+        # 6. .github/ — the AI instruction FILE SET (router + instructions + skills).
+        #    Written verbatim from the generated tree; see api/ai_instructions.py for the layout
+        #    and `scripts/gen-ai-workspace.py` for how the tree is produced.
         github_dir = os.path.join(project_root, ".github")
         os.makedirs(github_dir, exist_ok=True)
-        from api.ai_instructions import COPILOT_INSTRUCTIONS
-        with open(os.path.join(github_dir, "copilot-instructions.md"), 'w', encoding='utf-8') as f:
-            f.write(COPILOT_INSTRUCTIONS)
+        from api.ai_instructions import WORKSPACE_AI_FILES
+        for rel_path, text in WORKSPACE_AI_FILES.items():
+            dest = os.path.join(github_dir, *rel_path.split("/"))
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(text)
 
         return True
     except Exception as e:

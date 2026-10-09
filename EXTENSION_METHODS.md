@@ -1,8 +1,16 @@
 # 🧩 Paracore Extension Methods Reference
 
-A comprehensive guide to every extension method available on Revit elements and collections in Paracore scripts. All methods are globally available in the REPL and in all scripts.
+A comprehensive guide to every extension method the **engine** provides on Revit elements and collections in Paracore scripts. All methods are globally available in the REPL and in all scripts.
 
-Source files: `ElementExtensions.cs`, `ElementParamExtensions.cs`, `ElementWriteExtensions.cs`, `ElementDoorExtensions.cs`, `ElementDiscoveryExtensions.cs`, `ElementGeometryExtensions.cs`, `ElementUIExtensions.cs`, `CollectionAggregateExtensions.cs`, `CollectionWriteExtensions.cs`, `CollectionUIExtensions.cs`, `PipelineEnumerable.cs`, `UnitExtensions.cs`,, `NotebookExtensions.cs`, `ScriptApi.cs`.
+⚠⚠ **This document is ENGINE-ONLY, and there is exactly ONE of it (2026-10-09).** There is no free/Pro split any more — the engine and the add-in are always free and generic, so there is no `#PRO-ONLY` region, no stripped variant, and no second copy with different content. A method provided by a tool's **pack** (the Pro/free unit) is documented **with that tool**, never here: the takeoff pack's `CoordinationExtensions.cs`, `CurtainGridRepairExtensions.cs` and `Eco.cs` live in `paracore-takeoff/pack/Engine/Globals/` and are documented in **`paracore-takeoff/Docs/TAKEOFF_REFERENCE.md`**.
+
+Source files: `ElementExtensions.cs`, `ElementParamExtensions.cs`, `ElementWriteExtensions.cs`, `ElementDoorExtensions.cs`, `ElementDiscoveryExtensions.cs`, `ElementGeometryExtensions.cs`, `ElementUIExtensions.cs`, `CollectionAggregateExtensions.cs`, `CollectionWriteExtensions.cs`, `CollectionUIExtensions.cs`, `PipelineEnumerable.cs`, `UnitExtensions.cs`, `NotebookExtensions.cs`, `VisualizationExtensions.cs`, `ScriptApi.cs`.
+
+⚠ **This list is EXHAUSTIVE, and it is the ONLY place the engine API is documented.** Every
+`public static … (this …)` declared under `CoreScript.Engine/Globals/` is meant to appear here. The
+document is maintained by hand, so it drifts — when adding an extension method to the engine, add it
+here in the same change. (Host plumbing that a script cannot call, e.g. the DI registration in
+`ServiceCollectionExtensions.cs`, is deliberately out of scope.)
 
 > [!NOTE]
 > All extension methods work identically in the **REPL** and in **Gallery scripts**. They are standard C# extension methods available everywhere the engine runs.
@@ -30,6 +38,14 @@ GetElements<FamilyInstance>("Doors")  → typed FamilyInstance, door category
 GetElements<FamilySymbol>("Doors")    → typed type symbols (door family types)
 GetElements("Doors")                  → untyped Element list
 ```
+
+⚠ **A category name is not a class name.** The string in the parentheses is the **PLURAL category
+name** — `"Walls"`, `"Doors"`, `"Structural Columns"`. The space is optional: `"StructuralColumns"`
+resolves to the same category (matching is exact-name, no-space, or a `BuiltInCategory` substring).
+For a **loadable** family the CLASS goes in the angle brackets and the CATEGORY in the parentheses —
+Structural Columns are loadable, so it is `GetElements<FamilyInstance>("Structural Columns")`
+(**there is no `StructuralColumn` type**). A **system** family needs no category at all:
+`GetElements<Wall>()`.
 
 Single-element: `GetElement("name-or-id")` | Discovery: `GetMagicNames()`, `GetCategories()`
 
@@ -121,6 +137,24 @@ column.GetTypeVal("Cost")             // "25.00 Birr"
 
 `GetElementType()` returns the `ElementType` for any instance.
 
+### Type-level writers — write through to the element's TYPE
+
+⚠ Every reader above has a writer, and the writers are **type-level**: they set the parameter on
+`e.GetElementType()`, so **every instance of that type changes at once**. That is the point of them —
+you cannot set a type parameter per instance. If you want one element only, use the instance setter
+(`SetVal` / `SetNum`) and make sure the parameter is an instance parameter.
+
+```csharp
+column.SetTypeVal("Cost", "30.00 Birr")        // SetVal on the ElementType
+column.SetTypeVal("b", 250, "mm")              // with unit conversion
+column.SetTypeNum("h", 300, "mm")              // numeric + unit, SetNum on the ElementType
+```
+
+All three are `void` — they return nothing, so they **end** a fluent chain. They no-op silently when
+the element has no `ElementType` (e.g. a system-family instance such as a `Wall`), because the
+implementation is `e.GetElementType()?.SetVal(...)`. To write a type parameter across many elements
+without touching each one, use `SetTypeParam` (§12).
+
 ---
 
 ## 3. Element: Smart Write Methods
@@ -175,6 +209,17 @@ wall.ParamsDict()                     // Dictionary<string,string> of all params
 wall.NativeProperties()               // Category, Level, Workset, etc.
 ```
 
+### Element snoop — Peek
+
+```csharp
+wall.Peek()                           // dumps EVERY parameter as a table; returns the element
+GetElements("Walls").Peek()           // snoop each element in turn; returns the collection
+```
+
+`Peek` is the discovery shortcut for *"what does this thing actually have?"* — one row per parameter
+with `Parameter | Storage | StringValue | NumericValue | UIValue`, the last being the exact string
+Revit's Properties palette shows. Both overloads are **read-only** and chainable.
+
 ### Identity helpers
 
 ```csharp
@@ -182,6 +227,16 @@ wall.Matches("HCB")                   // fuzzy match against Type Name + Family 
 wall.FamilyName                       // "Basic Wall"
 wall.GetStr("Family and Type")        // full identity string
 ```
+
+### ElementId → Element
+
+```csharp
+id.ToElement(doc)                     // ElementId / long / int → Element (null if it is gone)
+```
+
+Three overloads — `ElementId`, `long`, `int` — each taking the `Document` as the second argument. It
+exists so an id read out of a parameter (a `LevelId`, a `GroupId`, an `OwnerViewId`) can be resolved
+without an `ElementId` cast.
 
 ---
 
@@ -219,11 +274,6 @@ door.IsStandardDoor()                 // true if NOT hosted on a Curtain Wall
 wall.Materials().Table()              // all Material objects on the element
 wall.MaterialNames()                  // IEnumerable<string>: "Concrete - C-25", "Plaster - Cement"
 wall.GetMaterialNames()              // comma-separated string
-
-// Eco (static, not extension methods)
-Eco.GetCarbon(element)                // kgCO2e
-Eco.GetUValue(element)                // W/m²K
-Eco.GetWeather()                      // live Open-Meteo API for project location
 ```
 
 ---
@@ -299,12 +349,26 @@ GetElements("Structural Framing").WhereMaterial("Concrete").Table()
 GetElements("Structural Framing").WhereMaterialNot("Steel")
 ```
 
+### WhereCategory — filter by category, several at once
+
+```csharp
+GetElements<Element>().WhereCategory("Structural Framing", "Structural Columns", "Floors")
+GetElements<Element>().WhereCategory("Doors", "Windows")
+```
+
+⚠ **Chained filters AND together, so you cannot OR two categories with `WhereParam`.** `WhereCategory`
+is the OR: it keeps an element whose category matches **ANY** of the names given (it is
+`params string[]`, so pass as many as you like). Category matching is exactly as lenient as the
+`GetElements("Category")` magic string — exact name case-insensitively, the no-space form
+(`"StructuralColumns"` ≡ `"Structural Columns"`), or a `BuiltInCategory` substring
+(`"OST_StructuralFraming"`).
+
 ### Standard C# Where (lambda)
 
 ```csharp
 GetElements<Wall>()
-.Where(w => w.GetNum("Unconnected Height", "m") > 3.0)
-.Table()
+    .Where(w => w.GetNum("Unconnected Height", "m") > 3.0)
+    .Table()
 ```
 
 ---
@@ -313,12 +377,12 @@ GetElements<Wall>()
 
 ```csharp
 GetElements<FamilyInstance>("Doors")
-.OrderByParam("Width")
-.Table()
+    .OrderByParam("Width")
+    .Table()
 
 GetElements("Structural Columns")
-.OrderByParamDesc("Volume")
-.Table()
+    .OrderByParamDesc("Volume")
+    .Table()
 ```
 
 Automatically uses numeric sorting for Double/Integer parameters, string sorting otherwise.
@@ -358,18 +422,32 @@ All set operations run in a single transaction. All methods are chainable.
 
 ```csharp
 GetElements("Walls")
-.WhereParam("Fire Rating", "None")
-.SetParam("Fire Rating", "2 hr")
+    .WhereParam("Fire Rating", "None")
+    .SetParam("Fire Rating", "2 hr")
 
 GetElements("Structural Columns")
-.SetParam("Base Offset", -150, "mm")        // with unit conversion
+    .SetParam("Base Offset", -150, "mm")        // with unit conversion
 
 GetElements("Doors")
-.SetParam("Mark", d => $"D-{d.RoomFrom()}")  // dynamic factory
+    .SetParam("Mark", d => $"D-{d.RoomFrom()}")  // dynamic factory
 
 GetElements("Walls")
-.SetParam("Mark", (w, idx) => $"W{idx+1:D3}") // indexed factory
+    .SetParam("Mark", (w, idx) => $"W{idx+1:D3}") // indexed factory
 ```
+
+### SetTypeParam — write a TYPE parameter across the collection
+
+```csharp
+GetElements("Structural Columns").SetTypeParam("Cost", "30.00 Birr")
+GetElements("Structural Columns").SetTypeParam("b", 250, "mm")   // with unit conversion
+```
+
+⚠ **This does not touch each element — it touches each distinct `ElementType` once.** The collection is
+collapsed to unique element types first (`GroupBy(t => t.Id.Value)`), then each type is written, all in
+a single transaction. So a selection of 40 columns sharing 3 types produces **3 writes**, not 40, and
+the change applies to **every instance of those types in the model** — including ones you did not
+select. That is inherent to type parameters, not a bug; use `SetParam` (instance-level) when you mean
+only what you selected.
 
 ---
 
@@ -434,8 +512,17 @@ Accepted unit strings: `mm`, `cm`, `m`, `km`, `in`, `ft`, `m2`, `sqm`, `ft2`, `s
 x.IsAlmostEqualTo(y)                 // tolerance 1e-9
 x.AlmostZero()                       // |x| < 1e-9
 x.IsLessThan(limit) / IsGreaterThan(limit)
+x.IsLessThanOrEqual(limit) / IsGreaterThanOrEqual(limit)
 x.IsPositive() / IsNegative()
 ```
+
+⚠ **These are not the raw operators — the tolerance band is excluded.** `IsLessThan` is
+`x < limit` **only when the two are not almost equal**; a value inside 1e-9 of the limit is neither
+less nor greater, so both return false. `IsLessThanOrEqual` / `IsGreaterThanOrEqual` add the band back
+(`x < limit || x.IsAlmostEqualTo(limit)`), which makes them the safe choice for a boundary test —
+`IsLessThanOrEqual(2000)` accepts a 2000.0000000001 from unit-conversion noise, `IsLessThan` does not.
+`IsPositive` / `IsNegative` likewise mean *outside the band* (`x > tolerance` / `x < -tolerance`), so a
+0.0000000001 is neither positive nor negative. All take an optional `tolerance` third argument.
 
 ---
 
@@ -541,27 +628,27 @@ view with elevation markers beside it renders the building into a fraction of th
 ```csharp
 // Doors on Level 1, sorted by width
 GetElements<FamilyInstance>("Doors")
-.WhereParam("Level", "Level 1")
-.StandardDoor()
-.OrderByParam("Width")
-.Table()
+    .WhereParam("Level", "Level 1")
+    .StandardDoor()
+    .OrderByParam("Width")
+    .Table()
 
 // Concrete framing by type with volume totals
 GetElements("Structural Framing")
-.WhereMaterial("Concrete")
-.GroupByParam("Type", "Volume", "m3")
-.Table()
+    .WhereMaterial("Concrete")
+    .GroupByParam("Type", "Volume", "m3")
+    .Table()
 
 // Find and fix missing fire ratings
 GetElements("Walls")
-.WhereParam("Fire Rating", "None")
-.SetParam("Fire Rating", "2 hr")
-.Select()
+    .WhereParam("Fire Rating", "None")
+    .SetParam("Fire Rating", "2 hr")
+    .Select()
 
 // Heavy columns
-GetElements<StructuralColumn>("Structural Columns")
-.WhereParam("Volume", ">", 1.0, "m3")
-.OrderByParamDesc("Volume")
-.Table()
+GetElements<FamilyInstance>("Structural Columns")
+    .WhereParam("Volume", ">", 1.0, "m3")
+    .OrderByParamDesc("Volume")
+    .Table()
 
 ```
