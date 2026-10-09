@@ -7,23 +7,32 @@ Thank you for your interest in making Revit automation more accessible! To ensur
 Paracore is a multi-component system. Follow these steps in order to set up your local development environment.
 
 ### 1. Revit Add-in & Core Engine (C#)
-1.  **Prerequisite**: Create an `installers` folder at the root of the repository.
-2.  **Build**: Open PowerShell and run the installer script:
+1.  **Prerequisite**: An `installers` folder at the root of the repository (the build scripts create it if it is missing).
+2.  **Build**: Open PowerShell at the repo root and run:
     ```powershell
-    ./Paracore-Installer.ps1
+    ./build-addin.ps1
     ```
-    This script builds the `Paracore.Addin` and the `CoreScript.Engine` (referenced as a dependency).
-3.  **Install**: Find `Paracore_Addin.exe` in the `installers` folder and run it to install the add-in.
+    This builds the `Paracore.Addin` and the `CoreScript.Engine` it depends on, then packages the installer with Inno Setup.
+3.  **Install**: Run `installers/Paracore_Addin_v<version>.exe` to install the add-in.
 4.  **Activate**: Start Revit 2025+. In the **Paracore** ribbon tab, find the server icon (initially showing "Off"). Click it to start the listener; a TaskDialog will confirm the server is now **On**.
 
 ### 2. Desktop Application (React + Tauri)
-The UI must be built before starting the development server to ensure all assets are correctly registered.
+The desktop app and the API server are normally started together from the repo root:
+
+```powershell
+./dev.ps1
+```
+
+`dev.ps1` runs `uvicorn` and `npm --prefix rap-web run tauri dev` under `npx concurrently`, and stops both when either one exits — see [Run (development)](DEVELOPMENT.md#run-development).
+
+To drive it by hand instead:
 1.  Navigate to the web project: `cd rap-web`
-2.  **Build First**: `npm run build`
-3.  **Run Dev**: Once the build finishes without errors, start the Tauri app:
-    ```bash
-    npm run tauri dev
-    ```
+2.  **Run Dev**: `npm run tauri dev`
+3.  **Browser instead of the Tauri window**: `npm run dev`
+
+No pre-build is required. `tauri dev` starts the Vite dev server on its own, and the production
+frontend build (`npm run build`) is wired in as Tauri's `beforeBuildCommand`, so
+`./build-frontend.ps1` runs it for you.
 
 ### 3. Local Backend Sidecar (Python)
 The backend uses `uv` for high-performance package management.
@@ -36,24 +45,27 @@ The backend uses `uv` for high-performance package management.
     ```
 
 ### 4. VS Code Extension (Optional)
-To develop or build the `corescript-vscode` extension, use **Git Bash**:
-1.  Run the build script from the root:
-    ```bash
-    ./build_extension.sh
+To build and install the `corescript-vscode` extension:
+1.  Run the build script from the root, in PowerShell:
+    ```powershell
+    ./build-extension.ps1
     ```
-    This script automates building the VSIX, uninstalling the previous version from VS Code, and installing the fresh build.
+    This script packages the VSIX (running the production webpack bundle first), copies it to `installers/`, then uninstalls the previous version from VS Code and installs the fresh build. Add `-SkipInstall` to package and copy without touching VS Code.
 
 ---
 
 ## 📦 Production Builds
 
-To generate the final production installer (MSI) for the entire ecosystem:
-1.  Open PowerShell.
-2.  Run the production entry script:
-    ```powershell
-    ./RAP-installer.ps1 -Release
-    ```
-    The resulting `Paracore` MSI will be generated in the `installers` folder.
+There is no umbrella "release" script, and no `-Release` flag. Each component has one
+parameterless build script, run from the repo root in PowerShell:
+
+```powershell
+./build-addin.ps1        # -> installers/Paracore_Addin_v<version>.exe
+./build-frontend.ps1     # -> installers/Paracore_<version>_x64.msi
+./build-extension.ps1    # -> installers/corescript-<version>.vsix
+```
+
+The resulting installers all land in the `installers` folder.
 
 ---
 

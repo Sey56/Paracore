@@ -15,12 +15,12 @@ The add-in is part of a larger ecosystem and is built using a centralized PowerS
 1. **Build**:
    From the repository root, run:
    ```powershell
-   ./Paracore-Installer.ps1
+   ./build-addin.ps1
    ```
-   This script builds both the add-in and the engine.
+   This script builds both the add-in and the engine, then packages the installer with Inno Setup.
 
 2. **Install**:
-   An installer (`Paracore_Addin.exe`) will be generated in the `installers` folder. Run it to deploy the add-in to Revit.
+   An installer (`installers/Paracore_Addin_v<version>.exe`) will be generated. Run it to deploy the add-in to Revit.
 
 3. **Activate**:
    In Revit, go to the **Paracore** tab and click the **Paracore Server** icon to toggle it to the "**On**" state.

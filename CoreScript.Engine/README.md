@@ -49,4 +49,4 @@
 
 It is directly referenced by the `Paracore.Addin` project. During the build process of `Paracore.Addin`, the `dotnet publish` command automatically includes `CoreScript.Engine.dll` and all its necessary dependencies (including Roslyn components) into the `Paracore.Addin`'s publish output directory. This ensures that `Paracore.Addin` has access to all required assemblies at runtime.
 
-The `Paracore-installer.ps1` script then utilizes these published files from `Paracore.Addin` to create the final `Paracore_Installer.exe` using Inno Setup, which deploys the add-in to the appropriate Revit Addins folder.
+The `build-addin.ps1` script at the repository root then utilizes these published files from `Paracore.Addin` to create the final `installers/Paracore_Addin_v<version>.exe` using Inno Setup, which deploys the add-in to the appropriate Revit Addins folder.

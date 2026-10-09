@@ -14,16 +14,25 @@ rap-web (Tauri desktop app)
 
 ## Build
 
-```powershell
-./build-addin.ps1               # Revit add-in (.NET 8)
-./build-frontend.ps1 -Release   # Desktop app (Tauri + Python sidecar)
-```
+Every build script is PowerShell and runs from the repo root:
 
-```bash
-./build_extension.sh            # VS Code extension (Git Bash)
+```powershell
+./build-addin.ps1        # Revit add-in (.NET 8)
+./build-frontend.ps1     # Desktop app installer
+./build-extension.ps1    # VS Code extension
 ```
 
 Requirements: .NET 8 SDK, Node.js, Python 3.12, Inno Setup 6.
+
+| script | output | notes |
+| --- | --- | --- |
+| `build-addin.ps1` | `installers/Paracore_Addin_v<version>.exe` | add-in + engine; needs Inno Setup 6 |
+| `build-frontend.ps1` | `installers/Paracore_<version>_x64.msi` | Tauri app + embedded Python sidecar |
+| `build-extension.ps1` | `installers/corescript-<version>.vsix` | also reloads it in VS Code; `-SkipInstall` skips that |
+
+⚠ **None of them take a `-Release` flag.** All three are parameterless. There is no release/dev
+switch any more — `build-frontend.ps1` *is* the installer path, and it is the only one. Local
+development never produces an installer; see the next section.
 
 ## Run (development)
 

@@ -11,8 +11,8 @@ Write C# that runs live inside Revit — no project files, no compilation, no bo
 | Component | What it does | Build |
 |-----------|-------------|-------|
 | **Paracore Addin** | Revit ribbon + gRPC execution engine | `./build-addin.ps1` |
-| **Paracore Desktop App** | Script gallery, REPL playground, parameter UI generator | `./build-frontend.ps1 -Release` |
-| **VS Code Extension** | Write C# in VS Code, execute in Revit, see output in VS Code | `./build_extension.sh` |
+| **Paracore Desktop App** | Script gallery, REPL playground, parameter UI generator | `./build-frontend.ps1` |
+| **VS Code Extension** | Write C# in VS Code, execute in Revit, see output in VS Code | `./build-extension.ps1` |
 
 Installers go to `installers/`.
 
@@ -22,12 +22,13 @@ Installers go to `installers/`.
 
 ```powershell
 ./build-addin.ps1                        # Build the Revit addin
-./build-frontend.ps1 -Release            # Build the desktop app
+./build-frontend.ps1                     # Build the desktop app installer
 ```
 
 Run the installer from `installers/`, open Revit, toggle the Paracore server ON in the ribbon.
 
-For local development, `./dev.ps1` runs the API server and the desktop app together in one
+None of the build scripts take a `-Release` flag — `./build-frontend.ps1` is already the installer
+build. For local development, `./dev.ps1` runs the API server and the desktop app together in one
 terminal — see [Run (development)](DEVELOPMENT.md#run-development).
 
 ## Key features
