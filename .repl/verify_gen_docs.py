@@ -76,9 +76,12 @@ def norm(s: str) -> str:
 def main() -> int:
     ok = True
 
-    print("DRIFT SCAN  (each shipped copy must equal its authority)")
+    print("DRIFT SCAN  (each shipped copy must equal its intended content)")
     for rel, dest in gen.TARGETS:
-        src = (gen.MCP / rel).read_text(encoding="utf-8")
+        # ⚠ build() is the INTENDED content: the authority, plus this destination's pack
+        # appendix when it has one (PACK_APPENDIX). With no appendix it is the authority, so
+        # this still catches a hand edit in a generated copy.
+        src = gen.build(rel, dest)
         have = dest.read_text(encoding="utf-8") if dest.exists() else None
         same = have is not None and norm(src) == norm(have)
         where = dest.relative_to(dest.parents[1]) if dest.exists() else dest
