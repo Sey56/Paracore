@@ -79,6 +79,7 @@
         "providerShortName": null,
         "signingIdentity": null
       },
+      "publisher": "Paras Codarch",
       "resources": [
         "server-release"
       ],
@@ -125,6 +126,10 @@
     ]
   }
 }
+
+
+
+
 
 
 
