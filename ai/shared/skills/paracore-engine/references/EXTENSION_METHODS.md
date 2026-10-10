@@ -4,13 +4,25 @@ A comprehensive guide to every extension method the **engine** provides on Revit
 
 ⚠⚠ **This document is ENGINE-ONLY, and there is exactly ONE of it (2026-10-09).** There is no free/Pro split any more — the engine and the add-in are always free and generic, so there is no `#PRO-ONLY` region, no stripped variant, and no second copy with different content. A method provided by a tool's **pack** (the Pro/free unit) is documented **with that tool**, never here: the takeoff pack's `CoordinationExtensions.cs`, `CurtainGridRepairExtensions.cs` and `Eco.cs` live in `paracore-takeoff/pack/Engine/Globals/` and are documented in **`paracore-takeoff/Docs/TAKEOFF_REFERENCE.md`**.
 
-Source files: `ElementExtensions.cs`, `ElementParamExtensions.cs`, `ElementWriteExtensions.cs`, `ElementDoorExtensions.cs`, `ElementDiscoveryExtensions.cs`, `ElementGeometryExtensions.cs`, `ElementUIExtensions.cs`, `CollectionAggregateExtensions.cs`, `CollectionWriteExtensions.cs`, `CollectionUIExtensions.cs`, `PipelineEnumerable.cs`, `UnitExtensions.cs`, `NotebookExtensions.cs`, `VisualizationExtensions.cs`, `ScriptApi.cs`.
+This document has TWO halves, and only one of them is written by hand.
 
-⚠ **This list is EXHAUSTIVE, and it is the ONLY place the engine API is documented.** Every
-`public static … (this …)` declared under `CoreScript.Engine/Globals/` is meant to appear here. The
-document is maintained by hand, so it drifts — when adding an extension method to the engine, add it
-here in the same change. (Host plumbing that a script cannot call, e.g. the DI registration in
-`ServiceCollectionExtensions.cs`, is deliberately out of scope.)
+**The prose** (everything down to §17) is hand-authored: it explains *how* to use the methods, and
+carries the traps, the recipes and the worked examples. Keep it here.
+
+**Appendix A — the API index** is **GENERATED from the engine source** by
+`paracore/scripts/gen-ext-methods.py`. It lists every extension method and every global `ScriptApi`
+member with its exact signature and the file it lives in. Regenerate it with `--write`; `--check`
+fails when it is stale. ⚠ **Do not hand-edit the region between the `GENERATED:EXT-INDEX` markers** —
+the next `--write` discards it, and every copy of this file in the other MCPs is rebuilt from here.
+
+⚠ **Appendix A is EXHAUSTIVE, and it is the ONLY place the engine API is inventoried.** Every
+`public static … (this …)` declared under `CoreScript.Engine/` appears there, and so does every
+`public static` member of the `ScriptApi*` partials. (Host plumbing that a script cannot call — the DI
+registration `AddCoreScriptEngineServices` in `ServiceCollectionExtensions.cs` — is deliberately out of
+scope.) A method provided by a tool's **pack** is documented **with that tool**, never here: the takeoff
+pack's `CoordinationExtensions.cs`, `CurtainGridRepairExtensions.cs` and `Eco.cs` live in
+`paracore-takeoff/pack/Engine/Globals/` and are documented in
+**`paracore-takeoff/Docs/TAKEOFF_REFERENCE.md`**.
 
 > [!NOTE]
 > All extension methods work identically in the **REPL** and in **Gallery scripts**. They are standard C# extension methods available everywhere the engine runs.
@@ -224,7 +236,7 @@ Revit's Properties palette shows. Both overloads are **read-only** and chainable
 
 ```csharp
 wall.Matches("HCB")                   // fuzzy match against Type Name + Family Name
-wall.FamilyName                       // "Basic Wall"
+wall.FamilyName()                     // "Basic Wall"
 wall.GetStr("Family and Type")        // full identity string
 ```
 
@@ -251,8 +263,8 @@ door.RoomAccess()                     // alias for RoomFrom
 door.RoomDestination()                // alias for RoomTo
 door.Handing()                        // "LH" or "RH"
 door.HingeSide()                      // "Left" or "Right"
-door.IsHandFlipped                    // true/false
-door.IsFacingFlipped                  // true/false
+door.IsHandFlipped()                  // true/false
+door.IsFacingFlipped()                // true/false
 door.FindSwingArc()                   // largest Arc in geometry (swing path)
 ```
 
@@ -282,7 +294,16 @@ wall.GetMaterialNames()              // comma-separated string
 
 ```csharp
 wall.GeometrySummary()                // recursive: Solids, Curves, Arcs in world space
+room.GetZSpan()                       // (Bot, Top) — the room's world Z band, internal feet
 ```
+
+⚠ `GetZSpan()` returns a **world Z band in internal feet**, not a height. `Bot` is
+`Level.Elevation + BaseOffset`; `Top` is `Bot + UnboundedHeight`, and `UnboundedHeight` is the
+height to the upper-limit **plane** — it does not subtract geometry intruding into the room, so
+this is the design band, not an as-built bounded height. A room that is unplaced or not properly
+enclosed reports a non-positive `UnboundedHeight`; the method then falls back to the level /
+upper-limit arithmetic the UI uses, and if the result is still degenerate it forces a 10 ft span
+(and returns `(0, 10)` for a null room). Convert with `.OutputUnit("m")` before showing a number.
 
 ---
 
@@ -581,6 +602,24 @@ the document is forbidden"*, which names neither the method nor the cause. `Rege
 You rarely need it: a committed transaction already regenerates, and `ExportImage` exports after the
 model has settled.
 
+### Interaction & background tasks
+
+```csharp
+Pick()                        // prompt the user to pick ONE element in the Revit UI
+Print(message)                // alias for Println — the legacy name, kept for compatibility
+SetExecutionTimeout(seconds)  // raise the script budget (default 10 s)
+Watchdog(callback, 5)         // run `callback` when Revit is IDLE, at most every 5 s
+WatchdogReport("Found 5 issues", "warning")   // report a watchdog run's outcome
+```
+
+⚠ `SetExecutionTimeout` — the default budget is **10 seconds** and the clock starts when the script
+does, so call it as the FIRST statement, not once the expensive work has already begun.
+
+⚠ `Watchdog` fires on Revit **idle**, not on a timer: `intervalSeconds` is a MINIMUM gap and Revit
+must actually go idle for it to run. Called outside a registration context (e.g. straight from the
+REPL) it runs the callback ONCE immediately so the logic can be tested in the Console. The two
+overloads differ only in whether the callback receives the `Document`. Backed by `WatchdogRegistry`.
+
 ### UI Actions (on collections, without prefixes)
 
 ```csharp
@@ -652,3 +691,257 @@ GetElements<FamilyInstance>("Structural Columns")
     .Table()
 
 ```
+
+---
+
+## Appendix A — Generated API Index
+
+⚠ **The region below is GENERATED from the engine's C# source — do not edit it by hand.** It is
+rebuilt by `paracore/scripts/gen-ext-methods.py` (`--write`), which
+`paracore/scripts/gen-engine-docs.py` runs for every copy of this file. See the note at the top of
+this document.
+
+<!-- GENERATED:EXT-INDEX:BEGIN -->
+⚠ **GENERATED — do not edit this region.** Extracted from `CoreScript.Engine/` by `paracore/scripts/gen-ext-methods.py`.
+
+The extraction is mechanical: it lists what the source declares, so it cannot forget a member. `python scripts/gen-ext-methods.py --write` refreshes it; `--check` fails when it is stale.
+
+### A.1 Extension methods — `this`-receivers
+
+**110 declarations · 80 distinct names · 13 source files.**
+
+Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. The `this` on the first parameter is the test.
+
+#### `Globals/CollectionAggregateExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `SumParam` | `double SumParam<T>(this IEnumerable<T> elements, string name, string unit = null, int decimals = 3)` |
+| `OrderByParam` | `IEnumerable<T> OrderByParam<T>(this IEnumerable<T> elements, string name)` |
+| `OrderByParamDesc` | `IEnumerable<T> OrderByParamDesc<T>(this IEnumerable<T> elements, string name)` |
+| `GroupByParam` | `IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy)` |
+| `GroupByParam` | `IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy, string sum, string unit = "")` |
+
+#### `Globals/CollectionUIExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `Delete` | `IEnumerable<T> Delete<T>(this IEnumerable<T> elements)` |
+| `Select` | `IEnumerable<T> Select<T>(this IEnumerable<T> elements)` |
+| `Zoom` | `IEnumerable<T> Zoom<T>(this IEnumerable<T> elements)` |
+| `Isolate` | `IEnumerable<T> Isolate<T>(this IEnumerable<T> elements)` |
+| `Hide` | `IEnumerable<T> Hide<T>(this IEnumerable<T> elements)` |
+| `Unhide` | `IEnumerable<T> Unhide<T>(this IEnumerable<T> elements)` |
+
+#### `Globals/CollectionWriteExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `SetParam` | `IEnumerable<T> SetParam<T>(this IEnumerable<T> elements, string name, object value)` |
+| `SetParam` | `IEnumerable<T> SetParam<T>(this IEnumerable<T> elements, string name, object value, string unit)` |
+| `SetParam` | `IEnumerable<T> SetParam<T>(this IEnumerable<T> elements, string name, Func<T, object> valueFactory)` |
+| `SetParam` | `IEnumerable<T> SetParam<T>(this IEnumerable<T> elements, string name, Func<T, int, object> valueFactory)` |
+| `SetTypeParam` | `IEnumerable<T> SetTypeParam<T>(this IEnumerable<T> elements, string name, object value)` |
+| `SetTypeParam` | `IEnumerable<T> SetTypeParam<T>(this IEnumerable<T> elements, string name, object value, string unit)` |
+
+#### `Globals/ElementDiscoveryExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `BuiltInParams` | `IEnumerable<object> BuiltInParams(this Element e)` |
+| `InstanceParams` | `IEnumerable<object> InstanceParams(this Element e)` |
+| `TypeParams` | `IEnumerable<object> TypeParams(this Element e)` |
+| `CombinedParams` | `IEnumerable<object> CombinedParams(this Element e)` |
+| `ParamsDict` | `Dictionary<string, string> ParamsDict(this Element e)` |
+| `NativeProperties` | `IEnumerable<object> NativeProperties(this Element e)` |
+
+#### `Globals/ElementDoorExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `RoomFrom` | `string RoomFrom(this Element e)` |
+| `RoomTo` | `string RoomTo(this Element e)` |
+| `RoomAccess` | `string RoomAccess(this Element e)` |
+| `RoomDestination` | `string RoomDestination(this Element e)` |
+| `Handing` | `string Handing(this Element e)` |
+| `HingeSide` | `string HingeSide(this Element e)` |
+| `FindSwingArc` | `Arc? FindSwingArc(this Element e)` |
+| `IsHandFlipped` | `bool IsHandFlipped(this FamilyInstance fi)` |
+| `IsFacingFlipped` | `bool IsFacingFlipped(this FamilyInstance fi)` |
+| `IsStandardDoor` | `bool IsStandardDoor(this FamilyInstance fi)` |
+| `StandardDoor` | `IEnumerable<FamilyInstance> StandardDoor(this IEnumerable<FamilyInstance> elements)` |
+
+#### `Globals/ElementExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `ReflectionProperties` | `IEnumerable<object> ReflectionProperties(this Element e)` |
+| `ReflectionMethods` | `IEnumerable<object> ReflectionMethods(this Element e)` |
+| `Matches` | `bool Matches(this Element e, string pattern)` |
+| `FamilyName` | `string FamilyName(this Element e)` |
+| `Materials` | `IEnumerable<Material> Materials(this Element e)` |
+| `MaterialNames` | `IEnumerable<string> MaterialNames(this Element e)` |
+| `GetMaterialNames` | `string GetMaterialNames(this Element e)` |
+| `ToElement` | `Element ToElement(this long id, Document doc)` |
+| `ToElement` | `Element ToElement(this int id, Document doc)` |
+| `ToElement` | `Element ToElement(this ElementId id, Document doc)` |
+| `WhereParam` | `IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string value)` |
+| `WhereParam` | `IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, double value, string unit = "")` |
+| `WhereParam` | `IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, double value, string unit = "")` |
+| `WhereParam` | `IEnumerable<T> WhereParam<T>(this IEnumerable<T> elements, string name, string op, string value)` |
+| `WhereCategory` | `IEnumerable<T> WhereCategory<T>(this IEnumerable<T> elements, params string[] categories)` |
+| `WhereAnyParam` | `IEnumerable<T> WhereAnyParam<T>(this IEnumerable<T> elements, string[] names, string value)` |
+| `WhereAnyParam` | `IEnumerable<T> WhereAnyParam<T>(this IEnumerable<T> elements, string[] names, string op, string value)` |
+| `WhereTypeParam` | `IEnumerable<T> WhereTypeParam<T>(this IEnumerable<T> elements, string paramName, string op, string value)` |
+| `WhereMatches` | `IEnumerable<T> WhereMatches<T>(this IEnumerable<T> elements, string pattern)` |
+| `WhereMaterial` | `IEnumerable<T> WhereMaterial<T>(this IEnumerable<T> elements, string materialName)` |
+| `WhereMaterialNot` | `IEnumerable<T> WhereMaterialNot<T>(this IEnumerable<T> elements, string materialName)` |
+
+#### `Globals/ElementGeometryExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `GeometrySummary` | `List<object> GeometrySummary(this Element e)` |
+| `GetZSpan` | `(double Bot, double Top) GetZSpan(this Room room)` |
+
+#### `Globals/ElementParamExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `GetStr` | `string GetStr(this Element e, string name)` |
+| `GetStr` | `string GetStr(this Element e, string name, string unit, int decimals = 2)` |
+| `GetNum` | `double GetNum(this Element e, string name)` |
+| `GetInt` | `int GetInt(this Element e, string name)` |
+| `GetVal` | `string GetVal(this Element e, string name)` |
+| `GetVal` | `string GetVal(this Element e, string name, string unit, int decimals = 2)` |
+| `GetNum` | `double GetNum(this Element e, string name, string unit, int decimals = 2)` |
+| `GetElementType` | `Element GetElementType(this Element e)` |
+| `GetTypeStr` | `string GetTypeStr(this Element e, string name)` |
+| `GetTypeStr` | `string GetTypeStr(this Element e, string name, string unit, int decimals = 2)` |
+| `GetTypeNum` | `double GetTypeNum(this Element e, string name)` |
+| `GetTypeNum` | `double GetTypeNum(this Element e, string name, string unit, int decimals = 2)` |
+| `GetTypeInt` | `int GetTypeInt(this Element e, string name)` |
+| `GetTypeVal` | `string GetTypeVal(this Element e, string name)` |
+| `GetTypeVal` | `string GetTypeVal(this Element e, string name, string unit, int decimals = 2)` |
+
+#### `Globals/ElementUIExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `Select` | `Element Select(this Element e)` |
+| `Zoom` | `Element Zoom(this Element e)` |
+| `Isolate` | `Element Isolate(this Element e)` |
+| `Delete` | `Element Delete(this Element e)` |
+| `Hide` | `Element Hide(this Element e)` |
+| `Unhide` | `Element Unhide(this Element e)` |
+
+#### `Globals/ElementWriteExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `SetNum` | `void SetNum(this Element e, string name, double value, string unit)` |
+| `SetVal` | `void SetVal(this Element e, string name, object value)` |
+| `SetVal` | `void SetVal(this Element e, string name, object value, string unit)` |
+| `SetTypeVal` | `void SetTypeVal(this Element e, string name, object value)` |
+| `SetTypeVal` | `void SetTypeVal(this Element e, string name, object value, string unit)` |
+| `SetTypeNum` | `void SetTypeNum(this Element e, string name, double value, string unit)` |
+
+#### `Globals/NotebookExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `ToNotebook` | `IEnumerable<T> ToNotebook<T>(this IEnumerable<T> elements, string notebookName = "Paracore_Analysis")` |
+
+#### `Globals/UnitExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `InputUnit` | `double InputUnit(this double value, string unit)` |
+| `InputUnit` | `double InputUnit(this int value, string unit)` |
+| `InputUnit` | `double InputUnit(this decimal value, string unit)` |
+| `OutputUnit` | `double OutputUnit(this double value, string unit, int decimals = 2)` |
+| `OutputUnit` | `double OutputUnit(this int value, string unit, int decimals = 2)` |
+| `OutputUnit` | `double OutputUnit(this decimal value, string unit, int decimals = 2)` |
+| `IsAlmostEqualTo` | `bool IsAlmostEqualTo(this double value, double other, double tolerance = 1e-9)` |
+| `AlmostZero` | `bool AlmostZero(this double value, double tolerance = 1e-9)` |
+| `IsLessThan` | `bool IsLessThan(this double value, double limit, double tolerance = 1e-9)` |
+| `IsGreaterThan` | `bool IsGreaterThan(this double value, double limit, double tolerance = 1e-9)` |
+| `IsLessThanOrEqual` | `bool IsLessThanOrEqual(this double value, double limit, double tolerance = 1e-9)` |
+| `IsGreaterThanOrEqual` | `bool IsGreaterThanOrEqual(this double value, double limit, double tolerance = 1e-9)` |
+| `IsPositive` | `bool IsPositive(this double value, double tolerance = 1e-9)` |
+| `IsNegative` | `bool IsNegative(this double value, double tolerance = 1e-9)` |
+| `RoundTo` | `double RoundTo(this double value, string unit, int decimals = 2)` |
+| `FormatUnit` | `string FormatUnit(this double value, string unit, int decimals = 2)` |
+| `FormatValueOnly` | `string FormatValueOnly(this double value, string unit, int decimals = 2)` |
+| `ToMeters` | `double ToMeters(this string value)` |
+
+#### `Globals/VisualizationExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `Peek` | `Element Peek(this Element e)` |
+| `Peek` | `IEnumerable<Element> Peek(this IEnumerable<Element> data)` |
+| `Show` | `IEnumerable<T> Show<T>(this IEnumerable<T> data)` |
+| `Table` | `IEnumerable<T> Table<T>(this IEnumerable<T> data)` |
+| `BarGraph` | `IEnumerable<T> BarGraph<T>(this IEnumerable<T> data)` |
+| `PieGraph` | `IEnumerable<T> PieGraph<T>(this IEnumerable<T> data)` |
+| `LineGraph` | `IEnumerable<T> LineGraph<T>(this IEnumerable<T> data)` |
+
+### A.2 Global `ScriptApi` surface — no prefix
+
+**37 members · 27 distinct names · 3 source files.**
+
+Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. ⚠ These are NOT extension methods — the `this` test does not see them, which is why this half of the reference used to drift on its own.
+
+#### `Globals/ScriptApi.Sentinels.cs`
+
+| Member | Signature |
+| --- | --- |
+| `Watchdog` | `void Watchdog(Action<Document> callback, int intervalSeconds = 5)` |
+| `Watchdog` | `void Watchdog(Action callback, int intervalSeconds = 5)` |
+| `WatchdogReport` | `void WatchdogReport(string summary, string status = "success", object? data = null)` |
+
+#### `Globals/ScriptApi.ViewExport.cs`
+
+| Member | Signature |
+| --- | --- |
+| `ExportImage` | `string ExportImage(string path, string? viewName = null, int pixelSize = 1200, bool hideAnnotation = true)` |
+
+#### `Globals/ScriptApi.cs`
+
+| Member | Signature |
+| --- | --- |
+| `UIApp` | `UIApplication UIApp` |
+| `UIDoc` | `UIDocument UIDoc` |
+| `Doc` | `Document Doc` |
+| `ActiveView` | `View ActiveView` |
+| `Selection` | `List<Element> Selection` |
+| `Pick` | `Element Pick()` |
+| `Parameters` | `Dictionary<string, object> Parameters` |
+| `Println` | `void Println(string message)` |
+| `Println` | `void Println(object message)` |
+| `Println` | `void Println()` |
+| `Print` | `void Print(string message)` |
+| `Print` | `void Print(object message)` |
+| `Transact` | `void Transact(string name, Action<Document> action)` |
+| `Transact` | `void Transact(string name, Action action)` |
+| `Regen` | `void Regen()` |
+| `Show` | `void Show(string type, object data)` |
+| `Table` | `void Table(object data)` |
+| `Table` | `void Table(IEnumerable<Element> elements)` |
+| `Select` | `void Select(IEnumerable<Element> elements)` |
+| `Isolate` | `void Isolate(IEnumerable<Element> elements)` |
+| `Zoom` | `void Zoom(IEnumerable<Element> elements)` |
+| `BarGraph` | `void BarGraph(object data)` |
+| `PieGraph` | `void PieGraph(object data)` |
+| `LineGraph` | `void LineGraph(object data)` |
+| `SetExecutionTimeout` | `void SetExecutionTimeout(int seconds)` |
+| `GetElement` | `T? GetElement<T>(string identity) where T : Element` |
+| `GetElement` | `Element? GetElement(string identity)` |
+| `GetElements` | `PipelineEnumerable<T> GetElements<T>() where T : Element` |
+| `GetElements` | `PipelineEnumerable<T> GetElements<T>(string categoryName) where T : Element` |
+| `GetElements` | `PipelineEnumerable<Element> GetElements(BuiltInCategory category)` |
+| `GetElements` | `PipelineEnumerable<Element> GetElements(string categoryOrClass)` |
+| `GetMagicNames` | `List<string> GetMagicNames()` |
+| `GetCategories` | `List<string> GetCategories()` |
+<!-- GENERATED:EXT-INDEX:END -->

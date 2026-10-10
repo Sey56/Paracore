@@ -75,6 +75,15 @@ def match_paren(text: str, open_idx: int) -> int:
 
 HEAD = re.compile(r"\bpublic\s+static\s+(?:readonly\s+)?")
 
+# ⚠ The NAME is the first identifier followed by `(` (or `<…>(`) — NOT "the text before the
+# first `(`". A TUPLE return type puts a `(` BEFORE the name:
+#     public static (double Bot, double Top) GetZSpan(this Room room)
+# Taking the first `(` yields `(double Bot, double Top)`, which carries no `this`, so the
+# method is SILENTLY DROPPED. That was a real defect: `GetZSpan` was absent from the reference
+# AND from this audit, so the audit's "0 missing" was true but INCOMPLETE — the XML sidecar
+# check in `.repl/verify_ext_method_gen.py` is what caught it.
+NAME_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)(<[^>]*>)?\s*\(")
+
 
 def extract():
     """[(name, return_type, params, file, line, raw_head)] for every extension method."""
@@ -82,15 +91,21 @@ def extract():
     for rel, text in sources():
         for m in HEAD.finditer(text):
             start = m.end()
-            # the name is the LAST identifier before the `(` that opens the parameter list
-            op = text.find("(", start)
-            if op < 0:
+            nm = NAME_RE.search(text, start)
+            if nm is None:
                 continue
+            op = nm.end() - 1                  # the `(` that opens the parameter list
             # guard: a statement like `public static int X { get; }` has no parens before `{`
             brace = text.find("{", start)
             if 0 <= brace < op:
                 continue
-            head = text[start:op].strip()
+            head = text[start:nm.start()].strip()
+            # guard: a spurious match (a property/field sitting between two methods) drags the
+            # property's `;`/`=>` into the head. A real return type never contains them.
+            # ⚠ `>` is NOT in this set — `IEnumerable<T>` IS a return type, and rejecting it
+            # silently dropped every generic-returning method.
+            if any(ch in head for ch in ";}="):
+                continue
             cp = match_paren(text, op)
             if cp < 0:
                 continue
@@ -98,13 +113,10 @@ def extract():
             # an extension method's FIRST parameter carries the `this` modifier
             if not re.match(r"^this\s", params):
                 continue
-            nm = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>]*>)?\s*$", head)
-            if not nm:
-                continue
             name = nm.group(1)
-            ret = head[:nm.start()].strip().rstrip("<")
+            ret = head.rstrip("<") or "?"
             line = text.count("\n", 0, m.start()) + 1
-            out.append((name, ret or "?", params, rel, line, head))
+            out.append((name, ret, params, rel, line, head))
     return out
 
 
