@@ -201,11 +201,11 @@ export const WelcomeGate: React.FC<WelcomeGateProps> = ({ login, loginLocal, isA
                 <div className="space-y-3 pt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-normal">
                   <div className="flex gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60 mt-1 shrink-0" />
-                    <p><span className="font-bold text-slate-500 dark:text-slate-400">Pro Cloud:</span> Sign in with Google to access AI Agent, Sentinels, and exclusive pro features.</p>
+                    <p><span className="font-bold text-slate-500 dark:text-slate-400">Cloud Workspace:</span> Sign in with Google to sync your workspace and access AI Agent features.</p>
                   </div>
                   <div className="flex gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1 shrink-0" />
-                    <p><span className="font-bold text-slate-500 dark:text-slate-400">Offline Guest Mode:</span> Personal sandbox mode with local folders, full script runner capabilities, and immediate C# REPL execution.</p>
+                    <p><span className="font-bold text-slate-500 dark:text-slate-400">Offline Guest Mode:</span> Personal sandbox with local folders, full script runner capability, Sentinels, and immediate C# REPL execution.</p>
                   </div>
                 </div>
               </>

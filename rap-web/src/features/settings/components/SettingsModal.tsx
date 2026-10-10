@@ -18,25 +18,22 @@ interface TabItem {
 
 const SettingsModal: React.FC = () => {
   const { isSettingsModalOpen, closeSettingsModal } = useUI();
-  const { isAuthenticated, isEnterprise } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const coreFeaturesTabs = useMemo(() => {
-    const tabs: TabItem[] = [];
-
-    if (isEnterprise) {
-      tabs.push({
+    const tabs: TabItem[] = [
+      {
         name: 'Sentinels',
         component: WatchdogSettings,
-      });
-    }
-
-    tabs.push({
-      name: 'Automation',
-      component: AutomationSettings,
-    });
+      },
+      {
+        name: 'Automation',
+        component: AutomationSettings,
+      },
+    ];
 
     return tabs;
-  }, [isEnterprise]);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<string | null>(null);
 

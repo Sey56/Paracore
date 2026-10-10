@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSync, faShieldHeart, faFolderOpen, faChevronDown, faCheck, faThLarge, faList } from '@fortawesome/free-solid-svg-icons';
 import { defaultCategories } from '@/data/categories';
 import { ActiveScriptSource } from '@/context/providers/UIContext';
-import { useAuth } from '@/features/auth';
 import { Tooltip } from '@/components/common/Tooltip';
 
 interface GalleryInfoBarProps {
@@ -33,7 +32,6 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
   isCompactView,
   onToggleDensity,
 }) => {
-  const { isEnterprise } = useAuth();
   const [catOpen, setCatOpen] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
 
@@ -134,16 +132,14 @@ export const GalleryInfoBar: React.FC<GalleryInfoBarProps> = ({
             >
               + New
             </button>
-            {isEnterprise && (
-              <Tooltip text="New Sentinel" position="bottom">
-                <button
-                  onClick={onNewSentinel}
-                  className="text-[10px] font-bold text-amber-500 hover:text-amber-600 uppercase tracking-wider hover:bg-amber-50 dark:hover:bg-amber-900/20 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
-                >
-                  <FontAwesomeIcon icon={faShieldHeart} className="text-[9px]" />
-                </button>
-              </Tooltip>
-            )}
+            <Tooltip text="New Sentinel" position="bottom">
+              <button
+                onClick={onNewSentinel}
+                className="text-[10px] font-bold text-amber-500 hover:text-amber-600 uppercase tracking-wider hover:bg-amber-50 dark:hover:bg-amber-900/20 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <FontAwesomeIcon icon={faShieldHeart} className="text-[9px]" />
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>

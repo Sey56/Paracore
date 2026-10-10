@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faExpandAlt, faCompressAlt, faChevronDown, faSortAmountDown, faClock, faTimes } from '@fortawesome/free-solid-svg-icons';
-import { useAuth } from '@/features/auth';
 
 const SEARCH_HISTORY_KEY = 'paracore_search_history';
 const MAX_HISTORY = 10;
@@ -62,7 +61,6 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
   const [showHistory, setShowHistory] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
-  const { isEnterprise } = useAuth();
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -159,7 +157,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           {[
             { id: 'all', label: 'All' },
             { id: 'scripts', label: 'Scripts' },
-            ...(isEnterprise ? [{ id: 'guards', label: 'Sentinels' }] : [])
+            { id: 'guards', label: 'Sentinels' }
           ].map(t => (
             <button
               key={t.id}

@@ -4,7 +4,7 @@ import { faUser } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from '@/features/auth';
 
 export const SidebarHeader: React.FC = () => {
-  const { user, isEnterprise } = useAuth();
+  const { user } = useAuth();
 
   const displayName = user?.name || user?.email?.split('@')[0] || 'User';
 
@@ -18,12 +18,6 @@ export const SidebarHeader: React.FC = () => {
           <span className="text-sm font-black text-gray-800 dark:text-gray-100 truncate tracking-tight uppercase">
             {displayName}
           </span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isEnterprise ? 'bg-green-500' : 'bg-amber-500'}`} />
-            <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-              {isEnterprise ? 'Pro' : 'Free'}
-            </span>
-          </div>
         </div>
         <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-white dark:from-gray-900 to-transparent pointer-events-none" />
       </div>

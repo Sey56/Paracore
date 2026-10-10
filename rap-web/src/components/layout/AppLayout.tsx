@@ -49,7 +49,7 @@ const PanelSkeleton = () => (
 );
 
 export const AppLayout: React.FC = () => {
-  const { isAuthenticated, isEnterprise, user, login, loginLocal } = useAuth();
+  const { isAuthenticated, user, login, loginLocal } = useAuth();
   const { selectedScript, setSelectedScript, runScript, userEditedScriptParameters } = useScriptExecution();
   const { isArmingWatchdogs, watchdogs } = useWatchdog();
   const { toggleTheme } = useTheme();
@@ -119,7 +119,7 @@ export const AppLayout: React.FC = () => {
     setActiveMainView,
   } = useUI();
 
-  const showGate = isEnterprise && gateVisible;
+  const showGate = isAuthenticated && gateVisible;
 
   // ── Keyboard Shortcuts ──
   useKeyboardShortcuts({
@@ -241,7 +241,7 @@ export const AppLayout: React.FC = () => {
 
       <Suspense fallback={null}><SettingsModal /></Suspense>
       <InfoModal isOpen={infoModalState.isOpen} onClose={closeInfoModal} title={infoModalState.title} message={infoModalState.message} />
-      {isEnterprise && showSentinelFAB && <FloatingActionButton />}
+      {showSentinelFAB && <FloatingActionButton />}
 
       {selectedScript && (
         <Suspense fallback={null}>

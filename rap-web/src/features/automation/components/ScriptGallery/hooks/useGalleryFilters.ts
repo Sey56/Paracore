@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Script } from '@/types/scriptModel';
-import { useAuth } from '@/features/auth';
 import { fuzzyMatch } from '@/utils/fuzzySearch';
 
 const parseSearchTerm = (term: string) => {
@@ -83,7 +82,6 @@ export const useGalleryFilters = (scripts: Script[], favoriteIds: string[], sele
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [selectedDefaultCategories, setSelectedDefaultCategories] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState<'all' | 'scripts' | 'guards'>('all');
-  const { isEnterprise } = useAuth();
 
   const { filters, pillFilters } = useMemo(() => parseSearchTerm(searchTerm), [searchTerm]);
 
@@ -107,11 +105,8 @@ export const useGalleryFilters = (scripts: Script[], favoriteIds: string[], sele
       const checkPath = (s: Script) => (s.absolutePath || s.id || "").toLowerCase();
       const isGuard = (s: Script) => s.metadata?.isWatchdog === true || s.metadata?.is_watchdog === true || checkPath(s).endsWith('.wtool') || checkPath(s).includes('.wtool');
       
-      // If free tier, never show sentinels
-      let baseList = filteredByDefaultCategories;
-      if (!isEnterprise) {
-        baseList = filteredByDefaultCategories.filter(s => !isGuard(s));
-      }
+      // Sentinels are a free capability — always include them in the gallery.
+      const baseList = filteredByDefaultCategories;
 
       if (typeFilter === 'all') return baseList;
       if (typeFilter === 'scripts') return baseList.filter(s => !isGuard(s));
@@ -172,7 +167,7 @@ export const useGalleryFilters = (scripts: Script[], favoriteIds: string[], sele
       favoriteScripts: sortedScripts.filter(script => script.isFavorite), 
       otherScripts: sortedScripts.filter(script => !script.isFavorite) 
     };
-  }, [scripts, searchTerm, sortOrder, selectedSidebarCategory, filters, selectedDefaultCategories, typeFilter, favoriteIds, isEnterprise]);
+  }, [scripts, searchTerm, sortOrder, selectedSidebarCategory, filters, selectedDefaultCategories, typeFilter, favoriteIds]);
 
   const handleRemoveFilter = (type: string, value: string) => {
     const currentSearchParts = searchTerm.split(/\s+/).filter(Boolean);
