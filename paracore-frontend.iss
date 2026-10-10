@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Revit Automation Platform"
-#define MyAppVersion "4.7.0"
+#define MyAppVersion "4.8.0"
 #define MyAppPublisher "Seyoum Hagos"
 #define MyAppExeName "rap-server.exe"
 
@@ -11,7 +11,7 @@
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{YOUR_APP_GUID}} ; Replace with a new GUID
 AppName={#MyAppName}
-AppVersion=4.7.0
+AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\RAP
 DefaultGroupName=RAP
@@ -22,10 +22,10 @@ UsedUserAreasWarning=no
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-VersionInfoVersion=4.7.0
+VersionInfoVersion={#MyAppVersion}
 VersionInfoCompany=Paras Codarch
 VersionInfoDescription=Revit Automation Platform. Author: Seyoum Hagos
-VersionInfoTextVersion=4.7.0
+VersionInfoTextVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

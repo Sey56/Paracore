@@ -16,7 +16,7 @@ if (-not (Test-Path $VersionFile)) {
     exit 1
 }
 $Version = (Get-Content $VersionFile).Trim()
-$SyncScript = Join-Path $ProjectRoot "..\Versioning\Set-Version.ps1"
+$SyncScript = Join-Path $ProjectRoot (Join-Path "scripts" "Set-Version.ps1")
 if (Test-Path $SyncScript) {
     Write-Host "Syncing versions to $Version..." -ForegroundColor Cyan
     & $SyncScript $Version
