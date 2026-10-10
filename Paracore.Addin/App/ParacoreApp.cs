@@ -35,6 +35,34 @@ namespace Paracore.Addin.App
         private static System.Diagnostics.Process? _sidecarProcess;
         private static string? _addinDir;
 
+        /// <summary>
+        /// The class-name prefix the shim publishes for its pack-command proxy pool, e.g.
+        /// <c>Paracore.Shim.PackCommandProxy3</c>. Revit instantiates a ribbon button's command
+        /// by NAME, so the pool has to be named; this is the only string the add-in and the shim
+        /// share, and it is VERIFIED against the loaded shim before any button is added, so the
+        /// two can never drift apart in silence.
+        /// </summary>
+        private const string PackProxyClassPrefix = "Paracore.Shim.PackCommandProxy";
+
+        /// <summary>
+        /// Ribbon slot N -> the pack command the shim must run for it, in the order the buttons
+        /// were added. Written only by <see cref="AddPackRibbonButtons"/>; read by the shim
+        /// through <see cref="ResolvePackCommandTypeForSlot"/>.
+        /// </summary>
+        private static readonly List<Type> _packCommandSlots = [];
+
+        /// <summary>
+        /// The pack command behind ribbon slot <paramref name="slot"/>, or
+        /// <see langword="null"/> when nothing is wired there.
+        ///
+        /// ⚠ Called by the SHIM, through reflection, when a pack button is clicked. The shim is
+        /// deliberately dependency-free — it must not reference the engine or this assembly —
+        /// so it can neither name a pack type nor learn a pack's name. It asks here instead,
+        /// which is what keeps "which pack is installed" out of the shim entirely.
+        /// </summary>
+        public static Type? ResolvePackCommandTypeForSlot(int slot)
+            => slot >= 0 && slot < _packCommandSlots.Count ? _packCommandSlots[slot] : null;
+
 
         public static Dictionary<string, string> ActiveWorkspaces = new(); // Kept for legacy compatibility if needed
 
@@ -82,6 +110,16 @@ namespace Paracore.Addin.App
             services.AddSingleton<Paracore.Addin.Handlers.ReplHandler>();
 
             _serviceProvider = services.BuildServiceProvider();
+
+            // Load specialist packs (takeoff, clash detection, …) from the pack roots. This
+            // runs BEFORE any script can be compiled, because a pack's script-facing API has
+            // to be registered in time for the engine to include it in the preamble.
+            // ⚠ A free-only install finds none and this is the normal case — the enterprise
+            // gates stay shut and only the generic engine surface is available.
+            int packs = CoreScript.Engine.Packs.PackLoader.LoadAll();
+            FileLogger.Log(packs == 0
+                ? "No packs installed — generic engine only."
+                : $"Loaded {packs} pack(s): {string.Join(", ", CoreScript.Engine.Packs.PackLoader.LoadedPacks)}");
 
             const string tabName = "Paracore";
             const string panelName = "Core Tools";
@@ -150,6 +188,148 @@ namespace Paracore.Addin.App
 
 
             AddProRibbonButtons(panel, cmdAssembly, useShim);
+            AddPackRibbonButtons(panel, useShim);
+        }
+
+        /// <summary>
+        /// Adds one button per ribbon contribution a loaded pack announced.
+        ///
+        /// ⚠⚠ The button must NOT name the pack's assembly. Revit resolves a button's assembly
+        /// into the DEFAULT load context, so pointing at Paracore.TakeOff.dll would load a
+        /// SECOND copy of the pack there — and a second engine with it — while the copy the
+        /// REPL actually reads keeps running in the isolated context. A dialog would then write
+        /// settings the running engine never sees. (The same reason "make takeoff a second
+        /// add-in" is the wrong fix: a second add-in lands in the default context too.) So the
+        /// button names the SHIM, which Revit has already loaded, and the shim forwards the
+        /// click back into the isolated context where the pack really lives.
+        ///
+        /// Nothing here runs on a free-only install: no packs means no contributions means no
+        /// buttons, and the ribbon is byte-for-byte what it was before this mechanism existed.
+        /// </summary>
+        private void AddPackRibbonButtons(RibbonPanel panel, bool useShim)
+        {
+            var contributions = RibbonSurface.Contributions;
+            if (contributions.Count == 0)
+            {
+                return;
+            }
+
+            if (!useShim)
+            {
+                FileLogger.LogError(
+                    $"[Ribbon] {contributions.Count} pack button(s) were announced, but Paracore.Shim.dll is " +
+                    "missing, so they cannot be routed into the isolated context. Reinstall the add-in.");
+                return;
+            }
+
+            var shimAssembly = FindShimInDefaultContext();
+            if (shimAssembly == null || string.IsNullOrEmpty(shimAssembly.Location))
+            {
+                FileLogger.LogError(
+                    "[Ribbon] Paracore.Shim is not loaded in the default load context, so pack buttons " +
+                    "cannot be created.");
+                return;
+            }
+
+            foreach (var contribution in contributions)
+            {
+                int slot = _packCommandSlots.Count;
+                string className = PackProxyClassPrefix
+                    + slot.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                // A slot the shim does not publish is a BUILD MISMATCH between the add-in and
+                // the shim — not something to discover on the user's first click. Fail loudly
+                // and add nothing, rather than shipping a button that dies when pressed.
+                if (shimAssembly.GetType(className) == null)
+                {
+                    FileLogger.LogError(
+                        $"[Ribbon] '{className}' is not published by Paracore.Shim — the shim and the add-in " +
+                        $"are out of step, so '{contribution.Name}' was NOT added. Reinstall both.");
+                    break;
+                }
+
+                var button = new PushButtonData(contribution.Name, contribution.Text,
+                    shimAssembly.Location, className)
+                {
+                    ToolTip = contribution.ToolTip,
+                };
+
+                // ⚠ The URL belongs to the PACK, not to this host: only the pack knows which
+                // page documents its own button. It travels in the contribution for exactly
+                // that reason.
+                if (!string.IsNullOrEmpty(contribution.HelpUrl))
+                {
+                    button.SetContextualHelp(new ContextualHelp(
+                        ContextualHelpType.Url, contribution.HelpUrl));
+                }
+
+                var icon = LoadIcon(contribution.IconPath);
+                if (icon != null)
+                {
+                    button.LargeImage = icon;
+                    button.Image = icon;
+                }
+
+                panel.AddItem(button);
+                _packCommandSlots.Add(contribution.CommandType);
+                FileLogger.Log(
+                    $"[Ribbon] Pack button '{contribution.Name}' added at slot {slot} -> " +
+                    contribution.CommandType.FullName);
+            }
+        }
+
+        /// <summary>
+        /// The <c>Paracore.Shim</c> assembly Revit itself loaded.
+        ///
+        /// ⚠ Filtered by load context on purpose. The isolated context also probes the add-in
+        /// folder for dependencies, so looking the shim up by NAME alone could hand back a
+        /// second copy loaded inside the bubble — a copy whose proxy pool Revit would never
+        /// instantiate, because Revit only invokes what it loaded into the default context.
+        /// </summary>
+        private static Assembly? FindShimInDefaultContext()
+        {
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (assembly.GetName().Name == "Paracore.Shim"
+                    && System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(assembly)
+                        == System.Runtime.Loader.AssemblyLoadContext.Default)
+                {
+                    return assembly;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Loads a pack's ribbon icon from the absolute file path it announced, or returns
+        /// <see langword="null"/> when there is nothing to load. A bad icon must cost the
+        /// picture, never the button.
+        /// </summary>
+        private static BitmapImage? LoadIcon(string? path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                return null;
+            }
+
+            try
+            {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(path, UriKind.Absolute);
+                // Read it fully now and hold no file handle: the pack folder may be replaced by
+                // an installer while Revit is open.
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+                bitmap.Freeze();
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                FileLogger.Log($"[Ribbon] Icon '{path}' could not be loaded: {ex.Message}");
+                return null;
+            }
         }
 
         private RibbonPanel GetOrCreatePanel(UIControlledApplication app, string tabName, string panelName)

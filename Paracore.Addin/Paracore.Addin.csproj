@@ -8,8 +8,8 @@
     <AssemblyName>Paracore.Addin</AssemblyName>
     <PlatformTarget>x64</PlatformTarget>
     <Company>Codarch</Company>
-    <AssemblyVersion>4.7.0.0</AssemblyVersion>
-    <FileVersion>4.7.0.0</FileVersion>
+    <AssemblyVersion>4.8.0.0</AssemblyVersion>
+    <FileVersion>4.8.0.0</FileVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
@@ -88,6 +88,41 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════════════════
+    PDFsharp — HOST-PROVIDED RUNTIME CAPABILITY, NOT AN ADD-IN FEATURE
+    ═══════════════════════════════════════════════════════════════════════════════════════
+    No code in this project references PDFsharp, and that is deliberate. The reference is here
+    for one reason: `dotnet publish` copies the whole package closure into the add-in folder,
+    and the add-in folder is the RUNTIME ROOT that every pack resolves against.
+
+    ⚠ WHY HERE AND NOT IN THE TAKEOFF PACK THAT USES IT
+    The takeoff pack's `Schedules` command writes PDFs and the pack COMPILES against PDFsharp,
+    but a pack cannot ship it: `dotnet build` on a LIBRARY project does not copy NuGet runtime
+    assets to its output folder — only `dotnet publish` does — so a pack-local copy would have
+    to be hand-wired with a fragile package-path glob. Provisioning it here costs one copy, in
+    the one folder both load paths already probe:
+      • Paracore.Shim.IsolatedLoadContext.Load probes the add-in bundle folder FIRST (step 1);
+      • the engine's PackLoader shares the Default context, which resolves from that same folder.
+    The side benefit is that it GENERALISES: any future pack that needs to emit a PDF gets the
+    stack for free, instead of every pack re-inventing how to ship it.
+
+    ⚠⚠ DO NOT DELETE THIS AS "UNUSED PACKAGE". It looks unreferenced to any code search, and
+    removing it breaks nothing at build time — the pack still compiles, the add-in still
+    publishes cleanly — and the Schedules button then dies on the user's first click with the
+    tool apparently installed correctly. `build-addin.ps1` gates on `PdfSharp.dll` being present
+    in the publish folder precisely so that this failure cannot ship.
+
+    ⚠ Same version the Pro add-in shipped (6.2.0) so the PDF output is byte-for-byte unchanged.
+    ⚠ `Microsoft.Extensions.Logging` and `System.Security.Cryptography.Pkcs` come with it
+    transitively (PDFsharp's .nuspec declares exactly those two). Neither is in the add-in
+    folder today, so neither needs to be referenced by hand — and neither should be.
+    ═══════════════════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <PackageReference Include="PDFsharp" Version="6.2.0" />
   </ItemGroup>
 
   <!-- Proto file for gRPC service -->

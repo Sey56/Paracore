@@ -100,6 +100,24 @@ if (-not $resolvedPublishDir -or -not (Test-Path (Join-Path $resolvedPublishDir 
 
 Write-Host "Resolved Publish Directory: $resolvedPublishDir" -ForegroundColor Cyan
 
+# ⚠⚠ GATE — HOST-PROVIDED PACK DEPENDENCIES.
+# The add-in folder is the RUNTIME ROOT every pack resolves against, so a library the host is
+# supposed to provide must actually be sitting in it. `PDFsharp` is the first of these: it is
+# referenced by Paracore.Addin.csproj with NO code in this project using it (see the ⚠ block
+# there), so a "remove unused packages" cleanup would drop it — and nothing would fail. The
+# add-in would publish cleanly, the takeoff pack would still compile, and the Schedules button
+# would then die on the user's first click with the tool apparently installed correctly.
+# Assert the artifact, not the intention.
+if (-not (Test-Path (Join-Path $resolvedPublishDir "PdfSharp.dll"))) {
+    Write-Host "BUILD GATE FAILED: PdfSharp.dll is absent from the publish folder:" -ForegroundColor Red
+    Write-Host "  $resolvedPublishDir" -ForegroundColor Red
+    Write-Host "  It is a HOST-PROVIDED dependency of the takeoff pack's Schedules command." -ForegroundColor Red
+    Write-Host "  Restore the PDFsharp PackageReference in Paracore.Addin.csproj." -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+Write-Host "  [+] PdfSharp.dll present (host-provided pack dependency)" -ForegroundColor Green
+
 # --- Build Paracore.Shim (Isolation Layer) ---
 Write-Host "`nBuilding Paracore.Shim (Isolation Layer)..." -ForegroundColor Cyan
 $shimDir = Join-Path -Path $ProjectRoot -ChildPath 'Paracore.Shim'

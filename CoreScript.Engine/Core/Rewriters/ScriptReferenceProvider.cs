@@ -124,6 +124,18 @@ namespace CoreScript.Engine.Core.Rewriters
                 }
             }
 
+            // Pack-contributed assemblies. A Pro pack announces its own script-facing type
+            // (see ScriptSurface) and thereby its own assembly; the engine never learns
+            // which pack is present, only that one registered. Empty in a free install,
+            // which is why this loop changes nothing there.
+            foreach (string packPath in CoreScript.Engine.Globals.ScriptSurface.ReferencePaths)
+            {
+                if (File.Exists(packPath))
+                {
+                    coreRefs.Add(MetadataReference.CreateFromFile(packPath));
+                }
+            }
+
             // The facade layer — see FrameworkFacades above for why its absence
             // silently disabled SemanticTrackingGuard. Resolved from the directory
             // that holds System.Private.CoreLib, i.e. the shared framework the

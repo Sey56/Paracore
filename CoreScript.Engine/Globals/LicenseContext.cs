@@ -13,15 +13,47 @@ namespace CoreScript.Engine.Globals
         private static string _tier;
 
         /// <summary>
-        /// True when the loaded engine is the Pro build — detected once by probing
-        /// a Pro-only type (ProPaths is compiled only in the pro repo; the free
-        /// engine ships without it). Chosen because it references no Revit types,
-        /// so the probe cannot fail on missing Revit references. This keeps every
-        /// enterprise gate closed in a free add-in regardless of any tier claim
-        /// from the execution host.
+        /// Set once when a Pro artifact announces itself — see <see cref="RegisterProBuild"/>.
+        /// Process-wide, because it describes what is LOADED, not who is running.
+        /// `volatile`: the announcement arrives from whichever thread loaded the artifact.
         /// </summary>
-        private static readonly bool _proEngine =
+        private static volatile bool _proBuildRegistered;
+
+        /// <summary>
+        /// LEGACY probe, kept as a fallback while Pro code still ships inside the engine:
+        /// `ProPaths` is compiled only in the pro repo, and it references no Revit types,
+        /// so the probe cannot fail on missing Revit references.
+        ///
+        /// ⚠ It is NOT the long-term mechanism, and it is scheduled to die. `ProPaths` is
+        /// the takeoff's own settings-path helper, so it leaves the engine together with
+        /// the Pro features — and the moment it does, this probe answers false forever and
+        /// EVERY enterprise gate below would throw for a paying customer. That is exactly
+        /// why <see cref="RegisterProBuild"/> exists; do not delete this fallback until the
+        /// Pro artifacts are known to announce themselves.
+        /// </summary>
+        private static readonly bool _legacyProEngine =
             typeof(LicenseContext).Assembly.GetType("CoreScript.Engine.Globals.ProPaths") != null;
+
+        /// <summary>
+        /// True when the Pro bits are physically present in this process.
+        ///
+        /// ⚠ Deliberately an EXPLICIT announcement, never a scan of the loaded assemblies
+        /// for one named "Paracore.TakeOff". A display string is a routing key, not a label:
+        /// a rename would not error, it would silently open every gate.
+        /// </summary>
+        private static bool ProBitsPresent => _proBuildRegistered || _legacyProEngine;
+
+        /// <summary>
+        /// Announces that a Pro artifact is loaded in this process — the Pro add-in, or a
+        /// Pro pack such as Paracore.TakeOff. Call it from the artifact's own module
+        /// initializer, so the flag is set exactly when the Pro bits are, with no
+        /// coordination from the host and no dependency on any Pro type living inside the
+        /// engine. Idempotent, and safe to call from any thread.
+        /// </summary>
+        public static void RegisterProBuild()
+        {
+            _proBuildRegistered = true;
+        }
 
         /// <summary>
         /// The current license tier: "enterprise" or "free" (default).
@@ -34,11 +66,11 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Returns true if the current execution context has enterprise privileges:
-        /// the host must claim the enterprise tier AND the loaded engine must be
-        /// the Pro build.
+        /// the host must claim the enterprise tier AND the Pro bits must be present in
+        /// this process.
         /// </summary>
         public static bool IsEnterprise =>
-            string.Equals(Tier, "enterprise", StringComparison.OrdinalIgnoreCase) && _proEngine;
+            string.Equals(Tier, "enterprise", StringComparison.OrdinalIgnoreCase) && ProBitsPresent;
 
         /// <summary>
         /// Guard method — call at the top of every enterprise-only extension method.
@@ -51,7 +83,7 @@ namespace CoreScript.Engine.Globals
             if (!IsEnterprise)
             {
                 throw new LicenseException(
-                    !_proEngine
+                    !ProBitsPresent
                         ? $"🔒 '{featureName}' is a Paracore Pro feature. Install the Paracore Pro Add-in to unlock."
                         : $"🔒 '{featureName}' is an Enterprise feature. " +
                           $"Sign in with Google in Paracore to unlock.");

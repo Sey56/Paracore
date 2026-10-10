@@ -136,7 +136,7 @@ namespace CoreScript.Engine.Core
                 // remaps columns, and the rewriter really did insert text at that
                 // offset); DiagnosticMapper.MapReplDiagnostics subtracts the
                 // injected wrapper prefix instead. Both are needed.
-                string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
+                string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + CoreScript.Engine.Globals.ScriptSurface.StaticImportsLine + Environment.NewLine +
                                   "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine +
                                   "#line 1 \"script\"" + Environment.NewLine +
                                   code;

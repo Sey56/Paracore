@@ -287,7 +287,7 @@ namespace CoreScript.Engine.Core.Rewriters
             var sb = new StringBuilder();
             foreach (var i in imports)
                 sb.Append("using ").Append(i).Append(";\n");
-            sb.Append("using static CoreScript.Engine.Globals.ScriptApi;\n");
+            sb.Append("using static CoreScript.Engine.Globals.ScriptApi;" + CoreScript.Engine.Globals.ScriptSurface.StaticImportsLine + "\n");
             sb.Append("using Parameter = Autodesk.Revit.DB.Parameter;\n");
             return sb.ToString();
         }

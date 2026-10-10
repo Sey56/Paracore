@@ -22,7 +22,7 @@ namespace CoreScript.Engine.Core
         {
             var options = GetScriptOptions(scriptName);
             // Inject ScriptApi parity and resolve Parameter ambiguity
-            string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + Environment.NewLine +
+            string fullCode = "using static CoreScript.Engine.Globals.ScriptApi;" + CoreScript.Engine.Globals.ScriptSurface.StaticImportsLine + Environment.NewLine +
                               "using Parameter = Autodesk.Revit.DB.Parameter;" + Environment.NewLine +
                               code;
 
