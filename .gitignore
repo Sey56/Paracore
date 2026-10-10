@@ -118,9 +118,7 @@ agent-skills-analysis.md
 Specialized-MCPs.md
 TakeOff-MCP-Research.md
 paracore-licensing-architecture.md
-paracore-agent-mcp-audit.md
 paracore-distribution-model.md
-paracore-revit/
 
 # Tutorials
 Tutorials/
@@ -174,3 +172,7 @@ scripts/addin_build_log.txt
 # VS Code extension build output -- generated, never source
 corescript-vscode/out/
 corescript-vscode/dist/
+# The packaged extension. `build-extension.ps1` deletes any corescript-*.vsix and
+# re-packages it, so a tracked copy is a stale duplicate that keeps an OLD version in
+# the repo after a bump. Untracked 2026-10-10 (a 4.7.0 .vsix was still tracked at 4.8.0).
+corescript-vscode/*.vsix
