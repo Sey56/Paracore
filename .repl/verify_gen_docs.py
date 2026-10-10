@@ -115,6 +115,52 @@ def main() -> int:
     if bad:
         ok = False
 
+    # --- the SKILLS.md catalogue region -----------------------------------------------------
+    # ⚠ The nine shared skill sections used to exist THREE times by hand and had already
+    # diverged. The drift check above only proves each file matches build(); it cannot see
+    # that the three REGIONS are the same, nor that a repo's own DOMAIN skills stayed outside
+    # the generated block (a domain section inside would be silently deleted by --write).
+    print("\nSKILLS SCAN  (each MCP's catalogue region must cover exactly the shared nine)")
+    B, E = gen.SKILLS_BEGIN, gen.SKILLS_END
+    regions, want = {}, list(gen.SHARED_SKILLS)
+    for rel, dest in gen.TARGETS:
+        if rel != gen.SELF:
+            continue
+        text = dest.read_text(encoding="utf-8") if dest.exists() else ""
+        where = f"{dest.parent.name}/SKILLS.md"
+        if B not in text or E not in text:
+            print(f"  {where}: NO MARKER REGION — an empty scan must not pass")
+            ok = False
+            continue
+        region = text.split(B, 1)[1].split(E, 1)[0]
+        outside = text.split(B, 1)[0] + text.split(E, 1)[1]
+        names = re.findall(r"^## (.+)$", region, re.M)
+        leaked = [n for n in names if f"## {n}\n" in outside]
+        regions[where] = region
+        good = names == want and not leaked
+        print(f"  {where}: {len(names)} sections, matches authority={names == want}, "
+              f"duplicated outside={leaked}")
+        if not good:
+            ok = False
+    if len(set(regions.values())) != 1:
+        print(f"  the regions are NOT identical across MCPs ({len(set(regions.values()))} variants)")
+        ok = False
+    else:
+        print(f"  all {len(regions)} regions byte-identical ({len(regions[list(regions)[0]])} chars)")
+
+    print("\nTEETH SCAN  (render_shared_skills must REFUSE a mismatched set)")
+    saved = gen.SHARED_SKILL_WHEN
+    try:
+        gen.SHARED_SKILL_WHEN = {k: v for k, v in saved.items() if k != "query-filter"}
+        try:
+            gen.render_shared_skills()
+            print("  render_shared_skills() ACCEPTED a one-key-short set — not a gate")
+            ok = False
+        except ValueError:
+            print("  render_shared_skills() refuses a set where the two views disagree")
+    finally:
+        gen.SHARED_SKILL_WHEN = saved
+
     print("\nVERDICT:", "CLEAN" if ok else "PROBLEMS FOUND")
     return 0 if ok else 1
 

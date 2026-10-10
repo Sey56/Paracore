@@ -344,24 +344,28 @@ def render_index(records, *, provenance: str, with_globals: bool = False) -> str
     return "\n".join(lines).rstrip() + "\n"
 
 
-def inject(text: str, body: str) -> str:
-    """Replace the region between the markers with `body`.
+def inject(text: str, body: str, begin: str = BEGIN, end: str = END) -> str:
+    """Replace the region between `begin` and `end` with `body`.
 
-    ⚠ ONE mechanism for every document, including a pack's: the TITLE and INTRO are hand-authored
-    prose and the region between the markers is generated. An earlier `--full` mode generated the
-    whole file — but then `--check` had to be handed the same `--title`/`--intro` again to
-    reproduce it, and a gate you can run wrong is not a gate.
+    ⚠ ONE implementation, parameterised by the marker pair — `gen-engine-docs.py` reuses it for
+    the `SKILLS.md` region with a different pair. A second copy of this function would be a
+    second place for the "which region" rule to be wrong.
+
+    ⚠ ONE mechanism for every document: the TITLE and INTRO are hand-authored prose and the
+    region between the markers is generated. An earlier `--full` mode generated the whole file —
+    but then `--check` had to be handed the same `--title`/`--intro` again to reproduce it, and a
+    gate you can run wrong is not a gate.
     ⚠ Raises when the markers are ABSENT rather than appending: a missing marker means the
     document is not the one we think it is, and silently creating a second region would hide that.
     """
-    if BEGIN not in text or END not in text:
+    if begin not in text or end not in text:
         raise ValueError(
-            f"markers not found — expected {BEGIN} … {END}. "
+            f"markers not found — expected {begin} … {end}. "
             "Add the region to the document once; this tool only ever replaces it."
         )
-    head, rest = text.split(BEGIN, 1)
-    _old, tail = rest.split(END, 1)
-    return f"{head}{BEGIN}\n{body}{END}{tail}"
+    head, rest = text.split(begin, 1)
+    _old, tail = rest.split(end, 1)
+    return f"{head}{begin}\n{body}{end}{tail}"
 
 
 # --------------------------------------------------------------------------------------------

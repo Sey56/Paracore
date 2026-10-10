@@ -5,12 +5,13 @@ using System.Collections.Generic;
 namespace CoreScript.Engine.Globals
 {
     /// <summary>
-    /// Sentinels - background watchdogs. Paracore Pro only.
+    /// Sentinels — background watchdogs. Part of the GENERIC engine (free).
     /// <para>
-    /// This is the Pro half of <see cref="ScriptApi"/>. It lives in its own file so that
-    /// the shared <c>ScriptApi.cs</c> can stay byte-identical between the free and the Pro
-    /// add-in: the free engine never compiles this file, so <c>Watchdog</c> and
-    /// <c>WatchdogReport</c> simply do not exist there. Backed by <see cref="WatchdogRegistry"/>.
+    /// The <c>Watchdog</c> half of <see cref="ScriptApi"/>, kept in its own partial file.
+    /// ⚠ There is no free/Pro engine split any more (2026-10-09): the engine is ONE generic,
+    /// always-free build, and this file is compiled into it unconditionally — the csproj has no
+    /// Condition and no Compile Remove — so <c>Watchdog</c> and <c>WatchdogReport</c> exist
+    /// everywhere the engine runs. Backed by <see cref="WatchdogRegistry"/>.
     /// </para>
     /// </summary>
     public static partial class ScriptApi

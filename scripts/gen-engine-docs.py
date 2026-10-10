@@ -91,6 +91,19 @@ _SHARED_SPEC = importlib.util.spec_from_file_location(
 _SHARED_MOD = importlib.util.module_from_spec(_SHARED_SPEC)
 _SHARED_SPEC.loader.exec_module(_SHARED_MOD)
 SHARED_SKILLS = list(_SHARED_MOD.SHARED_SKILL_DESCRIPTIONS)
+SHARED_SKILL_DESCS = dict(_SHARED_MOD.SHARED_SKILL_DESCRIPTIONS)
+SHARED_SKILL_WHEN = dict(_SHARED_MOD.SHARED_SKILL_WHEN)
+
+# The `SKILLS.md` catalogue region. ⚠ A DIFFERENT marker pair from the API index, because it is a
+# different artefact in a different file — one pair per generated thing, so a mis-pasted marker
+# fails loudly instead of silently overwriting the wrong region.
+SKILLS_BEGIN = "<!-- GENERATED:SHARED-SKILLS:BEGIN -->"
+SKILLS_END = "<!-- GENERATED:SHARED-SKILLS:END -->"
+
+# ⚠ A SENTINEL, not a filename: the destination is its OWN authority. A repo's `SKILLS.md` keeps
+# its hand-authored prose (title, domain skills, usage patterns) and only the nine SHARED sections
+# are generated. That is why it cannot be a copy of an authority in `paracore-gen`.
+SELF = "<self>"
 
 # The API-index generator. Loaded the same way (hyphenated filename, so no plain `import`).
 # ⚠ It reads the ENGINE SOURCE, not this repo's docs — that is the whole point: the index
@@ -137,6 +150,14 @@ for _repo in (MODEL, FAMILY):
             _repo / "mcp_core" / "skills" / _skill / "SKILL.md",
         ))
 
+# ⚠⚠ The `SKILLS.md` CATALOGUE — one per MCP, and each is its OWN authority (`SELF`): the title,
+# the domain skills and the usage patterns are hand-authored IN THAT REPO, and only the nine SHARED
+# sections are generated. Before this the same nine sections existed three times by hand and had
+# ALREADY diverged — family read "How many per type?" where gen/model read "per level", and only gen
+# mentioned `export_view` — which is exactly the drift the shared set exists to prevent.
+for _repo in (MCP, MODEL, FAMILY):
+    TARGETS.append((SELF, _repo / "SKILLS.md"))
+
 # A repo may own EXTRA extension methods — its "pack". Those are declared IN the repo and are
 # APPENDED to the generic engine doc, so the reference a client serves is
 # "generic engine methods + this repo's pack methods".
@@ -149,6 +170,40 @@ for _repo in (MODEL, FAMILY):
 PACK_APPENDIX: dict[Path, Path] = {}
 
 
+def render_shared_skills() -> str:
+    """The nine shared skill sections, for the `SKILLS.md` catalogue region.
+
+    ⚠ The two views of the set must cover the SAME nine names. A skill added to one and not the
+    other would ship a catalogue entry with no routing line, or a routing line for nothing.
+    FAILS rather than emitting a partial region — a short region must never look like success.
+    """
+    mismatch = set(SHARED_SKILLS) ^ set(SHARED_SKILL_WHEN)
+    if mismatch:
+        raise ValueError(
+            "SHARED_SKILL_DESCRIPTIONS and SHARED_SKILL_WHEN disagree on: "
+            f"{sorted(mismatch)}"
+        )
+    lines = [
+        "⚠ **GENERATED — do not edit this region.** These nine are the **shared REPL / "
+        "dynamic-execution set**: they teach the GENERIC engine's own methods, so they are "
+        "identical in every engine-driving MCP. Authority: "
+        "`paracore-gen/mcp_core/shared_skills.py`. The full text of each lives in its own "
+        "`<name>/SKILL.md`, which is generated from the same place.",
+        "",
+    ]
+    for name in SHARED_SKILLS:
+        lines += [
+            f"## {name}",
+            "",
+            SHARED_SKILL_DESCS[name],
+            "",
+            f"**When:** {SHARED_SKILL_WHEN[name]}",
+            f"**Detail:** `{name}/SKILL.md`",
+            "",
+        ]
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def build(relname: str, dest: Path | None = None) -> str:
     """The intended content of one destination: the authority, plus its pack appendix if any.
 
@@ -157,7 +212,20 @@ def build(relname: str, dest: Path | None = None) -> str:
     is deliberate: it makes the index identical everywhere by construction. It also means this
     function alone cannot prove the index is CORRECT — see `.repl/verify_ext_method_gen.py`,
     which checks it against the compiled XML sidecar and the DLL (independent artefacts).
+
+    ⚠ For a `SELF` destination (`SKILLS.md`) the FILE IS ITS OWN AUTHORITY: its prose is local and
+    hand-authored, and only the marked region is generated. Reading it here rather than copying an
+    authority is what lets each repo keep a different set of DOMAIN skills.
     """
+    if relname == SELF:
+        if dest is None or not dest.exists():
+            raise FileNotFoundError(f"self-authority target missing: {dest}")
+        return _GEM.inject(
+            dest.read_text(encoding="utf-8"),
+            render_shared_skills(),
+            SKILLS_BEGIN,
+            SKILLS_END,
+        )
     src = MCP / relname
     if not src.exists():
         raise FileNotFoundError(f"authority missing: {src}")
