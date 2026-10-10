@@ -31,12 +31,16 @@ import re
 import sys
 from pathlib import Path
 
-PRO = Path(r"C:\Users\seyou\Paracore\paracore-pro")
-# ⚠ paracore-gen is a SIBLING of paracore-pro, NOT inside it. A path relative to PRO
+# ⚠⚠ `paracore-pro` was DELETED (2026-10-09 user ruling) and this scan kept pointing
+#   at it until 2026-10-10: every root below then did not exist, `engine_members()`
+#   returned an EMPTY set, and the scan reported "clean" while checking nothing.
+#   The roots are now the three LIVE repos.
+PARACORE = Path(r"C:\Users\seyou\Paracore\paracore")
+# ⚠ paracore-gen is a SIBLING of paracore, NOT inside it. A path relative to PARACORE
 # silently matched only the takeoff generators, which made the scan look alive while
 # covering ~5% of the surface. Measure the population, never assume the path.
 MCP = Path(r"C:\Users\seyou\Paracore\paracore-gen")
-TAKEOFF = PRO / "rap-server" / "server" / "takeoff"
+TAKEOFF = Path(r"C:\Users\seyou\Paracore\paracore-takeoff") / "takeoff"
 
 # ---- 1. engine public members ------------------------------------------------
 # The engine exposes FOUR different declaration shapes, and a pattern that handles
@@ -58,12 +62,8 @@ DECL = re.compile(
     r"(?:\(|=>)"                            # a parameter list OR an expression body
 )
 
-def engine_members():
-    roots = [
-        PRO / "CoreScript.Engine" / "Globals",
-        PRO / "Paracore.Addin",
-        PRO / "Paracore.Shim",
-    ]
+def members_in(roots):
+    """Public member names declared under each root. THE shared scanner."""
     names = set()
     files = 0
     for root in roots:
@@ -79,6 +79,29 @@ def engine_members():
             for m in DECL.finditer(text):
                 names.add(m.group("name"))
     return names, files
+
+
+ENGINE_ROOTS = [
+    PARACORE / "CoreScript.Engine" / "Globals",
+    PARACORE / "Paracore.Addin",
+    PARACORE / "Paracore.Shim",
+]
+
+
+def engine_members():
+    return members_in(ENGINE_ROOTS)
+
+
+def pack_members():
+    """The TAKEOFF pack's own declarations.
+
+    ⚠ A pack is a SEPARATE assembly. Its members are NOT in the engine — a
+    `partial class` cannot span assemblies, which is why a pack announces its own
+    script-facing type instead. So a name the takeoff MCP emits may legitimately
+    be declared here and NOT in `paracore`; asserting it against the engine alone
+    reports ~24 false positives. See the master spec's PACK rule.
+    """
+    return members_in([TAKEOFF.parent / "pack"])
 
 
 # ---- 2. what the MCP tells the AI to call ------------------------------------
@@ -183,7 +206,7 @@ def takeoff_emitted_names():
 # vocabulary the engine itself uses, so the MCP teaching it is correct.
 def build_known_vocabulary():
     """Every identifier used as a call ANYWHERE in shipped engine source."""
-    roots = [PRO / "CoreScript.Engine", PRO / "Paracore.Addin", PRO / "Paracore.Shim"]
+    roots = [PARACORE / "CoreScript.Engine", PARACORE / "Paracore.Addin", PARACORE / "Paracore.Shim"]
     vocab = set()
     for root in roots:
         if not root.exists():
@@ -233,9 +256,14 @@ def main():
     # reading its declaration. If any is missing, the extractor is under-matching
     # and every "phantom" it reports is suspect — so fail loudly rather than
     # produce a confident list of false positives.
+    # ⚠ `GetRoomData` was REMOVED 2026-10-10. It exists nowhere in the engine any
+    #   more — it came from the DELETED `paracore-pro` — so asserting it "live"
+    #   made the self-test fail for a reason that had nothing to do with the
+    #   extractor. An anchor that outlives its member is a false alarm, not a
+    #   finding; retarget it, never trust it.
     known = ["GetElements", "Table", "BarGraph", "Doc", "ActiveView", "Selection",
              "Println", "OrderByParam", "SumParam", "WhereMatches", "Transact",
-             "GetRoomData", "GetMagicNames"]
+             "GetMagicNames"]
     missed = [k for k in known if k not in members]
     if missed:
         print(f"CHECK FAILED: extractor missed known-live member(s): {missed}")
@@ -248,19 +276,27 @@ def main():
     # Of those, which are NOT recognised vocabulary anywhere in the engine?
     # Those are the only ones that could be a stale/phantom name.
     phantom = [n for n in unknown if n not in vocabulary]
-    # The takeoff MCP writes C# — a name it emits that the engine does not declare
-    # is a guaranteed runtime compile error in the user's Revit.
-    stale_emitted = sorted(n for n in emitted if n not in members)
+    # The takeoff MCP writes C# — a name it emits that NEITHER the engine NOR its
+    # own pack declares is a guaranteed runtime compile error in the user's Revit.
+    pack, pack_files = pack_members()
+    stale_emitted = sorted(n for n in emitted if n not in members and n not in pack)
 
     # Part A's residual is prose noise: an English word followed by a parenthesis
     # ("LINQ (not SQL)", "FAST (filter first)", "NUMBER (count)"), a bare TYPE name
     # ("String", "Int"), or a name the docs explicitly say does NOT exist
     # (catalog.md: "`.Bar()` does NOT exist"). Classify those as NOISE so the
     # verdict keys on Part B — the part that is a hard, behavioural claim.
+    # ⚠ Each entry below was READ IN ITS SENTENCE before being excused — a word is
+    #   not noise because it looks like noise, it is noise because the text around
+    #   it says so. Two were added 2026-10-10 after that reading:
+    #     catalog.md:256  "...over raw API (LookupParameter, get_Parameter)"  -> prose
+    #     linq-rules.md:31 "- `.Take(n)`, `.Skip(n)`, `.First()` ..."          -> BCL LINQ
     PROSE_WORDS = {
         "LINQ", "FAST", "Fast", "PATTERNS", "Patterns", "NUMBER", "NUMBER",
         "Main", "Typed", "Input", "Int", "Integer", "Double", "String", "Total",
         "Bar", "View", "Document", "CurveLoop", "NewFamilyInstance",
+        "API",                                  # "raw API (...)" — English, not a method
+        "Skip", "Take", "First", "FirstOrDefault", "Any",  # System.Linq, not ours
     }
     real_phantom = [n for n in phantom if n not in PROSE_WORDS]
     ok = not real_phantom and not stale_emitted
