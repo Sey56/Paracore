@@ -30,6 +30,15 @@ WHY A SEPARATE INSTRUMENT
                        ⚠ .NET applies SUFFIX COMPRESSION (`Doc` is stored as a suffix of
                        `UIDoc`), so the search is `name\\0`, not `\\0name\\0` — and it still
                        proves PRESENCE only, never absence.
+      3+4 BOTH read the INSTALLED artefact first — it is what the running Revit loads, so its
+                       mtime is the one that decides whether our observations are current
+                       (rule 15), and preferring it catches "built but not installed". They
+                       fall back to the newest `bin/<config>/net8.0-windows/win-x64/` output so
+                       the probe still works where the add-in is not installed. ⚠⚠ They used to
+                       hardcode `bin/Debug/...`, but `build-addin.ps1` publishes **Release**, so
+                       after a real rebuild the freshness check compared the source to a Debug
+                       DLL nobody ships and could NEVER pass. A gate whose own path is wrong is
+                       not a gate (rule 3). ⚠ Both report WHICH artefact they read.
       5. MUTATION      rewrite the source in a TEMP tree — rename a method, add one, delete one
                        — and assert the extracted index follows. This is the only check that
                        proves the extractor READS THE SOURCE rather than replaying a constant.
@@ -52,9 +61,41 @@ PARACORE_ROOT = REPO.parent
 GEN_PY = REPO / "scripts" / "gen-ext-methods.py"
 AUDIT_PY = REPO / ".repl" / "_ext_method_audit.py"
 DOC = PARACORE_ROOT / "paracore-gen" / "EXTENSION_METHODS.md"
-BIN = REPO / "CoreScript.Engine" / "bin" / "Debug" / "net8.0-windows" / "win-x64"
-XML = BIN / "CoreScript.Engine.xml"
-DLL = BIN / "CoreScript.Engine.dll"
+# ⚠⚠ THE BUILD OUTPUT IS RESOLVED, NOT HARDCODED — a gate whose own path is wrong is not a gate
+# (rule 3). This used to point at `bin/Debug/...`, but `build-addin.ps1` publishes **Release**
+# (`-c Release` → `bin\Release\net8.0-windows\win-x64`). After a real rebuild the freshness check
+# therefore compared the source to a Debug DLL nobody ships, and could NEVER go green.
+#
+# Resolve it in the product's own terms:
+#   * PREFER the INSTALLED assembly — it is what the running Revit actually loads, so its mtime is
+#     the one that decides whether our observations are current (rule 15); this also catches
+#     "built but not installed".  Globbed, so the Revit YEAR is not pinned.
+#   * FALL BACK to the newest `bin/<config>/net8.0-windows/win-x64/` output, so the check still
+#     works on a machine where the add-in is not installed.
+# ⚠ `net10.0-windows` and the legacy `bin/x64/Release/` tree are deliberately NOT matched: the
+# product targets `net8.0-windows`, and nothing ships from those.
+INSTALLED_ROOT = Path(r"C:\ProgramData\Autodesk\Revit\Addins")
+ENGINE_DIR = REPO / "CoreScript.Engine"
+
+
+def resolve_build_artifact(ext: str) -> tuple[Path | None, list[Path]]:
+    """The shipped `CoreScript.Engine.<ext>` to inspect, plus every candidate (newest first)."""
+    installed = sorted(INSTALLED_ROOT.glob(f"*/Paracore/CoreScript.Engine.{ext}"))
+    built = sorted(ENGINE_DIR.glob(f"bin/*/net8.0-windows/win-x64/CoreScript.Engine.{ext}"))
+    cands = [p for p in installed + built if p.exists()]
+    cands.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    if not cands:
+        return None, []
+    return max(installed or built, key=lambda p: p.stat().st_mtime), cands
+
+
+def announce(label: str, chosen: Path, cands: list[Path]) -> None:
+    """Say WHICH artefact is inspected — a gate must not hide what it read."""
+    where = "INSTALLED" if "Addins" in chosen.parts else "build output"
+    print(f"       {label}: {where} — {chosen}")
+    for c in cands:
+        if c != chosen:
+            print(f"            (not used) {c.stat().st_mtime:.0f}  {c}")
 
 
 def load(path: Path, name: str):
@@ -150,9 +191,11 @@ def classify(member: str):
     return fallback or (None, False)
 
 
-if not XML.exists():
-    check(False, f"{XML.name} present", "build the engine first")
+XML, xml_cands = resolve_build_artifact("xml")
+if XML is None:
+    check(False, "CoreScript.Engine.xml present", "build the engine first")
 else:
+    announce("XML", XML, xml_cands)
     xml = XML.read_text(encoding="utf-8", errors="replace")
     members = re.findall(r'<member name="([A-Z]):([^"]+)"', xml)
     indexed_classes = set()
@@ -191,9 +234,11 @@ else:
         print(f"         not extension methods: {sorted(not_ext)}")
 
 print("\n4. DLL  (freshness, then name presence in the shipped assembly)")
-if not DLL.exists():
-    check(False, f"{DLL.name} present", "build the engine first")
+DLL, dll_cands = resolve_build_artifact("dll")
+if DLL is None:
+    check(False, "CoreScript.Engine.dll present", "build the engine first")
 else:
+    announce("DLL", DLL, dll_cands)
     newest_src = max(p.stat().st_mtime for p in gen.ENGINE.rglob("*.cs")
                      if not any(x in ("bin", "obj") for x in p.parts))
     check(DLL.stat().st_mtime >= newest_src, "the built DLL is not older than the newest engine source",
