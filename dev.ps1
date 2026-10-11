@@ -19,5 +19,5 @@ if (-not (Test-Path $venvPython)) {
 
 # Launch both Server and Tauri dev concurrently in one terminal
 & npx concurrently -n "SERVER,WEB" -c "green.bold,cyan.bold" --kill-others `
-    "cd `"$serverDir`"; & `"$venvPython`" -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload" `
+    "cd `"$serverDir`" && `"$venvPython`" -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload" `
     "npm --prefix `"$webDir`" run tauri dev"
