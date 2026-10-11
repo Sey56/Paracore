@@ -190,5 +190,20 @@ namespace Paracore.Addin.Services
         {
             return _replHandler.ExecuteRepl(request);
         }
+
+        public Task<GetReplCompletionsResponse> GetReplCompletions(GetReplCompletionsRequest request)
+        {
+            return _replHandler.GetReplCompletions(request);
+        }
+
+        public Task<GetReplDiagnosticsResponse> GetReplDiagnostics(GetReplDiagnosticsRequest request)
+        {
+            return _replHandler.GetReplDiagnostics(request);
+        }
+
+        public Task<GetReplHoverResponse> GetReplHover(GetReplHoverRequest request)
+        {
+            return _replHandler.GetReplHover(request);
+        }
     }
 }

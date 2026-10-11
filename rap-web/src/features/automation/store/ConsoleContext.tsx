@@ -16,7 +16,6 @@ export interface ConsoleItem {
   type: ConsoleItemType;
   text: string;
   timestamp: Date;
-  replType?: 'single' | 'multi';
   /**
    * Set on the trailing "took …" marker that closes a run. The marker is a real
    * history entry rather than a floating label so it stays attached to the run
@@ -30,21 +29,13 @@ interface ConsoleContextType {
   localHistory: ConsoleItem[];
   setLocalHistory: React.Dispatch<React.SetStateAction<ConsoleItem[]>>;
   handleClear: () => void;
-  
-  singleLineValue: string;
-  setSingleLineValue: (val: string) => void;
+
   multiLineValue: string;
   setMultiLineValue: (val: string) => void;
-  
-  isMultiLine: boolean;
-  setIsMultiLine: (val: boolean) => void;
-  
+
   isReplLoading: boolean;
-  handleReplSubmit: (isMulti: boolean, activeSnippetName?: string | null) => Promise<void>;
-  
-  singleCommandHistory: string[];
-  multiCommandHistory: string[];
-  
+  handleReplSubmit: (activeSnippetName?: string | null) => Promise<void>;
+
   activeSnippetPath: string | null;
   setActiveSnippetPath: (val: string | null) => void;
   activeSnippetName: string | null;
@@ -92,9 +83,7 @@ export const ConsoleProvider: React.FC<{
   
   const [localHistory, setLocalHistory] = useState<ConsoleItem[]>([]);
 
-  const [singleLineValue, setSingleLineValue] = useState(() => localStorage.getItem('paracore_repl_single_value') || "");
   const [multiLineValue, setMultiLineValue] = useState(() => localStorage.getItem('paracore_repl_multi_value') || "");
-  const [isMultiLine, setIsMultiLine] = useState(() => localStorage.getItem('paracore_repl_multiline') === 'true');
   const [isReplLoading, setIsReplLoading] = useState(false);
   
   const [activeSnippetPath, setActiveSnippetPath] = useState<string | null>(() => localStorage.getItem('paracore_repl_active_path'));
@@ -103,16 +92,6 @@ export const ConsoleProvider: React.FC<{
     return saved === "Multi-Line REPL" ? null : saved;
   });
   const [lastSavedValue, setLastSavedValue] = useState<string>(() => localStorage.getItem('paracore_repl_multi_value') || "");
-
-  const [singleCommandHistory, setSingleCommandHistory] = useState<string[]>(() => {
-    const saved = localStorage.getItem('paracore_repl_single_history');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [multiCommandHistory, setMultiCommandHistory] = useState<string[]>(() => {
-    const saved = localStorage.getItem('paracore_repl_multi_history');
-    return saved ? JSON.parse(saved) : [];
-  });
 
   // Font Scaling (11px to 32px, default 14px)
   const DEFAULT_FONT_SIZE = 14;
@@ -145,11 +124,7 @@ export const ConsoleProvider: React.FC<{
     setReplFontSize(DEFAULT_FONT_SIZE);
   }, [setReplFontSize]);
 
-  useEffect(() => { localStorage.setItem('paracore_repl_single_history', JSON.stringify(singleCommandHistory)); }, [singleCommandHistory]);
-  useEffect(() => { localStorage.setItem('paracore_repl_multi_history', JSON.stringify(multiCommandHistory)); }, [multiCommandHistory]);
-  useEffect(() => { localStorage.setItem('paracore_repl_single_value', singleLineValue); }, [singleLineValue]);
   useEffect(() => { localStorage.setItem('paracore_repl_multi_value', multiLineValue); }, [multiLineValue]);
-  useEffect(() => { localStorage.setItem('paracore_repl_multiline', String(isMultiLine)); }, [isMultiLine]);
   
   useEffect(() => {
     if (activeSnippetPath) localStorage.setItem('paracore_repl_active_path', activeSnippetPath);
@@ -168,14 +143,12 @@ export const ConsoleProvider: React.FC<{
     showNotification("Console and Analytics cleared", "info");
   }, [showNotification, setExecutionResult]);
 
-  const handleReplSubmit = async (isMulti: boolean, activeName?: string | null) => {
-    const command = isMulti ? multiLineValue.trim() : singleLineValue.trim();
+  const handleReplSubmit = async (activeName?: string | null) => {
+    const command = multiLineValue.trim();
     if (!command || isReplLoading) return;
 
-    const currentReplType = (isMulti ? 'multi' : 'single') as 'multi' | 'single';
-
     if (command.toLowerCase() === 'help' || command === '?') {
-      const helpInput: ConsoleItem = { type: 'input', text: 'Help', timestamp: new Date(), replType: currentReplType };
+      const helpInput: ConsoleItem = { type: 'input', text: 'Help', timestamp: new Date() };
       const P = 47;
       const h = (cmd: string, desc: string) => `  ${cmd}`.padEnd(P) + desc;
       const helpText = [
@@ -248,31 +221,25 @@ export const ConsoleProvider: React.FC<{
         h('help / ?',                                'This reference'),
         "━".repeat(P + 16),
       ].join("\n");
-      const helpOutput: ConsoleItem = { type: 'output', text: helpText, timestamp: new Date(), replType: currentReplType };
+      const helpOutput: ConsoleItem = { type: 'output', text: helpText, timestamp: new Date() };
       
       setLocalHistory(prev => [...prev, helpInput, helpOutput].slice(-100));
-      if (!isMulti) setSingleLineValue(""); 
       return;
     }
 
     if (command.toLowerCase() === 'clear' || command.toLowerCase() === 'cls') {
       setLocalHistory([]);
-      if (!isMulti) setSingleLineValue("");
       showNotification("Console history cleared", "info");
       return;
     }
     
-    if (!isMulti) setSingleLineValue("");
     setIsReplLoading(true);
     const sanitizedActiveName = activeName === "Multi-Line REPL" ? null : activeName;
-    const identifier = isMulti ? (sanitizedActiveName || "REPL Playground") : command;
-    const statusItem: ConsoleItem = { type: 'status', text: `> ${identifier}`, timestamp: new Date(), replType: currentReplType };
+    const identifier = sanitizedActiveName || "REPL Playground";
+    const statusItem: ConsoleItem = { type: 'status', text: `> ${identifier}`, timestamp: new Date() };
     setLocalHistory(prev => [...prev, statusItem].slice(-100));
-    
-    if (isMulti) setMultiCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
-    else setSingleCommandHistory(prev => [command, ...prev.filter(c => c !== command)].slice(0, 50));
 
-    trackEvent('repl_executed', { repl_type: currentReplType });
+    trackEvent('repl_executed', { repl_type: 'multi' });
 
     const capturedDocTitle = revitStatus.document ? revitStatus.document.split(/[\\/]/).pop() || null : null;
 
@@ -287,9 +254,9 @@ export const ConsoleProvider: React.FC<{
           isSuccess: true, 
           error: null, 
           structuredOutput: response.data.structured_output || [], 
-          internalData: `REPL_${currentReplType.toUpperCase()}`, 
+          internalData: 'REPL_MULTI', 
           timestamp: Date.now(), 
-          scriptName: isMulti ? identifier : "REPL",
+          scriptName: identifier,
           capturedDocTitle,
           elapsedMs
         });
@@ -299,15 +266,15 @@ export const ConsoleProvider: React.FC<{
           isSuccess: false, 
           error: response.data.error_message || 'Error', 
           structuredOutput: [], 
-          internalData: `REPL_${currentReplType.toUpperCase()}`, 
+          internalData: 'REPL_MULTI', 
           timestamp: Date.now(), 
-          scriptName: isMulti ? identifier : "REPL",
+          scriptName: identifier,
           capturedDocTitle,
           elapsedMs
         });
       }
     } catch (err: any) {
-      const errorItem: ConsoleItem = { type: 'error', text: `Error: ${err.message}`, timestamp: new Date(), replType: currentReplType };
+      const errorItem: ConsoleItem = { type: 'error', text: `Error: ${err.message}`, timestamp: new Date() };
       setLocalHistory(prev => [...prev, errorItem].slice(-100));
     } finally {
       setIsReplLoading(false);
@@ -333,7 +300,6 @@ export const ConsoleProvider: React.FC<{
     
     const internalData = executionResult.internalData || "";
     const isRepl = internalData.startsWith('REPL');
-    const replType: 'single' | 'multi' | undefined = isRepl ? (internalData.includes('MULTI') ? 'multi' : 'single') : undefined;
 
     const newItems: ConsoleItem[] = [];
 
@@ -344,10 +310,10 @@ export const ConsoleProvider: React.FC<{
     }
 
     if (executionResult.output) {
-      newItems.push({ type: 'output', text: String(executionResult.output), timestamp: new Date(), replType });
+      newItems.push({ type: 'output', text: String(executionResult.output), timestamp: new Date() });
     }
     if (executionResult.error) {
-      newItems.push({ type: 'error', text: String(executionResult.error), timestamp: new Date(), replType });
+      newItems.push({ type: 'error', text: String(executionResult.error), timestamp: new Date() });
     }
 
     // Trailing duration marker, appended in the SAME batch as the output it
@@ -360,7 +326,7 @@ export const ConsoleProvider: React.FC<{
     // read as this session's.
     const producedNow = (executionResult.timestamp ?? 0) >= mountedAtRef.current;
     if (producedNow && typeof executionResult.elapsedMs === 'number' && executionResult.elapsedMs >= 0) {
-      newItems.push({ type: 'status', text: '', timestamp: new Date(), replType, elapsedMs: executionResult.elapsedMs });
+      newItems.push({ type: 'status', text: '', timestamp: new Date(), elapsedMs: executionResult.elapsedMs });
     }
 
     if (newItems.length > 0) {
@@ -458,11 +424,8 @@ export const ConsoleProvider: React.FC<{
   return (
     <ConsoleContext.Provider value={{
       localHistory, setLocalHistory, handleClear,
-      singleLineValue, setSingleLineValue,
       multiLineValue, setMultiLineValue,
-      isMultiLine, setIsMultiLine,
       isReplLoading, handleReplSubmit,
-      singleCommandHistory, multiCommandHistory,
       activeSnippetPath, setActiveSnippetPath,
       activeSnippetName, setActiveSnippetName,
       isDirty,

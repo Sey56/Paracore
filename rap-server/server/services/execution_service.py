@@ -199,3 +199,49 @@ async def execute_repl_logic(code: str, session_id: str, license_tier: str = "fr
                             timeout=timeout if timeout is not None else REPL_TIMEOUT_SECONDS)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def get_repl_completions_logic(code: str, caret_offset: int, session_id: str = "global"):
+    """
+    Service wrapper for REPL IntelliSense. Read-only — the add-in compiles the buffer in
+    an in-memory Roslyn workspace and returns completions; it never executes the code.
+
+    ⚠ Deliberately does NOT raise. Completion fires on every keystroke, so a failure must
+    degrade to an empty list the editor can ignore — never a 500 the UI has to special-case
+    while the user is typing.
+    """
+    try:
+        from grpc_client import get_repl_completions
+        return get_repl_completions(code, caret_offset, session_id=session_id)
+    except Exception as e:
+        return {"is_success": False, "items": [], "error_message": str(e)}
+
+
+async def get_repl_diagnostics_logic(code: str, session_id: str = "global"):
+    """
+    Service wrapper for REPL diagnostics (red squiggles). Read-only — the add-in compiles
+    the buffer in an in-memory Roslyn workspace; it never executes the code.
+
+    ⚠ Like completion, this deliberately does NOT raise: a failed compile must clear the
+    squiggles, not produce a 500 the editor has to special-case on every idle tick.
+    """
+    try:
+        from grpc_client import get_repl_diagnostics
+        return get_repl_diagnostics(code, session_id=session_id)
+    except Exception as e:
+        return {"is_success": False, "items": [], "error_message": str(e)}
+
+
+async def get_repl_hover_logic(code: str, caret_offset: int, session_id: str = "global"):
+    """
+    Service wrapper for REPL symbol hover. Read-only — the add-in resolves the symbol under
+    the caret in the same in-memory Roslyn workspace as completion and diagnostics.
+
+    ⚠ Deliberately does NOT raise, same as its siblings: hover fires as the mouse moves, so
+    a failure must degrade to "no tooltip", never to a 500 the editor has to special-case.
+    """
+    try:
+        from grpc_client import get_repl_hover
+        return get_repl_hover(code, caret_offset, session_id=session_id)
+    except Exception as e:
+        return {"is_success": False, "info": None, "error_message": str(e)}

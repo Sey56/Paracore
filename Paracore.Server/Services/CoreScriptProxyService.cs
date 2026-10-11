@@ -137,5 +137,20 @@ namespace Paracore.Server.Services
         {
             return _bridge.RelayTaskAsync<ExecuteReplRequest, ExecuteReplResponse>("ExecuteRepl", request);
         }
+
+        public override Task<GetReplCompletionsResponse> GetReplCompletions(GetReplCompletionsRequest request, ServerCallContext context)
+        {
+            return _bridge.RelayTaskAsync<GetReplCompletionsRequest, GetReplCompletionsResponse>("GetReplCompletions", request);
+        }
+
+        public override Task<GetReplDiagnosticsResponse> GetReplDiagnostics(GetReplDiagnosticsRequest request, ServerCallContext context)
+        {
+            return _bridge.RelayTaskAsync<GetReplDiagnosticsRequest, GetReplDiagnosticsResponse>("GetReplDiagnostics", request);
+        }
+
+        public override Task<GetReplHoverResponse> GetReplHover(GetReplHoverRequest request, ServerCallContext context)
+        {
+            return _bridge.RelayTaskAsync<GetReplHoverRequest, GetReplHoverResponse>("GetReplHover", request);
+        }
     }
 }

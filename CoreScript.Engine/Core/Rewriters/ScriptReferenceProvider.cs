@@ -90,7 +90,7 @@ namespace CoreScript.Engine.Core.Rewriters
                     {
                         var loc = t.Assembly.Location;
                         if (!string.IsNullOrEmpty(loc) && File.Exists(loc))
-                            return MetadataReference.CreateFromFile(loc);
+                            return CreateReferenceWithDocs(loc);
                     }
                     catch { }
                     // Fallback: resolve by simple name (handles shared framework
@@ -102,7 +102,7 @@ namespace CoreScript.Engine.Core.Rewriters
                         {
                             var resolved = Assembly.Load(asmName);
                             if (!string.IsNullOrEmpty(resolved.Location) && File.Exists(resolved.Location))
-                                return MetadataReference.CreateFromFile(resolved.Location);
+                                return CreateReferenceWithDocs(resolved.Location);
                         }
                         catch { }
                     }
@@ -120,7 +120,7 @@ namespace CoreScript.Engine.Core.Rewriters
                 string dllPath = Path.Combine(engineDir, dllName);
                 if (File.Exists(dllPath))
                 {
-                    coreRefs.Add(MetadataReference.CreateFromFile(dllPath));
+                    coreRefs.Add(CreateReferenceWithDocs(dllPath));
                 }
             }
 
@@ -132,7 +132,7 @@ namespace CoreScript.Engine.Core.Rewriters
             {
                 if (File.Exists(packPath))
                 {
-                    coreRefs.Add(MetadataReference.CreateFromFile(packPath));
+                    coreRefs.Add(CreateReferenceWithDocs(packPath));
                 }
             }
 
@@ -151,12 +151,43 @@ namespace CoreScript.Engine.Core.Rewriters
                         FileLogger.LogWarning($"[{logPrefix}] Framework facade not found: {facade}");
                         continue;
                     }
-                    try { coreRefs.Add(MetadataReference.CreateFromFile(facadePath)); }
+                    try { coreRefs.Add(CreateReferenceWithDocs(facadePath)); }
                     catch { FileLogger.LogWarning($"[{logPrefix}] Could not reference framework facade {facade}"); }
                 }
             }
 
             return coreRefs;
+        }
+
+        /// <summary>
+        /// Creates a metadata reference, attaching the sibling XML documentation file when one
+        /// exists.
+        ///
+        /// ⚠⚠ THIS IS WHAT MAKES HOVER DOCUMENTATION WORK, AND IT IS NOT AUTOMATIC.
+        /// <c>MetadataReference.CreateFromFile(path)</c> does NOT look for <c>path</c>'s XML
+        /// documentation on its own — measured out of process: the engine's own <c>Println</c>
+        /// reported a documentation length of <b>0</b> with <c>CoreScript.Engine.xml</c> sitting
+        /// right beside the DLL, and <b>428</b> once the provider was attached explicitly.
+        /// Without it every hover tooltip shows a signature and no explanation, for every symbol
+        /// that arrives from a referenced assembly rather than from the user's own buffer.
+        ///
+        /// It lives here, in the ONE authority for the reference set, so the editor and the
+        /// compiler cannot end up with differently-documented copies of the same assembly.
+        /// </summary>
+        private static MetadataReference CreateReferenceWithDocs(string path)
+        {
+            try
+            {
+                string xmlPath = Path.ChangeExtension(path, ".xml");
+                return File.Exists(xmlPath)
+                    ? MetadataReference.CreateFromFile(path, documentation: XmlDocumentationProvider.CreateFromFile(xmlPath))
+                    : MetadataReference.CreateFromFile(path);
+            }
+            catch
+            {
+                // An unreadable documentation file must never cost us the reference itself.
+                return MetadataReference.CreateFromFile(path);
+            }
         }
 
         /// <summary>
@@ -172,7 +203,7 @@ namespace CoreScript.Engine.Core.Rewriters
             var revitDllPaths = Directory.GetFiles(revitInstallPath, "RevitAPI*.dll");
             return revitDllPaths
                 .Where(Parsers.ExtractionUtils.IsManagedAssembly)
-                .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
+                .Select(path => (MetadataReference)CreateReferenceWithDocs(path))
                 .ToList();
         }
 

@@ -95,3 +95,53 @@ async def execute_repl_endpoint(
         tier = "enterprise" if current_user.id != 0 else "free"
     response = await execution_service.execute_repl_logic(request.code, request.session_id, tier, request.source, request.timeout)
     return JSONResponse(content=response)
+
+class ReplCompletionRequestModel(BaseModel):
+    code: str
+    caret_offset: int
+    session_id: Optional[str] = None
+
+@router.post("/api/repl/completions", tags=["Script Execution"])
+async def repl_completions_endpoint(request: ReplCompletionRequestModel):
+    """
+    REPL IntelliSense. Read-only and side-effect free — safe to call on every keystroke.
+    Always returns 200 with an `items` list (possibly empty) so the editor never has to
+    handle an error path while the user is typing.
+    """
+    response = await execution_service.get_repl_completions_logic(
+        request.code, request.caret_offset, request.session_id or "global"
+    )
+    return JSONResponse(content=response)
+
+class ReplDiagnosticsRequestModel(BaseModel):
+    code: str
+    session_id: Optional[str] = None
+
+@router.post("/api/repl/diagnostics", tags=["Script Execution"])
+async def repl_diagnostics_endpoint(request: ReplDiagnosticsRequestModel):
+    """
+    REPL diagnostics (the red squiggles). Read-only and side-effect free. Always returns
+    200 with an `items` list (possibly empty) so a failed compile clears the squiggles
+    instead of surfacing an error while the user is typing.
+    """
+    response = await execution_service.get_repl_diagnostics_logic(
+        request.code, request.session_id or "global"
+    )
+    return JSONResponse(content=response)
+
+class ReplHoverRequestModel(BaseModel):
+    code: str
+    caret_offset: int
+    session_id: Optional[str] = None
+
+@router.post("/api/repl/hover", tags=["Script Execution"])
+async def repl_hover_endpoint(request: ReplHoverRequestModel):
+    """
+    REPL symbol hover. Read-only and side-effect free. Always returns 200 with `info`
+    possibly null — "no symbol under the caret" is an ordinary answer (the mouse is over
+    whitespace), not an error the editor should have to handle.
+    """
+    response = await execution_service.get_repl_hover_logic(
+        request.code, request.caret_offset, request.session_id or "global"
+    )
+    return JSONResponse(content=response)

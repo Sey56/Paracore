@@ -244,6 +244,24 @@ namespace Paracore.Addin.Services
                             result.ResultJson = Google.Protobuf.ByteString.CopyFromUtf8(_formatter.Format(replResp));
                             break;
 
+                        case "GetReplCompletions":
+                            var grcReq = _parser.Parse<GetReplCompletionsRequest>(payloadJson);
+                            var grcResp = await _runner.GetReplCompletions(grcReq!);
+                            result.ResultJson = Google.Protobuf.ByteString.CopyFromUtf8(_formatter.Format(grcResp));
+                            break;
+
+                        case "GetReplDiagnostics":
+                            var grdReq = _parser.Parse<GetReplDiagnosticsRequest>(payloadJson);
+                            var grdResp = await _runner.GetReplDiagnostics(grdReq!);
+                            result.ResultJson = Google.Protobuf.ByteString.CopyFromUtf8(_formatter.Format(grdResp));
+                            break;
+
+                        case "GetReplHover":
+                            var grhReq = _parser.Parse<GetReplHoverRequest>(payloadJson);
+                            var grhResp = await _runner.GetReplHover(grhReq!);
+                            result.ResultJson = Google.Protobuf.ByteString.CopyFromUtf8(_formatter.Format(grhResp));
+                            break;
+
                         default:
                             result.IsSuccess = false;
                             result.ErrorMessage = $"Method {envelope.MethodName} not implemented in Add-in proxy.";
