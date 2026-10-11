@@ -12,10 +12,11 @@ WHY THIS EXISTS
         and is loaded by `@grpc/proto-loader`, so it cannot simply point at `../protos` on a
         user's machine. A copy CAN drift, and it did: found on 2026-10-09 at three fields and
         three months behind the authority.
-      * `paracore-gen` / `paracore-forge` / `paracore-takeoff` — each checks in a GENERATED
-        `corescript_pb2*.py`. None of them had a generator script, so regenerating was an
-        undocumented manual step, and the only script that did regenerate stubs wrote them into
-        `rap-server/server/`, a directory with no consumer at all.
+      * `paracore-gen` / `paracore-forge` / `paracore-takeoff` / `paracore-model` /
+        `paracore-family` — each checks in a GENERATED `corescript_pb2*.py`. None of them had a
+        generator script, so regenerating was an undocumented manual step, and the only script
+        that did regenerate stubs wrote them into `rap-server/server/`, a directory with no
+        consumer at all.
 
     So: ONE authority, and every other artifact is GENERATED from it by this tool.
 
@@ -58,10 +59,16 @@ VSCODE_COPY = PARACORE / "corescript-vscode" / "proto" / "corescript.proto"
 VSCODE_LABEL = "corescript-vscode/proto/corescript.proto"
 
 # Every repo that checks in a generated stub, as (label, repo_root).
+# ⚠ A repo that checks in a stub but is ABSENT here is neither written nor checked —
+#   an ungated drift surface, which is exactly how paracore-model and paracore-family
+#   sat three RPCs behind the authority without anyone noticing. Add every new
+#   engine-driving MCP repo the day it is created.
 STUB_REPOS = [
     ("paracore-gen", SIB / "paracore-gen"),
     ("paracore-forge", SIB / "paracore-forge"),
     ("paracore-takeoff", SIB / "paracore-takeoff"),
+    ("paracore-model", SIB / "paracore-model"),
+    ("paracore-family", SIB / "paracore-family"),
 ]
 
 STUB_FILES = ("corescript_pb2.py", "corescript_pb2_grpc.py", "corescript_pb2.pyi")
