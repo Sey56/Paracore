@@ -21,6 +21,10 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<!-- Trim: ship English resources only. Drops the ~13 localized satellite folders
+		     (cs, de, es, fr, it, ja, ko, pl, pt-BR, ru, tr, zh-Hans, zh-Hant) that every
+		     Roslyn / ImageSharp / MathNet / Grpc dependency otherwise copies into the add-in. -->
+		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
 		<PathMap Condition="'$(Configuration)' == 'Release'">$(MSBuildProjectDirectory)=Paracore</PathMap>
@@ -29,7 +33,14 @@
 	<ItemGroup>
 		<!-- Roslyn packages -->
 		<PackageReference Include="MathNet.Numerics" Version="5.0.0" />
-		<PackageReference Include="Microsoft.CodeAnalysis" Version="4.12.0" />
+		<!-- NOT the umbrella `Microsoft.CodeAnalysis` package: it drags in VisualBasic +
+		     VisualBasic.Workspaces (~5.6 MB) for a language this product never touches. It also
+		     supplied CSharp.Workspaces, so that is now referenced explicitly below. -->
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.12.0" />
+		<!-- The IDE FEATURES layer. `Microsoft.CodeAnalysis.Completion.CompletionService` lives
+		     here — this is what makes IntelliSense possible in the REPL playground. -->
+		<PackageReference Include="Microsoft.CodeAnalysis.Features" Version="4.12.0" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.12.0" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.12.0" />
 		<PackageReference Include="Microsoft.CodeAnalysis.Scripting" Version="4.12.0" />

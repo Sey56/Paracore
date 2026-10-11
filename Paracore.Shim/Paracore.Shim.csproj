@@ -11,6 +11,9 @@
     <RootNamespace>Paracore.Shim</RootNamespace>
     <AssemblyName>Paracore.Shim</AssemblyName>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Trim: English resources only. A no-op for this project (it copies no dependency
+         closure), set so the rule is uniform across every project in the repo. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <!-- Reference-only Revit APIs (not copied to output) -->

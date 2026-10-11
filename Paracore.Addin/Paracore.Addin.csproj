@@ -18,6 +18,10 @@
     <PublishSelfContained>false</PublishSelfContained>
     <Nullable>enable</Nullable>
 
+    <!-- Trim: English resources only — see CoreScript.Engine.csproj. The add-in publishes the
+         whole dependency closure, so the property must be set here too. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
     <ProjectCapability>Protobuf_Generator</ProjectCapability>
     <ProtoRoot>$(MSBuildProjectDirectory)\..\protos</ProtoRoot>
 
@@ -161,6 +165,11 @@
     </PropertyGroup>
 
     <Message Text="[Paracore] Publishing and Bundling Sidecar from $(SidecarProjectFile)..." Importance="high" />
+
+    <!-- Clean the staging folder first. `dotnet publish` overwrites but never removes, so a
+         file that has dropped out of the dependency closure (a trimmed satellite, a renamed
+         assembly) would otherwise linger here and keep being copied into the bundle forever. -->
+    <RemoveDir Directories="$(SidecarPublishTemp)" />
 
     <!-- Build and Publish the sidecar project as self-contained win-x64 -->
     <!-- We use the dotnet CLI directly for maximum reliability across VS and CLI builds -->

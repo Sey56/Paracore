@@ -10,6 +10,10 @@
     <PublishSelfContained>true</PublishSelfContained>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Trim: ship English resources only. Because this project publishes self-contained, it
+         otherwise copies a `resources.dll` for each of the 13 supported cultures, for every
+         Roslyn package in the closure — ~11 MB of strings this product never displays. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
