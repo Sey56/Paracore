@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, r"C:\Users\seyou\Paracore\paracore-gen")
 
 from mcp_core.tool_helpers import (  # noqa: E402
-    _ANTI_PATTERNS,
+    _LINT_RULES,
     check_dangerous_patterns,
     check_paracore_compliance,
     check_suspicious_param_names,
@@ -37,8 +37,11 @@ for path in sys.argv[1:]:
         if res:
             print("     " + str(res).strip().replace("\n", "\n     ")[:1500])
 
-    # Which individual anti-pattern regexes match?
-    hits = [(p, msg) for p, msg in _ANTI_PATTERNS if re.search(p, clean, re.IGNORECASE | re.DOTALL)]
+    # Which individual lint-rule regexes match?
+    # ⚠ This list is `_LINT_RULES` in paracore-gen. It was renamed from `_ANTI_PATTERNS`
+    #   in paracore-gen commit 9c67dc9 (which also added the separate `_HARD_ERRORS`).
+    #   If this import breaks again, the anchor has moved — retarget it, do not delete it.
+    hits = [(p, msg) for p, msg in _LINT_RULES if re.search(p, clean, re.IGNORECASE | re.DOTALL)]
     if hits:
         print("  matching anti-pattern regexes:")
         for p, msg in hits:
