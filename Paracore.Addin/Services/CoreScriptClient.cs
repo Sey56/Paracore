@@ -59,7 +59,9 @@ namespace Paracore.Addin.Services
             {
                 try
                 {
-                    using var channel = GrpcChannel.ForAddress("http://localhost:50051");
+                    // ⚠ CLOUD SEAM (Phase 0): endpoint from PARACORE_SIDECAR_URL, defaulting to the
+                    // local sidecar. Point it at another host to drive a remote worker.
+                    using var channel = GrpcChannel.ForAddress(Paracore.Addin.App.ParacoreApp.SidecarUrl);
                     var bridgeClient = new AddinBridge.AddinBridgeClient(channel);
 
                     using var call = bridgeClient.Subscribe(new SubscribeRequest { AddinVersion = "4.8.0" }, cancellationToken: token);

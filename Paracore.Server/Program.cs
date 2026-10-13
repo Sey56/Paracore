@@ -61,11 +61,48 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    // Ensure we only use HTTP/2 for gRPC and listen on localhost:50051
+    // Ensure we only use HTTP/2 for gRPC.
+    // ⚠ CLOUD SEAM (Phase 0): the bind address comes from PARACORE_SIDECAR_BIND.
+    // Default is localhost:50051 (unchanged). Set it to e.g. "0.0.0.0:50051" or this machine's
+    // Tailscale IP so an add-in running on ANOTHER machine can reach this sidecar.
+    var bindSpec = Environment.GetEnvironmentVariable("PARACORE_SIDECAR_BIND");
+    if (string.IsNullOrWhiteSpace(bindSpec)) bindSpec = "localhost:50051";
+    bindSpec = bindSpec.Trim();
+
+    string bindHost = bindSpec;
+    int bindPort = 50051;
+    var lastColon = bindSpec.LastIndexOf(':');
+    if (lastColon > 0)
+    {
+        bindHost = bindSpec.Substring(0, lastColon);
+        if (!int.TryParse(bindSpec.Substring(lastColon + 1), out bindPort) || bindPort <= 0)
+            bindPort = 50051;
+    }
+    bindHost = bindHost.Trim().Trim('[', ']');
+
     builder.WebHost.ConfigureKestrel(options =>
     {
-        Log("Configuring Kestrel for localhost:50051 (HTTP/2)...");
-        options.ListenLocalhost(50051, o => o.Protocols = HttpProtocols.Http2);
+        if (bindHost.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            Log($"Configuring Kestrel for localhost:{bindPort} (HTTP/2)...");
+            options.ListenLocalhost(bindPort, o => o.Protocols = HttpProtocols.Http2);
+        }
+        else if (bindHost == "0.0.0.0" || bindHost == "*" || bindHost == "+")
+        {
+            Log($"Configuring Kestrel for ANY IP on port {bindPort} (HTTP/2)...");
+            options.ListenAnyIP(bindPort, o => o.Protocols = HttpProtocols.Http2);
+        }
+        else if (System.Net.IPAddress.TryParse(bindHost, out var bindIp))
+        {
+            Log($"Configuring Kestrel for {bindIp}:{bindPort} (HTTP/2)...");
+            options.Listen(bindIp, bindPort, o => o.Protocols = HttpProtocols.Http2);
+        }
+        else
+        {
+            // Kestrel binds IPs, not DNS names — a hostname means "any interface on this port".
+            Log($"Bind host '{bindHost}' is not an IP; binding ANY IP on port {bindPort} (HTTP/2).");
+            options.ListenAnyIP(bindPort, o => o.Protocols = HttpProtocols.Http2);
+        }
     });
 
     // Add services to the container.

@@ -405,8 +405,52 @@ namespace Paracore.Addin.App
                 + @"\Paracore";
         }
 
+        /// <summary>
+        /// ⚠ CLOUD SEAM (Phase 0) — the sidecar endpoint, resolved from PARACORE_SIDECAR_URL.
+        ///
+        /// Default is the LOCAL sidecar, so an ordinary install behaves exactly as before.
+        /// Point the variable at another host (a second machine on the LAN/Tailnet, or a cloud
+        /// host) to drive a remote worker; in that case no local sidecar is launched.
+        /// Accepts "host:port" or a full URL; a missing scheme defaults to http.
+        /// </summary>
+        public static string SidecarUrl
+        {
+            get
+            {
+                var raw = Environment.GetEnvironmentVariable("PARACORE_SIDECAR_URL");
+                if (string.IsNullOrWhiteSpace(raw)) return "http://localhost:50051";
+                raw = raw.Trim();
+                if (!raw.Contains("://")) raw = "http://" + raw;
+                return raw.TrimEnd('/');
+            }
+        }
+
+        /// <summary>
+        /// True when <see cref="SidecarUrl"/> points somewhere other than this machine — in which
+        /// case the add-in must NOT launch a local sidecar, it connects to the remote one instead.
+        /// </summary>
+        public static bool IsSidecarRemote
+        {
+            get
+            {
+                try
+                {
+                    var host = new Uri(SidecarUrl).Host;
+                    return !(host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                             || host == "127.0.0.1" || host == "::1");
+                }
+                catch { return false; }
+            }
+        }
+
         public static void StartSidecar()
         {
+            if (IsSidecarRemote)
+            {
+                FileLogger.Log($"Remote sidecar configured ({SidecarUrl}); not launching a local sidecar.");
+                return;
+            }
+
             var addinDir = ResolveAddinDir();
             var sidecarPath = Path.Combine(addinDir, "Paracore.Server.exe");
 
