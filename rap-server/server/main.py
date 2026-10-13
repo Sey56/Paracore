@@ -15,18 +15,37 @@ if os.environ.get("GOOGLE_API_KEY") and os.environ.get("GEMINI_API_KEY"):
 if __name__ == "__main__" and __package__ is None:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Resolve paracore-gen — the shared AI brain (agent, MCP core, gRPC client).
+# Resolve the SHARED MCP CORE — the gRPC client layer (`grpc_client` + the proto stubs).
+#
+# ⚠ rap-server is a plain CLIENT of the same gRPC service the MCPs talk to:
+#     rap-web (Tauri) → HTTP → rap-server → gRPC :50051 → Paracore.Server → Revit
+#   `Paracore.Server` is the in-Revit sidecar; the MCPs are clients of it too, and neither
+#   needs the other. So this sidecar needs only the gRPC layer of the core — never
+#   `mcp_core/`, which is the MCP's own tools, prompts and skills.
+# ⚠ Until 2026-10-13 this pointed at `paracore-gen`, which owned the core. It does not any
+#   more — the core lives in the ENGINE repo (see mcp/mcp_core/domain.py).
+#
 # Appended (not inserted) so local modules (utils, config) take precedence.
-# Dev:  ../../../paracore-gen (paracore/rap-server/server/ → Paracore/paracore-gen)
-# Frozen: ../paracore-gen (server-release/server/ → server-release/paracore-gen)
+# Dev:    Paracore/paracore/mcp       (walk up from paracore/rap-server/server/)
+# Frozen: server-release/paracore/mcp (staged by build-frontend.ps1, same relative shape)
 _here = os.path.dirname(os.path.abspath(__file__))
-for _candidate in (
-    os.path.normpath(os.path.join(_here, "..", "paracore-gen")),          # frozen
-    os.path.normpath(os.path.join(_here, "..", "..", "..", "paracore-gen")),  # dev
-):
-    if os.path.isdir(_candidate):
-        sys.path.append(_candidate)
+_core = None
+_dir = _here
+for _ in range(6):
+    if os.path.isfile(os.path.join(_dir, "paracore", "mcp", "grpc_client.py")):
+        _core = os.path.join(_dir, "paracore", "mcp")
         break
+    _up = os.path.dirname(_dir)
+    if _up == _dir:
+        break
+    _dir = _up
+if _core is None:
+    raise RuntimeError(
+        "Paracore shared core not found: no `paracore/mcp/grpc_client.py` above "
+        f"{_here}. The core lives in the ENGINE repo, so the repos must be SIBLING "
+        "checkouts under one parent directory."
+    )
+sys.path.append(_core)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

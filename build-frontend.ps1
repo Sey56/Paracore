@@ -1,4 +1,4 @@
-# Build Paracore Desktop App (Tauri + Python sidecar)
+﻿# Build Paracore Desktop App (Tauri + Python sidecar)
 # Usage: ./build-frontend.ps1
 # For live testing without building: cd rap-web && npm run tauri dev
 
@@ -136,17 +136,22 @@ try {
     Copy-Item -Path (Join-Path $serverSourceDir "run_server.py") -Destination $serverReleaseDir
     robocopy (Join-Path $serverSourceDir "server") (Join-Path $serverReleaseDir "server") /E /XD .venv __pycache__ .ruff_cache build dist /XF test_*.py reproduce_*.py /NJH /NJS /NDL /NC /NS /NP | Out-Null
 
-    # Bundle paracore-gen
-    $agentSource = Join-Path $ParacoreRoot "paracore-gen"
-    if (Test-Path $agentSource) {
-        # ⚠⚠ /E copies the WHOLE tree, so this exclusion list is the ONLY thing between the
-        #    working directory and the shipped installer. Verified 2026-10-02 by listing the
-        #    built installer: it contained .workbuddy-ai\memory\*.md (130 KB of agent project
-        #    memory), paracore_gen.log, and 20 files under spikes\. Keep this list in step
-        #    with what the repo actually accumulates.
-        robocopy $agentSource (Join-Path $serverReleaseDir "paracore-gen") /E /XD .venv __pycache__ .ruff_cache .git mcp-build build dist installers .workbuddy-ai .claude .pytest_cache graphify-out spikes tests /XF *.spec *.pyc *.log .mcp_proc.txt .revit_state.txt .repl_proc.txt /NJH /NJS /NDL /NC /NS /NP | Out-Null
-        Write-Host "Bundled paracore-gen" -ForegroundColor Gray
+    # Bundle the SHARED MCP CORE's gRPC layer - `grpc_client` + the proto stubs.
+    # This used to bundle `paracore-gen`, which owned the core until 2026-10-13. The core
+    # now lives in THIS repo at `mcp/` (see mcp/mcp_core/domain.py), and rap-server is a
+    # plain CLIENT of the same gRPC service the MCPs talk to (`Paracore.Server`, the
+    # in-Revit sidecar on :50051). So it needs only that layer - never `mcp_core/`, which
+    # is the MCP's own tools, prompts and skills.
+    # The destination MIRRORS the dev layout, so `server/main.py` finds it with ONE rule:
+    #   dev -> Paracore/paracore/mcp ; release -> server-release/paracore/mcp.
+    # A missing core must FAIL the build. The old `if (Test-Path ...)` silently skipped,
+    # which ships an installer whose sidecar cannot import grpc_client at all.
+    $coreSource = Join-Path -Path $ProjectRoot -ChildPath 'mcp'
+    if (-not (Test-Path (Join-Path $coreSource "grpc_client.py"))) {
+        throw "Shared MCP core not found at $coreSource - the desktop sidecar cannot import grpc_client."
     }
+    robocopy $coreSource (Join-Path $serverReleaseDir "paracore\mcp") /E /XD mcp_core __pycache__ .ruff_cache .git build dist /XF *.pyc /NJH /NJS /NDL /NC /NS /NP | Out-Null
+    Write-Host "Bundled the shared MCP core (gRPC layer)" -ForegroundColor Gray
 
     # Optional: JWT public key for offline auth
     $jwtKeySource = "$ParacoreRoot\rap-auth-server\server\jwt_public.pem"
