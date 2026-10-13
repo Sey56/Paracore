@@ -20,8 +20,15 @@ import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
   getWorker: () => new EditorWorker(),
 };
 
-/** Monaco's dark themes; anything else is treated as light. */
-const DARK_THEMES = new Set(['dark', 'midnight', 'eclipse']);
+/**
+ * Monaco's dark themes; anything else is treated as light.
+ *
+ * ⚠ `'dark'` is deliberately NOT a member. It is the CSS CLASS `ThemeProvider` puts on
+ *   `<html>`, never a value of `ThemeType` (`'light' | 'midnight' | 'eclipse'`). It used to
+ *   sit in this set and was unreachable — the same class-as-value mix-up that also produced
+ *   a dead `theme === 'dark'` branch in `FloatingCodeViewer.tsx`.
+ */
+const DARK_THEMES = new Set(['midnight', 'eclipse']);
 
 /** Maps the app's theme name to a Monaco theme name. */
 export function monacoThemeFor(appTheme: string | undefined): string {
