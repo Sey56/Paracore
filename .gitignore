@@ -169,6 +169,9 @@ graphify-out/
 # Build log written by build-addin.ps1 -- generated, not source
 scripts/addin_build_log.txt
 
+# Build scratch for scripts/check-skill-snippets.py — regenerated on every run
+scripts/_snippetbuild/
+
 # VS Code extension build output -- generated, never source
 corescript-vscode/out/
 corescript-vscode/dist/
