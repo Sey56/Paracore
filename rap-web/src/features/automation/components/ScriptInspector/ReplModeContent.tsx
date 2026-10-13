@@ -7,6 +7,17 @@ import { MonacoReplEditor } from './MonacoReplEditor';
 import { Modal } from '@/components/common/Modal';
 import { Tooltip } from '@/components/common/Tooltip';
 
+/**
+ * An action that REPLACES the editor buffer, held while we ask about unsaved work.
+ *
+ * ⚠ ONE guard for every path that would discard the buffer. New/Clear had its own
+ *   confirmation, but Open and the Recent-files menu both called straight into
+ *   `setMultiLineValue` — so clicking a script silently threw away what you had typed.
+ *   Routing all three through `guardUnsaved` means a fourth entry point added later
+ *   cannot quietly skip the question again.
+ */
+type PendingAction = { title: string; verb: string; run: () => void };
+
 export const ReplModeContent: React.FC = () => {
   const {
     multiLineValue, setMultiLineValue,
@@ -21,7 +32,7 @@ export const ReplModeContent: React.FC = () => {
   const { runningScriptPath } = useScriptExecution();
   const isRunning = !!runningScriptPath;
 
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [showRecentMenu, setShowRecentMenu] = useState(false);
   const recentMenuRef = useRef<HTMLDivElement>(null);
 
@@ -47,13 +58,30 @@ export const ReplModeContent: React.FC = () => {
     return [...pinned, ...recent];
   }, [pinnedFiles, recentFiles]);
 
-  const onNewSnippet = () => {
+  /**
+   * Run `action` now, or ask first when the buffer holds unsaved work.
+   * An empty editor has nothing to lose, so it never prompts.
+   */
+  const guardUnsaved = (action: PendingAction) => {
     if (multiLineValue.trim() && isDirty) {
-      setShowClearConfirm(true);
+      setPendingAction(action);
     } else {
-      handleNewSnippet();
+      action.run();
     }
   };
+
+  const onNewSnippet = () =>
+    guardUnsaved({ title: 'Clear REPL', verb: 'clearing', run: handleNewSnippet });
+
+  const onOpenSnippet = () =>
+    guardUnsaved({ title: 'Open Script', verb: 'opening another script', run: handleLoadSnippet });
+
+  const onOpenRecent = (path: string) =>
+    guardUnsaved({
+      title: 'Open Script',
+      verb: 'opening another script',
+      run: () => { void loadRecentFile(path); },
+    });
 
   // Keyboard shortcuts: Ctrl/Cmd + Plus / Minus / 0 for font size scaling
   useEffect(() => {
@@ -136,7 +164,7 @@ export const ReplModeContent: React.FC = () => {
             </button>
           </Tooltip>
           <Tooltip text="Open" position="bottom-center">
-            <button onClick={handleLoadSnippet} className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
+            <button onClick={onOpenSnippet} className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
               <FontAwesomeIcon icon={faFolderOpen} className="text-xs" />
             </button>
           </Tooltip>
@@ -176,7 +204,7 @@ export const ReplModeContent: React.FC = () => {
                       className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer group"
                     >
                       <button
-                        onClick={() => { loadRecentFile(file.path); setShowRecentMenu(false); }}
+                        onClick={() => { onOpenRecent(file.path); setShowRecentMenu(false); }}
                         className="flex-1 flex items-center gap-2 min-w-0 text-left"
                       >
                         <FontAwesomeIcon icon={faCode} className="text-[10px] text-slate-400 shrink-0" />
@@ -242,22 +270,31 @@ export const ReplModeContent: React.FC = () => {
         </button>
       </div>
 
-      {/* Confirm Clear Modal */}
-      <Modal isOpen={showClearConfirm} onClose={() => setShowClearConfirm(false)} title="Clear REPL" size="sm">
+      {/* Unsaved-changes guard — shared by New/Clear, Open and Recent */}
+      <Modal
+        isOpen={!!pendingAction}
+        onClose={() => setPendingAction(null)}
+        title={pendingAction?.title ?? ''}
+        size="sm"
+      >
         <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
           {activeSnippetName
-            ? `You have unsaved changes to "${activeSnippetName}". Save before clearing?`
-            : "You have unsaved code in the editor. Save before clearing?"}
+            ? `You have unsaved changes to "${activeSnippetName}". Save before ${pendingAction?.verb}?`
+            : `You have unsaved code in the editor. Save before ${pendingAction?.verb}?`}
         </p>
         <div className="flex justify-end gap-3">
           <button
-            onClick={() => setShowClearConfirm(false)}
+            onClick={() => setPendingAction(null)}
             className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
           >
             Cancel
           </button>
           <button
-            onClick={() => { setShowClearConfirm(false); handleNewSnippet(); }}
+            onClick={() => {
+              const run = pendingAction?.run;
+              setPendingAction(null);
+              run?.();
+            }}
             className="px-4 py-2 text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium transition-colors"
           >
             Discard Changes
@@ -266,8 +303,9 @@ export const ReplModeContent: React.FC = () => {
             onClick={async () => {
               const saved = await handleSaveSnippet(false);
               if (saved) {
-                setShowClearConfirm(false);
-                handleNewSnippet();
+                const run = pendingAction?.run;
+                setPendingAction(null);
+                run?.();
               }
             }}
             className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
