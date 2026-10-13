@@ -19,8 +19,9 @@ WHY THIS EXISTS
     `paracore-gen/EXTENSION_METHODS.md`. The two copies were byte-identical, so this is a
     pure authority-path swap — no content changed, and `paracore-gen` is now a GENERATED
     target for both docs, like every other copy.
-    ⚠ The SHARED SKILLS stay authority-in `paracore-gen`: they teach how to DRIVE the engine,
-    which is MCP-domain, not engine-domain. See `ENGINE_DOCS` / `authority_root()` below.
+    ⚠ The SHARED SKILLS live in `paracore/mcp/mcp_core/` (the shared MCP core). They teach how
+    to DRIVE the engine — MCP-domain, not engine-domain — but they are NOT copied into each
+    MCP any more: every MCP imports the core. See `SHARED` / `authority_root()` below.
 
 ⚠⚠ 2026-10-10 — THE API INDEX IS GENERATED FROM THE C# SOURCE (NOT HAND-WRITTEN).
     `EXTENSION_METHODS.md` was one hand-maintained file doing two jobs, and one of them was
@@ -49,8 +50,9 @@ WHY THIS EXISTS
       * The REPL / dynamic-execution SKILL SET (the nine method skills: query-filter,
         aggregate-group, parameter-access, write-modify, display-visualize, discovery-debug,
         create-geometry, identity-orientation, materials-units) is the SAME in every MCP —
-        it teaches the GENERIC engine's methods, so there is nothing to specialise. It is now
-        generated from the one authority in `paracore-gen` into every engine-driving MCP.
+        it teaches the GENERIC engine's methods, so there is nothing to specialise. It lives
+        ONCE, in `paracore/mcp/mcp_core/`, and every engine-driving MCP IMPORTS it — nothing
+        is generated into the specialist repos any more.
         A specialist keeps its own DOMAIN skills (project-modeling, family-authoring, ...)
         ALONGSIDE this set; the shared set is never hand-edited per repo.
         ⚠ Because it is generated, a shared skill must be context-neutral. Routing that is
@@ -90,16 +92,32 @@ FREE = Path(r"C:\Users\seyou\Paracore\paracore")
 FORGE = Path(r"C:\Users\seyou\Paracore\paracore-forge")
 MODEL = Path(r"C:\Users\seyou\Paracore\paracore-model")
 FAMILY = Path(r"C:\Users\seyou\Paracore\paracore-family")
+TAKEOFF = Path(r"C:\Users\seyou\Paracore\paracore-takeoff")
 
-# The REPL / dynamic-execution skill set. ONE authority (paracore-gen), the same in every MCP
-# that drives the generic engine — it documents the GENERIC engine's methods, so there is
-# nothing to specialise. A specialist's own DOMAIN skills sit alongside it and are NOT listed
-# here (they are not shared).
+# ⚠⚠ 2026-10-13 — THE SHARED MCP CORE MOVED INTO THE ENGINE REPO.
+#   It used to be `paracore-gen/mcp_core`: authority-in paracore-gen, and GENERATED into
+#   every other engine-driving MCP. That made paracore-gen look like the owner of code that
+#   is entirely neutral (the eight REPL tools, the prompts, the nine shared skills), and it
+#   meant ~6,500 lines existed five times over — so a one-line change had to be made five
+#   times, and the copies had already drifted.
+#   It is now ONE package, `paracore/mcp/mcp_core/`, that every MCP IMPORTS — the same
+#   shape as the generic engine itself: one implementation, many consumers. Nothing is
+#   generated INTO the specialist repos for the core any more.
+#   ⚠ The two engine DOCS are still copied into each repo, and that is not duplication for
+#     its own sake: every exe must BUNDLE its own copy (`--add-data "EXTENSION_METHODS.md;."`),
+#     because the exe has no access to the source tree at runtime.
+SHARED = FREE / "mcp"
+SHARED_MC = SHARED / "mcp_core"
+
+# The REPL / dynamic-execution skill set. ONE authority —
+# `paracore/mcp/mcp_core/shared_skills.py` — the same in every MCP that drives the generic
+# engine: it documents the GENERIC engine's methods, so there is nothing to specialise. A
+# specialist's own DOMAIN skills sit alongside it and are NOT listed here (they are not shared).
 # ⚠ Derived from the authority module, never listed twice: the set of skill FILES propagated
 # and the set of registry ENTRIES a server declares must be the same set, or a skill ships
 # without being served.
 _SHARED_SPEC = importlib.util.spec_from_file_location(
-    "_shared_skills", MCP / "mcp_core" / "shared_skills.py"
+    "_shared_skills", SHARED_MC / "shared_skills.py"
 )
 _SHARED_MOD = importlib.util.module_from_spec(_SHARED_SPEC)
 _SHARED_SPEC.loader.exec_module(_SHARED_MOD)
@@ -115,7 +133,7 @@ SKILLS_END = "<!-- GENERATED:SHARED-SKILLS:END -->"
 
 # ⚠ A SENTINEL, not a filename: the destination is its OWN authority. A repo's `SKILLS.md` keeps
 # its hand-authored prose (title, domain skills, usage patterns) and only the nine SHARED sections
-# are generated. That is why it cannot be a copy of an authority in `paracore-gen`.
+# are generated. That is why it cannot be a copy of an authority living in another repo.
 SELF = "<self>"
 
 # The API-index generator. Loaded the same way (hyphenated filename, so no plain `import`).
@@ -129,16 +147,21 @@ _GEM_SPEC.loader.exec_module(_GEM)
 
 # ⚠⚠ WHERE THE AUTHORITY LIVES — ONE declaration, so `TARGETS` and `build()` cannot disagree.
 #   * The two ENGINE DOCS are authority-in `paracore`: they describe the GENERIC engine, whose
-#     source is `paracore/CoreScript.Engine/`. (Until 2026-10-13 the pointer said `paracore-gen` —
-#     a historical accident left over from the deleted `paracore-pro`.)
-#   * Everything else here is the SHARED MCP PYTHON CORE (the REPL skill set, `shared_skills.py`,
-#     the prompts) — MCP-domain, not engine-domain, so it stays authority-in `paracore-gen`.
+#     source is `paracore/CoreScript.Engine/`. (Until 2026-10-13 the pointer said `paracore-gen`
+#     — a historical accident left over from the deleted `paracore-pro`.)
+#   * The SHARED MCP PYTHON CORE (the REPL skill set, `shared_skills.py`, the prompts) also
+#     lives in `paracore` now — at `paracore/mcp/mcp_core/`. It is not COPIED anywhere: every
+#     MCP imports it. This tool only reads it, to render the `SKILLS.md` catalogue region.
 ENGINE_DOCS = ("EXTENSION_METHODS.md", "REPL_GUIDE.md")
 
 
 def authority_root(relname: str) -> Path:
-    """The repo holding the AUTHORITY for `relname` — the file you edit by hand."""
-    return FREE if relname in ENGINE_DOCS else MCP
+    """The repo holding the AUTHORITY for `relname` — the file you edit by hand.
+
+    ⚠ Both kinds of authority are in `paracore` now (the engine repo). The function is kept
+    because it is the ONE place that answers the question, and the answer has moved twice.
+    """
+    return FREE
 
 
 # (authority filename, destination). ⚠ Every destination is GENERATED — a hand edit there is
@@ -163,21 +186,15 @@ TARGETS = [
      FREE / "ai" / "shared" / "skills" / "paracore-engine" / "references" / "EXTENSION_METHODS.md"),
 ]
 
-# ⚠ Every engine-driving MCP bundles the same two engine docs AND the same REPL skill set.
-# Without this, a specialist's copies are unmanaged and drift the first time the authority moves.
+# ⚠ Every engine-driving MCP bundles the same two engine docs — each exe needs its OWN copy
+#   on disk, because a frozen exe cannot read the source tree.
+# ⚠⚠ The nine shared SKILLS are NO LONGER generated into these repos. They live once, in
+#   `paracore/mcp/mcp_core/skills/`, and the shared core serves them from there — so there is
+#   nothing to propagate and nothing to drift. (Before 2026-10-13 each repo carried its own
+#   copy of all nine plus the registry module; that is exactly the duplication this removed.)
 for _repo in (MODEL, FAMILY):
     TARGETS.append(("EXTENSION_METHODS.md", _repo / "EXTENSION_METHODS.md"))
     TARGETS.append(("REPL_GUIDE.md", _repo / "REPL_GUIDE.md"))
-    # ⚠ The registry MODULE too, not just the skill files: a skill whose FILE ships but whose
-    # name is missing from the server's `_SKILL_DESCRIPTIONS` is never served — it is not
-    # cached and no `skill://` resource is registered. Generating both keeps them from
-    # diverging, and generating the module is what stops the shared set being hand-maintained.
-    TARGETS.append(("mcp_core/shared_skills.py", _repo / "mcp_core" / "shared_skills.py"))
-    for _skill in SHARED_SKILLS:
-        TARGETS.append((
-            f"mcp_core/skills/{_skill}/SKILL.md",
-            _repo / "mcp_core" / "skills" / _skill / "SKILL.md",
-        ))
 
 # ⚠⚠ The `SKILLS.md` CATALOGUE — one per MCP, and each is its OWN authority (`SELF`): the title,
 # the domain skills and the usage patterns are hand-authored IN THAT REPO, and only the nine SHARED
@@ -186,6 +203,41 @@ for _repo in (MODEL, FAMILY):
 # mentioned `export_view` — which is exactly the drift the shared set exists to prevent.
 for _repo in (MCP, MODEL, FAMILY):
     TARGETS.append((SELF, _repo / "SKILLS.md"))
+
+# ⚠⚠ DOMAIN skills that are DERIVED from a document the repo already ships — a DIFFERENT
+#   mechanism from `TARGETS`. TakeOff and Forge are not engine-driving in the same way as the
+#   REPL trio: TakeOff serves deterministic quantity tools (the model never writes C#) and
+#   Forge authors gallery scripts. So neither takes the nine shared method skills nor the
+#   shared prompts. Their skills are their OWN documents, and they are COPIED (not moved)
+#   because the installer and other docs still reference the source path.
+#   ⚠ A copy is a drift surface, so it is GENERATED and therefore gated: `--check` fails when
+#   a source changes and its skill copy was not regenerated.
+DERIVED_SKILLS = (
+    (TAKEOFF, "measurement-standard", "Docs/Paracore-BIM-Measurement-Standard.md"),
+    (TAKEOFF, "boq-sections",         "Docs/BOQ_SECTIONS.md"),
+    (TAKEOFF, "export-workflow",      "Docs/RUNNING-THE-TAKEOFF-EXPORT.md"),
+    (TAKEOFF, "takeoff-reference",    "Docs/TAKEOFF_REFERENCE.md"),
+    (FORGE,   "gallery-anatomy",      "forge_core/prompts/gallery-anatomy.md"),
+    (FORGE,   "params-attributes",    "forge_core/prompts/params-attributes.md"),
+    (FORGE,   "script-rules",         "forge_core/prompts/script-rules.md"),
+    (FORGE,   "verification",         "forge_core/prompts/verification.md"),
+    (FORGE,   "forge-reference",      "forge_core/reference/EXTENSION_METHODS.md"),
+)
+
+# (source, destination, generated header). The header is what makes the copy a SKILL: it
+# carries the `name` the MCP serves, and it says out loud where the text really lives.
+COPY_TARGETS: list[tuple[Path, Path, str]] = []
+for _repo, _name, _src in DERIVED_SKILLS:
+    COPY_TARGETS.append((
+        _repo / _src,
+        _repo / "skills" / _name / "SKILL.md",
+        "---\n"
+        f"name: {_name}\n"
+        f"source: {_src}\n"
+        "GENERATED — do not edit this file. Edit the source above, then run\n"
+        "`paracore/scripts/gen-engine-docs.py --write`.\n"
+        "---\n\n",
+    ))
 
 # A repo may own EXTRA extension methods — its "pack". Those are declared IN the repo and are
 # APPENDED to the generic engine doc, so the reference a client serves is
@@ -216,8 +268,9 @@ def render_shared_skills() -> str:
         "⚠ **GENERATED — do not edit this region.** These nine are the **shared REPL / "
         "dynamic-execution set**: they teach the GENERIC engine's own methods, so they are "
         "identical in every engine-driving MCP. Authority: "
-        "`paracore-gen/mcp_core/shared_skills.py`. The full text of each lives in its own "
-        "`<name>/SKILL.md`, which is generated from the same place.",
+        "`paracore/mcp/mcp_core/shared_skills.py` — the shared MCP core, which every MCP "
+        "IMPORTS instead of copying. The full text of each lives in "
+        "`paracore/mcp/mcp_core/skills/<name>/SKILL.md`.",
         "",
     ]
     for name in SHARED_SKILLS:
@@ -281,37 +334,50 @@ def main() -> int:
         ap.error("pass --check or --write")
 
     stale, written, missing = [], [], []
+
+    def sync(dest: Path, want: str, label: str) -> None:
+        have = dest.read_text(encoding="utf-8") if dest.exists() else None
+        # compare modulo line endings: git normalizes to LF in both repos
+        same = have is not None and have.replace("\r\n", "\n") == want.replace("\r\n", "\n")
+        if same:
+            print(f"  ok      {label}")
+            return
+        if have is None:
+            missing.append(dest)
+            print(f"  MISSING {label}")
+        else:
+            stale.append(dest)
+            print(f"  STALE   {label}")
+        if args.write:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(want, encoding="utf-8", newline="\n")
+            written.append(dest)
+
     for relname, dest in TARGETS:
         try:
             want = build(relname, dest)
         except FileNotFoundError as e:
             print(f"  ERROR   {relname}: {e}")
             return 2
-        have = dest.read_text(encoding="utf-8") if dest.exists() else None
-        # compare modulo line endings: git normalizes to LF in both repos
-        same = have is not None and have.replace("\r\n", "\n") == want.replace("\r\n", "\n")
-        if same:
-            print(f"  ok      {dest.relative_to(dest.parents[1])}")
-            continue
-        if have is None:
-            missing.append(dest)
-            print(f"  MISSING {dest}")
-        else:
-            stale.append(dest)
-            print(f"  STALE   {dest}")
-        if args.write:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(want, encoding="utf-8", newline="\n")
-            written.append(dest)
+        sync(dest, want, f"{relname} -> {dest}")
+
+    # ⚠ The takeoff skill copies. Same gate as everything else: a changed `Docs/*.md` whose
+    #   skill copy was not regenerated is DRIFT, and DRIFT fails.
+    for src, dest, header in COPY_TARGETS:
+        if not src.exists():
+            print(f"  ERROR   copy source missing: {src}")
+            return 2
+        sync(dest, header + src.read_text(encoding="utf-8").lstrip(), f"copy {src.name} -> {dest}")
 
     print()
+    total = len(TARGETS) + len(COPY_TARGETS)
     if args.write:
         print(f"wrote {len(written)} file(s); {len(stale) + len(missing)} were out of date")
         return 0
     if stale or missing:
         print(f"DRIFT: {len(stale)} stale, {len(missing)} missing — run --write")
         return 1
-    print(f"generated docs are up to date ({len(TARGETS)} targets)")
+    print(f"generated docs are up to date ({total} targets)")
     return 0
 
 

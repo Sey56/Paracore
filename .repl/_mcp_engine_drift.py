@@ -36,10 +36,23 @@ from pathlib import Path
 #   returned an EMPTY set, and the scan reported "clean" while checking nothing.
 #   The roots are now the three LIVE repos.
 PARACORE = Path(r"C:\Users\seyou\Paracore\paracore")
+# ⚠⚠ THE INSTRUCTION SURFACE MOVED (2026-10-13). The shared core — the prompts and the nine
+#   shared method skills — used to live in `paracore-gen/mcp_core/`. It now lives in the
+#   ENGINE repo at `paracore/mcp/mcp_core/`, imported by every MCP. A gate still pointing at
+#   `paracore-gen/mcp_core` globs ZERO files — precisely the "an empty scan must FAIL"
+#   failure this file's own docstring warns about.
+# ⚠ SCOPE, MEASURED not assumed. Adding the DOMAIN skills (`paracore-model/skills`,
+#   `paracore-family/skills`) to this scan takes section A from 0 to 23 "unrecognised
+#   everywhere" names — every one a raw Revit API name taught by `project-modeling`
+#   (`NewRoomTag`, `OpenDocumentFile`, `MoveElement`, `RotateElement`, `SetCompoundStructure`,
+#   …). Same category as `family-authoring`, but `project-modeling` does NOT declare itself a
+#   Revit-API page the way family-authoring does, so the declaration test cannot exempt it.
+#   Left OUT on purpose: it would turn a green gate red on correct names. Widening it means
+#   first teaching the declaration test `project-modeling`'s mixed page.
 # ⚠ paracore-gen is a SIBLING of paracore, NOT inside it. A path relative to PARACORE
 # silently matched only the takeoff generators, which made the scan look alive while
 # covering ~5% of the surface. Measure the population, never assume the path.
-MCP = Path(r"C:\Users\seyou\Paracore\paracore-gen")
+MCP = PARACORE / "mcp" / "mcp_core"
 TAKEOFF = Path(r"C:\Users\seyou\Paracore\paracore-takeoff") / "takeoff"
 
 # ---- 1. engine public members ------------------------------------------------
@@ -156,7 +169,7 @@ def mcp_names():
           emitted method names are asserted separately, by the list below.
     """
     files = []
-    for pat in ("mcp_core/prompts/*.md", "mcp_core/skills/*/SKILL.md"):
+    for pat in ("prompts/*.md", "skills/*/SKILL.md"):
         for f in sorted(MCP.glob(pat)):
             text = f.read_text(encoding="utf-8", errors="replace")
             # Raw-Revit-API teaching pages are out of scope BY THEIR OWN DECLARATION,

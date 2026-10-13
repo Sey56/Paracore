@@ -9,7 +9,10 @@ import os
 import re
 import sys
 
-sys.path.insert(0, r"C:\Users\seyou\Paracore\paracore-gen")
+# ⚠ The shared MCP core moved into the ENGINE repo on 2026-10-13 (`paracore/mcp`); it used
+#   to be `paracore-gen/mcp_core`. Resolved from THIS file so it survives a moved checkout.
+_PARACORE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_PARACORE, "mcp"))
 
 from mcp_core.tool_helpers import (  # noqa: E402
     _LINT_RULES,

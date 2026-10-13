@@ -25,10 +25,11 @@ WHY THIS EXISTS
         (`void Set(FamilyParameter p, double value);`) - also not C#.
 
 WHY IT IS CROSS-REPO (and not a per-repo gate)
-  `paracore-gen` is the generic REPL MCP; every specialist carries the SAME nine shared
-  skills plus its own domain skills. A gate installed in one specialist sees one copy of the
-  shared set - the other two repos keep the defect, which is exactly how the eight defects
-  above survived. One gate, all repos. Authority: MASTER_SYSTEM_SPEC.md §3.
+  The nine shared skills live ONCE, in the shared MCP core (`paracore/mcp/mcp_core/skills/`),
+  and every specialist carries its own domain skills alongside them. A gate installed in one
+  specialist sees one copy of the shared set - the other repos keep the defect, which is
+  exactly how the eight defects above survived. One gate, all repos.
+  Authority: MASTER_SYSTEM_SPEC.md §3.
 
 WHY THE ERROR CODES ARE SPLIT (the soundness argument)
   A fence is usually a FRAGMENT: it mentions `wall`, `refs`, `d` that the surrounding prose

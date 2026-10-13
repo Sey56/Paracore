@@ -12,11 +12,13 @@ WHY THIS EXISTS
         and is loaded by `@grpc/proto-loader`, so it cannot simply point at `../protos` on a
         user's machine. A copy CAN drift, and it did: found on 2026-10-09 at three fields and
         three months behind the authority.
-      * `paracore-gen` / `paracore-forge` / `paracore-takeoff` / `paracore-model` /
-        `paracore-family` — each checks in a GENERATED `corescript_pb2*.py`. None of them had a
-        generator script, so regenerating was an undocumented manual step, and the only script
-        that did regenerate stubs wrote them into `rap-server/server/`, a directory with no
-        consumer at all.
+      * the five MCP repos (`paracore-gen` / `paracore-forge` / `paracore-takeoff` /
+        `paracore-model` / `paracore-family`) — each USED to check in a GENERATED
+        `corescript_pb2*.py`. None had a generator script, so regenerating was an undocumented
+        manual step, and the only script that did regenerate stubs wrote them into
+        `rap-server/server/`, a directory with no consumer at all.
+        ⚠ Since 2026-10-13 the stubs live ONCE, in the shared MCP core at `paracore/mcp/`, and
+        every MCP (plus the desktop sidecar) imports them from there — so there is ONE target.
 
     So: ONE authority, and every other artifact is GENERATED from it by this tool.
 
@@ -58,17 +60,15 @@ AUTHORITY = PROTO_DIR / "corescript.proto"
 VSCODE_COPY = PARACORE / "corescript-vscode" / "proto" / "corescript.proto"
 VSCODE_LABEL = "corescript-vscode/proto/corescript.proto"
 
-# Every repo that checks in a generated stub, as (label, repo_root).
-# ⚠ A repo that checks in a stub but is ABSENT here is neither written nor checked —
-#   an ungated drift surface, which is exactly how paracore-model and paracore-family
-#   sat three RPCs behind the authority without anyone noticing. Add every new
-#   engine-driving MCP repo the day it is created.
+# ⚠⚠ ONE place checks in a stub now: the SHARED MCP CORE at `paracore/mcp/`.
+#   Until 2026-10-13 all five MCP repos checked in their own copy, which is why the note
+#   below used to read "add every new engine-driving MCP repo the day it is created" — five
+#   copies of a generated wire contract is five chances to be stale, and three of them WERE.
+#   The core is imported, not copied, so a stub that drifts is now impossible.
+# ⚠ A repo that checks in a stub but is ABSENT here is neither written nor checked — an
+#   ungated drift surface. Keep this list to the single shared core.
 STUB_REPOS = [
-    ("paracore-gen", SIB / "paracore-gen"),
-    ("paracore-forge", SIB / "paracore-forge"),
-    ("paracore-takeoff", SIB / "paracore-takeoff"),
-    ("paracore-model", SIB / "paracore-model"),
-    ("paracore-family", SIB / "paracore-family"),
+    ("paracore/mcp (the shared MCP core)", SIB / "paracore" / "mcp"),
 ]
 
 STUB_FILES = ("corescript_pb2.py", "corescript_pb2_grpc.py", "corescript_pb2.pyi")
