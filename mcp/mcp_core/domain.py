@@ -70,7 +70,25 @@ class Domain:
     this is the bundle dir; in dev it is the directory holding the server file."""
 
     skills: tuple[SkillSpec, ...] = ()
-    """The DOMAIN skills. The nine shared ones are added automatically."""
+    """The DOMAIN skills. The nine shared ones are added automatically — unless
+    `shared_skills` says otherwise."""
+
+    shared_skills: tuple[str, ...] | None = None
+    """WHICH of the core's shared skills to include.
+
+    `None` (the default) = all nine — what `gen`/`model`/`family`/`takeoff` want, because
+    they author REPL C# and the shared skills ARE that vocabulary.
+
+    A tuple = only those names. An EMPTY tuple = none — for a domain whose work is not
+    REPL C#. ⚠ `paracore-forge` passes `()`: it authors gallery scripts, and its own
+    `forge-reference` skill is the whole generated extension-method API, so the nine were
+    a redundant second copy of it. ⚠ Measured 2026-10-13: the gallery/script path runs
+    REPL-style code verbatim (a script with NO `Params` class compiles and executes
+    through `ExecuteScript`), so Forge needs no separate REPL generation/execution.
+
+    ⚠ `load_skill_text` still searches the shared dir, so naming a shared skill here is
+    the ONLY way to get it — the flag filters the CATALOGUE, it does not wall off the files.
+    """
 
     prompt_overrides: tuple[str, ...] = ()
     """Prompt section filenames this repo replaces (e.g. ("catalog.md",)). Anything not
@@ -94,12 +112,43 @@ def domain_prompts_dir(domain: Domain) -> str:
 
 # ── Skill reading ────────────────────────────────────────────────────────────
 
+def admitted_shared_names(domain: Domain) -> tuple[str, ...]:
+    """The core's shared skills THIS domain takes, in catalogue order.
+
+    `shared_skills is None` (the default) = all nine. Otherwise exactly the names given.
+    ⚠ ONE place decides this, so the CATALOGUE and `load_skill_text` cannot disagree.
+    """
+    from mcp_core.shared_skills import SHARED_SKILL_DESCRIPTIONS
+
+    if domain.shared_skills is None:
+        return tuple(SHARED_SKILL_DESCRIPTIONS)
+
+    # ⚠ A name that does not exist RAISES. Dropping it silently would advertise a skill
+    #   that `read_skill` cannot load — a gate that quietly passes is not a gate.
+    unknown = [n for n in domain.shared_skills if n not in SHARED_SKILL_DESCRIPTIONS]
+    if unknown:
+        raise ValueError(
+            f"Domain {domain.name!r} names shared skill(s) that do not exist: {unknown}. "
+            f"Available: {sorted(SHARED_SKILL_DESCRIPTIONS)}"
+        )
+    return tuple(domain.shared_skills)
+
+
 def load_skill_text(domain: Domain, name: str) -> str | None:
-    """The SKILL.md body for `name`, or None if no such skill.
+    """The SKILL.md body for `name`, or None if this domain does not offer it.
 
     ⚠ The DOMAIN's directory wins: a repo may override a shared skill deliberately.
+    ⚠⚠ A SHARED skill is readable ONLY if `admitted_shared_names` takes it. Searching the
+    shared dir unconditionally made `read_skill` serve skills `list_skills` never
+    advertised — MEASURED 2026-10-13: with Forge on `shared_skills=()`, `list_skills` said
+    5 while `read_skill("query-filter")` still returned the whole REPL skill. The two must
+    agree, or the catalogue's claim to be "the authoritative list" is false.
     """
-    for base in (domain_skills_dir(domain), SHARED_SKILLS_DIR):
+    bases = [domain_skills_dir(domain)]
+    if name in admitted_shared_names(domain):
+        bases.append(SHARED_SKILLS_DIR)
+
+    for base in bases:
         path = os.path.join(base, name, "SKILL.md")
         if os.path.isfile(path):
             try:
@@ -111,11 +160,12 @@ def load_skill_text(domain: Domain, name: str) -> str | None:
 
 
 def skill_catalogue(domain: Domain) -> tuple[SkillSpec, ...]:
-    """The nine shared skills + this domain's own, in that order."""
+    """The shared skills this domain takes + its own, in that order."""
     from mcp_core.shared_skills import SHARED_SKILL_DESCRIPTIONS
 
     shared = tuple(
-        SkillSpec(name=n, description=d) for n, d in SHARED_SKILL_DESCRIPTIONS.items()
+        SkillSpec(name=n, description=SHARED_SKILL_DESCRIPTIONS[n])
+        for n in admitted_shared_names(domain)
     )
     return shared + domain.skills
 
