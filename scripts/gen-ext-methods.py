@@ -13,7 +13,7 @@ WHY THIS EXISTS
 
     So the two halves are now split by OWNER, not by tier:
 
-        prose -> hand-authored, the authority `paracore-gen/EXTENSION_METHODS.md`
+        prose -> hand-authored, the authority `paracore/EXTENSION_METHODS.md`
         index -> GENERATED from the C# source, injected between the markers below
 
     The index is the COMPLETENESS claim of the reference: if a member is not in it, it is
@@ -64,7 +64,7 @@ REPO = HERE.parent.parent                      # .../paracore
 PARACORE_ROOT = REPO.parent                    # .../Paracore  (holds every sibling repo)
 
 ENGINE = REPO / "CoreScript.Engine"            # the GENERIC engine — the source of truth
-ENGINE_DOC = PARACORE_ROOT / "paracore-gen" / "EXTENSION_METHODS.md"   # the authority doc
+ENGINE_DOC = REPO / "EXTENSION_METHODS.md"     # the authority doc (the engine repo, `paracore`)
 
 # ⚠ Host plumbing a script cannot call. Documenting it would pad the reference with
 # unreachable members, so it is EXCLUDED from the inventory — and the exclusion is asserted

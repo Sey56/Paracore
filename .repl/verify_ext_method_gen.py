@@ -60,7 +60,9 @@ PARACORE_ROOT = REPO.parent
 
 GEN_PY = REPO / "scripts" / "gen-ext-methods.py"
 AUDIT_PY = REPO / ".repl" / "_ext_method_audit.py"
-DOC = PARACORE_ROOT / "paracore-gen" / "EXTENSION_METHODS.md"
+# ⚠ The doc authority is the ENGINE repo (`paracore`) — it moved off `paracore-gen` on
+# 2026-10-13. It is the copy a hand edit lands in, so it is the one this probe must read.
+DOC = REPO / "EXTENSION_METHODS.md"
 # ⚠⚠ THE BUILD OUTPUT IS RESOLVED, NOT HARDCODED — a gate whose own path is wrong is not a gate
 # (rule 3). This used to point at `bin/Debug/...`, but `build-addin.ps1` publishes **Release**
 # (`-c Release` → `bin\Release\net8.0-windows\win-x64`). After a real rebuild the freshness check

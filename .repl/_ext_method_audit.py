@@ -23,7 +23,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ENG = ROOT / "CoreScript.Engine"
-DOC = Path(r"C:\Users\seyou\Paracore\paracore-gen\EXTENSION_METHODS.md")
+# ⚠ The doc authority is the ENGINE repo (`paracore`) — it moved off `paracore-gen` on
+# 2026-10-13. ROOT is `.../paracore`, so the doc sits beside this repo's own source (and the
+# hard-coded user profile is gone).
+DOC = ROOT / "EXTENSION_METHODS.md"
 
 VERBOSE = "--verbose" in sys.argv
 STRICT = "--strict" in sys.argv

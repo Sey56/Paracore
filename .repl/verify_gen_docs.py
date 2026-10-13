@@ -90,8 +90,12 @@ def main() -> int:
             ok = False
 
     print("\nANCHOR SCAN  (authority's TOC must resolve to its headings)")
-    ext = (gen.MCP / "EXTENSION_METHODS.md").read_text(encoding="utf-8")
-    repl = (gen.MCP / "REPL_GUIDE.md").read_text(encoding="utf-8")
+    # ⚠ Ask the generator WHERE the authority lives rather than hard-coding a repo name: it
+    # moved from `paracore-gen` to `paracore` on 2026-10-13, and a probe that hard-codes the
+    # old path would silently keep checking a generated copy.
+    ext = (gen.authority_root("EXTENSION_METHODS.md") / "EXTENSION_METHODS.md").read_text(
+        encoding="utf-8")
+    repl = (gen.authority_root("REPL_GUIDE.md") / "REPL_GUIDE.md").read_text(encoding="utf-8")
 
     for name, text in (("EXT", ext), ("REPL", repl)):
         toc_now = {a for _, _, a in toc(text)}
