@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useConsole } from '../../store/ConsoleContext';
 import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport, faHistory, faThumbtack, faPlus, faMinus } from '@fortawesome/free-solid-svg-icons';
-import { MonacoReplEditor } from './MonacoReplEditor';
+import { faPlay, faSpinner, faTerminal, faCode, faFile, faFolderOpen, faSave, faFileExport, faHistory, faThumbtack, faPlus, faMinus, faIndent } from '@fortawesome/free-solid-svg-icons';
+import { MonacoReplEditor, type MonacoReplEditorHandle } from './MonacoReplEditor';
 import { Modal } from '@/components/common/Modal';
 import { Tooltip } from '@/components/common/Tooltip';
 
@@ -35,6 +35,7 @@ export const ReplModeContent: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [showRecentMenu, setShowRecentMenu] = useState(false);
   const recentMenuRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<MonacoReplEditorHandle>(null);
 
   // Close recent menu on outside click
   useEffect(() => {
@@ -238,12 +239,25 @@ export const ReplModeContent: React.FC = () => {
               </div>
             )}
           </div>
+
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
+          <Tooltip text="Format Document (Shift+Alt+F)" position="bottom-center">
+            <button
+              onClick={() => editorRef.current?.format()}
+              disabled={!multiLineValue.trim() || isReplLoading || isRunning}
+              className={`p-1.5 transition-colors ${multiLineValue.trim() && !isReplLoading && !isRunning ? 'text-slate-400 hover:text-blue-500' : 'text-slate-200 dark:text-slate-800'}`}
+            >
+              <FontAwesomeIcon icon={faIndent} className="text-xs" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
       {/* REPL Editor */}
       <div className="flex-1 min-h-0 flex flex-col pt-2">
         <MonacoReplEditor
+          ref={editorRef}
           value={multiLineValue}
           onChange={setMultiLineValue}
           onRun={() => handleReplSubmit(activeSnippetName)}

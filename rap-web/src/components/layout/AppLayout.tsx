@@ -260,7 +260,7 @@ export const AppLayout: React.FC = () => {
               <div className={`fixed top-16 left-0 h-[calc(100%-4rem)] transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0 w-96' : '-translate-x-full w-96'} semantic-bg-panel shadow-xl z-30 border-r border-slate-200 dark:border-gray-700`}><Sidebar /></div>
 
               {/* Main Content Area */}
-              <div id="main-content" className="flex flex-col flex-1 semantic-bg-ground isolate min-w-0 min-h-0 overflow-hidden" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
+              <div id="main-content" className="flex flex-col flex-1 semantic-bg-ground min-w-0 min-h-0 overflow-hidden" onClick={() => { if (isSidebarOpen) toggleSidebar(); }}>
                 <div className={`flex flex-1 overflow-hidden w-full max-w-full h-full max-h-full ${layoutOrientation === 'vertical' ? 'flex-col' : 'flex-row'}`}>
                   {/* ── Main Content Area (left / top side) ── */}
                   <div style={layoutOrientation === 'vertical' ? {
@@ -294,7 +294,7 @@ export const AppLayout: React.FC = () => {
 
                       {/* REPL mode */}
                       {activeMainView === 'repl' && (
-                        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 z-10 opacity-100 visible">
+                        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transition-opacity duration-150 opacity-100 visible">
                           <Suspense fallback={<PanelSkeleton />}><ReplModeContent /></Suspense>
                         </div>
                       )}

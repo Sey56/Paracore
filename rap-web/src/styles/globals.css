@@ -344,3 +344,16 @@ body,
     top: 0;
   }
 }
+
+/* ── MONACO EDITOR: hover & suggest widgets above the TopBar ── */
+/*
+ * The TopBar sits at z-40 in the root stacking context.  Without `isolate`
+ * on #main-content and without `z-10` on the REPL container (both removed
+ * so that Monaco's popups can escape the editor's own stacking context),
+ * these widgets participate in the root stacking context and need a
+ * z-index above 40 to render on top of the TopBar.
+ */
+.monaco-editor .monaco-hover,
+.monaco-editor .suggest-widget {
+  z-index: 50 !important;
+}

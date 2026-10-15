@@ -21,18 +21,41 @@ import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 };
 
 /**
- * Monaco's dark themes; anything else is treated as light.
+ * Maps the app's theme to a Monaco theme name.
  *
- * ⚠ `'dark'` is deliberately NOT a member. It is the CSS CLASS `ThemeProvider` puts on
- *   `<html>`, never a value of `ThemeType` (`'light' | 'midnight' | 'eclipse'`). It used to
- *   sit in this set and was unreachable — the same class-as-value mix-up that also produced
- *   a dead `theme === 'dark'` branch in `FloatingCodeViewer.tsx`.
+ * ⚠ The app has exactly TWO themes now, so this is plain equality. The old `DARK_THEMES` set — and
+ *   the "'dark' is a CSS class, not a ThemeType value" footgun documented here — is gone: `'dark'`
+ *   IS a real `ThemeType` value.
  */
-const DARK_THEMES = new Set(['midnight', 'eclipse']);
-
-/** Maps the app's theme name to a Monaco theme name. */
 export function monacoThemeFor(appTheme: string | undefined): string {
-  return appTheme && DARK_THEMES.has(appTheme) ? 'vs-dark' : 'vs';
+  return appTheme === 'dark' ? 'vs-dark' : 'vs';
+}
+
+/**
+ * ⚠ Monaco writes "Click to expand the range." / "Click to collapse the range." as a NATIVE
+ *   `title` tooltip on the folding chevrons (`.cldr` divs in the margin). There is NO editor
+ *   option to disable it, and inside Tauri's WebView the tooltip renders deformed.
+ *
+ *   The decoration options live on the `FoldingDecorationProvider` singleton, so nulling their
+ *   `linesDecorationsTooltip` stops the attribute from ever reaching the DOM. This reaches into
+ *   an internal (non-API) Monaco module, so it is best-effort: `MonacoReplEditor` also sweeps the
+ *   rendered DOM, which covers the first paint if this async patch has not resolved yet.
+ */
+export async function suppressFoldingTooltips(): Promise<void> {
+  try {
+    // @ts-ignore — internal Monaco module, not part of the public API (no typings shipped).
+    const mod = await import('monaco-editor/esm/vs/editor/contrib/folding/browser/foldingDecorations.js');
+    const Provider = (mod as { FoldingDecorationProvider?: Record<string, unknown> })
+      .FoldingDecorationProvider;
+    if (!Provider) return;
+    for (const option of Object.values(Provider)) {
+      if (option && typeof option === 'object' && 'linesDecorationsTooltip' in option) {
+        (option as { linesDecorationsTooltip: string | null }).linesDecorationsTooltip = null;
+      }
+    }
+  } catch {
+    /* The internal path moved — the DOM sweep in MonacoReplEditor still removes the tooltip. */
+  }
 }
 
 export { monaco };
