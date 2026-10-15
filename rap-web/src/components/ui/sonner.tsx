@@ -8,8 +8,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
   //   ThemeProvider — so it silently fell back to "system" and the toasts followed the
   //   OPERATING SYSTEM instead of the app. Pick midnight on a light-mode OS and the
   //   toasts rendered light.
-  // ⚠ The app's values are light | midnight | eclipse; sonner understands only
-  //   light | dark | system. Both dark themes map to "dark".
+  // ⚠ The app's values are light | dark; sonner also understands "system", but we never pass it —
+  //   the app resolves the OS preference itself on first visit.
   const { theme } = useTheme()
   const sonnerTheme: ToasterProps["theme"] = theme === "light" ? "light" : "dark"
 

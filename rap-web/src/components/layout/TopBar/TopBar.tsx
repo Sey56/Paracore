@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faCog, faQuestionCircle, faSun, faMoon, faCircleHalfStroke, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt, faHouse, faThLarge, faColumns } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faCog, faQuestionCircle, faSun, faMoon, faRobot, faRectangleList, faCode, faListUl, faExchangeAlt, faHouse, faThLarge, faColumns } from '@fortawesome/free-solid-svg-icons';
 import { useUI } from '@/hooks/useUI';
 import { useRevitStatus } from '@/hooks/useRevitStatus';
 import { useTheme } from '@/context/ThemeContext';
@@ -76,8 +76,8 @@ export const TopBar: React.FC = () => {
     <div 
       className="h-16 border-b border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between px-4 z-40 relative tooltip-bottom"
       style={{ 
-        backgroundColor: theme === 'eclipse' ? 'var(--bg-card)' : undefined,
-        backdropFilter: theme === 'eclipse' ? 'none' : undefined
+        backgroundColor: theme === 'dark' ? 'var(--bg-card)' : undefined,
+        backdropFilter: theme === 'dark' ? 'none' : undefined
       }}
     >
       {/* 1. Logo & Sidebar Toggle Cluster */}
@@ -97,17 +97,15 @@ export const TopBar: React.FC = () => {
           </h1>
         </div>
 
-        {/* Theme Toggle - Integrated Three-Way Cycle */}
+        {/* Theme Toggle — light <-> dark */}
         <button
           onClick={toggleTheme}
           className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90
-            ${theme === 'light' ? 'text-amber-500 hover:bg-amber-50' :
-              theme === 'midnight' ? 'text-blue-400 hover:bg-blue-900/20' :
-                'text-slate-400 hover:bg-slate-800'}`}
+            ${theme === 'light' ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-800'}`}
           title={theme.charAt(0).toUpperCase() + theme.slice(1)}
         >
           <FontAwesomeIcon
-            icon={theme === 'light' ? faSun : theme === 'midnight' ? faMoon : faCircleHalfStroke}
+            icon={theme === 'light' ? faSun : faMoon}
             className="text-sm"
           />
         </button>
@@ -116,8 +114,8 @@ export const TopBar: React.FC = () => {
       {/* 2. Central Navigation Center (Segmented Switcher) */}
       <div className="flex items-center p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-inner">
         {[
-          { id: 'gallery', label: 'Gallery', icon: faThLarge },
           { id: 'repl', label: 'REPL', icon: faCode },
+          { id: 'gallery', label: 'Gallery', icon: faThLarge },
           { id: 'playlists', label: 'Playlists', icon: faListUl }
         ].map(nav => {
           const isActive = activeMainView === nav.id;

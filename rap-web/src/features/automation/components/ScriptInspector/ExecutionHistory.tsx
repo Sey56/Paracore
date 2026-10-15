@@ -4,7 +4,7 @@ import { useScriptExecution } from '../../hooks/useScriptExecution';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, vs, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vs, atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '@/context/ThemeContext';
 
 /**
@@ -36,7 +36,7 @@ export const ExecutionHistory: React.FC<{ showPipeline?: boolean }> = ({ showPip
   const { runningScriptPath } = useScriptExecution();
   const { theme } = useTheme();
 
-  const syntaxStyle = theme === 'eclipse' ? atomDark : (theme === 'light' ? vs : vscDarkPlus);
+  const syntaxStyle = theme === 'light' ? vs : atomDark;
   const isRunning = !!runningScriptPath;
 
   // Live wall clock for whatever is in flight. The console is the only place

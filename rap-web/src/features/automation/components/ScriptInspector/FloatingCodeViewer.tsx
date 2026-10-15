@@ -61,8 +61,8 @@ export const FloatingCodeViewer: React.FC<FloatingCodeViewerProps> = ({ script, 
         bounds="window"
         className={`
           rounded-lg border
-          ${theme === 'midnight' || theme === 'eclipse' ? 'dark bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}
-          ${theme === 'eclipse' ? 'shadow-[0_0_40px_rgba(0,0,0,0.6)] border-slate-700/40' : 'shadow-2xl'}
+          ${theme === 'dark' ? 'dark bg-slate-800 border-slate-700' : 'bg-white border-slate-300'}
+          ${theme === 'dark' ? 'shadow-[0_0_40px_rgba(0,0,0,0.6)] border-slate-700/40' : 'shadow-2xl'}
         `}
         style={{ zIndex: 1000 }}
         dragHandleClassName="handle"

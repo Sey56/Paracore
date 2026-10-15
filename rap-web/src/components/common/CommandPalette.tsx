@@ -20,7 +20,6 @@ import {
   ListIcon,
   SunIcon,
   MoonIcon,
-  CircleIcon,
   SettingsIcon,
   ColumnsIcon,
 } from 'lucide-react';
@@ -64,7 +63,7 @@ export const CommandPalette: React.FC = () => {
     }));
   }, [scripts]);
 
-  const themeIcon = theme === 'light' ? SunIcon : theme === 'midnight' ? MoonIcon : CircleIcon;
+  const themeIcon = theme === 'light' ? SunIcon : MoonIcon;
 
   return (
     <CommandDialog

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import csharp from 'react-syntax-highlighter/dist/esm/languages/prism/csharp';
-import { vscDarkPlus, atomDark, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { atomDark, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Script } from '@/types/scriptModel';
 import { useScriptExecution } from '@/features/automation';
 import { useTheme } from '@/context/ThemeContext';
@@ -18,7 +18,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ script }) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const syntaxHighlighterStyle = theme === 'eclipse' ? atomDark : (theme === 'midnight' || theme === 'dark' ? vscDarkPlus : vs);
+  const syntaxHighlighterStyle = theme === 'dark' ? atomDark : vs;
 
   // We no longer need local sourceCode state or local polling/focus logic here.
   // ScriptExecutionProvider now handles the background polling and updates combinedScriptContent.

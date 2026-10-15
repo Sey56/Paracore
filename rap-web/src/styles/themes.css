@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
-/* ── THEME TOKENS ── */
+/* ── THEME TOKENS ──
+ *
+ * ⚠ TWO themes only: light (`:root`) and dark (`.dark`).
+ *
+ * A third `eclipse` theme used to sit beside `midnight`, which meant every dark-mode rule had to
+ * be written TWICE — once for `.dark:not(.eclipse)` and once for `.dark.eclipse` — and the two
+ * palettes bled into each other until `.dark.eclipse` remapped the entire Tailwind slate palette
+ * to keep them apart. Eclipse won: there is now ONE dark block, and the ~1100 `dark:*-slate-*`
+ * utilities in the app render Eclipse greys BECAUSE the palette remap lives in it.
+ */
+
+/* ── LIGHT ── */
 :root {
-  /* Default: Light Mode */
   --bg-ground: #f8fafc;
   --bg-panel: #ffffff;
   --bg-card: #f1f5f9;
@@ -18,30 +28,10 @@
   --border-divider: #cbd5e1; /* slate-300 */
 }
 
-/* Midnight Mode (The Beloved Bluish Dark) */
-.dark:not(.eclipse) {
-  --bg-ground: #0f172a;
-  --bg-panel: #1e293b;
-  --bg-card: #1e293b;
-  /* SOLID - Restores Metallic */
-  --bg-card-focus: #334155;
-  /* SOLID */
-  --bg-group: rgba(15, 23, 42, 0.3);
-  /* TRANSPARENT - Fixes Whitewash */
-  --bg-group-focus: rgba(30, 41, 59, 0.4);
-  --border-main: #334155;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --accent: #60a5fa;
-  --border-divider: #2d394d; /* Balanced for Midnight */
-  --tooltip-bg: #ffffff;
-  --tooltip-text: #0f172a;
-}
-
-/* Eclipse Pro (Modern Neutral Matte) */
-.dark.eclipse {
+/* ── DARK — Eclipse (modern neutral matte) ── */
+.dark {
   --bg-ground: #282c34;
-  --bg-panel: #181a1f; 
+  --bg-panel: #181a1f;
   --bg-card: #313640;
   /* Lighter GRAY Matte */
   --bg-card-focus: #3e4451;
@@ -54,12 +44,11 @@
   --text-main: #e2e4e7;
   --text-muted: #828997;
   --accent: #61afef;
-  --border-divider: #3e4451; /* slate-600 - Visible for Eclipse */
+  --border-divider: #3e4451; /* Visible against the matte ground */
 
-  --tooltip-bg: #ffffff;
-  --tooltip-text: #181a1f;
-
-  /* Override Tailwind v4 slate palette for Eclipse to stop "Midnight" mixing */
+  /* ⚠ THE PIVOT. Tailwind v4 resolves `slate-*` from these theme variables, so overriding them
+     here recolours every `dark:bg-slate-800`, `dark:text-slate-400`, … in one stroke. WITHOUT
+     this, dark mode silently falls back to Tailwind's bluish slate — i.e. the old "midnight". */
   --color-slate-900: #21252b;
   --color-slate-800: #1b1e23;
   --color-slate-700: #2c313a;
@@ -105,6 +94,7 @@ html {
   --text-secondary: var(--text-muted);
   --bg-hover: var(--bg-card);
   --accent-hover: color-mix(in srgb, var(--accent) 80%, black);
+  /* ⚠ Deliberately INVERTED: light mode gets a dark tooltip and vice versa. */
   --tooltip-bg: #1e293b;
   --tooltip-text: #f1f5f9;
   --success: #22c55e;
@@ -113,21 +103,7 @@ html {
   --danger-muted: rgba(239, 68, 68, 0.1);
 }
 
-.dark:not(.eclipse) {
-  --border: var(--border-main);
-  --text-primary: var(--text-main);
-  --text-secondary: var(--text-muted);
-  --bg-hover: var(--bg-card);
-  --accent-hover: color-mix(in srgb, var(--accent) 80%, black);
-  --tooltip-bg: #ffffff;
-  --tooltip-text: #0f172a;
-  --success: #22c55e;
-  --success-muted: rgba(34, 197, 94, 0.1);
-  --danger: #ef4444;
-  --danger-muted: rgba(239, 68, 68, 0.1);
-}
-
-.dark.eclipse {
+.dark {
   --border: var(--border-main);
   --text-primary: var(--text-main);
   --text-secondary: var(--text-muted);
