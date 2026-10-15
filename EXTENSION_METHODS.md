@@ -218,7 +218,11 @@ can resize the element: swapping four windows to a fixed family silently took th
 (25 %), committed, re-cut the walls, and said nothing. `SwapSymbol` lists every parameter whose value
 differs between the old and the new type, and how many instances share the new type:
 
-```csharp
+⚠ The block below is the tool's OUTPUT, not C# — a bare fence on purpose, so
+`scripts/check-skill-snippets.py` does not try to compile it. ⚠ Tagging it `csharp` made it the gate's
+ONLY fatal finding across 185 fences / 5 repos: CS1056 on `✅`, `→`, `·` and `⚠`.
+
+```
 ✅ Swapped 359617 → Windows_Sgl_Plain: 1511x1350mm   (1 parameter(s) changed · 1 instance(s) now use this type)
    ⚠ the geometry these drive changed with the swap:
      Width: 1400 → 1511
