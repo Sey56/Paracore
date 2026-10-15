@@ -266,15 +266,20 @@ namespace CoreScript.Engine.Core
                         ? collector.WhereElementIsElementType().Cast<Element>().ToList()
                         : collector.WhereElementIsNotElementType().Cast<Element>().ToList();
 
-                    // --- AUTOMATIC TYPE FALLBACK ---
-                    // If instances are requested but the category only contains Types (e.g., Grid Heads, Arrowheads),
-                    // return the types anyway as they are what the user is looking for.
-                    if (results.Count == 0 && !isTypeRequested && !cleanName.Equals("Wall", StringComparison.OrdinalIgnoreCase))
-                    {
-                         results = new FilteredElementCollector(_doc).OfCategoryId(categoryId)
-                                    .WhereElementIsElementType().Cast<Element>().ToList();
-                    }
-
+                    // ⚠⚠ INSTANCES MEAN INSTANCES — the "automatic type fallback" that used to sit
+                    //    here was REMOVED on 2026-10-14. It returned the category's ElementTypes
+                    //    whenever the category had 0 instances, so `GetElements("Doors")` on a
+                    //    project with no doors answered with door TYPES: objects that .Count()
+                    //    counts as instances, .Delete() deletes (taking every instance of the type
+                    //    with them) and .SetVal() writes to the TYPE of. One easy-to-miss INFO line
+                    //    was the only signal, and the trap caught a live build on 2026-10-10.
+                    //
+                    //    ⚠ Types are still reachable — but only by ASKING for them:
+                    //      GetElements<FamilySymbol>("Doors")  — a loadable family's symbols
+                    //      GetElements<WallType>()             — a system family's types
+                    //      GetElements("WallType")             — a name that is itself a type name
+                    //    A category with 0 instances now returns an EMPTY list, and
+                    //    ScriptApi.GetElements reports that zero instead of substituting types.
                     return results;
                 }
 

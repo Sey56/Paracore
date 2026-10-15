@@ -45,7 +45,7 @@ Paracore's "Magic" engine resolves strings into elements, categories, or familie
 
 | Command | Returns | Description |
 | :--- | :--- | :--- |
-| `GetElements("Doors")` | `List<Element>` | By Category or Family name. |
+| `GetElements("Doors")` | `List<Element>` | INSTANCES by Category or Family name. ⚠ 0 instances ⇒ an empty list + an `[INFO] … 0 instances` line — never the category's types. |
 | `GetElements<Element>()` | `List<Element>` | **Universal Accessor**: every element in model. |
 | `GetElements<Wall>()` | `List<Wall>` | All elements of a C# class. |
 | `GetElements<FamilyInstance>("Doors")` | `List<FamilyInstance>` | Typed + filtered by category. Preserves type for lambdas. |
@@ -133,6 +133,9 @@ For the complete catalog with every overload and parameter pattern, see **[EXTEN
 | InputUnit / OutputUnit / FormatUnit / ToMeters / precision comparisons | [Numeric & Unit Helpers](EXTENSION_METHODS.md#15-numeric--unit-helpers) |
 | BuiltInParams / CombinedParams / Peek / ReflectionProperties | [Element: Discovery](EXTENSION_METHODS.md#4-element-identity--discovery) |
 | Materials / MaterialNames / GetMaterialNames | [Materials & Sustainability](EXTENSION_METHODS.md#6-element-materials--sustainability) |
+| ChainDim / FaceRefs / SideFaceRefs (face-to-face dimension chains) | [Element: Geometry](EXTENSION_METHODS.md#7-element-geometry) |
+| IsTypeParameter / TypeInstanceCount / NewType / SwapSymbol (the type-write guard) | [Type-Level Accessors](EXTENSION_METHODS.md#2-element-type-level-accessors) |
+| Batch / ListBatch / DeleteBatch / Mark / RollbackTo / Checkpoints (build stages & undo) | [Global ScriptApi](EXTENSION_METHODS.md#16-global-scriptapi-methods) |
 
 ---
 

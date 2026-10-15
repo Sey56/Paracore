@@ -99,11 +99,27 @@ works and priceless when it doesn't. **Do not refactor it.**
 `ScriptApi.cs:402`. Most discovery APIs collapse every problem into "not found". This one separates:
 
 1. **Valid category, 0 instances** → empty list + `[INFO] … valid Class or Category with 0 instances`.
-2. **Type fallback** (asked for instances, only types exist) → `[INFO] … Fallback to Types`.
+2. **A type-shaped name** (`"WallType"`, `"FamilySymbol"`) → the types, reported as what they are.
 3. **Genuine typo** → `ArgumentException` with up to 3 suggestions: *"Did you mean 'Door' or 'Doors'?"*
 
 That is a well-reasoned API. The `[INFO]` transparency lines are the difference between a user
 learning something and a user guessing.
+
+⚠ **UPDATED 2026-10-14 — the "type fallback" was REMOVED, and removing it was the right call.** This
+section used to praise a third mode: *"asked for instances, only types exist → `[INFO] … Fallback to
+Types`"*. That behaviour was a defect wearing a transparency line. `GetElements("Doors")` on a project
+with 0 doors answered with the door **types** — `ElementType`s that `.Count()` counts as instances,
+`.Delete()` removes **every instance of**, and `.SetVal()` writes to the **TYPE** of (and a display
+string is a routing key, so that silently reprices). Measured 2026-10-10: `Windows`, `Furniture`,
+`Roofs` and `Columns` all leaked this way, while `Walls` / `Floors` / `Ceilings` / `Rooms` were safe
+only *by accident* — a matching Revit class happens to exist, which routes them down the class path.
+
+The fallback was ruled *"leave it as it is"* on 2026-10-10; the user reversed that ruling on
+2026-10-14 (*"this is not good. we must correct it"*), and it is now gone. `GetElements(string)` and
+`GetElements<T>(string)` return instances; a 0-instance category returns an empty list **and reports
+the zero**; and types are reachable only by asking — `GetElements<FamilySymbol>("Doors")`,
+`GetElements<WallType>()`, or a name that is itself a type name. The lesson: a well-reasoned API needs
+its failure modes to be the *caller's* to choose, not one the engine picks silently on their behalf.
 
 ### 2.3 The extension-method vocabulary
 

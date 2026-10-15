@@ -271,32 +271,66 @@ namespace CoreScript.Engine.Globals
 
 
 
-        public void Transact(string name, Action<Document> action)
+        /// <summary>
+        /// Runs <paramref name="action"/> in one Revit transaction and RETURNS what it did.
+        /// </summary>
+        /// <param name="name">The transaction name — it appears in Revit's Undo menu.</param>
+        /// <param name="action">The edits, given the current document.</param>
+        /// <returns>
+        /// A <see cref="TxReport"/>. ⚠ Read <see cref="TxReport.RolledBack"/>: Revit answers a
+        /// refused edit by ROLLING THE TRANSACTION BACK and returning a status rather than
+        /// throwing, so a call that returns normally can still have changed nothing.
+        /// </returns>
+        public TxReport Transact(string name, Action<Document> action)
         {
             if (_context.IsReadOnly)
             {
                 _context.Println($"⚠️ Skipping transaction '{name}' because execution is in Read-Only mode (e.g., computing parameter options).");
-                return;
+                return new TxReport
+                {
+                    Name = name,
+                    Skipped = true,
+                    SkipReason = "read-only mode (e.g. computing parameter options)"
+                };
             }
 
-            if (Doc != null)
-            {
-                Tx.Transact(Doc, name, action);
-            }
+            return Doc != null
+                ? Tx.Transact(Doc, name, action)
+                : new TxReport
+                {
+                    Name = name,
+                    Skipped = true,
+                    SkipReason = "there is no active document"
+                };
         }
 
-        public void Transact(string name, Action action)
+        /// <summary>
+        /// Runs <paramref name="action"/> in one Revit transaction and RETURNS what it did.
+        /// </summary>
+        /// <param name="name">The transaction name — it appears in Revit's Undo menu.</param>
+        /// <param name="action">The edits.</param>
+        /// <returns>A <see cref="TxReport"/>. ⚠ Read <see cref="TxReport.RolledBack"/>.</returns>
+        public TxReport Transact(string name, Action action)
         {
             if (_context.IsReadOnly)
             {
                 _context.Println($"⚠️ Skipping transaction '{name}' because execution is in Read-Only mode (e.g., computing parameter options).");
-                return;
+                return new TxReport
+                {
+                    Name = name,
+                    Skipped = true,
+                    SkipReason = "read-only mode (e.g. computing parameter options)"
+                };
             }
 
-            if (Doc != null)
-            {
-                Tx.Transact(Doc, name, action);
-            }
+            return Doc != null
+                ? Tx.Transact(Doc, name, action)
+                : new TxReport
+                {
+                    Name = name,
+                    Skipped = true,
+                    SkipReason = "there is no active document"
+                };
         }
     }
 }

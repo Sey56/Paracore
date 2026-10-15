@@ -569,7 +569,7 @@ Parameters    // parameters from agent/UI context
 
 ```csharp
 Println(message)          // print to console
-Table(object)             // render list as interactive table
+Table(data)               // render list as interactive table
 Table(elements)           // render elements (adapts columns to element kind)
 BarGraph(data)            // bar chart
 PieGraph(data)            // pie chart
@@ -601,6 +601,35 @@ Regen()                   // regenerate the document (opens the transaction for 
 the document is forbidden"*, which names neither the method nor the cause. `Regen()` wraps it.
 You rarely need it: a committed transaction already regenerates, and `ExportImage` exports after the
 model has settled.
+
+### Batches — one build stage, stamped and reversible
+
+```csharp
+var report = Batch("ESB-v3", "Create walls", () => { /* one stage */ });
+ListBatch("ESB-v3").Table()                  // what the stage made, BY THE STAMP
+var r = DeleteBatch("ESB-v3");               // DRY RUN — reports the count, deletes nothing
+var r2 = DeleteBatch("ESB-v3", confirm: true);   // actually deletes
+```
+
+`Batch` is a `TransactionGroup`: the whole stage is ONE undo unit, and every element it creates is
+**stamped** with the batch id in ExtensibleStorage — no parameter to add, no project to set up.
+The stamp is what makes "redo the walls" possible without redoing the levels. The batch id is the
+**spec's** version, not a timestamp.
+
+⚠⚠ **Read the stamp count in the report.** `created 12 … stamped 0` means the stage committed but
+nothing carries the id, so `ListBatch` will never find those elements and `DeleteBatch` can never
+remove them. The report prints `COMMITTED BUT STAMPED NOTHING` for exactly this case.
+
+⚠ `DeleteBatch` DELETES NOTHING unless you pass `confirm: true`. A count is returned either way, and
+Revit refuses some deletions outright (pinned, hosted) — if `carried` and `deleted` disagree, list
+the batch again rather than assuming it is gone.
+
+⚠ A batch is **per-DOCUMENT** — the stamp lives in the model file, so a batch built in one file is
+invisible in another. Stamp only what the stage itself MADE.
+
+⚠ `Batch` re-throws when the stage body fails (same contract as `Transact`): a stage that threw has
+NOT been built, so the script must not carry on as though it had. `DeleteBatch` does NOT throw — it
+returns a report. Full recipe: the `project-modeling` skill.
 
 ### Interaction & background tasks
 
@@ -889,9 +918,22 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 
 ### A.2 Global `ScriptApi` surface — no prefix
 
-**37 members · 27 distinct names · 3 source files.**
+**45 members · 32 distinct names · 4 source files.**
 
 Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. ⚠ These are NOT extension methods — the `this` test does not see them, which is why this half of the reference used to drift on its own.
+
+#### `Globals/ScriptApi.Batch.cs`
+
+| Member | Signature |
+| --- | --- |
+| `Batch` | `BatchReport Batch(string batchId, Action body)` |
+| `Batch` | `BatchReport Batch(string batchId, Action<Document> body)` |
+| `Batch` | `BatchReport Batch(string batchId, string stageName, Action body)` |
+| `StampBatch` | `int StampBatch(string batchId, IEnumerable<ElementId> ids)` |
+| `GetBatchId` | `string GetBatchId(Element element)` |
+| `GetBatchId` | `string GetBatchId(ElementId id)` |
+| `ListBatch` | `IReadOnlyList<BatchElement> ListBatch(string batchId)` |
+| `DeleteBatch` | `BatchReport DeleteBatch(string batchId, bool confirm = false)` |
 
 #### `Globals/ScriptApi.Sentinels.cs`
 
@@ -923,8 +965,8 @@ Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. 
 | `Println` | `void Println()` |
 | `Print` | `void Print(string message)` |
 | `Print` | `void Print(object message)` |
-| `Transact` | `void Transact(string name, Action<Document> action)` |
-| `Transact` | `void Transact(string name, Action action)` |
+| `Transact` | `TxReport Transact(string name, Action<Document> action)` |
+| `Transact` | `TxReport Transact(string name, Action action)` |
 | `Regen` | `void Regen()` |
 | `Show` | `void Show(string type, object data)` |
 | `Table` | `void Table(object data)` |

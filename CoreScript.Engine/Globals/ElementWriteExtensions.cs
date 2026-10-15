@@ -86,6 +86,16 @@ namespace CoreScript.Engine.Globals
                     return;
                 }
 
+                // ⚠⚠ THE TYPE-WRITE GUARD. `e.LookupParameter(name)` on an INSTANCE also finds the
+                //    TYPE's parameters — Revit projects them — so this write can land on the type
+                //    and change every instance of it. Measured 2026-10-14: one SetNum("Width") on
+                //    one window moved 8 elements (4 windows + their 4 host walls). See
+                //    ElementTypeWriteGuard for why it informs rather than refuses.
+                if (e is not ElementType && p.Element is ElementType)
+                {
+                    _reportTypeWrite(e, name, p);
+                }
+
                 if (p.StorageType == StorageType.Double)
                 {
                     p.Set(value.InputUnit(unit));
@@ -98,7 +108,7 @@ namespace CoreScript.Engine.Globals
             }
             else
             {
-                Tx.Transact(e.Document, $"Set {name}", Action);
+                _ = Tx.Transact(e.Document, $"Set {name}", Action);
             }
         }
 
@@ -182,6 +192,14 @@ namespace CoreScript.Engine.Globals
                     return;
                 }
 
+                // ⚠⚠ THE TYPE-WRITE GUARD — same trap as in SetNum: LookupParameter on an instance
+                //    finds the TYPE's parameters too, so this write can land on the type and change
+                //    every instance of it. See ElementTypeWriteGuard.
+                if (e is not ElementType && p.Element is ElementType)
+                {
+                    _reportTypeWrite(e, name, p);
+                }
+
                 if (value is double d) { p.Set(d); return; }
                 if (value is int i) { p.Set(i); return; }
 
@@ -215,7 +233,7 @@ namespace CoreScript.Engine.Globals
             }
 
             if (e.Document.IsModifiable) Action();
-            else Tx.Transact(e.Document, $"Set {name}", Action);
+            else _ = Tx.Transact(e.Document, $"Set {name}", Action);
         }
 
         /// <summary>

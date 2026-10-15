@@ -108,23 +108,34 @@ namespace CoreScript.Engine.Globals
 
 
         /// <summary>
-        /// Starts a new Revit transaction with the specified name.
+        /// Starts a new Revit transaction with the specified name and RETURNS what it did.
         /// </summary>
         /// <param name="name">The name of the transaction (appears in Undo menu).</param>
         /// <param name="action">The action to execute within the transaction scope. The current <see cref="Document"/> is passed as an argument.</param>
-        public static void Transact(string name, Action<Document> action)
+        /// <returns>
+        /// A <see cref="TxReport"/> — the ids created, modified and deleted, plus an explicit
+        /// <see cref="TxReport.RolledBack"/> flag.
+        /// <para>
+        /// ⚠ <b>Read it.</b> Revit answers a refused edit by rolling the transaction back and
+        /// returning a status INSTEAD of throwing, so a write call that returns normally can
+        /// still have changed nothing. A bare <c>Transact("…", () =&gt; …);</c> is fine — the
+        /// report is PRINTED for you — but when you need to branch on the outcome, read this.
+        /// </para>
+        /// </returns>
+        public static TxReport Transact(string name, Action<Document> action)
         {
-            Globals.Transact(name, action);
+            return Globals.Transact(name, action);
         }
 
         /// <summary>
-        /// Starts a new Revit transaction with the specified name.
+        /// Starts a new Revit transaction with the specified name and RETURNS what it did.
         /// </summary>
         /// <param name="name">The name of the transaction (appears in Undo menu).</param>
         /// <param name="action">The parameterless action to execute within the transaction scope.</param>
-        public static void Transact(string name, Action action)
+        /// <returns>A <see cref="TxReport"/> — read <see cref="TxReport.RolledBack"/>.</returns>
+        public static TxReport Transact(string name, Action action)
         {
-            Globals.Transact(name, action);
+            return Globals.Transact(name, action);
         }
 
         /// <summary>
@@ -145,7 +156,12 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static void Regen()
         {
-            Transact("Regenerate", () => Doc.Regenerate());
+            // ⚠ The report is discarded HERE ON PURPOSE, not by accident: the regenerated model
+            //   is already the answer, and Regen() is called from read paths that have no use
+            //   for a created/modified id list. The report is still PRINTED by Tx itself, so a
+            //   regeneration that Revit refused is never silent. (A bare statement would trip
+            //   IDE0058, which is exactly the analyzer enforcing "discard this on purpose".)
+            _ = Transact("Regenerate", () => Doc.Regenerate());
         }
 
         /// <summary>
@@ -349,6 +365,12 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Finds all elements of type T belonging to a specific category.
         /// <para>Example: <c>GetElements&lt;FamilyInstance&gt;("Doors")</c></para>
+        /// <para>
+        /// ⚠ <c>T</c> decides INSTANCES vs TYPES, and it is the only thing that does:
+        /// <c>GetElements&lt;FamilyInstance&gt;("Doors")</c> returns door instances, while
+        /// <c>GetElements&lt;FamilySymbol&gt;("Doors")</c> returns the door symbols (the types).
+        /// A category with 0 instances returns an EMPTY list — never a substitute set of types.
+        /// </para>
         /// </summary>
         public static PipelineEnumerable<T> GetElements<T>(string categoryName) where T : Element
         {
@@ -356,6 +378,20 @@ namespace CoreScript.Engine.Globals
             var results = computer.ComputeElementOptions(typeof(T).Name, categoryName)
                 .Cast<T>()
                 .ToList();
+
+            // ⚠⚠ A ZERO MUST BE VISIBLE. Before this, `GetElements<FamilyInstance>("Doors")` on a
+            //    project with no doors returned an empty list and printed NOTHING — so "there are
+            //    no doors" and "the call never ran" were indistinguishable, and the caller had to
+            //    guess which. The string overload has always reported its zero; this one is the
+            //    spelling a script uses when it wants real FamilyInstance objects, so it needs the
+            //    same sentence. (Skipped when T is itself an ElementType: a type query that finds
+            //    no types is answered by the count, not by an "instances" line.)
+            if (results.Count == 0 && !typeof(ElementType).IsAssignableFrom(typeof(T)))
+            {
+                Println($"[INFO] GetElements<{typeof(T).Name}>(\"{categoryName}\"):"
+                    + " 0 instances in this document.");
+            }
+
             return new PipelineEnumerable<T>(results, track: false);
         }
 
@@ -377,6 +413,17 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Discovery helper for the REPL. Targets categories or classes automatically.
         /// <para>Example: <c>GetElements("Doors")</c></para>
+        /// <para>
+        /// ⚠⚠ <b>Instances, always.</b> A category name returns the INSTANCES in the model — never
+        /// its types. A category with no instances returns an EMPTY list and SAYS SO; it does not
+        /// substitute the category's element types.
+        /// </para>
+        /// <para>
+        /// Types have their own, explicit spellings:
+        /// <c>GetElements&lt;FamilySymbol&gt;("Doors")</c> for a loadable family's symbols,
+        /// <c>GetElements&lt;WallType&gt;()</c> for a system family's types, or a name that is
+        /// itself a type name (<c>GetElements("WallType")</c>).
+        /// </para>
         /// </summary>
         public static PipelineEnumerable<Element> GetElements(string categoryOrClass)
         {
@@ -385,13 +432,16 @@ namespace CoreScript.Engine.Globals
 
             if (results.Count > 0)
             {
-                // TRANSPARENCY: Inform the user if we had to fall back to Types (e.g. for Grid Heads)
-                var isTypeRequested = categoryOrClass.EndsWith("Type", StringComparison.OrdinalIgnoreCase);
-
-                // If the user didn't ask for Types, but we only found ElementTypes, it's a fallback.
-                if (!isTypeRequested && results.All(e => e is ElementType))
+                // ⚠ ALL-TYPES is now reachable ONLY when the NAME is itself a type name
+                //   ("WallType", "FamilySymbol"), because the automatic instance→type fallback was
+                //   REMOVED on 2026-10-14 (ParameterOptionsComputer.GetGenericElements). So this is
+                //   not a "fallback" any more and must not be described as one: it is reported as
+                //   what it is, and the sentence cannot be misread as "your instances are here".
+                if (results.All(e => e is ElementType))
                 {
-                    Println($"[INFO] {categoryOrClass}: Fallback to Types (0 Instances found).");
+                    Println($"[INFO] {categoryOrClass}: {results.Count} TYPE(s) — the name resolves to"
+                        + " a type class. For instances of a category use GetElements(\"<Category>\");"
+                        + " for a loadable family's symbols use GetElements<FamilySymbol>(\"<Category>\").");
                 }
             }
             else
@@ -399,17 +449,20 @@ namespace CoreScript.Engine.Globals
                 var cleanName = categoryOrClass.Trim();
                 var allValidTerms = GetMagicNames();
 
-                // If the exact name exists in GetMagicNames(), it's a valid category with 0 instances.
-                // Return an empty list — don't throw.
-                if (allValidTerms.Any(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return new PipelineEnumerable<Element>(results, track: false); // Empty list
-                }
-
-                // A name that resolves to a real Revit class or BuiltInCategory is valid too —
-                // the document just has no instances of it (e.g. "MultistoryStairs" in a project
-                // without multistory stairs). Return an empty list instead of a misleading error.
-                if (Core.ParameterOptionsComputer.IsKnownElementName(cleanName))
+                // ⚠⚠ A NAME THAT RESOLVES TO A REAL CATEGORY / CLASS / FAMILY IS VALID — the
+                //    document simply has no instances of it (e.g. "Doors" in a project where no
+                //    doors have been placed yet). Return an empty list, but SAY SO.
+                //
+                //    ⚠⚠ This branch used to return SILENTLY for a "magic" name, and because the
+                //    result is built with `track: false` it did not even reach PipelineDiagnostics
+                //    — so `GetElements("Doors")` on a project with 0 doors produced NO output at
+                //    all. An empty list with no explanation is indistinguishable from "the filter
+                //    matched nothing" and from "your query was wrong"; an agent cannot tell
+                //    "there are 0" from "the call did nothing". A query for 0 placed doors must
+                //    report 0 through this (string) form just as plainly as the fallback-to-types
+                //    case above reports its fallback.
+                if (allValidTerms.Any(t => t.Equals(cleanName, StringComparison.OrdinalIgnoreCase))
+                    || Core.ParameterOptionsComputer.IsKnownElementName(cleanName))
                 {
                     Println($"[INFO] {cleanName}: valid Class or Category with 0 instances in this document.");
                     return new PipelineEnumerable<Element>(results, track: false); // Empty list

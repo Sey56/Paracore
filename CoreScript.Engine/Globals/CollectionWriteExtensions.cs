@@ -23,7 +23,7 @@ namespace CoreScript.Engine.Globals
             try
             {
                 if (doc.IsModifiable) Action();
-                else Tx.Transact(doc, $"Set {name}", Action);
+                else _ = Tx.Transact(doc, $"Set {name}", Action);
                 ExecutionGlobals.TrackPipeline(-3);
             }
             catch { ExecutionGlobals.TrackPipeline(-4); throw; }
@@ -43,7 +43,7 @@ namespace CoreScript.Engine.Globals
             try
             {
                 if (doc.IsModifiable) Action();
-                else Tx.Transact(doc, $"Set {name}", Action);
+                else _ = Tx.Transact(doc, $"Set {name}", Action);
                 ExecutionGlobals.TrackPipeline(-3);
             }
             catch { ExecutionGlobals.TrackPipeline(-4); throw; }
@@ -63,7 +63,7 @@ namespace CoreScript.Engine.Globals
             try
             {
                 if (doc.IsModifiable) Action();
-                else Tx.Transact(doc, $"Set {name}", Action);
+                else _ = Tx.Transact(doc, $"Set {name}", Action);
                 ExecutionGlobals.TrackPipeline(-3);
             }
             catch { ExecutionGlobals.TrackPipeline(-4); throw; }
@@ -90,7 +90,7 @@ namespace CoreScript.Engine.Globals
             try
             {
                 if (doc.IsModifiable) Action();
-                else Tx.Transact(doc, $"Set {name}", Action);
+                else _ = Tx.Transact(doc, $"Set {name}", Action);
                 ExecutionGlobals.TrackPipeline(-3);
             }
             catch { ExecutionGlobals.TrackPipeline(-4); throw; }
@@ -123,7 +123,7 @@ namespace CoreScript.Engine.Globals
             try
             {
                 if (doc.IsModifiable) Action();
-                else Tx.Transact(doc, $"Set Type {name}", Action);
+                else _ = Tx.Transact(doc, $"Set Type {name}", Action);
                 ExecutionGlobals.TrackPipeline(-3);
             }
             catch { ExecutionGlobals.TrackPipeline(-4); throw; }
@@ -154,7 +154,7 @@ namespace CoreScript.Engine.Globals
             try
             {
                 if (doc.IsModifiable) Action();
-                else Tx.Transact(doc, $"Set Type {name}", Action);
+                else _ = Tx.Transact(doc, $"Set Type {name}", Action);
                 ExecutionGlobals.TrackPipeline(-3);
             }
             catch { ExecutionGlobals.TrackPipeline(-4); throw; }

@@ -42,7 +42,7 @@ namespace CoreScript.Engine.Globals
             try
             {
                 if (doc.IsModifiable) Action();
-                else Tx.Transact(doc, "Delete Elements", Action);
+                else _ = Tx.Transact(doc, "Delete Elements", Action);
                 ExecutionGlobals.TrackPipeline(-3);
             }
             catch { ExecutionGlobals.TrackPipeline(-4); throw; }
@@ -100,7 +100,7 @@ namespace CoreScript.Engine.Globals
                     try
                     {
                         if (doc.IsModifiable) Action();
-                        else Tx.Transact(doc, "Isolate Elements", Action);
+                        else _ = Tx.Transact(doc, "Isolate Elements", Action);
                         ExecutionGlobals.TrackPipeline(-3);
                     }
                     catch { ExecutionGlobals.TrackPipeline(-4); throw; }
@@ -130,7 +130,7 @@ namespace CoreScript.Engine.Globals
                         try
                         {
                             if (doc.IsModifiable) Action();
-                            else Tx.Transact(doc, "Hide Elements", Action);
+                            else _ = Tx.Transact(doc, "Hide Elements", Action);
                             ExecutionGlobals.TrackPipeline(-3);
                         }
                         catch { ExecutionGlobals.TrackPipeline(-4); throw; }
@@ -158,7 +158,7 @@ namespace CoreScript.Engine.Globals
                     try
                     {
                         if (doc.IsModifiable) Action();
-                        else Tx.Transact(doc, "Unhide Elements", Action);
+                        else _ = Tx.Transact(doc, "Unhide Elements", Action);
                         ExecutionGlobals.TrackPipeline(-3);
                     }
                     catch { ExecutionGlobals.TrackPipeline(-4); throw; }

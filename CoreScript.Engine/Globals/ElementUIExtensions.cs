@@ -35,7 +35,7 @@ namespace CoreScript.Engine.Globals
             {
                 void Action() => view.IsolateElementTemporary(e.Id);
                 if (e.Document.IsModifiable) Action();
-                else Tx.Transact(e.Document, "Isolate Element", Action);
+                else _ = Tx.Transact(e.Document, "Isolate Element", Action);
             }
             return e;
         }
@@ -45,7 +45,7 @@ namespace CoreScript.Engine.Globals
             if (e == null || !e.IsValidObject) return e;
             void Action() { if (e.IsValidObject) e.Document.Delete(e.Id); }
             if (e.Document.IsModifiable) Action();
-            else Tx.Transact(e.Document, "Delete Element", Action);
+            else _ = Tx.Transact(e.Document, "Delete Element", Action);
             return e;
         }
 
@@ -56,7 +56,7 @@ namespace CoreScript.Engine.Globals
             {
                 void Action() => view.HideElements(new List<ElementId> { e.Id });
                 if (e.Document.IsModifiable) Action();
-                else Tx.Transact(e.Document, "Hide Element", Action);
+                else _ = Tx.Transact(e.Document, "Hide Element", Action);
             }
             return e;
         }
@@ -68,7 +68,7 @@ namespace CoreScript.Engine.Globals
             {
                 void Action() => view.UnhideElements(new List<ElementId> { e.Id });
                 if (e.Document.IsModifiable) Action();
-                else Tx.Transact(e.Document, "Unhide Element", Action);
+                else _ = Tx.Transact(e.Document, "Unhide Element", Action);
             }
             return e;
         }
