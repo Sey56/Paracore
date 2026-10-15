@@ -107,6 +107,71 @@ def build_instructions(domain: Domain) -> str:
     return "\n\n".join(parts)
 
 
+# ── The handshake: version + catalogue, ONE implementation ───────────────────
+# ⚠ Both of these exist because a server may build its OWN `FastMCP` (forge, takeoff)
+#   instead of calling `create_server`. Before them the same two facts were set — or
+#   forgotten — per repo: Forge had a hand-rolled version block, the other four had none,
+#   and forge/takeoff never put the catalogue in their instructions at all. A rule in N
+#   places must be changed in N places, so there is now ONE place.
+
+def apply_server_version(mcp: FastMCP, domain: Domain) -> str:
+    """Set the handshake's `serverInfo.version` from `<domain.root>/VERSION`.
+
+    ⚠ FastMCP takes NO `version` argument, so without this the handshake reports the mcp
+    SDK's own version (e.g. "1.27.2") and every client shows the wrong product version.
+    `mcp._mcp_server.version` is a plain attribute, so set it directly.
+
+    ⚠ NEVER FATAL. It is a private attribute, and a future SDK rename must not stop the
+    server from starting — a wrong version number is a cosmetic bug, a dead server is not.
+    Returns the version applied, or "" when it could not be read.
+    """
+    path = os.path.join(domain.root, "VERSION")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            version = fh.read().strip()
+    except OSError as exc:
+        logger.warning(
+            "%s: no VERSION file at %s (%s) - clients will show the SDK version",
+            domain.name, path, exc,
+        )
+        return ""
+    if not version:
+        logger.warning(
+            "%s: VERSION file at %s is EMPTY - clients will show the SDK version",
+            domain.name, path,
+        )
+        return ""
+    try:
+        mcp._mcp_server.version = version
+    except Exception as exc:  # noqa: BLE001 - never fatal, see the docstring
+        logger.warning("%s: could not set the server version (%s)", domain.name, exc)
+        return ""
+    logger.info("%s: handshake version set to %s", domain.name, version)
+    return version
+
+
+def attach_skill_catalogue(mcp: FastMCP, domain: Domain) -> None:
+    """Append the skill catalogue to a HAND-WRITTEN `instructions` block.
+
+    ⚠ `create_server` needs nothing — `build_instructions` already ends with the
+    catalogue. A server that supplies its OWN literal (forge, takeoff) does not, so its
+    skills are discoverable ONLY by calling `list_skills`. The catalogue belongs in
+    `instructions` because that is the one channel every client delivers: Claude Desktop
+    sends it in the `initialize` response (see `domain.py` for the measurement).
+
+    ⚠ Idempotent — the catalogue is not appended twice if it is already present, so this
+    is safe to call on a server built by `create_server` as well.
+    """
+    catalogue = render_catalogue_markdown(domain)
+    try:
+        current = mcp._mcp_server.instructions or ""
+        if catalogue in current:
+            return
+        mcp._mcp_server.instructions = f"{current.rstrip()}\n\n{catalogue}"
+    except Exception as exc:  # noqa: BLE001 - never fatal
+        logger.warning("%s: could not attach the skill catalogue (%s)", domain.name, exc)
+
+
 # ── The common tools ─────────────────────────────────────────────────────────
 # One definition each, written once. The `_`-prefixed names sort last in the client's
 # tool list, which is why the four "advanced" ones carry it.
@@ -476,4 +541,9 @@ def create_server(
         register_prompts(mcp, domain)
     for fn in domain.extra_tools:
         mcp.add_tool(fn)
+
+    # ⚠ The handshake version. `build_instructions` already carries the catalogue, so
+    #   `attach_skill_catalogue` is NOT needed here — only a server with a hand-written
+    #   instructions literal calls that (see its docstring).
+    apply_server_version(mcp, domain)
     return mcp

@@ -1,5 +1,5 @@
 """
-dialog_watcher.py — THE SECOND EYE, resident inside every Paracore MCP server.
+dialog_watcher.py — THE SECOND EYE, for the servers that MODIFY the model.
 
 WHAT PROBLEM THIS SOLVES
     Revit reports most failures as a modal TaskDialog on its UI thread. An MCP tool
@@ -12,6 +12,23 @@ WHAT PROBLEM THIS SOLVES
     dialog appears. That is this module: a daemon thread started at server boot,
     which outlives every tool call.
 
+⚠⚠ WHO RUNS IT — AND WHO MUST NOT.
+    A dialog can only appear where an EDIT is attempted, so this watcher belongs to
+    the servers that WRITE. Each starts it from its own `__main__`:
+
+        paracore-model   mcp_server.py      paracore-gen    mcp_server.py
+        paracore-family  mcp_server.py      paracore-forge  forge_server.py
+
+    ⚠⚠ `paracore-takeoff` DELIBERATELY DOES NOT, and neither starts the thread nor
+    bundles this module. Takeoff is a READ-ONLY extraction pass — the model never
+    writes C# (see its `PROJECT_SPEC.md`) — so it can never provoke a warning dialog
+    and has nothing to unblock. `paracore-takeoff.spec` enumerates every `mcp_core`
+    hiddenimport, and `mcp_core.dialog_watcher` is NOT among them.
+
+    ⚠ Do NOT add it "for symmetry". On a read-only server the ONLY thing a watcher
+    can ever click is the OPERATOR's own dialog — exactly what the in-flight gate
+    below exists to prevent. A capability with no legitimate use is a liability.
+
 WHY A THREAD AND NOT A SUBPROCESS
     The MCP server process is NOT blocked while a tool call is in flight — it is
     waiting on a gRPC socket, so its other threads keep running. A thread here can
@@ -20,10 +37,11 @@ WHY A THREAD AND NOT A SUBPROCESS
     that would launch it is the one hung on the dialog.)
 
 WHY A NAMED MUTEX
-    Several Paracore MCP servers can be running at once (gen, forge, model, takeoff).
-    If each one clicked, they would race and could answer the same dialog twice, or
-    with two different buttons. So every process MAY watch, but only the one that
-    wins `Paracore.DialogWatcher.v1` may ACT. Election is per-dialog and needs no
+    Several Paracore MCP servers can be running at once — model, gen, family and
+    forge, the four that watch (takeoff never does; see above). If each one clicked,
+    they would race and could answer the same dialog twice, or with two different
+    buttons. So every WATCHING process may watch, but only the one that wins
+    `Paracore.DialogWatcher.v1` may ACT. Election is per-dialog and needs no
     leader: whoever grabs the mutex clicks, everyone else skips that dialog.
 
 DESIGN RULES (the user's ruling, 2026-10-09 — verbatim)

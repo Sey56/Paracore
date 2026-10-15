@@ -131,6 +131,16 @@ def _dialog_note() -> str:
     lines = ["", "",
              "⚠ REVIT SHOWED A DIALOG WHILE THIS CALL RAN — the watcher answered it to unblock you."]
     for n in notes:
+        # ⚠⚠ REPORT THE TITLE. A Revit failure TaskDialog carries the SAME title as the Revit
+        #   main window ("Autodesk Revit 2025"), so the title alone never identifies the dialog —
+        #   but it is the first thing a human reads, and for a NON-failure dialog it is the only
+        #   thing that says what the dialog WAS. The watcher captures it; this is where the
+        #   agent gets to see it.
+        title = (n.get("title") or "").strip()
+        if title:
+            lines.append("   title   : %s" % title)
+        # ⚠ `message` is the dialog's failure text, read CROSS-PROCESS from its Edit control.
+        #   `text` is the Static/SysLink fallback, which a Revit failure dialog leaves EMPTY.
         msg = (n.get("message") or "").strip()
         if msg:
             lines.append("   message : %s" % msg)
@@ -139,6 +149,15 @@ def _dialog_note() -> str:
         btns = ", ".join(n.get("buttons") or []) or "(none)"
         pressed = n.get("pressed") or "(left for the operator)"
         lines.append("   buttons : %s   ->   pressed: %s" % (btns, pressed))
+        # ⚠ WHICH button, and WHY — `keep` pressed OK, so the edit survived; `discard` pressed
+        #   Cancel, so Revit ROLLED THE EDIT BACK; `needs-human` was deliberately left alone.
+        action = n.get("action")
+        if action:
+            reason = (n.get("reason") or "").strip()
+            lines.append("   action  : %s%s" % (action, (" — %s" % reason) if reason else ""))
+        # ⚠ An UNCONFIRMED close is its own hazard: the click was sent but the dialog stayed up.
+        if n.get("pressed") and n.get("closed") is False:
+            lines.append("   ⚠ the button was pressed but the dialog did NOT close — it may still be up.")
     lines.append("   ⚠ If Revit reported an ERROR, the edit may have been ROLLED BACK — verify the")
     lines.append("     element exists before assuming success, then adjust the operation.")
     return "\n".join(lines)

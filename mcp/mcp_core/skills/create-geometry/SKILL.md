@@ -39,25 +39,59 @@ Transact("Create Wall", () => {
 
 ## Floor Creation
 
+⚠⚠ **Every coordinate is INTERNAL FEET unless you convert it.** A literal `5` is not 5 m — it is
+**5 feet** (1524 mm), so a footprint written as bare numbers comes out roughly **3× too small**.
+Wrap every dimension in `.InputUnit(...)`; this page's own rule, applied to the example.
+
 ```csharp
 var floorType = GetElements<FloorType>().FirstOrDefault();
 var profile = new CurveLoop();
-profile.Append(Line.CreateBound(new XYZ(0,0,0), new XYZ(5,0,0)));
-profile.Append(Line.CreateBound(new XYZ(5,0,0), new XYZ(5,4,0)));
-profile.Append(Line.CreateBound(new XYZ(5,4,0), new XYZ(0,4,0)));
-profile.Append(Line.CreateBound(new XYZ(0,4,0), new XYZ(0,0,0)));
+// ⚠ 5.InputUnit("m") is 5 metres. A bare `5` would be 5 FEET.
+profile.Append(Line.CreateBound(new XYZ(0, 0, 0), new XYZ(5.InputUnit("m"), 0, 0)));
+profile.Append(Line.CreateBound(new XYZ(5.InputUnit("m"), 0, 0), new XYZ(5.InputUnit("m"), 4.InputUnit("m"), 0)));
+profile.Append(Line.CreateBound(new XYZ(5.InputUnit("m"), 4.InputUnit("m"), 0), new XYZ(0, 4.InputUnit("m"), 0)));
+profile.Append(Line.CreateBound(new XYZ(0, 4.InputUnit("m"), 0), new XYZ(0, 0, 0)));
 Transact("Create Floor", () =>
     Floor.Create(Doc, new List<CurveLoop>{profile}, floorType.Id, lvl.Id));
 ```
 
+⚠ This profile is **explicitly closed** — the last curve returns to the first point — which is
+valid for a hand-written `CurveLoop`. When you build the loop from a corner **list** instead, do
+**not** repeat the first corner and close it with `% n`: that makes a zero-length final curve.
+`project-modeling` recipe 4 has the validation that catches both mistakes before Revit rejects
+the loop with a message that names no corner.
+
 ## Family Instance Placement (doors, windows, furniture)
 
+⚠⚠ **The string is a PLURAL CATEGORY name, not a family name.** `GetElements<FamilySymbol>("Desk")`
+returns **nothing at all** — `Desk` is a *family*, and the filter takes a *category*. The category
+is `Furniture`. A lookup that matches nothing yields `null`, and `null` then fails somewhere far
+from the cause. This is the same trap `identity-orientation` names: a category name is not a class
+name, and it is not a family name either.
+
 ```csharp
-var symbol = GetElements<FamilySymbol>("Desk").FirstOrDefault();
-var point = new XYZ(2000.InputUnit("mm"), 3000.InputUnit("mm"), 0);
-Transact("Place Family", () =>
-    Doc.Create.NewFamilyInstance(point, symbol, lvl, StructuralType.NonStructural));
+var sym = GetElements<FamilySymbol>("Furniture").FirstOrDefault();
+Println(sym == null ? "no Furniture family is loaded — list the category first"
+                    : "placing " + sym.Name);
+
+var pt = new XYZ(2000.InputUnit("mm"), 3000.InputUnit("mm"), 0);
+Transact("Place family", () => {
+    if (sym == null) return;                 // nothing to place — a null symbol throws
+    // ⚠⚠ AN INACTIVE SYMBOL CANNOT BE PLACED. A type that was loaded but never used in this
+    //    document is INACTIVE, and NewFamilyInstance throws on it. Activate it here.
+    if (!sym.IsActive) sym.Activate();
+    Doc.Create.NewFamilyInstance(pt, sym, lvl, StructuralType.NonStructural);
+});
 ```
+
+⚠ `Activate()` is a **document modification**, so it must be inside a transaction — and it must be
+the SAME transaction as the placement, or a failure between the two leaves an activated type with
+nothing to show for it.
+
+⚠ **Place → measure → correct.** Every loadable family has its own insertion point and its own
+"front", so two fixtures from one library can be built around completely different origins. Never
+assume the coordinate you asked for is where the family lands: read the instance's bounding box
+and move it by the delta you measured. `project-modeling` recipe 10b is the full recipe.
 
 ## Column Placement
 

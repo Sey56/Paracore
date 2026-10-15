@@ -73,7 +73,7 @@ door.IsStandardDoor()                      // true if NOT hosted on a Curtain Wa
 ## Native Identity Properties (dot access)
 
 ```
-el.Id          → ElementId (use .IntegerValue for int)
+el.Id          → ElementId (use .Value, a `long` — NEVER .IntegerValue)
 el.Name        → string (type name on instances, element name otherwise)
 el.Symbol      → ElementId of the family symbol
 ```
