@@ -51,6 +51,24 @@ GetElements<FamilySymbol>("Doors")    → typed type symbols (door family types)
 GetElements("Doors")                  → untyped Element list
 ```
 
+⚠⚠ **INSTANCES MEAN INSTANCES — a category with none returns ZERO, not its types.**
+`GetElements("Doors")` and `GetElements<FamilyInstance>("Doors")` return the doors **in the model**.
+On a project with no doors they return an **empty list** and report the zero —
+`[INFO] Doors: valid Class or Category with 0 instances in this document.` They never substitute the
+door **types**. Types are still reachable, but only by **asking** for them:
+
+```
+GetElements<FamilySymbol>("Doors")   → the door symbols (the types)
+GetElements<WallType>()              → the wall types
+GetElements("WallType")              → a name that is itself a type name
+```
+
+⚠ Why this matters: an `ElementType` returned in place of an instance is a **routing key**, not a
+label. `.Count()` would count types as instances, `.Delete()` would remove **every instance** of
+them, and `.SetVal()` would write to the TYPE — silently repricing every instance at once. Until
+2026-10-14 an "automatic type fallback" did exactly that for any category with no matching Revit
+class (Doors, Windows, Furniture, Columns, Roofs) whenever the model had 0 instances of it.
+
 ⚠ **A category name is not a class name.** The string in the parentheses is the **PLURAL category
 name** — `"Walls"`, `"Doors"`, `"Structural Columns"`. The space is optional: `"StructuralColumns"`
 resolves to the same category (matching is exact-name, no-space, or a `BuiltInCategory` substring).
@@ -166,6 +184,49 @@ All three are `void` — they return nothing, so they **end** a fluent chain. Th
 the element has no `ElementType` (e.g. a system-family instance such as a `Wall`), because the
 implementation is `e.GetElementType()?.SetVal(...)`. To write a type parameter across many elements
 without touching each one, use `SetTypeParam` (§12).
+
+### ⚠⚠ The ACCIDENTAL type write — and how it is caught
+
+`e.LookupParameter(name)` on an **instance** also finds the **type's** parameters — Revit projects
+them — so `SetNum` / `SetVal` can land on the type without saying so. Measured 2026-10-14 on a
+5-window model: one `SetNum("Width", 1511, "mm")` on ONE window reported `created 0 · modified 8` —
+the four windows **and** their four host walls, re-cut.
+
+`SetNum` and `SetVal` now **report** it, once per (type, parameter):
+
+```
+⚠ "Width" is a TYPE parameter on Windows_Sgl_Plain: 910x910mm — this writes to the TYPE, so all 4
+  instance(s) of it change together (and any host opening they cut is re-cut). For ONE instance
+  only: .NewType("<name>") and set the parameter on the returned symbol.
+```
+
+⚠ It INFORMS, it never refuses — writing a type is legitimate and often intended. The helpers:
+
+```csharp
+p.IsTypeParameter()             // true when this Parameter lives on an ElementType
+e.TypeInstanceCount()           // how many elements use this element's type — the blast radius
+win.NewType("PC 1511x1350mm")   // duplicate the type, assign it to THIS instance, return it
+win.SwapSymbol(otherSymbol)     // re-type, and REPORT the parameter delta
+```
+
+`NewType` is the escape hatch: after it, a parameter write has a blast radius of **one**. It is
+idempotent by name — a type of that name already on the family is reused, so a re-run converges
+instead of littering the model with "Type 2", "Type 3".
+
+⚠⚠ **`SwapSymbol` reports what the swap CHANGED.** `fi.Symbol = sym` is a one-line assignment that
+can resize the element: swapping four windows to a fixed family silently took them 1400 mm → 1050 mm
+(25 %), committed, re-cut the walls, and said nothing. `SwapSymbol` lists every parameter whose value
+differs between the old and the new type, and how many instances share the new type:
+
+⚠ The block below is the tool's OUTPUT, not C# — a bare fence on purpose, so
+`scripts/check-skill-snippets.py` does not try to compile it. ⚠ Tagging it `csharp` made it the gate's
+ONLY fatal finding across 185 fences / 5 repos: CS1056 on `✅`, `→`, `·` and `⚠`.
+
+```
+✅ Swapped 359617 → Windows_Sgl_Plain: 1511x1350mm   (1 parameter(s) changed · 1 instance(s) now use this type)
+   ⚠ the geometry these drive changed with the swap:
+     Width: 1400 → 1511
+```
 
 ---
 
@@ -304,6 +365,50 @@ this is the design band, not an as-built bounded height. A room that is unplaced
 enclosed reports a non-positive `UnboundedHeight`; the method then falls back to the level /
 upper-limit arithmetic the UI uses, and if the result is still degenerate it forces a 10 ft span
 (and returns `(0, 10)` for a null room). Convert with `.OutputUnit("m")` before showing a number.
+
+### ⚠⚠ Face references — and the one-call dimension chain
+
+A dimension chain runs **face to face**, not centreline to centreline, and building one used to take
+about forty lines of plumbing: `get_Geometry(new Options { ComputeReferences = true })` → walk to the
+`PlanarFace`s → filter by normal → convert to millimetres → match each plane by hand. That is now one
+call:
+
+```csharp
+// The whole top-wall chain, on a line 900 mm above it. Harvests the wall faces itself.
+ActiveView.ChainDim("X", 8400, 0, 150, 3150, 3265, 5065, 5215);
+
+// Several chains: harvest ONCE, then chain against the index.
+var faces = Doc.FaceRefs();                        // every wall's vertical planar faces
+ActiveView.ChainDim(faces, "X", 8400, 0, 150, 3150, 3265, 5065, 5215);
+ActiveView.ChainDim(faces, "Y", 6100, 0, 150, 2245, 3275, 5225, 7350, 7500);
+```
+
+`ChainDim(view, axis, lineMm, planes…)` — `axis` is `"X"` or `"Y"`, `lineMm` is where the DIMENSION
+LINE sits on the other axis (put it clear of the geometry; a chain laid on a wall is unreadable), and
+`planes…` are the model planes in millimetres. It returns the `Dimension`.
+
+The pieces, if you need them separately:
+
+```csharp
+GetElements("Walls").FaceRefs()      // FaceRefIndex — every vertical planar face, indexed by plane
+Doc.FaceRefs()                       // the same, over every Wall in the document
+wall.SideFaceRefs()                  // IReadOnlyList<FaceRef> — that wall's two SIDE faces
+faces.All                            // IReadOnlyList<FaceRef> — Axis, Mm, Ref, Owner
+faces.Nearest("X", 3150)             // the FaceRef on that plane, or null
+faces.Array("X", 0, 150, 3150)       // ReferenceArray, ready for Doc.Create.NewDimension
+faces.Misses                         // the planes that did NOT resolve — read this
+```
+
+⚠⚠ **CHECK `Misses` AFTER A CHAIN.** A plane that does not resolve is silently absent from the
+`ReferenceArray`, so a chain that lost one produces segments that are plausible and wrong. A face
+whose reference is null is SKIPPED, never guessed at; `Nearest` also records a miss when the closest
+face is further than its tolerance (default 2 mm) — a face 40 mm off is a different plane, not a
+rounding error.
+
+⚠ A face's position is its own origin in millimetres, and only **vertical** faces are harvested (a
+normal with a Z component is skipped). Solids nested inside a `GeometryInstance` — a loadable
+family's own geometry — carry no usable reference, so they are deliberately not offered as
+dimension targets.
 
 ---
 
@@ -631,6 +736,39 @@ invisible in another. Stamp only what the stage itself MADE.
 NOT been built, so the script must not carry on as though it had. `DeleteBatch` does NOT throw — it
 returns a report. Full recipe: the `project-modeling` skill.
 
+### ⚠⚠ Checkpoints — Mark / RollbackTo, the undo the staged workflow was missing
+
+`Batch` + `DeleteBatch` undo what a stage **created**. They cannot undo a stage that **moved,
+re-typed or edited** elements that already existed — a stamp only marks what a stage made. A
+checkpoint is a whole-document bookmark that covers both:
+
+```csharp
+Mark("stage-3-rooms", "before rooms and tags");   // READ ONLY — snapshots ids + parameter values
+// … build the stage, export a view, look at it …
+RollbackTo("stage-3-rooms");                      // DRY RUN — reports what it WOULD undo
+RollbackTo("stage-3-rooms", confirm: true);       // deletes what was created, restores what changed
+Checkpoints()                                     // what exists in THIS document
+DropCheckpoint("stage-3-rooms")                   // forget the bookmark; the model is untouched
+```
+
+`Mark` snapshots every element id plus every **writable** parameter value (type parameters are
+captured on the type, not once per instance). `RollbackTo` then deletes the elements that did not
+exist at the mark and writes back the values that changed.
+
+⚠⚠ **DESTRUCTIVE — `confirm: true` is required**, the same contract as `DeleteBatch`. The default is
+a dry run that reports the counts and changes nothing.
+
+⚠ The RESTORE runs before the DELETE: `Doc.Delete` cascades (a wall takes its hosted doors), and a
+cascade must not run before the values it would otherwise preserve are back.
+
+⚠ **A checkpoint is per-DOCUMENT** (keyed by its path) and lives in the process, not in the model
+file — unlike a batch stamp, it does not survive a restart or a re-open. Take the mark in the session
+that is about to build.
+
+⚠ It is a snapshot restore, not a Revit undo: it survives any number of intervening transactions and
+works across a committed `Batch`, which a transaction group cannot. The report's `Note` line carries
+the real numbers — e.g. `12 element(s) restored · 7 created element(s) deleted`.
+
 ### Interaction & background tasks
 
 ```csharp
@@ -737,7 +875,7 @@ The extraction is mechanical: it lists what the source declares, so it cannot fo
 
 ### A.1 Extension methods — `this`-receivers
 
-**110 declarations · 80 distinct names · 13 source files.**
+**119 declarations · 87 distinct names · 16 source files.**
 
 Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. The `this` on the first parameter is the test.
 
@@ -826,6 +964,16 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 | `WhereMaterial` | `IEnumerable<T> WhereMaterial<T>(this IEnumerable<T> elements, string materialName)` |
 | `WhereMaterialNot` | `IEnumerable<T> WhereMaterialNot<T>(this IEnumerable<T> elements, string materialName)` |
 
+#### `Globals/ElementFaceExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `FaceRefs` | `FaceRefIndex FaceRefs(this IEnumerable<Element> elements)` |
+| `FaceRefs` | `FaceRefIndex FaceRefs(this Document doc)` |
+| `SideFaceRefs` | `IReadOnlyList<FaceRef> SideFaceRefs(this Wall wall)` |
+| `ChainDim` | `Dimension ChainDim(this View view, string axis, double lineMm, params double[] planeMm)` |
+| `ChainDim` | `Dimension ChainDim(this View view, FaceRefIndex faces, string axis, double lineMm, params double[] planeMm)` |
+
 #### `Globals/ElementGeometryExtensions.cs`
 
 | Method | Signature |
@@ -852,6 +1000,20 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 | `GetTypeInt` | `int GetTypeInt(this Element e, string name)` |
 | `GetTypeVal` | `string GetTypeVal(this Element e, string name)` |
 | `GetTypeVal` | `string GetTypeVal(this Element e, string name, string unit, int decimals = 2)` |
+
+#### `Globals/ElementSwapExtensions.cs`
+
+| Method | Signature |
+| --- | --- |
+| `SwapSymbol` | `FamilySymbol? SwapSymbol(this FamilyInstance instance, FamilySymbol symbol)` |
+| `NewType` | `FamilySymbol NewType(this FamilyInstance instance, string typeName)` |
+
+#### `Globals/ElementTypeWriteGuard.cs`
+
+| Method | Signature |
+| --- | --- |
+| `IsTypeParameter` | `bool IsTypeParameter(this Parameter p)` |
+| `TypeInstanceCount` | `int TypeInstanceCount(this Element e)` |
 
 #### `Globals/ElementUIExtensions.cs`
 
@@ -918,7 +1080,7 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 
 ### A.2 Global `ScriptApi` surface — no prefix
 
-**45 members · 32 distinct names · 4 source files.**
+**49 members · 36 distinct names · 5 source files.**
 
 Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. ⚠ These are NOT extension methods — the `this` test does not see them, which is why this half of the reference used to drift on its own.
 
@@ -934,6 +1096,15 @@ Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. 
 | `GetBatchId` | `string GetBatchId(ElementId id)` |
 | `ListBatch` | `IReadOnlyList<BatchElement> ListBatch(string batchId)` |
 | `DeleteBatch` | `BatchReport DeleteBatch(string batchId, bool confirm = false)` |
+
+#### `Globals/ScriptApi.Checkpoints.cs`
+
+| Member | Signature |
+| --- | --- |
+| `Mark` | `Checkpoint Mark(string name, string note = "")` |
+| `Checkpoints` | `IReadOnlyList<Checkpoint> Checkpoints()` |
+| `DropCheckpoint` | `bool DropCheckpoint(string name)` |
+| `RollbackTo` | `BatchReport RollbackTo(string name, bool confirm = false)` |
 
 #### `Globals/ScriptApi.Sentinels.cs`
 

@@ -37,7 +37,8 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Represents the currently active project document in the Revit user interface.
         /// <para>
-        /// Use this to access UI-specific operations like the active selection (<see cref="Autodesk.Revit.UI.UIDocument.Selection"/>) 
+        /// Use this to access UI-specific operations like the active selection
+        /// (<see cref="Autodesk.Revit.UI.UIDocument.Selection">UIDocument.Selection</see>)
         /// or to prompt the user for input.
         /// </para>
         /// </summary>
@@ -94,7 +95,7 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Alias for <see cref="Println(string)"/>. Prints a message to the console.
+        /// Alias for <see cref="Println(string)">Println</see>. Prints a message to the console.
         /// </summary>
         public static void Print(string message)
         {
@@ -139,7 +140,8 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Regenerates the document — a safe wrapper around <see cref="Document.Regenerate"/>.
+        /// Regenerates the document — a safe wrapper around
+        /// <see cref="Document.Regenerate">Document.Regenerate()</see>.
         /// <para>
         /// ⚠ <b>Why this exists.</b> <c>Doc.Regenerate()</c> requires an open transaction, and
         /// calling it without one throws Revit's generic
@@ -149,7 +151,8 @@ namespace CoreScript.Engine.Globals
         /// </para>
         /// <para>
         /// ⚠ <b>You usually do not need it.</b> A committed transaction already regenerates, and
-        /// <see cref="ExportImage"/> exports after the model has settled. Reach for <c>Regen()</c>
+        /// <see cref="ExportImage">ExportImage</see> exports after the model has settled. Reach
+        /// for <c>Regen()</c>
         /// only when you must force a regeneration <i>between</i> two reads in the same script,
         /// outside any transaction of your own.
         /// </para>
@@ -349,7 +352,12 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Finds all elements of type T in the document.
+        /// Finds all elements of type T in the document. ⚠ T alone decides INSTANCES vs TYPES:
+        /// `GetElements&lt;Wall&gt;()` is wall instances, `GetElements&lt;WallType&gt;()` is the
+        /// wall types. ⚠⚠ With NO category filter this scans the WHOLE document —
+        /// `GetElements&lt;FamilyInstance&gt;()` returns EVERY loadable instance in the model and
+        /// `GetElements&lt;FamilySymbol&gt;()` every symbol, so prefer
+        /// `GetElements&lt;FamilyInstance&gt;("Doors")` unless you truly want all of them.
         /// </summary>
         public static PipelineEnumerable<T> GetElements<T>() where T : Element
         {
@@ -363,14 +371,15 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Finds all elements of type T belonging to a specific category.
-        /// <para>Example: <c>GetElements&lt;FamilyInstance&gt;("Doors")</c></para>
-        /// <para>
-        /// ⚠ <c>T</c> decides INSTANCES vs TYPES, and it is the only thing that does:
-        /// <c>GetElements&lt;FamilyInstance&gt;("Doors")</c> returns door instances, while
-        /// <c>GetElements&lt;FamilySymbol&gt;("Doors")</c> returns the door symbols (the types).
-        /// A category with 0 instances returns an EMPTY list — never a substitute set of types.
-        /// </para>
+        /// Finds all elements of type T belonging to a specific category. Example:
+        /// `GetElements&lt;FamilyInstance&gt;("Doors")`. ⚠ T decides INSTANCES vs TYPES and it is
+        /// the ONLY thing that does: `GetElements&lt;FamilyInstance&gt;("Doors")` is door
+        /// instances, while `GetElements&lt;FamilySymbol&gt;("Doors")` is the door symbols (the
+        /// types). ⚠ A LOADABLE family needs BOTH — the C# class in the angle brackets and the
+        /// CATEGORY name in the string (there is no `StructuralColumn` type: it is
+        /// `GetElements&lt;FamilyInstance&gt;("Structural Columns")`); a SYSTEM family needs no
+        /// category at all — `GetElements&lt;Wall&gt;()`. A category with 0 instances returns an
+        /// EMPTY list — never a substitute set of types.
         /// </summary>
         public static PipelineEnumerable<T> GetElements<T>(string categoryName) where T : Element
         {
@@ -397,9 +406,10 @@ namespace CoreScript.Engine.Globals
 
 
         /// <summary>
-        /// Finds all elements belonging to a specific BuiltInCategory.
-        /// <para>Example: <c>GetElements(BuiltInCategory.OST_Doors)</c></para>
-        /// <para>Works seamlessly with Params hydrated BuiltInCategory properties.</para>
+        /// Finds all INSTANCES belonging to a specific BuiltInCategory. Example:
+        /// `GetElements(BuiltInCategory.OST_Doors)`. ⚠ The result is typed `Element`, not the
+        /// concrete class — cast it, or use the typed spelling `GetElements&lt;Wall&gt;()`. Works
+        /// with Params hydrated BuiltInCategory properties.
         /// </summary>
         public static PipelineEnumerable<Element> GetElements(BuiltInCategory category)
         {
@@ -411,19 +421,17 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Discovery helper for the REPL. Targets categories or classes automatically.
-        /// <para>Example: <c>GetElements("Doors")</c></para>
-        /// <para>
-        /// ⚠⚠ <b>Instances, always.</b> A category name returns the INSTANCES in the model — never
-        /// its types. A category with no instances returns an EMPTY list and SAYS SO; it does not
-        /// substitute the category's element types.
-        /// </para>
-        /// <para>
-        /// Types have their own, explicit spellings:
-        /// <c>GetElements&lt;FamilySymbol&gt;("Doors")</c> for a loadable family's symbols,
-        /// <c>GetElements&lt;WallType&gt;()</c> for a system family's types, or a name that is
-        /// itself a type name (<c>GetElements("WallType")</c>).
-        /// </para>
+        /// Discovery helper for the REPL: one string that resolves a CATEGORY or a CLASS name —
+        /// `GetElements("Doors")`, `GetElements("Walls")`. ⚠⚠ The result is UNTYPED
+        /// (`PipelineEnumerable&lt;Element&gt;`) whatever the name resolved to, so CAST to use a
+        /// concrete type's members — `GetElements("Walls").Cast&lt;Wall&gt;()` — or use the typed
+        /// `GetElements&lt;Wall&gt;()` instead. ⚠ A CATEGORY name yields its INSTANCES; a name
+        /// that is ITSELF a type name (`"WallType"`, `"FamilySymbol"`) yields TYPES instead, and
+        /// the INFO line says which. A valid category with 0 instances returns an EMPTY list and
+        /// SAYS SO; it never substitutes the category's types. Plural and singular both resolve
+        /// (`"Doors"` = `"Door"`) and a category name needs no space (`"StructuralColumns"` =
+        /// `"Structural Columns"`). An unknown name THROWS with near matches — `GetMagicNames()`
+        /// lists everything targetable.
         /// </summary>
         public static PipelineEnumerable<Element> GetElements(string categoryOrClass)
         {
@@ -486,7 +494,8 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Lists all potential "Magic" strings targetable by <see cref="GetElements(string)"/>.
+        /// Lists all potential "Magic" strings targetable by
+        /// <see cref="GetElements(string)">GetElements("Category")</see>.
         /// Includes Categories, Class names, and Family names available in the document.
         /// </summary>
         public static List<string> GetMagicNames()
