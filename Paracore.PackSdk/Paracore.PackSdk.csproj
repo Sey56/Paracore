@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    PARACORE PACK SDK — the free, MIT-licensed surface a specialist pack is written against.
+
+    WHAT IT IS: the part of a pack that is the SAME for every pack. A configurator built from
+    ScriptParameter metadata, a results surface (a pack has nowhere to print — Revit has no Output
+    panel), the run host that drives CodeRunner on Revit's thread, and parameter discovery that
+    delegates to the engine instead of hand-rolling collectors.
+
+    WHAT IT IS NOT: any tool. There is no takeoff, no finishing, no BOQ, no aluminium, no tiling.
+    The SDK is the machine that makes artifacts; the artifacts stay private. That is the same line
+    as `CoreScript.Engine` being free while `paracore-takeoff` is not.
+
+    ⚠ IT SHIPS IN THE ADD-IN FOLDER, NOT IN EACH PACK.
+    `Paracore.Shim.IsolatedLoadContext.Load` probes the add-in folder FIRST (step 1) before the pack
+    roots, so a DLL sitting beside `Paracore.Addin.dll` resolves for every pack by name. That means
+    one copy, versioned with the engine, installed once — instead of a copy per pack that could
+    drift. `build-addin.ps1` asserts it is present, for the same reason it asserts PdfSharp: a
+    missing host-provided dependency is invisible until a customer clicks a button.
+
+    ⚠ Packs must reference this with Private=false. A second copy loaded beside the pack would give
+    the process two copies of the SDK's static state (the CodeRunner cache in particular).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+
+    <RootNamespace>Paracore.PackSdk</RootNamespace>
+    <AssemblyName>Paracore.PackSdk</AssemblyName>
+    <AssemblyTitle>Paracore.PackSdk</AssemblyTitle>
+    <Company>Paras Partners PLC</Company>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+
+    <!-- The moved code is documented by its ⚠ comments, not by XML doc tags on every member.
+         Turning the doc file off keeps the build honest instead of 400 CS1591 warnings. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      ⚠ Private=false. The engine is already loaded from the add-in folder at runtime; publishing a
+      second copy next to this one would give the script compiler two candidate assemblies for the
+      same types.
+    -->
+    <ProjectReference Include="..\CoreScript.Engine\CoreScript.Engine.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Provided by Revit at runtime; never copied. -->
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.*" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.*" />
+  </ItemGroup>
+
+</Project>

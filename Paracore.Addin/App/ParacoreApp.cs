@@ -44,9 +44,15 @@ namespace Paracore.Addin.App
         /// </summary>
         private const string PackProxyClassPrefix = "Paracore.Shim.PackCommandProxy";
 
+        /// <summary>The tab this add-in owns and creates itself.</summary>
+        private const string ParacoreTabName = "Paracore";
+
+        /// <summary>Panel a pack lands in when it names none of its own.</summary>
+        private const string DefaultPackPanelName = "Tools";
+
         /// <summary>
         /// Ribbon slot N -> the pack command the shim must run for it, in the order the buttons
-        /// were added. Written only by <see cref="AddPackRibbonButtons"/>; read by the shim
+        /// were added. Written only by <see cref="BuildPackRibbon"/>; read by the shim
         /// through <see cref="ResolvePackCommandTypeForSlot"/>.
         /// </summary>
         private static readonly List<Type> _packCommandSlots = [];
@@ -134,7 +140,7 @@ namespace Paracore.Addin.App
 
             // Get existing panel or create new
             RibbonPanel panel = GetOrCreatePanel(application, tabName, panelName);
-            CreateRibbonButtons(panel);
+            CreateRibbonButtons(application, panel);
 
             // Ensure the server is marked as not running on startup
             ServerViewModel.Instance.IsServerRunning = false;
@@ -163,7 +169,7 @@ namespace Paracore.Addin.App
         partial void RegisterBackgroundHooks(Autodesk.Revit.UI.UIControlledApplication app);
         partial void AddProRibbonButtons(RibbonPanel panel, string cmdAssembly, bool useShim);
 
-        private void CreateRibbonButtons(RibbonPanel panel)
+        private void CreateRibbonButtons(UIControlledApplication application, RibbonPanel panel)
         {
             // Determine command assembly: use shim proxies if available, else direct commands (fallback)
             var assemblyDir = Path.GetDirectoryName(typeof(ParacoreApp).Assembly.Location)!;
@@ -188,25 +194,31 @@ namespace Paracore.Addin.App
 
 
             AddProRibbonButtons(panel, cmdAssembly, useShim);
-            AddPackRibbonButtons(panel, useShim);
+            BuildPackRibbon(application, useShim);
         }
 
         /// <summary>
-        /// Adds one button per ribbon contribution a loaded pack announced.
+        /// Draws every ribbon contribution the loaded packs announced.
         ///
-        /// ⚠⚠ The button must NOT name the pack's assembly. Revit resolves a button's assembly
-        /// into the DEFAULT load context, so pointing at Paracore.TakeOff.dll would load a
-        /// SECOND copy of the pack there — and a second engine with it — while the copy the
-        /// REPL actually reads keeps running in the isolated context. A dialog would then write
-        /// settings the running engine never sees. (The same reason "make takeoff a second
-        /// add-in" is the wrong fix: a second add-in lands in the default context too.) So the
-        /// button names the SHIM, which Revit has already loaded, and the shim forwards the
-        /// click back into the isolated context where the pack really lives.
+        /// This is a LAYOUT PASS, not a loop. A pack declares where its tools belong
+        /// (<c>Tab</c>, <c>Panel</c>, <c>Order</c>) and what shape each one takes
+        /// (<see cref="RibbonItemKind"/>); this method is the only place that decides how that
+        /// becomes Revit ribbon items. Before this, every contribution became one large
+        /// <c>PushButtonData</c> in one panel, so ten tools read as ten identical big buttons.
+        ///
+        /// ⚠⚠ Every button must name the SHIM, never the pack's assembly. Revit resolves a
+        /// button's assembly into the DEFAULT load context, so pointing at Paracore.TakeOff.dll
+        /// would load a SECOND copy of the pack there — and a second engine with it — while the
+        /// copy the REPL actually reads keeps running in the isolated context. A dialog would
+        /// then write settings the running engine never sees. (The same reason "make takeoff a
+        /// second add-in" is the wrong fix: a second add-in lands in the default context too.)
+        /// The button names Paracore.Shim, which Revit has already loaded, and the shim forwards
+        /// the click back into the isolated context where the pack really lives.
         ///
         /// Nothing here runs on a free-only install: no packs means no contributions means no
         /// buttons, and the ribbon is byte-for-byte what it was before this mechanism existed.
         /// </summary>
-        private void AddPackRibbonButtons(RibbonPanel panel, bool useShim)
+        private void BuildPackRibbon(UIControlledApplication application, bool useShim)
         {
             var contributions = RibbonSurface.Contributions;
             if (contributions.Count == 0)
@@ -217,8 +229,9 @@ namespace Paracore.Addin.App
             if (!useShim)
             {
                 FileLogger.LogError(
-                    $"[Ribbon] {contributions.Count} pack button(s) were announced, but Paracore.Shim.dll is " +
-                    "missing, so they cannot be routed into the isolated context. Reinstall the add-in.");
+                    $"[Ribbon] {contributions.Count} pack contribution(s) were announced, but " +
+                    "Paracore.Shim.dll is missing, so they cannot be routed into the isolated " +
+                    "context. Reinstall the add-in.");
                 return;
             }
 
@@ -226,56 +239,319 @@ namespace Paracore.Addin.App
             if (shimAssembly == null || string.IsNullOrEmpty(shimAssembly.Location))
             {
                 FileLogger.LogError(
-                    "[Ribbon] Paracore.Shim is not loaded in the default load context, so pack buttons " +
-                    "cannot be created.");
+                    "[Ribbon] Paracore.Shim is not loaded in the default load context, so pack " +
+                    "buttons cannot be created.");
                 return;
             }
 
-            foreach (var contribution in contributions)
+            // ⚠ Tab order is deliberate: ours first, then alphabetical. A company pack that
+            // sorts before "Paracore" would otherwise push the host's own tab aside, which
+            // reads as if the add-in had been taken over.
+            var tabGroups = contributions
+                .GroupBy(c => string.IsNullOrWhiteSpace(c.Tab) ? ParacoreTabName : c.Tab.Trim())
+                .OrderBy(g => string.Equals(g.Key, ParacoreTabName, StringComparison.Ordinal) ? 0 : 1)
+                .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var tabGroup in tabGroups)
             {
-                int slot = _packCommandSlots.Count;
-                string className = PackProxyClassPrefix
-                    + slot.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                EnsureTab(application, tabGroup.Key);
 
-                // A slot the shim does not publish is a BUILD MISMATCH between the add-in and
-                // the shim — not something to discover on the user's first click. Fail loudly
-                // and add nothing, rather than shipping a button that dies when pressed.
-                if (shimAssembly.GetType(className) == null)
+                var panelGroups = tabGroup
+                    .GroupBy(c => string.IsNullOrWhiteSpace(c.Panel) ? DefaultPackPanelName : c.Panel.Trim())
+                    .OrderBy(g => g.Min(c => c.Order))
+                    .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var panelGroup in panelGroups)
                 {
-                    FileLogger.LogError(
-                        $"[Ribbon] '{className}' is not published by Paracore.Shim — the shim and the add-in " +
-                        $"are out of step, so '{contribution.Name}' was NOT added. Reinstall both.");
-                    break;
+                    RibbonPanel panel = GetOrCreatePanel(application, tabGroup.Key, panelGroup.Key);
+
+                    // OrderBy is a STABLE sort, which is what makes equal Order values keep
+                    // registration order instead of an arbitrary one.
+                    EmitPanelContents(panel, [.. panelGroup.OrderBy(c => c.Order)], shimAssembly);
                 }
-
-                var button = new PushButtonData(contribution.Name, contribution.Text,
-                    shimAssembly.Location, className)
-                {
-                    ToolTip = contribution.ToolTip,
-                };
-
-                // ⚠ The URL belongs to the PACK, not to this host: only the pack knows which
-                // page documents its own button. It travels in the contribution for exactly
-                // that reason.
-                if (!string.IsNullOrEmpty(contribution.HelpUrl))
-                {
-                    button.SetContextualHelp(new ContextualHelp(
-                        ContextualHelpType.Url, contribution.HelpUrl));
-                }
-
-                var icon = LoadIcon(contribution.IconPath);
-                if (icon != null)
-                {
-                    button.LargeImage = icon;
-                    button.Image = icon;
-                }
-
-                panel.AddItem(button);
-                _packCommandSlots.Add(contribution.CommandType);
-                FileLogger.Log(
-                    $"[Ribbon] Pack button '{contribution.Name}' added at slot {slot} -> " +
-                    contribution.CommandType.FullName);
             }
+        }
+
+        /// <summary>
+        /// Creates a ribbon tab unless it is already there.
+        ///
+        /// Revit throws <see cref="Autodesk.Revit.Exceptions.ArgumentException"/> when the tab
+        /// exists, and TWO packs naming the same new tab is the normal case, not an error — so
+        /// the throw is the success path for the second one.
+        /// </summary>
+        private static void EnsureTab(UIControlledApplication application, string tabName)
+        {
+            try
+            {
+                application.CreateRibbonTab(tabName);
+                FileLogger.Log($"[Ribbon] Created ribbon tab '{tabName}' for a pack.");
+            }
+            catch (Autodesk.Revit.Exceptions.ArgumentException)
+            {
+                // Already present — ours, or another pack's. Nothing to do.
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogError($"[Ribbon] Ribbon tab '{tabName}' could not be created: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Emits one panel's contributions in order, grouping runs of
+        /// <see cref="RibbonItemKind.StackedSmall"/> into stacks.
+        /// </summary>
+        private void EmitPanelContents(
+            RibbonPanel panel,
+            List<RibbonContribution> items,
+            Assembly shimAssembly)
+        {
+            int index = 0;
+            while (index < items.Count)
+            {
+                RibbonContribution contribution = items[index];
+
+                if (contribution.Kind == RibbonItemKind.StackedSmall)
+                {
+                    int runEnd = index;
+                    while (runEnd < items.Count && items[runEnd].Kind == RibbonItemKind.StackedSmall)
+                    {
+                        runEnd++;
+                    }
+
+                    EmitStack(panel, items, index, runEnd - index, shimAssembly);
+                    index = runEnd;
+                    continue;
+                }
+
+                if (contribution.Kind == RibbonItemKind.PulldownButton
+                    || contribution.Kind == RibbonItemKind.SplitButton)
+                {
+                    EmitContainer(panel, contribution, shimAssembly);
+                }
+                else
+                {
+                    PushButtonData? data = BuildButtonData(contribution, shimAssembly, small: false);
+                    if (data != null)
+                    {
+                        panel.AddItem(data);
+                    }
+                }
+
+                index++;
+            }
+        }
+
+        /// <summary>
+        /// Emits a run of small buttons as vertical stacks.
+        ///
+        /// ⚠ <c>AddStackedItems</c> accepts exactly TWO or THREE items. One is not a stack (it
+        /// is just a small button) and four is a compile error, so a run of five must become
+        /// 3 + 2 and a run of seven must become 3 + 3 + 1.
+        /// </summary>
+        private void EmitStack(
+            RibbonPanel panel,
+            List<RibbonContribution> items,
+            int start,
+            int count,
+            Assembly shimAssembly)
+        {
+            int consumed = 0;
+            while (consumed < count)
+            {
+                int remaining = count - consumed;
+                int take = remaining >= 3 ? 3 : remaining;
+
+                var stack = new List<PushButtonData>(take);
+                for (int k = 0; k < take; k++)
+                {
+                    PushButtonData? data = BuildButtonData(items[start + consumed + k], shimAssembly, small: true);
+                    if (data != null)
+                    {
+                        stack.Add(data);
+                    }
+                }
+
+                // A button that could not be built is dropped, and the stack shrinks rather
+                // than being emitted with a hole in it.
+                if (stack.Count == 1)
+                {
+                    panel.AddItem(stack[0]);
+                }
+                else if (stack.Count == 2)
+                {
+                    panel.AddStackedItems(stack[0], stack[1]);
+                }
+                else if (stack.Count == 3)
+                {
+                    panel.AddStackedItems(stack[0], stack[1], stack[2]);
+                }
+
+                consumed += take;
+            }
+        }
+
+        /// <summary>
+        /// Emits a pulldown or split button and the commands it holds.
+        ///
+        /// A contribution that says it is a container but carries no children is drawn as a
+        /// plain button when it has a command — a mis-declared pack should lose its dropdown,
+        /// not its tool.
+        /// </summary>
+        private void EmitContainer(RibbonPanel panel, RibbonContribution contribution, Assembly shimAssembly)
+        {
+            if (contribution.Children.Count == 0)
+            {
+                FileLogger.LogError(
+                    $"[Ribbon] '{contribution.Name}' declares {contribution.Kind} but has no children.");
+
+                PushButtonData? fallback = BuildButtonData(contribution, shimAssembly, small: false);
+                if (fallback != null)
+                {
+                    panel.AddItem(fallback);
+                }
+
+                return;
+            }
+
+            bool isSplit = contribution.Kind == RibbonItemKind.SplitButton;
+
+            RibbonItemData containerData = isSplit
+                ? new SplitButtonData(contribution.Name, contribution.Text)
+                : new PulldownButtonData(contribution.Name, contribution.Text);
+            containerData.ToolTip = contribution.ToolTip;
+
+            if (!string.IsNullOrEmpty(contribution.HelpUrl))
+            {
+                containerData.SetContextualHelp(new ContextualHelp(
+                    ContextualHelpType.Url, contribution.HelpUrl));
+            }
+
+            RibbonItem containerItem = panel.AddItem(containerData);
+
+            var children = new List<PushButtonData>(contribution.Children.Count);
+            foreach (RibbonContribution child in contribution.Children)
+            {
+                PushButtonData? childData = BuildButtonData(child, shimAssembly, small: false);
+                if (childData != null)
+                {
+                    children.Add(childData);
+                }
+            }
+
+            if (children.Count == 0)
+            {
+                // Every child failed. A container with nothing in it is invisible in Revit, so
+                // disable it rather than leave a dead control that looks clickable.
+                containerItem.Enabled = false;
+                FileLogger.LogError(
+                    $"[Ribbon] '{contribution.Name}' has no usable children and was disabled.");
+                return;
+            }
+
+            if (isSplit && containerItem is SplitButton splitButton)
+            {
+                // The FIRST child is the face of a split button — the part that runs without
+                // opening the dropdown. Order therefore matters to the pack, not to us.
+                foreach (PushButtonData childData in children)
+                {
+                    splitButton.AddPushButton(childData);
+                }
+            }
+            else if (containerItem is PulldownButton pulldownButton)
+            {
+                foreach (PushButtonData childData in children)
+                {
+                    pulldownButton.AddPushButton(childData);
+                }
+            }
+
+            FileLogger.Log(
+                $"[Ribbon] Pack {contribution.Kind} '{contribution.Name}' added with " +
+                $"{children.Count} command(s).");
+        }
+
+        /// <summary>
+        /// Turns one contribution into a <see cref="PushButtonData"/> routed through a shim
+        /// slot, or <see langword="null"/> when it cannot be built.
+        ///
+        /// A slot the shim does not publish is a BUILD MISMATCH between the add-in and the shim,
+        /// or an exhausted pool — not something to discover on the user's first click. Fail
+        /// loudly and add nothing, rather than shipping a button that dies when pressed.
+        /// </summary>
+        private PushButtonData? BuildButtonData(
+            RibbonContribution contribution,
+            Assembly shimAssembly,
+            bool small)
+        {
+            if (contribution.CommandType == null)
+            {
+                FileLogger.LogError(
+                    $"[Ribbon] '{contribution.Name}' has no command type and is not a container.");
+                return null;
+            }
+
+            int slot = _packCommandSlots.Count;
+            string className = PackProxyClassPrefix
+                + slot.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            if (shimAssembly.GetType(className) == null)
+            {
+                FileLogger.LogError(
+                    $"[Ribbon] '{className}' is not published by Paracore.Shim — the proxy pool is " +
+                    $"exhausted or the shim and the add-in are out of step, so '{contribution.Name}' " +
+                    "was NOT added. Reinstall both, or split the pack's tools across tabs.");
+                return null;
+            }
+
+            var data = new PushButtonData(
+                contribution.Name,
+                contribution.Text,
+                shimAssembly.Location,
+                className)
+            {
+                ToolTip = contribution.ToolTip,
+            };
+
+            // ⚠ The URL belongs to the PACK, not to this host: only the pack knows which page
+            // documents its own button. It travels in the contribution for exactly that reason.
+            if (!string.IsNullOrEmpty(contribution.HelpUrl))
+            {
+                data.SetContextualHelp(new ContextualHelp(
+                    ContextualHelpType.Url, contribution.HelpUrl));
+            }
+
+            // A small button draws `Image` and ignores `LargeImage`; a large one prefers
+            // `LargeImage` and falls back to `Image`. Set both so one contribution serves either.
+            BitmapImage? large = LoadIcon(contribution.IconPath);
+            BitmapImage? smallIcon = LoadIcon(contribution.SmallIconPath) ?? large;
+
+            if (small)
+            {
+                if (smallIcon != null)
+                {
+                    data.Image = smallIcon;
+                }
+            }
+            else
+            {
+                if (large != null)
+                {
+                    data.LargeImage = large;
+                }
+
+                if (smallIcon != null)
+                {
+                    data.Image = smallIcon;
+                }
+            }
+
+            _packCommandSlots.Add(contribution.CommandType);
+
+            FileLogger.Log(
+                $"[Ribbon] Pack button '{contribution.Name}' added at slot {slot} -> " +
+                contribution.CommandType.FullName);
+
+            return data;
         }
 
         /// <summary>

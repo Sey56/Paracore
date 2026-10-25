@@ -172,6 +172,11 @@ scripts/addin_build_log.txt
 # Build scratch for scripts/check-skill-snippets.py — regenerated on every run
 scripts/_snippetbuild/
 
+# Desktop verification build output — a `vite build` into a throwaway dir, used to
+# check a change without touching the real dist/. Untracked 2026-10-25: 22 files,
+# 1.1 MB, and nothing referenced them. `dist/` above does NOT match this name.
+rap-web/.verify-dist/
+
 # VS Code extension build output -- generated, never source
 corescript-vscode/out/
 corescript-vscode/dist/

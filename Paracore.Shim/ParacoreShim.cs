@@ -34,7 +34,12 @@ namespace Paracore.Shim
         /// (<c>Paracore.Shim.PackCommandProxy&lt;n&gt;</c>) and fails loudly if a slot it needs
         /// is missing, so this number and the pool below can never drift apart silently.
         /// </summary>
-        public const int MaxPackCommandSlots = 16;
+        //  ⚠ Must equal the number of PackCommandProxyN classes in this file. Raised 16 -> 64
+        //  because a ribbon contribution is no longer always ONE button: a pulldown or split
+        //  button carries several commands, and each one needs its own slot. A pack that
+        //  overruns the pool is reported by the host (see ParacoreApp.BuildPackRibbon) rather
+        //  than silently losing buttons.
+        public const int MaxPackCommandSlots = 64;
 
         /// <summary>Static state shared with proxy commands.</summary>
         internal static IsolatedLoadContext? LoadContext { get; private set; }
@@ -312,6 +317,246 @@ namespace Paracore.Shim
     [Transaction(TransactionMode.Manual)]
     public class PackCommandProxy15 : PackCommandProxyBase { /// <inheritdoc/>
         protected override int Slot => 15; }
+
+    /// <summary>Pool slot 16. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy16 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 16; }
+
+    /// <summary>Pool slot 17. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy17 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 17; }
+
+    /// <summary>Pool slot 18. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy18 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 18; }
+
+    /// <summary>Pool slot 19. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy19 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 19; }
+
+    /// <summary>Pool slot 20. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy20 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 20; }
+
+    /// <summary>Pool slot 21. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy21 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 21; }
+
+    /// <summary>Pool slot 22. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy22 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 22; }
+
+    /// <summary>Pool slot 23. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy23 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 23; }
+
+    /// <summary>Pool slot 24. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy24 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 24; }
+
+    /// <summary>Pool slot 25. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy25 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 25; }
+
+    /// <summary>Pool slot 26. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy26 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 26; }
+
+    /// <summary>Pool slot 27. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy27 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 27; }
+
+    /// <summary>Pool slot 28. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy28 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 28; }
+
+    /// <summary>Pool slot 29. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy29 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 29; }
+
+    /// <summary>Pool slot 30. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy30 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 30; }
+
+    /// <summary>Pool slot 31. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy31 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 31; }
+
+    /// <summary>Pool slot 32. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy32 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 32; }
+
+    /// <summary>Pool slot 33. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy33 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 33; }
+
+    /// <summary>Pool slot 34. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy34 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 34; }
+
+    /// <summary>Pool slot 35. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy35 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 35; }
+
+    /// <summary>Pool slot 36. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy36 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 36; }
+
+    /// <summary>Pool slot 37. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy37 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 37; }
+
+    /// <summary>Pool slot 38. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy38 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 38; }
+
+    /// <summary>Pool slot 39. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy39 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 39; }
+
+    /// <summary>Pool slot 40. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy40 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 40; }
+
+    /// <summary>Pool slot 41. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy41 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 41; }
+
+    /// <summary>Pool slot 42. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy42 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 42; }
+
+    /// <summary>Pool slot 43. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy43 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 43; }
+
+    /// <summary>Pool slot 44. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy44 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 44; }
+
+    /// <summary>Pool slot 45. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy45 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 45; }
+
+    /// <summary>Pool slot 46. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy46 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 46; }
+
+    /// <summary>Pool slot 47. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy47 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 47; }
+
+    /// <summary>Pool slot 48. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy48 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 48; }
+
+    /// <summary>Pool slot 49. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy49 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 49; }
+
+    /// <summary>Pool slot 50. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy50 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 50; }
+
+    /// <summary>Pool slot 51. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy51 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 51; }
+
+    /// <summary>Pool slot 52. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy52 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 52; }
+
+    /// <summary>Pool slot 53. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy53 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 53; }
+
+    /// <summary>Pool slot 54. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy54 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 54; }
+
+    /// <summary>Pool slot 55. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy55 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 55; }
+
+    /// <summary>Pool slot 56. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy56 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 56; }
+
+    /// <summary>Pool slot 57. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy57 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 57; }
+
+    /// <summary>Pool slot 58. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy58 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 58; }
+
+    /// <summary>Pool slot 59. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy59 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 59; }
+
+    /// <summary>Pool slot 60. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy60 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 60; }
+
+    /// <summary>Pool slot 61. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy61 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 61; }
+
+    /// <summary>Pool slot 62. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy62 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 62; }
+
+    /// <summary>Pool slot 63. See <see cref="PackCommandProxyBase"/>.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class PackCommandProxy63 : PackCommandProxyBase { /// <inheritdoc/>
+        protected override int Slot => 63; }
 
     /// <summary>
     /// Helper that creates command instances in the isolated ALC and invokes Execute().

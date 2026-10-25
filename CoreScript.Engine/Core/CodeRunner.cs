@@ -51,7 +51,52 @@ namespace CoreScript.Engine.Core
         }
 
         public ExecutionResult Execute(string scriptContent, string parametersJson, ICoreScriptContext context)
+            => ExecuteCore(scriptContent, null, parametersJson, context);
+
+        /// <summary>
+        /// Runs a tool that was ALREADY compiled — no Roslyn, no source, no cache lookup.
+        ///
+        /// ⚠ This is not <see cref="ExecuteBinary"/>. That method exists to accelerate the SECOND run
+        /// of a script and it deliberately carries only the bare execution: no dry run, no
+        /// <c>ResolutionPools</c>, no <c>[Confirm]</c> gate. A pack that shipped IL through it would
+        /// silently lose all three and behave differently from the same tool in the gallery — which
+        /// is the one thing the pack model exists to prevent.
+        ///
+        /// This method runs the SAME body as <see cref="Execute"/>: same parameter mapping, same
+        /// dry-run TransactionGroup and rollback reporting, same confirmation gate, same result
+        /// enrichment. The only difference is where the assembly came from — the caller supplied it
+        /// instead of the compiler producing it.
+        ///
+        /// ⚠ WHAT A PRECOMPILED CALLER MUST SEND. The parameter JSON must be the RICH array
+        /// (<c>ScriptParameter[]</c> with values), not a plain name→value map. Two things are
+        /// derived from that schema when there is no source to read:
+        ///   • <c>[Unit]</c> conversion — <c>HardenParameters</c> needs the parameter's declared unit;
+        ///   • the <c>[Confirm]</c> gate — <c>Pattern</c> is written only by <c>ParameterExtractor</c>.
+        /// A plain map would silently drop both, so it is REFUSED rather than half-executed.
+        /// </summary>
+        public ExecutionResult ExecutePrecompiled(byte[] toolAssembly, string parametersJson, ICoreScriptContext context)
         {
+            if (toolAssembly == null || toolAssembly.Length == 0)
+            {
+                var empty = ExecutionResult.Failure("❌ No tool assembly supplied — nothing was executed.");
+                empty.ScriptName = "Precompiled Tool";
+                return empty;
+            }
+
+            return ExecuteCore(null, toolAssembly, parametersJson, context);
+        }
+
+        private ExecutionResult ExecuteCore(
+            string? scriptContent,
+            byte[]? precompiledAssembly,
+            string parametersJson,
+            ICoreScriptContext context)
+        {
+            // Where the tool body comes from. Everything below branches on these two, and nothing
+            // else does — so the two entry points cannot drift into different behaviour.
+            bool hasSource = scriptContent != null;
+            bool isPrecompiled = precompiledAssembly != null;
+
             string timestamp = DateTime.Now.ToString("dddd dd, MMMM yyyy | hh:mm:ss tt", CultureInfo.InvariantCulture);
 
             FileLogger.Log("🟢 Starting CodeRunner.Execute");
@@ -86,18 +131,49 @@ namespace CoreScript.Engine.Core
                     scriptPath = pathObj.ToString() ?? string.Empty;
                 }
 
-                List<ScriptFile> scriptFiles = new List<ScriptFile>();
-                try
-                {
-                    var scriptJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    scriptFiles = JsonSerializer.Deserialize<List<ScriptFile>>(scriptContent, scriptJsonOptions) ?? new List<ScriptFile>();
-                }
-                catch
-                {
-                    scriptFiles.Add(new ScriptFile { FileName = topLevelScriptName + ".cs", Content = scriptContent });
-                }
+                // ── Source pipeline. Skipped entirely for a precompiled tool: there is no source,
+                // and nothing below may pretend there is. `combinedUserCode` stays empty so the
+                // source-reading guards further down ([Confirm] gate, loop-write advisory) take
+                // their "no source" branch instead of being fed a null.
+                string combinedUserCode = string.Empty;
 
-                string combinedUserCode = _scriptCombiner.Combine(scriptFiles);
+                if (hasSource)
+                {
+                    List<ScriptFile> scriptFiles = new List<ScriptFile>();
+                    try
+                    {
+                        var scriptJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        scriptFiles = JsonSerializer.Deserialize<List<ScriptFile>>(scriptContent, scriptJsonOptions) ?? new List<ScriptFile>();
+                    }
+                    catch
+                    {
+                        scriptFiles.Add(new ScriptFile { FileName = topLevelScriptName + ".cs", Content = scriptContent });
+                    }
+
+                    combinedUserCode = _scriptCombiner.Combine(scriptFiles);
+                }
+                else
+                {
+                    // ⚠ FAIL CLOSED, and only here. A precompiled caller has no source to read, so
+                    // the two things derived from source must arrive in the parameter payload:
+                    //   • [Unit] conversion — HardenParameters needs the declared unit;
+                    //   • the [Confirm] gate — Pattern is written only by ParameterExtractor.
+                    // Both live in the RICH array. A plain name→value map cannot carry them, and
+                    // accepting one would silently drop a destructive gate — the exact defect fixed
+                    // on 2026-10-07 for the Forge path ("a gate a caller can disarm by omitting a
+                    // field is not a gate"). Refuse instead of half-running.
+                    if (!PayloadIsRichParameterArray(parametersJson))
+                    {
+                        FileLogger.LogError("[CodeRunner] Precompiled tool supplied a plain parameter map — refusing to run.");
+                        var refused = ExecutionResult.Failure(
+                            "⛔ A precompiled tool must send its parameter schema (the rich array), not a plain map — nothing was executed.",
+                            new[] { "Without the schema, [Unit] conversion and the [Confirm] gate cannot be applied." });
+                        refused.ErrorMessage = "⛔ Nothing was executed: the tool was precompiled and its parameter payload " +
+                                               "carried no schema, so [Unit] conversion and the [Confirm] gate could not be applied.";
+                        refused.ScriptName = topLevelScriptName;
+                        return refused;
+                    }
+                }
 
                 // --- V4 CORE FIX: Unit Regression ---
                 if (richParams.Count == 0 && !string.IsNullOrEmpty(combinedUserCode))
@@ -112,32 +188,42 @@ namespace CoreScript.Engine.Core
                 }
                 // -------------------------------------
 
-                string modifiedUserCode = _scriptRewriter.Rewrite(combinedUserCode, parameters);
-
-                // V3.1: Start with #line hidden to ensure internal using doesn't count toward line numbers
-                finalScriptCode = "#line hidden" + Environment.NewLine +
-                                  "using static CoreScript.Engine.Globals.ScriptApi;" + CoreScript.Engine.Globals.ScriptSurface.StaticImportsLine + Environment.NewLine +
-                                  "using CoreScript.Engine.Globals;" + Environment.NewLine +
-                                  modifiedUserCode;
-
-                try
+                if (hasSource)
                 {
-                    var debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "CompiledScript.cs");
-                    Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
-                    File.WriteAllText(debugPath, finalScriptCode);
+                    string modifiedUserCode = _scriptRewriter.Rewrite(combinedUserCode, parameters);
+
+                    // V3.1: Start with #line hidden to ensure internal using doesn't count toward line numbers
+                    finalScriptCode = "#line hidden" + Environment.NewLine +
+                                      "using static CoreScript.Engine.Globals.ScriptApi;" + CoreScript.Engine.Globals.ScriptSurface.StaticImportsLine + Environment.NewLine +
+                                      "using CoreScript.Engine.Globals;" + Environment.NewLine +
+                                      modifiedUserCode;
+
+                    try
+                    {
+                        var debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "paracore-data", "logs", "CompiledScript.cs");
+                        Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
+                        File.WriteAllText(debugPath, finalScriptCode);
+                    }
+                    catch { }
                 }
-                catch { }
 
                 var executionGlobals = new ExecutionGlobals(context, parameters, rawParameters);
 
                 // --- V4 ELITE: MAGIC HYDRATION (Pre-calculate Resolution Pools) ---
-                foreach (var p in richParams)
+                // ⚠ Source-only: the pools exist so a NAME can be resolved to an element. A pack's
+                // form sends ElementIds, and RevitObjectResolver resolves an id without a pool, so
+                // a precompiled tool needs none. Say so rather than leaving a silent skip.
+                if (isPrecompiled)
                 {
-                    if (_optionsExecutor.HasOptionsFunction(scriptContent, p.Name))
+                    FileLogger.Log("[CodeRunner] Precompiled tool: resolution pools skipped (ids, not names, are supplied).");
+                }
+                else foreach (var p in richParams)
+                {
+                    if (_optionsExecutor.HasOptionsFunction(scriptContent!, p.Name))
                     {
                         try
                         {
-                            var pool = _optionsExecutor.ExecuteElementOptionsFunction(scriptContent, p.Name, context, parametersJson, richParams).GetAwaiter().GetResult();
+                            var pool = _optionsExecutor.ExecuteElementOptionsFunction(scriptContent!, p.Name, context, parametersJson, richParams).GetAwaiter().GetResult();
                             if (pool != null && pool.Any())
                             {
                                 executionGlobals.ResolutionPools[p.Name] = pool;
@@ -154,13 +240,24 @@ namespace CoreScript.Engine.Core
                 ExecutionGlobals.SetContext(executionGlobals);
 
                 // --- V4 ELITE: Assembly Caching Logic ---
-                string codeHash = _scriptCompiler.GetCodeHash(finalScriptCode);
-                byte[]? cachedAssembly = null;
-                lock (_cacheLock)
+                // ⚠ A precompiled tool IS a cache hit that never expires: the assembly was produced
+                // at export time, so there is nothing to compile on this machine, ever. That is the
+                // gallery's cache advantage made permanent — the first click in a fresh Revit session
+                // is instant instead of paying the ~4 s compile the desktop app pays once per session.
+                string codeHash = hasSource ? _scriptCompiler.GetCodeHash(finalScriptCode) : string.Empty;
+                byte[]? cachedAssembly = precompiledAssembly;
+                if (precompiledAssembly != null)
                 {
-                    if (_assemblyCache.TryGetValue(codeHash, out cachedAssembly))
+                    FileLogger.Log($"[CodeRunner] 📦 PRECOMPILED: {precompiledAssembly.Length} byte assembly for {topLevelScriptName} (no compile, no cache lookup)");
+                }
+                else
+                {
+                    lock (_cacheLock)
                     {
-                        FileLogger.Log($"[CodeRunner] ⚡ CACHE HIT: Re-using compiled assembly for {topLevelScriptName}");
+                        if (_assemblyCache.TryGetValue(codeHash, out cachedAssembly))
+                        {
+                            FileLogger.Log($"[CodeRunner] ⚡ CACHE HIT: Re-using compiled assembly for {topLevelScriptName}");
+                        }
                     }
                 }
 
@@ -636,6 +733,32 @@ namespace CoreScript.Engine.Core
             finally
             {
                 ExecutionGlobals.ClearContext();
+            }
+        }
+
+        /// <summary>
+        /// True when the parameter payload's JSON ROOT is an array — a rich <c>ScriptParameter</c>
+        /// list rather than a plain name→value map.
+        ///
+        /// ⚠ Structural on purpose: an EMPTY array is still a schema (a tool that declares no
+        /// parameters), while an empty object is not. Testing <c>richParams.Count &gt; 0</c> instead
+        /// would refuse a legitimate parameterless tool.
+        /// </summary>
+        private static bool PayloadIsRichParameterArray(string parametersJson)
+        {
+            if (string.IsNullOrWhiteSpace(parametersJson))
+            {
+                return false;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(parametersJson);
+                return doc.RootElement.ValueKind == JsonValueKind.Array;
+            }
+            catch
+            {
+                return false;
             }
         }
 

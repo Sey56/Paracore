@@ -8,8 +8,8 @@
     <AssemblyName>Paracore.Addin</AssemblyName>
     <PlatformTarget>x64</PlatformTarget>
     <Company>Codarch</Company>
-    <AssemblyVersion>4.8.0.0</AssemblyVersion>
-    <FileVersion>4.8.0.0</FileVersion>
+    <AssemblyVersion>4.8.1.0</AssemblyVersion>
+    <FileVersion>4.8.1.0</FileVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
@@ -69,6 +69,28 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CoreScript.Engine\CoreScript.Engine.csproj" />
+
+    <!--
+      ⚠⚠ HOST-PROVIDED PACK SDK — the second half of the PdfSharp argument below, and it matters
+      more. `Paracore.PackSdk.dll` is the surface every specialist pack is written against: the
+      generated configurator, the results window, the run host, parameter discovery. No code in
+      this project uses it, and that is deliberate.
+
+      WHY IT LIVES HERE AND NOT IN EACH PACK
+      `Paracore.Shim.IsolatedLoadContext.Load` probes the add-in bundle folder FIRST (step 1)
+      before the pack roots, so a DLL sitting beside `Paracore.Addin.dll` resolves for every pack
+      by name. One copy, versioned with the engine, installed once. A copy per pack would drift:
+      pack A built against SDK 1.2 and pack B against 1.4 would both load, and the process would
+      get two copies of the SDK's CodeRunner cache.
+
+      ⚠ DO NOT DELETE THIS AS "UNUSED PROJECT REFERENCE". Removing it breaks nothing at build
+      time — every pack still compiles — and then every pack fails at runtime with
+      `FileNotFoundException: Paracore.PackSdk`, which reads as "the pack is broken" rather than
+      "the host is missing a file". `build-addin.ps1` gates on the DLL being present in the
+      publish folder precisely so this cannot ship.
+    -->
+    <ProjectReference Include="..\Paracore.PackSdk\Paracore.PackSdk.csproj" />
+
     <ProjectReference Include="..\Paracore.Server\Paracore.Server.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 

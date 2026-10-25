@@ -118,6 +118,25 @@ if (-not (Test-Path (Join-Path $resolvedPublishDir "PdfSharp.dll"))) {
 }
 Write-Host "  [+] PdfSharp.dll present (host-provided pack dependency)" -ForegroundColor Green
 
+# ⚠⚠ GATE — THE PACK SDK.
+# Every specialist pack is written against `Paracore.PackSdk.dll` (the configurator, the results
+# window, the run host, parameter discovery). It is a ProjectReference in Paracore.Addin.csproj
+# that NO code in the add-in uses, so a "remove unused reference" cleanup would drop it — and
+# nothing would fail here. The add-in would publish cleanly, every pack would still compile, and
+# every pack would then die at runtime with FileNotFoundException on Paracore.PackSdk, which reads
+# to the customer as "the pack is broken" rather than "the host is missing a file".
+# The shim resolves it from this folder by name (IsolatedLoadContext step 1), so this folder is
+# the only place it may live. Assert the artifact, not the intention.
+if (-not (Test-Path (Join-Path $resolvedPublishDir "Paracore.PackSdk.dll"))) {
+    Write-Host "BUILD GATE FAILED: Paracore.PackSdk.dll is absent from the publish folder:" -ForegroundColor Red
+    Write-Host "  $resolvedPublishDir" -ForegroundColor Red
+    Write-Host "  It is the surface EVERY specialist pack compiles and runs against." -ForegroundColor Red
+    Write-Host "  Restore the ProjectReference to Paracore.PackSdk in Paracore.Addin.csproj." -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+Write-Host "  [+] Paracore.PackSdk.dll present (host-provided pack SDK)" -ForegroundColor Green
+
 # --- Build Paracore.Shim (Isolation Layer) ---
 Write-Host "`nBuilding Paracore.Shim (Isolation Layer)..." -ForegroundColor Cyan
 $shimDir = Join-Path -Path $ProjectRoot -ChildPath 'Paracore.Shim'
