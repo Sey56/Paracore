@@ -1,42 +1,46 @@
-## Paracore v4.8.0
+## Paracore v4.8.1
 
-Full notes: [Release-Notes-4.8.0.md](Release-Notes-4.8.0.md) · Previous: [4.7.0](Release-Notes-4.7.0.md)
+Full notes: [Release-Notes-4.8.1.md](Release-Notes-4.8.1.md) · Previous: [4.8.0](Release-Notes-4.8.0.md)
 
-### One generic engine
+### Packs become products
 
-- **`paracore-pro` is gone** — this repo is the single source of truth for the engine, the add-in, the desktop app and the VS Code extension, and it is **always free**
-- **Sentinels are now free** — promoted into the generic engine; the old `SentinelSource/` tree is removed and the desktop app no longer gates them
-- **Packs** — a specialist feature installs as a separate assembly *outside* the add-in folder, discovered at startup and given its own ribbon button
+- **The Pack SDK is new** — a pack hosts its own parameter form, results window and ribbon tab, and can ship a **precompiled assembly**: no source, no compile on the customer's machine
+- **Ribbon contributions** — a pack declares its tab, panel and buttons; the shim's command pool is raised **16 → 64**, so no pack ships a Revit command class
+
+### REPL & editor
+
+- **IntelliSense** — completion, live diagnostics and hover, from the add-in's own Roslyn workspace over gRPC; no language server, no project on disk
+- **A client-side C# formatter**, and unsaved work guarded on every buffer-replacing action
 
 ### Engine
 
-- **REPL errors point at your code** — diagnostics re-anchored to the line you typed
-- **The semantic guard fails open** — framework facades resolve, so no more false `CS0411` wrapping
-- **`TransactionLoopGuard`** is new
+- **The type-write guard** — `IsTypeParameter` / `TypeInstanceCount` tell you a write lands on the **type**, not the instance (measured: one `SetNum` on one window modified 8 elements)
+- **Swaps report their delta** — `SwapSymbol` / `NewType`
+- **Faces and dimension chains** — `FaceRefs`, `SideFaceRefs`, `ChainDim`
+- **Stage batches and checkpoints** — `Batch` / `StampBatch` / `DeleteBatch`, `Mark` / `RollbackTo` / `Transact`
+- ⚠ **Breaking: `GetElements` no longer falls back to types** — a zero-instance category returns an empty list and reports the zero
 
-### Add-in
+### Consent gate
 
-- Loads packs at startup; hosts the promoted Sentinels pump
+- The agent consent dialog was being auto-answered by the dialog watcher. It now uses captions the watcher does not recognise, so **only a human answers it**, deny is the default, and `scripts/check-sessiongate-labels.py` guards the labels
+- **The agent is told what you chose** — `session_consent` (`granted` / `already_granted` / `denied` / `not_required`) now rides on every execution response, so a run says who allowed it; a denial is terminal and legible
+- **Per session, not per MCP** — one Allow covers every agent in that Revit session, and `GetStatus` publishes it (wire field 10) so a second MCP server asks instead of guessing
+- **A timeout that names itself** — a call made before the session is allowed is capped at **60 s**, and the error says whether it hit the consent dialog or a long script. `execute_script` gained a deadline too; forge previously waited forever
+
+### MCP core
+
+- The ~6,500 lines duplicated across five MCP repos now live once in `paracore/mcp/`; each MCP supplies only its `Domain`. **`paracore-gen` v2.1.0 is 8,393 lines smaller** for it
 
 ### Desktop app
 
-- **REPL font scaling** — `Ctrl`/`Cmd` + `+` / `-` / `0`, 11–32 px, persisted
-- **Panel orientation** — stacked or side-by-side (`Ctrl+Shift+O`)
-- **Honest run duration** — the "took Ns" entry stays with the run it describes
-- **Per-script file-dialog filters** — a script declaring `[OutputFile("pdf")]` gets a PDF filter
-- **Sentinels are no longer hidden** from free users
-
-### VS Code extension
-
-- Build ported to PowerShell (`build-extension.ps1`); bundled AI instructions move to `ai/vscode/`
+- Theming collapsed to **light + dark** (Eclipse); toasts and Monaco follow the app, not the OS
 
 ### Docs & tooling
 
-- **One authority for the agent-facing docs** (`ai/`) delivered by progressive disclosure — always-loaded context drops 94 %
-- **Generated docs and proto gates** — `gen-ext-methods.py`, `gen-engine-docs.py`, `gen-protos.py`, `gen-ai-workspace.py`
-- **`dev.ps1`**, a canonical `.gitignore`, and `PROJECT_SPEC.md`
+- `check-skill-snippets.py` compiles every skill fence in the host its shape needs; `check-memory-budget.py`; a `.githooks/pre-commit` that syncs the wire contract
+- The engine-doc authority moved to `paracore`
 
 ### Versioning
 
-- **4.7.0 → 4.8.0** — engine, add-in, desktop app and extension version as **one unit**; `VERSION` is the authority and `scripts/Set-Version.ps1 -Check` is the gate
-- ⚠ `v4.8.0` does not descend from the published `v4.7.0` tag — see the note in the full notes
+- **4.8.0 → 4.8.1** — engine, add-in, desktop app and extension version as **one unit**; `VERSION` is the authority
+- Ships with **Paracore-Gen v2.1.0**; the two are released together
