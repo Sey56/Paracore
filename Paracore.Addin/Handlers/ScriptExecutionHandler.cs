@@ -71,17 +71,22 @@ namespace Paracore.Addin.Handlers
             }
 
             // ── Session gate (one-time per Revit session) ──
-            bool approved = await CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext<bool>(() =>
-            {
-                return SessionGate.EnsureApproved(request.Source ?? "paracore");
-            });
+            // ⚠ Returns a Decision, not a bool (2026-10-25): the caller must be able to tell
+            //   "a person allowed this session" from "there was no gate at all" — see
+            //   SessionGate.Decision. `gate.Status` is reported on every response below.
+            SessionGate.Decision gate = await CoreScriptExecutionDispatcher.Instance
+                .ExecuteInUIContext<SessionGate.Decision>(() =>
+                {
+                    return SessionGate.EnsureApproved(request.Source ?? "paracore");
+                });
 
-            if (!approved)
+            if (!gate.Approved)
                 return new ExecuteScriptResponse
                 {
                     IsSuccess = false,
                     ErrorMessage = "Code execution denied for this Revit session. Restart Revit to reset.",
-                    UserRejected = true
+                    UserRejected = true,
+                    SessionConsent = gate.Status
                 };
 
             var serverContext = new ServerContext(_uiApp);
@@ -143,6 +148,7 @@ namespace Paracore.Addin.Handlers
                         IsSuccess = false,
                         ErrorMessage = "⛔ Confirmation could not be verified — nothing was executed.",
                         UserRejected = true,
+                        SessionConsent = gate.Status,
                         Confirmation = ConfirmationStatus.Unavailable
                     };
                 }
@@ -178,6 +184,7 @@ namespace Paracore.Addin.Handlers
                             IsSuccess = false,
                             ErrorMessage = "⛔ Confirmation declined — nothing was executed.",
                             UserRejected = true,
+                            SessionConsent = gate.Status,
                             Confirmation = ConfirmationStatus.UserDeclined
                         };
                     }
@@ -273,6 +280,9 @@ namespace Paracore.Addin.Handlers
                 ErrorMessage = finalResult.ErrorMessage ?? "",
                 // ⚠ Set on EVERY path out of this method that reaches the gate — see ConfirmationStatus.
                 Confirmation = confirmationStatus,
+                // ⚠ Same rule for the session gate: a caller must be able to tell a run a PERSON
+                //   approved from a run with no gate at all — see SessionGate.Decision.
+                SessionConsent = gate.Status,
             };
 
             if (finalResult.ErrorDetails != null)

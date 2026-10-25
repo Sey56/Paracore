@@ -42,17 +42,22 @@ namespace Paracore.Addin.Handlers
         public async Task<ExecuteReplResponse> ExecuteRepl(ExecuteReplRequest request)
         {
             // ── Layer 1: Session gate (one-time per Revit session) ──
-            bool approved = await CoreScriptExecutionDispatcher.Instance.ExecuteInUIContext<bool>(() =>
-            {
-                return SessionGate.EnsureApproved(request.Source ?? "paracore");
-            });
+            // ⚠ Returns a Decision, not a bool (2026-10-25): the caller must be able to tell
+            //   "a person allowed this session" from "there was no gate at all" — see
+            //   SessionGate.Decision. `gate.Status` is reported on every response below.
+            SessionGate.Decision gate = await CoreScriptExecutionDispatcher.Instance
+                .ExecuteInUIContext<SessionGate.Decision>(() =>
+                {
+                    return SessionGate.EnsureApproved(request.Source ?? "paracore");
+                });
 
-            if (!approved)
+            if (!gate.Approved)
                 return new ExecuteReplResponse
                 {
                     IsSuccess = false,
                     ErrorMessage = "Code execution denied for this Revit session. Restart Revit to reset.",
-                    UserRejected = true
+                    UserRejected = true,
+                    SessionConsent = gate.Status
                 };
 
             // ── Layer 2: Read-only enforcement for exploration ──
@@ -63,7 +68,8 @@ namespace Paracore.Addin.Handlers
                     {
                         IsSuccess = false,
                         ErrorMessage = "Read-only violation: exploration code contains write operations. Use execute_dynamic_query for writes.",
-                        ReadOnlyViolation = true
+                        ReadOnlyViolation = true,
+                        SessionConsent = gate.Status
                     };
             }
 
@@ -84,7 +90,10 @@ namespace Paracore.Addin.Handlers
                 {
                     IsSuccess = isSuccess,
                     Output = output,
-                    ErrorMessage = error
+                    ErrorMessage = error,
+                    // ⚠ Reported on the success path too — "a person allowed this" and "no gate
+                    //   at all" must not look alike to the caller. See SessionGate.Decision.
+                    SessionConsent = gate.Status
                 };
 
                 if (context.PipelineDiagnostics != null)
@@ -119,7 +128,8 @@ namespace Paracore.Addin.Handlers
                 return new ExecuteReplResponse
                 {
                     IsSuccess = false,
-                    ErrorMessage = ex.Message
+                    ErrorMessage = ex.Message,
+                    SessionConsent = gate.Status
                 };
             }
         }

@@ -60,7 +60,17 @@ namespace Paracore.Addin.Handlers
                 DocumentTitle = documentTitle ?? "",
                 DocumentType = documentType,
                 RevitInstallPath = App.ParacoreApp.RevitInstallPath,
-                AddinServerPath = System.IO.Path.GetDirectoryName(typeof(App.ParacoreApp).Assembly.Location) ?? ""
+                AddinServerPath = System.IO.Path.GetDirectoryName(typeof(App.ParacoreApp).Assembly.Location) ?? "",
+                // ⚠⚠ THE SESSION GATE, ANSWERED WITHOUT EXECUTING ANYTHING (2026-10-25).
+                //   The gate is per SESSION, not per MCP: once one MCP's operator grants it,
+                //   every MCP may run. But a second MCP process has no way to KNOW that — it
+                //   would assume "ungated", cap its first call at the consent wait, and blame
+                //   a consent dialog for a timeout that was really a long automation. So the
+                //   state is published here and any MCP reads it instead of guessing.
+                //   ⚠ GetStatus must NEVER be moved onto the Revit UI thread: it is queried
+                //   WHILE a consent dialog is modal, and a UI-thread hop would block behind
+                //   the very dialog it is reporting. Today it only reads a cached reference.
+                SessionConsent = Paracore.Addin.Services.SessionGate.CurrentStatus
             };
 
             _logger.Log($"[ContextHandler] Revit Status: Open={revitOpen}, Version={revitVersion}, DocOpen={documentOpen}, DocTitle='{documentTitle}', DocType={documentType}.", LogLevel.Debug);
