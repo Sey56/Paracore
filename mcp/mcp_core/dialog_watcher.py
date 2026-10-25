@@ -178,6 +178,31 @@ DENY_TITLES = {
     "manage links", "manage images", "keyboard shortcuts",
 }
 
+# ⚠⚠ DIALOGS THAT BELONG TO THE HUMAN — never answered, by ANY rule.
+#   The agent-consent gate (Paracore.Addin/Services/SessionGate.cs) exists for exactly
+#   one reason: to STOP and ask a person whether an AI agent may execute code in this
+#   Revit session. The watcher exists to unblock calls stuck behind Revit's own
+#   warnings — so answering the consent gate defeats the gate. A control that approves
+#   itself is worse than no control, because the docs sell it as a boundary.
+#   ⚠ MEASURED 2026-10-25 17:59 — the watcher pressed OK on this dialog
+#     (buttons=['OK','Cancel'], rule 2 "warning-style") and the session was approved
+#     with no human in the loop. Same again at 2026-10-23 11:28.
+#   ⚠ Matched as a SUBSTRING of the window title: Revit prefixes the app name, so the
+#     caption on screen is "Paracore - Paracore — AI Agent Code Execution".
+#   ⚠ This is the SECOND line of defence, not the first. SessionGate.cs already makes
+#     its captions disjoint from KEEP_LABELS/DISCARD_LABELS so the button test cannot
+#     match at all — but a caption survives only as long as nobody "tidies" it, and a
+#     stale installed add-in still offers OK/Cancel. Both layers are cheap; keep both.
+#   ⚠ A title can be renamed too: `scripts/check-sessiongate-labels.py` FAILS when the
+#     add-in's title no longer matches any marker here.
+HUMAN_ONLY_MARKERS = ("ai agent code execution",)
+
+
+def is_human_only(dlg):
+    """True when this dialog must be answered by a person, never by the watcher."""
+    title = (dlg.get("title") or "").strip().lower()
+    return any(m in title for m in HUMAN_ONLY_MARKERS)
+
 
 # ---------------------------------------------------------------------------
 # THE IN-FLIGHT GATE — the watcher may ONLY answer a dialog OUR OWN call is on
@@ -699,6 +724,16 @@ def _loop(mutex_handle) -> None:
                     if hwnd in _handled:
                         continue
                     _handled.add(hwnd)
+
+                # ⚠⚠ THE CONSENT GATE IS NOT OURS TO ANSWER — see HUMAN_ONLY_MARKERS.
+                #   Left alone, and said once, so a call parked behind it is
+                #   explainable instead of looking like a hang. The dialog is modal on
+                #   Revit's UI thread, so the in-flight call waits for the human — which
+                #   is the whole point of the gate.
+                if is_human_only(dlg):
+                    log("  LEFT FOR THE HUMAN: '%s' — the watcher will NOT answer it"
+                        % dlg["title"])
+                    continue
 
                 # ⚠ ONLY ONE PROCESS MAY ACT. Several Paracore MCPs can be running;
                 #   without this they would race and could answer twice.

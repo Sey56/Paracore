@@ -233,6 +233,16 @@ message ExecuteScriptResponse {
   //   "user_declined"  an agent run; the person declined (user_rejected is also true)
   //   "unavailable"    the [Confirm] requirements could not be read; the run was refused
   string confirmation = 10;
+  // ── Session gate: WHO answered "may an AI agent execute code in this Revit session?" ──
+  //   Reported on EVERY response, because "a person allowed this" and "there was no gate
+  //   at all" are otherwise indistinguishable to the caller — the same ambiguity the
+  //   `confirmation` field above was added to remove, one gate over. Values:
+  //     ""                the gate was never reached (the run failed before it)
+  //     "not_required"    not an agent run (manual REPL / Gallery / Playlist)
+  //     "granted"         the dialog was shown THIS call and a person clicked Allow
+  //     "already_granted" a person allowed it earlier in this session (no dialog this call)
+  //     "denied"          a person clicked Block — nothing executed
+  string session_consent = 11;
 }
 
 message GetStatusRequest {
@@ -252,6 +262,19 @@ message GetStatusResponse {
   // missing here. Regenerating the stub from this file would have silently dropped it. The
   // proto is the authority; the stub and the consumer agreed with each other and not with it.
   bool is_pro = 9;
+
+  // ⚠⚠ THE SESSION GATE, READABLE WITHOUT ASKING FOR CODE EXECUTION (2026-10-25).
+  //   The gate latches ONCE per Revit session and covers EVERY agent — gen, model,
+  //   family, forge — but each MCP process can otherwise only learn it from a response
+  //   it happens to receive. Without this field a SECOND MCP starts out believing the
+  //   session is ungated, caps its first call as if a consent dialog might appear, and
+  //   then blames the dialog for a timeout that was really a long automation.
+  //   Values mirror SessionGate.SessionConsent: "unsettled" (no decision yet) /
+  //   "granted" / "denied". A non-agent caller sees the same value — the state is a
+  //   property of the SESSION, not of the caller.
+  //   ⚠ GetStatus must stay OFF the Revit UI thread: it is queried WHILE a consent
+  //   dialog is modal, so a UI-thread hop would block behind the dialog it reports.
+  string session_consent = 10;
 }
 
 message GetScriptMetadataRequest {
@@ -488,6 +511,7 @@ message ExecuteReplResponse {
   repeated int32 pipeline_diagnostics = 5;
   bool user_rejected = 6;        // session gate: user clicked Reject
   bool read_only_violation = 7;  // read_only code contained write operations
+  string session_consent = 8;    // session gate — see ExecuteScriptResponse.session_consent
 }
 
 // ---------------------------------------------------------------------------

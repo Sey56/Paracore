@@ -279,7 +279,7 @@ class StructuredOutputItem(_message.Message):
     def __init__(self, type: _Optional[str] = ..., data: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
 
 class ExecuteScriptResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "internal_data", "agent_summary", "pipeline_diagnostics", "user_rejected", "confirmation")
+    __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "internal_data", "agent_summary", "pipeline_diagnostics", "user_rejected", "confirmation", "session_consent")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -290,6 +290,7 @@ class ExecuteScriptResponse(_message.Message):
     PIPELINE_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     USER_REJECTED_FIELD_NUMBER: _ClassVar[int]
     CONFIRMATION_FIELD_NUMBER: _ClassVar[int]
+    SESSION_CONSENT_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
@@ -300,14 +301,15 @@ class ExecuteScriptResponse(_message.Message):
     pipeline_diagnostics: _containers.RepeatedScalarFieldContainer[int]
     user_rejected: bool
     confirmation: str
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., internal_data: _Optional[str] = ..., agent_summary: _Optional[str] = ..., pipeline_diagnostics: _Optional[_Iterable[int]] = ..., user_rejected: bool = ..., confirmation: _Optional[str] = ...) -> None: ...
+    session_consent: str
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., error_details: _Optional[_Iterable[str]] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., internal_data: _Optional[str] = ..., agent_summary: _Optional[str] = ..., pipeline_diagnostics: _Optional[_Iterable[int]] = ..., user_rejected: bool = ..., confirmation: _Optional[str] = ..., session_consent: _Optional[str] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class GetStatusResponse(_message.Message):
-    __slots__ = ("paracore_connected", "revit_open", "revit_version", "document_open", "document_title", "document_type", "revit_install_path", "addin_server_path", "is_pro")
+    __slots__ = ("paracore_connected", "revit_open", "revit_version", "document_open", "document_title", "document_type", "revit_install_path", "addin_server_path", "is_pro", "session_consent")
     PARACORE_CONNECTED_FIELD_NUMBER: _ClassVar[int]
     REVIT_OPEN_FIELD_NUMBER: _ClassVar[int]
     REVIT_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -317,6 +319,7 @@ class GetStatusResponse(_message.Message):
     REVIT_INSTALL_PATH_FIELD_NUMBER: _ClassVar[int]
     ADDIN_SERVER_PATH_FIELD_NUMBER: _ClassVar[int]
     IS_PRO_FIELD_NUMBER: _ClassVar[int]
+    SESSION_CONSENT_FIELD_NUMBER: _ClassVar[int]
     paracore_connected: bool
     revit_open: bool
     revit_version: str
@@ -326,7 +329,8 @@ class GetStatusResponse(_message.Message):
     revit_install_path: str
     addin_server_path: str
     is_pro: bool
-    def __init__(self, paracore_connected: bool = ..., revit_open: bool = ..., revit_version: _Optional[str] = ..., document_open: bool = ..., document_title: _Optional[str] = ..., document_type: _Optional[str] = ..., revit_install_path: _Optional[str] = ..., addin_server_path: _Optional[str] = ..., is_pro: bool = ...) -> None: ...
+    session_consent: str
+    def __init__(self, paracore_connected: bool = ..., revit_open: bool = ..., revit_version: _Optional[str] = ..., document_open: bool = ..., document_title: _Optional[str] = ..., document_type: _Optional[str] = ..., revit_install_path: _Optional[str] = ..., addin_server_path: _Optional[str] = ..., is_pro: bool = ..., session_consent: _Optional[str] = ...) -> None: ...
 
 class GetScriptMetadataRequest(_message.Message):
     __slots__ = ("script_files",)
@@ -705,7 +709,7 @@ class ExecuteReplRequest(_message.Message):
     def __init__(self, code: _Optional[str] = ..., session_id: _Optional[str] = ..., license_tier: _Optional[str] = ..., execution_mode: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...
 
 class ExecuteReplResponse(_message.Message):
-    __slots__ = ("is_success", "output", "error_message", "structured_output", "pipeline_diagnostics", "user_rejected", "read_only_violation")
+    __slots__ = ("is_success", "output", "error_message", "structured_output", "pipeline_diagnostics", "user_rejected", "read_only_violation", "session_consent")
     IS_SUCCESS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -713,6 +717,7 @@ class ExecuteReplResponse(_message.Message):
     PIPELINE_DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     USER_REJECTED_FIELD_NUMBER: _ClassVar[int]
     READ_ONLY_VIOLATION_FIELD_NUMBER: _ClassVar[int]
+    SESSION_CONSENT_FIELD_NUMBER: _ClassVar[int]
     is_success: bool
     output: str
     error_message: str
@@ -720,7 +725,8 @@ class ExecuteReplResponse(_message.Message):
     pipeline_diagnostics: _containers.RepeatedScalarFieldContainer[int]
     user_rejected: bool
     read_only_violation: bool
-    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., pipeline_diagnostics: _Optional[_Iterable[int]] = ..., user_rejected: bool = ..., read_only_violation: bool = ...) -> None: ...
+    session_consent: str
+    def __init__(self, is_success: bool = ..., output: _Optional[str] = ..., error_message: _Optional[str] = ..., structured_output: _Optional[_Iterable[_Union[StructuredOutputItem, _Mapping]]] = ..., pipeline_diagnostics: _Optional[_Iterable[int]] = ..., user_rejected: bool = ..., read_only_violation: bool = ..., session_consent: _Optional[str] = ...) -> None: ...
 
 class GetReplCompletionsRequest(_message.Message):
     __slots__ = ("code", "caret_offset", "session_id")

@@ -201,6 +201,24 @@ def busy_message(exc: RevitBusy) -> str:
 
 # ── Shared messages ───────────────────────────────────────────────────────
 
+# ⚠⚠ TWO DIFFERENT "THE HUMAN SAID NO"s arrive as the same `user_rejected` flag:
+#   the SESSION gate (a person clicked Block on the one-time dialog) and the
+#   [Confirm("WORD")] gate (a person declined the word). They need different advice,
+#   so they are told apart by `session_consent` / `confirmation` — never by guessing
+#   from the text. USER_REJECTED_MSG stays as the fallback for an engine too old to
+#   report either, where the honest answer is that we do not know which one it was.
+SESSION_DENIED_MSG = (
+    "⛔ The operator DENIED agent code execution for this Revit session.\n"
+    "Nothing was executed. This is a human decision, not a fault — do not retry it and do "
+    "not try to work around it. The block stands until Revit is restarted, and only the "
+    "person at the machine can approve it."
+)
+
+CONFIRM_DECLINED_MSG = (
+    "⛔ The operator declined the confirmation this script requires, so nothing was "
+    "executed. Ask them whether to run it again, and only if they agree."
+)
+
 USER_REJECTED_MSG = (
     "Code execution denied for this Revit session. "
     "Open Revit and approve the one-time session dialog, or restart Revit to reset."
@@ -238,6 +256,24 @@ def validate_csharp(csharp_code: str) -> str | None:
     return None
 
 
+def _consent_note(result: dict) -> str:
+    """One line stating WHO allowed this run — or that no gate was involved.
+
+    ⚠⚠ WHY (2026-10-25): without this a caller could not tell "a person approved agent
+    execution for this Revit session" from "there was no gate at all" — both came back as
+    a plain success. MEASURED: the operator clicked Allow on the session dialog and the
+    tool result said nothing whatsoever about it; the only way to know was to ask them.
+    """
+    consent = (result.get("session_consent") or "").strip()
+    if consent == "granted":
+        return ("\n\n🔓 Session consent: the operator ALLOWED agent code execution for this "
+                "Revit session — they saw the dialog and clicked Allow.")
+    if consent == "already_granted":
+        return ("\n\n🔓 Session consent: already granted earlier in this Revit session, so "
+                "no dialog was shown for this call.")
+    return ""
+
+
 def handle_execution_result(result: dict, source_code: str = "") -> str:
     """Process a gRPC execution result dict into a user-facing string.
 
@@ -245,7 +281,14 @@ def handle_execution_result(result: dict, source_code: str = "") -> str:
     formatter so a compile failure can quote the offending line (see
     tool_helpers.format_execution_error).
     """
+    consent = (result.get("session_consent") or "").strip()
     if result.get("user_rejected"):
+        # ⚠ Two different human refusals share this flag — tell them apart by the
+        #   recorded reason, never by the text (see the message definitions above).
+        if consent == "denied":
+            return SESSION_DENIED_MSG
+        if (result.get("confirmation") or "") == "user_declined":
+            return CONFIRM_DECLINED_MSG
         return USER_REJECTED_MSG
     if result.get("read_only_violation"):
         err = result.get("error_message", "Unknown violation")
@@ -253,8 +296,8 @@ def handle_execution_result(result: dict, source_code: str = "") -> str:
             err = "; ".join(str(e) for e in err)
         return READ_ONLY_VIOLATION_MSG % err
     if result["is_success"]:
-        return summarize_execution_result(result) + _dialog_note()
-    return format_execution_error(result, source_code) + _dialog_note()
+        return summarize_execution_result(result) + _consent_note(result) + _dialog_note()
+    return format_execution_error(result, source_code) + _consent_note(result) + _dialog_note()
 
 
 # ── Tool implementations ───────────────────────────────────────────────────

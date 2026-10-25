@@ -327,7 +327,214 @@ def _build_parameter_dict(p, parse_value: bool = False) -> dict:
     return result
 
 
-def execute_script(script_content, parameters_json, compiled_assembly=None, source="Paracore"):
+# ═══════════════════════════════════════════════════════════════════════════════
+# THE SESSION-GATE DEADLINE POLICY — ONE rule, every gate-bearing MCP
+# ═══════════════════════════════════════════════════════════════════════════════
+# ⚠⚠ WHY A POLICY AT ALL (2026-10-25). The session gate is a Revit TaskDialog and
+#   `dialog.Show()` has NO timeout — it parks Revit's UI thread until a person clicks.
+#   Only a human can end that wait, so a deadline does NOT resolve the block: the
+#   dialog is still on screen afterwards. The deadline's ONLY job is to give the agent
+#   its voice back so it can say "there is a dialog on your screen, please answer it".
+#
+#   That leaves the ambiguity the operator raised (2026-10-25): DEADLINE_EXCEEDED can
+#   mean "the consent gate is waiting for a person" OR "the script is simply long", and
+#   the two need OPPOSITE responses (ask them to click vs. wait / raise the timeout).
+#
+#   ⚠ THE GATE SETTLES EXACTLY ONCE PER REVIT SESSION — granted or denied, then latched
+#   in the add-in (SessionGate.cs `_approved` / `_denied`). So the ambiguity can only
+#   exist BEFORE this process has seen its first response. After that a consent dialog
+#   can never appear again, and a timeout can only mean a long or blocked run. Hence:
+#
+#       consent unsettled  ->  CONSENT_WAIT_S        (a person has to read and click)
+#       consent settled    ->  the caller's deadline (behaviour unchanged)
+#
+#   ⚠ A timed-out call NEVER loses the decision: the click still lands and latches, so
+#     the NEXT call reports `granted` / `denied` immediately and for free.
+#
+#   ⚠⚠ CONSISTENCY IS THE REQUIREMENT (operator, 2026-10-25: "whatever you implement, it
+#     must be consistent across all MCP"). This file is the ONE home for the policy and
+#     gen / model / family / forge all import it — so there is no second copy to drift.
+#     ⚠ paracore-takeoff is EXEMPT BY SOURCE, not by omission: it sends `takeoff_mcp` /
+#     `takeoff_export`, which never contain AGENT_SOURCE_MARKER, so its calls are never
+#     capped and its explicit 180 s exports are untouched. That is correct — takeoff runs
+#     deterministic takeoff methods, never agent-generated code, so no gate can appear.
+CONSENT_WAIT_S = 60.0      # long enough to read a 4-line dialog, short enough to report
+DEFAULT_TIMEOUT_S = 120.0  # an ordinary agent call, once the gate is settled
+
+# ⚠ Mirrors `SessionGate.EnsureApproved`'s test (`source.Contains("agent")`) in
+#   Paracore.Addin/Services/SessionGate.cs. If that test ever changes, change this too.
+#   A mismatch here only ever costs a wrong DEADLINE, never a wrong permission.
+AGENT_SOURCE_MARKER = "agent"
+
+# ⚠⚠ TRI-STATE: None = never known, True = the session gate is settled, False = unsettled.
+#   It is a LAST-KNOWN cache, never the first answer.
+#   ⚠⚠ WHY IT MUST BE ASKED AND NOT ASSUMED (2026-10-25, operator): the gate is per
+#   SESSION, not per MCP — once one MCP's operator grants it, model / family / forge may
+#   all run with NO dialog. A per-process default of False got that wrong: a second MCP
+#   started out believing the session was ungated, capped its first call at
+#   CONSENT_WAIT_S, and then blamed a consent dialog for a timeout that was really a long
+#   automation. `_consent_state()` asks Revit instead, over GetStatus.
+_consent_settled = None
+
+
+def _is_agent_source(source):
+    """True when this call can hit the session gate (mirrors SessionGate.cs)."""
+    return AGENT_SOURCE_MARKER in (source or "").lower()
+
+
+def _consent_state():
+    """Ask Revit whether the session gate is settled — EVERY call — and fall back to cache.
+
+    Returns True (settled), False (unsettled) or None (never known and could not ask).
+
+    ⚠⚠ ASK EVERY CALL, NOT ONCE PER PROCESS (2026-10-25, forced by the operator's own
+    live test). The cached value describes a REVIT SESSION, but the MCP process OUTLIVES
+    it: close Revit and reopen it while the MCP server is still running and a cached
+    "granted" describes a session that no longer exists. The first call of the new session
+    would then get the long deadline and — on a timeout — be told "this is NOT the consent
+    dialog" WHILE the dialog is on screen. Exactly the misdiagnosis this whole policy
+    exists to prevent, one level up.
+    ⚠ MEASURED cost of asking: **22 ms**, taken against a modal consent dialog
+    (2026-10-25 20:48) — because `GetStatus` reads a cached UIApplication reference and
+    never hops to the Revit UI thread. That is what makes asking affordable.
+    ⚠ 2 s deadline: this must never become the thing that stalls the call it is pricing.
+    ⚠ On failure, fall back to the LAST KNOWN value rather than to "unknown": the execute
+    call that follows shares this channel, so if the ask fails the call is about to fail
+    too, and a stale answer is less disruptive than a spurious 60 s cap on a long run.
+    ⚠ An OLD installed add-in has no `session_consent` on GetStatus, so this stays None
+    and the caller takes the conservative cap — the Python half can therefore ship before
+    the add-in is reinstalled.
+    """
+    global _consent_settled
+    try:
+        with get_corescript_runner_stub() as stub:
+            response = stub.GetStatus(corescript_pb2.GetStatusRequest(), timeout=2)
+        state = (getattr(response, "session_consent", "") or "").strip()
+    except grpc.RpcError as e:
+        # Expected: Revit closed, or an add-in too old to know this RPC's new field.
+        logging.debug(f"Session-consent probe unavailable, keeping last known: {e}")
+        return _consent_settled
+    except Exception:
+        # ⚠ NOT silent, and NOT a bare `pass`. A probe must never break the call it is
+        #   diagnosing — but a bug here would otherwise hide: a wrong stub in the probe
+        #   harness raised TypeError on 2026-10-25 and the broad except made it look
+        #   exactly like "the installed add-in has no session_consent field".
+        logging.warning("Session-consent probe failed unexpectedly", exc_info=True)
+        return _consent_settled
+    if state in ("granted", "denied"):
+        _consent_settled = True
+    elif state == "unsettled":
+        _consent_settled = False
+    return _consent_settled
+
+
+def _note_consent(consent):
+    """Learn from a response whether the session gate is settled for good.
+
+    ⚠ `""` (NotEvaluated) proves nothing — the run failed before reaching the gate — so
+    it must NOT settle the flag, or the next call would be given the long deadline while
+    a dialog is still waiting for a person.
+    ⚠ `not_required` is deliberately NOT in the list either: it describes THIS CALLER
+    (a non-agent run), not the session, and a takeoff process must not be able to make
+    a later agent call skip the cap.
+    """
+    global _consent_settled
+    if (consent or "") in ("granted", "already_granted", "denied"):
+        _consent_settled = True
+
+
+def _reset_consent():
+    """Revit went away, so its session latch went with it — ASK again next time."""
+    global _consent_settled
+    _consent_settled = None
+
+
+def _deadline(requested, source, fallback):
+    """The gRPC deadline for ONE call.
+
+    `requested` wins whenever the caller passed one: only the caller knows how long its
+    own operation takes (takeoff exports pass 180 s, and that must not be capped).
+    """
+    if requested is not None:
+        return requested
+    # ⚠ `is not True` (not `not ...`) on purpose: BOTH "unsettled" and "could not tell"
+    #   must take the cap, and only an explicit True earns the long deadline.
+    if _is_agent_source(source) and _consent_state() is not True:
+        return CONSENT_WAIT_S
+    return fallback
+
+
+def _deadline_message(seconds, source):
+    """What to tell the agent when a call ran out of time.
+
+    ⚠ The two causes need OPPOSITE responses, and once the gate has settled only one of
+    them is possible — so name it instead of listing both (the old text made a 280 s
+    takeoff look like a hung Revit).
+    """
+    if not _is_agent_source(source):
+        # ⚠ THIRD BRANCH (2026-10-25): a caller that can NEVER hit the gate — takeoff —
+        #   must not be told "the consent gate is already settled", because its gate was
+        #   never consulted at all (`not_required`). Saying so would send the operator
+        #   hunting for a dialog that cannot exist.
+        return (
+            f"Revit did not answer within {seconds:.0f}s.\n\n"
+            "No consent gate is involved for this caller, so the cause is one of:\n"
+            "  - Revit is showing a dialog, or is otherwise blocked. Look at the Revit "
+            "window and clear it.\n"
+            "  - The operation is simply LONG. A full finishing takeoff measures ~280 s, "
+            "so it cannot fit inside a short deadline. This is a deadline miss, not a "
+            "failure.\n\n"
+            "IMPORTANT: this deadline does NOT stop the work. Revit runs it on its UI "
+            "thread and cannot be interrupted, so it may still be working and may still "
+            "finish — wait for Revit to become responsive again before doing anything "
+            "else.\n\n"
+            "DO NOT RETRY THIS CALL. Revit's API is single-threaded — a retry queues "
+            "behind the request that is still running and makes the stall worse. If the "
+            "operation is legitimately long, raise the timeout for that call instead of "
+            "re-sending it."
+        )
+    if not _consent_settled:
+        return (
+            f"Revit did not answer within {seconds:.0f}s.\n\n"
+            "MOST LIKELY THE SESSION CONSENT DIALOG: this is the first agent call of the "
+            "Revit session, so it may be waiting for a person to answer the Paracore "
+            "consent prompt. Nothing has executed yet.\n\n"
+            "Ask the operator to answer that dialog — Allow or Block. Do NOT re-send this "
+            "call while the dialog is still on screen: Revit's API is single-threaded and "
+            "the retry queues behind the block.\n\n"
+            "Then call again. That call is cheap and definitive, because the gate latches "
+            "its answer for the whole session: it returns `granted` / `already_granted` / "
+            "`denied` immediately and tells you exactly what they chose.\n\n"
+            "If the operator says NO dialog is on screen, then this call was simply long — "
+            "raise the timeout for it and re-send once."
+        )
+    return (
+        f"Revit did not answer within {seconds:.0f}s.\n\n"
+        "The consent gate is already settled for this session, so this is NOT the consent "
+        "dialog. Two remaining causes:\n"
+        "  - Revit is showing some other dialog, or is otherwise blocked. Look at the "
+        "Revit window and clear it.\n"
+        "  - The script is simply LONG. A full finishing takeoff measures ~280 s, so it "
+        "cannot fit inside a short deadline. This is a deadline miss, not a failure.\n\n"
+        "IMPORTANT: this deadline does NOT stop the script. Revit runs it on its UI thread "
+        "and cannot be interrupted, so it may still be working and may still finish — wait "
+        "for Revit to become responsive again before doing anything else.\n\n"
+        "DO NOT RETRY THIS CALL. Revit's API is single-threaded — a retry queues behind "
+        "the request that is still running and makes the stall worse. If the script is "
+        "legitimately long, raise the timeout for that call instead of re-sending it."
+    )
+
+
+def execute_script(script_content, parameters_json, compiled_assembly=None,
+                   source="Paracore", timeout=None):
+    """Run a compiled script bundle.
+
+    ⚠ `timeout=None` (the default) resolves through `_deadline`: an agent call made
+    before the consent gate is settled is capped at CONSENT_WAIT_S, and once settled it
+    is UNBOUNDED — which is exactly this function's historical behaviour, so the
+    rap-server UI path (source "Paracore", never an agent source) is unaffected.
+    """
+    timeout = _deadline(timeout, source, None)
     # logging.info("Attempting to execute script via gRPC.")
     with get_corescript_runner_stub() as stub:
         request = corescript_pb2.ExecuteScriptRequest(
@@ -337,11 +544,14 @@ def execute_script(script_content, parameters_json, compiled_assembly=None, sour
             source=source
         )
         try:
-            response = stub.ExecuteScript(request)
+            response = stub.ExecuteScript(request, timeout=timeout)
             # logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
             structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in response.structured_output]
             pipeline_diags = list(getattr(response, 'pipeline_diagnostics', []))
+            # ⚠ Learn the gate's state BEFORE returning, so the NEXT call can pick the
+            #   right deadline instead of guessing.
+            _note_consent(getattr(response, 'session_consent', ""))
 
             return {
                 "is_success": response.is_success,
@@ -359,9 +569,15 @@ def execute_script(script_content, parameters_json, compiled_assembly=None, sour
                 # installed engine whose stub predates the field — an AttributeError here would turn
                 # a missing diagnostic into a failed call.
                 "confirmation": getattr(response, 'confirmation', ""),
+                # ⚠ THE SESSION GATE — "a person allowed this Revit session" vs "there was no
+                #   gate at all". Same defensive getattr as `confirmation`: an OLDER installed
+                #   engine predates the field, and an AttributeError here would turn a missing
+                #   diagnostic into a failed call.
+                "session_consent": getattr(response, 'session_consent', ""),
             }
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.UNAVAILABLE:
+                _reset_consent()
                 return {
                     "is_success": False,
                     "output": "",
@@ -371,6 +587,24 @@ def execute_script(script_content, parameters_json, compiled_assembly=None, sour
                     "internal_data": "",
                     "user_rejected": False,
                     "confirmation": "",
+                    "session_consent": "",
+                }
+            if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+                # ⚠⚠ THIS BRANCH DID NOT EXIST BEFORE 2026-10-25, because this function had
+                #   no deadline at all: forge would block on an unanswered consent dialog
+                #   FOREVER. It must RETURN a dict, not raise — every `except grpc.RpcError`
+                #   here used to re-raise, so a new deadline would have reached forge as an
+                #   uncaught traceback instead of a message it can act on.
+                return {
+                    "is_success": False,
+                    "output": "",
+                    "error_message": _deadline_message(timeout, source),
+                    "error_details": [],
+                    "structured_output": [],
+                    "internal_data": "",
+                    "user_rejected": False,
+                    "confirmation": "",
+                    "session_consent": "",
                 }
             logging.error(format_grpc_error(e))
             raise # Re-raise the gRPC error
@@ -889,7 +1123,7 @@ def clear_assembly_cache():
 
 def execute_repl(code: str, session_id: str, license_tier: str = "free",
                  execution_mode: str = "read_write", source: str = "paracore",
-                 timeout: float = 120):
+                 timeout: float = None):
     """
     Calls the gRPC service to execute a REPL command in Revit.
 
@@ -899,14 +1133,18 @@ def execute_repl(code: str, session_id: str, license_tier: str = "free",
         license_tier: License tier string.
         execution_mode: "read_only" or "read_write" (default).
         source: Caller identifier — "mcp_agent", "paracore_agent", "paracore_ui", "paracore".
-        timeout: gRPC deadline in seconds. Bounded so a stuck Revit cannot block
-            a tool forever; callers running LONG jobs (e.g. the bundled
-            GetAllTakeoffs export) pass a larger value.
-            ⚠ The 120 s default is TOO SMALL for a full takeoff — MEASURED ~280 s
+        timeout: gRPC deadline in seconds. ⚠⚠ `None` (the default) is NOT "no deadline":
+            it means "apply the session-gate policy" — see `_deadline` above. An agent
+            call made before the consent gate is settled gets CONSENT_WAIT_S (a person
+            has to click); once settled it gets DEFAULT_TIMEOUT_S. Passing a number
+            always wins, for callers running LONG jobs (the bundled GetAllTakeoffs
+            export passes 180 s and must never be capped).
+            ⚠ DEFAULT_TIMEOUT_S is TOO SMALL for a full takeoff — MEASURED ~280 s
             (2026-09-30). A user-typed REPL command goes through
             rap-server's execute_repl_logic, which passes 600 s; keep that in
             mind before lowering anything here.
     """
+    timeout = _deadline(timeout, source, DEFAULT_TIMEOUT_S)
     try:
         with get_corescript_runner_stub() as stub:
             request = corescript_pb2.ExecuteReplRequest(
@@ -937,6 +1175,9 @@ def execute_repl(code: str, session_id: str, license_tier: str = "free",
                     response = stub.ExecuteRepl(request, timeout=timeout)
             structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in getattr(response, 'structured_output', [])]
             pipeline_diags = list(getattr(response, 'pipeline_diagnostics', []))
+            # ⚠ Learn the gate's state BEFORE returning, so the NEXT call can pick the
+            #   right deadline instead of guessing.
+            _note_consent(getattr(response, 'session_consent', ""))
             return {
                 "is_success": response.is_success,
                 "output": response.output,
@@ -945,45 +1186,33 @@ def execute_repl(code: str, session_id: str, license_tier: str = "free",
                 "pipeline_diagnostics": pipeline_diags,
                 "user_rejected": getattr(response, 'user_rejected', False),
                 "read_only_violation": getattr(response, 'read_only_violation', False),
+                # ⚠ Same contract as ExecuteScript — see the note there.
+                "session_consent": getattr(response, 'session_consent', ""),
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.UNAVAILABLE:
+            _reset_consent()
             return {"is_success": False, "output": "", "error_message": GRPC_UNAVAILABLE_MSG,
-                    "user_rejected": False, "read_only_violation": False}
+                    "user_rejected": False, "read_only_violation": False, "session_consent": ""}
         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-            # The old text said only "Revit did not respond… It is likely busy, or showing a
-            # modal dialog" — actively misleading when the script simply ran LONG. MEASURED
-            # 2026-09-30: a full finishing takeoff needs ~280 s (engine timings, of which
-            # collector-total is 273.3 s), so a 120 s deadline could never have returned it.
-            # The deadline also does NOT cancel the work: ReplHandler runs the script on the
-            # Revit UI thread and AddinBridgeService.RelayTaskAsync ignores CancellationToken,
-            # so Revit stays busy after this error appears.
+            # ⚠ The text is chosen by `_deadline_message`, NOT fixed here: the two causes
+            # need OPPOSITE responses, and once the consent gate has settled only one of
+            # them is still possible. A fixed message made a 280 s takeoff look like a
+            # hung Revit (MEASURED 2026-09-30 — the old text said only "likely busy, or
+            # showing a modal dialog").
+            # The deadline does NOT cancel the work either: ReplHandler runs the script on
+            # the Revit UI thread and AddinBridgeService.RelayTaskAsync ignores
+            # CancellationToken, so Revit stays busy after this error appears.
             return {"is_success": False, "output": "",
-                    "error_message": (
-                        f"Revit did not answer within {timeout:.0f}s.\n\n"
-                        "TWO DIFFERENT CAUSES — they need opposite responses:\n"
-                        "  - Revit is showing a dialog, or is otherwise blocked. Look at the "
-                        "Revit window and clear it.\n"
-                        "  - The script is simply LONG. A full finishing takeoff measures "
-                        "~280 s, so it cannot fit inside a short deadline. This is a deadline "
-                        "miss, not a failure.\n\n"
-                        "IMPORTANT: this deadline does NOT stop the script. Revit runs it on "
-                        "its UI thread and cannot be interrupted, so it may still be working "
-                        "and may still finish — wait for Revit to become responsive again "
-                        "before doing anything else.\n\n"
-                        "DO NOT RETRY THIS CALL. Revit's API is single-threaded — a retry queues "
-                        "behind the request that is still running and makes the stall worse. "
-                        "If the script is legitimately long, raise the timeout for that call "
-                        "instead of re-sending it."
-                    ),
-                    "user_rejected": False, "read_only_violation": False}
+                    "error_message": _deadline_message(timeout, source),
+                    "user_rejected": False, "read_only_violation": False, "session_consent": ""}
         logging.error(format_grpc_error(e))
         return {"is_success": False, "output": "", "error_message": f"gRPC Error: {e.details()}",
-                "user_rejected": False, "read_only_violation": False}
+                "user_rejected": False, "read_only_violation": False, "session_consent": ""}
     except Exception as e:
         logging.error(f"Error calling ExecuteRepl gRPC: {e}")
         return {"is_success": False, "output": "", "error_message": str(e),
-                "user_rejected": False, "read_only_violation": False}
+                "user_rejected": False, "read_only_violation": False, "session_consent": ""}
 
 
 def get_repl_completions(code: str, caret_offset: int, session_id: str = "global",
