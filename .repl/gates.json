@@ -1,0 +1,410 @@
+{
+  "//": "GATE MANIFEST — read by .repl/gate.py. One row per instrument that protects something.",
+  "//path": "path is relative to the WORKSPACE ROOT (the folder that holds paracore/, paracore-gen/, ...), not to paracore/.",
+  "//cwd": "cwd is the directory the gate must run in. Set to what was MEASURED to work, not what looks right.",
+  "//python": "'auto' = the interpreter running gate.py. Any other value is a key in gate.py's VENVS table.",
+  "//runs": "'auto' = runs unattended in every gate run. 'manual' = declared but NOT run, and why_not_auto must say why.",
+  "//known_red": "An allowance. Requires why + remedy + blocked_by + owner. It is CLEARED (and the run FAILS) the moment the gate goes green, so a stale allowance cannot survive.",
+  "version": 1,
+
+  "gates": [
+    {
+      "id": "retired-refs",
+      "path": "paracore/scripts/check-retired-refs.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": ["--all"],
+      "runs": "auto",
+      "timeout": 300,
+      "protects": "No tracked file still names a symbol we removed (RETIRED.md). This is the gate that makes a removal actually finish.",
+      "known_red": null
+    },
+    {
+      "id": "memory-budget",
+      "path": "paracore/scripts/check-memory-budget.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 120,
+      "protects": "The injected MEMORY.md fits its own stated budget, its end sentinel is intact, and every APPENDIX anchor it cites resolves.",
+      "known_red": null
+    },
+    {
+      "id": "skill-snippets",
+      "path": "paracore/scripts/check-skill-snippets.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 600,
+      "protects": "Every ```csharp fence in every MCP skill tree still COMPILES. A skill is prose that nothing else type-checks, so a bad recipe otherwise costs every agent that follows it.",
+      "known_red": null
+    },
+    {
+      "id": "ai-tree",
+      "path": "paracore/.repl/_ai_tree_check.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 120,
+      "protects": "The generated AI instruction tree still carries every rule from paracore/ai/ — a regeneration must not silently drop one.",
+      "known_red": null
+    },
+    {
+      "id": "api-surface",
+      "path": "paracore/.repl/_api_surface_check.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 120,
+      "protects": "The chart/REPL API surface the engine promises still exists after a refactor.",
+      "known_red": null
+    },
+    {
+      "id": "ext-audit",
+      "path": "paracore/.repl/_ext_method_audit.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 180,
+      "protects": "Every extension method the engine actually declares is documented in EXTENSION_METHODS.md — an undocumented member is invisible to the AI.",
+      "known_red": null
+    },
+    {
+      "id": "ext-gen-trust",
+      "path": "paracore/.repl/verify_ext_method_gen.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 300,
+      "protects": "The generated EXTENSION_METHODS index is DERIVED from source, not hand-edited — a second parser must agree, and a mutation must be picked up.",
+      "known_red": {
+        "id": "F2",
+        "why": "Section 4 (DLL freshness) fails: the installed CoreScript.Engine.dll is 2026-10-27 21:18:33, the newest committed engine source is commit 7933bed0 at 22:03:46. The index cannot be checked against an assembly that predates the source it describes. Same root cause as F3 and F4.",
+        "remedy": "Rebuild the engine and run install-engine.cmd with Revit CLOSED, then re-run the gate.",
+        "blocked_by": "install-engine.cmd is ACL-protected and must be run by the user with Revit shut down.",
+        "owner": "user"
+      }
+    },
+    {
+      "id": "gen-docs",
+      "path": "paracore/.repl/verify_gen_docs.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 180,
+      "protects": "The shipped copies of the generated engine docs match what gen-engine-docs.py produces — no hand-edit drift.",
+      "known_red": null
+    },
+    {
+      "id": "hover-docs",
+      "path": "paracore/.repl/_hover_doc_check.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 120,
+      "protects": "Every REPL hover doc PARSES and loses no word. A self-closing <see cref=\"X\"/> inside a <summary> contributes no text, so the tooltip silently reads a word short.",
+      "known_red": {
+        "id": "F1",
+        "why": "ScriptApi.cs:375 (the TryResolveId summary) uses <see cref=\"Element.Name\"/> self-closing, so the hover reads 'matching only  and the magic identity' — the words 'Element.Name' are missing from what the AI is shown.",
+        "remedy": "In CoreScript.Engine/Globals/ScriptApi.cs, change <see cref=\"Element.Name\"/> to <see cref=\"Element.Name\">Element.Name</see>. Text only, no behaviour change.",
+        "blocked_by": "CoreScript.Engine/ is off-limits since 2026-10-14 without the user's explicit go-ahead, and the user has parked engine work.",
+        "owner": "user"
+      }
+    },
+    {
+      "id": "sentinel-surface",
+      "path": "paracore/.repl/_sentinel_surface_check.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 120,
+      "protects": "The sentinel (watchdog) surface is taught exactly where a script can write it, and is invisible everywhere else.",
+      "known_red": null
+    },
+    {
+      "id": "mcp-engine-drift",
+      "path": "paracore/.repl/_mcp_engine_drift.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 180,
+      "protects": "No MCP prompt or skill teaches a Paracore method the engine does not have. The MCPs reach Revit over gRPC, so this coupling is TEXT and the compiler can never see it.",
+      "known_red": null
+    },
+    {
+      "id": "sessiongate-labels",
+      "path": "paracore/scripts/check-sessiongate-labels.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 60,
+      "protects": "The SessionGate consent dialog stays INVISIBLE to the modal-dialog watcher — its button labels must never intersect the watcher's KEEP/DISCARD sets.",
+      "known_red": null
+    },
+    {
+      "id": "unit-display-parity",
+      "path": "paracore/scripts/check-unit-display-parity.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 60,
+      "protects": "Every unit the engine CONVERTS also has a canonical DISPLAY suffix. Two hand-maintained switches over one vocabulary; one can drift.",
+      "known_red": null
+    },
+    {
+      "id": "installed-addin",
+      "path": "paracore/scripts/check-installed-addin.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 60,
+      "protects": "The add-in Revit will actually load is the build on disk. Every conclusion drawn from a running Revit is worthless if it was drawn against an older build.",
+      "known_red": {
+        "id": "F3",
+        "why": "Installed add-in (2026-10-27 21:05:14) and engine (21:18:33) match NO current build output: 'installed does NOT match any current build (add-in: Release publish, engine: no match)'. Same root cause as F2 and F4.",
+        "remedy": "Rebuild, then run install-engine.cmd with Revit CLOSED so the installed pair becomes the current pair.",
+        "blocked_by": "install-engine.cmd is ACL-protected and must be run by the user with Revit shut down.",
+        "owner": "user"
+      }
+    },
+    {
+      "id": "mcp-exes",
+      "path": "paracore/scripts/check-mcp-exes.py",
+      "cwd": "paracore",
+      "python": "gen",
+      "args": [],
+      "runs": "auto",
+      "timeout": 180,
+      "protects": "The frozen MCP exes contain the CURRENT mcp_core. An exe is a frozen snapshot: a .py edit does nothing until it is rebuilt AND installed, and nothing errors.",
+      "known_red": {
+        "id": "F4",
+        "why": "Every MCP exe predates the current shared mcp_core — tool_helpers.py, tools.py, summarizer.py and server.py all report 'sentinel absent' in paracore-family.exe, paracore-model.exe and paracore-takeoff.exe. Same root cause as F2 and F3.",
+        "remedy": "Rebuild each stale exe with its build-*.ps1, then install the rebuilt copies.",
+        "blocked_by": "Rebuilding the MCP exes is part of the parked release work, and the install step is the user's.",
+        "owner": "user"
+      }
+    },
+    {
+      "id": "workspace-map",
+      "path": "paracore-ecosystem/verify-workspace.py",
+      "cwd": ".",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 180,
+      "protects": "WORKSPACE_MAP.md matches what is actually on disk and what the remotes actually hold. A map nothing checks is a map that lies.",
+      "known_red": {
+        "id": "F5",
+        "why": "paracore-business and paracore-gallery are each 1 commit ahead of origin. The commits made on 2026-10-27 exist only on this machine.",
+        "remedy": "Push the two repos, or confirm the commits are meant to stay local.",
+        "blocked_by": "Pushing is the user's call; nothing was pushed when the 2026-10-27 commits were made.",
+        "owner": "user"
+      }
+    },
+    {
+      "id": "gallery-policy",
+      "path": "paracore-gallery/tools/check-file-policy.py",
+      "cwd": ".",
+      "python": "auto",
+      "args": [],
+      "runs": "auto",
+      "timeout": 120,
+      "protects": "Every gallery script obeys the pack file policy, and the policy's own canaries still fire.",
+      "known_red": null
+    },
+
+    {
+      "id": "baseline",
+      "path": "paracore/.repl/baseline.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "A capture/diff pair over the live takeoff output, so a change to one section is provable not to have moved any other.",
+      "why_not_auto": "Needs a LIVE Revit session with the engine add-in loaded; there is no model to read otherwise.",
+      "known_red": null
+    },
+    {
+      "id": "section-scope-tests",
+      "path": "paracore/.repl/run_section_scope_tests.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "Runs a test file's bodies without a pytest SESSION (a pytest run rotates %TEMP% and is a delete).",
+      "why_not_auto": "Takes a test file as an argument; a bare run has nothing to prove, so it must not be counted as green.",
+      "known_red": null
+    },
+    {
+      "id": "sentinel-teeth",
+      "path": "paracore/.repl/_sentinel_surface_teeth.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "Proves the sentinel-surface gate can actually FAIL, by mutating the real file and restoring it byte-for-byte.",
+      "why_not_auto": "It MUTATES the real tree. Run it deliberately after changing the sentinel surface, never in a batch.",
+      "known_red": null
+    },
+    {
+      "id": "compliance",
+      "path": "paracore/.repl/check_compliance.py",
+      "cwd": "paracore",
+      "python": "auto",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "Runs the MCP's own anti-pattern checks over a C# file, so a probe is fixed before it is sent.",
+      "why_not_auto": "Takes .cs paths. It is a per-file linter, not a repo-wide assertion.",
+      "known_red": null
+    },
+    {
+      "id": "gen-bundled-prompts",
+      "path": "paracore-gen/spikes/verify_bundled_prompts.py",
+      "cwd": "paracore-gen",
+      "python": "gen",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "Every prompt the assembler reads at runtime is actually inside the frozen exe.",
+      "why_not_auto": "Needs <exe> <prompts_dir>. A bare run prints usage and exits 0, so treating it as an auto gate would report green while checking nothing.",
+      "known_red": null
+    },
+    {
+      "id": "gen-bundled-skills",
+      "path": "paracore-gen/spikes/verify_bundled_skills.py",
+      "cwd": "paracore-gen",
+      "python": "gen",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "All nine skills are inside the frozen exe, so read_skill() cannot answer 'No skill named ...'.",
+      "why_not_auto": "Needs the built exe path; it is invoked by build-gen.ps1 after the build.",
+      "known_red": null
+    },
+    {
+      "id": "gen-export-view",
+      "path": "paracore-gen/spikes/verify_export_view.py",
+      "cwd": "paracore-gen",
+      "python": "gen",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "The export_view tool survives FastMCP decoration with its -> Image annotation intact.",
+      "why_not_auto": "Imports mcp_server.py, which needs the build venv AND the built exe; it is a build-time spike.",
+      "known_red": null
+    },
+    {
+      "id": "gen-lint-narrowing",
+      "path": "paracore-gen/spikes/verify_lint_narrowing.py",
+      "cwd": "paracore-gen",
+      "python": "gen",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "The FilteredElementCollector / get_Parameter lint narrowing does not fire on correct family-authoring code.",
+      "why_not_auto": "A one-off regression probe for a 2026-10-02 change; it has no pass/fail contract to assert on every run.",
+      "known_red": null
+    },
+    {
+      "id": "family-bundled-prompts",
+      "path": "paracore-family/spikes/verify_bundled_prompts.py",
+      "cwd": "paracore-family",
+      "python": "family",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "The family MCP's runtime prompts are inside its frozen exe.",
+      "why_not_auto": "Needs the built exe path; invoked by build-family.ps1 after the build.",
+      "known_red": null
+    },
+    {
+      "id": "model-bundled-modules",
+      "path": "paracore-model/spikes/verify_bundled_modules.py",
+      "cwd": "paracore-model",
+      "python": "model",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "spec_preview and drawing_reader — both imported INSIDE a function body — are actually in the frozen exe. That is exactly the shape PyInstaller drops without failing the build.",
+      "why_not_auto": "Needs the built exe path; invoked by build-model.ps1 after the build.",
+      "known_red": null
+    },
+    {
+      "id": "model-bundled-prompts",
+      "path": "paracore-model/spikes/verify_bundled_prompts.py",
+      "cwd": "paracore-model",
+      "python": "model",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "The model MCP's runtime prompts are inside its frozen exe.",
+      "why_not_auto": "Needs the built exe path; invoked by build-model.ps1 after the build.",
+      "known_red": null
+    },
+    {
+      "id": "model-raster-teeth",
+      "path": "paracore-model/spikes/prove_raster_gate_teeth.py",
+      "cwd": "paracore-model",
+      "python": "model",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "Proves the raster gate can fail rather than silently passing an empty scan.",
+      "why_not_auto": "A teeth prover: it mutates state to prove the gate bites, so it is run deliberately.",
+      "known_red": null
+    },
+    {
+      "id": "takeoff-boq-checks",
+      "path": "paracore-takeoff/scripts/boq_offline_checks.py",
+      "cwd": "paracore-takeoff",
+      "python": "takeoff",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "Description-embedded counts agree with the audit sheet, and audit totals agree with the status report — the D22 class of defect.",
+      "why_not_auto": "Needs an exported BOQ workbook to read; there is nothing to check until an export has run.",
+      "known_red": null
+    },
+    {
+      "id": "takeoff-rates",
+      "path": "paracore-takeoff/scripts/verify_rates.py",
+      "cwd": "paracore-takeoff",
+      "python": "takeoff",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "The rate matcher resolves the real BOQ row descriptions it is meant to price.",
+      "why_not_auto": "Needs openpyxl and the exported BOQ workbook; it reports an environment error, not a verdict, without them.",
+      "known_red": null
+    },
+    {
+      "id": "takeoff-full-export",
+      "path": "paracore-takeoff/scripts/full_export_check.py",
+      "cwd": "paracore-takeoff",
+      "python": "takeoff",
+      "args": [],
+      "runs": "manual",
+      "timeout": 0,
+      "protects": "The whole export path runs end to end against a live document.",
+      "why_not_auto": "Drives a live Revit session through the export; not an unattended assertion.",
+      "known_red": null
+    }
+  ]
+}

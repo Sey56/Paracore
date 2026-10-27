@@ -109,20 +109,38 @@ def check(repo: Path, verbose: bool) -> int:
         failed = True
 
     # ── 3. every appendix anchor the index cites must resolve ───────────────
+    # ⚠⚠ THE ANCHORS MOVED, SO THE CHECK MOVED WITH THEM (2026-10-27). MEMORY.md became a ROUTER
+    #   and its detail moved into `topics/*.md`, so scanning only MEMORY.md found ZERO anchors and
+    #   reported "0 appendix anchor(s) resolve" — an EMPTY SCAN PASSING, which rule 3 forbids.
+    #   The check now reads the router AND every topic file, and an empty result is a FAILURE:
+    #   if no anchor is cited anywhere, either the appendix has become unreachable or the regex
+    #   has stopped matching, and both must not read as green.
     if appendix.is_file():
         appendix_text = read_text(appendix)
-        anchors = sorted(set(re.findall(r"APPENDIX\s+`([^`]+)`", text)))
-        missing = [a for a in anchors if a not in appendix_text]
-        if missing:
-            print(f"{BAD}{len(missing)} appendix anchor(s) resolve to nothing: {missing}")
-            print("          an index that points at a missing section reads as documented")
-            print("          while being unreadable — worse than an oversized index.")
+        sources = [index] + sorted((memory_dir / "topics").glob("*.md"))
+        anchors: set[str] = set()
+        for src in sources:
+            if src.is_file():
+                anchors.update(re.findall(r"APPENDIX\s+`([^`]+)`", read_text(src)))
+        anchors = sorted(anchors)
+        if not anchors:
+            print(f"{BAD}no appendix anchor cited by the router or any topic file")
+            print("          the appendix is unreachable, or the pattern stopped matching —")
+            print("          an empty scan must FAIL, not pass quietly")
             failed = True
         else:
-            print(f"{OK}{len(anchors)} appendix anchor(s) resolve")
-        if verbose:
-            for a in anchors:
-                print(f"            {a}")
+            missing = [a for a in anchors if a not in appendix_text]
+            if missing:
+                print(f"{BAD}{len(missing)} appendix anchor(s) resolve to nothing: {missing}")
+                print("          an index that points at a missing section reads as documented")
+                print("          while being unreadable — worse than an oversized index.")
+                failed = True
+            else:
+                print(f"{OK}{len(anchors)} appendix anchor(s) resolve "
+                      f"(from {len(sources)} file(s): router + topics)")
+            if verbose:
+                for a in anchors:
+                    print(f"            {a}")
     else:
         print(f"{BAD}MEMORY-APPENDIX.md not found — the index's pointers cannot resolve")
         failed = True

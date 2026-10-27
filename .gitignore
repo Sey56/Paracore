@@ -155,16 +155,27 @@ graphify-out/
 # REPL instruments -- the gates live here (master spec section 4); the rest of
 # .repl/ is scratch. Only the allowlisted files below are tracked, so new probe
 # files stay local and the repo does not grow.
+#
+# ⚠⚠ A GATE MUST BE ALLOWLISTED. `.repl/*` is ignored by default, so a gate that is
+#     not listed here exists ONLY on the machine that wrote it: a fresh clone gets no
+#     gate, and `python .repl/gate.py` fails on a missing file. `gates.json` is the
+#     manifest that names them, so it is tracked too.
 .repl/*
 !.repl/LEARNINGS.md
+!.repl/gates.json
+!.repl/gate.py
+!.repl/_ai_tree_check.py
 !.repl/_api_surface_check.py
+!.repl/_ext_method_audit.py
+!.repl/_hover_doc_check.py
 !.repl/_mcp_engine_drift.py
+!.repl/_sentinel_surface_check.py
+!.repl/_sentinel_surface_teeth.py
 !.repl/baseline.py
 !.repl/check_compliance.py
 !.repl/run_section_scope_tests.py
+!.repl/verify_ext_method_gen.py
 !.repl/verify_gen_docs.py
-!.repl/_ext_method_audit.py
-!.repl/_ai_tree_check.py
 
 # Build log written by build-addin.ps1 -- generated, not source
 scripts/addin_build_log.txt
