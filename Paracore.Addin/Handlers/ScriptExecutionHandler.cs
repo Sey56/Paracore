@@ -55,10 +55,14 @@ namespace Paracore.Addin.Handlers
         //   So this list refuses only what NO gallery tool needs: the IRREVERSIBLE operations —
         //   delete, move, and truncate-in-place. Writing a file's contents stays allowed.
         //
-        // ⚠ MEASURED 2026-10-27 across all 34 scripts in `paracore-gallery`:
-        //     33 touch no file at all, or only read (`File.Exists`);
+        // ⚠ MEASURED 2026-10-27 across all 33 scripts in `paracore-gallery`
+        //   (the count is `**/Scripts/*.cs`; it is the same corpus
+        //   `paracore-gallery/tools/check-file-policy.py` scans, so the two cannot disagree):
+        //     32 touch no file at all, or only read (`File.Exists`);
         //      1 writes (`RoomFinishUpdater.cs:176` -> `File.WriteAllLines`);
         //      0 delete, 0 move, 0 truncate.
+        //   ⚠ This block previously said 34 = 33 + 1. The TOTAL was wrong, not the split —
+        //   a count is a measurement, and this one was never taken. Re-measured above.
         //   So this costs zero existing scripts. That measurement is the whole justification —
         //   if a future script needs one of these, the answer is a design conversation, not a
         //   quiet exception.
