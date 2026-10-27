@@ -19,6 +19,7 @@ for `FilteredElementCollector`, stop.
 |---|---|
 | **`paracore-engine`** | Before writing any element query, parameter read/write, unit conversion, or Revit UI call. Carries the complete extension-method reference. |
 | **`paracore-tool`** | When this script should be a **configurable tool** — i.e. it gets a `Params` class so the user can set values in the gallery before the run. |
+| **`paracore-sentinel`** | When the script should keep **watching** the model — i.e. the user wants it deployed to run in the background on an interval. Carries `Watchdog` / `WatchdogReport`. |
 
 The script contract (structure, units, transactions, banned patterns) lives in
 `.github/instructions/scripts.instructions.md` and is applied automatically to `Scripts/**/*.cs`.
@@ -34,6 +35,27 @@ public property becomes an editable control in the gallery, and the user sets th
 the script runs. Add it only when the script has values a user should choose (a level, a threshold,
 a family type). Read the `paracore-tool` skill before writing one.
 
+## Two ways this script can run — Run now, or Deployed as a sentinel
+
+**① Run** — the user clicks Run and it executes once. This is the normal case.
+
+**② Deployed** — the operator arms the script in the Paracore desktop app and Revit re-runs it in
+the background, on idle, every N seconds, until they undeploy it. That is a **sentinel**.
+
+A sentinel is not a different kind of file: it is this same gallery script calling
+`Watchdog(...)`. So the script must work **both** ways — once as a Run, and repeatedly as a loop.
+
+⚠⚠ **A sentinel source must contain BOTH `Watchdog(` and `WatchdogReport(`.** The desktop app
+scans the script text before deploying and **skips a project that has only one of the two**,
+showing it as a failed deployment. Both calls belong in the entry file, uncommented.
+
+⚠ **Deploying and undeploying is the operator's job in the desktop app** — it owns the
+deploy/undeploy controls. Nothing here can arm or disarm a sentinel; do not try.
+
+Read the **`paracore-sentinel`** skill before writing one: it carries the two signatures, the
+`__sentinel_action__` protocol (`select` / `isolate` / `table` / deployed), and the rules the
+callback must respect (no dialogs, no sleeping, writes inside `Transact`).
+
 ## Layout
 
 ```
@@ -43,7 +65,7 @@ a family type). Read the `paracore-tool` skill before writing one.
   Globals.cs                        ← global usings, for IntelliSense only — never executed
   .github/copilot-instructions.md   ← this file
   .github/instructions/             ← the script contract (auto-applied)
-  .github/skills/                   ← paracore-engine, paracore-tool
+  .github/skills/                   ← paracore-engine, paracore-tool, paracore-sentinel
   Scripts/
     <Name>.cs                       ← THE entry file — top-level statements
     <YourType>.cs                   ← OPTIONAL — user-defined TYPES only
