@@ -444,3 +444,95 @@ would have edited the dead one. What remains is what is genuinely read: `globals
 name the code path that reads it. If the answer is "it is the documentation", say so
 explicitly. `prompt_assembler.py` now opens with a docstring saying the prompt is NOT built
 there and where it IS built, so the next reader is not misled the way this one was.
+
+---
+
+## ROUND 18 — LIVE release test of the rebuilt stack (23:5x, Revit 25.4, TestModel.rvt)
+
+**What was under test** (identity, not a claim): `paracore-gen.exe` installed
+`C:\Users\seyou\AppData\Roaming\paracore-data\mcp-servers\paracore-gen.exe`, 26,621,850 B,
+SHA256 `b569e777…114d`, **byte-identical to `paracore-gen\dist\`**. All five exes rebuilt
+23:46–23:49 and byte-identical to their `dist/`. Revit 25.4.50.35 with the rebuilt add-in;
+`TestModel.rvt` (4,034 elements).
+
+### What was proven, by doing it
+
+| # | Capability | Result |
+|---|---|---|
+| 1 | `ping` | connected; cheat sheet carries the AVOID/REJECTED split; **no install path** |
+| 2 | `get_context` | project, `{3D}`, no selection, 2 levels; no user-name field |
+| 3 | `list_skills` / `read_skill` | 8 skills; `query-filter` served from the bundle |
+| 4 | read query | Walls 9 · Doors 3 · Windows 4 · Rooms 5; projected table, `Id` first |
+| 5 | **guard, layer 1** | `SetVal` inside `explore_revit_data` **REFUSED before execution** |
+| 6 | **guard, layer 1b** | `GetMethod()` reflection **REFUSED** |
+| 7 | **guard, layer 2** | `w.Pinned = true` → `Attempt to modify the model outside of transaction`; model verified unchanged (Comments empty, nothing pinned) |
+| 8 | write | `SetVal("Comments")` → `COMMITTED modified 1`, read back, then restored to `""` |
+| 9 | checkpoint | `Mark` → 4,034 elements / 13,540 values, keyed by document path; edit; `RollbackTo` → **1 element restored**, value back to `""` |
+| 10 | `DropCheckpoint` | `True`, then `False` on the second call; `Checkpoints()` = 0; model untouched |
+| 11 | **90 s budget** | `SetExecutionTimeout(2)` + a bounded 20 s loop → **timed out after 2 seconds**; session survived |
+| 12 | **B3 regression** | `WallType` receiver: `GetTypeStr` = PC 150…, `GetVal` = 150, `GetNum` = 150 mm, `TypeParams` = 34, `InstanceParams` = 34 — no recursion |
+| 13 | aggregate | `GroupByParam` 5 + 4 = 9 ✓; `SumParam("Area")` = 95.24 m²; `BarGraph` rendered |
+| 14 | schema table | `CombinedParams` = **82 rows, "shown in full"**, no Totals line |
+| 15 | `export_view` (model) | 3D image, masonry hatch, openings, no annotation clutter |
+| 16 | `export_view` (tags, "Level 1") | dimensioned plan (5215 × 7500), room tags BEDROOM/BATHROOM/LOBBY/SITTING ROOM/COOK |
+
+⚠ Tests 7, 11 and 12 are the three that could have taken Revit down. 11 and 12 were **bounded**
+on purpose so that a failure would report itself instead of killing the process.
+
+### Defect found — G1: a FALSE diagnostic on the primary discovery call
+
+Every `CombinedParams()` / `InstanceParams()` / `BuiltInParams()` call on a Wall prints:
+
+```
+⚠ GetStr("Image"): no parameter of that name on this element. Check the spelling, or use
+  .CombinedParams().Table() to see the real names.
+```
+
+- **The name is not the caller's.** `InstanceParams` reads `Value = e.GetVal(p.Definition.Name)`
+  — it re-resolves BY NAME a parameter it already holds as a `Parameter` object
+  (`ElementDiscoveryExtensions.cs:47`). `Image` exists on the wall but has **no value**, so the
+  by-name lookup misses and the diagnostic fires.
+- **It is new.** `7933bed0` (today) gated the type fallback with
+  `_declaresParameter(type, name)`. Before that, the type answered for the element and the
+  warning never ran. So the fix that stopped the type answering on the element's behalf
+  exposed every internal name-based read that had been leaning on it.
+- **The advice is circular** — it points the caller at the very call that produced the warning.
+- **It repeats on every call**, not once per session: `_warnedParams` counts *elements seen*, and
+  a single-element query keeps `seen == 1`.
+- ⚠ For an MCP agent this is not cosmetic noise. It reads as "your query was wrong" on the
+  discovery call the instructions tell the agent to make first.
+
+**Fix, when the engine is opened:** in `GetStr`'s not-found step, distinguish *no such
+parameter* (`LookupParameter == null` → warn) from *exists, no value* (return `""` silently).
+One condition; the warning keeps its teeth for real typos.
+
+### Defect found — G2 (minor): duplicate rows in the schema tables
+
+`Category` appears twice in both the Instance and the Type scope of `CombinedParams` (82 rows,
+80 distinct names), because the rows are `e.Parameters` verbatim. Not wrong, but a reader
+counting parameters gets 82 when the answer is 80.
+
+### Gate defect found and FIXED — the `server.py` anchor could never match
+
+`check-mcp-exes.py` tracked `server.py` with the sentinel `omit=omit_common`. That is **source
+syntax** (a keyword argument) — it compiles to a `LOAD_FAST` plus the kwarg *name* `"omit"`,
+never to a string constant, and `consts_contain()` scans string constants. So the row reported
+**STALE for every build ever made**, and no rebuild could clear it. Measured: all five installed
+exes carried 50 of the 57 long literals in `server.py` and every round-5 dialog-watcher string,
+while that literal was absent from all five.
+
+Retargeted to `"PARACORE DIALOG WATCHER"` (a real constant, added in round 5). **Teeth proven
+two-sided:** present in all five current exes, absent in `paracore-takeoff.exe.prev` (2026-10-18).
+
+Consequence: F2, F3 and F4 now PASS, so their `known_red` allowances were deleted in the same
+change (a passing allowance FAILS the gate). Gate is now **15 auto green, 2 allowances open**
+(F1 `hover-docs` — one engine doc-comment; F5 — commits not yet pushed).
+
+### NOT tested — say so plainly
+
+- **`pick_object_report`** — needs a human to click in Revit. The 120 s backstop frees the
+  *agent*; whether Revit leaves pick mode and releases the UI thread afterwards is **still
+  unmeasured**, and it is the one place a stalled `single_flight` could report REVIT IS BUSY.
+- **The Watcher's dialog-dismiss path** — no warning dialog was staged.
+- **Nothing above is protected by a test.** Every line of this round is "verified once, by
+  hand", on this machine, against this build.

@@ -83,13 +83,7 @@
       "runs": "auto",
       "timeout": 300,
       "protects": "The generated EXTENSION_METHODS index is DERIVED from source, not hand-edited — a second parser must agree, and a mutation must be picked up.",
-      "known_red": {
-        "id": "F2",
-        "why": "Section 4 (DLL freshness) fails: the installed CoreScript.Engine.dll is 2026-10-27 21:18:33, the newest committed engine source is commit 7933bed0 at 22:03:46. The index cannot be checked against an assembly that predates the source it describes. Same root cause as F3 and F4.",
-        "remedy": "Rebuild the engine and run install-engine.cmd with Revit CLOSED, then re-run the gate.",
-        "blocked_by": "install-engine.cmd is ACL-protected and must be run by the user with Revit shut down.",
-        "owner": "user"
-      }
+      "known_red": null
     },
     {
       "id": "gen-docs",
@@ -172,13 +166,7 @@
       "runs": "auto",
       "timeout": 60,
       "protects": "The add-in Revit will actually load is the build on disk. Every conclusion drawn from a running Revit is worthless if it was drawn against an older build.",
-      "known_red": {
-        "id": "F3",
-        "why": "Installed add-in (2026-10-27 21:05:14) and engine (21:18:33) match NO current build output: 'installed does NOT match any current build (add-in: Release publish, engine: no match)'. Same root cause as F2 and F4.",
-        "remedy": "Rebuild, then run install-engine.cmd with Revit CLOSED so the installed pair becomes the current pair.",
-        "blocked_by": "install-engine.cmd is ACL-protected and must be run by the user with Revit shut down.",
-        "owner": "user"
-      }
+      "known_red": null
     },
     {
       "id": "mcp-exes",
@@ -189,13 +177,7 @@
       "runs": "auto",
       "timeout": 180,
       "protects": "The frozen MCP exes contain the CURRENT mcp_core. An exe is a frozen snapshot: a .py edit does nothing until it is rebuilt AND installed, and nothing errors.",
-      "known_red": {
-        "id": "F4",
-        "why": "Every MCP exe predates the current shared mcp_core — tool_helpers.py, tools.py, summarizer.py and server.py all report 'sentinel absent' in paracore-family.exe, paracore-model.exe and paracore-takeoff.exe. Same root cause as F2 and F3.",
-        "remedy": "Rebuild each stale exe with its build-*.ps1, then install the rebuilt copies.",
-        "blocked_by": "Rebuilding the MCP exes is part of the parked release work, and the install step is the user's.",
-        "owner": "user"
-      }
+      "known_red": null
     },
     {
       "id": "workspace-map",

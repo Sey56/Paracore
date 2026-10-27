@@ -109,7 +109,16 @@ TRACKED = [
         #   gen domain can drop `pick_object` from its tool surface. The round-3 sentinel
         #   "with a trailer saying where it stopped" is still in the source, so it could
         #   not distinguish a round-4 build. `omit=omit_common` is round-4 only.
-        "omit=omit_common",
+        # ⚠⚠ RETARGETED AGAIN 2026-10-27 (release test): `omit=omit_common` was NEVER a valid
+        #   anchor. It is source SYNTAX — a keyword argument — so it compiles to a LOAD_FAST
+        #   plus the kwarg NAME "omit", never to a string constant. consts_contain() scans
+        #   string constants, so this row reported "sentinel absent" for EVERY build, and no
+        #   rebuild could ever clear it. Measured: all five installed exes (23:46–23:49, each
+        #   byte-identical to its dist/) carried 50 of the 57 long literals in this file and
+        #   every round-5 dialog-watcher string, while this literal was absent from all five.
+        #   ⇒ A sentinel must be a string the COMPILER emits, not text the SOURCE shows.
+        #   This string is the Watcher block added in round 5; it is a plain constant.
+        "PARACORE DIALOG WATCHER",
     ),
     (
         "forge_server.py",
