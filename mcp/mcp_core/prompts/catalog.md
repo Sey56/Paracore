@@ -10,13 +10,15 @@ These are the patterns for "X per Y" queries. Memorize them.
 | Sum per group | `.GroupByParam("Level", "Area", "m2").Table()` | Table: Group \| Count \| Total |
 | Grand total | `.SumParam("Area", "m2")` | A single double — NOT a table |
 | Filter then count | `.WhereParam("Level", "Level 1").Count()` | An integer |
-| Group, then filter groups | `.GroupByParam("Level").Where("Count", ">", 5).Table()` | Table: Group \| Count (filtered) |
+| Group, then filter groups | `.GroupByParam("Level").Cast<dynamic>().Where(g => g.Count > 5).Table()` | Table: Group \| Count (filtered) |
 
 **CRITICAL:** `.SumParam(valueParam, unit)` returns ONE NUMBER (grand total across ALL elements). It does NOT group. For per-group sums, use the 3-argument `.GroupByParam(groupBy, valueParam, unit)` — this groups AND sums in one shot.
 
-**CRITICAL:** After `.GroupByParam()`, you can ONLY chain `.Table()`, `.BarGraph()`, `.PieGraph()`, `.LineGraph()`, or `.Where()`. You CANNOT chain `.WhereParam()`, `.Select()`, `.SumParam()`, or `.Count()` — GroupByParam returns grouped data objects, not Revit elements.
+**CRITICAL:** After `.GroupByParam()`, you can chain `.Table()`, `.BarGraph()`, `.PieGraph()`, `.LineGraph()`, or `.Cast<dynamic>().Where(...)`. You CANNOT chain `.WhereParam()`, `.Select()`, `.SumParam()`, or `.Count()` — GroupByParam returns grouped data objects, not Revit elements.
 
-**CRITICAL:** `.Where()` after `.GroupByParam()` takes column names as strings: `.Where("Count", ">", 5)`. Do NOT use `.WhereParam()` after `.GroupByParam()`.
+**CRITICAL:** `.Where()` on grouped data is ordinary LINQ — it takes a LAMBDA, and you must `.Cast<dynamic>()` first so the columns are reachable:
+`.GroupByParam("Level").Cast<dynamic>().Where(g => g.Count > 5).Table()`
+⚠ There is NO string overload. `.Where("Count", ">", 5)` does not compile (CS1501).
 
 ## Parameters & Units
 
@@ -86,6 +88,14 @@ el.NativeProperties()  el.ParamsDict()  el.GeometrySummary().Table()
 el.ReflectionProperties()  el.ReflectionMethods()
 ```
 
+**These tables are NEVER truncated.** Every parameter arrives, however many rows — the list
+IS the answer, so a cut list would make a real parameter look missing. They print
+`(N rows, shown in full)` and no Totals line (summing parameter values is meaningless).
+`GetElements(...).Table()` and grouped/projected tables still cap at 50 rows + the last 2 —
+narrow those with `.WhereParam()` instead of paging.
+⚠ The exemption ends at the first projection: `.Select(...)`, `.Where(...)` or `.ToList()`
+after a schema method gives a plain table, and it caps.
+
 ## Creating Elements — Raw Revit API + Transact()
 
 Full access to Autodesk.Revit.DB everywhere.
@@ -134,10 +144,11 @@ Transact("Place Column", () => {
 ```
 .WhereParam("Name", "value")
 .WhereParam("Name", "starts", "D-10")
+.WhereParam("Name", "contains", "txt")   — substring of a PARAMETER value
 .WhereParam("Name", "!=", "X")
 .WhereParam("Name", 200, "mm")
 .WhereParam("Name", ">", 25, "m2")
-.WhereMatches("pattern")
+.WhereMatches("pattern")                 — element NAME / family name only, never a parameter
 .WhereMaterial("Concrete")        — filter BY material (substring match)
 .WhereMaterialNot("Default Wall") — exclude elements with this material
 .StandardDoor()
@@ -167,9 +178,10 @@ geometry faces, paint, compound layers, and STRUCTURAL_MATERIAL_PARAM. Use
 
 .SumParam(valueParam, unit, decimals)         → single double (GRAND TOTAL across ALL elements)
   Unit is OPTIONAL — inferred from param name (Volume→m3, Area→m2, Length→m).
-  Decimals defaults to 3.
-  e.g. GetElements("Rooms").SumParam("Area", "m2") → 15805.89
-  e.g. GetElements("Columns").SumParam("Volume")   → 4.374 (m3 inferred)
+  ⚠ EXACT by default — pass `decimals` only if you WANT it rounded. Format for a human
+    with FormatUnit/FormatValueOnly, never by rounding the value you go on to use.
+  e.g. GetElements("Rooms").SumParam("Area", "m2") → 15805.8932… (not 15805.89)
+  e.g. GetElements("Columns").SumParam("Volume")   → the exact total in m3 (unit inferred)
   Does NOT group. Returns a NUMBER, not a table.
   For per-group sums, use .GroupByParam(groupBy, sumParam, unit) instead.
 .SetParam("Comments","Done") [bulk, 1 txn]

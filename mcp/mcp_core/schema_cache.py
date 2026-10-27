@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,85 @@ def _fetch_category_params(category_name: str) -> List[dict]:
     except Exception as e:
         logger.warning(f"Schema cache: gRPC error fetching {category_name}: {e}")
         return []
+
+
+# ── Parameter-name hygiene ──────────────────────────────────────────────────
+# ⚠⚠ AN OLDER ADD-IN PRINTS A NAME THAT CANNOT BE USED (2026-10-27). It used to
+#   disambiguate two parameters that share a name by appending the STORAGE TYPE —
+#   "Level [Reference]", "Frame Material [String]" — while this module's own header
+#   says "COPY THE EXACT NAME". Measured on the live model: GetStr("Level [Reference]")
+#   returns "" and warns "parameter not found". The add-in no longer appends it, but an
+#   add-in installed before that change still does, and the MCP must not repeat a name
+#   it knows is wrong. Strip the annotation here, and show the real name.
+#
+#   ⚠ Only a KNOWN annotation token is stripped. A blanket `\s*\[.*\]$` would corrupt a
+#   real name that happens to end in brackets, which is unlikely but not impossible —
+#   and silently renaming a parameter is exactly the failure this whole fix is about.
+_ANNOTATION_TOKENS = {
+    "reference", "instance", "type",
+    "string", "double", "integer", "elementid", "length", "area", "volume",
+    "boolean", "yesno", "number", "text", "enum",
+}
+
+_ANNOTATION_RE = re.compile(r"\s*\[([^\[\]]*)\]\s*$")
+
+
+def base_parameter_name(name: str) -> str:
+    """`"Level [Reference]"` → `"Level"`. Any other bracketed tail is left alone."""
+    raw = (name or "").strip()
+    m = _ANNOTATION_RE.search(raw)
+    if m and m.group(1).strip().lower() in _ANNOTATION_TOKENS:
+        return raw[: m.start()].strip()
+    return raw
+
+
+def _resolve_key(category_name: str) -> Optional[str]:
+    """The cache key for `category_name`, exact first then case-insensitive.
+
+    ⚠ The cache is keyed by whatever name SUCCEEDED (often an `OST_` variant found by
+    `_try_alt_name`), so a caller's spelling is not necessarily a key. Returning None
+    rather than the caller's string is deliberate: "not cached" must not be reported as
+    "a category with no parameters".
+    """
+    if category_name in _cache:
+        return category_name
+    for key in _cache:
+        if key.lower() == category_name.lower():
+            return key
+    return None
+
+
+def schema_rows(category_name: str) -> List[dict]:
+    """The parameter rows for a category: de-duplicated, annotations stripped.
+
+    ⚠⚠ THE ONE PLACE THAT DECIDES WHAT A ROW IS. `search_schema` renders these, and the
+    usage example in `tools.search_schema` is built from these, so the example can only
+    ever name a parameter that appears in the list above it. They used to be written
+    independently — the list said `Base Constraint`, the example said `Level`, and on
+    Walls (62 parameters, no `Level` at all) the example produced a silently empty
+    column. Returns [] when the category is not cached, which is also the signal that
+    there is nothing to build an example from.
+    """
+    key = _resolve_key(category_name)
+    if key is None:
+        return []
+
+    # ⚠ Two rows can still be IDENTICAL — two distinct parameters that share a name, a
+    #   storage type and a scope (measured: "Level" twice on Doors). They are collapsed:
+    #   a second identical line teaches the agent nothing and reads as a bug in this tool.
+    #   Rows that differ in storage or scope are kept, because THAT is the difference.
+    seen: set = set()
+    rows: List[dict] = []
+    for p in _cache[key]:
+        name = base_parameter_name(p.get("name", ""))
+        storage = p.get("storage_type", "?")
+        scope = "Type" if p.get("is_type") else "Instance"
+        dedupe = (name.lower(), storage, scope)
+        if dedupe in seen:
+            continue
+        seen.add(dedupe)
+        rows.append({"name": name, "storage": storage, "scope": scope})
+    return rows
 
 
 def search_schema(category_name: str) -> str:
@@ -71,12 +151,12 @@ def search_schema(category_name: str) -> str:
 
     # Format as compact LLM-friendly list
     # CRITICAL: only the name inside backticks is the parameter name. Storage/scope are metadata ONLY.
-    lines = [f"**{category_name}** — {len(params)} parameters:\n"]
-    lines.append("COPY THE EXACT NAME (first column). The rest is metadata — DO NOT include it in your code.\n")
-    for p in params:
-        storage = p.get("storage_type", "?")
-        scope = "Type" if p.get("is_type") else "Instance"
-        lines.append(f"- `{p['name']}` | {storage} | {scope}")
+    # ⚠ The de-duplication and the annotation stripping live in `schema_rows` — see its
+    #   docstring for why the ROWS had to become the single source of truth.
+    rows = schema_rows(category_name)
+    lines = [f"**{category_name}** — {len(rows)} parameters:\n"]
+    lines.append("COPY THE EXACT NAME (the text in backticks). The rest is metadata — DO NOT include it in your code.\n")
+    lines.extend(f"- `{r['name']}` | {r['storage']} | {r['scope']}" for r in rows)
     return "\n".join(lines)
 
 

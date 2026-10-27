@@ -269,14 +269,16 @@ class ExecuteScriptRequest(_message.Message):
     def __init__(self, script_content: _Optional[str] = ..., parameters_json: _Optional[bytes] = ..., source: _Optional[str] = ..., compiled_assembly: _Optional[bytes] = ..., license_tier: _Optional[str] = ...) -> None: ...
 
 class StructuredOutputItem(_message.Message):
-    __slots__ = ("type", "data", "title")
+    __slots__ = ("type", "data", "title", "cap_exempt")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
+    CAP_EXEMPT_FIELD_NUMBER: _ClassVar[int]
     type: str
     data: str
     title: str
-    def __init__(self, type: _Optional[str] = ..., data: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
+    cap_exempt: bool
+    def __init__(self, type: _Optional[str] = ..., data: _Optional[str] = ..., title: _Optional[str] = ..., cap_exempt: bool = ...) -> None: ...
 
 class ExecuteScriptResponse(_message.Message):
     __slots__ = ("is_success", "output", "error_message", "error_details", "structured_output", "internal_data", "agent_summary", "pipeline_diagnostics", "user_rejected", "confirmation", "session_consent")

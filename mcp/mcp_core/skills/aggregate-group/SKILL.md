@@ -57,4 +57,4 @@ You CAN chain: `.Table()`, `.BarGraph()`, `.PieGraph()`, `.LineGraph()`, `.Where
 | Count per group | `.GroupByParam("Level").Table()` |
 | Sum per group | `.GroupByParam("Level", "Area", "m2").Table()` |
 | Grand total | `.SumParam("Area", "m2")` |
-| Group then filter groups | `.GroupByParam("Level").Where("Count", ">", 5).Table()` |
+| Group then filter groups | `.GroupByParam("Level").Cast<dynamic>().Where(g => g.Count > 5).Table()` |

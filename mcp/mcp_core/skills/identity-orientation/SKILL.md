@@ -34,7 +34,7 @@ Println(door.IsFacingFlipped());           // ⚠ a METHOD, not a property — t
 Println(door.FindSwingArc());              // largest Arc in geometry (swing path)
 ```
 
-⚠⚠ **These are READ-ONLY. You cannot SET handing.** Measured by reflection 2026-10-08:
+⚠⚠ **These are READ-ONLY. You cannot SET handing.** The API surface is:
 
 ```
 FamilyInstance.HandFlipped    CanWrite = False
@@ -63,9 +63,8 @@ both flags rather than assuming the handing you set survived.
 ## Standard Door Filter
 
 ```csharp
-// Exclude curtain-wall-hosted glass doors
+// Exclude curtain-wall-hosted glass doors — fewer rows than GetElements("Doors")
 GetElements<FamilyInstance>("Doors").StandardDoor().Table()
-// → 33 standard doors (out of 40 total)
 
 door.IsStandardDoor()                      // true if NOT hosted on a Curtain Wall
 ```

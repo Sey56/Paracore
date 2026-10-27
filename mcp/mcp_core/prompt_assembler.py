@@ -1,8 +1,20 @@
-"""Prompt Assembler — the shared MCP system prompt, composed from markdown sections.
+"""Prompt sections and the two big engine docs — read on demand, never assembled.
 
-ONE place. The sections live in `mcp_core/prompts/*.md` (this package). A Domain may
-OVERRIDE any of them by shipping a file of the same name in `<repo>/prompts/` — see
-`domain.read_prompt_section()`, which is the only reader that knows about overrides.
+⚠⚠ THE SYSTEM PROMPT IS NOT BUILT HERE (2026-10-27). This module used to assemble TEN
+`prompts/*.md` files into one ~36 K string via `build_prompt()`. When the shared core moved
+here (2026-10-13) the live channel became `server.build_instructions()` — `COMMON_RULES` +
+the Domain's intro + the skill catalogue, delivered as `instructions=` in the handshake —
+and nothing called `build_prompt()` again. It was dead for two weeks while still reading
+like the authority, and the eight prompt files behind it stayed on disk and shipped in
+every installer. They are DELETED, not left inert: a stale file nothing reads is
+indistinguishable from one that is about to be read.
+
+What remains is what is genuinely read:
+  * `globals.md` — the `paracore://globals` resource, via `tools.get_globals`.
+  * `catalog.md` — the abbreviated fallback for `build_extension_reference()` when the
+    bundled `EXTENSION_METHODS.md` is missing.
+A Domain may still OVERRIDE either by shipping a file of the same name in
+`<repo>/prompts/` — see `domain.read_prompt_section()`.
 
 ⚠⚠ THE DOC AUTHORITY IS TWO LEVELS UP FROM THIS FILE — AND GETTING IT WRONG IS SILENT.
     This module used to live in `paracore-gen/mcp_core/`, where the engine docs were
@@ -28,7 +40,6 @@ _PROMPTS_DIR = os.path.join(_HERE, "prompts")
 _PARACORE_REPO = os.path.normpath(os.path.join(_HERE, "..", ".."))
 
 _cache: dict[str, str] = {}
-_prompt_cache: dict[str, str] = {}
 
 # The domain currently being served. Set once by `server.create_server()`, so the shared
 # tools (`tools.get_globals`) can read a section WITHOUT knowing the domain. A module-level
@@ -61,42 +72,12 @@ def _read(filename: str) -> str:
         return f"[Prompt file not found: {filename}]"
 
 
-# ── Prompt sections (composed in order) ───────────────────────────────────
-
-_SECTIONS = [
-    "identity.md",
-    "globals.md",
-    "script-rules.md",
-    "retrieval.md",
-    "linq-rules.md",
-    "parameter-discovery.md",
-    "catalog.md",
-    "critical-rules.md",
-    "verification.md",
-    "common-patterns.md",
-]
-
-
-def build_prompt(domain=None) -> str:
-    """The full system prompt: every section, in order, with the domain's overrides applied.
-
-    ⚠ A section the domain overrides but does not actually ship falls back to the shared copy
-    (see `domain.read_prompt_section`) — a missing override must never blank a section.
-    """
-    domain = _resolve(domain)
-    key = getattr(domain, "root", "") or ""
-    if key in _prompt_cache:
-        return _prompt_cache[key]
-
-    if domain is None:
-        parts = [_read(f) for f in _SECTIONS]
-    else:
-        from mcp_core.domain import read_prompt_section
-        parts = [read_prompt_section(domain, f) for f in _SECTIONS]
-
-    prompt = "\n\n".join(parts)
-    _prompt_cache[key] = prompt
-    return prompt
+# ── Prompt sections ───────────────────────────────────────────────────────
+# ⚠ THERE IS NO COMPOSED PROMPT, AND THERE MUST NOT BE ONE (2026-10-27). `_SECTIONS` +
+#   `build_prompt()` were removed: nothing called them, and keeping a ten-file list on disk
+#   made the dead files look maintained. The live prompt is `server.build_instructions()`.
+#   ⚠ A new rule belongs in `server.COMMON_RULES` or the Domain's `intro` — NOT in a new
+#     `prompts/*.md`, which would be dead the moment it was written.
 
 
 def get_section(name: str, domain=None) -> str:

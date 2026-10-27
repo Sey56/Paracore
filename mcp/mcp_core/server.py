@@ -56,11 +56,13 @@ QUERY (use Paracore methods, NOT raw Revit API):
   .Table()  — NOT foreach+Println loops
 
 FORBIDDEN — these WILL fail:
-  new FilteredElementCollector(...)  → use GetElements()
-  doc / ActiveDocument               → use Doc
-  LookupParameter / get_Parameter    → use .GetStr() / .GetNum()
-  .AsString() / .AsDouble()          → use .GetStr() / .GetNum()
-  Console.WriteLine()                → use Println()
+  doc / document / ActiveDocument    → use Doc (capital D)
+
+AVOID — these RUN, with an advisory note attached; the Paracore method is better:
+  new FilteredElementCollector(...)  → GetElements("Walls")
+  LookupParameter / get_Parameter    → .GetStr() / .GetNum()
+  .AsString() / .AsDouble()          → .GetStr() / .GetNum()
+  Console.WriteLine()                → Println(); its output is NOT captured
 
 PARAMETER NAMES — NEVER GUESS:
   Revit parameters use spaces: "Fire Rating" NOT "FireRating",
@@ -86,11 +88,44 @@ START EVERY SESSION WITH:
   4. read_skill("<name>") for the skills relevant to the user's request
   5. Then explore. NEVER write code before reading the relevant skills.
 
+A DIALOG IS NOT YOURS TO CLOSE — THE WATCHER HANDLES IT:
+  Revit is MODAL. When it raises a warning, error or task dialog while a script is
+  running, Revit stops responding until that dialog is dismissed — so your call looks
+  like a hang, and Revit looks broken when it is only waiting for a button.
+
+  A separate EXTERNAL process, the PARACORE DIALOG WATCHER, watches for those dialogs.
+  When one appears it does two things, in this order:
+    1. it tells you WHY the dialog appeared and which button it pressed, inside the
+       result of the very call that hit it — look for
+       "REVIT SHOWED A DIALOG WHILE THIS CALL RAN", which names the title, the message,
+       the buttons offered and the button actually pressed; and
+    2. it dismisses the dialog, so Revit answers you again.
+
+  Therefore:
+    • Do NOT try to click it, and do NOT ask the user to click it.
+    • A dialog is NOT a failure of your call and NOT a hang. It is a note attached to
+      a call that already ran.
+    • pressed OK / a keep-option  → the edit usually STANDS. Still VERIFY the element
+                                    exists before building on it.
+    • pressed Cancel / an error   → the edit was probably ROLLED BACK. Re-read the
+                                    model; assume nothing changed.
+  Only if a call times out with NO watcher note should you suspect a dialog the watcher
+  could not reach. Then stop and say so — do not retry into it.
+
 NEVER RETRY BLINDLY:
   Revit's API is single-threaded. Repeating a failed or slow call queues behind the
   one still running and can wedge Revit until it is restarted. If a call reports
-  REVIT IS BUSY or a timeout, STOP — wait, ask the user to check Revit for a dialog,
-  then confirm Revit responds with a small query."""
+  REVIT IS BUSY or a timeout, STOP — do not retry, and confirm Revit responds with a
+  small query first.
+
+VERIFY BEFORE YOU BUILD ON IT:
+  Check each result before the next call — row count, value range, units, and that
+  the parameters you asked for actually appeared. A number you did not dimension is
+  approximate, however plausible it looks.
+  The same call failing TWICE means the APPROACH is wrong, not the spelling: change
+  the approach (the category name, typed vs string retrieval, the filter) instead of
+  retrying it. After three failed attempts on one thing, STOP and report what you
+  tried and what you saw — do not keep exploring to fill the gap."""
 
 
 def build_instructions(domain: Domain) -> str:
@@ -279,13 +314,26 @@ def _tool_explore_revit_data(csharp_code: str, justification: str) -> str:
 
     Do NOT use this for modifications. Use execute_dynamic_query for writes.
 
+    ⚠ HOW "READ-ONLY" IS ENFORCED — two layers, and only the second is a guarantee:
+      1. A pattern scan refuses the obvious raw-API writes (new Transaction,
+         Parameter.Set, Doc.Delete, element creation, transforms) before anything runs.
+      2. The engine then runs the whole snippet inside a transaction group that is
+         ALWAYS rolled back, so a model write reached by any other route — reflection,
+         a name assembled at runtime — is DISCARDED. You would get a success and an
+         unchanged model, which is worse than the refusal.
+      Neither layer is a sandbox for files, network or processes.
+
+    TIME BUDGET: the snippet is killed after 90 s of wall clock, checked inside every
+    loop. For a genuinely long discovery, put SetExecutionTimeout(600); FIRST.
+
     The 'csharp_code' must be valid C# top-level statements. The engine has
     all Revit namespaces pre-imported. Prefer Paracore extension methods
     (.GetStr, .WhereParam, .GroupByParam, .Table, etc.) over raw LINQ and
     FilteredElementCollector.
 
     OUTPUT: Summarized results — tables show up to 50 rows (all rows if the table is
-    that small or smaller) plus a total count, text output shows the first 20 lines.
+    that small or smaller) plus a total count, text output shows the first 24 and last 16
+    lines, eliding the middle so a value printed last is never lost.
     Charts report their type. Empty results return "No results found" with the query
     context. If a table is truncated you will be told how many rows were hidden.
 
@@ -317,12 +365,16 @@ def _tool_execute_dynamic_query(csharp_code: str, justification: str) -> str:
 
     Manual foreach loops with writes MUST wrap in Transact("name", () => {...}).
 
+    TIME BUDGET: the script is killed after 90 s of wall clock, checked inside every loop.
+    If a run genuinely needs longer, put SetExecutionTimeout(600); as the FIRST statement —
+    anywhere else it is too late for the loops that already ran.
+
     DISPLAY: Always use .Table() for data, never foreach+Println loops.
     For .Select() tables, include Id as the first column.
 
     OUTPUT: Summarized — tables (up to 50 rows, or every row if the table is that small
-    or smaller, plus a total), text (first 20 lines), charts (type reported). Write
-    operations include a confirmation message.
+    or smaller, plus a total), text (first 24 and last 16 lines, middle elided), charts
+    (type reported). Write operations include a confirmation message.
 
     FAILURE: Structured error with type, line number, and suggested fix.
     Common failures: wrong parameter name, missing Transact() on foreach, or trying
@@ -362,18 +414,39 @@ def _tool_search_schema(category_name: str) -> str:
 
 
 def _tool_read_extension_methods(query: str = "") -> str:
-    """The complete Paracore Extension Methods reference (~17,000 chars — the whole
-    catalog, not a summary). Pass `query` to get only the relevant section.
+    """The Paracore Extension Methods reference. Pass `query` to get one section or method.
+
+    ⚠ WITHOUT a query this returns only the first ~8,000 characters, cut on a section
+    boundary, with a trailer saying where it stopped — the catalogue is larger than that.
+    (The description used to claim it returned "the complete ~17,000-char catalog" while the
+    code capped at 8,000, so a caller could not tell a truncated read from a short one.)
 
     PREFER `read_skill` INSTEAD. A single skill is 2–12 KB and covers one operation,
-    so it is far cheaper than pulling the full catalog. Use this tool only when you
-    need everything at once, or a section by keyword.
+    so it is far cheaper than pulling a large slice of the catalog. Use this tool when
+    you need a method's exact signature or a section by keyword.
 
     Args:
-        query: optional keyword — returns only matching sections. Omit for the full
-            reference (capped at 15,000 chars).
+        query: keyword — returns only the matching method subsection or section. Omit
+            only if you genuinely want the opening sections.
     """
     return _t.read_extension_methods(query)
+
+
+def _tool_get_globals() -> str:
+    """The exact globals, the pre-imported namespaces, and the DOCUMENT-level properties.
+
+    Call this when a name was rejected ("doc is not defined", "no such namespace") or when
+    you need something about the FILE rather than the elements in it:
+    `Doc.ProjectInformation.Name/.Number/.ClientName/.Address`, `Doc.PathName`,
+    `Doc.IsWorkshared`, `Doc.Title`.
+
+    ⚠ WHY THIS IS A TOOL (2026-10-27). The same text is served as the `paracore://globals`
+    RESOURCE, and resources are never read by the clients this server targets (0
+    `resources/read` in 70 Claude Desktop sessions — see domain.py). So `Doc.IsWorkshared`
+    and the project-information block existed only somewhere no caller ever looked. The
+    resource is kept for clients that do read them; this tool is the reachable copy.
+    """
+    return _t.get_globals()
 
 
 # name → (callable, is_optional). ⚠ The dict is the SINGLE list of common tools; a
@@ -387,6 +460,7 @@ _COMMON_TOOLS: dict[str, Callable] = {
     "_execute_dynamic_query": _tool_execute_dynamic_query,
     "_search_schema": _tool_search_schema,
     "_read_extension_methods": _tool_read_extension_methods,
+    "get_globals": _tool_get_globals,
 }
 
 
@@ -427,8 +501,10 @@ def register_skill_tools(mcp: FastMCP, domain: Domain) -> None:
         already paid for, and the check that proves the result.
 
         Args:
-            name: a skill name from `list_skills`, e.g. "query-filter",
-                "write-modify", "create-geometry".
+            name: a skill name from `list_skills`. ⚠ That tool lists exactly what THIS
+                server offers, and the set DIFFERS between the servers — so read the
+                catalogue rather than naming one from memory (e.g. "query-filter" and
+                "write-modify" are on every server; "create-geometry" is not).
 
         Returns the skill's markdown. If the name is unknown, returns the catalogue so
         you can pick a valid one — never guess a name.

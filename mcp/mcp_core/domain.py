@@ -76,8 +76,10 @@ class Domain:
     shared_skills: tuple[str, ...] | None = None
     """WHICH of the core's shared skills to include.
 
-    `None` (the default) = all nine — what `gen`/`model`/`family`/`takeoff` want, because
-    they author REPL C# and the shared skills ARE that vocabulary.
+    `None` (the default) = all nine — what `model`/`family` want, because they author REPL
+    C# and the shared skills ARE that vocabulary. ⚠ `gen` passes an explicit tuple instead:
+    it is the GENERALIST, and it does not teach `create-geometry`, because modelling is
+    `paracore-model`'s job (operator, 2026-10-27).
 
     A tuple = only those names. An EMPTY tuple = none — for a domain whose work is not
     REPL C#. ⚠ `paracore-forge` passes `()`: it authors gallery scripts, and its own

@@ -132,14 +132,16 @@ Println($"wrote {shot}");
 ```
 
 ⚠ **Use the RETURN value — it is the file that exists, not the path you passed.** Revit appends the
-view identity to the base name and may change the extension: asking for `C:\tmp\shot` on the default
-3D view writes `C:\tmp\shot - 3D View - {3D}.jpg`. **A 3D or shaded view is written as `.jpg` even
-though PNG is requested.**
+view identity to the base name and **picks the extension itself**, which is not always the one you
+asked for. On Revit 2025 a 3D view came back as `C:\tmp\shot - 3D View - {3D}.png`.
+
+**Never reconstruct the filename and never assume `.jpg` or `.png`** — read what the call returned.
+The extension is not something to hard-code: Revit decides it.
 
 - Pass the path **without** an extension. The directory is created if it does not exist.
 - `viewName` omitted ⇒ the **active view**. Matched case-insensitively; view templates are rejected.
 - **No `Transact()` needed** — an export does not modify the model.
-- Plain Revit API, no Pro dependency — it works on the free add-in and the Pro add-in alike.
+- Plain Revit API — an export touches no engine feature and no add-in setting.
 
 ⚠ **`ExportImage` suppresses annotation for you — by default.** Revit's image export does **not**
 clip annotation to the view, so level heads, grid bubbles and **elevation/section marks** are drawn
@@ -152,16 +154,14 @@ the caller sees no change and no undo entry.
 **Three ways to get the tags into the picture, in increasing order of fidelity:**
 
 1. **`export_view(..., annotations: "tags")`** — the tool, and the one to reach for. It hides only
-   the datum/marker categories and keeps dimensions, text notes and room/door/window tags. Measured
-   2026-10-08: on the house model this is the difference between a plan with no readable information
-   and a legible dimensioned drawing.
+   the datum/marker categories and keeps dimensions, text notes and room/door/window tags — the
+   difference between a plan with no readable information and a legible dimensioned drawing.
 2. `export_view(..., annotations: "all")` — everything visible, model shrunk by the markers.
 3. In-script `ExportImage(path, viewName, pixelSize, hideAnnotation: false)` — the raw engine
    primitive. Use it only when you are already writing C# and want the **path** back. It has no
    middle setting: `hideAnnotation` is all-or-nothing.
 
-⚠ **"tags" is implemented on the MCP side, using raw Revit API**, so it needs no add-in change and
-works on the free and Pro add-in alike. It rolls its own transaction back, so the view is left
-exactly as the user had it.
+⚠ **"tags" is implemented on the MCP side, using raw Revit API**, so it needs no add-in change.
+It rolls its own transaction back, so the view is left exactly as the user had it.
 
 **Use it whenever the user asks "does this look right?"** — build, export, look, correct.

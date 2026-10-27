@@ -49,7 +49,7 @@ element.GeometrySummary().Table()        // recursive: Solids, Curves, Arcs in w
 For EVERY category you interact with for the first time, discover its parameter names BEFORE writing any query:
 
 1. **Primary:** `GetElements("CategoryName").First().CombinedParams().Table()` — exhaustive, shows exact names and values
-2. **Fast (cached):** `search_schema("CategoryName")` — returns parameter names + storage types, no values
+2. **Fast (cached):** the `_search_schema` TOOL — `_search_schema("CategoryName")` returns parameter names + storage types, no values. ⚠ It is a tool, not C#: never write it inside a script.
 
 Copy ONLY the parameter name from the first column. NEVER include storage type annotations:
 - Schema shows: `Level` | String | Instance

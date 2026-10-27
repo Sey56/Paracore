@@ -62,6 +62,11 @@ GetElements("Walls").WhereTypeParam("Material", "contains", "HCB")
 ```csharp
 GetElements<FamilyInstance>("Doors").WhereMatches("flush")
 ```
+⚠ It searches the element's **Name** and its family name — **never a parameter**. A value
+in `Comments` will NOT be found by `WhereMatches`. For a parameter use:
+```csharp
+GetElements("Doors").WhereParam("Comments", "contains", "GEN-TEST")
+```
 
 ### WhereMaterial / WhereMaterialNot
 ```csharp

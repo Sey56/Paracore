@@ -211,6 +211,11 @@ message StructuredOutputItem {
   string type = 1;
   string data = 2; 
   string title = 3; 
+  // ⚠ ADDITIVE (field 4, 2026-10-27). true = "every row matters, do not truncate". The MCP
+  //   summariser caps a table at 50 rows; that is right for an element dump and wrong for a
+  //   PARAMETER SCHEMA, where the list is the answer. proto3 default false means an older
+  //   add-in simply keeps the old behaviour — no version negotiation needed.
+  bool cap_exempt = 4;
 }
 
 message ExecuteScriptResponse {

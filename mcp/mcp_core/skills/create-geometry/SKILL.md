@@ -7,12 +7,17 @@ description: Creating Revit elements — Wall.Create, Floor.Create, FamilyInstan
 
 Create new Revit elements using the raw Revit API. Full access to `Autodesk.Revit.DB` — this is a real C# REPL, not a limited DSL. `Transact()` REQUIRED for all creation.
 
-⚠ **This page is the single-element reference.** For a whole **building** — levels, plan views,
-slabs, walls, openings, rooms, per level — the build order, the traps and the verification
-recipes live in the modelling skill: `project-modeling` (**`paracore-model`**) or
-`family-authoring` (**`paracore-family`**). This page shows the core creation calls; those show
-the building. ⚠ Do **not** build a building out of a `Form`: a `Form` cannot become a room.
-Family (`.rfa`) authoring and conceptual massing belong to the **`paracore-family`** MCP.
+⚠ **This page is the single-element reference.** A whole **building** is a matter of ORDER,
+and the order is fixed: create the **levels** first, then each level's **slab**, then the
+**walls** standing on it, then the **rooms** those walls enclose — then repeat for the next
+level. Building one category across the whole model before moving to the next is what
+produces walls with no host, rooms that do not close, and levels that do not line up.
+
+⚠ Do **not** build a building out of a `Form` (a conceptual mass). A `Form` cannot become a
+wall, a floor or a room; model with the real element classes this page shows.
+
+⚠ `list_skills` is the authoritative list of what THIS server teaches. If the recipe you want
+is not among them, it is not here — do not guess a skill name.
 
 ## Core Types (pre-imported, no using needed)
 
@@ -58,8 +63,13 @@ Transact("Create Floor", () =>
 ⚠ This profile is **explicitly closed** — the last curve returns to the first point — which is
 valid for a hand-written `CurveLoop`. When you build the loop from a corner **list** instead, do
 **not** repeat the first corner and close it with `% n`: that makes a zero-length final curve.
-`project-modeling` recipe 4 has the validation that catches both mistakes before Revit rejects
-the loop with a message that names no corner.
+Check it before Revit rejects the loop with a message that names no corner:
+
+```csharp
+for (int i = 0; i < pts.Count; i++)
+    if (pts[i].DistanceTo(pts[(i + 1) % pts.Count]) < 1e-6)
+        throw new InvalidOperationException($"zero-length segment at corner {i}");
+```
 
 ## Family Instance Placement (doors, windows, furniture)
 
@@ -91,7 +101,18 @@ nothing to show for it.
 ⚠ **Place → measure → correct.** Every loadable family has its own insertion point and its own
 "front", so two fixtures from one library can be built around completely different origins. Never
 assume the coordinate you asked for is where the family lands: read the instance's bounding box
-and move it by the delta you measured. `project-modeling` recipe 10b is the full recipe.
+and move it by the delta you measured.
+
+```csharp
+Transact("place", () =>
+{
+    var inst = Doc.Create.NewFamilyInstance(pt, symbol, host, StructuralType.NonStructural);
+    var bb = inst.get_BoundingBox(null);
+    // ⚠ There is no `Element.Move` and no `FamilyInstance.Move` — the API call is
+    //   ElementTransformUtils.MoveElement(document, id, translation).
+    if (bb != null) ElementTransformUtils.MoveElement(Doc, inst.Id, target - bb.Min);
+});
+```
 
 ## Column Placement
 

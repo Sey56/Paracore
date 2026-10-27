@@ -547,7 +547,11 @@ def execute_script(script_content, parameters_json, compiled_assembly=None,
             response = stub.ExecuteScript(request, timeout=timeout)
             # logging.info("gRPC ExecuteScript call successful.")
             # Process and return the successful response
-            structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in response.structured_output]
+            # ⚠ `cap_exempt` (proto field 4, 2026-10-27): the ENGINE says whether the MCP may
+            #   truncate this table. A parameter schema must arrive whole — see SchemaRows in
+            #   CoreScript.Engine. An older add-in leaves it false, so the cap still applies.
+            structured_output_data = [{"type": item.type, "data": item.data, "title": item.title,
+                                       "cap_exempt": item.cap_exempt} for item in response.structured_output]
             pipeline_diags = list(getattr(response, 'pipeline_diagnostics', []))
             # ⚠ Learn the gate's state BEFORE returning, so the NEXT call can pick the
             #   right deadline instead of guessing.
@@ -1173,7 +1177,9 @@ def execute_repl(code: str, session_id: str, license_tier: str = "free",
             else:
                 with _gate():
                     response = stub.ExecuteRepl(request, timeout=timeout)
-            structured_output_data = [{"type": item.type, "data": item.data, "title": item.title} for item in getattr(response, 'structured_output', [])]
+            structured_output_data = [{"type": item.type, "data": item.data, "title": item.title,
+                                       "cap_exempt": getattr(item, "cap_exempt", False)}
+                                      for item in getattr(response, 'structured_output', [])]
             pipeline_diags = list(getattr(response, 'pipeline_diagnostics', []))
             # ⚠ Learn the gate's state BEFORE returning, so the NEXT call can pick the
             #   right deadline instead of guessing.

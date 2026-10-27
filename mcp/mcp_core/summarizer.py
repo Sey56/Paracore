@@ -7,9 +7,16 @@ logger = logging.getLogger(__name__)
 
 MAX_TABLE_ROWS = 50           # First N rows shown to agent for large tables
 TABLE_TAIL_ROWS = 2           # Last N rows preserved (often contain totals/summaries)
-MAX_TEXT_LINES = 20           # Cap for verbose text output shown to agent
+# ⚠⚠ 40 LINES, NOT 20 (2026-10-27, review round 6). A write-heavy snippet reports every
+#   transaction — "created N / modified N / deleted N" plus the rollback confirmation — and at
+#   20 lines the MIDDLE of that report was elided. The reviewer's end-to-end run lost exactly
+#   the two lines that prove a rollback happened, which is the one line a destructive test must
+#   not lose. 40 is still a summary, and the elision notice says how many lines are missing.
+MAX_TEXT_LINES = 40           # Lines of verbose text output shown to the agent, in total
+MAX_TEXT_HEAD = 24            # …of which this many come from the START
+MAX_TEXT_TAIL = 16            # …and this many from the END — never dropped (see line ~295)
 SHOW_ALL_TABLE_THRESHOLD = 50 # Show ALL rows if total ≤ this
-SHOW_ALL_TEXT_THRESHOLD = 20  # Show ALL lines if total ≤ this
+SHOW_ALL_TEXT_THRESHOLD = 40  # Show ALL lines if total ≤ this (same budget as above)
 SNIFF_ROWS = 20               # Rows sampled to decide if a column is numeric
 
 # Columns worth summing: aggregate quantities only, never dimensions or identifiers.
@@ -91,6 +98,34 @@ def _no_aggregate_warning(headers: List[str], hidden: int) -> str:
     )
 
 
+# Significant digits kept when a FLOAT is rendered. 12 is far more than any Revit
+# quantity carries (a micron inside a 1 km building needs 9), so this cannot lose a
+# real value — see `_fmt_cell`.
+_CELL_FLOAT_DIGITS = 12
+
+
+def _fmt_cell(value: Any) -> str:
+    """One cell as text, with BINARY-FLOAT NOISE removed.
+
+    ⚠⚠ `3.0000000000000004` is not a bug in the number, it is what the conversion
+    actually produces: 3 m is stored as feet, and `3 / 0.3048 * 0.3048` does not come
+    back to exactly 3. `str()` prints every digit, so a column of identical walls reads
+    as `3` on the first row and `3.0000000000000004` on the other eight — which looks
+    like a difference in the model and is not one.
+
+    `%g` with 12 significant digits rounds the noise away and drops the trailing zeros
+    (`3.0` → `3`, `14.520000000000001` → `14.52`) while leaving a genuinely precise
+    value alone. Applied to ints too, so `3` and `3.0` render the same.
+    """
+    if isinstance(value, bool):        # bool is an int subclass — keep True/False
+        return str(value)
+    if isinstance(value, float):
+        if not math.isfinite(value):   # nan / inf: `%g` would print them, and that is right
+            return str(value)
+        return f"{value:.{_CELL_FLOAT_DIGITS}g}"
+    return str(value)
+
+
 def _markdown_table(headers: List[str], rows: List[List[str]]) -> str:
     lines = []
     lines.append("| " + " | ".join(headers) + " |")
@@ -109,6 +144,22 @@ def _parse_data(data: Any) -> Any:
         except (json.JSONDecodeError, TypeError):
             return data
     return data
+
+
+def _cap_exempt(item: Dict[str, Any]) -> bool:
+    """May this table be truncated? THE PRODUCER decides — never this function.
+
+    ⚠⚠ A parameter schema arrives with ``cap_exempt`` set by the engine (see ``SchemaRows``
+    in CoreScript.Engine). "What parameters exist?" is answered by the LIST: cutting it after
+    50 rows does not shorten the answer, it makes a real parameter look missing, and the agent
+    then stops using it. An element dump or a grouped aggregate does not set the flag and still
+    caps — there the agent asked "show me these" and can narrow the query.
+
+    ⚠ Absent means FALSE, not true. An add-in built before the field existed sends nothing, and
+    guessing "exempt" would flood the prompt from an old build. Kept as its own function so the
+    teeth of the tests around it can be proven by replacing it (probe_table_cap_teeth.py).
+    """
+    return bool(item.get("cap_exempt"))
 
 
 def summarize(output_raw: Dict[str, Any]) -> str:
@@ -137,9 +188,13 @@ def summarize(output_raw: Dict[str, Any]) -> str:
             if item_type == "table" and isinstance(data, list) and len(data) > 0:
                 total_rows = len(data)
                 headers = list(data[0].keys()) if isinstance(data[0], dict) else []
+                # ⚠⚠ THE PRODUCER DECIDES, NOT THIS FUNCTION (2026-10-27). See _cap_exempt:
+                #   a parameter schema must arrive whole, an element dump may be cut. Never
+                #   infer this from column names.
+                cap_exempt = _cap_exempt(item)
 
-                if total_rows <= SHOW_ALL_TABLE_THRESHOLD:
-                    # Small table — show all rows, no truncation
+                if total_rows <= SHOW_ALL_TABLE_THRESHOLD or cap_exempt:
+                    # Small table, or one the engine marked uncappable — show all rows.
                     shown = data
                 else:
                     # Large table — show first N rows + last few rows.
@@ -150,10 +205,21 @@ def summarize(output_raw: Dict[str, Any]) -> str:
                     shown = head + tail
 
                 if headers:
-                    rows = [[str(row.get(h, "")) for h in headers] for row in shown]
+                    rows = [[_fmt_cell(row.get(h, "")) for h in headers] for row in shown]
                     table_md = _markdown_table(headers, rows)
                     title_line = f"**{title}** " if title else ""
-                    if total_rows <= SHOW_ALL_TABLE_THRESHOLD:
+                    if cap_exempt:
+                        # ⚠ "SHOWN IN FULL" IS A PROPERTY OF THE TABLE, NOT OF ITS SIZE
+                        #   (fixed 2026-10-27, review round 6). This branch used to sit BELOW the
+                        #   small-table one, so a 36-row BuiltInParams printed "Table (36 rows)"
+                        #   while an 82-row CombinedParams printed "…, shown in full" — and the
+                        #   documented rule is that every schema method says so. Whether a list is
+                        #   complete is exactly the thing an agent needs to know, and it must not
+                        #   depend on whether the answer happens to be short.
+                        parts.append(
+                            f"{title_line}Table ({total_rows} rows, shown in full):\n{table_md}"
+                        )
+                    elif total_rows <= SHOW_ALL_TABLE_THRESHOLD:
                         parts.append(f"{title_line}Table ({total_rows} rows):\n{table_md}")
                     else:
                         # Aggregate totals for QUANTITY columns only — never dimensions
@@ -173,8 +239,12 @@ def summarize(output_raw: Dict[str, Any]) -> str:
                                         numeric_cols[h] += v
                             total_parts = []
                             for h in numeric_cols:
-                                v = f"{numeric_cols[h]:.2f}".rstrip('0').rstrip('.')
-                                total_parts.append(f"{h}: {v}")
+                                # ⚠ SAME formatter as the rows. It used to be `f"{v:.2f}"`
+                                #   trimmed, so a total could print `35.81` for rows that
+                                #   sum to `35.806` — a total that visibly disagrees with
+                                #   its own column reads as a wrong answer, and the agent
+                                #   has no way to tell which number to trust.
+                                total_parts.append(f"{h}: {_fmt_cell(numeric_cols[h])}")
                             total_str = " | ".join(total_parts)
                             parts.append(
                                 f"{title_line}Table — {total_rows} rows total "
@@ -225,12 +295,22 @@ def summarize(output_raw: Dict[str, Any]) -> str:
             # Small output — show all lines
             parts.insert(0, f"**Text Output** ({total_lines} lines):\n```\n{text}\n```")
         else:
-            # Large output — cap to prevent context bloat
-            shown_lines = lines[:MAX_TEXT_LINES]
+            # ⚠ HEAD **AND** TAIL (fixed 2026-10-27). This used to show the first 20 lines
+            #   only, so a script's LAST Println — the one carrying the answer — was the
+            #   first thing to disappear ("2 more lines not shown"). A takeoff snippet
+            #   conventionally prints its result at the end, so truncating the tail hid
+            #   exactly the value the caller asked for. Keep both ends; elide the middle.
+            head = lines[:MAX_TEXT_HEAD]
+            tail = lines[-MAX_TEXT_TAIL:]
+            omitted = total_lines - len(head) - len(tail)
             parts.insert(0,
-                f"**Text Output** — {total_lines} lines total (showing first {MAX_TEXT_LINES}):\n```\n"
-                + "\n".join(shown_lines)
-                + f"\n↳ {total_lines - MAX_TEXT_LINES} more lines not shown. Refine your query for focused output.\n```"
+                f"**Text Output** — {total_lines} lines total "
+                f"(first {len(head)} and last {len(tail)}):\n```\n"
+                + "\n".join(head)
+                + f"\n↳ … {omitted} line(s) not shown — the FIRST and LAST lines are both "
+                  f"above …\n"
+                + "\n".join(tail)
+                + "\n```"
             )
 
     # ── Internal data (debug, usually not needed) ──

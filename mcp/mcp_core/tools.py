@@ -12,6 +12,7 @@ import, the module fails LOUD at import time — not silently at runtime.
 import glob
 import logging
 import os
+import re
 import tempfile
 import threading
 import time
@@ -27,6 +28,8 @@ from mcp_core.tool_helpers import (
     check_paracore_compliance,
     check_dangerous_patterns,
     check_suspicious_param_names,
+    check_read_only_violation,
+    check_agent_file_policy,
     lint_paracore_conventions,
     summarize_execution_result,
     format_execution_error,
@@ -310,11 +313,27 @@ def explore_revit_data(
     source: str = "mcp_agent",
 ) -> str:
     """
-    Execute a READ-ONLY C# snippet in Revit for schema/data discovery.
+    Execute a C# snippet in Revit for schema/data discovery.
+
+    DISCOVERY ONLY. A snippet that changes the model is refused by a pattern guard —
+    a mistake-catcher, NOT a sandbox (see check_read_only_violation). Use
+    execute_dynamic_query to change anything.
 
     Results are summarized: tables show up to 50 rows (every row if the table is that
-    small or smaller) plus a total count; text output shows the first 20 lines.
-    BEFORE WRITING ANY C#: read paracore://system-prompt for the method catalog.
+    small or smaller) plus a total count; text output shows the first 24 and last 16 lines
+    (the middle is elided, so a result printed last is never lost).
+    ⚠ PARAMETER SCHEMAS ARE NEVER CUT: .CombinedParams(), .InstanceParams(), .TypeParams(),
+    .BuiltInParams(), .NativeProperties() and .Peek() come back complete, however many rows
+    that is — the list IS the answer to "what parameters exist?". Element dumps
+    (GetElements(...).Table()) and grouped aggregates still cap, because those you can
+    narrow with .WhereParam(). The exemption survives only while the sequence does:
+    .Select(...)/.Where(...)/.ToList() after a schema method returns a plain table again.
+    BEFORE WRITING ANY C#: call the `_read_extension_methods` TOOL for the method
+    catalog — it is a separate MCP call, not something you can do from inside C#.
+    ⚠ NOT `paracore://system-prompt`. That is a RESOURCE, and the clients this server
+    targets never read resources (measured: 0 `resources/read` in 70 Claude Desktop
+    sessions — see mcp_core/domain.py). It also holds the RULES, not the method catalog.
+    A pointer to something the caller cannot open is a dead end in an error message.
 
     PARACORE-FIRST: Use extension methods (.GetStr, .GetNum, .WhereParam,
     .OrderByParam, .GroupByParam, .SumParam, .Table, etc.) instead of raw
@@ -322,6 +341,12 @@ def explore_revit_data(
     """
     t0 = time.perf_counter()
     error = validate_csharp(csharp_code)
+    if not error:
+        # ⚠ THIS TOOL ONLY. The same snippet must run in execute_dynamic_query.
+        error = check_read_only_violation(csharp_code)
+    if not error:
+        # ⚠ NOT a read-only rule — it applies to writes too, so both tools check it.
+        error = check_agent_file_policy(csharp_code, source)
     if error:
         record_tool_call("explore_revit_data", False, (time.perf_counter() - t0) * 1000,
                          anti_pattern_blocked=True)
@@ -354,6 +379,49 @@ def explore_revit_data(
         return f"Error executing exploration script: {str(e)}"
 
 
+# ── Bulk write detection — a function, so the rule can be TESTED without Revit ──
+# ⚠⚠ A STATIC SCAN CANNOT SEE THE RECEIVER'S TYPE, SO IT MUST AT LEAST SEE ITS SHAPE
+#   (fixed 2026-10-27). `doors.First().Hide()` was reported as "bulk hide on ALL filtered
+#   elements": the scan matched `.Hide(` and never looked at what it was called ON. The
+#   warning was harmless but WRONG, and a warning that fires on correct code teaches the
+#   agent to skim past the ones that are right. A call whose receiver chain ends in a
+#   single-element selector is not bulk, so it is skipped.
+_BULK_PATTERNS = [
+    (r'\.SetParam\s*\(', '.SetParam() — bulk parameter write on ALL filtered elements'),
+    (r'\.Delete\s*\(',   '.Delete() — bulk delete on ALL filtered elements'),
+    (r'\.Hide\s*\(',     '.Hide() — bulk hide on ALL filtered elements'),
+    (r'\.Isolate\s*\(',  '.Isolate() — bulk isolate on ALL filtered elements'),
+]
+
+# Anything that narrows a collection to ONE element. `GetElement`/`ToElement` return a single
+# Element outright; the LINQ terminals are the usual way to reach one from a query.
+_SINGLE_ELEMENT = re.compile(
+    r"\.(?:First|FirstOrDefault|Last|LastOrDefault|Single|SingleOrDefault|"
+    r"ElementAt|ElementAtOrDefault|GetElement|ToElement)\s*\("
+)
+
+
+def _is_single_element_call(text: str, at: int) -> bool:
+    """True when the receiver chain immediately before `at` yields ONE element.
+
+    The chain is read from the start of the enclosing statement, so `doors.First()` and the
+    `.Hide()` that follows it are looked at together.
+    """
+    start = max(text.rfind(";", 0, at), text.rfind("}", 0, at), text.rfind("{", 0, at))
+    return _SINGLE_ELEMENT.search(text[start + 1:at]) is not None
+
+
+def bulk_operation_warnings(csharp_code: str) -> list:
+    """One advisory per bulk-write method used on a COLLECTION. Never blocks."""
+    warnings = []
+    for pattern, desc in _BULK_PATTERNS:
+        for match in re.finditer(pattern, csharp_code):
+            if not _is_single_element_call(csharp_code, match.start()):
+                warnings.append(desc)
+                break
+    return warnings
+
+
 def execute_dynamic_query(
     csharp_code: str,
     justification: str,
@@ -383,6 +451,9 @@ def execute_dynamic_query(
 
     t0 = time.perf_counter()
     error = validate_csharp(csharp_code)
+    if not error:
+        # ⚠ Applies to WRITES too: the file policy is not a read-only rule.
+        error = check_agent_file_policy(csharp_code, source)
     if error:
         record_tool_call("execute_dynamic_query", False, (time.perf_counter() - t0) * 1000,
                          anti_pattern_blocked=True)
@@ -398,16 +469,8 @@ def execute_dynamic_query(
     workflow_warning = _SESSION.workflow_warning()
 
     # ── Bulk write detection ─────────────────────────────────────────────
-    _BULK_PATTERNS = [
-        (r'\.SetParam\s*\(',     '.SetParam() — bulk parameter write on ALL filtered elements'),
-        (r'\.Delete\s*\(',       '.Delete() — bulk delete on ALL filtered elements'),
-        (r'\.Hide\s*\(',         '.Hide() — bulk hide on ALL filtered elements'),
-        (r'\.Isolate\s*\(',      '.Isolate() — bulk isolate on ALL filtered elements'),
-    ]
-    bulk_warnings = []
-    for pattern, desc in _BULK_PATTERNS:
-        if re.search(pattern, csharp_code):
-            bulk_warnings.append(desc)
+    # ⚠ The rule lives in `bulk_operation_warnings()` so it can be tested without Revit.
+    bulk_warnings = bulk_operation_warnings(csharp_code)
     bulk_msg = ""
     if bulk_warnings:
         bulk_msg = (
@@ -442,6 +505,74 @@ def execute_dynamic_query(
         return prefix + f"Error executing task script: {str(e)}"
 
 
+# ── The schema usage example — DERIVED from the rows, never a fixed template ──
+# ⚠⚠ WHAT WENT WRONG (2026-10-27, review round 5). The example was a hard-coded template:
+#   `e.GetStr("Level")`, `GroupByParam("Level")`. That is correct for Rooms, Doors and
+#   Windows and WRONG for Walls, which have no `Level` parameter at all (62 of them, and
+#   the nearest thing is `Base Constraint`). GetStr on a name that does not exist returns
+#   "" with no error, so the example COMPILED, RAN, and produced a column of blanks —
+#   precisely the silent failure this server's instructions spend a paragraph warning
+#   about, shipped as its own advice directly under the parameter list.
+#   A name printed two lines above the example cannot be a name that does not exist, so
+#   the example is now built FROM the rows the caller was just shown.
+_TEXT_PREFERENCE = ("Type Name", "Family and Type", "Comments", "Mark", "Description", "Name")
+# ⚠ The unit is part of the pair, not decoration: `GetNum(name, "m2")` on a parameter that
+#   is not an area does not throw — it converts the raw number as if it were square feet.
+#   Measured: `GetNum("Absorptance", "m2")` returned 0.065 instead of 0.7. So only a
+#   parameter whose unit is unambiguous from its own name gets a unit at all.
+_NUM_PREFERENCE = (
+    ("Area", "m2"), ("Volume", "m3"), ("Length", "m"), ("Perimeter", "m"),
+    ("Unconnected Height", "m"),
+)
+
+_IDENT_STRIP = re.compile(r"[^0-9A-Za-z_]+")
+
+
+def _csharp_identifier(name: str) -> str:
+    """A C#-safe column name for a parameter.
+
+    ⚠ display-visualize documents the convention: a column called `Base_Constraint`
+    displays as "Base Constraint", so spaces become underscores. Any OTHER character that
+    is illegal in a C# identifier has to go the same way, or the example will not compile
+    — `Heat Transfer Coefficient (U)` is a real Walls parameter.
+    """
+    out = _IDENT_STRIP.sub("_", name or "").strip("_")
+    if not out or out[0].isdigit():
+        out = "_" + out
+    return out
+
+
+def _schema_usage_example(category_name: str, rows: list) -> str:
+    """A runnable example built from the parameters this category actually has."""
+    by_name = {r["name"].lower(): r for r in rows}
+
+    text = next((n for n in _TEXT_PREFERENCE if n.lower() in by_name), None)
+    if text is None:
+        text = next((r["name"] for r in rows if r["storage"] == "String"), None)
+
+    num = unit = None
+    for candidate, candidate_unit in _NUM_PREFERENCE:
+        if candidate.lower() in by_name:
+            num, unit = by_name[candidate.lower()]["name"], candidate_unit
+            break
+
+    cols = ["Id = e.Id.Value"]
+    if text:
+        cols.append(f'{_csharp_identifier(text)} = e.GetStr("{text}")')
+    if num:
+        cols.append(f'{_csharp_identifier(num)} = e.GetNum("{num}", "{unit}")')
+
+    lines = [
+        f"\n\n// To query {category_name}, use the parameter names above:",
+        f'GetElements("{category_name}").Select(e => new {{ {", ".join(cols)} }}).Table()',
+    ]
+    group = text or num
+    if group:
+        lines.append("// Or group by a discovered parameter:")
+        lines.append(f'GetElements("{category_name}").GroupByParam("{group}").Table()')
+    return "\n".join(lines)
+
+
 def search_schema(category_name: str) -> str:
     """
     Search the model schema for parameter definitions of a Revit category.
@@ -452,20 +583,20 @@ def search_schema(category_name: str) -> str:
     logger.info(f"Searching schema for: {category_name}")
     _SESSION.record_discovery()
     try:
+        from mcp_core.schema_cache import schema_rows
         from mcp_core.schema_cache import search_schema as do_search
         result = do_search(category_name)
-        # Append usage example so the LLM knows how to use the discovered params
-        usage = (
-            f"\n\n// To query {category_name}, use the parameter names above:\n"
-            f'GetElements("{category_name}").Select(e => new {{ '
-            f"Id = e.Id.IntegerValue, "
-            f'Level = e.GetStr("Level"), '
-            f'Name = e.GetStr("Name") '
-            f'}}).Table()\n'
-            f'// Or group by a discovered parameter:\n'
-            f'GetElements("{category_name}").GroupByParam("Level").Table()'
-        )
-        return result + usage
+        # ⚠⚠ ONLY OFFER THE EXAMPLE WHEN THERE IS A SCHEMA (2026-10-27, review round 3).
+        #   The usage block was appended unconditionally, so a "No parameters found for
+        #   category 'X'" error was followed by a cheerful snippet querying `Level` and
+        #   `Name` on a category that has neither. An example that cannot work, printed
+        #   directly under an error, is worse than no example — it reads as advice.
+        #   The test is now on the ROWS, which is the same fact the text was rendered
+        #   from, so the two cannot disagree.
+        rows = schema_rows(category_name)
+        if not rows:
+            return result
+        return result + _schema_usage_example(category_name, rows)
     except Exception as e:
         logger.error(f"Schema search failed: {e}")
         return (
@@ -505,11 +636,23 @@ QUERY — use Paracore methods, NOT raw Revit API:
   GetElements<Wall>()            → typed retrieval
   GetElements("Walls").Count()   → element count
 
-  .WhereParam("Name", "value")   → filter by parameter
+  .WhereParam("Name", "value")   → filter by parameter (exact)
+  .WhereParam("Name", "contains", "txt") → filter by parameter CONTAINS text
   .GroupByParam("Name")          → group and count → chain .Table()
   .Select(e => new { ... })      → project columns → always put Id first → .Table()
   .Table()                       → render as interactive data grid
   .First().CombinedParams().Table() → discover ALL parameters on an element
+
+  ⚠ .WhereMatches("txt") matches the element's NAME and FAMILY name only — it never
+    looks at a parameter. For a Comments value use .WhereParam("Comments","contains","txt").
+
+TIME BUDGET — a script is KILLED after 90 s of wall clock, checked INSIDE each loop body:
+  SetExecutionTimeout(600);      → put this on line 1 to raise it for a long run
+  ⚠ It must be the FIRST statement to be any use, and it is re-armed per call.
+  ⚠ ONLY LOOPS IN YOUR OWN CODE ARE CHECKED. A single blocking call cannot be interrupted
+    (Thread.Sleep is refused outright for that reason), and neither can a loop that lives
+    inside a framework method — Enumerable.Range(0, int.MaxValue).ToList() runs to the end
+    and Revit stays frozen until it finishes. Keep bulk work in your own foreach.
 
 WRITE (execute_dynamic_query only — auto-transacted):
   e.SetVal("Comments", "Done")
@@ -517,14 +660,41 @@ WRITE (execute_dynamic_query only — auto-transacted):
   GetElements("Walls").SetParam("Comments", "Done")   ← bulk, one transaction
   Transact("name", () => { /* foreach with writes */ })
 
+BEFORE YOU CHANGE A VALUE — read it first, and say what it was:
+  GetElements("Walls").Select(e => new { e.Id, Mark = e.GetStr("Mark") }).Table()
+  ⚠ A write COMMITS. Bulk .SetParam() over a category overwrites every element at once,
+    and nothing keeps the old values. If you did not read them, the user cannot undo it
+    from your transcript — so read first, then write, then report old → new.
+  ⚠ Never describe a value as "the original" unless you actually read it. If you are
+    restoring something you never captured, SAY SO and ask instead of assuming 0 / "".
+
 PROJECT INFO: Doc.ProjectInformation.Name, Doc.Title, Doc.PathName, Doc.IsWorkshared
 
-FORBIDDEN — these raw Revit API patterns will be REJECTED:
-  new FilteredElementCollector(Doc)...
-  doc  /  ActiveDocument  /  activeDocument  (use Doc)
-  doc.ProjectInformation  (use Doc.ProjectInformation)
-  .OfCategory(BuiltInCategory.OST_...)
-  foreach+Println loops for data display (use .Table())"""
+AVOID — the Paracore method is better. These RUN, with a note attached:
+  new FilteredElementCollector(Doc)...   → GetElements("Walls")
+  .OfCategory(BuiltInCategory.OST_...)   → the name alone: GetElements("Walls")
+  .LookupParameter("Name")               → .GetStr("Name") / .GetNum("Name", "m")
+  foreach+Println loops for display      → .Table()
+
+REJECTED — these cannot work, so they are refused before anything runs:
+  doc  /  document  (lowercase)          → Doc is the only global document
+  .GroupByParam("X").Select(...)         → chain .Table() straight onto the group
+
+DISCOVERY IS ROLLED BACK — explore_revit_data runs inside a transaction group that
+  is always rolled back, so a write reached there is discarded, not applied.
+
+TRUNCATION — which tables you get whole, and which are cut at 50 rows:
+  NEVER CUT — .CombinedParams(), .InstanceParams(), .TypeParams(), .BuiltInParams(),
+    .NativeProperties(), .Peek(). Every row arrives, however many. The list IS the
+    answer to "what parameters exist?", so a cut list would hide a real parameter.
+    They also print "(N rows, shown in full)" and no Totals line — summing parameter
+    values is meaningless.
+  CUT AT 50 (+ last 2) — GetElements(...).Table() and any grouped or projected table.
+    That is deliberate: narrow it with .WhereParam() rather than paging.
+  ⚠ The exemption ends the moment you project or filter: .Select(...), .Where(...) or
+    .ToList() on a schema method gives you a plain table again, and it will cap.
+  ⚠ A TEXT dump is still cut to the first 24 + last 16 lines. If you need 200 values,
+    return a table, not a Println loop."""
 
 
 def ping() -> str:
@@ -544,9 +714,12 @@ def ping() -> str:
     probe = probe_connection()
 
     if probe["paracore_connected"]:
+        # ⚠⚠ THE REVIT INSTALL PATH IS DELIBERATELY NOT PRINTED (2026-10-27). It is
+        #   `C:\Users\<login>\AppData\...`, so every ping echoed the Windows account
+        #   name into a transcript that may be shared, logged or pasted into a chat.
+        #   The agent never needs it: the port being live already proves Revit is up.
+        #   A human who wants the path can read it in the Paracore panel.
         header = "pong — connected to Revit."
-        if probe["revit_install_path"]:
-            header += f"\n  Revit: {probe['revit_install_path']}"
         header += "\n\nNext: call get_context to learn the active view, the current selection and the project levels."
         return header + "\n" + _PING_CHEATSHEET
 
@@ -620,7 +793,11 @@ def get_context_report() -> str:
         out.append(f"Project:     {name}  ({number}){'  — ' + title if title else ''}")
         out.append(f"File:        {info.get('file_path') or '(not saved)'}")
         workshared = "workshared" if info.get("is_workshared") else "not workshared"
-        out.append(f"User:        {info.get('username') or '-'}  [{workshared}]")
+        # ⚠⚠ THE USERNAME IS DELIBERATELY NOT PRINTED (2026-10-27) — it is the
+        #   Autodesk account of whoever is at the machine, and it is of no use to a
+        #   query. It was echoing into transcripts next to the file path. The
+        #   worksharing flag is the part that changes how the model behaves.
+        out.append(f"Model:       {workshared}")
     else:
         out.append("Project:     (project info unavailable)")
 
@@ -708,6 +885,48 @@ def pick_object_report(selection_type: str = "Element", category_filter: str = "
 #   PREFIX, newest match, from the base path we chose. The call only has to succeed.
 
 _VIEW_EXPORT_DIR = os.path.join(tempfile.gettempdir(), "paracore_views")
+
+# ⚠ EXPORTS ARE KEPT FOR A WEEK, THEN PRUNED (found in the pre-release review, 2026-10-27:
+#   "a temp file left in Windows Temp"). Every export writes a fresh PNG here and nothing
+#   ever removed them, so the directory grew without limit. Pruning happens on the NEXT
+#   export, not on a timer, so it costs nothing when the tool is unused.
+#
+#   The predicate is deliberately narrow: OUR directory, OUR `view_` prefix, an image
+#   extension, and an mtime past the cutoff. Anything else in the folder is left alone —
+#   a file this tool did not write is not this tool's to delete.
+_VIEW_EXPORT_KEEP_DAYS = 7
+_VIEW_EXPORT_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff")
+
+
+def _prune_old_exports(keep_days: int = _VIEW_EXPORT_KEEP_DAYS) -> int:
+    """Delete `view_*` images older than `keep_days`. Returns how many went.
+
+    Never raises: a failure to tidy up must not fail the export that triggered it.
+    """
+    cutoff = time.time() - keep_days * 86400
+    removed = 0
+    try:
+        with os.scandir(_VIEW_EXPORT_DIR) as entries:
+            for entry in entries:
+                try:
+                    if not entry.is_file(follow_symlinks=False):
+                        continue
+                    name = entry.name
+                    if not name.startswith("view_"):
+                        continue
+                    if os.path.splitext(name)[1].lower() not in _VIEW_EXPORT_EXTS:
+                        continue
+                    if entry.stat(follow_symlinks=False).st_mtime >= cutoff:
+                        continue
+                    os.remove(entry.path)
+                    removed += 1
+                except OSError:
+                    continue          # one locked/stale entry must not stop the sweep
+    except OSError:
+        return removed
+    if removed:
+        logger.info(f"Pruned {removed} export image(s) older than {keep_days} days")
+    return removed
 
 # Annotation modes. Measured 2026-10-08 on the house model, exporting the ground-floor plan:
 #   "model" — the engine hides every annotation category. The MODEL fills the frame, but
@@ -862,6 +1081,7 @@ def export_view_report(
         pixel = 1200
 
     os.makedirs(_VIEW_EXPORT_DIR, exist_ok=True)
+    _prune_old_exports()
     base = os.path.join(_VIEW_EXPORT_DIR, f"view_{uuid.uuid4().hex[:8]}")
     label = f"export view {view_name or '(active)'} [{mode}]"
 

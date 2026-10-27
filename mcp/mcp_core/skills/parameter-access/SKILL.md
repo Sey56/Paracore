@@ -53,7 +53,7 @@ column.GetTypeStr("Material")        // "Concrete - C-25"
 column.GetTypeNum("b", "mm")         // 250
 column.GetTypeNum("h", "mm")         // 300
 column.GetTypeInt("Usage")           // 0
-column.GetTypeVal("Cost")            // "25.00 Birr"
+column.GetTypeVal("Cost")            // "25.00"
 ```
 
 `GetElementType()` returns the `ElementType` for any instance.
