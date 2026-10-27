@@ -102,6 +102,18 @@ namespace Paracore.Addin.Services
         }
 
         /// <summary>
+        /// True when `source` identifies an AI agent (MCP server, Paracore Agent, …).
+        /// ⚠⚠ ONE home for this rule (2026-10-27). It used to live only inside
+        /// <see cref="EnsureApproved"/>, so the file/network policy in ReplHandler would
+        /// have had to repeat the string test — two copies of "what counts as an agent"
+        /// drift, and the one that drifts is the one nobody reads.
+        /// </summary>
+        public static bool IsAgentSource(string source)
+        {
+            return source?.Contains("agent") == true;
+        }
+
+        /// <summary>
         /// Returns the session verdict. Manual execution (source does NOT contain "agent")
         /// always passes. Agent execution shows the TaskDialog ONCE per session.
         /// </summary>
@@ -112,8 +124,7 @@ namespace Paracore.Addin.Services
         public static Decision EnsureApproved(string source)
         {
             // Manual execution (REPL, Gallery, Playlists) — always allowed
-            bool isAgent = source?.Contains("agent") == true;
-            if (!isAgent) return new Decision(true, SessionConsent.NotRequired);
+            if (!IsAgentSource(source)) return new Decision(true, SessionConsent.NotRequired);
 
             // Agent execution — one-time approval per session
             if (_approved) return new Decision(true, SessionConsent.AlreadyGranted);
@@ -128,10 +139,18 @@ namespace Paracore.Addin.Services
 
                 string mainInstruction = "An AI agent wants to execute code in Revit.";
 
+                // ⚠⚠ THE DIALOG MUST DESCRIBE WHAT IT ACTUALLY GRANTS (2026-10-27).
+                //   It said only "read and modify the Revit model", but a script has
+                //   System and System.IO PRE-IMPORTED (ScriptReferenceProvider.GetImports)
+                //   and RestSharp.dll referenced — so the same Allow also buys file access
+                //   and HTTP. A consent dialog that under-describes its permission is a
+                //   false statement to the person clicking it, and this one is the ONLY
+                //   boundary between an agent and the machine.
                 string mainContent = "An AI agent (an MCP server, Claude Desktop, "
                     + "Cursor, or another LLM-powered tool) is requesting to execute C# code "
                     + "in this Revit document.\n\n"
-                    + "This code can read and modify the Revit model. "
+                    + "This code can read and modify the Revit model, read and write files "
+                    + "on this computer, and reach the network. "
                     + "Only allow this if you trust the AI agent and the instructions you gave it.\n\n"
                     + "Allow for this Revit session?";
 

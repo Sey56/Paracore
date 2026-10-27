@@ -38,6 +38,109 @@ namespace Paracore.Addin.Handlers
 
         private UIApplication? _uiApp => _revitContext.UIApplication;
 
+        // ════════════════════════════════════════════════════════════════════════════════
+        // THE GALLERY FILE POLICY — and why it is NOT the REPL's policy
+        // ════════════════════════════════════════════════════════════════════════════════
+        // ⚠⚠ THERE ARE TWO FILE POLICIES ON PURPOSE. DO NOT UNIFY THEM.
+        //
+        //   * ReplHandler (ExecuteRepl) — agent-AUTHORED one-off snippets. No file writing at
+        //     all. A snippet has no `Params` class and no `[OutputFile]` contract, so its only
+        //     possible reason to touch a file is to interfere with one.
+        //
+        //   * ScriptExecutionHandler (ExecuteScript, this file) — PRE-AUTHORED gallery tools.
+        //     Writing an output IS the tool's job: `RoomFinishUpdater` writes a CSV to a path
+        //     the user declared in `Params`. Banning writes here would break every existing
+        //     export tool and make Forge unable to test the very tools it is meant to verify.
+        //
+        //   So this list refuses only what NO gallery tool needs: the IRREVERSIBLE operations —
+        //   delete, move, and truncate-in-place. Writing a file's contents stays allowed.
+        //
+        // ⚠ MEASURED 2026-10-27 across all 34 scripts in `paracore-gallery`:
+        //     33 touch no file at all, or only read (`File.Exists`);
+        //      1 writes (`RoomFinishUpdater.cs:176` -> `File.WriteAllLines`);
+        //      0 delete, 0 move, 0 truncate.
+        //   So this costs zero existing scripts. That measurement is the whole justification —
+        //   if a future script needs one of these, the answer is a design conversation, not a
+        //   quiet exception.
+        //
+        // ⚠⚠ THIS IS NOT THE PYTHON LAYER'S MIRROR. `mcp_core.tool_helpers` scans agent C#
+        //   before it is sent; this is the backstop for a DIRECT gRPC caller, which never
+        //   passes through an MCP at all. Neither can be dropped: the Python one gives the
+        //   friendlier message, this one is the only layer a hand-rolled client cannot skip.
+        private static readonly (string Pattern, string Reason)[] _galleryFilePolicy =
+        {
+            (@"File\.Delete\s*\(",       "delete a file"),
+            (@"File\.Move\s*\(",         "move a file"),
+            (@"File\.Replace\s*\(",      "swap one file for another"),
+            (@"File\.OpenWrite\s*\(",    "overwrite a file in place, leaving stale bytes behind"),
+            (@"Directory\.Delete\s*\(",  "delete a folder"),
+            (@"Directory\.Move\s*\(",    "move a folder"),
+            // ⚠ `\b` is load-bearing: without it `FileMode\.Create` also matches
+            //   `FileMode.CreateNew`, which is the SAFE call this message recommends.
+            (@"FileMode\.Create\b",      "truncate a file by opening it for create"),
+            (@"FileMode\.Truncate\b",    "truncate an existing file"),
+            // ⚠ Refused outright, not because a stream writer is always wrong, but because
+            //   `new StreamWriter(path)` truncates and a regex cannot tell it apart from
+            //   `new StreamWriter(stream)`. Nothing needs it: `File.WriteAllText` and
+            //   `FileMode.CreateNew` cover every legitimate case, and both are allowed.
+            (@"new\s+StreamWriter\s*\(", "truncate a file with StreamWriter")
+        };
+
+        private const string GalleryFilePolicyMessage =
+            "Blocked by the Paracore file policy: {0}.\n\n"
+            + "A gallery tool MAY create a file, read a file, and write its output. It may NEVER "
+            + "delete or move a file or folder, and it may not truncate one in place — deleting "
+            + "files is the user's job, and this refusal is the whole point of the rule.\n\n"
+            + "Allowed: File.WriteAllText / WriteAllLines / WriteAllBytes / AppendAllText, "
+            + "File.Exists, File.ReadAllText, Directory.GetFiles, Directory.CreateDirectory, "
+            + "and new FileStream(path, FileMode.CreateNew).\n\n"
+            + "⚠ This applies to an AGENT-driven run (run_tool / dry_run). The same tool started "
+            + "by a person in the desktop app is not affected.";
+
+        /// <summary>
+        /// The first gallery-policy violation in the script, or null. Agent-driven runs only.
+        /// </summary>
+        private static string? FindGalleryFileViolation(string scriptContent)
+        {
+            foreach (string body in ScriptBodies(scriptContent))
+                foreach (var (pattern, reason) in _galleryFilePolicy)
+                    if (System.Text.RegularExpressions.Regex.IsMatch(body, pattern))
+                        return reason;
+            return null;
+        }
+
+        /// <summary>
+        /// The C# text of each file in the <c>ExecuteScript</c> payload.
+        ///
+        /// ⚠ Scanned PER FILE rather than combined: a violation is always inside one file's text,
+        /// and the patterns never span a file boundary — so combining would only add a dependency
+        /// on <c>IScriptCombiner</c> for no gain. The JSON fallback matches
+        /// <c>ConfirmationRequirements.FromPayload</c>: a payload that is not a file array is
+        /// treated as one script, which is also what <c>CodeRunner</c> does.
+        /// </summary>
+        private static IEnumerable<string> ScriptBodies(string scriptContent)
+        {
+            if (string.IsNullOrWhiteSpace(scriptContent))
+                yield break;
+
+            JsonNode? node = null;
+            try { node = JsonNode.Parse(scriptContent); }
+            catch { /* not JSON — fall through and treat it as one script */ }
+
+            if (node is JsonArray arr)
+            {
+                foreach (var item in arr)
+                {
+                    if (item is not JsonObject obj) continue;
+                    string? content = obj["content"]?.GetValue<string>();
+                    if (!string.IsNullOrEmpty(content)) yield return content;
+                }
+                yield break;
+            }
+
+            yield return scriptContent;
+        }
+
         public async Task<BuildScriptResponse> BuildScript(BuildScriptRequest request)
         {
             _logger.Log("[ScriptExecutionHandler] Entering BuildScript.", LogLevel.Debug);
@@ -95,6 +198,40 @@ namespace Paracore.Addin.Handlers
             string parametersJsonStr = request.ParametersJson.ToStringUtf8();
             byte[]? compiledAssembly = request.CompiledAssembly?.ToByteArray();
             bool hasCompiledAssembly = compiledAssembly != null && compiledAssembly.Length > 0;
+
+            // ── The gallery file policy — ABOVE the [Confirm] prompt, and NOT exempt on dry run ──
+            // ⚠⚠ PLACED HERE, BEFORE THE [Confirm] BLOCK, DELIBERATELY. Two reasons:
+            //   1. A refused script must not first ask the person to type a confirmation word.
+            //   2. ⚠⚠ A DRY RUN MUST NOT BE EXEMPT. The [Confirm] gate below exempts dry runs
+            //      because a dry run is rolled back — but a ROLLBACK UNDOES THE TRANSACTION, NOT
+            //      A FILE WRITE. `File.Delete` inside a dry run deletes the file for real and the
+            //      rollback afterwards cannot bring it back. Sitting above the dry-run branch is
+            //      what keeps dry_run the SAFE path it is advertised to be, rather than the
+            //      cheapest way to make an agent destroy a file.
+            if (IsAgentCall(request.Source))
+            {
+                string? fileViolation = FindGalleryFileViolation(scriptContentStr);
+                if (fileViolation != null)
+                {
+                    _logger.Log($"[ScriptExecutionHandler] File policy refusal: {fileViolation}.", LogLevel.Warning);
+                    return new ExecuteScriptResponse
+                    {
+                        IsSuccess = false,
+                        ErrorMessage = string.Format(GalleryFilePolicyMessage, fileViolation),
+                        SessionConsent = gate.Status,
+                        Confirmation = ConfirmationStatus.NotEvaluated
+                    };
+                }
+
+                if (string.IsNullOrWhiteSpace(scriptContentStr) && hasCompiledAssembly)
+                {
+                    // ⚠ Say it out loud rather than imply a clean bill of health we did not give:
+                    //   a compiled assembly with no source cannot be scanned at all.
+                    _logger.Log(
+                        "[ScriptExecutionHandler] File policy NOT evaluated — a compiled assembly arrived with no source to scan.",
+                        LogLevel.Warning);
+                }
+            }
 
             // ── [Confirm("WORD")] — the HUMAN-ONLY gate for agent-driven runs ──────────
             // ⚠⚠ The engine's own gate (CodeRunner) enforces "a value was supplied and correct",
@@ -295,7 +432,7 @@ namespace Paracore.Addin.Handlers
             {
                 foreach (var item in serverContext.StructuredOutputLog)
                 {
-                    response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { Type = item.Type, Data = item.Data });
+                    response.StructuredOutput.Add(new CoreScript.StructuredOutputItem { Type = item.Type, Data = item.Data, CapExempt = item.CapExempt });
                 }
             }
 
@@ -321,7 +458,8 @@ namespace Paracore.Addin.Handlers
                                 {
                                     Type = temp.Type ?? "",
                                     Data = temp.Data ?? "",
-                                    Title = ""
+                                    Title = "",
+                                    CapExempt = temp.CapExempt
                                 });
                             }
                         }

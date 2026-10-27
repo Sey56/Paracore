@@ -85,7 +85,10 @@ public sealed class PackScriptContext : ICoreScriptContext
 
     public void LogError(string message) => _log.Add("✗ " + (message ?? ""));
 
-    public void AddStructuredOutput(string type, string jsonData)
+    // ⚠ `capExempt` is accepted and not stored: it exists to tell the MCP summariser not to
+    //   truncate a parameter schema. A pack run in the desktop app renders the whole table in
+    //   the Output panel regardless, so there is nothing here to skip.
+    public void AddStructuredOutput(string type, string jsonData, bool capExempt = false)
     {
         Outputs.Add(new StructuredItem(type ?? "unknown", jsonData ?? "null"));
         StructuredOutputLog.Add(jsonData ?? "null");

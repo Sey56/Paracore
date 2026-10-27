@@ -384,23 +384,23 @@ namespace Paracore.Addin.Handlers
                     }
 
                     var allParams = parametersWithSource.GroupBy(x => x.Param.Id).Select(g => g.First()).ToList();
-                    var nameGroups = allParams.GroupBy(x => x.Param.Definition.Name).ToList();
-                    var disambiguatedNames = new Dictionary<ElementId, string>();
 
-                    foreach (var group in nameGroups)
-                    {
-                        var list = group.ToList();
-                        if (list.Count == 1) disambiguatedNames[list[0].Param.Id] = list[0].Param.Definition.Name;
-                        else
-                        {
-                            foreach (var item in list)
-                            {
-                                string suffix = item.Param.StorageType == StorageType.ElementId ? "Reference" : item.Param.StorageType.ToString();
-                                disambiguatedNames[item.Param.Id] = $"{item.Param.Definition.Name} [{suffix}]";
-                            }
-                        }
-                    }
-
+                    // ⚠⚠ THE NAME IS THE NAME (2026-10-27). This used to suffix a colliding name
+                    //   with its storage type — "Level [Reference]", "Frame Material [String]" —
+                    //   and the MCP hands the caller a list whose instruction is "COPY THE EXACT
+                    //   NAME (first column)". That instruction was therefore telling the agent to
+                    //   write a parameter name that DOES NOT EXIST:
+                    //     GetStr("Level [Reference]") -> "" plus a "parameter not found" warning
+                    //     (measured live on TestModel.rvt).
+                    //   ⚠ Worse for the [String] case: "Frame Material [String]" IS stripped by the
+                    //   MCP's sanitizer, which leaves "Frame Material" — a name that resolves, but
+                    //   to whichever of the two parameters Revit returns first, i.e. silently the
+                    //   wrong one. A disambiguator that changes the name is a trap; the caller
+                    //   cannot tell a suffix from a real character of the name.
+                    //   Colliding names are now reported as-is and told apart by the metadata
+                    //   columns (StorageType, and IsType -> Type/Instance), which is where the
+                    //   difference actually lives. Two rows can look identical — they are two
+                    //   parameters with the same name, and either one answers to that name.
                     bool isLoadable = false;
                     if (sample != null)
                     {
@@ -417,7 +417,7 @@ namespace Paracore.Addin.Handlers
                         if (sampleType is FamilySymbol) isLoadable = true;
                     }
 
-                    foreach (var item in allParams.OrderBy(x => disambiguatedNames[x.Param.Id]))
+                    foreach (var item in allParams.OrderBy(x => x.Param.Definition.Name))
                     {
                         var p = item.Param;
 
@@ -433,7 +433,7 @@ namespace Paracore.Addin.Handlers
                         string specId = ""; try { specId = p.Definition.GetDataType().TypeId; } catch { }
                         var def = new ParameterDefinition
                         {
-                            Name = disambiguatedNames[p.Id],
+                            Name = p.Definition.Name,
                             StorageType = p.StorageType.ToString(),
                             IsBuiltin = p.IsShared == false && p.Id.Value < 0,
                             BuiltinId = (int)p.Id.Value,

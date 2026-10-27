@@ -47,7 +47,9 @@ namespace Paracore.Addin.Services
             FileLogger.LogError($"[Watchdog] {message}");
         }
 
-        public void AddStructuredOutput(string type, string jsonData) { }
+        // Deliberately a no-op: the watchdog only needs to keep a runaway script's prints, not
+        // its tables. The capExempt flag is accepted and dropped with the rest of the item.
+        public void AddStructuredOutput(string type, string jsonData, bool capExempt = false) { }
         public List<int> PipelineDiagnostics { get; set; } = new();
     }
 }

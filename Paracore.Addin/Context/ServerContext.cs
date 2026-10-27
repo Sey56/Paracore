@@ -11,6 +11,13 @@ namespace Paracore.Addin.Context
     {
         public string Type { get; set; }
         public string Data { get; set; }
+        /// <summary>
+        /// Travels to the MCP summariser: true ⇒ the table is shown in full
+        /// (never capped at 50 rows).  Set by the engine for schema/discovery
+        /// tables (SchemaRows) where cutting rows would make a real parameter
+        /// look missing.  Default false ⇒ the summariser cap applies.
+        /// </summary>
+        public bool CapExempt { get; set; }
     }
 
     public class ServerContext : ICoreScriptContext
@@ -90,9 +97,16 @@ namespace Paracore.Addin.Context
             _errorMessages.Add(message);
         }
 
-        public void AddStructuredOutput(string type, string jsonData)
+        public void AddStructuredOutput(string type, string jsonData, bool capExempt = false)
         {
-            _structuredOutputItems.Add(new StructuredOutputItem { Type = type, Data = jsonData });
+            _structuredOutputItems.Add(new StructuredOutputItem
+            {
+                Type = type,
+                Data = jsonData,
+                // ⚠ Travels to the MCP summariser, which otherwise caps every table at 50 rows.
+                //   A parameter schema must arrive whole — see CoreScript.Engine SchemaRows.
+                CapExempt = capExempt
+            });
         }
     }
 }
