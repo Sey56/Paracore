@@ -331,6 +331,14 @@ SKILL_ROOT_PATTERNS = (
     ("mcp", "mcp_core", "skills"),   # the SHARED core — paracore/mcp/mcp_core/skills
     ("mcp_core", "skills"),          # a repo's own copy (pre-2026-10-13 layout)
     ("skills",),                     # a specialist's DOMAIN skills (current layout)
+    # ⚠⚠ THE SCAFFOLD TREE IS A SKILL TREE TOO (added 2026-10-27). `paracore/ai/**` is what a
+    #   scaffolded gallery workspace receives as `.github/skills/`, so it is read by an agent on
+    #   every "Edit Script" — and it was the ONE tree this gate never compiled. Measured when it
+    #   was finally wired up: 4 fences in `ai/shared/skills/paracore-engine/SKILL.md` were
+    #   cheat-sheet lines with no `;` between calls (CS1002 ×9), shipped to every gallery agent.
+    #   `ai/vscode` has no `skills/` dir, so it contributes nothing.
+    ("ai", "shared", "skills"),      # emitted into BOTH scaffolds
+    ("ai", "desktop", "skills"),     # desktop-only (paracore-tool, paracore-sentinel)
 )
 
 

@@ -69,7 +69,30 @@ ENGINE_DOC = REPO / "EXTENSION_METHODS.md"     # the authority doc (the engine r
 # ⚠ Host plumbing a script cannot call. Documenting it would pad the reference with
 # unreachable members, so it is EXCLUDED from the inventory — and the exclusion is asserted
 # (the audit prints it) rather than left implicit.
-EXCLUDE_NAMES = {"AddCoreScriptEngineServices"}
+EXCLUDE_NAMES = {
+    "AddCoreScriptEngineServices",
+    # ⚠⚠ WATCHDOGS / SENTINELS ARE DELIBERATELY ABSENT FROM THE GENERATED INDEX (2026-10-27).
+    #   They exist in the engine (`ScriptApi.Sentinels.cs` → `WatchdogRegistry`) and a gallery
+    #   script may call them: a sentinel IS a gallery script. But DEPLOYING one is a manual
+    #   operation the operator performs from the Paracore desktop app, so no MCP agent may
+    #   deploy one — and this index is served to `paracore-model` / `paracore-family` /
+    #   `paracore-gen`, which write REPL code and have no gallery at all.
+    #   ⚠⚠ This reference is NOT a human-only document. It is served to the MCP agents by the
+    #   `_read_extension_methods` TOOL and generated into every repo's docs, so listing the
+    #   names put a callable `Watchdog(...)` in front of an agent inside a pre-imported
+    #   `ScriptApi` — one line away from arming a background process in someone's Revit.
+    #   ⚠ THE TWO CONSUMERS THAT MAY KNOW are `paracore-forge` and the desktop gallery
+    #     scaffold (`paracore/ai/desktop/`). Both WRITE gallery scripts, so both are taught the
+    #     API by a HAND-WRITTEN skill (`paracore-forge/skills/sentinels/`,
+    #     `paracore/ai/desktop/skills/paracore-sentinel/`) — not by this index, so the index
+    #     stays one document with one content everywhere instead of a per-target variant.
+    #   ⚠ Excluding them leaves `ScriptApi.Sentinels.cs` with no records at all, so its
+    #     `#### Globals/...` heading disappears with them.
+    #   ⚠ The gate that keeps the two-sided rule: `paracore/.repl/_sentinel_surface_check.py`
+    #     (teeth: `_sentinel_surface_teeth.py`).
+    "Watchdog",
+    "WatchdogReport",
+}
 
 # The global (no-prefix) surface lives in the `ScriptApi` partials only. Scoping it by FILE
 # keeps the claim exact: "every `public static` member of ScriptApi*".
@@ -244,6 +267,13 @@ def extract_globals(root: Path):
             if not parts:
                 continue
             ret, name, generic = parts
+            # ⚠⚠ SAME EXCLUSION AS THE EXTENSION TABLE — and it has to be here as well, because
+            #   `Watchdog` / `WatchdogReport` are `ScriptApi` GLOBALS, not extension methods:
+            #   `extract_extensions` never sees them, so filtering only there left the whole
+            #   `#### Globals/ScriptApi.Sentinels.cs` section in every generated reference.
+            #   See `EXCLUDE_NAMES` for the ruling.
+            if name in EXCLUDE_NAMES:
+                continue
             line = text.count("\n", 0, m.start()) + 1
             if first == op:
                 cp = match_paren(text, op)

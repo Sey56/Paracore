@@ -206,7 +206,15 @@ for _repo in (MODEL, FAMILY):
 # sections are generated. Before this the same nine sections existed three times by hand and had
 # ALREADY diverged — family read "How many per type?" where gen/model read "per level", and only gen
 # mentioned `export_view` — which is exactly the drift the shared set exists to prevent.
-for _repo in (MCP, MODEL, FAMILY):
+# ⚠⚠ `gen` IS DELIBERATELY NOT IN THIS LIST (2026-10-27). It is the GENERALIST: its catalogue
+#   is `list_skills`, and it takes an explicit SUBSET of the shared skills — everything except
+#   `create-geometry`, because modelling is `paracore-model`'s job. This generator renders the
+#   FULL shared set, so a `SKILLS.md` in that repo could only ever be wrong.
+#   ⚠ MEASURED: the moment gen's Domain dropped `create-geometry`, its `SKILLS.md` still listed
+#     the skill and still said "These nine". A generated doc that cannot see the Domain's filter
+#     is a second copy of the truth — so it was DELETED, not maintained. A stale generated doc
+#     is worse than no doc: it is wrong in the one place a reader looks.
+for _repo in (MODEL, FAMILY):
     TARGETS.append((SELF, _repo / "SKILLS.md"))
 
 # ⚠⚠⚠ THERE IS NO DERIVED_SKILLS MECHANISM, AND THERE MUST NOT BE ONE (2026-10-25).

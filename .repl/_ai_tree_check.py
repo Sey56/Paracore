@@ -218,6 +218,29 @@ def main() -> int:
     if (VSCODE_TREE / "skills" / "paracore-tool").exists():
         failures.append("VSCODE: paracore-tool leaked into the VS Code tree")
 
+    # ── generated reference regions must be CURRENT ─────────────────────────────
+    # ⚠ A generated region that nothing checks is not generated, it is a SNAPSHOT. The
+    #   `forge-reference` skill embeds the engine index via `gen-ext-methods.py --doc`, and it
+    #   is NOT in `gen-engine-docs.py`'s target list — so nothing noticed when it sat three
+    #   weeks stale (found 2026-10-27: `decimals = 2` rows against an engine that had moved to
+    #   `-1`, and `IEnumerable<object>` against `SchemaRows`). This is the check that would
+    #   have caught it. `import subprocess` is local: this file is otherwise pure reads.
+    import subprocess
+
+    generator = FREE / "scripts" / "gen-ext-methods.py"
+    for doc in (FREE.parent / "paracore-forge" / "skills" / "forge-reference" / "SKILL.md",):
+        checked += 1
+        if not generator.exists():
+            failures.append(f"GENERATED: generator missing at {generator}")
+            break
+        proc = subprocess.run(
+            [sys.executable, str(generator), "--doc", str(doc), "--check"],
+            capture_output=True, text=True,
+        )
+        if proc.returncode != 0:
+            detail = (proc.stdout or proc.stderr).strip().replace("\n", " ")
+            failures.append(f"STALE generated region in {doc.name}: {detail}")
+
     print(f"rule groups checked: {checked}")
     print(f"desktop tree: {len(desktop):,} chars   vscode tree: {len(vscode):,} chars")
     if failures:

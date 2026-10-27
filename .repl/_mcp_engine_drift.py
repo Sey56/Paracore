@@ -259,9 +259,22 @@ def main():
               f"({cs_files} files, {len(members)} members). "
               f"The extractor is broken, not the code.")
         return 1
-    if len(doc_files) < 15 or len(named) < 100:
+    # ⚠⚠ THE FILE COUNT IS NOT THE INVARIANT — IT WAS THE LAYOUT. This guard read
+    #   `len(doc_files) < 15`, which was true when `prompts/` held ten files. The 2026-10
+    #   progressive-disclosure restructure consolidated eight of them into `catalog.md`, leaving
+    #   2 prompts + 9 skills = 11 files (10 after the out-of-scope exclusion), so the guard began
+    #   failing on a HEALTHY tree and reported "the extractor is broken" about an extractor that
+    #   was fine. That is a ROTTED ANCHOR — retarget it, never delete it, because its real job is
+    #   "prove the scan saw something".
+    #   The invariant that survives a restructure is the CANARY below: a name every instruction
+    #   surface teaches must be visible to the scan, whatever the file count happens to be.
+    if len(doc_files) < 3 or len(named) < 100:
         print(f"CHECK FAILED: MCP scan produced {len(named)} names from "
               f"{len(doc_files)} files. The extractor is broken.")
+        return 1
+    if "GetElements" not in named:
+        print("CHECK FAILED: the MCP scan never saw `GetElements`, which every prompt and skill "
+              "teaches. The extractor is under-matching, so every name it reports is suspect.")
         return 1
 
     # TEETH: the extractor must find members whose existence is NOT in doubt.
