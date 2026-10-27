@@ -151,8 +151,8 @@ elements.SetParam("Mark", d => $"D-{d.RoomFrom()}")        // factory
 elements.SetParam("Mark", (w, idx) => $"W{w+1:D3}")        // indexed factory
 elements.SetTypeParam("Cost", "30.00 Birr")       // writes each DISTINCT type once
 
-elements.Select()   elements.Zoom()   elements.Isolate()
-elements.Hide()     elements.Unhide() elements.Delete()    // Delete skips Pinned + curtain panels
+elements.Select(); elements.Zoom(); elements.Isolate()
+elements.Hide(); elements.Unhide(); elements.Delete()    // Delete skips Pinned + curtain panels
 elements.Peek()                                            // forensic dump of every parameter
 ```
 
@@ -190,9 +190,9 @@ el.InstanceParams().Table()      // instance only
 el.TypeParams().Table()          // type only
 el.BuiltInParams().Table()       // BuiltInParameter identifiers
 el.NativeProperties().Table()    // Name, Id, Category, Level, Workset, Pinned, Location…
-el.ReflectionProperties().Table()  el.ReflectionMethods().Table()
+el.ReflectionProperties().Table();  el.ReflectionMethods().Table()
 el.ParamsDict()                  // Dictionary<string, string>
-el.FamilyName()  el.Matches("Single")
+el.FamilyName();  el.Matches("Single")
 id.ToElement(Doc)                // ElementId / long / int → Element
 ```
 
@@ -200,11 +200,11 @@ id.ToElement(Doc)                // ElementId / long / int → Element
 
 ```csharp
 // Doors & windows — orientation is stable regardless of flips
-fi.RoomFrom()  fi.RoomTo()  fi.Handing()  fi.HingeSide()
-fi.IsHandFlipped()  fi.IsFacingFlipped()  fi.FindSwingArc()
+fi.RoomFrom();  fi.RoomTo();  fi.Handing();  fi.HingeSide()
+fi.IsHandFlipped();  fi.IsFacingFlipped();  fi.FindSwingArc()
 
 // Materials & geometry
-el.Materials()  el.MaterialNames()  el.GetMaterialNames()
+el.Materials();  el.MaterialNames();  el.GetMaterialNames()
 el.GeometrySummary().Table()     // solids | curves | polylines, in world space
 
 // Notebook export
@@ -226,8 +226,8 @@ value.FormatUnit("mm")              // "3600.0 mm"
 value.FormatValueOnly("mm")         // "3600"  — no suffix, good for CSV
 value.RoundTo("mm", 0)              // snap to the nearest mm, return internal feet
 "50mm".ToMeters()                   // 0.05
-x.IsAlmostEqualTo(y)  x.AlmostZero()  x.IsLessThan(limit)  x.IsGreaterThan(limit)
-x.IsLessThanOrEqual(limit)  x.IsGreaterThanOrEqual(limit)  x.IsPositive()  x.IsNegative()
+x.IsAlmostEqualTo(y);  x.AlmostZero();  x.IsLessThan(limit);  x.IsGreaterThan(limit)
+x.IsLessThanOrEqual(limit);  x.IsGreaterThanOrEqual(limit);  x.IsPositive();  x.IsNegative()
 ```
 
 Strings: `mm cm m km in ft m2 sqm ft2 sqft m3 cum ft3 cuft deg % kg nr no`.

@@ -107,6 +107,15 @@ namespace CoreScript.Engine.Core
 
             try
             {
+                // ⚠ The guard's counters start HERE, in the one funnel that both SOURCE and
+                //   PRECOMPILED scripts pass through, so no run can inherit the previous run's depth.
+                //   ⚠⚠ THIS DOES NOT ARM THE DEADLINE. It only resets the recursion counters. The
+                //   wall-clock budget is armed by ExecutionGlobals.SetTimeoutBudget and injected into
+                //   loop bodies by TimeoutRewriter. The two are deliberately separate: this catches
+                //   unbounded RECURSION, the deadline catches an unbounded LOOP, and a script can do
+                //   either one without doing the other.
+                Runtime.ScriptGuard.BeginExecution(context, topLevelScriptName);
+
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
 
@@ -732,6 +741,7 @@ namespace CoreScript.Engine.Core
             }
             finally
             {
+                Runtime.ScriptGuard.EndExecution();
                 ExecutionGlobals.ClearContext();
             }
         }
@@ -846,6 +856,12 @@ namespace CoreScript.Engine.Core
 
             try
             {
+                // ⚠ Same as ExecuteCore, for the same reason: this is the CACHED second run of a
+                //   script and it is a SEPARATE entry point, so guarding only ExecuteCore would leave
+                //   the fast path running with whatever counters the previous execution left behind.
+                //   A rule in N places must be applied in N places.
+                Runtime.ScriptGuard.BeginExecution(context, topLevelScriptName);
+
                 var parameters = _parameterService.MapParameters(parametersJson, out var richParams);
                 var rawParameters = new Dictionary<string, object>(parameters);
 
@@ -910,7 +926,7 @@ namespace CoreScript.Engine.Core
                 failureResult.ScriptName = topLevelScriptName;
                 return failureResult;
             }
-            finally { ExecutionGlobals.ClearContext(); }
+            finally { Runtime.ScriptGuard.EndExecution(); ExecutionGlobals.ClearContext(); }
         }
 
         public byte[] CompileToBytes(string scriptContent)

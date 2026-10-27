@@ -27,6 +27,26 @@ namespace CoreScript.Engine.Core
         private static readonly Dictionary<string, ReplSession> _sessions = new Dictionary<string, ReplSession>();
         private static readonly object _lock = new object();
 
+        /// <summary>
+        /// The wall-clock budget for ONE REPL submission, in seconds.
+        /// <para>
+        /// ⚠⚠ WHY THIS IS SET HERE AND NOT LEFT TO THE FIELD DEFAULT. <see cref="ExecutionGlobals"/>
+        /// defaults to 10 s, which is right for a compiled gallery tool but far too tight for an
+        /// agent-written query over a real building. It must also stay UNDER the MCP's gRPC
+        /// deadline (grpc_client.DEFAULT_TIMEOUT_S = 120 s) so the script is killed with a clear
+        /// TimeoutException BEFORE the client gives up on the reply — otherwise the caller reports
+        /// "Revit did not answer" while the script is still running, which is the misdiagnosis
+        /// that deadline policy exists to prevent.
+        /// </para>
+        /// <para>
+        /// ⚠ It is RE-APPLIED on every submission (see <see cref="ExecutionGlobals.SetTimeoutBudget"/>).
+        /// The session's ExecutionGlobals outlives a single snippet, so without the reset one
+        /// script's SetExecutionTimeout(1800) would silently become every later script's budget.
+        /// A script that genuinely needs longer still calls SetExecutionTimeout at its first line.
+        /// </para>
+        /// </summary>
+        public const int ReplTimeoutSeconds = 90;
+
         public static async Task<(bool isSuccess, string output, string error, List<string> structuredOutput)> ExecuteAsync(string code, string sessionId, ICoreScriptContext context, string licenseTier = "free")
         {
             try
@@ -120,7 +140,20 @@ namespace CoreScript.Engine.Core
                 var replRoot = syntaxTree.GetRoot();
                 var skipCalls = Rewriters.SemanticTrackingGuard.ComputeSkipCalls(replRoot, imports, allRefs);
                 var pipelineRewriter = new Rewriters.PipelineTrackingRewriter(skipCalls);
-                code = pipelineRewriter.Visit(replRoot).ToFullString();
+                var rewrittenRoot = pipelineRewriter.Visit(replRoot);
+
+                // Inject the timeout check into every loop body.
+                // ⚠⚠ THIS WAS MISSING ON THE REPL PATH (found 2026-10-27). ScriptRewriter runs all
+                //   three rewriters for the COMPILED-tool path, but this method ran only the
+                //   pipeline one — so ExecutionGlobals.CheckTimeout() was never emitted into an
+                //   agent snippet, the deadline armed by SetContext was never tested, and a
+                //   `while (true) {}` from an MCP call ran to completion. Measured live: a 25 s
+                //   loop returned normally, while calling CheckTimeout() by hand threw at 1 s —
+                //   i.e. the mechanism worked and only the injection was absent.
+                //   A timeout that is never checked is not a timeout: it is a comment.
+                rewrittenRoot = new Rewriters.TimeoutRewriter().Visit(rewrittenRoot);
+
+                code = rewrittenRoot.ToFullString();
 
                 // Inject ScriptApi and resolve Parameter ambiguity, then RE-ANCHOR
                 // THE LINE NUMBERING.
@@ -151,6 +184,7 @@ namespace CoreScript.Engine.Core
 
                     // Start new session
                     var globals = new ExecutionGlobals(context, new Dictionary<string, object>(), new Dictionary<string, object>());
+                    globals.SetTimeoutBudget(ReplTimeoutSeconds);
                     ExecutionGlobals.SetContext(globals);
                     try
                     {
@@ -240,6 +274,10 @@ namespace CoreScript.Engine.Core
                     // Continue existing session
                     session.Globals.UpdateContext(context);
                     session.Globals.PipelineDiagnostics.Clear();
+                    // ⚠ Reset the budget per submission — see ReplTimeoutSeconds. Without this, a
+                    //   script that called SetExecutionTimeout(1800) would raise the limit for
+                    //   every later snippet in the same REPL session.
+                    session.Globals.SetTimeoutBudget(ReplTimeoutSeconds);
                     ExecutionGlobals.SetContext(session.Globals);
 
                     try

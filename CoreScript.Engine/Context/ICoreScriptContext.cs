@@ -17,7 +17,20 @@ namespace CoreScript.Engine.Context
         void Println(string message);
         void Print(string message);
         void LogError(string message);
-        void AddStructuredOutput(string type, string jsonData);
+
+        /// <summary>
+        /// Records a structured output item for the UI and for the MCP.
+        /// </summary>
+        /// <param name="type">Routing key — <c>table</c>, <c>chart-bar</c>, … (a wire contract).</param>
+        /// <param name="jsonData">The serialized payload.</param>
+        /// <param name="capExempt">
+        /// ⚠ <c>true</c> means "every row matters — do not truncate". The MCP summariser caps a
+        /// table at 50 rows, which is right for an element dump the agent can narrow and wrong
+        /// for a PARAMETER SCHEMA, where the list is the answer and a cut list makes a real
+        /// parameter look missing. Set by the engine (see <c>SchemaRows</c>), never inferred by
+        /// the consumer from column names.
+        /// </param>
+        void AddStructuredOutput(string type, string jsonData, bool capExempt = false);
 
         Action<string>? PrintCallback { get; }
 

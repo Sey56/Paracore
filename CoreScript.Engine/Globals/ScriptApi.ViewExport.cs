@@ -96,16 +96,27 @@ namespace CoreScript.Engine.Globals
 
             if (view == null)
             {
+                // ⚠⚠ SHOW THE TYPE, AND DEDUPE (2026-10-27). Revit allows two views to share a
+                //   name across view TYPES — measured on TestModel.rvt: "Level 1" exists as both
+                //   a FloorPlan and a CeilingPlan, and "Level 2" likewise. A name-only list
+                //   therefore printed "Level 1" twice, which reads as a bug in this message when
+                //   it is a fact about the model. The type is what tells them apart; Distinct()
+                //   then collapses rows that are genuinely identical.
+                //   ⚠ Still ambiguous: ExportImage resolves a name with FirstOrDefault, so with
+                //   two views called "Level 1" it exports whichever comes first. Listing the type
+                //   is what lets the caller notice.
                 var available = new FilteredElementCollector(Doc)
                     .OfClass(typeof(View))
                     .Cast<View>()
                     .Where(v => !v.IsTemplate)
-                    .Select(v => v.Name)
+                    .Select(v => v.Name + " (" + v.ViewType + ")")
+                    .Distinct()
                     .Take(10)
                     .ToList();
 
                 var hint = available.Count > 0
                     ? $" Known views include: {string.Join(", ", available)}."
+                        + " Pass the name only — the part before the parenthesis."
                     : " This document has no exportable views.";
 
                 throw new InvalidOperationException(
@@ -125,11 +136,27 @@ namespace CoreScript.Engine.Globals
             }
             Directory.CreateDirectory(directory);
 
+            // ⚠⚠ REVIT STRIPS AN EXTENSION YOU PASS AND APPENDS ITS OWN.
+            //   Ask for `C:\tmp\shot.png` and Revit writes `shot - 3D View - {3D}.png` — the base
+            //   it used is `shot`, NOT `shot.png`. The lookup further down searches by PREFIX, so
+            //   `shot.png*` matched nothing, this method threw "Revit reported success but wrote
+            //   no file", and the caller was left BLIND with a perfectly good image on disk.
+            //   That is the one failure an agent cannot diagnose: it is told the export failed
+            //   when the picture exists — measured 2026-10-27, `pc-export-test.png` was on disk
+            //   while the call reported no file.
+            //   Fix: normalise to the STEM ourselves, so the path handed to Revit and the prefix
+            //   searched for are the same string, whatever extension the caller typed.
             var baseName = Path.GetFileName(path);
+            var stem = Path.GetFileNameWithoutExtension(baseName);
+            if (string.IsNullOrEmpty(stem)) stem = baseName;
+            var extensionless = Path.GetFileNameWithoutExtension(baseName);
+            if (string.IsNullOrEmpty(extensionless)) extensionless = stem;
+
+            var exportPath = Path.Combine(directory, stem);
 
             var options = new ImageExportOptions
             {
-                FilePath = path,
+                FilePath = exportPath,
                 ZoomType = ZoomFitType.FitToPage,
                 FitDirection = FitDirectionType.Horizontal,
                 PixelSize = pixelSize,
@@ -177,15 +204,35 @@ namespace CoreScript.Engine.Globals
 
             // ⚠ Find by PREFIX, newest match. Revit appends " - <view name>" to the base and may
             // change the extension, so the exact path passed in is NOT the file that exists.
-            var written = Directory.GetFiles(directory, baseName + "*")
+            // ⚠ TWO prefixes, because the stem we derived is not always the stem Revit used: a
+            //   caller who passed `shot.v2` keeps that dot in `stem`, while Revit strips the whole
+            //   extension. Searching both costs one extra directory scan and removes the last way
+            //   this can report "no file" while the file sits right there.
+            var prefixes = stem == extensionless ? new[] { stem } : new[] { stem, extensionless };
+
+            var written = prefixes
+                .SelectMany(prefix => Directory.GetFiles(directory, prefix + "*"))
                 .OrderByDescending(File.GetLastWriteTimeUtc)
                 .FirstOrDefault();
 
             if (written == null)
             {
+                // ⚠ NEVER report "wrote no file" without saying what IS there. The whole cost of
+                //   this bug was an agent told the export failed while the image existed.
+                var present = Directory.GetFiles(directory)
+                    .Select(f => Path.GetFileName(f))
+                    .Where(n => n != null &&
+                                n.StartsWith(extensionless, StringComparison.OrdinalIgnoreCase))
+                    .Take(5)
+                    .ToList();
+
+                var found = present.Count > 0
+                    ? " Files starting with that name DO exist: " + string.Join(", ", present) + "."
+                    : string.Empty;
+
                 throw new InvalidOperationException(
                     $"ExportImage: Revit reported success but wrote no file matching " +
-                    $"'{baseName}*' in '{directory}'.");
+                    $"'{stem}*' in '{directory}'.{found}");
             }
 
             return written;

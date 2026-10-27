@@ -228,7 +228,17 @@ namespace CoreScript.Engine.Globals
             }
 
             var ids = elements.Select(e => e.Id).ToList();
-            Doc.ActiveView.IsolateElementsTemporary(ids);
+            var view = Doc.ActiveView;
+
+            // ⚠⚠ ISOLATE MUTATES THE VIEW, so it needs a transaction — exactly as the
+            //   collection extension `.Isolate()` (CollectionUIExtensions) already does. This
+            //   global called IsolateElementsTemporary bare, so it threw "Attempt to modify the
+            //   model outside of transaction" while `element.Isolate()` on the same element
+            //   worked: one action, two different answers depending on how it was spelled.
+            void Apply() => view.IsolateElementsTemporary(ids);
+            if (Doc.IsModifiable) Apply();
+            else _ = Tx.Transact(Doc, "Isolate Elements", Apply);
+
             Zoom(elements);
         }
 
@@ -327,6 +337,12 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         public static T? GetElement<T>(string identity) where T : Element
         {
+            // ⚠ An ID is answered BY ID, before the name scan — see TryResolveId.
+            if (TryResolveId(identity) is Element byId)
+            {
+                return byId is T typed ? typed : null;
+            }
+
             var collector = Core.ParameterOptionsComputer.CreateResilientCollector(Doc, typeof(T));
             return collector
                 .Cast<Element>()
@@ -338,10 +354,15 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
-        /// Finds the first element matching the specified name or magic identity.
+        /// Finds the first element matching the specified <b>id</b>, name or magic identity.
         /// </summary>
         public static Element? GetElement(string identity)
         {
+            if (TryResolveId(identity) is Element byId)
+            {
+                return byId;
+            }
+
             // Use a broad collector for generic discovery
             var collector = new FilteredElementCollector(Doc).WhereElementIsNotElementType();
             return collector
@@ -349,6 +370,29 @@ namespace CoreScript.Engine.Globals
                 .FirstOrDefault(x =>
                     x.Name.Equals(identity, StringComparison.OrdinalIgnoreCase) ||
                     Core.ParameterOptionsComputer.GetElementIdentity(x).Equals(identity, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Resolves a bare element id, or null when the identity is not a number.
+        /// <para>
+        /// ⚠⚠ WHY THIS EXISTS. Both overloads above documented themselves as "name-or-id" while
+        /// matching only <see cref="Element.Name"/> and the magic identity — there was no id
+        /// branch at all, so <c>GetElement("359588")</c> returned <c>null</c> for EVERY id and the
+        /// documented call silently produced nothing. The id is also the one identity a caller
+        /// reliably holds: every table prints an Id column, so it is the natural thing to type.
+        /// </para>
+        /// <para>
+        /// A non-numeric identity returns null and falls through to the name scan, so a wall
+        /// genuinely named "123" still resolves by name.
+        /// </para>
+        /// </summary>
+        private static Element? TryResolveId(string identity)
+        {
+            if (string.IsNullOrWhiteSpace(identity) || Doc == null) return null;
+
+            if (!long.TryParse(identity.Trim(), out long idValue) || idValue <= 0) return null;
+
+            return Doc.GetElement(new ElementId(idValue));
         }
 
         /// <summary>

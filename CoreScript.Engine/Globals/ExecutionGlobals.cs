@@ -161,6 +161,27 @@ namespace CoreScript.Engine.Globals
             ctx._executionDeadline = DateTime.Now.AddSeconds(seconds);
         }
 
+        /// <summary>
+        /// Sets this execution's wall-clock budget and arms the deadline from NOW.
+        /// <para>
+        /// Distinct from <see cref="SetExecutionTimeout"/>, which is the SCRIPT-FACING escape hatch
+        /// and needs a live context. This is the HOST's call: it runs before the snippet, so the
+        /// budget is correct from the first loop iteration, and it re-arms the deadline so a
+        /// budget left behind by an earlier submission cannot leak into this one.
+        /// </para>
+        /// <para>
+        /// ⚠ A budget only has teeth if something calls <see cref="CheckTimeout"/> — the
+        /// TimeoutRewriter injects it into loop bodies. Arming a deadline with no injection is
+        /// what made the REPL path look protected while it was not (see ReplSessionManager).
+        /// </para>
+        /// </summary>
+        public void SetTimeoutBudget(int seconds)
+        {
+            if (seconds <= 0) return;
+            _timeoutSeconds = seconds;
+            _executionDeadline = DateTime.Now.AddSeconds(seconds);
+        }
+
         public static void CheckTimeout()
         {
             var ctx = Current.Value;
@@ -252,6 +273,20 @@ namespace CoreScript.Engine.Globals
         public void Table(object data)
         {
             Output.Table(data);
+        }
+
+        /// <summary>
+        /// Renders a table and says whether it may be truncated.
+        /// <para>
+        /// ⚠ <paramref name="capExempt"/> means "every row matters" — a PARAMETER SCHEMA, where
+        /// the list is the answer. The MCP summariser shows all rows for these and keeps its
+        /// first-N cap for element dumps and grouped aggregates. Pass <c>true</c> only for
+        /// discovery output; a 5,000-row element dump exempted from the cap floods the prompt.
+        /// </para>
+        /// </summary>
+        public void Table(object data, bool capExempt)
+        {
+            Output.Table(data, capExempt);
         }
 
         public void BarGraph(object data)

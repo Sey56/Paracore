@@ -53,6 +53,20 @@ namespace CoreScript.Engine.Globals
 
         public void Show(string type, object data)
         {
+            Show(type, data, capExempt: false);
+        }
+
+        /// <summary>
+        /// Emits a structured item and records whether the MCP may truncate it.
+        /// <para>
+        /// ⚠ <paramref name="capExempt"/> travels on the wire as <c>cap_exempt</c> — the MCP
+        /// summariser caps every table at 50 rows, which is right for an element dump and wrong
+        /// for a parameter schema. It is a FACT FROM THE PRODUCER, not a hint the consumer
+        /// infers; see <see cref="SchemaRows"/>.
+        /// </para>
+        /// </summary>
+        public void Show(string type, object data, bool capExempt)
+        {
             // Only expand elements if we are rendering a table
             var toSerialize = MaterializeForSerialization(data, type == TypeTable);
             if (toSerialize == null)
@@ -60,7 +74,7 @@ namespace CoreScript.Engine.Globals
                 return; // Suppress empty data structures entirely
             }
             var json = JsonSerializer.Serialize(toSerialize, ExecutionGlobals.SerializerOptions);
-            _context.AddStructuredOutput(type, json);
+            _context.AddStructuredOutput(type, json, capExempt);
 
             // Pipeline diagnostic: mark visualization as rendered
             // -1 = chart-type, -2 = table
@@ -213,6 +227,16 @@ namespace CoreScript.Engine.Globals
         public void Table(object data)
         {
             Show(TypeTable, data);
+        }
+
+        /// <summary>
+        /// Renders a table, marking whether the MCP may truncate it.
+        /// <para>⚠ <paramref name="capExempt"/> = every row matters (a parameter schema). See
+        /// <see cref="Show(string, object, bool)"/>.</para>
+        /// </summary>
+        public void Table(object data, bool capExempt)
+        {
+            Show(TypeTable, data, capExempt);
         }
 
         public void LineGraph(object data)

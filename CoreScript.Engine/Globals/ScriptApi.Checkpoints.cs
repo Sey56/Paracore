@@ -210,7 +210,21 @@ namespace CoreScript.Engine.Globals
             // ── WHAT CHANGED SINCE THE MARK ──────────────────────────────────────
             var created = new List<ElementId>();
             var modified = new List<ElementId>();
-            using (var collector = new FilteredElementCollector(Doc))
+
+            // ⚠⚠ THE DIFF MUST SCAN THE SAME SET THE CAPTURE DID — two reasons, and the second is
+            //   the one that matters:
+            //     1. A bare collector cannot be iterated at all (Revit 2023+), so this threw
+            //        "The collector does not have a filter applied" — the SAME defect as CaptureInto,
+            //        in a second place. Fixing only the capture left RollbackTo dead, which is why
+            //        the first live test still failed.
+            //     2. Anything the diff scans that is NOT in `entry.Values` is reported as CREATED.
+            //        If this pass covered a narrower set than the capture, every element it skipped
+            //        would be misreported as new — a wrong answer that looks like a working feature.
+            //   Both passes therefore use the identical LogicalOr across the element/type split.
+            using (var collector = new FilteredElementCollector(Doc)
+                .WherePasses(new LogicalOrFilter(
+                    new ElementIsElementTypeFilter(false),
+                    new ElementIsElementTypeFilter(true))))
             {
                 foreach (Element element in collector)
                 {
@@ -311,6 +325,30 @@ namespace CoreScript.Engine.Globals
         }
 
         /// <summary>
+        /// The key a captured value is stored under.
+        /// <para>
+        /// ⚠⚠ THE PARAMETER ID, NOT THE NAME — A NAME IS NOT UNIQUE. Measured on the test model
+        /// (2026-10-27): a View carries TWO writable parameters named <c>View Template</c>
+        /// (ids −1005199 = "None" and −1005176 = "&lt;None&gt;"), and a Railing carries THREE named
+        /// <c>Type</c> (ids −1150333, −1150329 = "&lt;None&gt;", −1150327 = "Rectangular - 50x50mm").
+        /// A name-keyed bag collapses those to ONE entry: the capture keeps the LAST duplicate while
+        /// the diff/restore compares the FIRST. The consequences were both observed:
+        ///   • a NO-OP RollbackTo still reported 14 elements "modified" — a permanent false diff;
+        ///   • worse, restoring the surviving entry would write the wrong duplicate's value, because
+        ///     those values genuinely differ ('None' vs '&lt;None&gt;').
+        /// The id distinguishes them, so it is the key.
+        /// </para>
+        /// </summary>
+        private static string ParamKey(Parameter p)
+        {
+            ElementId? id = p.Id;
+            if (id == null || id == ElementId.InvalidElementId)
+                return "n:" + (p.Definition?.Name ?? string.Empty);
+
+            return "p:" + id.Value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
         /// Snapshots every writable parameter value in the document.
         /// <para>
         /// ⚠ TYPE parameters are captured on the TYPE, not once per instance: a type parameter read
@@ -320,7 +358,18 @@ namespace CoreScript.Engine.Globals
         /// </summary>
         private static void CaptureInto(Dictionary<long, Dictionary<string, string>> into)
         {
-            using var collector = new FilteredElementCollector(Doc);
+            // ⚠⚠ A COLLECTOR WITH NO FILTER CANNOT BE ITERATED (Revit 2023+). This was a bare
+            //   `new FilteredElementCollector(Doc)`, so Mark() threw
+            //   "The collector does not have a filter applied" on EVERY call. Checkpoints were
+            //   therefore entirely dead — not degraded — and RollbackTo then reported "no
+            //   checkpoint named …" because none had ever been captured.
+            //   A LogicalOr across BOTH sides of the element/type split keeps the capture
+            //   COMPLETE (a type's parameters are exactly what a re-typed stage changes) while
+            //   satisfying the filter rule.
+            using var collector = new FilteredElementCollector(Doc)
+                .WherePasses(new LogicalOrFilter(
+                    new ElementIsElementTypeFilter(false),
+                    new ElementIsElementTypeFilter(true)));
             foreach (Element element in collector)
             {
                 var bag = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -330,12 +379,10 @@ namespace CoreScript.Engine.Globals
                     {
                         if (p == null || p.IsReadOnly) { continue; }
                         if (p.Element is ElementType && element is not ElementType) { continue; }
-
-                        string? name = p.Definition?.Name;
-                        if (string.IsNullOrEmpty(name)) { continue; }
+                        if (p.Definition == null || string.IsNullOrEmpty(p.Definition.Name)) { continue; }
 
                         string? encoded = Encode(p);
-                        if (encoded != null) { bag[name] = encoded; }
+                        if (encoded != null) { bag[ParamKey(p)] = encoded; }
                     }
                 }
                 catch { /* an element whose parameters cannot be read simply snapshots empty */ }
@@ -351,10 +398,17 @@ namespace CoreScript.Engine.Globals
             {
                 foreach (Parameter p in element.Parameters)
                 {
-                    if (p == null) { continue; }
-                    string? name = p.Definition?.Name;
-                    if (string.IsNullOrEmpty(name)) { continue; }
-                    if (!bag.TryGetValue(name, out string? encoded) || encoded == null) { continue; }
+                    // ⚠ THE SAME GATES AS CaptureInto AND RestoreElement. This method used to apply
+                    //   NEITHER, so it compared parameters the capture had deliberately skipped —
+                    //   read-only ones and a type's parameters projected onto an instance. Any such
+                    //   parameter sharing a name with a captured one produced a false "differs", and
+                    //   `now == null` below reports a diff too. Three functions over one bag must
+                    //   agree on which parameters the bag can contain.
+                    if (p == null || p.IsReadOnly) { continue; }
+                    if (p.Element is ElementType && element is not ElementType) { continue; }
+                    if (p.Definition == null || string.IsNullOrEmpty(p.Definition.Name)) { continue; }
+
+                    if (!bag.TryGetValue(ParamKey(p), out string? encoded) || encoded == null) { continue; }
 
                     string? now = Encode(p);
                     if (now == null || !string.Equals(now, encoded, StringComparison.Ordinal)) { return true; }
@@ -374,10 +428,9 @@ namespace CoreScript.Engine.Globals
                 {
                     if (p == null || p.IsReadOnly) { continue; }
                     if (p.Element is ElementType && element is not ElementType) { continue; }
+                    if (p.Definition == null || string.IsNullOrEmpty(p.Definition.Name)) { continue; }
 
-                    string? name = p.Definition?.Name;
-                    if (string.IsNullOrEmpty(name)) { continue; }
-                    if (!bag.TryGetValue(name, out string? encoded) || encoded == null) { continue; }
+                    if (!bag.TryGetValue(ParamKey(p), out string? encoded) || encoded == null) { continue; }
 
                     string? now = Encode(p);
                     if (string.Equals(now, encoded, StringComparison.Ordinal)) { continue; }

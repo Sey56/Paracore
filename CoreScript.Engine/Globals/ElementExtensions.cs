@@ -72,14 +72,27 @@ namespace CoreScript.Engine.Globals
         /// <summary>
         /// Fuzzy substring search against the Element's identity.
         /// Checks Type Name and Family Name.
+        /// <para>
+        /// ⚠⚠ THE FAMILY CHECK MUST GO THROUGH <see cref="FamilyName()"/> (2026-10-27, review
+        /// round 3). This used to test <c>e is FamilyInstance</c> / <c>e is FamilySymbol</c>, so
+        /// every HOST element was skipped: a Wall is neither. Measured by the reviewer —
+        /// <c>WhereMatches("Basic")</c> returned <b>0</b> on nine "Basic Wall" walls, and
+        /// <c>Matches("Basic")</c> returned <b>false</b> while <c>FamilyName()</c> returned
+        /// "Basic Wall" from the same element. The helper already handles system families via
+        /// ELEM_FAMILY_PARAM, so use it rather than re-testing the type.
+        /// </para>
         /// </summary>
         public static bool Matches(this Element e, string pattern)
         {
             if (e == null || string.IsNullOrEmpty(pattern)) return false;
 
             if (e.Name.Contains(pattern, StringComparison.OrdinalIgnoreCase)) return true;
-            if (e is FamilyInstance fi && fi.Symbol.FamilyName.Contains(pattern, StringComparison.OrdinalIgnoreCase)) return true;
-            if (e is FamilySymbol fs && fs.FamilyName.Contains(pattern, StringComparison.OrdinalIgnoreCase)) return true;
+            if (e.FamilyName().Contains(pattern, StringComparison.OrdinalIgnoreCase)) return true;
+
+            // The type name of a host element is not always Element.Name (a Wall reports its
+            // type name, a FamilyInstance does not), so ask for it explicitly.
+            var typeName = e.GetElementType()?.Name;
+            if (typeName != null && typeName.Contains(pattern, StringComparison.OrdinalIgnoreCase)) return true;
 
             return false;
         }

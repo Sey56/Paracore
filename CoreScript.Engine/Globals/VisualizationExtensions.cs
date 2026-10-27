@@ -32,7 +32,10 @@ namespace CoreScript.Engine.Globals
                     NumericValue = p.StorageType == StorageType.Double ? e.GetNum(p.Definition.Name).ToString("F4") : p.StorageType == StorageType.Integer ? e.GetInt(p.Definition.Name).ToString() : "-",
                     UIValue = p.AsValueString() ?? "-"
                 });
-            ExecutionGlobals.Current.Value?.Table(snoopData);
+            // ⚠ capExempt: this is a PARAMETER DUMP, not a data table. Cutting it after 50 rows
+            //   would hide parameters from the agent, which then reports them as missing. Same
+            //   reasoning as SchemaRows — see that type.
+            ExecutionGlobals.Current.Value?.Table(snoopData, capExempt: true);
             return e;
         }
 
@@ -51,6 +54,18 @@ namespace CoreScript.Engine.Globals
 
         public static IEnumerable<T> Table<T>(this IEnumerable<T> data)
         {
+            // ⚠⚠ A PARAMETER SCHEMA IS NOT A DATA TABLE (2026-10-27). The MCP summariser keeps
+            // the first 50 rows of a big table plus the last two — right for an element dump the
+            // agent can narrow, wrong for "what parameters exist?", where the list IS the answer
+            // and a cut list makes a real parameter look missing. SchemaRows is how the engine
+            // says which it emitted; the flag travels to the MCP so it never has to guess from
+            // column names. Checked FIRST, before the element branch below.
+            if (data is SchemaRows schema)
+            {
+                ExecutionGlobals.Current.Value?.Table(schema, capExempt: true);
+                return data;
+            }
+
             // Raw elements → compact view with columns adapted to element kind.
             // Already-processed data (GroupByParam, Select, etc.) → render as-is.
             if (data is IEnumerable<Element> elements)

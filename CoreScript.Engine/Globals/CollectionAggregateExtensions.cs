@@ -14,12 +14,17 @@ namespace CoreScript.Engine.Globals
         /// Sums a numeric parameter across a typed collection.
         /// Unit is optional — when omitted, a sensible default is inferred
         /// from the parameter name (Volume→m3, Area→m2, Length/Height→m, etc.).
-        /// Decimals defaults to 3 (standard metric precision).
         ///
-        /// Sums raw internal values first, then converts and rounds once —
-        /// no per-element rounding loss.
+        /// ⚠ EXACT BY DEFAULT (changed 2026-10-27, pre-release review round 2). This used to
+        /// default to `decimals = 3`, so the returned DOUBLE was already rounded — the review
+        /// measured a 95.2417 m² sum reported as 95.242. That is a display concern leaking into
+        /// a value: the caller cannot tell a rounded total from a real one, and any arithmetic
+        /// on it carries the error. Pass a `decimals` argument to round deliberately;
+        /// `FormatUnit` / `FormatValueOnly` are the places that round for a human.
+        ///
+        /// Sums raw internal values first, then converts once — no per-element rounding loss.
         /// </summary>
-        public static double SumParam<T>(this IEnumerable<T> elements, string name, string unit = null, int decimals = 3)
+        public static double SumParam<T>(this IEnumerable<T> elements, string name, string unit = null, int decimals = -1)
             where T : Element
         {
             var resolvedUnit = unit ?? InferUnit(name);

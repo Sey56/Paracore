@@ -200,8 +200,18 @@ namespace CoreScript.Engine.Globals
                 if (Deleted.Count > 0) { ok.Add("   deleted  : " + Ids(Deleted)); }
             }
 
-            if (EventsSeen == 0)
+            if (TotalChanged > 0 && EventsSeen == 0)
             {
+                // ⚠⚠ GUARDED BY TotalChanged (found live 2026-10-27). A committed transaction that
+                //   changed NOTHING cannot raise a change event, so warning about the capture in
+                //   that case is a false alarm — and a false alarm about the MEASUREMENT is worse
+                //   than no message, because it makes the caller distrust a correct "changed
+                //   nothing" answer. Reproduced: a bulk .Delete() whose filter matched no element
+                //   printed "the capture is not working ... UNVERIFIED" while reporting, correctly,
+                //   that nothing had changed.
+                //   ⚠ ScriptApi.Batch.cs already guards the same warning with EventCaptureUsed;
+                //   this branch was the one place the rule was missing. A rule in N places must be
+                //   changed in N places.
                 ok.Add("   ⚠ the transaction COMMITTED but NO change event was received — the"
                        + " capture is not working, so treat the counts above as UNVERIFIED.");
             }

@@ -123,11 +123,24 @@ GetElements("Walls").First().GetStr("Level")            // "02 - Ground Floor Pl
 
 ```csharp
 wall.GetNum("Area")                   // internal units (sq ft)
-wall.GetNum("Area", "m2")            // 14.52
 wall.GetNum("Unconnected Height")     // internal units (ft)
-wall.GetNum("Unconnected Height", "m") // 2.80
-wall.GetNum("Width", "mm")            // 200
+
+// ⚠ MEASURED on TestModel.rvt: a wall whose exact length is 5.065 m
+wall.GetNum("Length", "m")            // 5.065…   ← EXACT, not rounded
+wall.GetNum("Length", "m", 2)         // 5.07     ← rounded, because you asked
+wall.GetNum("Width", "mm")            // 915.000… exact
 ```
+
+⚠⚠ **The value is EXACT by default — `decimals` is `-1`, meaning "do not round".** Rounding is a
+DISPLAY concern. A rounded number that is then summed is a wrong number: before 2026-10-27 this
+defaulted to 2, so 5.065 m came back as 5.07, a 915 mm door became 0.91 m, and summing 2-dp wall
+areas gave **95.23 m² against 95.2417 exact** on a nine-wall model — the loss growing with the
+building, which is exactly the error a quantity takeoff cannot afford.
+
+- For a number to COMPUTE with: `.GetNum(name, unit)`.
+- For a number to SHOW: `.GetVal(name, unit)` or `.FormatUnit(unit, decimals)` — both round to 2.
+- The rounding mode is **half away from zero** (5.065 → 5.07), not .NET's default banker's
+  rounding, which would give 5.06 on a value that lands a hair below the midpoint.
 
 Falls back to C# properties via Reflection if the parameter isn't found.
 
@@ -162,7 +175,7 @@ column.GetTypeStr("Material")         // "Concrete - C-25"
 column.GetTypeNum("b", "mm")          // 250
 column.GetTypeNum("h", "mm")          // 300
 column.GetTypeInt("Usage")            // 0
-column.GetTypeVal("Cost")             // "25.00 Birr"
+column.GetTypeVal("Cost")             // "25.00"
 ```
 
 `GetElementType()` returns the `ElementType` for any instance.
@@ -175,15 +188,21 @@ you cannot set a type parameter per instance. If you want one element only, use 
 (`SetVal` / `SetNum`) and make sure the parameter is an instance parameter.
 
 ```csharp
-column.SetTypeVal("Cost", "30.00 Birr")        // SetVal on the ElementType
+column.SetTypeVal("Cost", "30.00")        // SetVal on the ElementType
 column.SetTypeVal("b", 250, "mm")              // with unit conversion
 column.SetTypeNum("h", 300, "mm")              // numeric + unit, SetNum on the ElementType
 ```
 
-All three are `void` — they return nothing, so they **end** a fluent chain. They no-op silently when
-the element has no `ElementType` (e.g. a system-family instance such as a `Wall`), because the
-implementation is `e.GetElementType()?.SetVal(...)`. To write a type parameter across many elements
-without touching each one, use `SetTypeParam` (§12).
+All three are `void` — they return nothing, so they **end** a fluent chain. To write a type parameter
+across many elements without touching each one, use `SetTypeParam` (§12).
+
+⚠ **Call them on an INSTANCE.** A `Wall` DOES have an `ElementType` (`WallType`), so a wall instance
+works. What did NOT work — fixed 2026-10-27 — was calling them on the **type itself**
+(`GetElements<WallType>().First().SetTypeVal(...)`): `Element.GetTypeId()` returns **-1** for an
+`ElementType`, so `e.GetElementType()` was `null` and the `?.` turned the write into a silent no-op
+with no throw and no warning. `GetElementType()` now returns the element when it is itself a type, so
+a type receiver writes to that type. The same root cause made `TypeParams()` return **0 rows** on a
+type while `InstanceParams()` returned all of them.
 
 ### ⚠⚠ The ACCIDENTAL type write — and how it is caught
 
@@ -537,8 +556,12 @@ GetElements("Structural Columns").GroupByParam("Type", "Volume", "m3").Table()
 ### SumParam
 
 ```csharp
-GetElements("Structural Framing").SumParam("Volume", "m3")  // 59.67
+GetElements("Structural Framing").SumParam("Volume", "m3")  // exact total in m3
 ```
+
+⚠ Returns the **exact** sum. It used to default to `decimals = 3`, which rounded the value
+itself (95.2417 m² came back as 95.242). Pass a third argument only when you deliberately want
+a rounded number; round for display with `FormatUnit`/`FormatValueOnly`.
 
 ---
 
@@ -564,7 +587,7 @@ GetElements("Walls")
 ### SetTypeParam — write a TYPE parameter across the collection
 
 ```csharp
-GetElements("Structural Columns").SetTypeParam("Cost", "30.00 Birr")
+GetElements("Structural Columns").SetTypeParam("Cost", "30.00")
 GetElements("Structural Columns").SetTypeParam("b", 250, "mm")   // with unit conversion
 ```
 
@@ -608,8 +631,14 @@ GetElements("Doors").ToNotebook("DoorAnalysis")
 150.InputUnit("mm")                   // 0.4921
 
 // Output (Revit internal feet → human)
-196.85.OutputUnit("m2")              // 18.29
-area.OutputUnit("mm", 0)             // round to nearest mm
+196.85.OutputUnit("m2")              // 18.288…  EXACT — see the warning below
+area.OutputUnit("mm", 0)             // 18300     rounded, because you asked
+area.OutputUnit("mm", 2)             // 18289.50
+
+// ⚠⚠ OutputUnit CONVERTS; it does not round unless you pass `decimals` (default -1 = exact).
+//    Use it for a number you will compute with, and FormatUnit / FormatValueOnly / GetVal
+//    for a number a human will read. A converter that silently rounds is a trap: the caller
+//    cannot tell a rounded value from an exact one, and every downstream sum inherits the error.
 
 // String dimension parser
 "50mm".ToMeters()                    // 0.05
@@ -734,7 +763,8 @@ invisible in another. Stamp only what the stage itself MADE.
 
 ⚠ `Batch` re-throws when the stage body fails (same contract as `Transact`): a stage that threw has
 NOT been built, so the script must not carry on as though it had. `DeleteBatch` does NOT throw — it
-returns a report. Full recipe: the `project-modeling` skill.
+returns a report. Full recipe: the creation skill on your server, if it has one — `list_skills`
+is the authority, and a generalist server may not ship one.
 
 ### ⚠⚠ Checkpoints — Mark / RollbackTo, the undo the staged workflow was missing
 
@@ -769,23 +799,17 @@ that is about to build.
 works across a committed `Batch`, which a transaction group cannot. The report's `Note` line carries
 the real numbers — e.g. `12 element(s) restored · 7 created element(s) deleted`.
 
-### Interaction & background tasks
+### Interaction
 
 ```csharp
 Pick()                        // prompt the user to pick ONE element in the Revit UI
 Print(message)                // alias for Println — the legacy name, kept for compatibility
 SetExecutionTimeout(seconds)  // raise the script budget (default 10 s)
-Watchdog(callback, 5)         // run `callback` when Revit is IDLE, at most every 5 s
-WatchdogReport("Found 5 issues", "warning")   // report a watchdog run's outcome
 ```
 
 ⚠ `SetExecutionTimeout` — the default budget is **10 seconds** and the clock starts when the script
 does, so call it as the FIRST statement, not once the expensive work has already begun.
 
-⚠ `Watchdog` fires on Revit **idle**, not on a timer: `intervalSeconds` is a MINIMUM gap and Revit
-must actually go idle for it to run. Called outside a registration context (e.g. straight from the
-REPL) it runs the callback ONCE immediately so the logic can be tested in the Console. The two
-overloads differ only in whether the callback receives the `Document`. Backed by `WatchdogRegistry`.
 
 ### UI Actions (on collections, without prefixes)
 
@@ -883,7 +907,7 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 
 | Method | Signature |
 | --- | --- |
-| `SumParam` | `double SumParam<T>(this IEnumerable<T> elements, string name, string unit = null, int decimals = 3)` |
+| `SumParam` | `double SumParam<T>(this IEnumerable<T> elements, string name, string unit = null, int decimals = -1)` |
 | `OrderByParam` | `IEnumerable<T> OrderByParam<T>(this IEnumerable<T> elements, string name)` |
 | `OrderByParamDesc` | `IEnumerable<T> OrderByParamDesc<T>(this IEnumerable<T> elements, string name)` |
 | `GroupByParam` | `IEnumerable<object> GroupByParam<T>(this IEnumerable<T> elements, string groupBy)` |
@@ -915,12 +939,12 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 
 | Method | Signature |
 | --- | --- |
-| `BuiltInParams` | `IEnumerable<object> BuiltInParams(this Element e)` |
-| `InstanceParams` | `IEnumerable<object> InstanceParams(this Element e)` |
-| `TypeParams` | `IEnumerable<object> TypeParams(this Element e)` |
-| `CombinedParams` | `IEnumerable<object> CombinedParams(this Element e)` |
+| `BuiltInParams` | `SchemaRows BuiltInParams(this Element e)` |
+| `InstanceParams` | `SchemaRows InstanceParams(this Element e)` |
+| `TypeParams` | `SchemaRows TypeParams(this Element e)` |
+| `CombinedParams` | `SchemaRows CombinedParams(this Element e)` |
 | `ParamsDict` | `Dictionary<string, string> ParamsDict(this Element e)` |
-| `NativeProperties` | `IEnumerable<object> NativeProperties(this Element e)` |
+| `NativeProperties` | `SchemaRows NativeProperties(this Element e)` |
 
 #### `Globals/ElementDoorExtensions.cs`
 
@@ -991,12 +1015,12 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 | `GetInt` | `int GetInt(this Element e, string name)` |
 | `GetVal` | `string GetVal(this Element e, string name)` |
 | `GetVal` | `string GetVal(this Element e, string name, string unit, int decimals = 2)` |
-| `GetNum` | `double GetNum(this Element e, string name, string unit, int decimals = 2)` |
+| `GetNum` | `double GetNum(this Element e, string name, string unit, int decimals = -1)` |
 | `GetElementType` | `Element GetElementType(this Element e)` |
 | `GetTypeStr` | `string GetTypeStr(this Element e, string name)` |
 | `GetTypeStr` | `string GetTypeStr(this Element e, string name, string unit, int decimals = 2)` |
 | `GetTypeNum` | `double GetTypeNum(this Element e, string name)` |
-| `GetTypeNum` | `double GetTypeNum(this Element e, string name, string unit, int decimals = 2)` |
+| `GetTypeNum` | `double GetTypeNum(this Element e, string name, string unit, int decimals = -1)` |
 | `GetTypeInt` | `int GetTypeInt(this Element e, string name)` |
 | `GetTypeVal` | `string GetTypeVal(this Element e, string name)` |
 | `GetTypeVal` | `string GetTypeVal(this Element e, string name, string unit, int decimals = 2)` |
@@ -1050,9 +1074,9 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 | `InputUnit` | `double InputUnit(this double value, string unit)` |
 | `InputUnit` | `double InputUnit(this int value, string unit)` |
 | `InputUnit` | `double InputUnit(this decimal value, string unit)` |
-| `OutputUnit` | `double OutputUnit(this double value, string unit, int decimals = 2)` |
-| `OutputUnit` | `double OutputUnit(this int value, string unit, int decimals = 2)` |
-| `OutputUnit` | `double OutputUnit(this decimal value, string unit, int decimals = 2)` |
+| `OutputUnit` | `double OutputUnit(this double value, string unit, int decimals = -1)` |
+| `OutputUnit` | `double OutputUnit(this int value, string unit, int decimals = -1)` |
+| `OutputUnit` | `double OutputUnit(this decimal value, string unit, int decimals = -1)` |
 | `IsAlmostEqualTo` | `bool IsAlmostEqualTo(this double value, double other, double tolerance = 1e-9)` |
 | `AlmostZero` | `bool AlmostZero(this double value, double tolerance = 1e-9)` |
 | `IsLessThan` | `bool IsLessThan(this double value, double limit, double tolerance = 1e-9)` |
@@ -1080,7 +1104,7 @@ Called on an element or a collection: `GetElements("Walls").WhereParam(...)`. Th
 
 ### A.2 Global `ScriptApi` surface — no prefix
 
-**49 members · 36 distinct names · 5 source files.**
+**46 members · 34 distinct names · 4 source files.**
 
 Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. ⚠ These are NOT extension methods — the `this` test does not see them, which is why this half of the reference used to drift on its own.
 
@@ -1105,14 +1129,6 @@ Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. 
 | `Checkpoints` | `IReadOnlyList<Checkpoint> Checkpoints()` |
 | `DropCheckpoint` | `bool DropCheckpoint(string name)` |
 | `RollbackTo` | `BatchReport RollbackTo(string name, bool confirm = false)` |
-
-#### `Globals/ScriptApi.Sentinels.cs`
-
-| Member | Signature |
-| --- | --- |
-| `Watchdog` | `void Watchdog(Action<Document> callback, int intervalSeconds = 5)` |
-| `Watchdog` | `void Watchdog(Action callback, int intervalSeconds = 5)` |
-| `WatchdogReport` | `void WatchdogReport(string summary, string status = "success", object? data = null)` |
 
 #### `Globals/ScriptApi.ViewExport.cs`
 

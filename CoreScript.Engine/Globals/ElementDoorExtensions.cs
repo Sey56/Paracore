@@ -151,6 +151,10 @@ namespace CoreScript.Engine.Globals
 
         private static Arc? ScanForArcRecursive(GeometryElement geom, Transform tr)
         {
+            // ⚠ Guarded for the same reason as ScanGeometryRecursive: a nested family's depth is a
+            //   property of the model, so the check is on remaining STACK, never on a level count.
+            using var _guard = Runtime.ScriptGuard.Enter("ScanForArcRecursive");
+
             Arc? bestArc = null;
             if (geom == null) return null;
 

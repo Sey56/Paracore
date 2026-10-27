@@ -33,6 +33,15 @@ namespace CoreScript.Engine.Globals
 
         private static void ScanGeometryRecursive(Document doc, GeometryElement geom, Transform tr, List<object> summary, string source)
         {
+            // ⚠⚠ THE ENGINE'S ONLY LEGITIMATE UNBOUNDED RECURSION. A nested family is a
+            //   GeometryInstance holding more GeometryInstances, so the depth is a property of the
+            //   MODEL, not a mistake — 40 levels is ordinary and must keep working. A fixed depth
+            //   cap would therefore break real work, which is why the guard measures remaining
+            //   STACK instead of depth: deep nesting passes, and a cycle (an instance that contains
+            //   itself, directly or through its symbol) throws a catchable exception instead of
+            //   killing Revit with 0xc00000fd.
+            using var _guard = Runtime.ScriptGuard.Enter("ScanGeometryRecursive");
+
             foreach (var obj in geom)
             {
                 if (obj == null) continue;

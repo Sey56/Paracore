@@ -58,14 +58,21 @@ namespace CoreScript.Engine.Tests
             FileLogger.LogError(message);
         }
 
-        public void AddStructuredOutput(string type, string jsonData)
+        /// <summary>
+        /// Recorded cap-exempt flags, in emission order — so an engine test can assert that a
+        /// parameter schema is marked uncappable and an element dump is not.
+        /// </summary>
+        public List<(string Type, bool CapExempt)> StructuredOutputFlags { get; } = new();
+
+        public void AddStructuredOutput(string type, string jsonData, bool capExempt = false)
         {
+            StructuredOutputFlags.Add((type, capExempt));
             var prefixStr = $"Type: {type}";
             _showOutputMessages.RemoveAll(m => m.StartsWith(prefixStr));
             _showOutputMessages.Add($"Type: {type}, Data: {jsonData}");
 
-            FileLogger.Log($"Structured Output - Type: {type}, Data: {jsonData}");
-            Console.WriteLine($"Structured Output - Type: {type}, Data: {jsonData}");
+            FileLogger.Log($"Structured Output - Type: {type}, CapExempt: {capExempt}, Data: {jsonData}");
+            Console.WriteLine($"Structured Output - Type: {type}, CapExempt: {capExempt}, Data: {jsonData}");
         }
 
         public List<int> PipelineDiagnostics { get; set; } = new();
