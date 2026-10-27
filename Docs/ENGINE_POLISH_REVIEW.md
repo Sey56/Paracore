@@ -1,5 +1,8 @@
 # CoreScript.Engine — Polish Review
 
+> **STATUS: HISTORICAL** — a plan / research / audit record. It describes what was being considered at the time, **not what is true now**. For current behaviour read the owning repo's `PROJECT_SPEC.md` or the master spec. (Marked 2026-10-27.)
+
+
 **Date:** 2026-10-02
 **Scope:** `paracore-pro/CoreScript.Engine` (the engine only; `Paracore.Addin`, `Paracore.Shim`,
 `Paracore.Server` and the Python MCP are out of scope)

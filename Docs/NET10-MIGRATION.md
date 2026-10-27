@@ -1,5 +1,8 @@
 # Paracore — .NET 10 migration plan
 
+> **STATUS: HISTORICAL** — a plan / research / audit record. It describes what was being considered at the time, **not what is true now**. For current behaviour read the owning repo's `PROJECT_SPEC.md` or the master spec. (Marked 2026-10-27.)
+
+
 > **⏸ PARKED — 2026-10-07.** The user's call: keep working on what exists (Revit 2025 / 2026 on **.NET 8**);
 > the migration waits until a later date. **Nothing in this document is active.** It is the record for whenever
 > it is picked up — it does not need to be read or acted on before then.

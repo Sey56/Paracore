@@ -1,5 +1,8 @@
 # REPL IntelliSense — Research and Plan
 
+> **STATUS: HISTORICAL** — a plan / research / audit record. It describes what was being considered at the time, **not what is true now**. For current behaviour read the owning repo's `PROJECT_SPEC.md` or the master spec. (Marked 2026-10-27.)
+
+
 **Status:** research complete, implementation in progress (branch `feature/repl-intellisense`).
 **Question:** can the REPL playground be a proper code editor — IntelliSense, code completion,
 red squiggles — for **C# + the Revit API**?

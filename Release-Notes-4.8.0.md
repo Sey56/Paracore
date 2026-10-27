@@ -1,5 +1,8 @@
 # Paracore v4.8.0
 
+> **STATUS: HISTORICAL** — a plan / research / audit record. It describes what was being considered at the time, **not what is true now**. For current behaviour read the owning repo's `PROJECT_SPEC.md` or the master spec. (Marked 2026-10-27.)
+
+
 **Windows x64 · .NET 8 · Revit 2025 & 2026**
 
 One product, always free: the engine, the Revit add-in, the desktop app and the VS Code extension
