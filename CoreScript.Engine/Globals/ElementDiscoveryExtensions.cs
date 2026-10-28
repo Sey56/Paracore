@@ -12,6 +12,28 @@ namespace CoreScript.Engine.Globals
     public static partial class ElementExtensions
     {
         /// <summary>
+        /// The formatted value of a <see cref="Parameter"/> we ALREADY HOLD, with no name lookup.
+        /// <para>⚠⚠ DO NOT "simplify" this back to <c>e.GetVal(p.Definition.Name)</c>. Measured
+        /// 2026-10-28: that by-name read re-enters <c>GetStr</c>, whose existence guard asks
+        /// <c>LookupParameter</c> — an API that can return <b>null for a parameter that is
+        /// present in the element's own parameter set</b> (measured on a WallType: null, while
+        /// the name was in <c>e.Parameters</c>). When it misses, the guard concludes the name is
+        /// undeclared and prints <c>⚠ GetStr("Image"): no parameter of that name … check the
+        /// spelling</c> — accusing the caller of a typo in a name it never typed, on the
+        /// discovery call the instructions tell an agent to make FIRST.</para>
+        /// <para>The row already has the Parameter object. Reading it cannot miss, and it is
+        /// what <c>GetVal</c> does anyway (AsValueString → AsString), minus the resolution.</para>
+        /// </summary>
+        private static string _valueOf(Parameter p)
+        {
+            if (p == null) return "-";
+            var formatted = p.AsValueString();
+            if (!string.IsNullOrEmpty(formatted)) return formatted;
+            if (p.StorageType == StorageType.String) return p.AsString() ?? "-";
+            return "-";
+        }
+
+        /// <summary>
         /// Gets all BUILT-IN parameters of the element (Name, BIP, Value).
         /// <para>⚠ Returns <see cref="SchemaRows"/> so <c>.Table()</c> knows not to cap it — see
         /// that type for why a schema table must never be truncated.</para>
@@ -26,7 +48,7 @@ namespace CoreScript.Engine.Globals
                 {
                     Name = p.Definition.Name,
                     BIP = ((InternalDefinition)p.Definition).BuiltInParameter.ToString(),
-                    Value = e.GetVal(p.Definition.Name)
+                    Value = _valueOf(p)
                 })
                 .OrderBy(x => x.Name));
         }
@@ -44,7 +66,7 @@ namespace CoreScript.Engine.Globals
                 {
                     Name = p.Definition.Name,
                     Storage = p.StorageType.ToString(),
-                    Value = e.GetVal(p.Definition.Name)
+                    Value = _valueOf(p)
                 })
                 .OrderBy(x => x.Name));
         }
@@ -97,7 +119,7 @@ namespace CoreScript.Engine.Globals
                     foreach (Parameter tp in type.Parameters)
                     {
                         if (tp == null || !tp.HasValue) continue;
-                        dict[tp.Definition.Name] = type.GetVal(tp.Definition.Name);
+                        dict[tp.Definition.Name] = _valueOf(tp);   // held Parameter, not a name lookup
                     }
                 }
             }
@@ -106,7 +128,7 @@ namespace CoreScript.Engine.Globals
             foreach (Parameter p in e.Parameters)
             {
                 if (p == null || !p.HasValue) continue;
-                dict[p.Definition.Name] = e.GetVal(p.Definition.Name);
+                dict[p.Definition.Name] = _valueOf(p);             // ditto — see _valueOf
             }
 
             return dict;

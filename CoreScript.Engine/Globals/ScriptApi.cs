@@ -376,7 +376,7 @@ namespace CoreScript.Engine.Globals
         /// Resolves a bare element id, or null when the identity is not a number.
         /// <para>
         /// ⚠⚠ WHY THIS EXISTS. Both overloads above documented themselves as "name-or-id" while
-        /// matching only <see cref="Element.Name"/> and the magic identity — there was no id
+        /// matching only <see cref="Element.Name">Element.Name</see> and the magic identity — there was no id
         /// branch at all, so <c>GetElement("359588")</c> returned <c>null</c> for EVERY id and the
         /// documented call silently produced nothing. The id is also the one identity a caller
         /// reliably holds: every table prints an Id column, so it is the natural thing to type.

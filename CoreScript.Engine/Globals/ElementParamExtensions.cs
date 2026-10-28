@@ -151,6 +151,21 @@ namespace CoreScript.Engine.Globals
             {
                 if (e.ResolveParam(name) != null) return true;
 
+                // ⚠⚠ `LookupParameter` CAN MISS A PARAMETER THAT EXISTS. Measured 2026-10-28 on
+                //   TestModel.rvt: `type.LookupParameter("Image")` returned **null** while the
+                //   same name was in the element's own parameter set, and `e.GetStr("Image")`
+                //   on the wall returned "" without a warning one minute and warned the next —
+                //   in the SAME session, with no rebuild in between. That is the whole
+                //   explanation for a warning that "only comes on the first execution": the
+                //   guard's ONLY existence test was a single volatile API call, so the answer
+                //   depended on Revit's parameter materialisation, not on the name.
+                //   ⇒ Scan the parameter SET before claiming a name does not exist. The set is
+                //   the authoritative list, and it is the same list the discovery methods
+                //   iterate — so the two can no longer disagree.
+                foreach (Parameter q in e.Parameters)
+                    if (string.Equals(q.Definition.Name, name, StringComparison.OrdinalIgnoreCase))
+                        return true;
+
                 if (Enum.TryParse<BuiltInParameter>(name.Replace(" ", "_").ToUpper(), out var bip)
                     && e.get_Parameter(bip) != null) return true;
 
@@ -170,7 +185,13 @@ namespace CoreScript.Engine.Globals
                 if (typeId != null && typeId != ElementId.InvalidElementId)
                 {
                     var type = e.Document.GetElement(typeId);
-                    if (type != null && type.ResolveParam(name) != null) return true;
+                    if (type != null)
+                    {
+                        if (type.ResolveParam(name) != null) return true;
+                        foreach (Parameter q in type.Parameters)   // same volatile-lookup reason
+                            if (string.Equals(q.Definition.Name, name, StringComparison.OrdinalIgnoreCase))
+                                return true;
+                    }
                 }
             }
             catch { }

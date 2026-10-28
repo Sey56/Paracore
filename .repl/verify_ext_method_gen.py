@@ -243,8 +243,23 @@ else:
     announce("DLL", DLL, dll_cands)
     newest_src = max(p.stat().st_mtime for p in gen.ENGINE.rglob("*.cs")
                      if not any(x in ("bin", "obj") for x in p.parts))
-    check(DLL.stat().st_mtime >= newest_src, "the built DLL is not older than the newest engine source",
-          f"dll={DLL.stat().st_mtime:.0f} src={newest_src:.0f}" if DLL.stat().st_mtime < newest_src else "")
+    # ⚠ THE LABEL IS PRINTED ONLY ON FAILURE, so it must describe the FAILING state. It used to
+    #   read "the built DLL is not older than the newest engine source" — the PASS condition —
+    #   while being shown when the DLL WAS older. Measured 2026-10-28: the report said the DLL was
+    #   "not older" next to `dll=…908 src=…109`, i.e. 37 minutes older. A gate whose message says
+    #   the opposite of what it means sends the reader to the wrong file.
+    # ⚠⚠ AND THE REMEDY DEPENDS ON WHICH COPY IT MEASURED. resolve_build_artifact prefers the
+    #   INSTALLED DLL, so after a correct rebuild this check still fails — and the old text said
+    #   "rebuild the engine", which would change nothing. Measured 2026-10-28: rebuilt at 06:20,
+    #   gate still red, because the installed copy was from 21:18 the night before. Name the copy
+    #   and the action that actually closes it.
+    _in_repo = str(DLL).lower().startswith(str(gen.ENGINE).lower())
+    _remedy = ("rebuild the engine" if _in_repo
+               else "run installers\\Paracore_Addin_v4.8.1.exe with Revit CLOSED")
+    check(DLL.stat().st_mtime >= newest_src,
+          f"the {'built' if _in_repo else 'INSTALLED'} DLL is OLDER than the newest engine source — {_remedy}",
+          f"dll={DLL.stat().st_mtime:.0f} src={newest_src:.0f} (dll is older by "
+          f"{(newest_src - DLL.stat().st_mtime) / 60:.0f} min)" if DLL.stat().st_mtime < newest_src else "")
     blob = DLL.read_bytes()
     all_names = names | {g[0] for g in globs}
     # ⚠ `name\0`, not `\0name\0`: suffix compression stores `Doc` inside `UIDoc`.

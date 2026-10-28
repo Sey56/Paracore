@@ -536,3 +536,78 @@ change (a passing allowance FAILS the gate). Gate is now **15 auto green, 2 allo
 - **The Watcher's dialog-dismiss path** — no warning dialog was staged.
 - **Nothing above is protected by a test.** Every line of this round is "verified once, by
   hand", on this machine, against this build.
+
+---
+
+## ROUND 19 — G1 root-caused and fixed (2026-10-28, 06:0x–06:2x)
+
+### The operator's evidence, which changed the diagnosis
+
+> "it only comes at the first execution on a new session … if I run that same script again it is
+> gone … it is like it expects the engine to be hot first."
+
+⚠ **The first thing to record is a correction: I changed nothing between ROUND 18 and that
+observation.** The only files touched were `scripts/check-mcp-exes.py`, `.repl/gates.json` and
+this document — none of them is loaded by Revit. So the disappearance was the engine's own
+behaviour, and it made the "warm-up" reading the right one to chase.
+
+### Measured, in the live session
+
+| Probe | Result |
+|---|---|
+| `w.LookupParameter("Image")` on wall 359588 | **found** (StorageType `ElementId`) |
+| the same name in `w.Parameters` | 1 entry, **`HasValue = 0`** |
+| `w.GetStr("Image")` | `""` — **no warning** |
+| `type.LookupParameter("Image")` on the WallType | **`null`** — while the wall declares it |
+| `CombinedParams()` on Walls / Doors / Windows / Rooms | warned **only on Walls** — the only category that declares `Image` |
+| the same `CombinedParams()` call at 23:55 and at 06:1x | warned **then**, silent **now**, same session, no rebuild |
+
+⇒ The guard's **only** existence test was `ResolveParam` → `LookupParameter`. That call returns
+`null` for a parameter that is present in the element's own parameter set. So
+`_declaresParameter` answered "undeclared" from a volatile API result, and `GetStr` accused the
+caller of a typo. **"First execution only" was never warm-up logic — it was one API call giving a
+different answer at different times.** The dedupe in `_warnedParams` (keyed on distinct element
+ids, printed at 1 and every 25th) is why it never repeated in a way that looked random.
+
+### Changed
+
+| File | Change |
+|---|---|
+| `Globals/ElementParamExtensions.cs` | `_declaresParameter` now scans `e.Parameters` and the type's `Parameters` by name **before** concluding a name is undeclared. The set is authoritative and it is the same list discovery iterates, so the two can no longer disagree. |
+| `Globals/ElementDiscoveryExtensions.cs` | NEW `_valueOf(Parameter)` — reads the value from the Parameter object the row already holds (`AsValueString` → `AsString`), exactly as `GetVal` does, **without resolving a name**. Used by `BuiltInParams`, `InstanceParams` and `ParamsDict`, which previously called `e.GetVal(p.Definition.Name)`. Discovery can no longer reach `GetStr` by name, so this class of false warning is unreachable from it. |
+| `Globals/ScriptApi.cs` | F1 closed: `<see cref="Element.Name"/>` → `<see cref="Element.Name">Element.Name</see>`, so the AI's hover reads the member name instead of a blank. |
+
+⚠ **No MCP rebuild is needed for any of this** — the exes embed `mcp_core` Python, not the engine.
+
+### Two gate messages that pointed at the wrong file
+
+Both found while trying to read the gate's verdict, both fixed:
+
+1. `verify_ext_method_gen.py` printed **"the built DLL is not older than the newest engine source"**
+   — the *pass* condition — as the *failure* text, next to `dll=…908 src=…109` (37 minutes older).
+2. The remedy was **"rebuild the engine"** even when the copy it measured was the **installed** one
+   (`resolve_build_artifact` prefers it). After a correct rebuild the gate stayed red and told the
+   reader to rebuild again. It now names the copy and the action that closes it:
+   `the INSTALLED DLL is OLDER … — run installers\Paracore_Addin_v4.8.1.exe with Revit CLOSED`.
+
+### Built
+
+`dotnet build` → **0 errors**. `build-addin.ps1` → exit 0, `installers\Paracore_Addin_v4.8.1.exe`
+(06:21). The shipped `CoreScript.Engine.dll` (06:20:18) contains `_valueOf` in its metadata; no
+`GetVal(p.Definition.Name)` remains in the discovery file.
+
+### Gate at handover — RED, and that is the honest reading
+
+14 auto gates green. Two red, and **both are the same fact**: the fix is built but not installed —
+`ext-gen-trust` (installed DLL is 395 min older than the source) and `installed-addin`. They close
+when the installer runs. F5 (unpushed commits) remains the operator's call. **No allowance was added
+to hide this**: a red that is true is not a nuisance.
+
+### ⚠ NOT YET PROVEN LIVE — the one thing left
+
+The fix has not run in Revit. It needs the add-in install (ACL, Revit closed). **The verification
+must be two-sided**, because "no warning" alone cannot distinguish *fixed* from *deleted*:
+
+1. `GetElements("Walls").First().CombinedParams().Table()` → **no** `GetStr("Image")` warning.
+2. `GetElements("Walls").First().GetStr("Fire Ratng")` → the warning **must still appear**, with
+   the closest-name suggestion. A typo that goes silent is worse than the false alarm this fixed.

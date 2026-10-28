@@ -105,13 +105,7 @@
       "runs": "auto",
       "timeout": 120,
       "protects": "Every REPL hover doc PARSES and loses no word. A self-closing <see cref=\"X\"/> inside a <summary> contributes no text, so the tooltip silently reads a word short.",
-      "known_red": {
-        "id": "F1",
-        "why": "ScriptApi.cs:375 (the TryResolveId summary) uses <see cref=\"Element.Name\"/> self-closing, so the hover reads 'matching only  and the magic identity' — the words 'Element.Name' are missing from what the AI is shown.",
-        "remedy": "In CoreScript.Engine/Globals/ScriptApi.cs, change <see cref=\"Element.Name\"/> to <see cref=\"Element.Name\">Element.Name</see>. Text only, no behaviour change.",
-        "blocked_by": "CoreScript.Engine/ is off-limits since 2026-10-14 without the user's explicit go-ahead, and the user has parked engine work.",
-        "owner": "user"
-      }
+      "known_red": null
     },
     {
       "id": "sentinel-surface",
