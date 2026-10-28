@@ -61,8 +61,31 @@ namespace CoreScript.Engine.Globals
 
         /// <summary>
         /// Prompts the user to pick a single element in the Revit UI.
+        /// <para>
+        /// ⚠⚠ THE PROMPT IS NOT DECORATION — IT IS THE ONLY SIGNAL THE USER GETS. Measured
+        /// 2026-10-28 on the operator's own screen: a bare `Pick()` shows him **nothing** that
+        /// says a selection is wanted. Revit's status bar carries the add-in's generic
+        /// "Executing dynamic query … Running …", which appears for every call, so a pick is
+        /// indistinguishable from a wall count until the cursor changes. He clicked only because
+        /// he had asked for the pick.
+        /// </para>
+        /// <para>
+        /// Revit's <c>PickObject(ObjectType, statusPrompt)</c> puts a caller-supplied sentence in
+        /// the status bar for exactly as long as the pick is pending. So the no-argument form
+        /// supplies a default one instead of passing <c>null</c>, and a caller that knows what it
+        /// wants — "click the short wall by the stair" — should pass its own.
+        /// </para>
+        /// <para>Press Esc to cancel; Revit raises <c>OperationCanceledException</c>.</para>
         /// </summary>
-        public static Element Pick() => Doc.GetElement(UIDoc.Selection.PickObject(Autodesk.Revit.UI.Selection.ObjectType.Element));
+        public static Element Pick(string prompt = "")
+        {
+            var text = string.IsNullOrWhiteSpace(prompt)
+                ? "Paracore: select ONE element in Revit — press Esc to cancel"
+                : prompt;
+
+            return Doc.GetElement(
+                UIDoc.Selection.PickObject(Autodesk.Revit.UI.Selection.ObjectType.Element, text));
+        }
 
         /// <summary>
         /// A dictionary of parameters passed from the agent or UI context.

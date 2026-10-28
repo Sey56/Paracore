@@ -802,10 +802,18 @@ the real numbers — e.g. `12 element(s) restored · 7 created element(s) delete
 ### Interaction
 
 ```csharp
-Pick()                        // prompt the user to pick ONE element in the Revit UI
+Pick()                        // ask the user to click ONE element; blocks until they do
+Pick("Click the short wall by the stair")   // same, with YOUR sentence in Revit's status bar
 Print(message)                // alias for Println — the legacy name, kept for compatibility
 SetExecutionTimeout(seconds)  // raise the script budget (default 10 s)
 ```
+
+⚠⚠ **`Pick()` HOLDS REVIT'S UI THREAD UNTIL THE USER ACTS.** Nothing else can run in Revit while
+it is pending, and on screen the only difference from an ordinary call is the status-bar sentence —
+which is why the default one is explicit. **Say what you are about to pick, in chat, BEFORE the
+call**; the agent cannot speak while the pick is blocking, and the user has no other cue. Press Esc
+to cancel (Revit raises `OperationCanceledException`). Prefer reading `Selection` when the user has
+already selected what they mean — that needs no interruption at all.
 
 ⚠ `SetExecutionTimeout` — the default budget is **10 seconds** and the clock starts when the script
 does, so call it as the FIRST statement, not once the expensive work has already begun.
@@ -1145,7 +1153,7 @@ Called bare, without a receiver: `Doc`, `GetElements<Wall>()`, `Transact(...)`. 
 | `Doc` | `Document Doc` |
 | `ActiveView` | `View ActiveView` |
 | `Selection` | `List<Element> Selection` |
-| `Pick` | `Element Pick()` |
+| `Pick` | `Element Pick(string prompt = "")` |
 | `Parameters` | `Dictionary<string, object> Parameters` |
 | `Println` | `void Println(string message)` |
 | `Println` | `void Println(object message)` |
