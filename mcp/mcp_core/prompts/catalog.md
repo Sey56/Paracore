@@ -64,8 +64,8 @@ fi.IsHandFlipped()  fi.IsFacingFlipped()  fi.IsStandardDoor()
 These are C# properties on Element — use dot notation, not .GetStr():
 ```
 el.Id          → ElementId      el.Name        → string (type name on instances)
-el.Symbol      → ElementId      el.Location    → Location (Point or Curve)
-el.Area        → double (feet)  el.Volume      → double (feet³)
+el.Location    → Location (Point or Curve)
+fi.Symbol      → FamilySymbol   (FamilyInstance ONLY — returns the symbol, not an ElementId)
 
 // Location — for point-based elements (columns, doors, furniture):
 el.Location.Point     → XYZ point
@@ -76,6 +76,10 @@ el.Location.Point.Z   → double (Z coordinate in feet)
 // For curve-based elements (walls, beams, ducts):
 el.Location.Curve      → Curve
 ```
+
+⚠⚠ `el.Area`, `el.Volume`, `el.Symbol` are NOT members of `Element` — they fail to compile
+(CS1061). A `Room`/`Space` has `.Area` and `.Volume`; for every other element both are
+PARAMETERS: `el.GetNum("Area")`, `el.GetVal("Volume", "m3")`.
 
 ## Discovery & Debug
 

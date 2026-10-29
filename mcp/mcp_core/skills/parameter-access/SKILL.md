@@ -60,15 +60,26 @@ column.GetTypeVal("Cost")            // "25.00"
 
 ## Native Properties (dot access, not GetStr)
 
-These are C# properties on Element — use dot notation, not `.GetStr()`:
+Only these are real properties on `Element` itself — use dot notation, not `.GetStr()`:
 ```
 el.Id          → ElementId
 el.Name        → string (type name on instances)
-el.Symbol      → ElementId
 el.Location    → Location (Point or Curve)
-el.Area        → double (ft²)
-el.Volume      → double (ft³)
 ```
+
+⚠⚠ **`el.Area`, `el.Volume` and `el.Symbol` are NOT members of `Element`.** Writing them on an
+`Element` variable fails to compile with `CS1061` — verified by compilation, not by memory
+(`spikes/probe_native_props.py`). They belong to narrower types:
+
+| you want | write | type it lives on |
+|---|---|---|
+| family symbol of an instance | `fi.Symbol` | `FamilyInstance` → returns **`FamilySymbol`**, not `ElementId` |
+| room / space area, volume | `room.Area`, `room.Volume` | `Room` / `Space` (double, internal units = ft²/ft³) |
+| area or volume of **anything else** | `el.GetNum("Area")`, `el.GetVal("Area", "m2")` | every element — it is a **parameter** |
+
+A wall has `Area` and `Volume` as *parameters*, not properties, so `wall.GetNum("Area")` is
+the only route. Reaching for `el.Area` costs a compile round-trip and, when the agent then
+tries to "fix" it, usually a `dynamic` — which the tool blocks.
 
 For coordinates — ⚠ `Point` and `Curve` live on the DERIVED location classes, never on `Location`:
 ```csharp

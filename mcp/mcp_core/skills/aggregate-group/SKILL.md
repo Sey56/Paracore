@@ -38,7 +38,9 @@ GetElements("Structural Framing").SumParam("Volume", "m3")  // 59.67 (single num
 
 Returns a SINGLE DOUBLE — not a table. Does NOT group. For per-group sums, use the 3-argument `GroupByParam(groupBy, sumParam, unit)` instead.
 
-Unit is optional — inferred from parameter name (Volume→m3, Area→m2, Length→m). Decimals default to 3.
+Unit is optional — inferred from parameter name (Volume→m3, Area→m2, Length→m). **The total is NOT rounded:** `SumParam("Area", "m2")` returns the exact sum, e.g. `95.241702`. Pass a `decimals` argument when you want rounding.
+
+⚠ **A GROUPED sum does round — to 3 decimals.** `GroupByParam("Type Name", "Area", "m2")` rounds each group's `Total` (`Math.Round(…, 3)` in the engine), while `SumParam` does not. For BOQ work that means the group totals can disagree with the exact total by up to 0.0005 per group: measured on TestModel, the groups add up to **95.241** against a `SumParam` total of **95.2417**. Carry the `SumParam` figure when you need one number, and say which you used.
 
 ## What you CANNOT do after GroupByParam
 

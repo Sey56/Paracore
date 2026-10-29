@@ -54,10 +54,19 @@ value.RoundTo("mm")                  // round internal value to nearest mm
 
 ## Accepted Unit Strings
 
-**Length:** `"mm"`, `"cm"`, `"m"`, `"km"`, `"in"`, `"ft"`
-**Area:** `"m2"`, `"sqm"`, `"ft2"`, `"sqft"`
-**Volume:** `"m3"`, `"cum"`, `"ft3"`, `"cuft"`
-**Other:** `"deg"`, `"%"`, `"kg"`, `"nr"`, `"no"`
+These are the ONLY tokens the converter accepts. Anything else throws with the list in the
+message — deliberately, because an unrecognised unit used to mean "already in feet" and wrote the
+wrong number with no warning.
+
+**Length:** `"mm"` `"cm"` `"m"` `"in"` `"ft"` — long forms work too (`"millimeters"`, `"inches"`, …)
+**Area:** `"m2"` `"sqm"` `"sq.ft"` `"sqft"` `"ft2"` — also `"m²"`, `"square meters"`
+**Volume:** `"m3"` `"cum"` `"cu.ft"` `"cuft"` `"ft3"` — also `"m³"`, `"cubic meters"`
+
+⚠ **There is no `km`, `deg`, `%`, `kg`, `nr` or `no`.** An earlier version of this list claimed all
+six; measured 2026-10-29, `InputUnit`, `OutputUnit` and `FormatUnit` reject every one of them. These
+helpers convert LENGTH, AREA and VOLUME only. For mass, angle or a count, read the value as Revit
+displays it — `GetStr(name)` / `GetVal(name)` — instead of asking for a conversion that does not
+exist.
 
 ## Precision-Aware Comparisons (fuzzy equality)
 

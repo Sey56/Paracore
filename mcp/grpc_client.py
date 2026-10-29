@@ -930,6 +930,17 @@ def pick_object(selection_type: str, category_filter: str = None, timeout: float
     This BLOCKS Revit's UI thread until the user clicks (or cancels). The timeout is a
     backstop so a tool call cannot hang forever if the user walks away — Revit returns
     cancelled=True when the user presses Escape, which is the normal exit path.
+
+    ⚠⚠ **THIS IS NOT AN AGENT TOOL, AND MUST NOT BE WRAPPED BACK INTO ONE.** (Operator
+    ruling 2026-10-28 — see `RETIRED.md` R11/N4 in the `paracore` repo.) Its one caller is
+    `rap-server/server/services/execution_service.py`, i.e. the desktop app's own
+    `/pick_object` endpoint, driven by the pick button in `PlaylistItemConfig.tsx`. That is
+    a HUMAN clicking, which is what a pick is for.
+
+    Why it cannot serve an agent: the only cue the operator gets is Revit's status prompt,
+    which appears only while the pointer is already over Revit and repaints on mouse
+    movement. An operator reading the chat sees nothing at all, so the call blocks silently
+    for up to `timeout`. Measured on the operator's screen, not inferred.
     """
     logging.info(f"Attempting to pick object (Type: {selection_type}, Filter: {category_filter}) via gRPC.")
     try:

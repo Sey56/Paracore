@@ -74,12 +74,20 @@ door.IsStandardDoor()                      // true if NOT hosted on a Curtain Wa
 ```
 el.Id          → ElementId (use .Value, a `long` — NEVER .IntegerValue)
 el.Name        → string (type name on instances, element name otherwise)
-el.Symbol      → ElementId of the family symbol
+fi.Symbol      → FamilySymbol (on a FamilyInstance ONLY — not ElementId)
 ```
+
+⚠ `el.Symbol` on an `Element` variable does **not compile** (`CS1061`); the property exists on
+`FamilyInstance` and returns the symbol **object**, not an id. For the id, `fi.Symbol.Id`.
 
 ## Typed vs String Retrieval
 
-Some categories have C# classes (`.Name`, `.Area` are dot-access properties). Others are loadable families — must use `.GetStr()` for everything.
+Some categories have C# classes with properties of their own (a `Room` has `.Area` and
+`.Volume`); `Element` itself has only `.Id`, `.Name` and `.Location`. Everything else — for
+every category — is a parameter. Loadable families must use `.GetStr()` for everything.
+
+⚠ `el.Area` / `el.Volume` on a non-Room `Element` does **not compile** (`CS1061`). Use
+`GetNum("Area")` / `GetVal("Volume", "m3")`, which read the parameter and work on any element.
 
 **Typed (use `<T>()`):** Wall, Floor, Room, Ceiling, Level, Roof, Stairs, View, ViewSheet, Grid
 
