@@ -60,8 +60,31 @@ namespace CoreScript.Engine.Core.Rewriters
                 string prefix = BuildPrefixUsings(imports);
                 string text = prefix + targetRoot.ToFullString();
 
-                var tree = CSharpSyntaxTree.ParseText(text,
-                    new CSharpParseOptions(languageVersion: LanguageVersion.Latest, kind: SourceCodeKind.Script));
+                // ⚠⚠ PARSE-KIND MATCH (2026-10-29). The guard MUST parse with the SAME
+                // SourceCodeKind as the tree the rewriter will visit — otherwise the
+                // SpanStart positions of the same logical invocation differ between the
+                // guard's tree and the rewriter's tree, the (SpanStart, Name) skip-set
+                // entries never match, and name-collision calls that ShouldSkip flagged
+                // get wrapped anyway.
+                //
+                // MEASURED: the REPL path (ReplSessionManager line 163) and the tool
+                // path (ScriptRewriter line 13) BOTH call CSharpSyntaxTree.ParseText(code)
+                // with DEFAULT options — Regular kind. This guard was hardcoded to
+                // SourceCodeKind.Script. For a bare-statement REPL snippet, Regular kind
+                // wraps top-level statements in error-recovery nodes with shifted spans,
+                // while Script kind wraps them in GlobalStatement nodes — the same
+                // `sb.Append(...)` invocation landed at a different SpanStart in each.
+                // StringBuilder.Append was correctly identified as "skip" by ShouldSkip,
+                // but the skip entry's position matched nothing in the rewriter's tree.
+                // Result: CS0411 TrackEnumerable<T> on a legal StringBuilder.Append.
+                //
+                // Inheriting the source tree's options preserves the kind AND the
+                // language version. If the source tree has no explicit options (null),
+                // fall back to Regular kind with Latest — matching what
+                // CSharpSyntaxTree.ParseText(code) uses by default.
+                var sourceOptions = targetRoot.SyntaxTree?.Options as CSharpParseOptions
+                    ?? new CSharpParseOptions(languageVersion: LanguageVersion.Latest);
+                var tree = CSharpSyntaxTree.ParseText(text, sourceOptions);
 
                 var compilation = CSharpCompilation.Create(
                     "ParacoreTrackingAnalysis",

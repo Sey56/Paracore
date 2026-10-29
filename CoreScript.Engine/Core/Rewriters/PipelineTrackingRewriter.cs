@@ -85,6 +85,29 @@ namespace CoreScript.Engine.Core.Rewriters
 
         public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node)
         {
+            // ⚠⚠ CAPTURE THE ORIGINAL POSITION BEFORE VISITING CHILDREN (fixed 2026-10-29).
+            //
+            // `_skipCalls` is keyed on (SpanStart, name) in the coordinates of the tree the
+            // guard analysed — the tree the user's text was parsed into. The lookup below used
+            // to read `node.SpanStart` AFTER `base.VisitInvocationExpression(node)`.
+            //
+            // That is a DIFFERENT NODE. A syntax rewriter returns a reconstructed node, and a
+            // reconstructed node carries no position in any tree — so its SpanStart is not the
+            // user's offset. The skip entry was therefore present and correct and never matched,
+            // which is exactly what was measured: `sb.Append(GetElements("Walls").Count())`
+            // produced the skip entry (30, "Append") while the node that reached the lookup
+            // reported a different start, so the rewriter wrapped it and the user got
+            // `error CS0411 TrackEnumerable<T>` on legal code.
+            //
+            // MEASURED 2026-10-29 (offline, against the compiled engine): the skip set held
+            // `(30,Append)` and the tree's invocation really was at SpanStart 30 — yet the
+            // wrap happened. The guard was right; the consumer was reading a stale position.
+            //
+            // The captured value is the node's position in the ORIGINAL tree, which is the
+            // same coordinate space the guard used. Wrapping children cannot change where the
+            // parent began.
+            int originalStart = node.SpanStart;
+
             // Bottom-up: visit children first so nested chains are already rewritten
             node = (InvocationExpressionSyntax)base.VisitInvocationExpression(node);
 
@@ -105,8 +128,9 @@ namespace CoreScript.Engine.Core.Rewriters
 
             var methodName = memberAccess.Name.Identifier.Text;
 
-            // Semantic guard verdict — proven unsafe to wrap (void/string returns)
-            if (_skipCalls.Count > 0 && _skipCalls.Contains((node.SpanStart, methodName)))
+            // Semantic guard verdict — proven unsafe to wrap (void/string returns).
+            // ⚠ Match on the ORIGINAL start captured above, never on the rewritten node's.
+            if (_skipCalls.Count > 0 && _skipCalls.Contains((originalStart, methodName)))
                 return node;
 
             if (IntermediateMethods.Contains(methodName))
@@ -157,11 +181,29 @@ namespace CoreScript.Engine.Core.Rewriters
             return false;
         }
 
+        // ⚠⚠ ALL THREE WRAPPERS BUILD `innerText` FROM `WithoutLeadingTrivia().WithoutTrailingTrivia()`
+        //   — do not "simplify" that back to `node.ToFullString()` (fixed 2026-10-29).
+        //
+        //   `ToFullString()` INCLUDES the node's leading trivia, and the result is then handed
+        //   `.WithLeadingTrivia(node.GetLeadingTrivia())` — so a comment above a wrapped call was
+        //   emitted TWICE: once inside `TrackEnumerable( … )` and once outside it.
+        //
+        //   That is not cosmetic. Each duplicated comment line adds a newline, and the REPL anchors
+        //   diagnostics with a SINGLE `#line 1 "script"` directive (ReplSessionManager) — which
+        //   renumbers from the first line only. Every duplicated comment therefore pushed every
+        //   LATER diagnostic down by one. Measured live against TestModel: a script with one
+        //   comment above the error reported the error +1, with two comments +2, with none +0.
+        //   That is the reviewer's "two errors reported at 7 and 8 when they were on 5 and 6", and
+        //   it quoted the wrong source line beside it.
+        //
+        //   Inner trivia is still preserved — a comment INSIDE a chain (`x\n// why\n.Where(...)`)
+        //   is not the node's leading trivia and survives. Only the node's own outer trivia moves,
+        //   and it still moves exactly once, to the wrapper.
         private static InvocationExpressionSyntax WrapWithTrackSource(InvocationExpressionSyntax node)
         {
             try
             {
-                var innerText = node.ToFullString();
+                var innerText = node.WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString();
                 var wrapped = SyntaxFactory.ParseExpression(
                     $"CoreScript.Engine.Globals.ExecutionGlobals.TrackSource({innerText})");
                 return ((InvocationExpressionSyntax)wrapped)
@@ -178,7 +220,7 @@ namespace CoreScript.Engine.Core.Rewriters
         {
             try
             {
-                var innerText = node.ToFullString();
+                var innerText = node.WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString();
                 var wrapped = SyntaxFactory.ParseExpression(
                     $"CoreScript.Engine.Globals.ExecutionGlobals.TrackEnumerable({innerText})");
                 return ((InvocationExpressionSyntax)wrapped)
@@ -196,7 +238,7 @@ namespace CoreScript.Engine.Core.Rewriters
         {
             try
             {
-                var innerText = node.ToFullString();
+                var innerText = node.WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString();
                 var wrapped = SyntaxFactory.ParseExpression(
                     $"CoreScript.Engine.Globals.ExecutionGlobals.TrackSingle({innerText})");
                 return ((InvocationExpressionSyntax)wrapped)
