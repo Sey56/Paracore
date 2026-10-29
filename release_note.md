@@ -1,3 +1,15 @@
+> **STATUS: HISTORICAL — this file describes v4.2.0 and stops there.**
+>
+> The release notes for the CURRENT release live in the help site:
+> `paracore-help/docs/release-notes.md` (authoritative, covers V4.3.0 → V4.8.1).
+>
+> ⚠ This file sat unchanged from 2026-06-21 while six releases shipped, so anyone who
+> opened it to ask "what is the current release?" got `v4.2.0` — a false answer, in the
+> repository root, with a confident title. It is kept (not deleted) because it is a true
+> record of v4.2.0 and something outside this repo may link to it, but it must never be
+> read as current. Nothing in code reads this file: `grep -rln release_note` over
+> `paracore/` and `paracore-help/` matches only agent memory notes.
+
 # Paracore v4.2.0 — The BIM Laboratory & Intelligence Update
 
 V4.2.0 is a massive milestone that transforms Paracore from a script orchestrator into a full-scale **BIM Laboratory**. 
