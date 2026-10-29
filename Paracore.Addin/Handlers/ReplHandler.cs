@@ -63,8 +63,14 @@ namespace Paracore.Addin.Handlers
 
         private static bool ContainsWriteOperations(string code)
         {
+            // ⚠ Scan the CODE, not the prose — the same rule FindAgentPolicyViolation and the
+            //   Python guard already follow. Without this, a read-only snippet containing the
+            //   comment "never do new Transaction(Doc)" was refused as if it opened one.
+            //   Measured 2026-10-29 from the frozen MCP: the Python layer allowed the query and
+            //   THIS layer refused it, so the fix was real in one place and inert in the other.
+            string scanned = StripCodeNoise(code);
             foreach (var pattern in _writePatterns)
-                if (code.Contains(pattern)) return true;
+                if (scanned.Contains(pattern)) return true;
             return false;
         }
 
@@ -212,9 +218,22 @@ namespace Paracore.Addin.Handlers
             // ⚠ Scan the CODE, not the prose — see StripCodeNoise. Without this a comment that
             //   says "never call Process.Start" was refused as if it were the call.
             string scanned = StripCodeNoise(code);
+
+            // ⚠ And scan it a SECOND time with namespace prefixes blanked, because every
+            //   constructor rule here is anchored `new\s+<Type>\s*\(`. Measured 2026-10-29:
+            //   `new Thread(` was refused and `new System.Threading.Thread(` EXECUTED — the
+            //   long name walked past the rule written for the short one. Both texts are
+            //   tested, so a rule that keys on the namespace (`System.Net`) keeps its hit.
+            string normalized = BlankNamespacePrefixes(scanned);
+            bool differs = !string.Equals(normalized, scanned, System.StringComparison.Ordinal);
+
             foreach (var (pattern, reason) in _agentPolicyPatterns)
+            {
                 if (System.Text.RegularExpressions.Regex.IsMatch(scanned, pattern))
                     return reason;
+                if (differs && System.Text.RegularExpressions.Regex.IsMatch(normalized, pattern))
+                    return reason;
+            }
             return null;
         }
 
@@ -239,6 +258,51 @@ namespace Paracore.Addin.Handlers
             if (string.IsNullOrEmpty(code)) return code ?? string.Empty;
             return _codeNoise.Replace(code, m =>
                 System.Text.RegularExpressions.Regex.Replace(m.Value, @"[^\n]", " "));
+        }
+
+        /// <summary>
+        /// `new A.B.Type(` → `new      Type(`. The namespace prefix of a constructor call,
+        /// replaced by spaces so every offset and line number survives.
+        ///
+        /// <para>
+        /// ⚠⚠ A RULE WRITTEN AGAINST A SHORT NAME IS DEFEATED BY THE LONG ONE (2026-10-29).
+        /// Every constructor rule in <see cref="_agentPolicyPatterns"/> is anchored
+        /// <c>new\s+&lt;Type&gt;\s*\(</c>, so it only fires when the type name follows `new`
+        /// with whitespace between. Measured: <c>new Thread(</c> was refused and
+        /// <c>new System.Threading.Thread(</c> ran. Adding <c>(?:\w+\.)*</c> to eleven patterns
+        /// would fix eleven cases and leave the twelfth — the one written next month — broken.
+        /// Blanking the prefix once fixes the class. Mirrors <c>blank_qualified_new</c> in
+        /// mcp_core/tool_helpers.py.
+        /// </para>
+        /// <para>
+        /// ⚠ Newlines inside a prefix are PRESERVED as newlines, so a multi-line call keeps its
+        /// line numbers. <c>\s</c> matches a newline, so the rule still fires afterwards.
+        /// </para>
+        /// </summary>
+        private static readonly System.Text.RegularExpressions.Regex _qualifiedNew =
+            new System.Text.RegularExpressions.Regex(
+                @"\bnew\s+((?:[A-Za-z_]\w*\s*(?:\.|::)\s*)+)([A-Za-z_]\w*)",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        private static string BlankNamespacePrefixes(string code)
+        {
+            if (string.IsNullOrEmpty(code) || code.IndexOf("new", System.StringComparison.Ordinal) < 0)
+                return code ?? string.Empty;
+
+            var buffer = new System.Text.StringBuilder(code);
+            bool changed = false;
+            foreach (System.Text.RegularExpressions.Match m in _qualifiedNew.Matches(code))
+            {
+                int start = m.Groups[1].Index;
+                for (int i = 0; i < m.Groups[1].Length; i++)
+                {
+                    char c = buffer[start + i];
+                    if (c == '\n' || c == '\r') continue;
+                    buffer[start + i] = ' ';
+                    changed = true;
+                }
+            }
+            return changed ? buffer.ToString() : code;
         }
 
         /// <summary>

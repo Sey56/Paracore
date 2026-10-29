@@ -395,28 +395,73 @@ _BULK_PATTERNS = [
 
 # Anything that narrows a collection to ONE element. `GetElement`/`ToElement` return a single
 # Element outright; the LINQ terminals are the usual way to reach one from a query.
+#
+# ⚠ THE CREATORS COUNT TOO (2026-10-29). `Wall.Create(...)`, `doc.Create.NewFamilyInstance(...)`
+# and `.Duplicate(...)` each RETURN one element, so `var w = Wall.Create(...); w.Delete();` is a
+# delete of exactly one wall. Without them the detector fell back to "unknown receiver" and
+# printed BULK OPERATION for a single element — measured live on the big model, inside a
+# `Transact` lambda. A warning that fires on correct code teaches the caller to skim past the
+# ones that are right, which is the failure this whole helper exists to avoid.
+# `Create` cannot over-match `doc.Create.NewFamilyInstance(` — that has a `.` after `Create`,
+# not the `(` this pattern requires.
+# ⚠ THE LEADING DOT IS OPTIONAL. `GetElement(359588).Delete()` calls the selector on the
+# engine's static surface, not on a receiver, so there is no dot to match — the first version
+# of this pattern reported that delete as bulk. (Measured offline, 2026-10-29.)
 _SINGLE_ELEMENT = re.compile(
-    r"\.(?:First|FirstOrDefault|Last|LastOrDefault|Single|SingleOrDefault|"
-    r"ElementAt|ElementAtOrDefault|GetElement|ToElement)\s*\("
+    r"\.?(?:First|FirstOrDefault|Last|LastOrDefault|Single|SingleOrDefault|"
+    r"ElementAt|ElementAtOrDefault|GetElement|ToElement|"
+    r"Create|NewFamilyInstance|Duplicate)\s*\("
 )
 
+# `var w = <expr>;` — the RHS is captured so _single_element_vars can tell a variable that
+# holds ONE element from one that holds a collection. `[^;]` spans newlines on its own, which
+# is what a chained call split across lines needs.
+_ASSIGNMENT = re.compile(r"\b(?:var|Element|dynamic)\s+(\w+)\s*=\s*([^;]*);")
 
-def _is_single_element_call(text: str, at: int) -> bool:
+
+def _single_element_vars(code: str) -> set:
+    """Variable names assigned from an expression that yields ONE element.
+
+    ⚠⚠ WHY (2026-10-29, second release review). The single-element check was
+    STATEMENT-LOCAL, so this read as an unknown collection:
+
+        var w = GetElements("Walls").First();
+        w.Delete();
+
+    and fired "BULK OPERATION DETECTED: .Delete() — bulk delete on ALL filtered
+    elements" for a delete of exactly one wall. The reviewer hit it with a
+    single-element .Delete() and a one-wall .Hide(). A warning that fires on correct
+    code trains the caller to ignore warnings — the same failure class as the
+    "has no spaces" note, which is why that one was narrowed too.
+    """
+    return {
+        m.group(1)
+        for m in _ASSIGNMENT.finditer(code)
+        if _SINGLE_ELEMENT.search(m.group(2))
+    }
+
+
+def _is_single_element_call(text: str, at: int, single_vars=frozenset()) -> bool:
     """True when the receiver chain immediately before `at` yields ONE element.
 
     The chain is read from the start of the enclosing statement, so `doors.First()` and the
-    `.Hide()` that follows it are looked at together.
+    `.Hide()` that follows it are looked at together. A bare variable that was ASSIGNED from
+    such an expression counts too — see _single_element_vars.
     """
     start = max(text.rfind(";", 0, at), text.rfind("}", 0, at), text.rfind("{", 0, at))
-    return _SINGLE_ELEMENT.search(text[start + 1:at]) is not None
+    chain = text[start + 1:at]
+    if _SINGLE_ELEMENT.search(chain) is not None:
+        return True
+    return chain.strip() in single_vars
 
 
 def bulk_operation_warnings(csharp_code: str) -> list:
     """One advisory per bulk-write method used on a COLLECTION. Never blocks."""
     warnings = []
+    single_vars = _single_element_vars(csharp_code)
     for pattern, desc in _BULK_PATTERNS:
         for match in re.finditer(pattern, csharp_code):
-            if not _is_single_element_call(csharp_code, match.start()):
+            if not _is_single_element_call(csharp_code, match.start(), single_vars):
                 warnings.append(desc)
                 break
     return warnings
@@ -667,6 +712,12 @@ BEFORE YOU CHANGE A VALUE — read it first, and say what it was:
     from your transcript — so read first, then write, then report old → new.
   ⚠ Never describe a value as "the original" unless you actually read it. If you are
     restoring something you never captured, SAY SO and ask instead of assuming 0 / "".
+  ⚠ A rejected write RAISES — a read-only parameter or a misspelled name is an
+    InvalidOperationException, not a warning. Do not treat "the script continued" as success.
+  ⚠ A geometric write CASCADES: `modified 23` for one wall is Revit recomputing rooms,
+    hosted doors and joins. Read the count, and re-read room areas after moving walls.
+  ⚠ If the result says a Revit DIALOG was answered by the watcher, TELL THE USER —
+    they did not see it and did not choose the answer.
 
 PROJECT INFO: Doc.ProjectInformation.Name, Doc.Title, Doc.PathName, Doc.IsWorkshared
 
@@ -831,41 +882,6 @@ def get_context_report() -> str:
             out.append(f"  {lvl.get('name')}   (Id {lvl.get('id')})   elevation {elev_str}")
 
     return "\n".join(out)
-
-
-def pick_object_report(selection_type: str = "Element", category_filter: str = "") -> str:
-    """
-    Let the user click an element in Revit and hand it back to the agent.
-
-    Blocks until the user picks or cancels. Revit's UI thread is held during the pick,
-    which is expected for an interactive selection.
-    """
-    from grpc_client import pick_object
-
-    result = pick_object(selection_type, category_filter or None)
-
-    if result.get("cancelled"):
-        return (
-            "The user cancelled the pick (or nothing was selected in time). "
-            "Nothing was picked — ask what they would like to select, or pick again."
-        )
-    if not result.get("is_success"):
-        return f"Pick failed: {result.get('error_message', 'unknown error')}"
-
-    value = (result.get("value") or "").strip()
-    if not value:
-        return "The pick succeeded but returned no value."
-
-    try:
-        element_id = int(value)
-    except ValueError:
-        return f"User picked: {value}"
-
-    return (
-        f"User picked element Id {element_id}.\n\n"
-        f"Resolve it in a query with id.ToElement(Doc), or read it with "
-        f'GetElements(...).WhereParam("Id", "{element_id}").'
-    )
 
 
 # ── View export — the agent's eyes ─────────────────────────────────────────

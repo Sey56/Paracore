@@ -206,6 +206,17 @@ _PARAM_NAME_CALL_RE = re.compile(
 # the captured argument above.
 _SUSPICIOUS_NAME_RE = re.compile(r'^[A-Z][^" ]*[a-z][A-Z][^" ]*$')
 
+# ⚠⚠ NAMES THE ENGINE ANSWERS WITHOUT A PARAMETER EXISTING. GetStr/GetNum resolve these
+#    from the element itself (ElementExtensions._isElementIdName), so they are correct
+#    code and must not be flagged — the whole point of narrowing this check was to stop it
+#    firing on correct code. Measured 2026-10-29: `WhereParam("ElementId", "359588")`
+#    returned the right wall AND earned a "has no spaces — Revit parameters use spaces"
+#    note, which invites the caller to "fix" a call that just worked.
+#    "ElementId" is the only member that also matches _SUSPICIOUS_NAME_RE ("Id" has no
+#    lower→upper transition); the rest of the magic vocabulary — Level, Name, Category,
+#    Type, Family — never reached this check. Mirrors the C#; keep the two in step.
+_ENGINE_RESOLVED_NAMES = frozenset({"id", "elementid"})
+
 
 def check_suspicious_param_names(code: str) -> str:
     """Find parameter-name arguments that are PascalCase (no spaces) and NOT in the schema cache.
@@ -214,7 +225,8 @@ def check_suspicious_param_names(code: str) -> str:
     Does NOT block execution — real params like StopDepth/IfcGUID exist.
     """
     suspicious = [n for n in _PARAM_NAME_CALL_RE.findall(code)
-                  if _SUSPICIOUS_NAME_RE.match(n)]
+                  if _SUSPICIOUS_NAME_RE.match(n)
+                  and n.lower() not in _ENGINE_RESOLVED_NAMES]
     if not suspicious:
         return ""
 
@@ -276,6 +288,60 @@ _NOISE = re.compile(
 def strip_code_noise(code: str) -> str:
     """Blank out comment bodies and string/char literal contents, preserving every offset."""
     return _NOISE.sub(lambda m: re.sub(r'[^\n]', ' ', m.group(0)), code)
+
+
+# ── Qualified constructor names ───────────────────────────────────────────────
+# ⚠⚠ A RULE WRITTEN AGAINST A SHORT NAME IS DEFEATED BY THE LONG ONE (2026-10-29).
+#   Every constructor rule in this module is anchored `new\s+<Type>\s*\(`, which requires
+#   the type name to follow `new` with only whitespace between. Measured: `new Thread(`
+#   was refused and `new System.Threading.Thread(` was NOT — it executed. The same hole let
+#   `new Autodesk.Revit.DB.Transaction(` past the read-only scan. (The always-rollback
+#   group still discarded that write, so it was a message defect rather than corruption —
+#   but the guard's own docstring calls the silent-rollback outcome "worse than this
+#   refusal", so the refusal has to fire.)
+#
+#   The wrong fix is `(?:\w+\.)*` in front of eleven patterns, because pattern twelve
+#   would be written next month without it. So the namespace prefix is BLANKED once,
+#   before any rule runs, and every rule keeps reading the short name.
+#
+#   ⚠ Length-preserving on purpose: offsets and line numbers must survive a scan that
+#     later reports a line.
+#   ⚠ The BLANKED text is scanned IN ADDITION to the original, never instead of it — a
+#     rule that keys on the NAMESPACE (`System.Net`, `System.Runtime.InteropServices`)
+#     would otherwise lose its only hit. See _hits().
+_QUALIFIED_NEW = re.compile(r'\bnew\s+((?:[A-Za-z_]\w*\s*(?:\.|::)\s*)+)([A-Za-z_]\w*)')
+
+
+def blank_qualified_new(code: str) -> str:
+    """Turn `new A.B.Type(` into `new      Type(` without moving a single character.
+
+    Returns the input unchanged when there is nothing to blank, so callers can pass the
+    result straight through.
+    """
+    if not code or 'new' not in code:
+        return code
+    out: list[str] = []
+    last = 0
+    for m in _QUALIFIED_NEW.finditer(code):
+        out.append(code[last:m.start(1)])
+        out.append(' ' * (m.end(1) - m.start(1)))
+        last = m.end(1)
+    if not out:
+        return code
+    out.append(code[last:])
+    return ''.join(out)
+
+
+def _hits(pattern: str, code: str, normalized: str = '') -> bool:
+    """True when `pattern` matches the code as written OR with namespace prefixes blanked.
+
+    ⚠ Both texts, never only the normalized one: blanking removes the namespace, and a
+    rule such as `System.Net` exists precisely to match it. Scanning only the normalized
+    text would trade one hole for another.
+    """
+    if re.search(pattern, code, re.IGNORECASE | re.DOTALL):
+        return True
+    return bool(normalized) and re.search(pattern, normalized, re.IGNORECASE | re.DOTALL) is not None
 
 
 _BLOCKED_ALWAYS: list[tuple[str, str]] = [
@@ -401,15 +467,17 @@ def check_dangerous_patterns(code: str, agent_only: bool = True) -> Optional[str
     issues: list[str] = []
     seen: set[str] = set()
 
-    # ⚠ Scan the CODE, not the prose — see strip_code_noise. This is the only change a caller
-    #   can observe from the two lists below: a name inside a comment no longer counts.
+    # ⚠ Scan the CODE, not the prose — see strip_code_noise. And scan it twice: as written,
+    #   and with namespace prefixes blanked, so `new System.Threading.Thread(` is refused by
+    #   the rule written for `new Thread(`. See blank_qualified_new.
     code = strip_code_noise(code)
+    normalized = blank_qualified_new(code)
 
     # Tier 1: Always blocked — no legitimate use case in any context
     for pattern, suggestion in _BLOCKED_ALWAYS:
         if suggestion in seen:
             continue
-        if re.search(pattern, code, re.IGNORECASE | re.DOTALL):
+        if _hits(pattern, code, normalized):
             issues.append(suggestion)
             seen.add(suggestion)
 
@@ -418,7 +486,7 @@ def check_dangerous_patterns(code: str, agent_only: bool = True) -> Optional[str
         for pattern, suggestion in _BLOCKED_AGENT_ONLY:
             if suggestion in seen:
                 continue
-            if re.search(pattern, code, re.IGNORECASE | re.DOTALL):
+            if _hits(pattern, code, normalized):
                 issues.append(suggestion)
                 seen.add(suggestion)
 
@@ -485,7 +553,11 @@ def check_read_only_violation(code: str) -> Optional[str]:
     refusal never costs a correct query. A guard that fires on correct code trains
     the caller to route around it — the failure this module exists to avoid.
     """
-    issues = _scan(code, _READ_ONLY_WRITE_PATTERNS)
+    # ⚠ Scan the CODE, not the prose — the rule check_dangerous_patterns already follows.
+    #   Without this, an exploration snippet containing the comment "never `new Transaction(`"
+    #   was refused as if it opened one, and a guard that fires on a correct query teaches
+    #   the caller to route around it — the failure this module exists to avoid.
+    issues = _scan(strip_code_noise(code), _READ_ONLY_WRITE_PATTERNS)
     if not issues:
         return None
 
@@ -634,10 +706,15 @@ def check_agent_file_policy(code: str, source: str) -> Optional[str]:
 
     # ⚠ Scan the CODE, not the prose — see strip_code_noise. Mirrored in ReplHandler.cs
     #   (StripCodeNoise), so the two layers agree on what counts as a call.
+    # ⚠ And scan the SHORT NAME too: this list is the file/network policy, so a hole here
+    #   is the expensive kind. `new System.IO.StreamWriter(` walked past
+    #   `new\s+StreamWriter\s*\(` and was measured executing from the frozen exe
+    #   (2026-10-29). See blank_qualified_new.
     code = strip_code_noise(code)
+    normalized = blank_qualified_new(code)
 
     for pattern, reason in _AGENT_FILE_POLICY:
-        if re.search(pattern, code):
+        if _hits(pattern, code, normalized):
             return (
                 f"BLOCKED — agent file policy: {reason}.\n\n"
                 "Agent code MAY create a new file and MAY read files. It may NEVER replace, "
@@ -664,13 +741,23 @@ def check_agent_file_policy(code: str, source: str) -> Optional[str]:
 
 
 def _scan(code: str, rules: list[tuple[str, str]]) -> list[str]:
-    """Return the deduplicated messages for every rule that matches."""
+    """Return the deduplicated messages for every rule that matches.
+
+    ⚠ Namespace prefixes are blanked before matching (see blank_qualified_new) so a rule
+      written against `new Type(` also refuses `new A.B.Type(`. Both texts are tested, so a
+      rule that keys on the namespace itself keeps its hit.
+    ⚠ Prose is NOT stripped here, on purpose. `_LINT_RULES` reads string literals by
+      design — `.get_Parameter("Name")` only matches while the quotes are still there.
+      A caller that must ignore comments and strings strips them itself
+      (check_dangerous_patterns, check_read_only_violation).
+    """
+    normalized = blank_qualified_new(code)
     issues: list[str] = []
     seen: set[str] = set()
     for pattern, message in rules:
         if message in seen:
             continue
-        if re.search(pattern, code, re.IGNORECASE | re.DOTALL):
+        if _hits(pattern, code, normalized):
             issues.append(message)
             seen.add(message)
     return issues
@@ -707,16 +794,24 @@ def lint_paracore_conventions(code: str) -> Optional[str]:
     """
     issues = _scan(code, _LINT_RULES)
 
-    # foreach + .SetVal()/.SetNum() without Transact(): runs fine, but creates one
-    # undo entry per iteration instead of one for the whole loop.
-    if (re.search(r'foreach\s*\(', code)
-            and re.search(r'\.Set(?:Val|Num)\s*\(', code)
-            and not re.search(r'Transact\s*\(', code)):
-        issues.append(
-            'foreach with .SetVal()/.SetNum() is not wrapped in Transact(). It will run, '
-            'but each iteration creates its own undo entry, cluttering the undo stack. '
-            'Wrap the loop: Transact("label", () => { foreach (...) { e.SetVal(...); } }).'
-        )
+    # ── TRANSACTION GRANULARITY: deliberately NOT checked here ───────────────
+    # ⚠ This used to warn when `foreach` and `.SetVal(`/`.SetNum(` merely APPEARED in
+    #   the same snippet, with no `Transact(` anywhere. A co-presence test cannot tell
+    #   whether the write is INSIDE the loop, so it fired on correct code:
+    #
+    #       var n = 0;
+    #       foreach (var w in GetElements("Walls")) { n++; }   // read-only loop
+    #       GetElements("Walls").First().SetVal("Comments", "x");  // write AFTER it
+    #       -> warned, wrongly.   (measured 2026-10-29)
+    #
+    #   A warning that cries wolf is worse than no warning, because it trains the agent
+    #   to ignore the one that matters.
+    #
+    #   The accurate rule needs semantics: resolve the RECEIVER TYPE (so a collection
+    #   `.SetParam()` — which already wraps one transaction — is exempt) and prove the
+    #   call sits inside the loop body with no enclosing `Transact`. That lives in
+    #   `CoreScript.Engine.Core.TransactionGranularityAdvisory`, which now runs on BOTH
+    #   execution paths and reports `line:column`. One definition, in the engine.
 
     if not issues:
         return None
@@ -799,89 +894,138 @@ def search_extension_methods(query: str, doc: str) -> str:
 
     # ── Pass 2: section header match ─────────────────────────────────────
     # Section headers: ## Section Name
+    #
+    # ⚠⚠ THE TABLE OF CONTENTS IS A `## ` HEADING TOO. Found 2026-10-28 while verifying the
+    #   review fix: `query="Table"` matched "## 📖 Table of Contents" and returned the
+    #   contents page — a technically correct section and a useless answer, for the single
+    #   most-used display method in the engine. The TOC is navigation, never an answer, so
+    #   both passes skip it.
     for word in words:
         for i, line in enumerate(lines):
             if line.startswith("## ") and word.lower() in line.lower():
+                if "table of contents" in line.lower():
+                    continue
                 return _extract_section(lines, i)
 
-    # ── Pass 3: keyword search with context ──────────────────────────────
-    match_indices: set[int] = set()
+    # ── Pass 3: whole sections that mention the keyword ──────────────────
+    #
+    # ⚠⚠ REWRITTEN 2026-10-28 (release review). This pass used to take a ±2-line window
+    #   around every match and staple on "the nearest header", found by walking back up to
+    #   30 lines. Measured on query="WhereParam", that produced output that reads as a
+    #   corrupted document:
+    #     • a sentence cut mid-way — "Category matching is exactly as lenient as the"
+    #     • an orphan ``` with no opening fence, and a ```csharp block never closed
+    #     • a heading belonging to a DIFFERENT section printed above a fragment
+    #   A window is not an extraction. A section is the document's own unit, so emit whole
+    #   sections, once each, and never cut inside a fence — `_section_text` guarantees that.
+    section_starts: list[int] = []
     for i, line in enumerate(lines):
-        line_lower = line.lower()
-        if any(word.lower() in line_lower for word in words):
-            match_indices.add(i)
+        if any(word.lower() in line.lower() for word in words):
+            start = _enclosing_section(lines, i)
+            if "table of contents" in lines[start].lower():
+                continue          # navigation, not content — see the note in Pass 2
+            if start not in section_starts:
+                section_starts.append(start)
 
-    if not match_indices:
+    if not section_starts:
         # Return the TOC + first 2000 chars as fallback
         toc_end = next((i for i, l in enumerate(lines) if l.startswith("## ") and i > 5), 60)
         return ("No direct matches. Here is the table of contents:\n\n"
                 + "\n".join(lines[12:toc_end])
                 + f"\n\nFirst section:\n\n" + "\n".join(lines[toc_end:toc_end + 60]))
 
-    # Expand ±2 lines, group into contiguous blocks
-    expanded: set[int] = set()
-    for i in match_indices:
-        for j in range(max(0, i - 2), min(len(lines), i + 3)):
-            expanded.add(j)
-    sorted_indices = sorted(expanded)
-
-    blocks: list[list[int]] = []
-    block: list[int] = []
-    for i in sorted_indices:
-        if block and i > block[-1] + 1:
-            blocks.append(block)
-            block = []
-        block.append(i)
-    if block:
-        blocks.append(block)
-
-    # Build output — each block prefixed with its section header
     out_lines: list[str] = [f"Found references to '{query}':"]
-    for b in blocks[:5]:  # max 5 blocks
-        # Try to find a section header just above this block
-        header = _find_nearest_header(lines, b[0])
-        if header:
-            out_lines.append(f"\n### {header}")
-        for i in b:
-            out_lines.append(lines[i])
-        if len(out_lines) > 120:
-            out_lines.append("... (truncated)")
-            break
+    not_shown: list[str] = []
+    used = 0
+    for start in section_starts:
+        body = _section_text(lines, start)
+        if used and used + len(body) > 12000:
+            not_shown.append(_section_title(lines, start))
+            continue
+        out_lines.append("")
+        out_lines.append(body)
+        used += len(body)
+
+    if not_shown:
+        # Name what was dropped. Silence here is how a caller concludes "that is all of it".
+        out_lines.append("")
+        out_lines.append(
+            f"… {len(not_shown)} more section(s) mention '{query}' and were NOT shown: "
+            + "; ".join(not_shown)
+            + ". Ask again with a more specific query to get one of them whole."
+        )
 
     return "\n".join(out_lines)
 
 
-def _extract_subsection(lines: list[str], start: int, method_name: str) -> str:
-    """Extract a method's subsection: from its ### header to the next ## or ###."""
-    out = [f"## {method_name}\n"]
-    for i in range(start, min(len(lines), start + 80)):
+def _block_text(lines: list[str], start: int, end: int, *, header: str = "",
+                budget: int = 4000) -> str:
+    """Join lines[start:end], never leaving a ``` fence open and never cutting short.
+
+    ⚠⚠ The old extractors cut at a fixed LINE COUNT (`start + 80`), which lands wherever the
+    80th line happens to be — inside a code fence, or halfway through a paragraph. The
+    release review saw both at once: an orphan ``` and a sentence ending at "…exactly as
+    lenient as the". Budget by CHARACTERS, and only stop on a line where the fence is
+    CLOSED, so the caller can never receive a dangling fence.
+    """
+    body: list[str] = []
+    in_fence = False
+    size = 0
+    for i in range(start, end):
         line = lines[i]
-        if i > start and (line.startswith("## ") or line.startswith("### `")):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+        body.append(line)
+        size += len(line) + 1
+        if size >= budget and not in_fence:
+            return ((f"{header}\n\n" if header else "")
+                    + "\n".join(body).rstrip()
+                    + f"\n\n… [this block continues past {len(body)} lines — ask for a "
+                      "narrower query to get the rest.]")
+    if in_fence:
+        body.append("```")          # a malformed source must not break the caller's view
+    return (f"{header}\n\n" if header else "") + "\n".join(body).rstrip()
+
+
+def _enclosing_section(lines: list[str], index: int) -> int:
+    """Index of the nearest `## ` heading at or above `index` (0 when the doc has none)."""
+    for i in range(index, -1, -1):
+        if lines[i].startswith("## "):
+            return i
+    return 0
+
+
+def _section_title(lines: list[str], start: int) -> str:
+    return lines[start].strip("# ").strip() if 0 <= start < len(lines) else "(no heading)"
+
+
+def _section_end(lines: list[str], start: int) -> int:
+    """Exclusive end of the section beginning at `start`."""
+    for i in range(start + 1, len(lines)):
+        if lines[i].startswith("## "):
+            return i
+    return len(lines)
+
+
+def _section_text(lines: list[str], start: int, budget: int = 4000) -> str:
+    """One whole `## ` section, fence-safe and budgeted."""
+    return _block_text(lines, start, _section_end(lines, start), budget=budget)
+
+
+def _extract_subsection(lines: list[str], start: int, method_name: str) -> str:
+    """A method's subsection: its ### header to the next ## or ### ` — fence-safe."""
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        line = lines[i]
+        if line.startswith("## ") or line.startswith("### `"):
+            end = i
             break
-        out.append(line)
-    return "\n".join(out)
+    return _block_text(lines, start, end, header=f"## {method_name}")
 
 
 def _extract_section(lines: list[str], start: int) -> str:
-    """Extract a full section: from its ## header to the next ## header."""
-    out = []
-    for i in range(start, min(len(lines), start + 100)):
-        line = lines[i]
-        if i > start and line.startswith("## "):
-            break
-        out.append(line)
-    if len(out) > 80:
-        out = out[:80]
-        out.append("... (section truncated)")
-    return "\n".join(out)
-
-
-def _find_nearest_header(lines: list[str], index: int) -> Optional[str]:
-    """Walk backwards from index to find the nearest ## or ### header."""
-    for i in range(index, max(0, index - 30), -1):
-        if lines[i].startswith("## ") or lines[i].startswith("### "):
-            return lines[i].strip("# ")
-    return None
+    """A full section: its ## header to the next ## header — fence-safe."""
+    return _section_text(lines, start)
 
 
 def summarize_execution_result(result: Dict[str, Any]) -> str:
@@ -1018,23 +1162,52 @@ def _annotate_compile_errors(error_text: str, source_code: str) -> Optional[str]
     if not diags:
         return None
 
-    # ⚠⚠ THE ENGINE CAN CLAIM "your coordinates" AND STILL BE +2 (measured 2026-10-27).
-    #   A REPL diagnostic that falls outside the `#line 1 "script"` region is reported in
-    #   PHYSICAL coordinates — the three-line prelude included — yet still carries the
-    #   filename, which is the marker this function reads as "already mapped". The review hit
-    #   exactly that: a missing `;` on the user's line 8 came back as "engine line 10 ...
-    #   outside your snippet" under a header asserting those were the user's own numbers.
+    # ⚠⚠ THE ENGINE CAN CLAIM "your coordinates" AND STILL BE SHIFTED.
+    #   A diagnostic that falls outside the `#line 1 "script"` region is reported in PHYSICAL
+    #   coordinates yet still carries the filename — the marker this function used to read as
+    #   "already mapped". Two known causes: the injected prelude (+2), and — found 2026-10-29 —
+    #   `PipelineTrackingRewriter` emitting a wrapped call's leading COMMENT twice, which adds a
+    #   newline per comment line. Measured live: one comment above the error drifted +1, two
+    #   comments +2, none +0. That was the reviewer's "errors on 5 and 6 reported as 7 and 8".
     #
-    #   The shift is CONSTANT within one submission, so it is detected ONCE — from the
-    #   provable case, a number past the end of the snippet that lands inside it after the
-    #   subtraction — and then applied to the whole batch. A number that is in range but
-    #   still shifted cannot be detected from here, and is left alone rather than guessed at.
+    #   The old detector only fired when a number ran PAST the end of the snippet, so the
+    #   reviewer's in-range drift (7 of 8 lines) went straight through and the annotation quoted
+    #   `// filter` as the failing line.
+    #
+    #   ⚠ The shift is CONSTANT within one submission, so it is chosen ONCE for the whole batch
+    #     from evidence that is impossible to fake:
+    #       * a line outside 1..n cannot be the user's;
+    #       * a column past the end of its line cannot carry a caret.
+    #     Among the offsets that pass, prefer one where every diagnostic lands on REAL code —
+    #     a compile error is never on a blank or comment-only line — and prefer 0 otherwise,
+    #     so an ambiguous batch is left alone rather than "corrected" into a new wrong answer.
+    def _offset_fits(offset: int) -> bool:
+        for rep, col, _c, _m, has_file in diags:
+            if not has_file:
+                continue
+            ln = rep - offset
+            if not (1 <= ln <= n_lines):
+                return False
+            if col > len(lines[ln - 1]) + 1:
+                return False
+        return True
+
+    def _offset_lands_on_code(offset: int) -> bool:
+        for rep, _col, _c, _m, has_file in diags:
+            if not has_file:
+                continue
+            text = lines[rep - offset - 1].strip()
+            if not text or text.startswith("//") or text.startswith("/*") or text.startswith("*"):
+                return False
+        return True
+
     claimed_offset = 0
-    for reported, _col, _code, _msg, has_file in diags:
-        if (has_file and reported > n_lines
-                and 1 <= reported - _ENGINE_PREFIX_LINES <= n_lines):
-            claimed_offset = _ENGINE_PREFIX_LINES
-            break
+    if any(d[4] for d in diags):
+        fits = [k for k in range(0, 5) if _offset_fits(k)]
+        on_code = [k for k in fits if _offset_lands_on_code(k)]
+        # `on_code` is ordered, so index 0 is the SMALLEST offset that explains every
+        # diagnostic — and offset 0 wins whenever it is genuinely plausible.
+        claimed_offset = on_code[0] if on_code else (fits[0] if fits else 0)
 
     out: List[str] = []
     seen: set[tuple[int, str]] = set()
@@ -1082,10 +1255,11 @@ def _annotate_compile_errors(error_text: str, source_code: str) -> Optional[str]
             f"+{_ENGINE_PREFIX_LINES}. Mapped back to your snippet:\n"
         )
     elif used_claimed_correction:
+        # ⚠ Not "the prelude" any more: the +N can also be duplicated comment lines. Say what
+        #   was measured (the shift) rather than guessing at the mechanism.
         header = (
-            f"⚠ The engine reported these as your coordinates, but they were "
-            f"+{claimed_offset}: its {_ENGINE_PREFIX_LINES}-line prelude was still counted. "
-            f"Mapped back to your snippet:\n"
+            f"⚠ The engine numbered these +{claimed_offset} even though they carried the "
+            f"filename, so they were NOT your coordinates. Mapped back to your snippet:\n"
         )
     else:
         header = "⚠ The engine reported these in YOUR coordinates:\n"

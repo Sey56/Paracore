@@ -53,6 +53,7 @@ QUERY (use Paracore methods, NOT raw Revit API):
   GetElements("Walls")  — NOT new FilteredElementCollector(Doc)
   GetElements<Wall>()   — typed retrieval
   .WhereParam("Name", "value")  — NOT .Where(e => e.Property)
+  .WhereParam("Id", 359588)     — an element Id is a valid name too (also "ElementId")
   .Table()  — NOT foreach+Println loops
 
 FORBIDDEN — these WILL fail:
@@ -73,6 +74,10 @@ PARAMETER NAMES — NEVER GUESS:
   and Structural Framing use "Reference Level". GetStr("Level") on a Wall
   silently returns empty — no error, just blank. Same for GroupByParam.
 
+  A name that NO element in the set declares now RAISES in WhereParam instead of
+  returning an empty result — so a typo can never look like "nothing matched".
+  The error names the categories it checked and suggests the closest real name.
+
   Discovery BEFORE filtering or grouping:
     → _search_schema("Category") for fast schema lookup
     → .First().CombinedParams().Table() for live parameter names + values
@@ -87,6 +92,26 @@ START EVERY SESSION WITH:
   3. list_skills  → the skill catalogue (which skill covers which operation)
   4. read_skill("<name>") for the skills relevant to the user's request
   5. Then explore. NEVER write code before reading the relevant skills.
+
+NEVER CALL `Pick()` — AND NEVER ASK THE USER TO CLICK FOR YOU. (operator ruling, 2026-10-28)
+  `Pick()` exists for a HUMAN writing a script by hand. It is the wrong tool for an agent,
+  and there is no way to make it right:
+    • It holds Revit's UI thread until the user clicks, and NOTHING you print reaches the
+      chat until it returns — so you cannot tell them in time. Measured on the operator's
+      screen: during a bare `Pick()` he saw only the generic "Running …", which appears for
+      every call. He had no way to know a pick was pending.
+    • Its only cue is Revit's status bar, which repaints on mouse activity — it is invisible
+      unless the pointer is already over Revit. The operator's verdict: "not useful at all."
+  WHAT TO DO INSTEAD — all of these are better, and none of them interrupts anyone:
+    1. THE USER SELECTS FIRST. `get_context` returns `Selection` (a List<Element>). If they
+       say "this wall", "these rooms", they have already selected it — read it.
+    2. ASK BY NAME OR PARAMETER. GetElements("Walls").WhereParam("Comments","contains","x").
+       `WhereMatches` searches element and family names. A category + a parameter narrows
+       almost anything a person would point at.
+    3. ASK THEM TO READ OUT AN ID. Every element has one, and `get_context` shows theirs.
+    4. ASK A QUESTION. "Which wall — the one on the south, or the 5065 one?" is one sentence
+       and costs nobody a modal state.
+  If none of that can name the element, say so and ask — do not reach for a pick.
 
 A DIALOG IS NOT YOURS TO CLOSE — THE WATCHER HANDLES IT:
   Revit is MODAL. When it raises a warning, error or task dialog while a script is
@@ -244,28 +269,6 @@ def _tool_get_context() -> str:
     """
     _t._SESSION.record_discovery()
     return _t.get_context_report()
-
-
-def _tool_pick_object(selection_type: str = "Element", category_filter: str = "") -> str:
-    """Ask the user to click an element in Revit, and get that element back.
-
-    Use when the request refers to something by pointing rather than by name — "this
-    wall", "the column I have open", "select the one I mean". Faster and less ambiguous
-    than asking the user to describe an element or read out an Id.
-
-    BLOCKS until the user picks or presses Escape (up to ~2 minutes). Revit's UI is held
-    during the pick, so tell the user to click in Revit before calling this, or they will
-    not know to act.
-
-    Args:
-        selection_type: "Element" (default), "Face", or "Edge".
-        category_filter: optional Revit category name to restrict what can be picked,
-            e.g. "Walls", "Doors", "Structural Columns".
-
-    Returns the picked element's Id, or a clear message if the user cancelled.
-    """
-    _t._SESSION.record_discovery()
-    return _t.pick_object_report(selection_type, category_filter)
 
 
 def _tool_export_view(view_name: str = "", pixel_size: int = 1200,
@@ -454,7 +457,6 @@ def _tool_get_globals() -> str:
 _COMMON_TOOLS: dict[str, Callable] = {
     "ping": _tool_ping,
     "get_context": _tool_get_context,
-    "pick_object": _tool_pick_object,
     "export_view": _tool_export_view,
     "_explore_revit_data": _tool_explore_revit_data,
     "_execute_dynamic_query": _tool_execute_dynamic_query,
